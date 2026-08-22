@@ -417,11 +417,15 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - agentic workflows combining prompts and explicit scripts through a readable workflow syntax;
 - optional delegation of scheduled workflows to a server while retaining the same policy, budget, event, and artifact model.
 
-### Continuous modes
+### Continuous modes and taggable agent personas
 
-- **Continuous Product Manager** — integrates product analytics such as PostHog, finds usage gaps and improvement opportunities, performs market research, records assumptions, creates issues, measures results after delivery, and reports findings back to the user;
-- **Continuous Maintenance** — a per-repository toggle for dependency, security, and update pull requests, including breaking-change remediation, policy-gated merging, and user-defined maintenance actions;
-- **Continuous Docs** — a per-repository documentation maintenance workflow.
+Continuous modes run as named agent personas with stable, configurable `@` handles. Users and other agents can tag a persona in messages, queued work, session groups, or workflows to request work, provide context, steer execution, or transfer ownership. Each mention resolves through the active profile and project so permissions, budgets, integrations, memory, and repository scope remain explicit.
+
+The personas below are examples, not a closed set. Users, projects, profiles, and plugins can define additional personas with custom names, `@` handles, prompts, skills, tools, models, policies, schedules, triggers, budgets, and memory scopes.
+
+- **`@product-manager` — Continuous Product Manager** — installs or configures product analytics such as PostHog, gains insights from usage, identifies metrics and missing capabilities to improve, performs market research, creates issues and explicit assumptions, measures results after implementation, and reports findings back to the user;
+- **`@maintenance` — Continuous Maintenance** — a per-repository toggle that keeps Dependabot and other dependency or security update pull requests moving through remediation and policy-gated merging, handles breaking changes, and runs additional user-defined maintenance actions;
+- **`@docs` — Continuous Docs** — a per-repository documentation persona that can be tagged for targeted work or run continuously under repository policy.
 
 ### Agent and team modes
 
