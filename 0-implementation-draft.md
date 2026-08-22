@@ -41,7 +41,7 @@ The goal is not another chat interface. The goal is an inspectable and durable w
 
 | Concept | Meaning |
 | --- | --- |
-| **Profile** | An isolated identity and policy context containing credential references, projects, provider configuration, budgets, integrations, and memory boundaries. |
+| **Profile** | An isolated identity and policy context with its own credential references—including different API keys for the same provider—plus projects, provider configuration, budgets, integrations, and memory boundaries. |
 | **Folder** | A collection of related projects or repositories that may participate in one stream of work. |
 | **Project** | A repository or local directory managed by Moguri. |
 | **Work item** | A durable objective such as an issue, pull request, maintenance task, or user-defined goal. |
@@ -129,13 +129,14 @@ Required properties:
 - crash-safe writes;
 - explicit schema migrations;
 - tombstones or trash before destructive deletion;
-- configurable retention with deletion disabled by default;
+- configurable retention by maximum age and/or storage size, with automatic deletion disabled by default;
+- archived sessions that remain visible, searchable, restorable, and individually deletable;
 - pinned artifacts excluded from session garbage collection;
 - export and backup paths that do not require internal database knowledge.
 
 ### Credentials and privacy
 
-Profiles store references to credentials held by the operating-system keychain or another explicit secret backend. Secrets must not be written to config files, events, logs, artifacts, prompts, or analytics.
+Profiles store references to credentials held by the operating-system keychain or another explicit secret backend. Each profile can use a different account or API key for the same provider. Credentials are shared between profiles only through explicit user configuration. Secrets must not be written to config files, events, logs, artifacts, prompts, or analytics.
 
 Moguri must disclose every remote connection it initiates. Product telemetry is opt-in. Local usage analytics remain local unless the user deliberately exports or shares them.
 
@@ -151,8 +152,10 @@ Initial surfaces:
 
 - project and work-item navigation;
 - active, idle, blocked, completed, failed, and archived sessions;
+- sidebar navigation and split-panel workflows;
 - command palette;
 - session detail and event trace;
+- compact and detailed rendering modes for messages, steering events, tools, MCP calls, and subagents;
 - message composer with persistent drafts;
 - editable message queue;
 - visible running processes and stop controls;
@@ -224,7 +227,9 @@ Initial artifact types:
 
 Artifacts include scope, provenance, source-event references, creation time, status, and revision history. They may attach to a work item, project, folder, or profile, but not only to a session.
 
-Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize into the repository, or delete them.
+When an agent asks a structured question, Moguri records the question and answer as source events and can materialize the answer as a durable artifact according to user or profile policy.
+
+Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, or delete them.
 
 ### 7. Telemetry, cost control, and dashboard
 
@@ -233,7 +238,7 @@ Capture enough data to answer:
 - what is running;
 - how long it has run;
 - what model and provider were used;
-- how many input, output, cached, system-prompt, tool-schema, and compaction tokens were reported or derived;
+- how many input, output, cached, system-prompt, message, tool-schema, tool-call, MCP-call, and compaction tokens were reported or derived;
 - which tools and MCP servers were called;
 - which calls failed, retried, or were cancelled;
 - how much the session is estimated to cost;
@@ -245,13 +250,17 @@ Initial dashboard views:
 - current session detail;
 - sessions over 7, 30, 60, 90, and 365 days;
 - selectable year, custom range, and all time;
-- usage and cost by project, profile, provider, model, and session;
+- usage and cost grouped by day, week, month, custom period, and all time;
+- global filtering by folder, project, repository, GitHub organization, repository visibility, profile, provider, model, and session;
 - wall time versus active model/tool time;
+- elapsed time for each command, subagent, session group, and complete session, with token usage where available;
 - compaction history;
 - tool and MCP failure rates;
-- archived sessions and storage usage.
+- archived sessions, deletion controls, and storage usage.
 
 Cost controls support warning and hard-stop thresholds at profile and session scope. Hard stops occur before another model request whenever possible; Moguri must not pretend it can recover already consumed provider cost.
+
+Token attribution below the provider-request level is derived unless the provider reports it directly. Moguri must label derived attribution and its limitations rather than present estimates as exact measurements.
 
 Velocity metrics are experimental. Prefer time-to-green, successful work-item completion, intervention count, review cycles, and rework over raw commits or lines changed.
 
@@ -260,13 +269,13 @@ Velocity metrics are experimental. Prefer time-to-green, successful work-item co
 A profile combines:
 
 - project and folder bindings;
-- secret references;
+- profile-specific accounts, secret references, and API keys;
 - provider and model routing;
 - policy packs and approval rules;
 - session and workflow budgets;
 - enabled plugins and integrations;
 - isolated artifact and memory namespaces;
-- optional presentation and voice settings.
+- optional presentation, language, accent, and voice settings.
 
 Plugins declare capabilities, configuration schema, required permissions, hooks, and version compatibility. Installation and updates are explicit. A plugin cannot silently expand its permissions.
 
@@ -341,17 +350,81 @@ Test crash recovery, concurrent clients, queue races, cancellation failure, sche
 
 These ideas remain part of the long-term vision but are not first-milestone requirements:
 
-- scheduled and continuous workflows;
-- GitHub, Linear, and Jira lifecycle automation;
-- multi-repository streams and coordinated pull requests;
-- plugin marketplace;
-- self-evolving skills, tools, or memory;
-- automatic Hugging Face model installation;
-- voice dictation;
-- team, council, swarm, SRE, stabilization, and long-running autopilot templates;
-- virtualized or CRDT-backed worktrees;
-- model or agent provenance at line level;
-- cloud delegation and hosted orchestration.
+### Interaction and productivity
+
+- configurable productivity shortcuts;
+- global `Option+Space` or `Ctrl+Space` voice dictation, initially evaluating NVIDIA Nemotron speech models;
+- automatic detection of repeated prompts and proposals for reusable slash commands such as `/fix-rebase`;
+- compact and detailed views with collapsible provider-exposed reasoning, tool activity, steering events, and subagent traces;
+- configurable session deletion policies based on maximum age, maximum storage, or both.
+
+### Local models
+
+- guided installation of compatible models from Hugging Face;
+- preflight checks for operating system, architecture, runtime, drivers, accelerators, RAM, VRAM, disk, and model compatibility;
+- explicit download size, expected resource usage, license, and trust information before installation.
+
+### Sessions and orchestration
+
+- session groups within one project, with or without an orchestrator;
+- attaching or replacing an orchestrator after a group already exists;
+- taggable `@` agents and group-level task, timing, token, and cancellation views;
+- folders containing multiple repositories that participate in one work stream;
+- coordinated pull-request ordering and merging, optionally using GitHub stacked pull requests;
+- cloud delegation and hosted orchestration as optional execution backends.
+
+### Skills, hooks, plugins, and policies
+
+- a gallery or marketplace for versioned plugins, skills, hooks, workflows, and policy packs;
+- visible harness instructions and skills, exposed as slash commands where appropriate;
+- optional self-evolving skills, tools, and memory with review, evaluation, approval, versioning, and rollback;
+- policy packs for GitHub operations, vulnerability remediation, conflict-resolution strategy, logging, observability, commit conventions, commit frequency, signing, attribution, token-saving modes, documentation layout, technology preferences, and general coding rules;
+- configurable secure SSH commit signing and commit-attribution rules, including suppression of automatic tool co-author trailers;
+- token-saving execution modes such as silent command output and concise agent communication;
+- deterministic built-in utilities for diffing, parsing, splitting, searching, and structured data manipulation so agents do not repeatedly generate disposable scripts.
+
+### First-party integrations
+
+- a GitHub plugin for creating, editing, closing, and querying issues and pull requests; checking CI and Actions logs; handling dependency bot pull requests; and reading, writing, and resolving review conversations;
+- vulnerability-resolution workflows with ecosystem-specific remediation strategies;
+- explicit merge-versus-rebase conflict-resolution policies for default branches and stacked pull requests;
+- GitHub, Linear, and Jira entry points for creating sessions from issues or pull requests;
+- `sendbox` as a selectable sandbox backend;
+- `porto` for local development servers and container stacks through its CLI;
+- `sql-not-so-lite` for local database operations through its CLI;
+- `stainless` for privacy-preserving browser previews and Playwright through its MCP and open-with integration.
+
+### Metachat and scheduled actions
+
+- a Moguri metachat for changing settings, inspecting state, explaining failures, and troubleshooting the harness itself;
+- scheduled CI watching;
+- dependency roundups covering Dependabot, Renovate, and other update bots;
+- a **My work** workflow for open pull requests, pending reviews, broken CI, and unresolved comments;
+- scheduled prompts;
+- agentic workflows combining prompts and explicit scripts through a readable workflow syntax;
+- optional delegation of scheduled workflows to a server while retaining the same policy, budget, event, and artifact model.
+
+### Continuous modes
+
+- **Continuous Product Manager** — integrates product analytics such as PostHog, finds usage gaps and improvement opportunities, performs market research, records assumptions, creates issues, and measures results after delivery;
+- **Continuous Maintenance** — a per-repository toggle for dependency, security, and update pull requests, including breaking-change remediation and policy-gated merging;
+- **Continuous Docs** — a per-repository documentation maintenance workflow.
+
+### Agent and team modes
+
+- **Deep Search** — source-driven, scientific-oriented research that continues until the stated question is resolved or bounded;
+- **SRE** — combines an error report with read-only infrastructure MCPs, architecture diagrams, telemetry, and source code to produce and validate a resolution;
+- **Autopilot** — completes a clear bounded task through implementation, validation, review, and delivery;
+- **Long-running Autopilot** — supports large greenfield systems and major rewrites with durable plans, checkpoints, recovery, and budgets;
+- **Stabilize** — evaluates repository health, handles pending pull requests, remediates security issues, configures dependency automation, hardens Actions, and installs issue-triage workflows;
+- **Swarm** — analyzes open issues, proposes a coherent roadmap and target state, reports for approval, then coordinates implementation;
+- **Team** — supports persona-based agents, councils, and patterns inspired by [Squad](https://bradygaster.github.io/squad) and [Paperclip](https://github.com/paperclipai/paperclip).
+
+### Research tracks
+
+- **Virtualized worktrees** — evaluate copy-on-write persistent structures such as B-trees and hash array mapped tries for fast agent branches, while measuring them against ordinary Git worktrees and filesystem snapshots;
+- **Conflict-free replicated worktrees** — evaluate CRDT-backed concurrent editing by humans and agents without claiming that textual convergence removes semantic conflicts;
+- **Model provenance** — evaluate patch- and line-level history for which model or agent proposed, applied, modified, reviewed, and verified code, without adding unwanted Git attribution or overstating certainty.
 
 Deferred features must be expressed later through the same event, policy, capability, workflow, and artifact primitives. Avoid adding one-off agent modes to the core.
 
@@ -422,7 +495,3 @@ Promotion between tiers must preserve provenance, confidence, scope, expiry, and
 - [porto](https://github.com/mbianchidev/porto) — optional local service and container orchestration
 - [sql-not-so-lite](https://github.com/mbianchidev/sql-not-so-lite) — optional local database management
 - [stainless](https://github.com/mbianchidev/stainless) — optional browser, preview, and Playwright integration
-
-## License
-
-See [LICENSE](LICENSE).
