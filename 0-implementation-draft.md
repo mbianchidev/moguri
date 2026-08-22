@@ -497,9 +497,10 @@ CI watching, dependency maintenance, documentation updates, research, stabilizat
 
 Experimental memory can use three retention tiers:
 
-- **Sky** — ephemeral turn and session context;
-- **Terra** — durable project and work-item knowledge;
-- **Glacier** — compressed, explicitly promoted long-term knowledge.
+- **Sky** - ephemeral turn and session context;
+- **Terra** - durable project and work-item knowledge;
+- **Glacier** - compressed, explicitly promoted long-term knowledge.
+- **Core** - user written instructiions.
 
 Promotion between tiers must preserve provenance, confidence, scope, expiry, and profile isolation.
 
