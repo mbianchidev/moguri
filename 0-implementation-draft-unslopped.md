@@ -28,6 +28,7 @@ Moguri keeps that work together. A session may end or be deleted. The work item,
 - API keys live in the operating system keychain or another configured secret store.
 - Moguri separates estimated cost, provider-reported usage, and billed cost.
 - Moguri shows prompts, provider-supplied reasoning summaries, tool activity, timing, token usage, compactions, and errors. It cannot show reasoning that a provider does not return.
+- Moguri shows every remote destination it contacts and why the connection is needed.
 - Product telemetry is opt-in. Local analytics stay local until the user exports or shares them.
 
 ## Data model
@@ -101,6 +102,10 @@ payload
 Use the repository's existing SQLite and migration code for structured state. Store large logs, attachments, snapshots, and binary data as content-addressed files when SQLite is the wrong place for them.
 
 Writes must survive crashes. Queue claims and lifecycle changes must be atomic. Schema changes require migrations. Users must not have to delete local data to upgrade.
+
+Destructive deletion first moves data to trash and writes a tombstone. Permanent deletion happens only after the configured retention period or an explicit purge.
+
+Provide supported export, backup, and restore commands. Users must not need to understand the database schema to move or recover their state.
 
 ## First release
 
@@ -188,7 +193,7 @@ The first artifact types are:
 
 When an agent asks a structured question, Moguri records the question and answer. User or profile policy can turn that answer into a durable artifact.
 
-Artifacts link back to their source events. They can belong to a work item, project, folder, or profile. Deleting a session does not delete them.
+Artifacts store their creation time, current status, revision history, scope, and source-event links. They can belong to a work item, project, folder, or profile. Deleting a session does not delete them.
 
 When a user deletes a project with artifacts, Moguri shows what will happen. The user can keep them, export them, write them to `artifacts/` in the repository, commit that directory, or delete them.
 
@@ -198,15 +203,16 @@ Record:
 
 - model and provider;
 - input, output, cached, system-prompt, message, tool-schema, tool-call, MCP-call, and compaction tokens;
-- tool and MCP calls, failures, retries, and cancellations;
-- command, subagent, session-group, and whole-session time;
+- tool and MCP calls, failures, retries, cancellations, and failure rates;
+- script, command, subsession, subagent, session-group, and whole-session time;
+- wall time and active model or tool time as separate values;
 - estimated cost;
 - unit price, pricing source, currency, and effective date;
 - provider-reported or billed cost when available;
 - remaining budget;
 - compaction history;
 - storage use;
-- session metadata and archive status.
+- session metadata including profile, project, repository, worktree, branch, work item, parent or orchestrator, provider, model, state, tags, timestamps, duration, storage, and archive status.
 
 Token splits below one provider request may be estimates. Label them as estimates.
 
@@ -265,7 +271,7 @@ Installing or updating a plugin cannot silently add permissions.
 
 Provider adapters expose a common set of model capabilities and retain raw provider data for debugging. `llm` is an optional adapter, not the only provider interface.
 
-For local models, the first release detects installed runtimes and checks operating system, architecture, drivers, accelerators, RAM, VRAM, disk, and model compatibility.
+For local models, the first release detects installed runtimes and checks operating system, architecture, drivers, accelerators, RAM, VRAM, disk, and model compatibility. It shows a health report with each check, its status, and any action needed before the model can run.
 
 ### Archives and retention
 
@@ -288,7 +294,8 @@ The first release is done when:
 - [ ] Every dashboard total can be traced to stored events.
 - [ ] Estimated, reported, and billed cost never share one field.
 - [ ] Every failed transition leaves a useful diagnostic event.
-- [ ] Tests cover migrations, restart recovery, concurrent clients, cancellation failure, provider outages, and plugin incompatibility.
+- [ ] Unit, integration, migration, restart-recovery, and cross-client contract tests cover core behavior.
+- [ ] Tests cover concurrent clients, cancellation failure, provider outages, corrupt state, full disks, and plugin incompatibility.
 
 ## Build order
 
@@ -334,6 +341,8 @@ Test crashes, queue races, concurrent clients, failed cancellation, bad migratio
 
 These features matter, but they do not block the first release.
 
+Build later features on the same events, policies, capability interfaces, workflows, and artifacts. Do not add a separate agent loop for each mode.
+
 ### Shortcuts and chat
 
 - Add configurable keyboard shortcuts.
@@ -353,6 +362,7 @@ These features matter, but they do not block the first release.
 - Group several repositories into one work stream.
 - Coordinate pull-request order and policy-gated merging.
 - Support GitHub stacked pull requests.
+- Run sessions, groups, and workflows on optional remote or hosted execution backends. Changing the backend must not change permissions, budgets, events, artifacts, or stop controls.
 
 ### Skills, hooks, and policies
 
@@ -360,7 +370,7 @@ These features matter, but they do not block the first release.
 - Show structured manifests for plugins, instructions, hooks, and skills.
 - Keep skills directly invocable. Add slash commands where they fit.
 - Let skills and hooks evolve only through a visible proposal, evaluation, approval, version, and rollback.
-- Use Sky, Terra, and Glacier memory to support those proposals.
+- Use Core, Sky, Terra, and Glacier memory to support those proposals. Agents can read Core but cannot change it.
 - Add policy packs for GitHub work, vulnerability fixes, conflict strategy, logging, commit messages, commit frequency, signing, attribution, command output, docs, technology choices, and coding rules.
 - Support secure SSH commit signing.
 - Let users suppress automatic tool co-author trailers.
@@ -425,13 +435,14 @@ Add a chat with Moguri itself. It changes settings, inspects stored state, expla
 
 ### Memory
 
-Moguri can use three memory tiers:
+Moguri can use four memory levels:
 
+- Core holds user-given instructions and policies. Only the user can create, change, or delete Core entries. Core instructions have the highest priority within their scope.
 - Sky holds temporary turn and session context.
 - Terra holds project and work-item knowledge.
 - Glacier holds compressed knowledge that a user or approved policy promoted for long-term use.
 
-Each stored memory needs a source, confidence, scope, expiry rule, and profile owner.
+Each stored memory needs a source, confidence, scope, expiry rule, and profile owner. Agents may propose promotion between Sky, Terra, and Glacier. They cannot promote anything into Core.
 
 ### Research
 
@@ -444,6 +455,8 @@ Model provenance may record which model or agent proposed, applied, modified, re
 ## Instructions for coding agents
 
 Read the existing code and tests before proposing new packages.
+
+Keep working behavior until its replacement has tests and documentation.
 
 For each change:
 
@@ -465,6 +478,8 @@ Use generated fixtures. Never put customer or personal data in tests.
 Update the relevant file under `docs/` when setup, configuration, architecture, or protocol behavior changes.
 
 Implement one working path at a time. Do not start the later-work list until the first-release acceptance checks pass.
+
+Leave the repository buildable. Keep TUI and desktop behavior consistent.
 
 ## Related projects
 
