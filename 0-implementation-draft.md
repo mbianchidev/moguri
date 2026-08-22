@@ -103,6 +103,8 @@ Session → Turn → Step → model, message, tool, MCP, process, compaction, an
 
 The OpenCode-derived runtime is the first implementation of the agent loop and local API. New Moguri code should preserve clear seams so clients, telemetry, artifacts, and policies do not depend on provider-specific payloads.
 
+The optional VSX extension initially targets [`vslocal`](https://github.com/mbianchidev/vslocal) and may support other compatible editors. It is a thin client over the same typed local API and must not become a second control plane.
+
 ### One source of truth
 
 Durable state is represented by typed, append-only events. Current state, dashboards, transcripts, and model context are projections of that event stream.
@@ -129,7 +131,7 @@ Required properties:
 - crash-safe writes;
 - explicit schema migrations;
 - tombstones or trash before destructive deletion;
-- configurable retention by maximum age and/or storage size, with automatic deletion disabled by default;
+- configurable retention by maximum age in days and/or storage size in GB, with automatic deletion disabled by default;
 - archived sessions that remain visible, searchable, restorable, and individually deletable;
 - pinned artifacts excluded from session garbage collection;
 - export and backup paths that do not require internal database knowledge.
@@ -161,9 +163,13 @@ Initial surfaces:
 - visible running processes and stop controls;
 - basic analytics dashboard.
 
+Desktop stop controls cover the active agent, its subagents, and every command or background process Moguri owns.
+
 ### 2. Projects, work items, and worktrees
 
 A session can attach to an existing project worktree or request a new isolated worktree. Moguri records the relationship between the work item, branch, worktree, commits, and pull request without treating Git as the session database.
+
+Creating work items or sessions from GitHub issues or pull requests requires an installed and authorized GitHub integration or MCP. Linear and Jira entry points follow the same explicit connector model.
 
 Initial behavior:
 
@@ -229,7 +235,7 @@ Artifacts include scope, provenance, source-event references, creation time, sta
 
 When an agent asks a structured question, Moguri records the question and answer as source events and can materialize the answer as a durable artifact according to user or profile policy.
 
-Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, or delete them.
+Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, optionally commit that directory, or delete the artifacts.
 
 ### 7. Telemetry, cost control, and dashboard
 
@@ -242,6 +248,7 @@ Capture enough data to answer:
 - which tools and MCP servers were called;
 - which calls failed, retried, or were cancelled;
 - how much the session is estimated to cost;
+- which unit prices, pricing source, currency, and effective date were used for that estimate;
 - whether a provider-reported or billed amount is available;
 - how much budget remains.
 
@@ -251,12 +258,13 @@ Initial dashboard views:
 - sessions over 7, 30, 60, 90, and 365 days;
 - selectable year, custom range, and all time;
 - usage and cost grouped by day, week, month, custom period, and all time;
-- global filtering by folder, project, repository, GitHub organization, repository visibility, profile, provider, model, and session;
+- global filtering by folder, project, repository, GitHub organization, repository visibility—including open-source, public, internal, and private repositories—profile, provider, model, and session;
 - wall time versus active model/tool time;
 - elapsed time for each command, subagent, session group, and complete session, with token usage where available;
 - compaction history;
 - tool and MCP failure rates;
-- archived sessions, deletion controls, and storage usage.
+- archived sessions, deletion controls, and storage usage;
+- session metadata including profile, project, repository, worktree, branch, work item, parent or orchestrator, provider, model, state, tags, timestamps, duration, storage, and archive status.
 
 Cost controls support warning and hard-stop thresholds at profile and session scope. Hard stops occur before another model request whenever possible; Moguri must not pretend it can recover already consumed provider cost.
 
@@ -276,6 +284,8 @@ A profile combines:
 - enabled plugins and integrations;
 - isolated artifact and memory namespaces;
 - optional presentation, language, accent, and voice settings.
+
+Typical profiles include **Work** and **Open Source**, each with independent projects, provider accounts, API keys, policies, budgets, integrations, accents, and memory boundaries.
 
 Plugins declare capabilities, configuration schema, required permissions, hooks, and version compatibility. Installation and updates are explicit. A plugin cannot silently expand its permissions.
 
@@ -368,6 +378,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 
 - session groups within one project, with or without an orchestrator;
 - attaching or replacing an orchestrator after a group already exists;
+- detaching a session from a group without deleting the session, its worktree, or its artifacts;
 - taggable `@` agents and group-level task, timing, token, and cancellation views;
 - folders containing multiple repositories that participate in one work stream;
 - coordinated pull-request ordering and merging, optionally using GitHub stacked pull requests;
@@ -376,12 +387,14 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 ### Skills, hooks, plugins, and policies
 
 - a gallery or marketplace for versioned plugins, skills, hooks, workflows, and policy packs;
-- visible harness instructions and skills, exposed as slash commands where appropriate;
-- optional self-evolving skills, tools, and memory with review, evaluation, approval, versioning, and rollback;
-- policy packs for GitHub operations, vulnerability remediation, conflict-resolution strategy, logging, observability, commit conventions, commit frequency, signing, attribution, token-saving modes, documentation layout, technology preferences, and general coding rules;
+- structured, inspectable manifests for harness plugins, instructions, hooks, and skills; skills are always visible and directly invocable, with slash commands added where feasible;
+- optional self-evolving skills and hooks powered by the Sky, Terra, and Glacier memory tiers, with review, evaluation, approval, versioning, and rollback;
+- policy packs for GitHub operations, vulnerability remediation, conflict-resolution strategy, logging, observability, linted commit-message conventions, commit frequency, signing, attribution, token-saving modes, documentation layout, technology preferences, and general coding rules;
 - configurable secure SSH commit signing and commit-attribution rules, including suppression of automatic tool co-author trailers;
-- token-saving execution modes such as silent command output and concise agent communication;
-- deterministic built-in utilities for diffing, parsing, splitting, searching, and structured data manipulation so agents do not repeatedly generate disposable scripts.
+- token-saving execution modes such as a standard `--silent` convention, output truncation, and an intentionally terse “caveman” communication mode;
+- documentation policies that keep durable documentation under `docs/` rather than scattering temporary summary Markdown files through repositories;
+- policy import and synchronization from sources such as [`copilot-instructions.md`](https://github.com/mbianchidev/.github-private/blob/main/copilot-instructions.md), subject to repository access;
+- deterministic first-party utilities—Python-backed where appropriate—for diffing, parsing, splitting, searching, and structured data manipulation so agents do not repeatedly generate disposable scripts.
 
 ### First-party integrations
 
@@ -389,9 +402,9 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - vulnerability-resolution workflows with ecosystem-specific remediation strategies;
 - explicit merge-versus-rebase conflict-resolution policies for default branches and stacked pull requests;
 - GitHub, Linear, and Jira entry points for creating sessions from issues or pull requests;
-- `sendbox` as a selectable sandbox backend;
-- `porto` for local development servers and container stacks through its CLI;
-- `sql-not-so-lite` for local database operations through its CLI;
+- `sendbox` as a profile-selectable sandbox backend;
+- `porto`, when installed, for local development servers and container stacks through its CLI;
+- `sql-not-so-lite`, when installed, for local database operations through its CLI;
 - `stainless` for privacy-preserving browser previews and Playwright through its MCP and open-with integration.
 
 ### Metachat and scheduled actions
@@ -406,8 +419,8 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 
 ### Continuous modes
 
-- **Continuous Product Manager** — integrates product analytics such as PostHog, finds usage gaps and improvement opportunities, performs market research, records assumptions, creates issues, and measures results after delivery;
-- **Continuous Maintenance** — a per-repository toggle for dependency, security, and update pull requests, including breaking-change remediation and policy-gated merging;
+- **Continuous Product Manager** — integrates product analytics such as PostHog, finds usage gaps and improvement opportunities, performs market research, records assumptions, creates issues, measures results after delivery, and reports findings back to the user;
+- **Continuous Maintenance** — a per-repository toggle for dependency, security, and update pull requests, including breaking-change remediation, policy-gated merging, and user-defined maintenance actions;
 - **Continuous Docs** — a per-repository documentation maintenance workflow.
 
 ### Agent and team modes
@@ -415,14 +428,14 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - **Deep Search** — source-driven, scientific-oriented research that continues until the stated question is resolved or bounded;
 - **SRE** — combines an error report with read-only infrastructure MCPs, architecture diagrams, telemetry, and source code to produce and validate a resolution;
 - **Autopilot** — completes a clear bounded task through implementation, validation, review, and delivery;
-- **Long-running Autopilot** — supports large greenfield systems and major rewrites with durable plans, checkpoints, recovery, and budgets;
-- **Stabilize** — evaluates repository health, handles pending pull requests, remediates security issues, configures dependency automation, hardens Actions, and installs issue-triage workflows;
-- **Swarm** — analyzes open issues, proposes a coherent roadmap and target state, reports for approval, then coordinates implementation;
+- **Long-running Autopilot** — supports giant greenfield systems such as a browser and major rewrites such as C-to-Rust migrations, using durable plans, checkpoints, recovery, and budgets;
+- **Stabilize** — evaluates repository health, attempts policy-gated integration of pending pull requests, remediates security issues, installs or repairs Dependabot, enhances and hardens Actions, and installs agentic issue-triage workflows;
+- **Swarm** — analyzes all open issues, proposes a coherent roadmap and rationalized target state, reports for approval, then coordinates implementation toward resolving the complete approved issue set;
 - **Team** — supports persona-based agents, councils, and patterns inspired by [Squad](https://bradygaster.github.io/squad) and [Paperclip](https://github.com/paperclipai/paperclip).
 
 ### Research tracks
 
-- **Virtualized worktrees** — evaluate copy-on-write persistent structures such as B-trees and hash array mapped tries for fast agent branches, while measuring them against ordinary Git worktrees and filesystem snapshots;
+- **Virtualized worktrees** — evaluate Delta DB-style copy-on-write persistent structures such as B-trees and hash array mapped tries for fast agent branches, while measuring them against ordinary Git worktrees and filesystem snapshots;
 - **Conflict-free replicated worktrees** — evaluate CRDT-backed concurrent editing by humans and agents without claiming that textual convergence removes semantic conflicts;
 - **Model provenance** — evaluate patch- and line-level history for which model or agent proposed, applied, modified, reviewed, and verified code, without adding unwanted Git attribution or overstating certainty.
 
@@ -491,6 +504,7 @@ Promotion between tiers must preserve provenance, confidence, scope, expiry, and
 - [OpenCode](https://github.com/anomalyco/opencode) — initial codebase and primary inspiration
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — plugin-oriented harness architecture
 - [LLM](https://github.com/simonw/llm) — optional model and plugin ecosystem
+- [vslocal](https://github.com/mbianchidev/vslocal) — optional IDE integration through a VSX extension
 - [sendbox](https://github.com/mbianchidev/sendbox) — optional agent sandboxing
 - [porto](https://github.com/mbianchidev/porto) — optional local service and container orchestration
 - [sql-not-so-lite](https://github.com/mbianchidev/sql-not-so-lite) — optional local database management
