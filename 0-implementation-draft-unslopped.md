@@ -116,7 +116,7 @@ The first release proves that Moguri can run and control local sessions from bot
 Both clients need:
 
 - project and work-item navigation;
-- a sidebar and split panels;
+- split panels;
 - a command palette;
 - active, idle, blocked, failed, completed, and archived sessions;
 - persistent prompt drafts;
@@ -127,6 +127,8 @@ Both clients need:
 - a basic analytics dashboard.
 
 Creating a session in one client must make it appear in the other.
+
+The desktop app also reserves a persistent, main-session-aware sidebar for Changes, Terminal, Files, a Stainless-backed Browser, Side chat, Insights, and Extensions. The TUI does not implement this desktop sidebar. Panel capabilities follow the build order; Side chat and the Stainless browser integration remain later work and show a clear unavailable state until implemented. Both clients still share the underlying commands, state, events, metrics, and cancellation behavior. See [`docs/specs/desktop-sidebar.md`](docs/specs/desktop-sidebar.md).
 
 ### Projects and worktrees
 
@@ -205,6 +207,8 @@ Record:
 - input, output, cached, system-prompt, message, tool-schema, tool-call, MCP-call, and compaction tokens;
 - tool and MCP calls, failures, retries, cancellations, and failure rates;
 - script, command, subsession, subagent, session-group, and whole-session time;
+- per-turn and per-steer tokens and elapsed time;
+- measured or explicitly estimated output-token generation throughput;
 - wall time and active model or tool time as separate values;
 - estimated cost;
 - unit price, pricing source, currency, and effective date;
@@ -234,7 +238,7 @@ Filters:
 - provider and model;
 - session.
 
-Each session page shows its price, token use, tools, MCP calls, compactions, metadata, timers, archive state, storage, and delete controls.
+Each session page shows its price, token use, per-turn and per-steer metrics, output-token generation throughput, tools, MCP calls, compactions, metadata, timers, archive state, storage, and delete controls.
 
 Budgets can warn or stop at profile and session scope. A hard stop blocks the next model request where possible. It cannot undo cost already charged by a provider.
 

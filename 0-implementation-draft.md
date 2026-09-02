@@ -154,7 +154,7 @@ Initial surfaces:
 
 - project and work-item navigation;
 - active, idle, blocked, completed, failed, and archived sessions;
-- sidebar navigation and split-panel workflows;
+- split-panel workflows;
 - command palette;
 - session detail and event trace;
 - compact and detailed rendering modes for messages, steering events, tools, MCP calls, and subagents;
@@ -162,6 +162,8 @@ Initial surfaces:
 - editable message queue;
 - visible running processes and stop controls;
 - basic analytics dashboard.
+
+The desktop app additionally reserves a persistent, main-session-aware sidebar for Changes, Terminal, Files, a Stainless-backed Browser, Side chat, Insights, and Extensions. This is a desktop presentation, not a TUI requirement. Panel capabilities follow the build order; Side chat and the Stainless browser integration remain later work and show a clear unavailable state until implemented. Its data and actions still use the shared local control plane. See [`docs/specs/desktop-sidebar.md`](docs/specs/desktop-sidebar.md).
 
 Desktop stop controls cover the active agent, its subagents, and every command or background process Moguri owns.
 
@@ -261,6 +263,8 @@ Initial dashboard views:
 - global filtering by folder, project, repository, GitHub organization, repository visibility—including open-source, public, internal, and private repositories—profile, provider, model, and session;
 - wall time versus active model/tool time;
 - elapsed time for each command, subagent, session group, and complete session, with token usage where available;
+- token usage and elapsed time for each turn and applied steer;
+- measured output-token generation throughput per generation, turn, and session, with estimates labeled;
 - compaction history;
 - tool and MCP failure rates;
 - archived sessions, deletion controls, and storage usage;
