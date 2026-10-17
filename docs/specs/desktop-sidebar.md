@@ -16,7 +16,7 @@ This sidebar is desktop-only. The TUI keeps its own navigation and split-panel p
 - Switching the main session rebinds every sidebar panel to that session, its project, and its worktree.
 - Sidebar content comes from the local control plane. Panels must not keep authoritative copies of session, terminal, file, extension, or usage state.
 - Desktop-only layout preferences such as width, collapsed state, active panel, and inline-metric visibility may remain local UI preferences.
-- Actions that affect Git, processes, files, sessions, extensions, or remote systems use the same policy checks and explicit confirmations as every other client.
+- Actions that affect Git, processes, files, sessions, extensions, or remote systems use the same policy checks, approval mode, and human or delegated approval attribution as every other client. Opening a panel grants no new delegation.
 - A panel may show unavailable or partial data, but must explain why. It must not turn missing data into zeroes or successful states.
 
 ## Navigation and layout
@@ -86,12 +86,15 @@ Awareness does not imply control. The side chat cannot silently steer or interru
 Insights is a live, current-main-session view. It includes:
 
 - lifecycle state, model, provider, profile, project, worktree, branch, and work item;
+- fixed-model or kupo selection, effective approval mode, actual per-leg providers/models, and human versus generative-model versus System One decision actors;
 - wall time and active model, tool, MCP, and terminal time;
 - input, output, cached, system-prompt, message, tool-schema, tool-call, MCP-call, and compaction tokens;
 - estimated, provider-reported, and billed cost as distinct values;
 - tool and MCP calls, retries, failures, and cancellation outcomes;
 - compaction history, storage use, artifacts, interventions, and diagnostic events;
 - turn and steering metrics defined below.
+
+Show router/classifier, draft, critic, revision, escalation, and approval/steering calls separately, including their usage, cost, latency, outcome, and delegation. Synthetic-model totals aggregate all legs without hiding intermediate failures. Automated answers and steers link to their decision request and policy revision; they are never displayed as user answers.
 
 #### Turn and steering metrics
 
@@ -114,6 +117,8 @@ Generated tokens per second is:
 `output tokens / active generation seconds`
 
 Use the provider's output-token count and measured generation interval. If either value is unavailable, show the metric as unavailable. A wall-clock approximation may be shown only when labeled **estimated**. Turn throughput uses total output tokens generated in the turn divided by total measured active generation time in that turn. Session throughput uses the same weighted calculation across the session. Neither value is an unweighted average of per-request rates, and tool, MCP, queue, and other non-generation time is excluded.
+
+Non-generative classification and System One calls retain their usage and cost but do not inflate text-generation throughput. Report their decision latency separately.
 
 Users can optionally show a compact metrics footer on every chat turn. The preference can be set globally and overridden for the current session. The footer shows available turn totals and generated tokens per second. A turn with steers lists each steer separately with attributed tokens and canonical total time per steer; wait and response time are available as a breakdown. In-progress values are marked provisional and settle from stored events when the turn reaches a terminal state.
 
@@ -141,6 +146,7 @@ Phase 1 domain and event design must support:
 - provider-reported versus derived token attribution and timing quality;
 - terminal ownership, file-change conflicts, browser capability state, and extension health;
 - selected and effective execution mode, policy revision, sandbox readiness, and host turns permitted to finish after global Require SendBox is enabled;
+- fixed/kupo selection, versioned routing plans and leg identities, approval mode, delegation, typed decision requests/results, actor, confidence semantics, and decision-originated steers;
 - restart recovery without losing accepted steers, measurements, linked side-chat context, or terminal state promised by the service.
 
 Durable additions use the versioned event stream and migrations. Presentation preferences do not need session events unless they must synchronize across desktop installations.
@@ -187,3 +193,4 @@ The sidebar shell follows the documented phase order:
 - [ ] Extensions expose capability, permission, profile, version, and health state without leaking secrets.
 - [ ] Concurrent desktop and TUI actions cannot corrupt panel state or bypass policy and cancellation semantics.
 - [ ] Both clients agree on execution mode and enforcement; sandboxed terminal actions cannot run on the host, and already-running YOLO turns are visibly distinguished from protected new work.
+- [ ] Both clients agree on model selection and approval mode; all kupo and decision-provider calls remain attributable, and model decisions cannot masquerade as human approval or bypass a hard policy.

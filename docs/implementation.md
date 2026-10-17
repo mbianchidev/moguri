@@ -216,6 +216,23 @@ The finish-current-turn exception applies only to execution mode, not to other p
 
 Phase 1 schemas must record the requested and effective mode, default and policy revision, grandfathered turn identifiers, backend identity, readiness, and launch, failure, cancellation, and teardown events. Restart recovery rechecks policy and reconciles the actual backend before admitting work; it never treats missing mode or readiness data as permission to run on the host. Future durable changes require migrations and restart-recovery coverage.
 
+#### Approval and decision modes
+
+Model selection (**fixed model** or **kupo**), execution mode (**YOLO** or **SendBox**), and approval mode are separate settings. Every supported combination uses the same control-plane authorization and events.
+
+| Approval mode | Who handles questions and approval requests |
+| --- | --- |
+| **Manual** | The user answers agent questions and approves tool/action requests. This is the out-of-box default; only explicitly preapproved operations may proceed without a prompt. |
+| **Guided** | The current generative model recommends an answer or approval with an explanation; the user still confirms. In kupo, this is the active solver model, not the hidden router or critic. |
+| **Autopilot** | The current generative model resolves routine questions and approves actions within user-delegated policy. It asks the user sparingly for missing facts, unclear scope, or permissions that were not delegated. |
+| **Autopilot Max** | A configured System One/decision provider, such as Jev, selects answers, approves or denies delegated actions, and chooses bounded steering actions. This also works with a fixed generative model; it does not require kupo. |
+
+Users can configure defaults globally and per profile and select the mode per session. Delegation must expose its allowed actions, repository and data scope, budget, and stop conditions. A mode selection is not an unrestricted permission grant: hard denials, user-only settings, secret boundaries, Git policies, and Require SendBox remain authoritative.
+
+The decision layer handles structured questions with explicit alternatives, tool approval requests, and typed steering choices. Autopilot Max can answer those requests instead of asking the user, but it cannot invent user-only facts or turn an open-ended question into a fabricated user answer. Unclear questions, insufficient confidence, unavailable providers, and decisions outside delegation go to the user or leave the operation visibly blocked. Guided advice and automated decisions are never recorded as human approval.
+
+Decisions bind to one request, exact arguments and context, policy revision, and session/turn/step. Recheck authorization before applying an answer, executing a tool, or admitting a steer. A user response, changed request, revoked delegation, cancellation, or newer policy invalidates an outstanding model decision. Recovery cannot replay side effects or reuse an approval for different arguments.
+
 ### 4. Message queue
 
 Message state is durable:
@@ -258,6 +275,8 @@ Artifacts include scope, provenance, source-event references, creation time, sta
 
 When an agent asks a structured question, Moguri records the question and answer as source events and can materialize the answer as a durable artifact according to user or profile policy.
 
+Retain whether the answer came from the user, the generative model, or a delegated decision provider. Automated answers are not user instructions and cannot be promoted into user-only Core memory.
+
 Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, optionally commit that directory, or delete the artifacts.
 
 ### 7. Telemetry, cost control, and dashboard
@@ -270,6 +289,7 @@ Capture enough data to answer:
 - how many input, output, cached, system-prompt, message, tool-schema, tool-call, MCP-call, and compaction tokens were reported or derived;
 - which tools and MCP servers were called;
 - which calls failed, retried, or were cancelled;
+- which router/classifier, solver, critic, revision, escalation, approval, or steering role made each model call;
 - how much the session is estimated to cost;
 - which unit prices, pricing source, currency, and effective date were used for that estimate;
 - whether a provider-reported or billed amount is available;
@@ -293,6 +313,8 @@ Initial dashboard views:
 
 Cost controls support warning and hard-stop thresholds at profile and session scope. Hard stops occur before another model request whenever possible; Moguri must not pretend it can recover already consumed provider cost.
 
+Charge every kupo leg and decision-provider call to its owning turn and profile, including failed attempts, retries, and fallbacks. Show both the selected synthetic model and the actual provider/model/version for each call. Decision latency and non-generative output are distinct from text-generation throughput; nothing is free merely because it is an internal routing or approval step.
+
 Token attribution below the provider-request level is derived unless the provider reports it directly. Moguri must label derived attribution and its limitations rather than present estimates as exact measurements.
 
 Velocity metrics are experimental. Prefer time-to-green, successful work-item completion, intervention count, review cycles, and rework over raw commits or lines changed.
@@ -303,9 +325,9 @@ A profile combines:
 
 - project and folder bindings;
 - profile-specific accounts, secret references, and API keys;
-- provider and model routing;
+- fixed-model or kupo selection, approved routing pools, and decision-provider configuration;
 - default session execution mode, subject to the global Require SendBox policy;
-- policy packs and approval rules;
+- policy packs, approval-mode defaults, and bounded delegation rules;
 - session and workflow budgets;
 - enabled plugins and integrations;
 - isolated artifact and memory namespaces;
@@ -318,6 +340,30 @@ Plugins declare capabilities, configuration schema, required permissions, hooks,
 Provider support must expose normalized model capabilities while retaining raw provider metadata for diagnostics. [Simon Willison's `llm`](https://github.com/simonw/llm) may be implemented as an optional adapter; it must not become the only provider abstraction.
 
 For local models, the first milestone discovers installed runtimes and reports compatibility and capacity checks for the operating system, architecture, drivers, accelerators, RAM, VRAM, disk, and model. Automatic model installation from Hugging Face is deferred.
+
+#### Model selection: fixed or kupo
+
+Users can always pin a single provider/model or select **kupo**, Moguri's synthetic auto model. A fixed selection is not silently replaced by a router. kupo combines a classifier with a versioned execution policy to select an eligible model/workflow for each request or safe model-step boundary, using a user-configured mix of local and third-party hosted models.
+
+| kupo pattern | Behavior |
+| --- | --- |
+| **Single** | One selected model solves the request through the normal permission-aware agent loop. |
+| **Cascade** | An efficient model drafts first. Explicit validation and quality gates accept the candidate or escalate to a stronger eligible model within the configured limits. |
+| **Critique/revision** | A model drafts; an independent, read-only, tool-less critic from a different model family reviews; the solver performs a bounded revision. |
+
+These are HydraFusion-inspired execution patterns, not a dependency on a private HydraFusion implementation or an assumed public API. The router may use a configured local or hosted classifier, including an optional System One backend. Deterministic policy filters models and data destinations before classification and rechecks every dispatch. Context size, tools, output format, provider availability, privacy restrictions, budgets, and cancellation support constrain the plan. No model may invent an eligible endpoint or send local-only data to a hosted classifier or critic.
+
+Every leg has explicit ownership, limits, cancellation, context provenance, and cost accounting. Compound solvers stage candidate changes in owned workspaces; rejected, failed, or cancelled candidates are not applied to the user's worktree. Applying an accepted patch checks its base and preserves unrelated user edits. Retries or escalation do not replay external side effects. Already-performed effects and incomplete cleanup remain visible as partial outcomes.
+
+Fallback models and workflow limits are user-configured and policy-constrained, not silent provider substitutions. Insufficient eligible models, classifier failure, invalid plans, low confidence, and exhausted budgets produce a visible fallback decision or a blocked request. See [D11](architecture/decisions.md#d11-kupo-synthetic-model-and-routing).
+
+#### System One decision providers
+
+An optional typed decision-provider interface serves kupo classification and delegated decisions with fixed models alike. **Jev by TypeSafe AI** is an initial hosted adapter target; compatible local or hosted decision providers can implement the same contract. Text-generation providers remain behind the existing Moguri provider interface; a decision-only API is not presented as a chat model.
+
+System One calls return structured predicates, choices, or scores, with probabilities and confidence where supported. Validate the response schema and permitted alternatives; absence of confidence is not certainty, a high score is not authorization, and vendor speed/calibration claims are not Moguri guarantees. Measure thresholds on generated task fixtures before relying on them.
+
+Hosted decision calls need their own approved data destination, scoped secret reference, budget, and SendBox network path. Treat task content and tool arguments as data, not instructions that can rewrite the decision policy. Persist the question, alternatives, provider/model version, values, confidence semantics, actor, delegation, and applied or rejected outcome. Autopilot Max requires a compatible configured decision provider; it never silently falls back to self-approval by the generative model. See [D12](architecture/decisions.md#d12-system-one-decisions-and-approval-modes).
 
 ## Milestone acceptance criteria
 
@@ -338,6 +384,10 @@ The first milestone is complete only when all of the following hold:
 - New sessions default to YOLO, user-configured defaults and per-session choices agree across clients, and sandboxed runs cannot execute agent tools on the host.
 - Require SendBox rejects every new YOLO turn across all admission paths. Only turns already running at the recorded policy boundary may finish, including when clients race with the setting change.
 - Missing SendBox prerequisites, launch failure, lost guest readiness, or restart cannot cause host fallback, unprotected model requests, or a falsely successful cleanup.
+- Fixed-model and kupo selection work independently of every approval and execution mode. Manual is the default; Guided cannot approve without the user, and Autopilot Max works with a fixed model and a configured decision provider.
+- kupo exercises single, cascade, and critique/revision patterns across generated local/hosted fixtures without violating privacy, capability, budget, workspace, or sandbox constraints. Rejected candidates cannot overwrite the user's worktree.
+- Router, critic, and decision calls are fully accounted for and cancellable. Outages, invalid output, stale decisions, duplicate recovery, or low confidence cannot fabricate approval, replay a side effect, or hide a paid call.
+- Automatic answers and steers retain their real actor and delegation. Human intervention or a policy change wins a race with an outstanding decision, and no model can override a hard denial or a user-only setting.
 
 ## Implementation order
 
@@ -345,7 +395,7 @@ Implement vertical slices in this order. Do not attempt the entire vision in one
 
 ### Phase 0 — Validate the decisions
 
-1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, packaging, and the native SendBox path.
+1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, packaging, the native SendBox path, kupo orchestration, and System One decisions.
 2. Record each pass or fail result with its measurements, and update a decision before building on a failed spike.
 3. Settle the open items Phase 1 needs, such as the protocol schema tool and SQLite driver.
 4. Establish the toolchain, test harness and migration framework before adding durable state.
@@ -354,7 +404,7 @@ Expected documents: spike results under `docs/` and an up-to-date `architecture/
 
 ### Phase 1 — Domain protocol and event foundation
 
-1. Define stable IDs, entity schemas, lifecycle states, commands, events, errors, and protocol versioning, including execution mode, sandbox readiness, and global enforcement at turn admission.
+1. Define stable IDs, entity schemas, lifecycle states, commands, events, errors, and protocol versioning, including execution mode, sandbox readiness, global enforcement, routing plans and legs, approval requests, delegation, decision actors, and steers.
 2. Add append-only persistence and projection interfaces.
 3. Add restart reconciliation and migration tests.
 4. Expose the same typed API and event stream to both clients.
@@ -367,7 +417,7 @@ Expected documents:
 
 ### Phase 2 — Session operations
 
-Implement session lifecycle, persistent drafts, queue mutation, delivery modes, cancellation propagation, process ownership, host and native SendBox execution, configurable global defaults, global enforcement, and cross-client controls as one end-to-end slice.
+Implement session lifecycle, persistent drafts, queue mutation, delivery modes, Manual/Guided approvals, cancellation propagation, process ownership, host and native SendBox execution, configurable global defaults, global enforcement, and cross-client controls as one end-to-end slice.
 
 ### Phase 3 — Work items, worktrees, and artifacts
 
@@ -375,15 +425,15 @@ Bind sessions to durable work items and change sets. Add safe worktree managemen
 
 ### Phase 4 — Telemetry and dashboard
 
-Instrument the event pipeline, normalize usage and cost records, add budgets, and build session/project/profile dashboard projections.
+Instrument the event pipeline, normalize usage and cost records, add budgets, and build session/project/profile dashboard projections with per-leg and decision-role attribution.
 
 ### Phase 5 — Profiles and extension management
 
-Add profile isolation, secret backends, policy evaluation, profile execution-mode defaults, plugin manifests, provider management, and local-runtime health checks. Profile settings cannot weaken global sandbox enforcement.
+Add profile isolation, secret backends, policy evaluation, profile execution and approval defaults, plugin manifests, provider management, and local-runtime health checks. Complete kupo's single/cascade/critique workflows, System One adapters, and delegated Autopilot/Autopilot Max over the same loop, budgets, and cancellation tree. Profile settings and model decisions cannot weaken global sandbox enforcement.
 
 ### Phase 6 — Hardening
 
-Test crash recovery, concurrent clients, queue races, execution-mode and enforcement races, SendBox loss and cleanup, cancellation failure, schema migration, corrupted state, storage pressure, profile isolation, provider outages, and plugin incompatibility.
+Test crash recovery, concurrent clients, queue and approval races, stale or adversarial decision output, routing/candidate isolation, execution-mode and enforcement races, SendBox loss and cleanup, cancellation failure, schema migration, corrupted state, storage pressure, profile isolation, provider outages, and plugin incompatibility.
 
 ## Deferred work
 
@@ -457,9 +507,10 @@ The personas below are examples, not a closed set. Users, projects, profiles, an
 
 ### Agent and team modes
 
+The first-release approval modes apply independently to these later specialized workflows; they are not separate permission authorities.
+
 - **Deep Search** — source-driven, scientific-oriented research that continues until the stated question is resolved or bounded;
 - **SRE** — combines an error report with read-only infrastructure MCPs, architecture diagrams, telemetry, and source code to produce and validate a resolution;
-- **Autopilot** — completes a clear bounded task through implementation, validation, review, and delivery;
 - **Long-running Autopilot** — supports giant greenfield systems such as a browser and major rewrites such as C-to-Rust migrations, using durable plans, checkpoints, recovery, and budgets;
 - **Stabilize** — evaluates repository health, attempts policy-gated integration of pending pull requests, remediates security issues, installs or repairs Dependabot, enhances and hardens Actions, and installs agentic issue-triage workflows;
 - **Swarm** — analyzes all open issues, proposes a coherent roadmap and rationalized target state, reports for approval, then coordinates implementation toward resolving the complete approved issue set;
@@ -486,6 +537,7 @@ Moguri will not:
 - use raw token count, commit count, or lines changed as proof of productivity;
 - represent estimated provider cost as an invoice;
 - guarantee that textual conflict avoidance prevents semantic code conflicts.
+- treat a router, critic, or decision-model score as a permission grant or record its choice as a human answer.
 
 ## Working agreement for implementation agents
 
