@@ -4,7 +4,7 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
-It starts from [OpenCode](https://github.com/anomalyco/opencode) as a deliberately divergent fork. OpenCode is the initial technical foundation, not a compatibility boundary or the limit of the product. Moguri is not affiliated with the OpenCode project.
+It is built from zero: Moguri owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](docs/architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
 
 > [!WARNING]
 > Moguri is pre-alpha. This README defines the product direction, architectural constraints, first implementation milestone, and working agreement for agents and contributors. It does not claim that the described features exist yet.
@@ -101,7 +101,7 @@ Session → Turn → Step → model, message, tool, MCP, process, compaction, an
 └─────────────┘  └───────────────┘  └──────────────┘
 ```
 
-The OpenCode-derived runtime is the first implementation of the agent loop and local API. New Moguri code should preserve clear seams so clients, telemetry, artifacts, and policies do not depend on provider-specific payloads.
+A Moguri-owned agent loop, using `pi-ai` for providers and authentication, is the first runtime behind the local API. New Moguri code should preserve clear seams so clients, telemetry, artifacts, and policies do not depend on provider-specific payloads.
 
 The optional VSX extension initially targets [`vslocal`](https://github.com/mbianchidev/vslocal) and may support other compatible editors. It is a thin client over the same typed local API and must not become a second control plane.
 
@@ -318,14 +318,14 @@ The first milestone is complete only when all of the following hold:
 
 Implement vertical slices in this order. Do not attempt the entire vision in one change.
 
-### Phase 0 — Reconcile the fork
+### Phase 0 — Validate the decisions
 
-1. Inventory existing OpenCode capabilities that already satisfy or partially satisfy this README.
-2. Document ownership and data flow for sessions, storage, worktrees, questions, providers, tools, MCP, plugins, background jobs, TUI, desktop, and stats.
-3. Record intentional divergence and identify code that should be reused rather than duplicated.
-4. Establish baseline tests and migrations before changing durable state.
+1. Run the validation spikes in the [architecture decisions](docs/architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, and packaging.
+2. Record each pass or fail result with its measurements, and update a decision before building on a failed spike.
+3. Settle the open items Phase 1 needs, such as the protocol schema tool and SQLite driver.
+4. Establish the toolchain, test harness and migration framework before adding durable state.
 
-Expected document: `docs/architecture/upstream-capability-map.md`.
+Expected documents: spike results under `docs/` and an up-to-date `docs/architecture/decisions.md`.
 
 ### Phase 1 — Domain protocol and event foundation
 
@@ -468,7 +468,7 @@ Moguri will not:
 When using this README as an implementation brief:
 
 1. Read the existing code and tests before proposing new packages or abstractions.
-2. Reuse existing OpenCode behavior when it satisfies the required invariant.
+2. Reuse maintained libraries when they satisfy the required invariant, and record their licenses.
 3. Preserve working behavior until an intentional replacement is tested and documented.
 4. Start with the smallest complete vertical slice that reaches both TUI and desktop.
 5. Keep authoritative state in the control plane, never in one client.
@@ -482,7 +482,7 @@ When using this README as an implementation brief:
 
 Before implementing a phase, the agent should state:
 
-- the existing components it will reuse;
+- the existing components and libraries it will reuse;
 - the invariant being introduced;
 - the affected durable schemas and migrations;
 - the cross-client behavior;
@@ -510,7 +510,8 @@ Promotion between tiers must preserve provenance, confidence, scope, expiry, and
 
 ## Related projects
 
-- [OpenCode](https://github.com/anomalyco/opencode) — initial codebase and primary inspiration
+- [OpenCode](https://github.com/anomalyco/opencode) — primary inspiration
+- [Pi](https://pi.dev/) — `pi-ai` provider and authentication library
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — plugin-oriented harness architecture
 - [LLM](https://github.com/simonw/llm) — optional model and plugin ecosystem
 - [vslocal](https://github.com/mbianchidev/vslocal) — optional IDE integration through a VSX extension

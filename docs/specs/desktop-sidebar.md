@@ -162,7 +162,7 @@ Durable additions use the versioned event stream and migrations. Presentation pr
 
 The sidebar shell follows the documented phase order:
 
-- Phase 0 maps reusable OpenCode desktop, terminal, file, diff, plugin, MCP, and stats components before implementation.
+- Phase 0 validates the desktop shell, PTY supervisor, native addon and packaging choices in the [architecture decisions](../architecture/decisions.md) before implementation.
 - Phases 1 and 2 establish the main-session binding and add panels backed by the first session-control vertical slice.
 - Phase 3 connects work items, worktrees, changes, files, and artifacts.
 - Phase 4 adds complete Insights metrics and inline turn metrics.

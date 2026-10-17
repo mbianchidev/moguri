@@ -4,7 +4,7 @@ Moguri runs coding agents from a terminal UI or desktop app. It keeps sessions, 
 
 Repository: [github.com/mbianchidev/open-moguri](https://github.com/mbianchidev/open-moguri)
 
-Moguri began as a fork of [OpenCode](https://github.com/anomalyco/opencode). It will diverge where the product calls for it. Moguri is not affiliated with the OpenCode project.
+Moguri is built from zero. It owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](docs/architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
 
 The desktop app and TUI are first-class clients. An optional VSX extension will connect [`vslocal`](https://github.com/mbianchidev/vslocal) to the same local service. [Simon Willison's `llm`](https://github.com/simonw/llm) can provide models through an optional adapter.
 
@@ -82,7 +82,7 @@ sessions     providers     tools, MCP,
 and agents   and models    files, shells
 ```
 
-The OpenCode-derived agent loop is the first runtime. Clients talk to Moguri types and commands, not raw provider payloads.
+A Moguri-owned agent loop, using `pi-ai` for providers and authentication, is the first runtime. Clients talk to Moguri types and commands, not raw provider payloads.
 
 Moguri stores durable changes as typed, append-only events. The clients, dashboards, transcripts, and model context derive their state from those events. A client cannot keep authoritative session state in memory.
 
@@ -303,11 +303,11 @@ The first release is done when:
 
 ## Build order
 
-### Phase 0: map the fork
+### Phase 0: validate the decisions
 
-Before adding code, map the existing OpenCode implementation for sessions, storage, worktrees, questions, providers, tools, MCP, plugins, background jobs, TUI, desktop, and stats.
+Before adding features, run the validation spikes in the [architecture decisions](docs/architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, and packaging.
 
-Write `docs/architecture/upstream-capability-map.md`. Reuse what already works. Record where Moguri will diverge.
+Record each pass or fail result and its measurements under `docs/`. If a spike fails, update the decision before building on it.
 
 ### Phase 1: define the data and protocol
 
@@ -464,7 +464,7 @@ Keep working behavior until its replacement has tests and documentation.
 
 For each change:
 
-1. Name the existing code it reuses.
+1. Name the existing code and libraries it reuses.
 2. State the behavior and stored events it adds.
 3. Describe schema changes and migrations.
 4. Cover TUI and desktop behavior.
@@ -488,6 +488,7 @@ Leave the repository buildable. Keep TUI and desktop behavior consistent.
 ## Related projects
 
 - [OpenCode](https://github.com/anomalyco/opencode)
+- [Pi](https://pi.dev/)
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 - [LLM](https://github.com/simonw/llm)
 - [vslocal](https://github.com/mbianchidev/vslocal)
