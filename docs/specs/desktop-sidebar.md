@@ -54,6 +54,8 @@ Terminal shows terminals and process trees associated with the main session and 
 
 Moguri records terminal ownership and the requested, acknowledged, completed, failed, or partial cancellation outcome. Closing a terminal view must not silently terminate its process, and a stopped or partially stopped process must not be shown as successful.
 
+Show the session's effective execution mode and SendBox readiness. A sandboxed session opens guest terminals through the execution backend, never a host shell as a fallback. When Require SendBox is enabled, label any previously running host turn as YOLO finishing until it ends; do not imply that enabling the setting retroactively sandboxed it.
+
 ### Files
 
 Files provides a worktree-scoped file tree, search, open-with actions, and text or binary previews. Editing, if enabled, writes through the local service and reports conflicts with external changes.
@@ -138,6 +140,7 @@ Phase 1 domain and event design must support:
 - timestamps for turn start and terminal outcome, steer requested and applied, generation start and completion, and cancellation transitions;
 - provider-reported versus derived token attribution and timing quality;
 - terminal ownership, file-change conflicts, browser capability state, and extension health;
+- selected and effective execution mode, policy revision, sandbox readiness, and host turns permitted to finish after global Require SendBox is enabled;
 - restart recovery without losing accepted steers, measurements, linked side-chat context, or terminal state promised by the service.
 
 Durable additions use the versioned event stream and migrations. Presentation preferences do not need session events unless they must synchronize across desktop installations.
@@ -157,6 +160,7 @@ Durable additions use the versioned event stream and migrations. Presentation pr
 - A stale panel cannot overwrite newer queue, file, terminal, extension, or session state.
 - Cancelling the main session does not silently cancel side chat, and cancelling side chat does not silently cancel the main session. A workflow may cancel both only when ownership and policy say so.
 - Loss of Stainless, an MCP App, or an extension cannot make the main session fail unless the active operation depends on it; that operation receives a specific diagnostic.
+- SendBox failure or unavailable guest terminal support produces a diagnostic or unavailable state, never a replacement host terminal or an unsandboxed retry.
 
 ## Delivery order
 
@@ -182,3 +186,4 @@ The sidebar shell follows the documented phase order:
 - [ ] Generated tokens per second uses output tokens and active generation time, with unavailable or estimated states handled explicitly.
 - [ ] Extensions expose capability, permission, profile, version, and health state without leaking secrets.
 - [ ] Concurrent desktop and TUI actions cannot corrupt panel state or bypass policy and cancellation semantics.
+- [ ] Both clients agree on execution mode and enforcement; sandboxed terminal actions cannot run on the host, and already-running YOLO turns are visibly distinguished from protected new work.

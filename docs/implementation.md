@@ -195,6 +195,27 @@ any terminal state → archived → restored
 
 Transitions must be explicit, persisted, observable, and idempotent. Restarting Moguri must reconcile interrupted sessions and processes without reporting false success.
 
+#### Execution modes and native SendBox integration
+
+The first release includes a built-in execution backend for [SendBox](https://github.com/mbianchidev/sendbox), not an optional plugin or a user-written shell wrapper. Each session offers:
+
+| Mode | Execution boundary |
+| --- | --- |
+| **YOLO (host)** | The agent worker and its tools run directly on the host with the user's permissions. This is the out-of-box default, not a promise of isolation. |
+| **SendBox (local sandbox)** | The agent worker and its executable tools run in a local SendBox Linux VM with explicitly scoped workspace mounts, network destinations, credentials, and MCP access. |
+
+YOLO describes the isolation choice; it does not disable Git approvals, budgets, or other Moguri policies. The local control plane remains the authoritative event writer in both modes. See [D10](architecture/decisions.md#d10-native-sendbox-execution-and-global-enforcement) for the backend boundary and platform requirements.
+
+- Users can change the global default, override it per profile, and choose the mode per session. Resolve defaults in that order, with an explicit session choice taking precedence.
+- A separate, user-only global **Require SendBox** policy is off by default. When enabled, it takes precedence over every default and per-session choice. Newly admitted turns use SendBox; explicit YOLO requests are rejected before any model request or agent tool starts. Agents, plugins, profiles, and future automation cannot grant themselves exceptions or disable the policy.
+- Turning the requirement on blocks new YOLO turns, including queued messages, new child-agent turns, and recovery after a restart. Turns already running at the policy-change boundary may finish under their recorded prior policy. Persist that boundary atomically with turn admission, and show these turns as **YOLO finishing**, not sandboxed. Changing a default alone does not move a running turn between backends.
+- SendBox execution starts only after runtime, workload image, guest artifacts, policy, credentials, and workspace checks succeed. Missing or unsupported capabilities produce actionable diagnostics; never retry on the host or issue model requests while sandbox readiness is unconfirmed.
+- TUI, desktop, and the later VS Code extension expose the selected and effective mode, the source of its default or enforcement, runtime health, and launch or cleanup failures through the same API. Terminals, subagents, MCP calls, and executable extensions cannot bypass the selected boundary.
+
+The finish-current-turn exception applies only to execution mode, not to other permissions, budgets, or manual stop controls. Existing host processes remain visibly unsandboxed and cannot be reused to execute a newly admitted sandbox-required turn.
+
+Phase 1 schemas must record the requested and effective mode, default and policy revision, grandfathered turn identifiers, backend identity, readiness, and launch, failure, cancellation, and teardown events. Restart recovery rechecks policy and reconciles the actual backend before admitting work; it never treats missing mode or readiness data as permission to run on the host. Future durable changes require migrations and restart-recovery coverage.
+
 ### 4. Message queue
 
 Message state is durable:
@@ -283,6 +304,7 @@ A profile combines:
 - project and folder bindings;
 - profile-specific accounts, secret references, and API keys;
 - provider and model routing;
+- default session execution mode, subject to the global Require SendBox policy;
 - policy packs and approval rules;
 - session and workflow budgets;
 - enabled plugins and integrations;
@@ -313,6 +335,9 @@ The first milestone is complete only when all of the following hold:
 - Estimated, provider-reported, and billed costs are never conflated.
 - Every state transition and failure produces a useful diagnostic event.
 - Core behavior is covered by unit, integration, migration, restart-recovery, and cross-client contract tests.
+- New sessions default to YOLO, user-configured defaults and per-session choices agree across clients, and sandboxed runs cannot execute agent tools on the host.
+- Require SendBox rejects every new YOLO turn across all admission paths. Only turns already running at the recorded policy boundary may finish, including when clients race with the setting change.
+- Missing SendBox prerequisites, launch failure, lost guest readiness, or restart cannot cause host fallback, unprotected model requests, or a falsely successful cleanup.
 
 ## Implementation order
 
@@ -320,7 +345,7 @@ Implement vertical slices in this order. Do not attempt the entire vision in one
 
 ### Phase 0 — Validate the decisions
 
-1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, and packaging.
+1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, packaging, and the native SendBox path.
 2. Record each pass or fail result with its measurements, and update a decision before building on a failed spike.
 3. Settle the open items Phase 1 needs, such as the protocol schema tool and SQLite driver.
 4. Establish the toolchain, test harness and migration framework before adding durable state.
@@ -329,7 +354,7 @@ Expected documents: spike results under `docs/` and an up-to-date `architecture/
 
 ### Phase 1 — Domain protocol and event foundation
 
-1. Define stable IDs, entity schemas, lifecycle states, commands, events, errors, and protocol versioning.
+1. Define stable IDs, entity schemas, lifecycle states, commands, events, errors, and protocol versioning, including execution mode, sandbox readiness, and global enforcement at turn admission.
 2. Add append-only persistence and projection interfaces.
 3. Add restart reconciliation and migration tests.
 4. Expose the same typed API and event stream to both clients.
@@ -342,7 +367,7 @@ Expected documents:
 
 ### Phase 2 — Session operations
 
-Implement session lifecycle, persistent drafts, queue mutation, delivery modes, cancellation propagation, process ownership, and cross-client controls as one end-to-end slice.
+Implement session lifecycle, persistent drafts, queue mutation, delivery modes, cancellation propagation, process ownership, host and native SendBox execution, configurable global defaults, global enforcement, and cross-client controls as one end-to-end slice.
 
 ### Phase 3 — Work items, worktrees, and artifacts
 
@@ -354,11 +379,11 @@ Instrument the event pipeline, normalize usage and cost records, add budgets, an
 
 ### Phase 5 — Profiles and extension management
 
-Add profile isolation, secret backends, policy evaluation, plugin manifests, provider management, and local-runtime health checks.
+Add profile isolation, secret backends, policy evaluation, profile execution-mode defaults, plugin manifests, provider management, and local-runtime health checks. Profile settings cannot weaken global sandbox enforcement.
 
 ### Phase 6 — Hardening
 
-Test crash recovery, concurrent clients, queue races, cancellation failure, schema migration, corrupted state, storage pressure, profile isolation, provider outages, and plugin incompatibility.
+Test crash recovery, concurrent clients, queue races, execution-mode and enforcement races, SendBox loss and cleanup, cancellation failure, schema migration, corrupted state, storage pressure, profile isolation, provider outages, and plugin incompatibility.
 
 ## Deferred work
 
@@ -406,7 +431,6 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - vulnerability-resolution workflows with ecosystem-specific remediation strategies;
 - explicit merge-versus-rebase conflict-resolution policies for default branches and stacked pull requests;
 - GitHub, Linear, and Jira entry points for creating sessions from issues or pull requests;
-- `sendbox` as a profile-selectable sandbox backend;
 - `porto`, when installed, for local development servers and container stacks through its CLI;
 - `sql-not-so-lite`, when installed, for local database operations through its CLI;
 - `stainless` for privacy-preserving browser previews and Playwright through its MCP and open-with integration.
@@ -515,7 +539,7 @@ Promotion between tiers must preserve provenance, confidence, scope, expiry, and
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — plugin-oriented harness architecture
 - [LLM](https://github.com/simonw/llm) — optional model and plugin ecosystem
 - [vslocal](https://github.com/mbianchidev/vslocal) — optional IDE integration through a VSX extension
-- [sendbox](https://github.com/mbianchidev/sendbox) — optional agent sandboxing
+- [sendbox](https://github.com/mbianchidev/sendbox) — native local VM-sandboxed session execution
 - [porto](https://github.com/mbianchidev/porto) — optional local service and container orchestration
 - [sql-not-so-lite](https://github.com/mbianchidev/sql-not-so-lite) — optional local database management
 - [stainless](https://github.com/mbianchidev/stainless) — optional browser, preview, and Playwright integration
