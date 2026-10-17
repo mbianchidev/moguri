@@ -1,13 +1,13 @@
-# Moguri
+# Moguri implementation specification
 
 > A local-first control plane for AI-assisted software development.
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
-It is built from zero: Moguri owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](docs/architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
+It is built from zero: Moguri owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
 
 > [!WARNING]
-> Moguri is pre-alpha. This README defines the product direction, architectural constraints, first implementation milestone, and working agreement for agents and contributors. It does not claim that the described features exist yet.
+> Moguri is pre-alpha. This document defines the product direction, architectural constraints, first implementation milestone, and working agreement for contributors. It does not claim that the described features exist yet.
 
 ## Why Moguri
 
@@ -123,7 +123,7 @@ No client may keep authoritative session state that is absent from the control p
 
 ### Persistence
 
-Use the repository's existing SQLite and migration conventions for structured local state. Store large transcripts, attachments, process output, and snapshots as content-addressed blobs when placing them directly in SQLite would harm reliability or performance.
+Use SQLite for structured local state and define migration conventions before persisting user data. Store large transcripts, attachments, process output, and snapshots as content-addressed blobs when placing them directly in SQLite would harm reliability or performance.
 
 Required properties:
 
@@ -163,7 +163,7 @@ Initial surfaces:
 - visible running processes and stop controls;
 - basic analytics dashboard.
 
-The desktop app additionally reserves a persistent, main-session-aware sidebar for Changes, Terminal, Files, a Stainless-backed Browser, Side chat, Insights, and Extensions. This is a desktop presentation, not a TUI requirement. Panel capabilities follow the build order; Side chat and the Stainless browser integration remain later work and show a clear unavailable state until implemented. Its data and actions still use the shared local control plane. See [`docs/specs/desktop-sidebar.md`](docs/specs/desktop-sidebar.md).
+The desktop app additionally reserves a persistent, main-session-aware sidebar for Changes, Terminal, Files, a Stainless-backed Browser, Side chat, Insights, and Extensions. This is a desktop presentation, not a TUI requirement. Panel capabilities follow the build order; Side chat and the Stainless browser integration remain later work and show a clear unavailable state until implemented. Its data and actions still use the shared local control plane. See [`specs/desktop-sidebar.md`](specs/desktop-sidebar.md).
 
 Desktop stop controls cover the active agent, its subagents, and every command or background process Moguri owns.
 
@@ -217,7 +217,7 @@ The UI must distinguish requested, acknowledged, and completed cancellation.
 
 ### 5. Cancellation and process control
 
-Cancellation propagates from workflows to sessions, subagents, tools, terminals, subprocess trees, and provider requests. Every component must report whether cancellation is supported and whether it succeeded.
+Cancellation propagates from workflows to sessions, subagents, tools, terminals, subprocess trees, and provider requests. Persist requested, acknowledged, completed, failed, and partial outcomes. Every component must report whether cancellation is supported and whether it succeeded.
 
 A stopped action must never be recorded as successful. Errors and partial cleanup remain visible in the event trace.
 
@@ -295,7 +295,7 @@ Plugins declare capabilities, configuration schema, required permissions, hooks,
 
 Provider support must expose normalized model capabilities while retaining raw provider metadata for diagnostics. [Simon Willison's `llm`](https://github.com/simonw/llm) may be implemented as an optional adapter; it must not become the only provider abstraction.
 
-For local models, the first milestone performs runtime discovery, compatibility checks, capacity checks, and health reporting. Automatic model installation from Hugging Face is deferred.
+For local models, the first milestone discovers installed runtimes and reports compatibility and capacity checks for the operating system, architecture, drivers, accelerators, RAM, VRAM, disk, and model. Automatic model installation from Hugging Face is deferred.
 
 ## Milestone acceptance criteria
 
@@ -320,12 +320,12 @@ Implement vertical slices in this order. Do not attempt the entire vision in one
 
 ### Phase 0 — Validate the decisions
 
-1. Run the validation spikes in the [architecture decisions](docs/architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, and packaging.
+1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, and packaging.
 2. Record each pass or fail result with its measurements, and update a decision before building on a failed spike.
 3. Settle the open items Phase 1 needs, such as the protocol schema tool and SQLite driver.
 4. Establish the toolchain, test harness and migration framework before adding durable state.
 
-Expected documents: spike results under `docs/` and an up-to-date `docs/architecture/decisions.md`.
+Expected documents: spike results under `docs/` and an up-to-date `architecture/decisions.md`.
 
 ### Phase 1 — Domain protocol and event foundation
 
@@ -465,7 +465,7 @@ Moguri will not:
 
 ## Working agreement for implementation agents
 
-When using this README as an implementation brief:
+When using this implementation specification:
 
 1. Read the existing code and tests before proposing new packages or abstractions.
 2. Reuse maintained libraries when they satisfy the required invariant, and record their licenses.
