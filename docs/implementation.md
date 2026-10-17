@@ -167,6 +167,40 @@ The desktop app additionally reserves a persistent, main-session-aware sidebar f
 
 Desktop stop controls cover the active agent, its subagents, and every command or background process Moguri owns.
 
+#### Composer contract
+
+Keep the prompt and attached context together, with session controls in this order: **Env**, **Model**, **Autonomy level**, **Budget**. Desktop adds an **Attach** button; the TUI and CLI provide the same attachment and configuration capabilities through text pickers and explicit structured inputs, not a desktop-only button.
+
+| Control | Choices | Factory starting value |
+| --- | --- | --- |
+| **Env** (Execution environment) | Local, Sandbox via SendBox, Remote via SSH | Local |
+| **Model** | kupo, configured local models, authenticated provider models grouped by provider | Unset; unavailable until at least one generative provider login/API key or local model is configured |
+| **Autonomy level** | Manual, Guided, Autopilot, Autopilot Max | Manual |
+| **Budget** | Unlimited, token cap, USD cap, or both when supported | Unlimited |
+
+The Model control shows setup guidance while unavailable. A configured decision-only provider such as Jev does not unlock a generative model. Discover eligible models before offering kupo, and distinguish configured, available, loading, expired-auth, incompatible, and unreachable states. List only models accessible through the active profile and selected env; discovery does not scan arbitrary hosts or start paid inference. Recheck availability at dispatch, and never silently replace an unavailable saved model.
+
+**Attachments and shortcuts:**
+
+| Attachment | Trigger | Scope |
+| --- | --- | --- |
+| Single local file | `^` | An explicitly selected client-side file |
+| Local folder | `:` | An explicitly selected client-side folder with a bounded, reviewable file set |
+| GitHub issue | `#` | An issue accessible through the active profile's authorized GitHub integration |
+| GitHub pull request | `#` | A PR accessible through the same integration; label issue and PR results distinctly |
+| Moguri session | `!` | Authorized session context, including permitted archived context |
+| Project file | `@` | A file in the selected project's actual local, sandbox, or remote workspace |
+
+The desktop Attach menu offers all six types. Users can paste clipboard images directly into the desktop composer. TUI image paste depends on terminal/clipboard capabilities; where unsupported, expose explicit file/path attachment instead of pretending pasted text is an image.
+
+Pickers produce typed, inspectable, removable references or content snapshots, not ambiguous plain-text expansions. `#` results identify repository, number, and issue/PR type. Session attachments retain source/profile permissions and do not resume or control the source session. Preserve file revisions, source links, and snapshot provenance. Bare prefixes in code, URLs, email addresses, or pasted text remain literal unless the user explicitly selects an attachment. Future `@` agent mentions must be typed and disambiguated from project files.
+
+Show folder contents, exclusions, size, and transfer destination before admitting them. Respect protected paths, symlink boundaries, profile permissions, and context limits. An attachment grants access to the approved content, not the entire host filesystem. Sandbox and Remote receive only approved snapshots or workspace references, not arbitrary client paths or home-directory mounts. Filter model candidates for image/file capabilities; do not silently drop context or send it to an unapproved conversion service.
+
+Drafts persist their attachments and control values. Missing files, expired GitHub access, incomplete uploads, unsupported models, or an unreachable remote leave an actionable state and preserve the draft; do not silently send without the selected context. Keyboard navigation, labels, and status announcements must work without relying on icons or pointer input.
+
+**Startup defaults:** resolve explicit session values over repo/project defaults, then active-profile defaults, global defaults, and finally the factory values above. These are user-controlled settings, not permission grants from an untrusted repository file. Show each value's source and effective constraints. New defaults affect new sessions, not an already-running turn; changes to an existing session require an explicit, recorded action at a safe boundary. Policy limits always take precedence over preferences, and an invalid default prompts setup or correction rather than hidden fallback.
+
 ### 2. Projects, work items, and worktrees
 
 A session can attach to an existing project worktree or request a new isolated worktree. Moguri records the relationship between the work item, branch, worktree, commits, and pull request without treating Git as the session database.
@@ -195,39 +229,41 @@ any terminal state → archived → restored
 
 Transitions must be explicit, persisted, observable, and idempotent. Restarting Moguri must reconcile interrupted sessions and processes without reporting false success.
 
-#### Execution modes and native SendBox integration
+#### Execution environments
 
-The first release includes a built-in execution backend for [SendBox](https://github.com/mbianchidev/sendbox), not an optional plugin or a user-written shell wrapper. Each session offers:
+The first release includes built-in Local, [SendBox](https://github.com/mbianchidev/sendbox), and SSH execution backends. The user-facing setting is **Execution environment**, shortened to **Env**.
 
-| Mode | Execution boundary |
+| Env | Execution boundary |
 | --- | --- |
-| **YOLO (host)** | The agent worker and its tools run directly on the host with the user's permissions. This is the out-of-box default, not a promise of isolation. |
-| **SendBox (local sandbox)** | The agent worker and its executable tools run in a local SendBox Linux VM with explicitly scoped workspace mounts, network destinations, credentials, and MCP access. |
+| **Local** | The agent worker and its tools run directly on the user's local machine. This is the out-of-box default, not a promise of isolation or unrestricted approvals. |
+| **Sandbox** | The agent worker and its executable tools run in a local SendBox Linux VM with explicitly scoped workspace mounts, network destinations, credentials, and MCP access. |
+| **Remote** | The agent task, tool execution, and model calls run on a reachable, user-configured SSH machine. It separates execution from the local machine, but does not itself apply SendBox containment on the remote host. |
 
-YOLO describes the isolation choice; it does not disable Git approvals, budgets, or other Moguri policies. The local control plane remains the authoritative event writer in both modes. See [D10](architecture/decisions.md#d10-native-sendbox-execution-and-global-enforcement) for the backend boundary and platform requirements.
+The local control plane remains the authoritative event writer in all three envs. Env selection does not disable Git approvals, budgets, or other Moguri policies. See [D10](architecture/decisions.md#d10-native-sendbox-execution-and-global-enforcement) and [D13](architecture/decisions.md#d13-remote-ssh-execution) for the backend boundaries.
 
-- Users can change the global default, override it per profile, and choose the mode per session. Resolve defaults in that order, with an explicit session choice taking precedence.
-- A separate, user-only global **Require SendBox** policy is off by default. When enabled, it takes precedence over every default and per-session choice. Newly admitted turns use SendBox; explicit YOLO requests are rejected before any model request or agent tool starts. Agents, plugins, profiles, and future automation cannot grant themselves exceptions or disable the policy.
-- Turning the requirement on blocks new YOLO turns, including queued messages, new child-agent turns, and recovery after a restart. Turns already running at the policy-change boundary may finish under their recorded prior policy. Persist that boundary atomically with turn admission, and show these turns as **YOLO finishing**, not sandboxed. Changing a default alone does not move a running turn between backends.
+- Resolve Env defaults using the composer precedence. A saved choice is not an available backend until its prerequisites are ready.
+- Global user-only **allowed envs** policy initially permits all three envs, subject to readiness. It can restrict new execution to Sandbox or Remote. Remote satisfies that policy without requiring SendBox on the target; display its actual SSH-host boundary rather than a SendBox badge. A stricter Sandbox-only policy remains possible. Agents, autonomy levels, and repo/project defaults cannot widen the allowed set.
+- Excluding Local blocks new Local turns, including queued messages, new child-agent turns, and recovery after a restart. Turns already running at the policy-change boundary may finish under their recorded prior policy. Persist that boundary atomically with turn admission, and show these turns as **Local finishing**, not sandboxed. Changing a default alone does not move a running turn between backends.
 - SendBox execution starts only after runtime, workload image, guest artifacts, policy, credentials, and workspace checks succeed. Missing or unsupported capabilities produce actionable diagnostics; never retry on the host or issue model requests while sandbox readiness is unconfirmed.
-- TUI, desktop, and the later VS Code extension expose the selected and effective mode, the source of its default or enforcement, runtime health, and launch or cleanup failures through the same API. Terminals, subagents, MCP calls, and executable extensions cannot bypass the selected boundary.
+- Remote requires verified SSH host identity, usable credentials, a reachable machine, a compatible worker/toolchain, an approved workspace, and model connectivity from that machine. Never copy SSH private keys or the local secret store into the worker. A connection failure is not permission to run locally.
+- TUI, desktop, CLI, and the later VS Code extension expose the selected and effective env, target host, default/policy source, runtime health, and launch or cleanup failures through the same API. Terminals, subagents, MCP calls, and executable extensions cannot bypass the selected boundary.
 
-The finish-current-turn exception applies only to execution mode, not to other permissions, budgets, or manual stop controls. Existing host processes remain visibly unsandboxed and cannot be reused to execute a newly admitted sandbox-required turn.
+The finish-current-turn exception applies only to env policy, not to other permissions, budgets, or manual stop controls. Existing Local processes remain visibly unsandboxed and cannot be reused to execute a new turn whose policy excludes Local.
 
-Phase 1 schemas must record the requested and effective mode, default and policy revision, grandfathered turn identifiers, backend identity, readiness, and launch, failure, cancellation, and teardown events. Restart recovery rechecks policy and reconciles the actual backend before admitting work; it never treats missing mode or readiness data as permission to run on the host. Future durable changes require migrations and restart-recovery coverage.
+Phase 1 schemas must record requested/effective env, target and workspace identity, default and policy revision, grandfathered turn identifiers, readiness, and launch, failure, cancellation, and teardown events. Restart recovery rechecks policy and reconciles the actual backend before admitting work; it never treats missing env or readiness data as permission to run locally. An SSH disconnect leaves remote completion/cancellation unconfirmed until reconciled; do not claim success, lose late usage, or start a duplicate worker. Future durable changes require migrations and restart-recovery coverage.
 
-#### Approval and decision modes
+#### Autonomy levels
 
-Model selection (**fixed model** or **kupo**), execution mode (**YOLO** or **SendBox**), and approval mode are separate settings. Every supported combination uses the same control-plane authorization and events.
+Model selection (**fixed model** or **kupo**), **Env**, **Autonomy level**, and **Budget** are separate controls. Every supported combination uses the same control-plane authorization and events.
 
-| Approval mode | Who handles questions and approval requests |
+| Autonomy level | Who handles questions and approval requests |
 | --- | --- |
 | **Manual** | The user answers agent questions and approves tool/action requests. This is the out-of-box default; only explicitly preapproved operations may proceed without a prompt. |
 | **Guided** | The current generative model recommends an answer or approval with an explanation; the user still confirms. In kupo, this is the active solver model, not the hidden router or critic. |
 | **Autopilot** | The current generative model resolves routine questions and approves actions within user-delegated policy. It asks the user sparingly for missing facts, unclear scope, or permissions that were not delegated. |
 | **Autopilot Max** | A configured System One/decision provider, such as Jev, selects answers, approves or denies delegated actions, and chooses bounded steering actions. This also works with a fixed generative model; it does not require kupo. |
 
-Users can configure defaults globally and per profile and select the mode per session. Delegation must expose its allowed actions, repository and data scope, budget, and stop conditions. A mode selection is not an unrestricted permission grant: hard denials, user-only settings, secret boundaries, Git policies, and Require SendBox remain authoritative.
+Use the shared global/profile/repo/project/session defaults. Delegation must expose its allowed actions, repository and data scope, budget, and stop conditions. An autonomy selection is not an unrestricted permission grant: hard denials, user-only settings, secret boundaries, Git policies, and allowed-env policy remain authoritative.
 
 The decision layer handles structured questions with explicit alternatives, tool approval requests, and typed steering choices. Autopilot Max can answer those requests instead of asking the user, but it cannot invent user-only facts or turn an open-ended question into a fabricated user answer. Unclear questions, insufficient confidence, unavailable providers, and decisions outside delegation go to the user or leave the operation visibly blocked. Guided advice and automated decisions are never recorded as human approval.
 
@@ -313,6 +349,16 @@ Initial dashboard views:
 
 Cost controls support warning and hard-stop thresholds at profile and session scope. Hard stops occur before another model request whenever possible; Moguri must not pretend it can recover already consumed provider cost.
 
+#### Session budget and kupo wind-down
+
+The composer Budget defaults to **Unlimited** tokens and spend, subject to any stricter profile or global policy cap. A user can set a cumulative session token cap, USD cap, or both; the first reached limit blocks further chargeable work. Resuming the session, adding a turn, switching models/envs, or changing a default does not reset the ledger.
+
+Only offer enforceable units for the selected model or kupo pool. Preserve whether usage is provider-reported, estimated, or unavailable, and whether prices are current enough for a traceable USD estimate. Unknown usage or pricing is never zero. Explain disabled budget choices or excluded kupo candidates; using an estimate requires an explicit, labeled estimate-based policy. Token totals include all model roles and input/output usage without double-counting cached/category breakdowns. Spend estimates remain distinct from billed amounts.
+
+Warn before a finite cap is applied: **Budgets can interrupt a session mid-task. Usage reporting can lag, and a clean final commit is not guaranteed.** Show remaining budget and effective inherited caps. Reserve budget atomically for concurrent legs, decision calls, retries, and wind-down, then reconcile actual usage. Never admit a new call using already-reserved budget or silently raise a cap; in-flight provider charges cannot be undone.
+
+kupo starts winding down before exhaustion and reserves room for final validation, a durable checkpoint, and an attempted commit of accepted work. Commits use the selected env's Git path and must obey Git policy and the autonomy level: Manual/Guided still require confirmation unless explicitly preapproved. Do not publish an unaccepted candidate, push automatically, or run an extra decision/model call past the cap to approve finishing. If a commit is denied, fails, or cannot fit, preserve the work, pending diff, artifacts, and diagnostic checkpoint without claiming it was committed.
+
 Charge every kupo leg and decision-provider call to its owning turn and profile, including failed attempts, retries, and fallbacks. Show both the selected synthetic model and the actual provider/model/version for each call. Decision latency and non-generative output are distinct from text-generation throughput; nothing is free merely because it is an internal routing or approval step.
 
 Token attribution below the provider-request level is derived unless the provider reports it directly. Moguri must label derived attribution and its limitations rather than present estimates as exact measurements.
@@ -326,8 +372,8 @@ A profile combines:
 - project and folder bindings;
 - profile-specific accounts, secret references, and API keys;
 - fixed-model or kupo selection, approved routing pools, and decision-provider configuration;
-- default session execution mode, subject to the global Require SendBox policy;
-- policy packs, approval-mode defaults, and bounded delegation rules;
+- default Env, subject to global allowed-env policy and more specific repo/project preferences;
+- policy packs, autonomy-level defaults, and bounded delegation rules;
 - session and workflow budgets;
 - enabled plugins and integrations;
 - isolated artifact and memory namespaces;
@@ -344,6 +390,8 @@ For local models, the first milestone discovers installed runtimes and reports c
 #### Model selection: fixed or kupo
 
 Users can always pin a single provider/model or select **kupo**, Moguri's synthetic auto model. A fixed selection is not silently replaced by a router. kupo combines a classifier with a versioned execution policy to select an eligible model/workflow for each request or safe model-step boundary, using a user-configured mix of local and third-party hosted models.
+
+Discover the active profile's authenticated provider catalog and configured local endpoints before constructing the pool, and validate reachability/capabilities from the selected env. In Remote, inference calls originate on the SSH machine; a local-model endpoint there refers to that machine unless an explicit, approved tunnel is configured. Do not silently execute inference on the user's local machine or enumerate unconfigured networks.
 
 | kupo pattern | Behavior |
 | --- | --- |
@@ -363,7 +411,7 @@ An optional typed decision-provider interface serves kupo classification and del
 
 System One calls return structured predicates, choices, or scores, with probabilities and confidence where supported. Validate the response schema and permitted alternatives; absence of confidence is not certainty, a high score is not authorization, and vendor speed/calibration claims are not Moguri guarantees. Measure thresholds on generated task fixtures before relying on them.
 
-Hosted decision calls need their own approved data destination, scoped secret reference, budget, and SendBox network path. Treat task content and tool arguments as data, not instructions that can rewrite the decision policy. Persist the question, alternatives, provider/model version, values, confidence semantics, actor, delegation, and applied or rejected outcome. Autopilot Max requires a compatible configured decision provider; it never silently falls back to self-approval by the generative model. See [D12](architecture/decisions.md#d12-system-one-decisions-and-approval-modes).
+Hosted decision calls need their own approved data destination, scoped secret reference, budget, and network path from the selected env. Treat task content and tool arguments as data, not instructions that can rewrite the decision policy. Persist the question, alternatives, provider/model version, values, confidence semantics, actor, delegation, and applied or rejected outcome. Autopilot Max requires a compatible configured decision provider; it never silently falls back to self-approval by the generative model. See [D12](architecture/decisions.md#d12-system-one-decisions-and-autonomy-levels).
 
 ## Milestone acceptance criteria
 
@@ -381,13 +429,16 @@ The first milestone is complete only when all of the following hold:
 - Estimated, provider-reported, and billed costs are never conflated.
 - Every state transition and failure produces a useful diagnostic event.
 - Core behavior is covered by unit, integration, migration, restart-recovery, and cross-client contract tests.
-- New sessions default to YOLO, user-configured defaults and per-session choices agree across clients, and sandboxed runs cannot execute agent tools on the host.
-- Require SendBox rejects every new YOLO turn across all admission paths. Only turns already running at the recorded policy boundary may finish, including when clients race with the setting change.
+- New sessions default to Local, no model until generative provider/local-model configuration, Manual, and Unlimited. Global/profile/repo/project/session defaults resolve identically across clients without weakening policy.
+- Allowed-env enforcement accepts Sandbox or Remote and rejects new Local turns when Local is excluded. Only Local turns already running at the recorded policy boundary may finish, including when clients race with the setting change.
 - Missing SendBox prerequisites, launch failure, lost guest readiness, or restart cannot cause host fallback, unprotected model requests, or a falsely successful cleanup.
-- Fixed-model and kupo selection work independently of every approval and execution mode. Manual is the default; Guided cannot approve without the user, and Autopilot Max works with a fixed model and a configured decision provider.
+- Fixed-model and kupo selection work independently of every autonomy level, env, and budget. Manual is the default; Guided cannot approve without the user, and Autopilot Max works with a fixed model and a configured decision provider.
 - kupo exercises single, cascade, and critique/revision patterns across generated local/hosted fixtures without violating privacy, capability, budget, workspace, or sandbox constraints. Rejected candidates cannot overwrite the user's worktree.
 - Router, critic, and decision calls are fully accounted for and cancellable. Outages, invalid output, stale decisions, duplicate recovery, or low confidence cannot fabricate approval, replay a side effect, or hide a paid call.
 - Automatic answers and steers retain their real actor and delegation. Human intervention or a policy change wins a race with an outstanding decision, and no model can override a hard denial or a user-only setting.
+- All six attachment types work through typed references with the specified triggers, desktop image paste, durable drafts, and source permissions. Prefix collisions or unavailable context cannot silently attach, execute, or drop data.
+- Remote runs both agent work and model calls on the configured SSH host. Host-key/auth failures, disconnects, cancellation failure, and restart preserve truthful state and do not trigger Local fallback or duplicate remote execution.
+- Token and USD caps handle concurrent calls, missing/late telemetry, and all kupo/System One roles. Wind-down can attempt an authorized commit before the cap; denied or failed commits preserve work and never become false success.
 
 ## Implementation order
 
@@ -395,7 +446,7 @@ Implement vertical slices in this order. Do not attempt the entire vision in one
 
 ### Phase 0 — Validate the decisions
 
-1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, packaging, the native SendBox path, kupo orchestration, and System One decisions.
+1. Run the validation spikes in the [architecture decisions](architecture/decisions.md): providers with Copilot and ds4, the Rust supervisor, the event store, the desktop shell, the TUI, the native addon, packaging, SendBox, kupo, System One decisions, Remote SSH, and the composer/default/budget contracts.
 2. Record each pass or fail result with its measurements, and update a decision before building on a failed spike.
 3. Settle the open items Phase 1 needs, such as the protocol schema tool and SQLite driver.
 4. Establish the toolchain, test harness and migration framework before adding durable state.
@@ -404,7 +455,7 @@ Expected documents: spike results under `docs/` and an up-to-date `architecture/
 
 ### Phase 1 — Domain protocol and event foundation
 
-1. Define stable IDs, entity schemas, lifecycle states, commands, events, errors, and protocol versioning, including execution mode, sandbox readiness, global enforcement, routing plans and legs, approval requests, delegation, decision actors, and steers.
+1. Define stable IDs, entity schemas, lifecycle states, commands, events, errors, and protocol versioning, including typed attachments, default snapshots, env/SSH identity and readiness, allowed-env enforcement, budgets/reservations/checkpoints, routing plans and legs, autonomy levels, approval requests, delegation, decision actors, and steers.
 2. Add append-only persistence and projection interfaces.
 3. Add restart reconciliation and migration tests.
 4. Expose the same typed API and event stream to both clients.
@@ -417,7 +468,7 @@ Expected documents:
 
 ### Phase 2 — Session operations
 
-Implement session lifecycle, persistent drafts, queue mutation, delivery modes, Manual/Guided approvals, cancellation propagation, process ownership, host and native SendBox execution, configurable global defaults, global enforcement, and cross-client controls as one end-to-end slice.
+Implement session lifecycle, persistent drafts and attachments, queue mutation, delivery modes, Manual/Guided controls, cancellation propagation, process ownership, Local/Sandbox/Remote execution, model discovery, configurable defaults, allowed-env enforcement, and shared composer/TUI/CLI controls as one end-to-end slice.
 
 ### Phase 3 — Work items, worktrees, and artifacts
 
@@ -425,15 +476,15 @@ Bind sessions to durable work items and change sets. Add safe worktree managemen
 
 ### Phase 4 — Telemetry and dashboard
 
-Instrument the event pipeline, normalize usage and cost records, add budgets, and build session/project/profile dashboard projections with per-leg and decision-role attribution.
+Instrument the event pipeline, normalize usage and cost records, add token/USD caps, atomic reservations, warnings and checkpoint wind-down, and build session/project/profile dashboard projections with per-leg and decision-role attribution.
 
 ### Phase 5 — Profiles and extension management
 
-Add profile isolation, secret backends, policy evaluation, profile execution and approval defaults, plugin manifests, provider management, and local-runtime health checks. Complete kupo's single/cascade/critique workflows, System One adapters, and delegated Autopilot/Autopilot Max over the same loop, budgets, and cancellation tree. Profile settings and model decisions cannot weaken global sandbox enforcement.
+Add profile isolation, secret backends, policy evaluation, profile/repo/project default overrides, plugin manifests, provider management, and runtime health checks. Complete kupo's single/cascade/critique workflows, System One adapters, and delegated Autopilot/Autopilot Max over the same loop, budgets, and cancellation tree. Defaults and model decisions cannot weaken global allowed-env enforcement.
 
 ### Phase 6 — Hardening
 
-Test crash recovery, concurrent clients, queue and approval races, stale or adversarial decision output, routing/candidate isolation, execution-mode and enforcement races, SendBox loss and cleanup, cancellation failure, schema migration, corrupted state, storage pressure, profile isolation, provider outages, and plugin incompatibility.
+Test crash recovery, concurrent clients, queue and approval races, stale or adversarial decision output, attachment scope/transfer failures, routing/candidate isolation, env/default/enforcement races, SSH disconnects and peer identity changes, SendBox loss and cleanup, budget reservation/exhaustion, cancellation failure, schema migration, corrupted state, storage pressure, profile isolation, provider outages, and plugin incompatibility.
 
 ## Deferred work
 
@@ -461,7 +512,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - taggable `@` agents and group-level task, timing, token, and cancellation views;
 - folders containing multiple repositories that participate in one work stream;
 - coordinated pull-request ordering and merging, optionally using GitHub stacked pull requests;
-- cloud delegation and hosted orchestration as optional execution backends.
+- managed cloud provisioning and hosted orchestration beyond the first-release, user-configured Remote SSH env.
 
 ### Skills, hooks, plugins, and policies
 
@@ -507,7 +558,7 @@ The personas below are examples, not a closed set. Users, projects, profiles, an
 
 ### Agent and team modes
 
-The first-release approval modes apply independently to these later specialized workflows; they are not separate permission authorities.
+The first-release autonomy levels apply independently to these later specialized workflows; they are not separate permission authorities.
 
 - **Deep Search** — source-driven, scientific-oriented research that continues until the stated question is resolved or bounded;
 - **SRE** — combines an error report with read-only infrastructure MCPs, architecture diagrams, telemetry, and source code to produce and validate a resolution;
