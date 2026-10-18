@@ -1,10 +1,10 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, protocol, shell, systemPreferences } from "electron";
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, stateDirectory } from "../../../packages/client/src/node.ts";
+import { ensureConnection, stateDirectory } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
@@ -36,7 +36,7 @@ else {
       const url = new URL(request.url);
       if (url.hostname !== "app") return new Response("Unknown Moguri origin.", { status: 403 });
       if (url.pathname.startsWith("/v1/")) {
-        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
+        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/query", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
         return fetch(`${connection.baseUrl}${url.pathname}`, {
           method: request.method,
           headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json" },
@@ -71,10 +71,15 @@ else {
       if (url.protocol !== "https:" || url.username || url.password) throw new Error("Only explicit HTTPS links can be opened.");
       await shell.openExternal(url.toString());
     });
+    ipcMain.handle("moguri:microphone-permission", async (event) => {
+      trusted(event);
+      return process.platform === "darwin" ? systemPreferences.askForMediaAccess("microphone") : true;
+    });
     const createWindow = async () => {
       mainWindow = new BrowserWindow({
         title: "Moguri", width: 1440, height: 940, minWidth: 840, minHeight: 620,
-        show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#f5f6f8",
+        show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#141922",
+        icon: join(app.getAppPath(), "dist", "branding", "moguri.png"),
         webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
       });
       mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));

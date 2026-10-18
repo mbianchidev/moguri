@@ -1,13 +1,18 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { MoguriClient } from "../../packages/client/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const artifacts = resolve(".moguri/artifacts");
 test.skip(process.platform !== "darwin", "Initial desktop checkpoint is validated on macOS.");
+const launchFixtureApp = (stateDir: string) => electron.launch({
+  executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
+  args: process.env.MOGURI_TEST_APP ? [] : ["."],
+  env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" },
+});
 
 test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation and restart", async () => {
   const packaged = process.env.MOGURI_TEST_APP;
@@ -16,11 +21,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
   await fixture.provider.logout();
   let app: ElectronApplication | undefined;
   const other = new MoguriClient(fixture.service.connection);
-  const launch = async () => electron.launch({
-    executablePath: packaged ?? require("electron"),
-    args: packaged ? [] : ["."],
-    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
-  });
+  const launch = () => launchFixtureApp(join(fixture.directory, "state"));
   try {
     await mkdir(artifacts, { recursive: true });
     app = await launch();
@@ -82,4 +83,71 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     const database = await readFile(join(fixture.directory, "state", "state.sqlite"));
     expect(database.includes(Buffer.from("generated-test-only"))).toBe(false);
   } finally { other.disconnect(); await app?.close(); await fixture.close(); }
+});
+
+test("dark mascot branding and shared SDK settings expose prompt, memory, permissions, MCP and optional capabilities", async () => {
+  const fixture = await setupFixture();
+  const app = await launchFixtureApp(join(fixture.directory, "state"));
+  try {
+    await writeFile(join(fixture.project, "generated.ts"), "export function sharedSdkKnowledge() { return 'generated'; }");
+    const page = await app.firstWindow();
+    const failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(".brand-mascot")).toBeVisible();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "System prompt", exact: true })).toBeVisible();
+    const prompt = page.getByLabel("Editable system prompt", { exact: true });
+    await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);
+    await prompt.fill("Generated user-edited instructions. Never invent results.");
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true }).click();
+    await expect(prompt).toHaveValue("Generated user-edited instructions. Never invent results.");
+    await expect(page.getByRole("alert")).toContainText("Your edit is preserved");
+    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Save settings", exact: true })).toBeDisabled();
+    await page.getByLabel("I understand this can break functionality. Hard permissions cannot be overridden.").check();
+    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().settings.values.systemPrompt).toBe("Generated user-edited instructions. Never invent results.");
+    await page.getByRole("button", { name: "View effective committed prompt" }).click();
+    await expect(page.locator(".settings-content pre").last()).toContainText("moguri-execution-contract");
+    await page.getByRole("button", { name: "Restore default system prompt" }).click();
+    await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);
+    await expect(page.getByText("Generated user-edited instructions. Never invent results.", { exact: true })).toHaveCount(0);
+    const categories = page.getByRole("navigation", { name: "Settings categories" });
+    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await page.getByLabel("Theme", { exact: true }).selectOption("light");
+    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.getByLabel("Theme", { exact: true }).selectOption("dark");
+    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await categories.getByRole("button", { name: "Guardrails", exact: true }).click();
+    const permission = { tools: [{ id: "generated-ui-deny", tool: "write_file", decision: "deny", pathPrefix: "" }], commands: [] };
+    await page.getByLabel("Tool and exact-command permissions", { exact: true }).fill(JSON.stringify(permission));
+    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect.poll(async () => JSON.parse(await page.getByLabel("Tool and exact-command permissions", { exact: true }).inputValue())).toEqual(permission);
+    await categories.getByRole("button", { name: "Repository memory", exact: true }).click();
+    await page.getByLabel("Enable explicit local indexing and retrieval").check();
+    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await page.getByRole("button", { name: "Index current project", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "memory.index" && job.status === "completed")).toBe(true);
+    await page.getByLabel("Search local memory", { exact: true }).fill("shared sdk knowledge");
+    await page.getByRole("button", { name: "Search vectors", exact: true }).click();
+    await expect(page.locator(".settings-result pre")).toContainText("generated.ts");
+    await categories.getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await page.getByRole("button", { name: "Discover tools", exact: true }).click();
+    await expect(page.getByRole("button", { name: /^grep_logs/ })).toBeVisible();
+    await categories.getByRole("button", { name: "Subagents", exact: true }).click();
+    await expect(page.getByLabel("Enable optional read-only subagents")).not.toBeChecked();
+    await categories.getByRole("button", { name: "Skills", exact: true }).click();
+    await expect(page.getByLabel("Allow model-proposed skills, scripts and style knowledge for human review")).not.toBeChecked();
+    await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Download model once", exact: true })).toBeDisabled();
+    await expect(page.getByText("NVIDIA documents 40 locales:", { exact: false })).toBeVisible();
+    await categories.getByRole("button", { name: "System prompt", exact: true }).click();
+    await mkdir(artifacts, { recursive: true });
+    await page.screenshot({ path: join(artifacts, "desktop-sdk-settings.png") });
+    expect(fixture.requests.length).toBe(0);
+    expect(failures).toEqual([]);
+  } finally { await app.close(); await fixture.close(); }
 });

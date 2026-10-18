@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { DraftEditor } from "../../../packages/client/src/draft.ts";
-import { useMoguri } from "../../../packages/client/src/react.ts";
-import type { MoguriClient } from "../../../packages/client/src/index.ts";
-import type { Command, Project, ProviderState, Session, Snapshot, StoredEvent } from "../../../packages/protocol/src/index.ts";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { DraftEditor, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent } from "../../../packages/sdk/src/index.ts";
+import { useMoguri } from "../../../packages/sdk/src/react.ts";
+import mascot from "../../../assets/moguri.svg";
+import type { SettingsTab } from "./SettingsPanel.tsx";
+const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
+const RichMessage = lazy(() => import("./RichMessage.tsx"));
+type MoguriClient = MoguriSdk;
 
 type Panel = "Changes" | "Terminal" | "Files" | "Browser" | "Side chat" | "Insights" | "Extensions";
 const panels: Panel[] = ["Changes", "Terminal", "Files", "Browser", "Side chat", "Insights", "Extensions"];
@@ -28,6 +29,7 @@ const iconPaths: Record<string, string> = {
   Files: "M3 6h7l2 3h9v11H3Z", Browser: "M3 5h18v15H3Zm0 4h18",
   "Side chat": "M4 4h16v12H9l-5 4Z", Insights: "M5 20v-6m7 6V4m7 16V9",
   Extensions: "M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z",
+  Settings: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2-5h4l1 3 3 1 3 3v4l-3 1-1 3-3 3h-4l-1-3-3-1-3-3v-4l3-1 1-3Z",
 };
 function Icon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d={iconPaths[name] ?? "M12 4v16M4 12h16"} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -47,6 +49,8 @@ export function App({ client }: { client: MoguriClient }) {
   const [navOpen, setNavOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
+  const [settingsUnsaved, setSettingsUnsaved] = useState(false);
   const editors = useRef(new Map<string, DraftEditor>());
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const project = snapshot?.projects.find((project) => project.id === (session?.projectId ?? projectId)) ?? snapshot?.projects[0];
@@ -60,6 +64,13 @@ export function App({ client }: { client: MoguriClient }) {
     if (snapshot && !selectedId) setSelectedId(snapshot.sessions.find((session) => session.status !== "archived")?.id ?? snapshot.sessions[0]?.id ?? null);
   }, [snapshot, selectedId]);
   useEffect(() => { if (session && editor) editor.receive(session.draft); }, [session?.draft.revision, editor]);
+  useEffect(() => {
+    const preference = snapshot?.settings.values.appearance.theme ?? "dark";
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => { document.documentElement.dataset.theme = preference === "system" ? media.matches ? "dark" : "light" : preference; };
+    apply(); media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, [snapshot?.settings.values.appearance.theme]);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
@@ -77,13 +88,21 @@ export function App({ client }: { client: MoguriClient }) {
     finally { setBusy(false); }
   };
   const command = (command: Command) => run(() => client.command(command));
+  const canNavigate = () => {
+    if (!settingsUnsaved) return true;
+    setNotice("Save your settings edit or reload committed settings before navigating. Your edit is preserved.");
+    return false;
+  };
+  const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); return true; };
   const newSession = () => run(async () => {
+    if (!canNavigate()) return;
     if (!project) { setNotice("Open a local project first."); return; }
     await editor?.flush();
     const result = await client.command({ type: "session.create", projectId: project.id });
     setSelectedId(result.id!); setArchived(false); setNavOpen(false);
   });
   const openProject = () => run(async () => {
+    if (!canNavigate()) return;
     const path = await window.moguri.chooseProject();
     if (!path) return;
     await editor?.flush();
@@ -100,9 +119,9 @@ export function App({ client }: { client: MoguriClient }) {
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
   }, []);
-  return <div className={`app-shell ${navOpen ? "nav-open" : ""} ${panelOpen ? "context-open" : ""} ${widePanel ? "context-wide" : ""}`}>
+  return <div className={`app-shell ${navOpen ? "nav-open" : ""} ${panelOpen && !settingsTab ? "context-open" : ""} ${widePanel ? "context-wide" : ""}`}>
     <header className="titlebar">
-      <div className="wordmark"><span className="brand-mark">m.</span><strong>moguri</strong><span className="alpha">alpha</span></div>
+      <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{project?.name ?? "Your local workspace"}</span>
       <button className="quiet palette-trigger" onClick={() => setPalette(true)}>Commands <kbd>Ctrl K</kbd></button>
     </header>
@@ -112,9 +131,9 @@ export function App({ client }: { client: MoguriClient }) {
       <div className="nav-tabs"><button aria-pressed={!archived} onClick={() => setArchived(false)}>Sessions</button><button aria-pressed={archived} onClick={() => setArchived(true)}>Archived</button></div>
       <div className="project-list">
         {snapshot?.projects.map((item) => <section className="project-group" key={item.id}>
-          <button className="project-name" title={item.path} onClick={() => { setProjectId(item.id); }}><Icon name="Files" />{item.name}</button>
+          <button className="project-name" title={item.path} onClick={() => { if (canNavigate()) setProjectId(item.id); }}><Icon name="Files" />{item.name}</button>
           {snapshot.sessions.filter((session) => session.projectId === item.id && (session.status === "archived") === archived).map((item) =>
-            <button key={item.id} className={`session-link ${selectedId === item.id ? "selected" : ""}`} aria-current={selectedId === item.id ? "page" : undefined} onClick={() => void run(async () => { await editor?.flush(); setSelectedId(item.id); setNavOpen(false); })}>
+            <button key={item.id} className={`session-link ${selectedId === item.id ? "selected" : ""}`} aria-current={selectedId === item.id ? "page" : undefined} onClick={() => void run(async () => { if (!canNavigate()) return; await editor?.flush(); setSelectedId(item.id); setNavOpen(false); })}>
               <span className={`status-dot ${item.status}`} /><span className="session-link-text"><span>{title(item)}</span><small>{item.status === "waiting_input" ? "Needs your attention" : item.status}</small></span>
               {item.queue.length > 0 && <span className="queue-count">{item.queue.length}</span>}
             </button>)}
@@ -123,7 +142,8 @@ export function App({ client }: { client: MoguriClient }) {
         {snapshot && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">Archived sessions stay here, ready to restore.</p>}
       </div>
       <div className="nav-footer">
-        <button className="provider-button" onClick={() => { setConnections((value) => !value); setPanelOpen(true); }}>
+        <button className="settings-nav-button" aria-label="Settings" onClick={() => setSettingsTab("systemPrompt")}><Icon name="Settings" />Settings</button>
+        <button className="provider-button" onClick={() => { if (leaveSettings()) { setConnections((value) => !value); setPanelOpen(true); } }}>
           <span className={`status-dot ${snapshot?.provider.status === "connected" ? "completed" : "idle"}`} />
           <span><strong>GitHub Copilot</strong><small>{snapshot?.provider.status ?? "Connecting to service"}</small></span><span>&gt;</span>
         </button>
@@ -131,6 +151,8 @@ export function App({ client }: { client: MoguriClient }) {
       </div>
     </nav>
     <main className="main-pane">
+      {(notice || connectionError) && <div className="notice error" role="alert"><span>{notice ?? connectionError}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
+      {settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={session} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} /></Suspense> : <>
       <header className="session-header">
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         <div className="session-heading"><h1>{session ? title(session) : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Project"} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Local first. Under your control."}</span></div>
@@ -139,37 +161,38 @@ export function App({ client }: { client: MoguriClient }) {
         {session && !session.turnId && <button className="quiet" onClick={() => void command({ type: session.status === "archived" ? "session.restore" : "session.archive", sessionId: session.id })}>{session.status === "archived" ? "Restore" : "Archive"}</button>}
         <button className="icon-button" aria-label={panelOpen ? "Collapse session sidebar" : "Open session sidebar"} onClick={() => { setPanelOpen((value) => !value); setConnections(false); }}><Icon name="Insights" /></button>
       </header>
-      {(notice || connectionError) && <div className="notice error" role="alert"><span>{notice ?? connectionError}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">
-          <span className="welcome-mark">m.</span><h2>Start with your workspace.</h2><p>A shared home for your code, conversations, and the work in between. Nothing runs until you ask.</p>
+          <img className="welcome-mascot" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>Start with your workspace.</h2><p>A shared home for your code, conversations, and the work in between. Nothing runs until you ask.</p>
           <div className="welcome-actions"><button className="primary" onClick={() => void openProject()}>Open a project</button>{project && <button onClick={() => void newSession()}>New session</button>}</div>
           <ProviderConnect provider={snapshot.provider} run={run} client={client} />
         </div> :
         <>
           <Timeline session={session} run={run} />
           {session.pendingApproval && <section className="approval" aria-label="Tool approval">
-            <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>Manual</span></div>
-            <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? " will run on your Mac without sandbox isolation." : " will access this project's files."}</p>
+            <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
+            <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will access this project's files."}</p>
             <pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
             <div className="approval-actions"><button disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: false })}>Deny</button><button className="primary" disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: true })}>Approve this action</button></div>
           </section>}
           {session.queue.length > 0 && <Queue session={session} command={command} client={client} />}
           {editor && project && <Composer key={session.id} session={session} project={project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} />}
         </>}
+      </>}
     </main>
     <aside className="context-pane" aria-label="Session sidebar">
       <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><div><button className="icon-button" aria-label="Resize sidebar" title="Toggle sidebar width" onClick={() => setWidePanel((value) => !value)}>&lt;&gt;</button><button className="icon-button" aria-label="Close sidebar" onClick={() => setPanelOpen(false)}>x</button></div></header>
       <div className="context-content">{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
-        <ContextPanel key={`${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} />}
+        <ContextPanel key={`${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} openSettings={setSettingsTab} />}
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
-    <nav className="panel-rail" aria-label="Sidebar panels">{panels.map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => { setPanel(item); setPanelOpen(true); setConnections(false); }}><Icon name={item} /></button>)}</nav>
+    <nav className="panel-rail" aria-label="Sidebar panels">{panels.map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => { if (leaveSettings()) { setPanel(item); setPanelOpen(true); setConnections(false); } }}><Icon name={item} /></button>)}</nav>
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "New session", action: newSession }, { name: "Open project", action: openProject },
-      { name: "Connect GitHub Copilot", action: async () => { setConnections(true); setPanelOpen(true); } },
-      { name: "Show Insights and event trace", action: async () => { setPanel("Insights"); setPanelOpen(true); setConnections(false); } },
+      { name: "Connect GitHub Copilot", action: async () => { if (leaveSettings()) { setConnections(true); setPanelOpen(true); } } },
+      { name: "Show Insights and event trace", action: async () => { if (leaveSettings()) { setPanel("Insights"); setPanelOpen(true); setConnections(false); } } },
+      { name: "Settings and editable system prompt", action: async () => setSettingsTab("systemPrompt") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
     ]} />}
   </div>;
@@ -199,15 +222,12 @@ function Timeline({ session, run }: { session: Session; run: Run }) {
   const follow = useRef(true);
   useEffect(() => { if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; }, [session.messages.length, session.messages.at(-1)?.text, session.id]);
   return <div ref={scroll} className="timeline" role="log" aria-label="Session transcript" onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}>
-    {session.messages.length === 0 ? <div className="session-empty"><span className="welcome-mark small">m.</span><h2>What are we working on?</h2><p>Ask a question, explore this project, or make a change.<br />You review every tool action before it runs.</p><div className="empty-contract"><span>Local execution</span><span>Manual approvals</span><span>Durable history</span></div></div> : <>
+    {session.messages.length === 0 ? <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>What are we working on?</h2><p>Ask a question, explore this project, or make a change.<br />You review every tool action before it runs.</p><div className="empty-contract"><span>Local execution</span><span>Manual approvals</span><span>Durable history</span></div></div> : <>
       {session.messages.length > limit && <button className="load-history" onClick={() => setLimit((value) => value + 150)}>Show earlier messages ({session.messages.length - limit})</button>}
       {session.messages.slice(-limit).map((message) => <article key={message.id} className={`message ${message.role}`}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : message.role === "tool" ? message.toolCalls?.[0]?.name ?? "Tool" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}</header>
         {message.role === "tool" ? <details open={message.outcome === "running"}><summary>{message.outcome === "running" ? "Command output" : `Tool result: ${message.outcome}`}</summary><pre>{message.text}</pre></details> :
-          <div className="markdown"><Markdown remarkPlugins={[remarkGfm]} components={{
-            a: ({ href, children }) => <a href={href} onClick={(event) => { event.preventDefault(); if (href) void run(() => window.moguri.openExternal(href)); }}>{children}</a>,
-            img: ({ alt }) => <span>[Image omitted: {alt || "remote image"}]</span>,
-          }}>{message.text || (message.toolCalls?.length ? "Requesting tool access." : message.outcome ? "No text response was returned." : "Working...")}</Markdown></div>}
+          <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.toolCalls?.length ? "Requesting tool access." : message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
         {message.reasoning && <details><summary>Provider-exposed reasoning</summary><p className="reasoning">{message.reasoning}</p></details>}
       </article>)}
     </>}
@@ -219,7 +239,17 @@ function Composer({ session, project, snapshot, client, editor, run, busy, conne
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [delivery, setDelivery] = useState<"queue" | "steer" | "interrupt">("queue");
   const modelAvailable = snapshot.provider.models.some((model) => model.id === session.controls.modelId);
-  const configure = (modelId: string) => run(() => client.command({ type: "session.configure", sessionId: session.id, expectedRevision: session.revision, controls: { ...session.controls, modelId } }));
+  const configure = (modelId: string, autonomy = session.controls.autonomy) => run(() => client.command({ type: "session.configure", sessionId: session.id, expectedRevision: session.revision, controls: { ...session.controls, modelId, autonomy } }));
+  const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && job.kind === "voice.record" && job.status === "running");
+  const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
+  const dictate = () => run(async () => {
+    await editor.flush();
+    if (voiceJob) return client.voice.stop(voiceJob.id);
+    const status = (await client.voice.status()).voice;
+    if (!status.runtimeReady || !status.modelReady) throw new Error(status.diagnostic ?? "Set up local dictation in Settings before recording.");
+    if (!await window.moguri.microphonePermission()) throw new Error("Microphone permission was denied. No audio was recorded.");
+    return client.voice.record(session.id);
+  });
   const send = (event?: FormEvent) => { event?.preventDefault(); void run(() => editor.send(delivery)); };
   const canSend = connected && !busy && session.status !== "archived" && snapshot.provider.status === "connected" &&
     modelAvailable && (draft.text.trim().length > 0 || draft.attachments.length > 0) && !draft.conflict && (delivery === "queue" || !!session.turnId);
@@ -230,7 +260,7 @@ function Composer({ session, project, snapshot, client, editor, run, busy, conne
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
     <textarea id={`prompt-${session.id}`} placeholder="Ask anything about this project..." value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
       onPaste={(event) => { if (event.clipboardData.files.length) { event.preventDefault(); void run(async () => { throw new Error("Image paste is not available in this checkpoint. No clipboard file was attached or sent."); }); } }}
-      onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); if (canSend) send(); } }} />
+      onKeyDown={(event) => { if (event.code === "Space" && event.ctrlKey) { event.preventDefault(); void dictate(); } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); if (canSend) send(); } }} />
     {draft.error && <div className="draft-error" role="alert"><p>{draft.error}</p><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
     <div className="composer-controls">
       <label>Env<select aria-label="Env" value={session.controls.env} disabled={!!session.turnId} onChange={() => {}} title="Factory default: Local. No sandbox isolation."><option>Local</option><option disabled>Sandbox (not ready)</option><option disabled>Remote (not ready)</option></select></label>
@@ -239,7 +269,7 @@ function Composer({ session, project, snapshot, client, editor, run, busy, conne
         {session.controls.modelId && !modelAvailable && <option value={session.controls.modelId} disabled>{session.controls.modelId} (unavailable)</option>}
         <optgroup label="GitHub Copilot">{snapshot.provider.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</optgroup>
       </select></label>
-      <label>Autonomy level<select aria-label="Autonomy level" value="Manual" onChange={() => {}} title="Factory default: Manual. Each tool needs your approval."><option>Manual</option><option disabled>Guided (not ready)</option><option disabled>Autopilot (not ready)</option><option disabled>Autopilot Max (not ready)</option></select></label>
+      <label>Autonomy level<select aria-label="Autonomy level" value={session.controls.autonomy} disabled={!!session.turnId} onChange={(event) => void configure(session.controls.modelId ?? "", event.target.value as Session["controls"]["autonomy"])} title="Permissions remain final. Autopilot requires explicit delegations."><option>Manual</option><option>Guided</option><option>Autopilot</option><option disabled>Autopilot Max</option></select></label>
       <label>Budget<select aria-label="Budget" value="Unlimited" onChange={() => {}} title="Factory default: Unlimited. Finite caps are not enforceable yet."><option>Unlimited</option><option disabled>Token/USD cap (not ready)</option></select></label>
     </div>
     <div className="composer-bottom">
@@ -248,6 +278,8 @@ function Composer({ session, project, snapshot, client, editor, run, busy, conne
         {["^ Local file outside project", ": Local folder", "# GitHub issue", "# GitHub pull request", "! Moguri session", "Clipboard image"].map((type) => <button key={type} type="button" disabled title="Not implemented in this checkpoint">{type}<small>Not available yet</small></button>)}
       </div></details>
       <span className="save-state" role="status">{draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved"}</span>
+      <button type="button" className="quiet dictate-button" aria-label={voiceJob ? "Stop local dictation" : "Start local dictation"} title="Ctrl+Space. Requires explicit local model setup; never sends audio to a provider." onClick={() => void dictate()}>{voiceJob ? "Stop dictation" : "Dictate"}</button>
+      {transcript && <button type="button" className="quiet" onClick={() => void run(async () => { await editor.flush(); return client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); })}>Insert transcript</button>}
       <div className="send-controls"><select aria-label="Delivery mode" value={delivery} onChange={(event) => setDelivery(event.target.value as typeof delivery)}><option value="queue">{session.turnId ? "Queue" : "Send"}</option><option value="steer" disabled={!session.turnId}>Steer</option><option value="interrupt" disabled={!session.turnId}>Interrupt</option></select><button className="primary send-button" type="submit" disabled={!canSend} title="Ctrl+Enter or Command+Enter">{delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send"} <span aria-hidden="true">&uarr;</span></button></div>
     </div>
     <p className="composer-footnote">Local runs on your Mac. Files go to Copilot only through your prompt or approved tools.</p>
@@ -276,7 +308,7 @@ function Queue({ session, command, client }: { session: Session; command: (comma
       <><span className="queue-delivery">{item.delivery === "steer" && item.targetTurnId !== session.turnId ? "unapplied steer" : item.delivery}</span><span className="queue-text">{item.text || "Attached project context"}</span>{item.delivery === "steer" && <button className="quiet" onClick={() => void command({ type: "queue.make-turn", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}>Queue as new turn</button>}<button className="quiet" onClick={() => { setEditing(item.id); setText(item.text); }}>Edit</button><button className="icon-button" aria-label={`Move queued message ${index + 1} up`} disabled={index === 0} onClick={() => reorder(index, -1)}>&uarr;</button><button className="icon-button" aria-label={`Move queued message ${index + 1} down`} disabled={index === session.queue.length - 1} onClick={() => reorder(index, 1)}>&darr;</button><button className="icon-button" aria-label={`Remove queued message ${index + 1}`} onClick={() => void command({ type: "queue.remove", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}>x</button></>}</div>)}
   </section>;
 }
-function ContextPanel({ panel, session, project, events, client, run }: { panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run }) {
+function ContextPanel({ panel, session, project, events, client, run, openSettings }: { panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; openSettings: (tab: SettingsTab) => void }) {
   const [trace, setTrace] = useState(false);
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   if (panel === "Insights") {
@@ -304,6 +336,7 @@ function ContextPanel({ panel, session, project, events, client, run }: { panel:
       {session.processes.map((process) => <p className="fine-print" key={process.callId}>PID {process.pid}, group {process.processGroup}: {process.outcome}</p>)}
       {session.turnId && <button className="stop-button" onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}>Stop active work</button>}<p className="fine-print">Interactive terminals and restart reattachment are not implemented yet.</p></>;
   }
+  if (panel === "Extensions") return <><h2>Shared SDK capabilities</h2><p className="muted">Skills, approved scripts, declarative plugins and MCP servers are managed by the service, not this panel.</p>{client.getState().snapshot?.registry.filter((entry) => entry.projectId === session.projectId).map((entry) => <p key={entry.id}>{entry.name}: {entry.enabled ? "enabled" : "disabled"} ({entry.kind})</p>)}<div className="button-row"><button onClick={() => openSettings("skills")}>Skills and proposals</button><button onClick={() => openSettings("mcpServers")}>MCP gateway</button></div></>;
   const unavailable: Record<Exclude<Panel, "Insights" | "Terminal">, string> = {
     Changes: "Worktree status and diff views arrive in Phase 3. No Git status has been inferred.",
     Files: "The project file browser arrives in Phase 3. Attach an explicit project text snapshot in the composer, or approve a scoped file tool.",

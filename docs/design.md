@@ -10,24 +10,29 @@ specification, not this presentation record.
 
 ## Desktop
 
-The desktop uses a restrained, light workbench suited to ordinary ambient
-daylight: white conversation surface, cool-gray project navigation and a quiet
-green action/selection vocabulary. It does not use marketing cards, synthetic
+The desktop uses a restrained dark workbench by explicit user requirement:
+slate conversation surfaces, deeper navigation and a quiet green
+action/selection vocabulary. Dark is the factory preference; Light and System
+are explicit, restorable shared SDK settings. It does not use marketing cards, synthetic
 activity or invented metrics. System sans-serif carries UI; system monospace is
 reserved for code, paths, IDs and measurements.
 
 | Role | Value |
 | --- | --- |
-| Main surface | `#ffffff` |
-| App background | `#f5f6f8` |
-| Navigation | `#eff1f4` |
-| Subtle surface | `#f7f8fa` |
-| Text | `#202936` |
-| Secondary text | `#616c7c` |
-| Action | `#286547` |
-| Selection | `#dfe8e3` |
-| Border | `#dce1e7` |
-| Error | `#a23e38` |
+| Main surface | `#191f29` |
+| App background | `#141922` |
+| Navigation | `#11161e` |
+| Subtle surface | `#1d2530` |
+| Text | `#e1e8f0` |
+| Secondary text | `#a2afc0` |
+| Action | `#a8d7bc` |
+| Selection | `#233c30` |
+| Border | `#344151` |
+| Error | `#ffb5a9` |
+
+An original small face-and-purple-bat-wing mascot anchors the titlebar and empty
+state. One SVG source generates PNG/ICNS native icons; the SDK exports its ASCII
+counterpart for terminal loading. No supplied third-party artwork is embedded.
 
 Projects/sessions sit left; the conversation remains central; the main-session
 sidebar sits beside it with a separate seven-panel rail. Explicit grid placement
@@ -43,6 +48,13 @@ explicit deny/approve controls. State is labeled in text, not color alone.
 Conversation Markdown is rendered without raw HTML, automatic remote images or
 implicit external navigation. Long transcripts progressively reveal older
 messages. Code stays selectable and horizontally scrollable.
+
+Settings is a full main-pane task surface, with a category rail, persistent save
+state and explicit warning/reset actions. It exposes the shared SDK rather than
+owning capability behavior. Dirty settings survive tab changes and block
+navigation/unmount until saved or explicitly reloaded. JSON editors expose exact
+permissions/MCP configuration during this alpha. Model-weight download requires
+its own user acceptance, separate from recording or transcript insertion.
 
 ## Terminal
 

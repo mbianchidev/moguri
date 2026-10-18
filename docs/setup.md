@@ -63,11 +63,16 @@ Moguri telemetry backend or automatic local-network model scan.
 
 The composer always exposes **Env**, **Model**, **Autonomy level**, **Budget**.
 Factory values are Local, unset model, Manual and Unlimited. Only Local/fixed
-Copilot/Manual/Unlimited is implemented. Unready choices explain the limitation
+Copilot/Unlimited is implemented. Manual remains default; Guided displays model
+advice but needs human confirmation. Autopilot requires explicit tool or exact
+command grants and cannot grant itself anything. Autopilot Max is unavailable.
+Unready choices explain the limitation
 or fail with a typed error; no fallback to Local or another model is possible.
 
-Every tool needs a human approval bound to its exact arguments and policy
-revision. File tools list/read/write approved project content; writes require
+Every tool needs a human approval bound to its exact arguments and policy/
+permission revisions, or an explicit bounded user delegation. Deny wins.
+Blanket shell/wildcard allow grants are rejected; shell grants name the exact
+command string. File tools list/read/write approved project content; writes require
 the digest returned by a read, or `absent` for a new file. Protected credential
 paths and symlink escapes are rejected. Text files are limited to 128 KiB;
 at most 16 snapshots and 512 KiB of attached text are accepted.
@@ -77,6 +82,9 @@ directory is its working directory, not an OS containment boundary. Review the
 full command. Commands have bounded output/deadlines, cannot be left running as
 implicitly successful background work, and are owned by the current turn.
 The worker does not receive the local API token or refresh credential.
+An MCP call always requires an exact nested-tool approval and fresh schema/
+server fingerprint. Tool annotations are not permissions. An external MCP
+caller cannot take over a busy session or bypass the project's active lease.
 
 Desktop **Attach / @ Project text file** and TUI `/attach path/to/file` create
 immutable, inspectable snapshots. Changes after attachment do not silently
@@ -84,6 +92,128 @@ change the admitted content. Remove desktop attachments with their `x` control
 or use TUI `/detach path-or-snapshot-ID`.
 Other attachment types and image paste are explicitly unavailable. Bare `@`,
 `^`, `:`, `#` and `!` in ordinary text do not read files or create attachments.
+
+## Shared SDK and settings
+
+The [Moguri SDK](sdk.md) is importable independently of either UI. CLI/TUI and
+desktop use it for every capability, not separate client-specific versions.
+`node bin/moguri.mjs --help` lists CLI commands; `status` exposes project/session
+IDs. A normal installation also provides `moguri`.
+
+Desktop starts **dark**, with an original minimal face-and-bat-wing mascot
+shared with the TUI loading ASCII. **Settings / Appearance** selects Dark,
+Light or System. **Settings / System prompt** and TUI **Ctrl+G** expose the
+actual instructions, a breakage warning and restore defaults. Prompt edits need
+explicit acknowledgement, apply to new turns and cannot override permissions.
+Running turns keep their committed prompt snapshot.
+
+The TUI settings JSON editor exposes the same theme, permissions, memory,
+optional modes, MCP and voice configuration. Ctrl+Enter saves and acknowledges
+the displayed risk; Ctrl+R restores; Esc discards that local editor. Stale
+revisions preserve edits and require a reload. Desktop also protects unsaved
+settings when navigating away. Section/all reset preserves sessions, knowledge,
+credentials and downloaded models, and does not widen the separate allowed-env
+policy.
+
+**Sandbox is still unavailable.** Guardrails exposes SendBox configuration and
+readiness diagnostics, but the native worker transport/guest bundle/workload
+qualification is not complete. Merely entering paths does not enable execution.
+Missing protection is an explicit error, never a Local fallback.
+
+## Local memory, skills, scripts and plugins
+
+**Settings / Repository memory** opts into indexing. A second switch explicitly
+permits bounded retrieved snippets to enter Copilot context. The database uses
+384-dimensional local lexical vectors, not a learned semantic embedding model.
+No embeddings provider is required. Root/nested `.gitignore`, protected paths,
+symlinks, file count, directory traversal and total source size are bounded.
+Unchanged snapshots are reused. Changed, missing or newly ignored files return
+no stale source text. Re-index for an updated import/symbol graph; it is a
+snapshot, not a live compiler.
+
+`/memory index`, `/memory search TEXT`, `/memory graph` and
+`/memory remember CONVENTION` expose these APIs in TUI. Save only non-sensitive
+project coding conventions. Knowledge is project-scoped and independent of
+session retention.
+
+Standard `SKILL.md` imports, declarative plugin bundles and optional
+model-proposed skills/scripts/style facts share one inspectable registry.
+Imports start disabled. **Optional evolution** starts off. A model can only
+propose: human review binds the exact SHA-256, approval installs disabled
+content, and enabling/execution are separate actions. A plugin must be enabled
+before its bundled skills. No JavaScript plugin entrypoint or marketplace
+dependency installation is supported.
+
+TUI uses `/skills import PATH`, `/plugins import PATH`, `/capabilities`,
+`/capability view|enable|disable ID`, `/proposal view ID` and
+`/proposal approve|reject ID SHA256`. **Optional subagents** also starts off.
+When enabled, up to two depth-one, tool-less children use the parent's fixed
+model/approved context with separate usage and owned cancellation. They do not
+become extra write-capable agents.
+
+The internal MCP provides `grep_logs`, `fetch_page`, `search_memory` and
+`memory_graph`, plus explicitly approved/enabled custom Node scripts. Custom
+scripts are **host code without SendBox**, require source review and exact call
+approval, and have bounded output/deadlines. See [the SDK contract](sdk.md)
+for plugin and script formats.
+
+## Native MCP gateway
+
+**Settings / MCP gateway** configures stdio or Streamable HTTP servers,
+discovers bounded tool pages, checks auth and requests exact calls in an idle
+main session. Return to that session to approve. Configuration is user-only;
+discovery may start the configured local executable, so enable only trusted
+servers. Protected-env policy cannot be bypassed by Local MCP discovery.
+
+Bearer credentials live only in the OS keychain. Stdio children receive no
+ambient provider tokens. HTTP requires HTTPS, except explicit loopback HTTP.
+Interactive OAuth-only MCPs remain unsupported. TUI `/mcp token SERVER`
+opens a dedicated masked input, never a composer draft; CLI accepts the
+credential through piped stdin, not shell arguments. `/mcp tools`,
+`/mcp auth`, `/mcp call` and `/result ID` use the same SDK.
+
+`moguri mcp --session SESSION_ID` exposes one native MCP with discovery,
+auth-status, call and paged-result tools. It cannot change settings or
+credentials or approve itself. Connector failure/cancellation can leave
+external effects unconfirmed; partial is not success and requires inspection.
+
+## Local NVIDIA dictation
+
+Open **Settings / Voice dictation**, review the linked model card/license and
+explicitly accept the one-time download. The pinned model is
+`nvidia/nemotron-3.5-asr-streaming-0.6b`, Q8 GGUF, **741,548,352 bytes
+(about 708 MiB)** under OpenMDW-1.1. NVIDIA documents **40 language-locales**:
+19 ready, 13 broad coverage and 8 requiring adaptation. Only the first 32 are
+offered as usable without fine-tuning; do not interpret this as 22 verified
+languages or 40 ready languages.
+
+The pinned NeMo-Speech.cpp 0.2.0 native runtime ships with the build. Preparing
+that runtime does not download the weights. The model download is staged,
+size/SHA-256 verified and atomically installed under the private state directory.
+Recording passes an existing local GGUF path, never an alias that might
+auto-download. Audio never goes to hosted ASR or the Copilot provider.
+
+Desktop **Dictate** or **Start local microphone** asks OS permission only on
+that user action. **Stop and transcribe** finalizes; **Cancel and discard**
+does not insert partial audio. TUI **Ctrl+Space** starts/stops and **F4** inserts
+the completed local transcript into the saved draft. Recording is limited to
+two minutes. WAV transcription accepts regular PCM WAV files up to 64 MiB.
+Insert is explicit and revision-checked; nothing is automatically sent.
+
+CLI equivalents:
+
+```bash
+node bin/moguri.mjs dictate status
+node bin/moguri.mjs dictate download --accept-license
+node bin/moguri.mjs dictate record --session SESSION_ID
+node bin/moguri.mjs dictate file /absolute/path/recording.wav --session SESSION_ID
+```
+
+Ctrl+C finalizes a recording or cancels a download/file transcription.
+CLI prints the retained result, not an automatic prompt send. Without the
+runtime/model or microphone permission, setup fails explicitly; there is no
+cloud fallback. Automated checks use generated recognizers, not real audio,
+weights, microphone access or personal provider authorization.
 
 ## Delivery, drafts and recovery
 
@@ -139,6 +269,8 @@ retention management and managed worktrees are not exposed yet.
 | Ctrl+V | Focus scrollable full approval arguments |
 | Ctrl+R / Ctrl+S | Reload saved draft / save or explicitly keep local draft |
 | Ctrl+A / Ctrl+B / Ctrl+K | Active/archive view / recent event trace / command help |
+| Ctrl+G | Shared SDK settings and prompt editor |
+| Ctrl+Space / F4 | Start-stop local dictation / explicitly insert completed transcript |
 | Esc / Ctrl+Q | Return to composer / save and leave |
 
 `/help` lists slash commands, including queue editing/reordering, `/steer`,
@@ -172,6 +304,8 @@ step fixes the executable bit on node-pty's published macOS spawn helper.
 The provider library's unused Google adapter dependency chain currently emits
 a `node-domexception` deprecation notice during installation. It is not used as
 a Copilot credential source; dependency audits are separate from that notice.
+Cheerio's upstream chain also reports deprecated `whatwg-encoding`. These
+notices are not vulnerability findings or suppressed install failures.
 
 ## Verification and packaging
 
@@ -180,6 +314,7 @@ npm run typecheck
 npm test
 npm run build
 npm run test:e2e
+npm run verify:sdk
 npm run spike
 npm audit --audit-level=moderate
 ```
@@ -194,12 +329,15 @@ portable foundation, with macOS-only operational tests skipped.
 npm run package:mac
 ```
 
-On macOS arm64 this produces `release/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-macos-arm64.dmg` and `release/Moguri-macos-arm64.zip`. The app
-contains the pinned Node runtime and production dependencies. Development
+On macOS arm64 this produces
+`release/0.2.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.2.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
+and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
 inside Electron's ASAR filesystem. `node scripts/verify-package.mjs` checks the
-signature, bundled runtime, TUI entrypoint and isolated packaged service without
+signature/icon, bundled runtime, CLI/TUI entrypoints, embedded SDK, native speech
+readiness and isolated packaged service without
 using personal credentials. The Electron test can exercise that artifact with
 `MOGURI_TEST_APP=/absolute/path/to/Moguri.app/Contents/MacOS/Moguri npm run test:e2e`.
 Development artifacts are ad-hoc signed, not notarized; do not advertise them as signed

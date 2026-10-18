@@ -9,6 +9,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > [!WARNING]
 > Moguri is pre-alpha. An [initial executable macOS checkpoint](setup.md) now exists for Local/Manual Copilot sessions in TUI and desktop. This document still defines the wider product direction, architectural constraints, first milestone and working agreement; it does not claim completion of every described capability. [Phase 0 evidence](architecture/phase-zero.md) records passes and unresolved release blockers.
 
+> The user-requested [SDK platform slice](architecture/sdk-platform.md) adds
+> default-dark branding, shared prompt/permission settings, opt-in local memory,
+> approved extension proposals, optional read-only subagents, a native MCP
+> gateway and local Nemotron dictation. These use one importable SDK, not
+> client-only implementations. They do not complete the later unattended
+> self-evolution, marketplace, memory-tier, routing or execution-backend roadmap.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.
