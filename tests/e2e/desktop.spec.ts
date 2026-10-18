@@ -10,13 +10,15 @@ const artifacts = resolve(".moguri/artifacts");
 test.skip(process.platform !== "darwin", "Initial desktop checkpoint is validated on macOS.");
 
 test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation and restart", async () => {
-  const fixture = await setupFixture();
+  const packaged = process.env.MOGURI_TEST_APP;
+  const packagedRoot = packaged ? resolve(packaged, "../../Resources/app") : undefined;
+  const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined });
   await fixture.provider.logout();
   let app: ElectronApplication | undefined;
   const other = new MoguriClient(fixture.service.connection);
   const launch = async () => electron.launch({
-    executablePath: require("electron"),
-    args: ["."],
+    executablePath: packaged ?? require("electron"),
+    args: packaged ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
   });
   try {
@@ -69,6 +71,11 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await app.close();
     app = await launch();
     page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");
+    await fixture.provider.logout();
+    await expect(page.getByLabel("Model", { exact: true })).toHaveValue(fixture.modelId);
+    await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await expect(page.getByText(`Saved model ${fixture.modelId} is unavailable. Reconnect or explicitly choose another model.`)).toBeVisible();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");
     expect(fixture.requests.length).toBe(3);
     expect(failures).toEqual([]);

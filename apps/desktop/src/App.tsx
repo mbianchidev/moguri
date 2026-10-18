@@ -218,12 +218,13 @@ function Composer({ session, project, snapshot, client, editor, run, busy, conne
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [delivery, setDelivery] = useState<"queue" | "steer" | "interrupt">("queue");
+  const modelAvailable = snapshot.provider.models.some((model) => model.id === session.controls.modelId);
   const configure = (modelId: string) => run(() => client.command({ type: "session.configure", sessionId: session.id, expectedRevision: session.revision, controls: { ...session.controls, modelId } }));
   const send = (event?: FormEvent) => { event?.preventDefault(); void run(() => editor.send(delivery)); };
   const canSend = connected && !busy && session.status !== "archived" && snapshot.provider.status === "connected" &&
-    !!session.controls.modelId && (draft.text.trim().length > 0 || draft.attachments.length > 0) && !draft.conflict && (delivery === "queue" || !!session.turnId);
+    modelAvailable && (draft.text.trim().length > 0 || draft.attachments.length > 0) && !draft.conflict && (delivery === "queue" || !!session.turnId);
   return <form className="composer" onSubmit={send} aria-label="Message composer">
-    {session.controls.modelId === null && <button type="button" className="setup-hint" onClick={onConnect}>{snapshot.provider.status === "connected" ? "Choose a Copilot model below to start." : "Connect GitHub Copilot to choose a model and start."}<span>&gt;</span></button>}
+    {!modelAvailable && <button type="button" className="setup-hint" onClick={onConnect}>{session.controls.modelId ? `Saved model ${session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.` : snapshot.provider.status === "connected" ? "Choose a Copilot model below to start." : "Connect GitHub Copilot to choose a model and start."}<span>&gt;</span></button>}
     {session.localFinishing && <p className="local-finishing">Local finishing: this running turn predates the allowed-env policy change. New Local work is blocked.</p>}
     {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`Snapshot sha256 ${attachment.digest}`}><Icon name="Files" />{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}>x</button></span>)}</div>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
@@ -235,6 +236,7 @@ function Composer({ session, project, snapshot, client, editor, run, busy, conne
       <label>Env<select aria-label="Env" value={session.controls.env} disabled={!!session.turnId} onChange={() => {}} title="Factory default: Local. No sandbox isolation."><option>Local</option><option disabled>Sandbox (not ready)</option><option disabled>Remote (not ready)</option></select></label>
       <label className="model-control">Model<select aria-label="Model" disabled={!!session.turnId || snapshot.provider.status !== "connected"} value={session.controls.modelId ?? ""} onChange={(event) => void configure(event.target.value)}>
         <option value="" disabled>{snapshot.provider.status === "connected" ? "Choose a model" : "Connect Copilot"}</option><option value="kupo" disabled>kupo (not evaluated)</option>
+        {session.controls.modelId && !modelAvailable && <option value={session.controls.modelId} disabled>{session.controls.modelId} (unavailable)</option>}
         <optgroup label="GitHub Copilot">{snapshot.provider.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</optgroup>
       </select></label>
       <label>Autonomy level<select aria-label="Autonomy level" value="Manual" onChange={() => {}} title="Factory default: Manual. Each tool needs your approval."><option>Manual</option><option disabled>Guided (not ready)</option><option disabled>Autopilot (not ready)</option><option disabled>Autopilot Max (not ready)</option></select></label>

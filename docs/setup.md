@@ -109,6 +109,12 @@ Stop records requested, acknowledged and terminal outcomes. Owned PTYs use
 TERM/KILL process-group escalation; PID/group metadata and partial or
 unconfirmed results remain visible. A completed file write is not rolled back
 by stopping a later operation.
+The temporary Node supervisor cannot prove cleanup of arbitrarily detached or
+reparented descendants. Cancelling or timing out a shell command therefore
+records a **partial** result even when its known process group was terminated.
+Inspect processes and explicitly resume before more queued work runs.
+Daemonizing/background commands are unsupported; full tree-containment
+acceptance remains a release blocker.
 
 After a service restart, drafts and unclaimed queues survive. Interrupted
 requests/tools become partial or unconfirmed, not successful, and are not
@@ -146,6 +152,8 @@ The default state directory is `~/Library/Application Support/Moguri` on macOS.
 `MOGURI_STATE_DIR=/absolute/private/directory` selects a separate state directory.
 The directory must be user-owned, non-symlink and mode 0700. Connection metadata
 and the SQLite file are mode 0600. Do not commit this directory.
+A custom state directory is not a separate credential profile: this checkpoint
+has one Default profile and one corresponding OS-keychain namespace.
 
 The service writes `state.sqlite`, WAL files, `connection.json`, `service.lock`
 and a diagnostic `service.log`. Connection tokens and OAuth credentials are
@@ -161,6 +169,9 @@ under their recorded policy revision and are labeled **Local finishing**.
 Node currently prints an **experimental FFI** warning for OpenTUI. It is a known
 upstream runtime status, not a suppressed error. A native helper preparation
 step fixes the executable bit on node-pty's published macOS spawn helper.
+The provider library's unused Google adapter dependency chain currently emits
+a `node-domexception` deprecation notice during installation. It is not used as
+a Copilot credential source; dependency audits are separate from that notice.
 
 ## Verification and packaging
 
@@ -186,7 +197,12 @@ npm run package:mac
 On macOS arm64 this produces `release/Moguri-darwin-arm64/Moguri.app`,
 `release/Moguri-macos-arm64.dmg` and `release/Moguri-macos-arm64.zip`. The app
 contains the pinned Node runtime and production dependencies. Development
-artifacts are ad-hoc signed, not notarized; do not advertise them as signed
+application files are unpacked because the external Node service cannot execute
+inside Electron's ASAR filesystem. `node scripts/verify-package.mjs` checks the
+signature, bundled runtime, TUI entrypoint and isolated packaged service without
+using personal credentials. The Electron test can exercise that artifact with
+`MOGURI_TEST_APP=/absolute/path/to/Moguri.app/Contents/MacOS/Moguri npm run test:e2e`.
+Development artifacts are ad-hoc signed, not notarized; do not advertise them as signed
 production releases or disable system-wide security to run them.
 
 Remaining blockers and unsupported capabilities are listed in

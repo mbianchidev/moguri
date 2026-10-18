@@ -12,6 +12,7 @@ await mkdir("release", { recursive: true });
 const paths = await packager({
   dir: ".", out: "release", name: "Moguri", executableName: "Moguri", appBundleId: "dev.moguri.app",
   platform: "darwin", arch: "arm64", electronVersion, overwrite: true, prune: true,
+  asar: false,
   ignore: [/^\/(?:\.git|\.moguri|release|tests|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS)\.md$/],
 });
 const app = resolve(paths[0], "Moguri.app");
