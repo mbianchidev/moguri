@@ -2,7 +2,12 @@
 
 ## Status
 
-Product specification for a planned Moguri desktop surface. It does not describe implemented behavior.
+Product specification for the full Moguri desktop sidebar. The initial executable
+checkpoint implements the persistent shell, main-session binding, collapse/width
+preferences, owned-command output/stop controls and basic Insights/event trace.
+Changes, Files, Browser, Side chat and Extensions expose explicit unavailable
+states. Interactive terminals, full metrics and the remaining acceptance checks
+are not claimed complete. See [setup](../setup.md).
 
 ## Purpose
 
@@ -189,7 +194,7 @@ The sidebar shell follows the documented phase order:
 
 ## Acceptance checks
 
-- [ ] The sidebar exists in desktop and is not required in the TUI.
+- [x] The sidebar exists in desktop and is not required in the TUI.
 - [ ] Switching the main session rebinds all panels without leaking state from the previous profile, project, or session.
 - [ ] Changes, Terminal, and Files reflect external and TUI-originated updates without stale writes.
 - [ ] Browser clearly handles connected, missing, disconnected, denied, and failed Stainless states.
