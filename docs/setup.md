@@ -342,6 +342,9 @@ using personal credentials. The Electron test can exercise that artifact with
 `MOGURI_TEST_APP=/absolute/path/to/Moguri.app/Contents/MacOS/Moguri npm run test:e2e`.
 Development artifacts are ad-hoc signed, not notarized; do not advertise them as signed
 production releases or disable system-wide security to run them.
+Packager may warn that the optional newer `.icon` format is absent; this build
+uses the generated `.icns`, which package verification checks against its
+declared native bundle icon.
 
 Remaining blockers and unsupported capabilities are listed in
 [Phase 0](architecture/phase-zero.md) and the canonical implementation spec.
