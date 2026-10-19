@@ -622,6 +622,11 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+Package verification also exercises the compiled service's project-free
+metachat/configuration API, generated OAuth and an exactly approved HTTP MCP
+tool call with credential redaction. It injects a generated vault/issuer rather
+than opening authorization or touching a personal account.
+
 Remaining blockers and unsupported capabilities are listed in
 [Phase 0](architecture/phase-zero.md) and the canonical implementation spec.
 CI is configured only for pushes to `main`. PRs/feature branches do not trigger
