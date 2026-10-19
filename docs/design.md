@@ -30,7 +30,7 @@ reserved for code, paths, IDs and measurements.
 | Border | `#344151` |
 | Error | `#ffb5a9` |
 
-An original small face-and-purple-bat-wing mascot anchors the titlebar and empty
+An original small face-and-purple-bat-wing mascot with a red pom-pom anchors the titlebar and empty
 state. One SVG source generates PNG/ICNS native icons; the SDK exports its ASCII
 counterpart for terminal loading. No supplied third-party artwork is embedded.
 
@@ -40,8 +40,11 @@ keeps the rail outside the conversation when the sidebar collapses. Width,
 collapse and active-panel preferences are local presentation only. At supported
 desktop widths the sidebar stays beside the main pane, not over it.
 
-The composer keeps prompt/snapshot context above Env, Model, Autonomy level and
-Budget, in that order. Setup and unavailable states explain what must happen
+The composer keeps prompt/snapshot context above one compact toolbar: plus,
+environment icon, model name and autonomy icon; budget/infinity, microphone and
+paper-plane Send trail on the right. Cmd/Ctrl switches Send to a queue clock.
+Native bounded popovers expose the four settings, model context/thinking and
+usage without permanent duplicate labels. Setup and unavailable states explain what must happen
 next. Approval is an inline, protected-focus action with full arguments and
 explicit deny/approve controls. State is labeled in text, not color alone.
 

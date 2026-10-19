@@ -61,7 +61,8 @@ Moguri telemetry backend or automatic local-network model scan.
 
 ## Work and approvals
 
-The composer always exposes **Env**, **Model**, **Autonomy level**, **Budget**.
+The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
+compact icon/name controls rather than separate labeled rows.
 Factory values are Local, unset model, Manual and Unlimited. Only Local/fixed
 Copilot/Unlimited is implemented. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
@@ -106,6 +107,23 @@ Light or System. **Settings / System prompt** and TUI **Ctrl+G** expose the
 actual instructions, a breakage warning and restore defaults. Prompt edits need
 explicit acknowledgement, apply to new turns and cannot override permissions.
 Running turns keep their committed prompt snapshot.
+
+The desktop toolbar starts with **+ Attach**, then the environment icon
+(house/box/globe), model name and autonomy icon (hand/traffic light/car/rocket).
+Budget is **infinity** while unlimited, followed by microphone and paper-plane
+Send. Holding Cmd/Ctrl visibly turns Send into a clock and queues without
+starting work. The small delivery chevron retains explicit Steer/Interrupt.
+Unavailable execution/autonomy modes remain disabled with their reasons.
+
+The model-name popover contains model selection, optional working context and
+the transport's actual supported thinking efforts. The working window stays
+within the model maximum, uses labeled estimates and stops an overfull request
+without truncating history. It is not a finite spend cap or exact tokenization.
+Provider-controlled thinking is shown when effort cannot be transmitted.
+Budget's popover shows actual/unknown input, output and cache totals, a local
+context estimate including the saved draft, and monetary values only when
+available. Unknown telemetry is not zero. The mascot includes its red antenna
+pom-pom without copying reference artwork.
 
 The TUI settings JSON editor exposes the same theme, permissions, memory,
 optional modes, MCP and voice configuration. Ctrl+Enter saves and acknowledges
@@ -450,8 +468,8 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 4 preserves earlier state through a transactional
-migration. Payloads and blob grants use independent profile/project/session
+Protocol/database version 5 preserves earlier state through transactional
+migrations. Payloads and blob grants use independent profile/project/session
 retention keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
 database; move the complete state directory on the same keychain. Missing or
@@ -489,6 +507,7 @@ npm run test:e2e
 npm run verify:sdk
 npm run spike:workspace
 npm run spike:sessions
+npm run spike:models
 npm run spike
 npm audit --audit-level=moderate
 ```
@@ -504,8 +523,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.4.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.4.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.5.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.5.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute

@@ -108,15 +108,17 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     const failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     await expect(page.getByRole("heading", { name: "New session", exact: true })).toBeVisible();
-    await expect(page.getByLabel("Model", { exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^Model:/ })).toContainText("Select model");
     await page.getByRole("button", { name: /GitHub Copilot.*disconnected/ }).click();
     await page.getByRole("button", { name: "Sign in with GitHub Copilot", exact: true }).click();
     await expect(page.getByLabel("GitHub device code")).toHaveText("TEST-0000");
     await expect(page.getByRole("button", { name: "Open GitHub", exact: true })).toBeVisible();
     fixture.provider.authorize();
     await expect(page.getByText("Connected through your Copilot account.")).toBeVisible();
-    await page.getByLabel("Model", { exact: true }).selectOption(fixture.modelId);
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool task");
     await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -153,7 +155,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     page = await app.firstWindow();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");
     await fixture.provider.logout();
-    await expect(page.getByLabel("Model", { exact: true })).toHaveValue(fixture.modelId);
+    await expect(page.getByRole("button", { name: /^Model:/ })).toContainText(fixture.modelId);
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     await expect(page.getByText(`Saved model ${fixture.modelId} is unavailable. Reconnect or explicitly choose another model.`)).toBeVisible();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");

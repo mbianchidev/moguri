@@ -1,5 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 128" fill="none">
   <title>Moguri</title>
+  <path d="M80 34c0-12 13-11 13-21" stroke="#352D45" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="93" cy="10" r="8" fill="#D95561" stroke="#352D45" stroke-width="3"/>
   <path d="M55 54C39 39 21 29 7 24c5 15 3 29-2 43 11-4 18-1 22 8 8-4 15-1 20 9l19-17" fill="#A58ACF" stroke="#352D45" stroke-width="4" stroke-linejoin="round"/>
   <path d="M105 54c16-15 34-25 48-30-5 15-3 29 2 43-11-4-18-1-22 8-8-4-15-1-20 9L94 67" fill="#A58ACF" stroke="#352D45" stroke-width="4" stroke-linejoin="round"/>
   <path d="m15 34 17 32m113-32-17 32" stroke="#70538E" stroke-width="3" stroke-linecap="round"/>

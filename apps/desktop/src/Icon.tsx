@@ -13,7 +13,20 @@ const paths: Record<string, string> = {
   PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
   Plan: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
   Group: "M3 4h18v5H3Zm0 9h8v7H3Zm12 0h6v7h-6Z", Link: "m9 15 6-6M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m2 1 2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0",
+  Send: "m21 3-6 18-4-8-8-4Zm0 0L11 13",
+  Clock: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2",
+  Mic: "M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0Zm-3 6v1a6 6 0 0 0 12 0v-1m-6 7v4m-4 0h8",
+  Dollar: "M12 2v20m5-16H9a4 4 0 0 0 0 8h6a3 3 0 0 1 0 6H6",
+  Infinity: "M12 12C8 6 3 6 3 12s5 6 9 0 9-6 9 0-5 6-9 0Z",
+  House: "m3 11 9-8 9 8M5 9v12h5v-7h4v7h5V9",
+  Box: "m3 7 9-4 9 4v10l-9 4-9-4Zm0 0 9 4 9-4m-9 4v10",
+  Globe: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M5 7h14M5 17h14M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z",
+  Hand: "M8 12V5a2 2 0 0 1 4 0v7-9a2 2 0 0 1 4 0v9-6a2 2 0 0 1 4 0v9c0 5-3 7-7 7-3 0-5-1-7-4l-3-5a2 2 0 0 1 3-2l2 2",
+  Traffic: "M8 2h8v20H8ZM12 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z",
+  Car: "m5 9 2-5h10l2 5M3 10h18v9H3Zm3 9v2m12-2v2M6 14h2m8 0h2",
+  Rocket: "M9 15C9 7 14 3 21 3c0 7-4 12-12 12ZM9 9H5l-3 6 7 1m6-1v4l-6 3-1-7m-1 4-3 3m11-13a2 2 0 1 0 4 0 2 2 0 0 0-4 0",
+  Check: "m4 12 5 5L20 6",
 };
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d={paths[name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

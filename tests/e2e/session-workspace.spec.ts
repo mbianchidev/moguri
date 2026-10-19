@@ -48,7 +48,10 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await slash(`/rename ${longName}`);
     await expect(page.getByRole("heading", { name: longName, exact: true })).toBeVisible();
     await page.screenshot({ path: join(artifacts, "desktop-held-queue.png") });
-    await page.getByLabel("Model", { exact: true }).selectOption(fixture.modelId);
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Run queued message 1", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests.length).toBe(1);

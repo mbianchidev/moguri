@@ -1,11 +1,12 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
-import { DraftEditor, slashCommands, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult } from "../../../packages/sdk/src/index.ts";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DraftEditor, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, PlanPanel, SideChat } from "./SessionPanels.tsx";
+import { ChatComposer } from "./ChatComposer.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
@@ -51,6 +52,7 @@ export function App({ client }: { client: MoguriClient }) {
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
   const [nativeModal, setNativeModal] = useState(false);
+  const [composerMenuOpen, setComposerMenuOpen] = useState(false);
   const [sideSessionId, setSideSessionId] = useState<string | null>(null);
   const [commandOutput, setCommandOutput] = useState<string | null>(null);
   const editors = useRef(new Map<string, DraftEditor>());
@@ -131,7 +133,7 @@ export function App({ client }: { client: MoguriClient }) {
       return;
     }
     if (result.panel === "Settings") openSettings("systemPrompt");
-    else if (result.panel === "Models") { document.querySelector<HTMLSelectElement>('[aria-label="Model"]')?.focus(); }
+    else if (result.panel === "Models") { document.querySelector<HTMLButtonElement>('[data-composer-control="model"]')?.click(); }
     else if (result.panel === "Queue") document.querySelector(".queue")?.scrollIntoView({ block: "nearest" });
     else await showPanel(result.panel);
   };
@@ -159,13 +161,13 @@ export function App({ client }: { client: MoguriClient }) {
   });
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
-      if (nativeModal || event.target instanceof Element && event.target.closest(".ghostty-host")) return;
+      if (nativeModal || composerMenuOpen || event.target instanceof Element && event.target.closest(".ghostty-host")) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPalette((open) => !open); }
       if (event.key === "Escape") { setPalette(false); setNavOpen(false); }
     };
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
-  }, [nativeModal]);
+  }, [nativeModal, composerMenuOpen]);
   return <div className={`app-shell ${navOpen ? "nav-open" : ""} ${panelOpen && !settingsTab && !boardOpen ? "context-open" : ""} ${widePanel ? "context-wide" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
@@ -215,14 +217,14 @@ export function App({ client }: { client: MoguriClient }) {
             <div className="approval-actions"><button disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: false })}>Deny</button><button className="primary" disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: true })}>Approve this action</button></div>
           </section>}
           {session.queue.length > 0 && <Queue session={session} command={command} client={client} />}
-          {editor && project && <Composer key={session.id} session={session} project={project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} />}
+          {editor && project && <ChatComposer key={session.id} session={session} project={project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} />}
         </>}
       </>}
     </main>
     <aside className="context-pane" aria-label="Session sidebar">
       <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><div><button className="icon-button" aria-label="Resize sidebar" title="Toggle sidebar width" onClick={() => setWidePanel((value) => !value)}>&lt;&gt;</button><button className="icon-button" aria-label="Close sidebar" onClick={() => { if (canNavigate()) setPanelOpen(false); }}><Icon name="Close" /></button></div></header>
       <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
-        <ContextPanel key={`${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} nativeAllowed={!palette && !nativeModal && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
+        <ContextPanel key={`${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
@@ -275,69 +277,6 @@ function Timeline({ session, run }: { session: Session; run: Run }) {
       </article>)}
     </>}
   </div>;
-}
-function Composer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash }: {
-  session: Session; project: Project; snapshot: Snapshot; client: MoguriClient; editor: DraftEditor; run: Run; busy: boolean; connected: boolean; onConnect: () => void;
-  onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
-}) {
-  const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
-  const [delivery, setDelivery] = useState<"queue" | "steer" | "interrupt">("queue");
-  const modelAvailable = snapshot.provider.models.some((model) => model.id === session.controls.modelId);
-  const configure = (modelId: string, autonomy = session.controls.autonomy) => run(() => client.command({ type: "session.configure", sessionId: session.id, expectedRevision: session.revision, controls: { ...session.controls, modelId, autonomy } }));
-  const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && job.kind === "voice.record" && job.status === "running");
-  const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
-  const dictate = () => run(async () => {
-    await editor.flush();
-    if (voiceJob) return client.voice.stop(voiceJob.id);
-    const status = (await client.voice.status()).voice;
-    if (!status.runtimeReady || !status.modelReady) throw new Error(status.diagnostic ?? "Set up local dictation in Settings before recording.");
-    if (!await window.moguri.microphonePermission()) throw new Error("Microphone permission was denied. No audio was recorded.");
-    return client.voice.record(session.id);
-  });
-  const isSlash = draft.text.startsWith("/");
-  const send = (event?: FormEvent, held = false) => { event?.preventDefault(); void run(() => isSlash ? onSlash(session, editor, draft.text) : editor.send(held ? "queue" : delivery, held)); };
-  const canSend = connected && !busy && session.status !== "archived" && snapshot.provider.status === "connected" &&
-    modelAvailable && (draft.text.trim().length > 0 || draft.attachments.length > 0) && !draft.conflict && (delivery === "queue" || !!session.turnId);
-  const canQueue = connected && !busy && session.status !== "archived" && (draft.text.trim().length > 0 || draft.attachments.length > 0) && !draft.conflict;
-  const suggestions = isSlash && !/\s/.test(draft.text) ? slashCommands.filter((command) => command.name.startsWith(draft.text.slice(1))).slice(0, 7) : [];
-  return <form className="composer" onSubmit={send} aria-label="Message composer">
-    {!modelAvailable && <button type="button" className="setup-hint" onClick={onConnect}>{session.controls.modelId ? `Saved model ${session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.` : snapshot.provider.status === "connected" ? "Choose a Copilot model below to start." : "Connect GitHub Copilot to choose a model and start."}<span>&gt;</span></button>}
-    {session.localFinishing && <p className="local-finishing">Local finishing: this running turn predates the allowed-env policy change. New Local work is blocked.</p>}
-    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`Snapshot sha256 ${attachment.digest}`}><Icon name="Files" />{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}>x</button></span>)}</div>}
-    <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
-    <textarea id={`prompt-${session.id}`} placeholder="Ask anything about this project..." value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
-      onPaste={(event) => { if (event.clipboardData.files.length) { event.preventDefault(); void run(async () => { throw new Error("Image paste is not available in this checkpoint. No clipboard file was attached or sent."); }); } }}
-      onKeyDown={(event) => {
-        if (event.code === "Space" && event.ctrlKey) { event.preventDefault(); void dictate(); }
-        else if (event.key === "Tab" && suggestions[0]) { event.preventDefault(); editor.edit(`/${suggestions[0].name} `); }
-        else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); if (isSlash ? canQueue : event.shiftKey ? canSend : canQueue) send(undefined, !event.shiftKey); }
-      }} />
-    {suggestions.length > 0 && <div className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion) => <button type="button" role="option" aria-selected={false} key={suggestion.name} onClick={() => editor.edit(`/${suggestion.name} `)}><strong>/{suggestion.name}</strong><span>{suggestion.description}</span></button>)}</div>}
-    {draft.error && <div className="draft-error" role="alert"><p>{draft.error}</p><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
-    <div className="composer-controls">
-      <label>Env<select aria-label="Env" value={session.controls.env} disabled={!!session.turnId} onChange={() => {}} title="Factory default: Local. No sandbox isolation."><option>Local</option><option disabled>Sandbox (not ready)</option><option disabled>Remote (not ready)</option></select></label>
-      <label className="model-control">Model<select aria-label="Model" disabled={!!session.turnId || snapshot.provider.status !== "connected"} value={session.controls.modelId ?? ""} onChange={(event) => void configure(event.target.value)}>
-        <option value="" disabled>{snapshot.provider.status === "connected" ? "Choose a model" : "Connect Copilot"}</option><option value="kupo" disabled>kupo (not evaluated)</option>
-        {session.controls.modelId && !modelAvailable && <option value={session.controls.modelId} disabled>{session.controls.modelId} (unavailable)</option>}
-        <optgroup label="GitHub Copilot">{snapshot.provider.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</optgroup>
-      </select></label>
-      <label>Autonomy level<select aria-label="Autonomy level" value={session.controls.autonomy} disabled={!!session.turnId} onChange={(event) => void configure(session.controls.modelId ?? "", event.target.value as Session["controls"]["autonomy"])} title="Permissions remain final. Autopilot requires explicit delegations."><option>Manual</option><option>Guided</option><option>Autopilot</option><option disabled>Autopilot Max</option></select></label>
-      <label>Budget<select aria-label="Budget" value="Unlimited" onChange={() => {}} title="Factory default: Unlimited. Finite caps are not enforceable yet."><option>Unlimited</option><option disabled>Token/USD cap (not ready)</option></select></label>
-    </div>
-    <div className="composer-bottom">
-      <details className="attach-menu"><summary><span>+</span> Attach</summary><div className="attach-options">
-        <button type="button" onClick={() => void run(async () => { const path = await window.moguri.chooseFile(project.path); if (path) await editor.attach(path); })}>@ Project text file</button>
-        {["^ Local file outside project", ": Local folder", "# GitHub issue", "# GitHub pull request", "! Moguri session", "Clipboard image"].map((type) => <button key={type} type="button" disabled title="Not implemented in this checkpoint">{type}<small>Not available yet</small></button>)}
-      </div></details>
-      <span className="save-state" role="status">{draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved"}</span>
-      <button type="button" className="quiet dictate-button" aria-label={voiceJob ? "Stop local dictation" : "Start local dictation"} title="Ctrl+Space. Requires explicit local model setup; never sends audio to a provider." onClick={() => void dictate()}>{voiceJob ? "Stop dictation" : "Dictate"}</button>
-      {transcript && <button type="button" className="quiet" onClick={() => void run(async () => { await editor.flush(); return client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); })}>Insert transcript</button>}
-      <div className="send-controls"><button className="icon-button" type="button" aria-label="Queue prompt without starting work" title="Cmd/Ctrl+Enter: queue without starting" disabled={!canQueue || isSlash} onClick={() => send(undefined, true)}><Icon name="Plus" /></button>
-        {!isSlash && <select aria-label="Delivery mode" value={delivery} onChange={(event) => setDelivery(event.target.value as typeof delivery)}><option value="queue">{session.turnId ? "Queue" : "Send"}</option><option value="steer" disabled={!session.turnId}>Steer</option><option value="interrupt" disabled={!session.turnId}>Interrupt</option></select>}
-        <button className="primary send-button" type="submit" disabled={isSlash ? !canQueue : !canSend} title="Send now. Cmd/Ctrl+Enter queues instead.">{isSlash ? "Run" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send"} <Icon name="Play" /></button></div>
-    </div>
-    <p className="composer-footnote">Cmd/Ctrl+Enter queues. Shift+Cmd/Ctrl+Enter sends. {session.mode === "read-only" ? "Read-only: edit and execution tools are disabled." : "Local host execution; tools require permission."}</p>
-  </form>;
 }
 function Queue({ session, command, client }: { session: Session; command: (command: Command) => Promise<void>; client: MoguriClient }) {
   const [editing, setEditing] = useState<string | null>(null);
