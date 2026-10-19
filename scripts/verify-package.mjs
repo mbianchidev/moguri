@@ -26,6 +26,7 @@ assert.ok(rendererAssets.some((path) => /^GhosttyTerminal-.*\.js$/.test(path)));
 const temporary = await mkdtemp(join(tmpdir(), "moguri-packaged-"));
 let child;
 let timer;
+let exit;
 try {
   const project = join(temporary, "generated-project");
   await mkdir(project);
@@ -38,12 +39,14 @@ try {
       login:()=>{throw new Error("No live authorization in package verification")},
       cancel:async()=>{},logout:async()=>{},prepare:async()=>{throw new Error("No paid inference in package verification")}
     };
-    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67)});
+    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}});
     process.send(service.connection);
-    process.on("message",async(message)=>{if(message==="close"){await service.close();process.disconnect();}});
+    const close=async()=>{await service.close();if(process.connected)process.disconnect();};
+    process.on("message",async(message)=>{if(message==="close")await close();});
+    process.once("SIGTERM",()=>void close());
   `;
   child = spawn(node, ["--input-type=module", "--eval", source], { stdio: ["ignore", "ignore", "inherit", "ipc"] });
-  const exit = new Promise((resolve) => child.once("exit", resolve));
+  exit = new Promise((resolve) => child.once("exit", resolve));
   const connection = await new Promise((resolve, reject) => {
     child.once("message", resolve); child.once("error", reject);
     timer = setTimeout(() => reject(new Error("Packaged service did not become ready.")), 10_000);
@@ -56,7 +59,7 @@ try {
     return response.json();
   };
   const opened = await send({ type: "project.add", path: project });
-  await send({ type: "session.create", projectId: opened.id });
+  const created = await send({ type: "session.create", projectId: opened.id });
   const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers });
   const snapshot = await response.json();
   assert.equal(snapshot.sessions.length, 1);
@@ -64,6 +67,17 @@ try {
   assert.equal(snapshot.settings.values.appearance.theme, "dark");
   assert.deepEqual(snapshot.sessions[0].controls, { env: "Local", modelId: null, autonomy: "Manual", budget: { kind: "unlimited" } });
   assert.equal((await fetch(`${connection.baseUrl}/v1/snapshot`)).status, 401);
+  const terminal = await send({ type: "terminal.open", sessionId: created.id, cols: 80, rows: 24 });
+  const input = await fetch(`${connection.baseUrl}/v1/terminal`, { method: "POST", headers, body: JSON.stringify({ action: "input", terminalId: terminal.id, data: "GENERATED_PACKAGED_PTY_INPUT\n" }) });
+  assert.equal(input.status, 200);
+  let output = "";
+  for (let index = 0; index < 50 && !(output.includes("GENERATED_PACKAGED_PTY_READY") && output.includes("GENERATED_PACKAGED_PTY_INPUT")); index++) {
+    const response = await fetch(`${connection.baseUrl}/v1/query`, { method: "POST", headers, body: JSON.stringify({ type: "terminal.read", terminalId: terminal.id, offset: 0, limit: 65536 }) });
+    assert.equal(response.status, 200); output = (await response.json()).data;
+    if (!(output.includes("GENERATED_PACKAGED_PTY_READY") && output.includes("GENERATED_PACKAGED_PTY_INPUT"))) await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.match(output, /GENERATED_PACKAGED_PTY_READY/); assert.match(output, /GENERATED_PACKAGED_PTY_INPUT/);
+  await send({ type: "terminal.close", terminalId: terminal.id });
   const status = await fetch(`${connection.baseUrl}/v1/query`, { method: "POST", headers, body: JSON.stringify({ type: "voice.status" }) });
   assert.equal(status.status, 200);
   const { voice } = await status.json();
@@ -77,9 +91,14 @@ try {
   assert.equal(board.issues[0].title, "Generated packaged SDK ticket");
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, embedded SDK, authenticated service and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, embedded SDK, packaged PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   clearTimeout(timer);
-  if (child && child.exitCode === null) child.kill("SIGTERM");
+  if (child && child.exitCode === null) {
+    if (child.connected) child.send("close"); else child.kill("SIGTERM");
+    try {
+      await Promise.race([exit, new Promise((_, reject) => { timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error(`Packaged cleanup was not acknowledged; generated diagnostics retained at ${temporary}.`)); }, 6500); })]);
+    } finally { clearTimeout(timer); }
+  }
   await rm(temporary, { recursive: true, force: true });
 }
