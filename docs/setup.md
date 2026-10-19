@@ -63,8 +63,8 @@ Moguri telemetry backend or automatic local-network model scan.
 
 The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
 compact icon/name controls rather than separate labeled rows.
-Factory values are Local, unset model, Manual and Unlimited. Only Local/fixed
-Copilot/Unlimited is implemented. Manual remains default; Guided displays model
+Factory values are Local, unset model, Manual and Unlimited. Current execution
+is Local with fixed Copilot/configured local models and Unlimited. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
 command grants and cannot grant itself anything. Autopilot Max is unavailable.
 Unready choices explain the limitation
@@ -91,8 +91,58 @@ Desktop **Attach / @ Project text file** and TUI `/attach path/to/file` create
 immutable, inspectable snapshots. Changes after attachment do not silently
 change the admitted content. Remove desktop attachments with their `x` control
 or use TUI `/detach path-or-snapshot-ID`.
-Other attachment types and image paste are explicitly unavailable. Bare `@`,
-`^`, `:`, `#` and `!` in ordinary text do not read files or create attachments.
+Desktop also captures explicitly selected local text/images and pasted PNG,
+JPEG or WebP. Images are bounded/normalized locally with metadata removed;
+there is no conversion service. Folder, GitHub issue/PR and session-text
+snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:`, `#` and
+`!` stay literal until the user selects an attachment; Tab offers the typed
+picker without attaching or executing anything.
+
+TUI/CLI use `/attach-file ABSOLUTE_PATH`, `/attach-image ABSOLUTE_PATH`,
+`/attach-folder [SHA256] PATH`, `/attach-github [gh-cli] [SHA256] URL` and
+`/attach-session [SHA256] ID`. Omitting a digest previews; confirmation uses the
+displayed exact command. `/attached ID` inspects a retained snapshot. Terminal
+clipboard images use an explicit image path rather than invented support.
+CLI equivalents are `moguri context file|image PATH --session ID`,
+`context folder PATH|github URL|session ID --session DEST` and the same command
+with `--digest SHA256 --confirm-review` after preview.
+
+Images are limited to 8 MiB input/normalized bytes and 16 million pixels.
+Folder capture is limited to 200 UTF-8 files and 2 MiB, respecting nested ignore
+rules, protected credentials and denied source folders. Combined captured
+context is capped at 16 attachments/12 MiB. Unsupported image models block
+before admission and preserve the complete draft/queue, including prior image
+history; no image is silently dropped. Session snapshots disclose their bounded
+public-text scope, not private continuation or tool/binary payloads.
+
+## Local models and startup sources
+
+**Settings / Local models** accepts explicit OpenAI-compatible base URLs and
+model IDs/context/output/image limits, for servers such as ds4, Ollama or
+llama.cpp. Start/configure the actual server yourself; Moguri does not download
+or launch model weights. Saving enabled endpoints performs bounded `GET models`
+discovery only, never inference or host scanning. Remote URLs require HTTPS;
+plain HTTP is loopback-only. Only configured, advertised models become
+selectable. Context/thinking controls never guess unsupported capabilities.
+
+Bearer credentials are stored separately through the endpoint-key form or
+`moguri models token ENDPOINT` using piped stdin. TUI `/model-token ENDPOINT`
+uses masked input, never a draft. Keys bind to the exact resource URL in the
+secret backend; moving an endpoint does not reuse its key. Discovery failures
+remain visible, and selecting a failed local model never substitutes Copilot.
+Copilot's account state is independent of local-model readiness. All calls use
+the same worker and per-step provider/API-model provenance. Unknown billing is
+still not zero. Request credentials echoed by an untrusted provider are redacted
+across stream chunk boundaries and structured response fields.
+
+**Settings / Startup defaults** separates global and Default-profile control
+overrides. **Project settings / New-session defaults** adds project precedence.
+Explicit session overrides win; `session create --controls FILE` supports them
+in CLI. The complete values and source/revision snapshot are saved once when
+creating a session. Inspect **Insights / Startup control sources** or TUI
+`/defaults`. Changing preferences does not rewrite existing/running sessions or
+widen hard policy. Multiple isolated Work/Open Source profiles are not yet
+implemented; these profile defaults currently belong to Default only.
 
 ## Shared SDK and settings
 
@@ -147,9 +197,9 @@ scope, or creates a project-free chat when none is selected. CLI:
 Scope is fixed for that session, not silently rebound when a different project
 is selected for new chats.
 
-These chats never reuse a previous root. Workspace files, attachments, shell,
+These chats never reuse a previous root. Workspace project files, shell,
 terminal, diff, plans and repository memory are unavailable. Provider calls,
-global guidance/skills and explicitly configured global MCPs remain available.
+explicitly selected client snapshots/images, global guidance/skills and configured global MCPs remain available.
 The internal MCP advertises only its scope-safe page fetcher. A failed general
 chat pauses only itself, not every project-free chat or an unrelated project.
 
@@ -550,7 +600,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 6 preserves earlier state through transactional
+Protocol/database version 7 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -591,6 +641,7 @@ npm run spike:workspace
 npm run spike:sessions
 npm run spike:models
 npm run spike:engagement
+npm run spike:runtime
 npm run spike
 npm audit --audit-level=moderate
 ```
@@ -606,8 +657,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.6.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.6.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.7.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.7.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute

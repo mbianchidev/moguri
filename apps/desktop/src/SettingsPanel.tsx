@@ -5,7 +5,7 @@ import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { McpOAuthPanel } from "./McpOAuthPanel.tsx";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications";
+export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup";
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
   { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
@@ -13,6 +13,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "cache", label: "Dependency cache" },
   { id: "project", label: "Project" }, { id: "retention", label: "Retention" },
   { id: "instructions", label: "User guidance" }, { id: "notifications", label: "Notifications" },
+  { id: "localModels", label: "Local models" }, { id: "startup", label: "Startup defaults" },
 ];
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void;
@@ -32,6 +33,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [acceptLicense, setAcceptLicense] = useState(false);
   const [serverId, setServerId] = useState("builtin");
   const [token, setToken] = useState("");
+  const [modelEndpoint, setModelEndpoint] = useState("");
+  const [modelKey, setModelKey] = useState("");
   const [tools, setTools] = useState<McpToolInfo[]>([]);
   const [selectedTool, setSelectedTool] = useState<McpToolInfo | null>(null);
   const [argumentsJson, setArgumentsJson] = useState("{}");
@@ -99,6 +102,21 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (projectDirty) { setError("Save or reload this project edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
       <button className="restore-all" onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
+        {tab === "localModels" && <><h2>Configured local models</h2><p>Connect an OpenAI-compatible server you started, such as ds4, Ollama or llama.cpp. Saving performs bounded model discovery only against enabled URLs. It never scans hosts, downloads weights or selects a model automatically.</p>
+          {jsonEditor("localModels", "Local model endpoints")}
+          <details><summary>Endpoint configuration example</summary><pre>{JSON.stringify([{ id: "my-local", name: "My local server", enabled: true, baseUrl: "http://127.0.0.1:8080/v1", auth: "none", models: [{ id: "replace-with-advertised-model-id", name: "My local model", contextWindow: 32768, maxTokens: 4096, imageInput: false }] }], null, 2)}</pre></details>
+          <p className="fine-print">Declare the actual model limits and image support; discovery never guesses them. HTTP is loopback-only; other explicitly configured endpoints require HTTPS. Unavailable models never fall back to Copilot.</p>
+          {snapshot.provider.connections?.filter((connection) => connection.source === "local").map((connection) => <div className="capability-row" key={connection.id}><div><strong>{connection.name}</strong><small>{connection.status}{connection.diagnostic ? ` / ${connection.diagnostic}` : ""}</small></div></div>)}
+          <button disabled={dirty || saving} onClick={() => void run(() => sdk.models.refresh())}>Refresh models</button>
+          <h3>Endpoint credentials</h3><p className="fine-print">Save bearer-auth configuration first. Keys bind to the exact endpoint and stay in the profile's secret backend, never this JSON or model context.</p>
+          <label className="setting-field">Credential endpoint<select aria-label="Local model credential endpoint" value={modelEndpoint} onChange={(event) => { setModelEndpoint(event.target.value); setModelKey(""); }}><option value="">Choose endpoint</option>{snapshot.settings.values.localModels.filter((endpoint) => endpoint.enabled && endpoint.auth === "bearer").map((endpoint) => <option key={endpoint.id} value={endpoint.id}>{endpoint.name}</option>)}</select></label>
+          <label className="setting-field">API key<input type="password" autoComplete="off" value={modelKey} maxLength={32768} onChange={(event) => setModelKey(event.target.value)} /></label>
+          <div className="button-row"><button disabled={dirty || saving || !modelEndpoint || !modelKey} onClick={() => void run(async () => { await sdk.models.setToken(modelEndpoint, modelKey); setModelKey(""); return "Credential stored. Inspect endpoint discovery status before selecting a model."; })}>Store endpoint key</button><button disabled={dirty || saving || !modelEndpoint} onClick={() => void run(() => sdk.models.clearToken(modelEndpoint))}>Clear endpoint key</button></div></>}
+        {tab === "startup" && <><h2>New-session defaults</h2><p>Session overrides win over project, Default-profile, global and factory values. Preferences never widen hard environment or permission policy, and saving does not rewrite existing sessions.</p>
+          {jsonEditor("startup", "Global and Default-profile startup defaults")}
+          {session && <button onClick={() => change("startup", { ...draft.startup, profile: structuredClone(session.controls) })}>Use current controls for Default profile</button>}
+          <details><summary>Available model IDs</summary>{snapshot.provider.models.map((model) => <p className="fine-print path" key={model.id}>{model.name}: <code>{model.id}</code></p>)}</details>
+          <button onClick={() => void reset("startup")}>Restore startup defaults</button></>}
         {tab === "instructions" && <><h2>Global user guidance</h2><p>Applies across this profile's chats and projects, including project-free chats. Guidance cannot change hard permissions, authenticate a server or approve a tool.</p><label className="setting-field">User guidance<textarea aria-label="Global user guidance" className="json-editor short" value={draft.instructions} onChange={(event) => change("instructions", event.target.value)} /></label><button onClick={() => void reset("instructions")}>Restore guidance defaults</button></>}
         {tab === "notifications" && <><h2>Attention notifications</h2><p>Questions, pending approvals and completed/failed work use the shared service state. Reading a notification never answers or approves anything.</p>
           <label className="check-setting"><input type="checkbox" checked={draft.notifications.inApp} onChange={(event) => change("notifications", { ...draft.notifications, inApp: event.target.checked })} />Show in-app attention dots and icons</label>

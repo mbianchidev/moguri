@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
-import { DraftEditor, slashCommands, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, slashCommands, attachmentTriggers, parseAttachmentTrigger, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -19,13 +20,16 @@ export function useQueueModifier(): boolean {
   return held;
 }
 
-export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails }: {
+export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails, onLocalModels }: {
   session: Session; project?: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
   onConnect: () => void; onMenuChange: (open: boolean) => void; onGuardrails: () => void;
+  onLocalModels: () => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [menu, setMenu] = useState<Menu | null>(null);
+  const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
+  const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
   const heldModifier = useQueueModifier();
   const [configuring, setConfiguring] = useState(false);
   const [delivery, setDelivery] = useState<"queue" | "steer" | "interrupt">("queue");
@@ -34,11 +38,28 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
   const [insertedTranscript, setInsertedTranscript] = useState<string | null>(null);
   const isSlash = draft.text.startsWith("/");
+  const attachmentTrigger = isSlash ? null : parseAttachmentTrigger(draft.text);
+  const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
   const held = heldModifier && !isSlash;
   const canQueue = connected && !busy && !configuring && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
-  const canSend = canQueue && snapshot.provider.status === "connected" && Boolean(model) && (delivery === "queue" || Boolean(session.turnId));
+  const canSend = canQueue && snapshot.provider.status === "connected" && Boolean(model) && (!requiresImages || Boolean(model?.imageInput)) && (delivery === "queue" || Boolean(session.turnId));
   const suggestions = isSlash && !/\s/.test(draft.text) ? slashCommands.filter((command) => command.name.startsWith(draft.text.slice(1))).slice(0, 7) : [];
-  useEffect(() => { onMenuChange(menu !== null); return () => onMenuChange(false); }, [menu, onMenuChange]);
+  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null); return () => onMenuChange(false); }, [menu, attachmentReview, onMenuChange]);
+  const adopt = async (saved: Session["draft"]) => {
+    const text = editor.getState().text;
+    editor.receive(saved);
+    if (pendingTrigger && text.slice(pendingTrigger.start) === pendingTrigger.prefix + pendingTrigger.query) {
+      editor.edit(text.slice(0, pendingTrigger.start).trimEnd(), saved.attachments);
+      await editor.flush();
+    }
+    setPendingTrigger(null);
+  };
+  const capture: Run = (work) => run(async () => {
+    const ids = new Set(editor.getState().attachments.map((attachment) => attachment.id));
+    await editor.flush(); await work();
+    const saved = client.getState().snapshot?.sessions.find((session) => session.id === editor.sessionId)?.draft;
+    if (saved) { if (saved.attachments.some((attachment) => !ids.has(attachment.id))) await adopt(saved); else editor.receive(saved); }
+  });
   const send = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
     void run(() => isSlash ? onSlash(session, editor, draft.text) : editor.send(hold ? "queue" : delivery, hold));
@@ -55,32 +76,40 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     await client.sessions.configure(session.id, controls, session.revision);
     setMenu(null);
   });
-  const toggle = (value: Menu) => setMenu((current) => current === value ? null : value);
+  const toggle = (value: Menu) => { if (value === "attach") setPendingTrigger(null); setMenu((current) => current === value ? null : value); };
+  const chooseAttachmentTrigger = () => { if (attachmentTrigger) { setPendingTrigger(attachmentTrigger); setMenu("attach"); } };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
   const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. Host execution is not sandboxed.` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? "Unlimited" : "Configured cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
-  return <form className="composer compact-composer" onSubmit={(event) => send(event)} aria-label="Message composer" aria-description="Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now.">
+  return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description="Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now.">
     {session.controls.modelId && !model && <button type="button" className="setup-hint" onClick={onConnect}>Saved model {session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.<Icon name="Down" /></button>}
+    {requiresImages && model && !model.imageInput && <p className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</p>}
     {session.localFinishing && <p className="local-finishing">Local finishing. New Local turns are blocked by policy.</p>}
-    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`Snapshot SHA-256 ${attachment.digest}`}><Icon name="Files" />{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
+    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>{attachment.kind === "image" ? <ContextImage sdk={client} sessionId={session.id} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "Files"} />}{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
     <textarea id={`prompt-${session.id}`} placeholder={session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
-      onPaste={(event) => { if (event.clipboardData.files.length) { event.preventDefault(); void run(async () => { throw new Error("Image paste is not available. No clipboard file was attached or sent."); }); } }}
+      onPaste={(event) => {
+        const files = Array.from(event.clipboardData.files); if (!files.length) return;
+        event.preventDefault();
+        void capture(async () => { if (files.length !== 1) throw new Error("Paste one image at a time. No clipboard files were attached or sent."); const file = files[0]!; await client.attachments.image(session.id, await clipboardImage(file), (file.name || "Clipboard image").slice(0, 100)); });
+      }}
       onKeyDown={(event) => {
         if (event.code === "Space" && event.ctrlKey) { event.preventDefault(); void dictate(); }
         else if (event.key === "Tab" && suggestions[0]) { event.preventDefault(); editor.edit(`/${suggestions[0].name} `); }
+        else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
         else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); if (isSlash ? canQueue : event.shiftKey ? canSend : canQueue) send(undefined, !event.shiftKey); }
       }} />
     {suggestions.length > 0 && <div className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion) => <button type="button" role="option" aria-selected={false} key={suggestion.name} onClick={() => editor.edit(`/${suggestion.name} `)}><strong>/{suggestion.name}</strong><span>{suggestion.description}</span></button>)}</div>}
+    {attachmentTrigger && <button className="attachment-trigger-hint quiet" type="button" onClick={chooseAttachmentTrigger}>{attachmentTrigger.prefix} {attachmentTriggers[attachmentTrigger.prefix]}<small>Tab to choose; text stays literal until selection</small></button>}
     {draft.error && <div className="draft-error" role="alert"><p>{draft.error}</p><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
     {transcript && transcript.id !== insertedTranscript && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(async () => { await editor.flush(); await client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); setInsertedTranscript(transcript.id); })}>Insert</button></div>}
     <div className="composer-toolbar">
       <div className="composer-leading">
-        {item("attach", "Attach", "Plus", <><h2>Attach</h2><button className="composer-menu-option" type="button" disabled={!project} title={!project ? "Select a project before attaching workspace files." : undefined} onClick={() => { if (!project) return; setMenu(null); void run(async () => { const path = await window.moguri.chooseFile(project.path); if (path) await editor.attach(path); }); }}><Icon name="Files" />Project text file</button><p>{project ? "Only explicit project text snapshots are available." : "This is a project-free chat. Workspace attachments are unavailable."}</p></>)}
+        {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} editor={editor} run={run} capture={capture} initial={pendingTrigger} close={() => setMenu(null)} review={(request) => { setAttachmentReview(request); setMenu(null); }} />)}
         {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => <button className="composer-menu-option" key={capability.env} type="button" disabled={Boolean(session.turnId) || !capability.ready || !snapshot.policy.allowedEnvs.includes(capability.env)} aria-pressed={session.controls.env === capability.env} title={capability.reason} onClick={() => void configure({ ...session.controls, env: capability.env })}><Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{!snapshot.policy.allowedEnvs.includes(capability.env) ? "Blocked by policy" : capability.env === "Local" ? "Host execution, not sandboxed" : "Not ready"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>)}<p>Missing isolation never falls back to Local.</p></>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}</span>} model>
-          <ModelMenu sdk={client} session={session} snapshot={snapshot} onConnect={() => { setMenu(null); onConnect(); }} onSaving={setConfiguring} />
+          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onSaving={setConfiguring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const grants = snapshot.settings.values.permissions.tools.some((rule) => rule.decision === "allow") || snapshot.settings.values.permissions.commands.some((rule) => rule.decision === "allow");
@@ -100,6 +129,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <span className="sr-only" role="status">{status}</span>
     </div>
+    {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => setAttachmentReview(null)} />}
   </form>;
 }
 
@@ -132,7 +162,7 @@ function ComposerPopover({ name, label, description, open, toggle, close, trigge
   </div>;
 }
 
-function ModelMenu({ sdk, session, snapshot, onConnect, onSaving }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onSaving: (saving: boolean) => void }) {
+function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onSaving, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onSaving: (saving: boolean) => void; requiresImages: boolean }) {
   const current = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
   const [search, setSearch] = useState("");
   const [window, setWindow] = useState(session.controls.modelOptions?.contextWindow?.toString() ?? "");
@@ -161,7 +191,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onSaving }: { sdk: Mogur
   };
   return <><h2>Model</h2>{snapshot.provider.status !== "connected" ? <><p>Connect GitHub Copilot to discover account-enabled models.</p><button type="button" onClick={onConnect}>Connect Copilot</button></> : <>
     <input className="composer-model-search" aria-label="Search models" placeholder="Search models" value={search} onChange={(event) => setSearch(event.target.value)} />
-    <div className="composer-model-list">{snapshot.provider.models.filter((model) => model.name.toLowerCase().includes(search.toLowerCase())).map((model) => <button type="button" className="composer-menu-option" key={model.id} aria-pressed={model.id === session.controls.modelId} disabled={saving || Boolean(session.turnId) || dirty} onClick={() => void select(model)}><span>{model.name}<small>{compact(model.contextWindow)} maximum context</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>)}</div>
+    <div className="composer-model-list">{snapshot.provider.models.filter((model) => model.name.toLowerCase().includes(search.toLowerCase())).map((model) => <button type="button" className="composer-menu-option" key={model.id} aria-pressed={model.id === session.controls.modelId} disabled={saving || Boolean(session.turnId) || dirty || requiresImages && !model.imageInput} title={requiresImages && !model.imageInput ? "This context requires image input." : undefined} onClick={() => void select(model)}><span>{model.name}<small>{model.source === "local" ? model.providerId : "GitHub Copilot"} / {compact(model.contextWindow)} maximum context</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>)}</div>
     <div className="model-tuning">
       <label>Working context<input aria-label="Working context window" type="number" min={8192} max={current?.contextWindow ?? 10_000_000} step={1024} value={window} placeholder={current ? `Model maximum (${count(current.contextWindow)})` : "Select a model"} disabled={!current || saving || Boolean(session.turnId)} onChange={(event) => setWindow(event.target.value)} /></label>
       <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length || saving || Boolean(session.turnId)} onChange={(event) => setEffort(event.target.value as ThinkingEffort | "")}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>{current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
@@ -170,7 +200,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onSaving }: { sdk: Mogur
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div className="button-row"><button type="button" className="primary" disabled={!current || !dirty || saving || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving} onClick={reload}>Reload</button></div>
     </div>
-  </>}</>;
+  </>}<button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button></>;
 }
 
 function UsageMenu({ sdk, session, editor }: { sdk: MoguriSdk; session: Session; editor: DraftEditor }) {

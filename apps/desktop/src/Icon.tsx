@@ -1,6 +1,7 @@
 const paths: Record<string, string> = {
   Changes: "M8 3v18m8-18v18M4 7h8m0 10h8", Terminal: "m4 6 6 6-6 6m9 0h7",
   Files: "M3 6h7l2 3h9v11H3Z", Browser: "M3 5h18v15H3Zm0 4h18",
+  Image: "M3 4h18v16H3Zm0 12 5-5 5 5 3-3 5 5M8 8h.01",
   "Side chat": "M4 4h16v12H9l-5 4Z", Insights: "M5 20v-6m7 6V4m7 16V9",
   Extensions: "M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z",
   Settings: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2-5h4l1 3 3 1 3 3v4l-3 1-1 3-3 3h-4l-1-3-3-1-3-3v-4l3-1 1-3Z",

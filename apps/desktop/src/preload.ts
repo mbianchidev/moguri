@@ -5,6 +5,7 @@ const bridge: DesktopBridge = {
   connection: () => ipcRenderer.invoke("moguri:connection"),
   chooseProject: () => ipcRenderer.invoke("moguri:choose-project"),
   chooseFile: (path) => ipcRenderer.invoke("moguri:choose-file", path),
+  chooseAttachment: (kind) => ipcRenderer.invoke("moguri:choose-attachment", kind),
   openExternal: (url) => ipcRenderer.invoke("moguri:open-external", url),
   microphonePermission: () => ipcRenderer.invoke("moguri:microphone-permission"),
   copyText: (text) => ipcRenderer.invoke("moguri:copy-text", text),

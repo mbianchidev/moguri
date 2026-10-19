@@ -8,6 +8,7 @@ import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, PlanPanel, SideChat } from "./SessionPanels.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
+import { ContextImage } from "./ContextAttachments.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
@@ -60,6 +61,7 @@ export function App({ client }: { client: MoguriClient }) {
   const editors = useRef(new Map<string, DraftEditor>());
   useEffect(() => () => { for (const editor of editors.current.values()) editor.dispose(); }, []);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
+  const copilot = snapshot?.provider.connections?.find((connection) => connection.id === "github-copilot") ?? snapshot?.provider;
   const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
   const connectedPr = session?.prUrl ?? snapshot?.issues.find((issue) => issue.id === session?.workItemId)?.pullRequest?.url ?? null;
@@ -191,8 +193,8 @@ export function App({ client }: { client: MoguriClient }) {
         <button className="settings-nav-button" aria-label="Settings" onClick={() => openSettings("systemPrompt")}><Icon name="Settings" />Settings</button>
         <button className="settings-nav-button" aria-label="Moguri settings chat" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><Icon name="Suggestions" />Settings chat</button>
         <button className="provider-button" onClick={() => { if (leaveSurface()) { setConnections((value) => !value); setPanelOpen(true); } }}>
-          <span className={`status-dot ${snapshot?.provider.status === "connected" ? "completed" : "idle"}`} />
-          <span><strong>GitHub Copilot</strong><small>{snapshot?.provider.status ?? "Connecting to service"}</small></span><span>&gt;</span>
+          <span className={`status-dot ${copilot?.status === "connected" ? "completed" : "idle"}`} />
+          <span><strong>GitHub Copilot</strong><small>{copilot?.status ?? "Connecting to service"}</small></span><span>&gt;</span>
         </button>
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : "failed"}`} />Local service {status}</div>
       </div>
@@ -218,7 +220,7 @@ export function App({ client }: { client: MoguriClient }) {
           <ProviderConnect provider={snapshot.provider} run={run} client={client} />
         </div> :
         <>
-          <Timeline session={session} run={run} />
+          <Timeline session={session} run={run} client={client} />
           {session.kind === "metachat" && snapshot && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
           {session.pendingApproval && <section className="approval" aria-label="Tool approval">
             <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
@@ -227,7 +229,7 @@ export function App({ client }: { client: MoguriClient }) {
             <div className="approval-actions"><button disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: false })}>Deny</button><button className="primary" disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: true })}>Approve this action</button></div>
           </section>}
           {session.queue.length > 0 && <Queue session={session} command={command} client={client} />}
-          {editor && <ChatComposer key={session.id} session={session} project={project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} />}
+          {editor && <ChatComposer key={session.id} session={session} project={project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} />}
         </>}
       </>}
     </main>
@@ -253,9 +255,10 @@ export function App({ client }: { client: MoguriClient }) {
 }
 
 function ProviderConnect({ provider, run, client }: { provider: ProviderState; run: Run; client: MoguriClient }) {
+  const copilot = provider.connections?.find((connection) => connection.id === "github-copilot") ?? provider;
   return <section className="provider-setup" aria-label="GitHub Copilot connection">
     <h2>GitHub Copilot</h2>
-    {provider.status === "connected" ? <><p className="connected-label">Connected through your Copilot account.</p><p>{provider.models.length} account-enabled models available. Choose one in the composer.</p>
+    {copilot.status === "connected" ? <><p className="connected-label">Connected through your Copilot account.</p><p>{provider.models.filter((model) => model.source !== "local").length} account-enabled models available. Choose one in the composer.</p>
       <div className="button-row"><button onClick={() => void run(() => client.command({ type: "provider.refresh" }))}>Refresh connection</button><button className="quiet" onClick={() => void run(() => client.command({ type: "provider.logout" }))}>Sign out</button></div></> :
       <>
         <p>Use your existing Copilot subscription. No other provider key is needed.</p>
@@ -264,13 +267,13 @@ function ProviderConnect({ provider, run, client }: { provider: ProviderState; r
           <button className="primary" onClick={() => void run(() => window.moguri.openExternal(provider.login!.url))}>Open GitHub</button>
           <p className="muted">Waiting for authorization. Expires at {new Date(provider.login.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.</p>
           <button className="quiet" onClick={() => void run(() => client.command({ type: "provider.cancel" }))}>Cancel sign-in</button>
-        </div> : <button className="primary" disabled={provider.status === "connecting"} onClick={() => void run(() => client.command({ type: "provider.login" }))}>{provider.status === "connecting" ? "Starting sign-in..." : "Sign in with GitHub Copilot"}</button>}
+        </div> : <button className="primary" disabled={copilot.status === "connecting"} onClick={() => void run(() => client.command({ type: "provider.login" }))}>{copilot.status === "connecting" ? "Starting sign-in..." : "Sign in with GitHub Copilot"}</button>}
         <p className="fine-print">Uses pi-ai's third-party device flow, not an official Moguri partnership. GitHub subscription and organization policies apply. Sign-in may enable account model policies. Credentials stay in your OS keychain.</p>
       </>}
-    {provider.diagnostic && <p className="inline-error" role="status">{provider.diagnostic}</p>}
+    {copilot.diagnostic && <p className="inline-error" role="status">{copilot.diagnostic}</p>}
   </section>;
 }
-function Timeline({ session, run }: { session: Session; run: Run }) {
+function Timeline({ session, run, client }: { session: Session; run: Run; client: MoguriClient }) {
   const scroll = useRef<HTMLDivElement>(null);
   const [limit, setLimit] = useState(150);
   const follow = useRef(true);
@@ -284,6 +287,7 @@ function Timeline({ session, run }: { session: Session; run: Run }) {
         {message.role === "tool" ? <details open={message.outcome === "running"}><summary>{message.outcome === "running" ? "Command output" : `Tool result: ${message.outcome}`}</summary><pre>{message.text}</pre></details> :
           <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.toolCalls?.length ? "Requesting tool access." : message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
         {message.reasoning && <details><summary>Provider-exposed reasoning</summary><p className="reasoning">{message.reasoning}</p></details>}
+        {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <ContextImage sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} />)}</div>}
       </article>)}
     </>}
   </div>;
@@ -341,6 +345,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
         <dt>Profile</dt><dd>Default</dd><dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>Host execution, not isolated</dd>
         <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>Unlimited</dd>
       </dl>
+      <details><summary>Startup control sources</summary><pre>{JSON.stringify(session.defaults ?? { source: "legacy explicit session controls" }, null, 2)}</pre><p className="fine-print">These sources were recorded when the session was created. Changing defaults does not rewrite this session.</p></details>
       <h2>Usage</h2><dl className="facts"><dt>Model calls</dt><dd>{session.usage.length}</dd><dt>Tokens</dt><dd>{known.length ? number(total) + (unknown ? " + unknown" : "") : session.usage.length ? "Unavailable" : "No requests yet"}</dd><dt>Request wall time</dt><dd>{(session.usage.reduce((sum, usage) => sum + usage.requestMs, 0) / 1000).toFixed(2)} s</dd><dt>Estimated cost</dt><dd>Unavailable</dd><dt>Provider-reported</dt><dd>Unavailable</dd><dt>Billed cost</dt><dd>Unavailable</dd></dl>
       <p className="fine-print">Copilot entitlement and billing are account-specific. Missing telemetry is not zero. Active-generation throughput is not measured in this checkpoint.</p>
       {session.usage.length > 0 && <details><summary>Per-call accounting</summary>{session.usage.map((usage) => <div className="call-record" key={usage.stepId}><strong>{usage.modelId}</strong><small>{usage.role} / {usage.outcome}</small><span>{usage.totalTokens === null ? "Tokens unavailable" : `${number(usage.totalTokens)} tokens (${usage.quality})`}</span></div>)}</details>}

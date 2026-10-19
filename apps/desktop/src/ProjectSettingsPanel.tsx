@@ -38,7 +38,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     }
   }, [committedRevision]);
   const change = <K extends keyof ProjectSettings>(key: K, value: ProjectSettings[K]) => { setValues((current) => ({ ...current, [key]: value })); setDirty(true); };
-  const json = (key: "scripts" | "sandbox" | "mcpServers", label: string) => <label className="setting-field">{label}<textarea aria-label={label} className="json-editor short" spellCheck={false} value={raw[key] ?? JSON.stringify(values[key], null, 2)} onChange={(event) => { setRaw((current) => ({ ...current, [key]: event.target.value })); setDirty(true); }} /></label>;
+  const json = (key: "scripts" | "sandbox" | "mcpServers" | "defaults", label: string) => <label className="setting-field">{label}<textarea aria-label={label} className="json-editor short" spellCheck={false} value={raw[key] ?? JSON.stringify(values[key], null, 2)} onChange={(event) => { setRaw((current) => ({ ...current, [key]: event.target.value })); setDirty(true); }} /></label>;
   const save = () => run(async () => {
     const input = { ...values }; for (const [key, text] of Object.entries(raw)) Object.assign(input, { [key]: JSON.parse(text) });
     const settings = parse(ProjectSettingsSchema, input);
@@ -50,12 +50,16 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
     <button className="primary" aria-label="Save project settings" disabled={!loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
     {error && <div className="notice error" role="alert"><span>{error}</span><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
+    {!loaded && <p role="status">Loading committed project settings...</p>}
+    <fieldset className="project-settings-fields" disabled={!loaded}>
     <h3>Repository</h3><div className="project-settings-grid">
       <label className="setting-field">Upstream<input value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>
       <label className="setting-field">Main branch<input value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
     <label className="setting-field">Branch name pattern<input value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     <p className="fine-print">Placeholders: {"{slug}"} and {"{id}"}. Binding a PR or creating a session does not silently change this folder's checkout.</p>
     <label className="setting-field">GitHub read access<select value={values.repo.githubAccess} onChange={(event) => change("repo", { ...values.repo, githubAccess: event.target.value as ProjectSettings["repo"]["githubAccess"] })}><option value="public">Public API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
+    <h3>New-session defaults</h3>{json("defaults", "Project startup control overrides")}
+    <p className="fine-print">Overrides profile/global preferences for new sessions only. Existing sessions keep their saved controls and source snapshot; policy still wins.</p>
     <h3>Agent folder policy</h3>
     <label className="setting-field">Read-only folders, one per line<textarea aria-label="Read-only folders" value={values.readOnlyFolders.join("\n")} onChange={(event) => change("readOnlyFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
     <label className="setting-field">Denied folders, one per line<textarea aria-label="Denied folders" value={values.deniedFolders.join("\n")} onChange={(event) => change("deniedFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
@@ -91,5 +95,6 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <label className="setting-field">Plan file<input value={values.planPath} onChange={(event) => change("planPath", event.target.value)} /></label>
     <footer className="button-row"><button disabled={busy} onClick={() => { setValues(defaultProjectSettings()); setRaw({}); setDirty(true); }}>Restore project defaults</button><button disabled={busy} onClick={() => void run(reload)}>Reload committed values</button></footer>
     {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}
+    </fieldset>
   </section>;
 }

@@ -4,6 +4,7 @@ export interface DesktopBridge {
   connection(): Promise<Connection>;
   chooseProject(): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
+  chooseAttachment(kind: "file" | "image" | "folder"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
   microphonePermission(): Promise<boolean>;
   copyText(text: string): Promise<void>;
