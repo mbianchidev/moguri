@@ -138,6 +138,65 @@ readiness diagnostics, but the native worker transport/guest bundle/workload
 qualification is not complete. Merely entering paths does not enable execution.
 Missing protection is an explicit error, never a Local fallback.
 
+## Project-free chats, suggestions and settings chat
+
+Desktop's **No project** section and project selector create chats without
+attaching a folder. TUI `/new global` does the same; Ctrl+N keeps the current
+scope, or creates a project-free chat when none is selected. CLI:
+`moguri session create` with no `--project`. Choose a model explicitly as usual.
+Scope is fixed for that session, not silently rebound when a different project
+is selected for new chats.
+
+These chats never reuse a previous root. Workspace files, attachments, shell,
+terminal, diff, plans and repository memory are unavailable. Provider calls,
+global guidance/skills and explicitly configured global MCPs remain available.
+The internal MCP advertises only its scope-safe page fetcher. A failed general
+chat pauses only itself, not every project-free chat or an unrelated project.
+
+`/suggestions` opens a local preview of earlier user prompts, with repeated
+phrase hints and source excerpts. A project chat reads only that project;
+a project-free chat reads only prior project-free chats. The **Include all
+projects** choice, or `/suggestions all`, explicitly previews a wider scope.
+The preview makes no model call. Select a model, review the exact sources and
+approve generation to create an ordinary accounted, cancellable settings chat.
+In TUI use the displayed `/suggestions run DIGEST` or `run-all DIGEST`.
+Changing sources requires fresh review. Control/subagent conversations are
+excluded; content is bounded to 12 sessions, eight prompts each, 4,000 Unicode
+characters per prompt and 32 KiB of actual UTF-8 text in total.
+
+**Settings chat**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
+Moguri configuration. The model can read non-secret settings and propose
+changes, never authenticate, execute workspace tools or approve/apply its own
+proposal. Global **User guidance** is separate from the factory system prompt.
+Projects can receive configuration, local instruction-file or disabled-skill
+proposals. Global settings/policy proposals show global target scope even when
+created from a project chat.
+
+GUI review shows exact scope/base/value/evidence and requires risk confirmation.
+TUI uses `/config list`, `/config review ID`, then
+`/config apply ID SHA256 acknowledge-risk` or `/config reject ID SHA256`.
+CLI uses `configuration review ID` and `configuration apply ID --digest SHA256
+--acknowledge-config-risk`. A stale base cannot be overwritten. Approval
+installs a skill disabled; enabling is separate. Repo instructions are written
+locally, never committed or pushed by this flow. A write followed by a storage
+failure is explicitly partial and requires inspection/fresh review.
+
+## Attention and notifications
+
+Session indicators distinguish a possible question (`?`), pending approval/
+failed work (bell), and agent done/waiting. `/attention` or desktop's bell opens
+the shared list. `/attention read ID` marks it read, not resolved: it never
+answers a question, approves a tool or restarts work. Question detection is a
+nonblocking final-text heuristic, not a model decision or structured user answer.
+Runnable follow-up work suppresses a premature done/waiting indicator.
+
+**Settings / Notifications** defaults to in-app indicators on, OS banners off,
+content previews off. Optional background banners require the desktop to run,
+respect OS permissions/Do Not Disturb, and use generic text unless previews are
+explicitly enabled. Selecting a banner opens its session. Startup and preference
+changes do not replay old banners. TUI shares state without requiring desktop;
+native-banner tests use a generated sink and never show a personal OS banner.
+
 ## Session workspace and project settings
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
@@ -253,10 +312,33 @@ servers. Protected-env policy cannot be bypassed by Local MCP discovery.
 
 Bearer credentials live only in the OS keychain. Stdio children receive no
 ambient provider tokens. HTTP requires HTTPS, except explicit loopback HTTP.
-Interactive OAuth-only MCPs remain unsupported. TUI `/mcp token SERVER`
+TUI `/mcp token SERVER`
 opens a dedicated masked input, never a composer draft; CLI accepts the
 credential through piped stdin, not shell arguments. `/mcp tools`,
 `/mcp auth`, `/mcp call` and `/result ID` use the same SDK.
+
+For an HTTP server using OAuth, set its transport to
+`{"type":"http","url":"https://example.test/mcp","auth":"oauth"}` and save first.
+Choose the server, **Connect OAuth**, then explicitly **Open authorization**.
+TUI `/mcp login SERVER` and CLI `moguri mcp login SERVER --session ID` print the
+owned authorization state/link; open it yourself. No login starts from model
+output, and no browser opens automatically.
+
+The official MCP flow supports discovery, dynamic registration, S256 PKCE and
+issuer/resource-bound code exchange/refresh. Client secrets and grants stay in
+the explicit keychain, never events, settings or model input. Servers without
+dynamic registration can use the advanced registered-client fields, including
+an exact `http://127.0.0.1:PORT/oauth/callback` redirect previously registered
+with that issuer. A fixed occupied port fails rather than silently changing it.
+CLI `mcp oauth-client SERVER` reads JSON with `clientId`, `issuer` and optional
+`clientSecret`/`redirectUri` from piped stdin, not secret shell arguments.
+
+Use **Cancel login**, `/mcp cancel ID` or `mcp cancel ID` to settle a pending flow.
+Clear explicitly through the UI, `/mcp clear-oauth SERVER` or `mcp clear-oauth
+SERVER`. Expiry/restart never replays a callback. An expired/revoked grant
+requires explicit reconnect if refresh fails; tools are never retried or sent
+an anonymous credential fallback. Global connections survive source-session/
+project removal; historical project-only credentials are cleaned separately.
 
 `moguri mcp --session SESSION_ID` exposes one native MCP with discovery,
 auth-status, call and paged-result tools. It cannot change settings or
@@ -468,7 +550,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 5 preserves earlier state through transactional
+Protocol/database version 6 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -508,6 +590,7 @@ npm run verify:sdk
 npm run spike:workspace
 npm run spike:sessions
 npm run spike:models
+npm run spike:engagement
 npm run spike
 npm audit --audit-level=moderate
 ```
@@ -523,8 +606,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.5.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.5.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.6.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.6.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute

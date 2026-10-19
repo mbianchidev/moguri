@@ -58,15 +58,32 @@ try {
     assert.equal(response.status, 200);
     return response.json();
   };
+  const query = async (input) => {
+    const response = await fetch(`${connection.baseUrl}/v1/query`, { method: "POST", headers, body: JSON.stringify(input) });
+    assert.equal(response.status, 200); return response.json();
+  };
   const opened = await send({ type: "project.add", path: project });
   const created = await send({ type: "session.create", projectId: opened.id });
   const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers });
   const snapshot = await response.json();
   assert.equal(snapshot.sessions.length, 1);
-  assert.equal(snapshot.protocolVersion, 5);
+  assert.equal(snapshot.protocolVersion, 6);
   assert.equal(snapshot.settings.values.appearance.theme, "dark");
   assert.deepEqual(snapshot.sessions[0].controls, { env: "Local", modelId: null, autonomy: "Manual", budget: { kind: "unlimited" } });
   assert.equal((await fetch(`${connection.baseUrl}/v1/snapshot`)).status, 401);
+  const general = await send({ type: "session.create" });
+  const preview = await query({ type: "suggestions.preview", sessionId: general.id, allProjects: false });
+  assert.equal(preview.preview.scope, "project-free"); assert.equal(preview.preview.sources.length, 0);
+  const generalTools = await query({ type: "mcp.tools", serverId: "builtin", sessionId: general.id, query: "", offset: 0 });
+  assert.deepEqual(generalTools.tools.map((tool) => tool.name), ["fetch_page"]);
+  const meta = await send({ type: "metachat.create", projectId: null, parentSessionId: general.id, prompt: "Generated packaged settings request." });
+  const proposed = await send({ type: "configuration.propose", sessionId: meta.id, proposal: { target: "global", section: "instructions", value: "Generated packaged guidance.", reason: "Generated packaged exact review." } });
+  const reviewed = await query({ type: "configuration.review", proposalId: proposed.id });
+  assert.equal(reviewed.before, "");
+  await send({ type: "configuration.decide", proposalId: proposed.id, approve: true, expectedDigest: reviewed.proposal.contentDigest, acknowledgeRisk: true });
+  const configured = await (await fetch(`${connection.baseUrl}/v1/snapshot`, { headers })).json();
+  assert.equal(configured.settings.values.instructions, "Generated packaged guidance.");
+  assert.deepEqual(configured.settings.values.notifications, { inApp: true, os: false, previewContent: false });
   const terminal = await send({ type: "terminal.open", sessionId: created.id, cols: 80, rows: 24 });
   const input = await fetch(`${connection.baseUrl}/v1/terminal`, { method: "POST", headers, body: JSON.stringify({ action: "input", terminalId: terminal.id, data: "GENERATED_PACKAGED_PTY_INPUT\n" }) });
   assert.equal(input.status, 200);
@@ -91,7 +108,7 @@ try {
   assert.equal(board.issues[0].title, "Generated packaged SDK ticket");
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, embedded SDK, packaged PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, project-free metachat/config SDK, packaged PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   clearTimeout(timer);
   if (child && child.exitCode === null) {

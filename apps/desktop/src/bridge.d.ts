@@ -8,5 +8,6 @@ export interface DesktopBridge {
   microphonePermission(): Promise<boolean>;
   copyText(text: string): Promise<void>;
   preview(input: { sessionId: string; url: string; bounds: { x: number; y: number; width: number; height: number } } | null): Promise<void>;
+  onNavigateSession(listener: (sessionId: string) => void): () => void;
 }
 declare global { interface Window { moguri: DesktopBridge } }

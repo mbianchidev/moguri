@@ -26,6 +26,10 @@ const paths: Record<string, string> = {
   Car: "m5 9 2-5h10l2 5M3 10h18v9H3Zm3 9v2m12-2v2M6 14h2m8 0h2",
   Rocket: "M9 15C9 7 14 3 21 3c0 7-4 12-12 12ZM9 9H5l-3 6 7 1m6-1v4l-6 3-1-7m-1 4-3 3m11-13a2 2 0 1 0 4 0 2 2 0 0 0-4 0",
   Check: "m4 12 5 5L20 6",
+  Question: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 9a3 3 0 1 1 4 3c-1 .5-1 1-1 2m0 3h.01",
+  Attention: "M6 9a6 6 0 0 1 12 0v6l3 3H3l3-3Zm4 12h4",
+  Waiting: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 8v8m6-8v8",
+  Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
 };
 export function Icon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;

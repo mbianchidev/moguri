@@ -20,7 +20,7 @@ export function useQueueModifier(): boolean {
 }
 
 export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails }: {
-  session: Session; project: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
+  session: Session; project?: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
   onConnect: () => void; onMenuChange: (open: boolean) => void; onGuardrails: () => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
 }) {
@@ -65,7 +65,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {session.localFinishing && <p className="local-finishing">Local finishing. New Local turns are blocked by policy.</p>}
     {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`Snapshot SHA-256 ${attachment.digest}`}><Icon name="Files" />{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
-    <textarea id={`prompt-${session.id}`} placeholder="Ask anything about this project..." value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
+    <textarea id={`prompt-${session.id}`} placeholder={session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
       onPaste={(event) => { if (event.clipboardData.files.length) { event.preventDefault(); void run(async () => { throw new Error("Image paste is not available. No clipboard file was attached or sent."); }); } }}
       onKeyDown={(event) => {
         if (event.code === "Space" && event.ctrlKey) { event.preventDefault(); void dictate(); }
@@ -77,7 +77,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {transcript && transcript.id !== insertedTranscript && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(async () => { await editor.flush(); await client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); setInsertedTranscript(transcript.id); })}>Insert</button></div>}
     <div className="composer-toolbar">
       <div className="composer-leading">
-        {item("attach", "Attach", "Plus", <><h2>Attach</h2><button className="composer-menu-option" type="button" onClick={() => { setMenu(null); void run(async () => { const path = await window.moguri.chooseFile(project.path); if (path) await editor.attach(path); }); }}><Icon name="Files" />Project text file</button><p>Only explicit project text snapshots are available. Folder, image and remote-reference attachments are not ready.</p></>)}
+        {item("attach", "Attach", "Plus", <><h2>Attach</h2><button className="composer-menu-option" type="button" disabled={!project} title={!project ? "Select a project before attaching workspace files." : undefined} onClick={() => { if (!project) return; setMenu(null); void run(async () => { const path = await window.moguri.chooseFile(project.path); if (path) await editor.attach(path); }); }}><Icon name="Files" />Project text file</button><p>{project ? "Only explicit project text snapshots are available." : "This is a project-free chat. Workspace attachments are unavailable."}</p></>)}
         {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => <button className="composer-menu-option" key={capability.env} type="button" disabled={Boolean(session.turnId) || !capability.ready || !snapshot.policy.allowedEnvs.includes(capability.env)} aria-pressed={session.controls.env === capability.env} title={capability.reason} onClick={() => void configure({ ...session.controls, env: capability.env })}><Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{!snapshot.policy.allowedEnvs.includes(capability.env) ? "Blocked by policy" : capability.env === "Local" ? "Host execution, not sandboxed" : "Not ready"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>)}<p>Missing isolation never falls back to Local.</p></>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}</span>} model>
           <ModelMenu sdk={client} session={session} snapshot={snapshot} onConnect={() => { setMenu(null); onConnect(); }} onSaving={setConfiguring} />

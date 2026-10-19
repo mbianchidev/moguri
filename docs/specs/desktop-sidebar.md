@@ -7,8 +7,11 @@ checkpoint implements the persistent shell, main-session binding, collapse/width
 preferences and basic Insights/event trace. The session-workspace alpha adds
 actual Ghostty terminals, read-only local diffs, retained editable plans, linked
 PR access, isolated native previews and parallel question-only side sessions.
-Its current rail is Terminal, Browser, Insights, PR when linked, Changes, Plan
-and Side chat. Files/Extensions remain roadmap panels, with capability settings
+Its current rail is Terminal, Browser, Insights, PR when linked, Changes, Plan,
+Side chat, Suggestions and Attention. Suggestions use explicit scoped source
+review and configuration proposals; attention read state is not a user answer
+or tool decision. Project-free chats show a project-required state for workspace
+panels instead of reusing a previous root. Files/Extensions remain roadmap panels, with capability settings
 elsewhere. Full metrics, Stainless automation, protected/Remote terminals and
 the remaining release acceptance checks are not claimed complete.
 See [setup](../setup.md) and [D16](../architecture/decisions.md#d16-session-workspace-ghostty-and-retention).

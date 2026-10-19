@@ -9,5 +9,10 @@ const bridge: DesktopBridge = {
   microphonePermission: () => ipcRenderer.invoke("moguri:microphone-permission"),
   copyText: (text) => ipcRenderer.invoke("moguri:copy-text", text),
   preview: (input) => ipcRenderer.invoke("moguri:preview", input),
+  onNavigateSession: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, id: unknown) => { if (typeof id === "string" && /^[A-Za-z0-9-]{1,128}$/.test(id)) listener(id); };
+    ipcRenderer.on("moguri:navigate-session", receive);
+    return () => ipcRenderer.removeListener("moguri:navigate-session", receive);
+  },
 };
 contextBridge.exposeInMainWorld("moguri", bridge);

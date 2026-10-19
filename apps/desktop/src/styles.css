@@ -425,6 +425,40 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .side-queue { max-height: 110px; overflow: auto; }
 .side-queue button { display: block; width: 100%; text-align: left; font-size: 10px; overflow-wrap: anywhere; }
 .side-approval { flex-shrink: 0; max-height: 220px; overflow: auto; border: 1px solid var(--warning-line); background: var(--warning-bg); padding: 10px; border-radius: 5px; font-size: 11px; }
+.new-chat-scope { margin: -12px 0 14px; }
+.new-chat-scope select { width: 100%; font-size: 11px; background: transparent; border-color: var(--line); }
+.notification-trigger, .session-attention { position: relative; }
+.attention-unread-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--warning-text); }
+.session-attention { display: inline-flex; flex-shrink: 0; color: var(--warning-text); }
+.session-attention.read { color: var(--muted); }
+.session-attention svg { width: 15px; height: 15px; }
+.session-attention .attention-unread-dot { width: 4px; height: 4px; top: -2px; right: -2px; }
+.suggestions-panel { min-width: 0; }
+.suggestion-hint { margin: 14px 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.suggestion-hint p { font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.suggestion-hint small, .suggestion-sources small { display: block; color: var(--muted); font-size: 10px; line-height: 1.7; margin: 6px 0; }
+.suggestion-hint button { margin-top: 8px; font-size: 11px; }
+.suggestion-sources { margin: 20px 0; }
+.suggestion-sources article { padding: 14px 0; border-bottom: 1px solid var(--line); }
+.suggestion-sources strong { font-size: 11px; overflow-wrap: anywhere; }
+.configuration-proposals { flex-shrink: 0; min-width: 0; max-height: 170px; overflow: auto; padding: 12px 20px; border-top: 1px solid var(--line); }
+.configuration-proposals h2 { font-size: 12px; margin: 0 0 10px; }
+.configuration-proposal-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 11px; }
+.configuration-proposal-row > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.configuration-proposal-row small { display: block; color: var(--muted); font-size: 10px; line-height: 1.6; margin-top: 4px; }
+.configuration-proposal-row button { font-size: 11px; }
+.configuration-review { width: min(780px, calc(100vw - 36px)); }
+.configuration-review pre { max-height: 250px; overflow: auto; }
+.configuration-review .settings-warning { color: var(--warning-text); border: 1px solid var(--warning-line); background: var(--warning-bg); padding: 12px; }
+.attention-item { display: flex; gap: 10px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 11px; }
+.attention-item > svg { margin-top: 6px; color: var(--warning-text); }
+.attention-item.read > svg { color: var(--muted); }
+.attention-item > div { flex: 1; min-width: 0; }
+.attention-item p { color: var(--muted); margin: 6px 0; font-size: 11px; line-height: 1.7; }
+.attention-item .quiet { padding: 0; color: var(--text); font-size: 12px; text-align: left; overflow-wrap: anywhere; }
+.attention-item small { color: var(--muted); font-size: 10px; }
+.mcp-oauth-panel { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 8px; }
+.mcp-oauth-panel .path { overflow-wrap: anywhere; }
 @media (max-width: 1050px) {
   .settings-layout { grid-template-columns: 134px minmax(0, 1fr); }
   .settings-content { padding: 24px 18px; }

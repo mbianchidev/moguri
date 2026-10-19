@@ -1,4 +1,4 @@
-import { app, BrowserWindow, WebContentsView, clipboard, dialog, ipcMain, protocol, session as electronSession, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, Notification, WebContentsView, clipboard, dialog, ipcMain, protocol, session as electronSession, shell, systemPreferences } from "electron";
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
@@ -7,11 +7,15 @@ import { fileURLToPath } from "node:url";
 import { ensureConnection, stateDirectory } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { isRecord } from "../../../packages/protocol/src/index.ts";
+import { MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { AttentionNotifier } from "./notifications.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
 let connection: Connection;
 let mainWindow: BrowserWindow | null = null;
+let attentionClient: MoguriSdk | undefined;
+const banners = new Map<string, Notification>();
 let preview: { view: WebContentsView; sessionId: string; url: string } | null = null;
 const previewUrl = (input: string) => {
   const url = new URL(input);
@@ -44,6 +48,22 @@ else {
     };
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
     await connect();
+    attentionClient = await new MoguriSdk(connection).ready();
+    const notifier = new AttentionNotifier(attentionClient.getState().snapshot!.seq);
+    attentionClient.subscribe(() => {
+      const state = attentionClient?.getState();
+      if (!state?.snapshot) return;
+      notifier.observe(state.snapshot, state.events, Boolean(mainWindow?.isFocused()), (banner) => {
+        if (process.env.MOGURI_TEST_WINDOW === "hidden" || !Notification.isSupported()) return;
+        const notification = new Notification({ title: banner.title, body: banner.body, silent: false });
+        banners.set(banner.id, notification);
+        if (banners.size > 100) { const oldest = banners.keys().next().value!; banners.get(oldest)?.close(); banners.delete(oldest); }
+        notification.on("click", () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId); });
+        notification.on("close", () => banners.delete(banner.id));
+        notification.on("failed", (_event, error) => { banners.delete(banner.id); console.error("Moguri OS notification failed:", error); });
+        notification.show();
+      });
+    });
     const rendererRoot = join(app.getAppPath(), "dist", "desktop", "renderer");
     protocol.handle("moguri", async (request) => {
       const url = new URL(request.url);
@@ -147,5 +167,5 @@ else {
     if (process.env.MOGURI_TEST_WINDOW !== "hidden") dialog.showErrorBox("Moguri could not start", error instanceof Error ? error.message : "Inspect the service log.");
     app.quit();
   });
-  app.on("window-all-closed", () => app.quit());
+  app.on("window-all-closed", () => { attentionClient?.disconnect(); app.quit(); });
 }

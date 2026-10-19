@@ -3,10 +3,10 @@ import { defaultProjectConfiguration, type MoguriSdk, type Project, type Session
 import { Icon } from "./Icon.tsx";
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "pr" | "work" | "relocate" | "delete-session" | "remove-project";
-interface Edit { kind: EditKind; project: Project; session?: Session }
+interface Edit { kind: EditKind; project?: Project; session?: Session }
 export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, settings, modal, allow }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
-  chooseSession: (id: string) => Promise<void>; chooseProject: (id: string) => void; settings: (projectId: string) => void;
+  chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
   modal: (open: boolean) => void; allow: () => boolean;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
@@ -24,16 +24,16 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     [siblings[index], siblings[target]] = [siblings[target]!, siblings[index]!];
     await sdk.projects.reorder(configuration.folderId, siblings.map((project) => ({ projectId: project.id, revision: folder(project).revision })));
   });
-  const renderSession = (session: Session, project: Project, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}>
+  const renderSession = (session: Session, project: Project | undefined, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}>
     <button className="session-link" aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}>
       <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{session.title === "New session" ? session.messages.find((message) => message.role === "user")?.text.split("\n")[0]?.slice(0, 60) || "New" : session.title}</span>
-        {session.status === "waiting_input" && <small>Needs attention</small>}</span>{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
+        {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionAttention snapshot={snapshot} session={session} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
     <WorkspaceMenu label={`Actions for ${session.title}`}>
       <button onClick={() => open({ kind: "rename", project, session })}><Icon name="Edit" />Rename</button>
       <button onClick={() => void run(() => sdk.sessions.organize(session.id, { pinned: !session.pinned }))}><Icon name="Pin" />{session.pinned ? "Unpin" : "Pin"}</button>
       <button onClick={() => void run(() => sdk.sessions.organize(session.id, { unread: !session.unread }))}><Icon name="ReadOnly" />{session.unread ? "Mark read" : "Mark unread"}</button>
-      <button onClick={() => open({ kind: "group", project, session })}><Icon name="Group" />Move to group</button>
+      <button disabled={!project} onClick={() => open({ kind: "group", project, session })}><Icon name="Group" />Move to group</button>
       <button disabled={Boolean(session.turnId) || session.kind === "subagent"} onClick={() => open({ kind: "attach", project, session })}><Icon name="Link" />Attach to session</button>
       {session.parentSessionId && <button disabled={Boolean(session.turnId) || session.kind === "subagent"} onClick={() => void run(() => sdk.sessions.organize(session.id, { parentSessionId: null }))}><Icon name="Back" />Detach</button>}
       <button disabled={session.mode !== "agent" || session.kind !== "agent"} onClick={() => void run(async () => { const result = await sdk.sessions.spawn(session.id, "agent"); await chooseSession(result.id!); })}><Icon name="Plus" />Subsession</button>
@@ -70,13 +70,23 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     </section>;
   };
   const projects = [...snapshot.projects].sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
+  const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived);
+  const generalIds = new Set(general.map((session) => session.id));
+  const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt)).map((session) => <div key={session.id}>{renderSession(session, undefined, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
   return <><div className="project-list" aria-busy={busy}>
     {error && <p className="inline-error" role="alert">{error}</p>}
+    <section className="project-group general-chats" aria-label="Project-free chats"><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">No project</span></button><button className="icon-button" aria-label="New project-free chat" title="New project-free chat" onClick={() => void run(async () => { const created = await sdk.sessions.create(null); await chooseSession(created.id!); })}><Icon name="Plus" /></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).map((group) => <details className="project-folder" key={group.id} open><summary><Icon name="Files" />{group.name}</summary>{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
-    {!projects.length && <p className="nav-empty">Open a project to begin.</p>}
+    {!projects.length && <p className="nav-empty">Chat without a project, or open a workspace for coding tools.</p>}
     {archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
-  </div>{edit && <NavigationDialog key={`${edit.kind}-${edit.session?.id ?? edit.project.id}`} edit={edit} sdk={sdk} snapshot={snapshot} close={() => setEdit(null)} chooseSession={chooseSession} />}</>;
+  </div>{edit && <NavigationDialog key={`${edit.kind}-${edit.session?.id ?? edit.project?.id}`} edit={edit} sdk={sdk} snapshot={snapshot} close={() => setEdit(null)} chooseSession={chooseSession} />}</>;
+}
+function SessionAttention({ snapshot, session }: { snapshot: Snapshot; session: Session }) {
+  const entry = snapshot.attention.findLast((entry) => entry.sessionId === session.id && entry.active);
+  if (!entry || !snapshot.settings.values.notifications.inApp) return null;
+  const label = entry.kind === "question" ? entry.source === "heuristic" ? "Possible question" : "Question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Approval needed" : "Attention needed";
+  return <span className={`session-attention ${entry.acknowledged ? "read" : "unread"}`} title={label} aria-label={label}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />{!entry.acknowledged && <span className="attention-unread-dot" />}</span>;
 }
 function WorkspaceMenu({ label, children }: { label: string; children: ReactNode }) {
   const ref = useRef<HTMLDetailsElement>(null);
@@ -98,7 +108,7 @@ function WorkspaceMenu({ label, children }: { label: string; children: ReactNode
 }
 function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit: Edit; sdk: MoguriSdk; snapshot: Snapshot; close: () => void; chooseSession: (id: string) => Promise<void> }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [value, setValue] = useState(edit.kind === "rename" ? edit.session!.title : edit.kind === "relocate" ? edit.project.path : "");
+  const [value, setValue] = useState(edit.kind === "rename" ? edit.session!.title : edit.kind === "relocate" ? edit.project!.path : "");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -108,28 +118,29 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
   const submit = async () => {
     setBusy(true); setError("");
     try {
-      const configuration = (await sdk.projects.configuration(edit.project.id)).configuration;
+      const configuration = edit.project ? (await sdk.projects.configuration(edit.project.id)).configuration : null;
+      const requiredProject = () => { if (!edit.project) throw new Error("This action needs a selected project."); return edit.project; };
       switch (edit.kind) {
         case "rename": await sdk.sessions.rename(edit.session!.id, value); break;
         case "attach": await sdk.sessions.organize(edit.session!.id, { parentSessionId: value || null }); break;
         case "group": await sdk.sessions.organize(edit.session!.id, { groupId: value || null }); break;
-        case "new-group": await sdk.sessions.group(edit.project.id, value); break;
+        case "new-group": await sdk.sessions.group(requiredProject().id, value); break;
         case "new-folder": await sdk.projects.folder(value); break;
-        case "folder": await sdk.projects.organize(edit.project.id, { folderId: value || null, color: configuration.color, order: configuration.order }, configuration.revision); break;
-        case "relocate": await sdk.projects.relocate(edit.project.id, value, configuration.revision); break;
+        case "folder": if (!configuration) throw new Error("Project configuration is required."); await sdk.projects.organize(requiredProject().id, { folderId: value || null, color: configuration.color, order: configuration.order }, configuration.revision); break;
+        case "relocate": if (!configuration) throw new Error("Project configuration is required."); await sdk.projects.relocate(requiredProject().id, value, configuration.revision); break;
         case "delete-session": if (!confirmed) throw new Error("Confirm deletion first."); await sdk.sessions.delete(edit.session!.id, true); break;
-        case "remove-project": if (!confirmed) throw new Error("Confirm removal first."); await sdk.projects.remove(edit.project.id, true, configuration.revision); break;
-        case "pr": { const result = await sdk.sessions.fromWork(edit.project.id, { prUrl: value }); await chooseSession(result.id!); break; }
-        case "work": { const result = await sdk.sessions.fromWork(edit.project.id, { issueId: value }); await chooseSession(result.id!); break; }
+        case "remove-project": if (!confirmed || !configuration) throw new Error("Confirm project removal first."); await sdk.projects.remove(requiredProject().id, true, configuration.revision); break;
+        case "pr": { const result = await sdk.sessions.fromWork(requiredProject().id, { prUrl: value }); await chooseSession(result.id!); break; }
+        case "work": { const result = await sdk.sessions.fromWork(requiredProject().id, { issueId: value }); await chooseSession(result.id!); break; }
       }
       close();
     } catch (error) { setError(error instanceof Error ? error.message : "The action failed; no success was recorded."); }
     finally { setBusy(false); }
   };
-  const choices = edit.kind === "attach" ? snapshot.sessions.filter((session) => session.projectId === edit.project.id && session.id !== edit.session?.id).map((session) => ({ id: session.id, name: session.title })) :
-    edit.kind === "group" ? snapshot.sessionGroups.filter((group) => group.projectId === edit.project.id) :
+  const choices = edit.kind === "attach" ? snapshot.sessions.filter((session) => session.projectId === (edit.session?.projectId ?? edit.project?.id ?? null) && session.id !== edit.session?.id).map((session) => ({ id: session.id, name: session.title })) :
+    edit.kind === "group" ? snapshot.sessionGroups.filter((group) => group.projectId === edit.project?.id) :
     edit.kind === "folder" ? snapshot.projectFolders :
-    edit.kind === "work" ? snapshot.issues.filter((issue) => issue.projectId === edit.project.id && !issue.archived).map((issue) => ({ id: issue.id, name: `#${issue.number} ${issue.title}` })) : null;
+    edit.kind === "work" ? snapshot.issues.filter((issue) => issue.projectId === edit.project?.id && !issue.archived).map((issue) => ({ id: issue.id, name: `#${issue.number} ${issue.title}` })) : null;
   return <dialog ref={ref} className="workspace-dialog" onClose={close} aria-label={titles[edit.kind]}><form onSubmit={(event) => { event.preventDefault(); void submit(); }}><header><h2>{titles[edit.kind]}</h2><button className="icon-button" type="button" aria-label="Cancel dialog" disabled={busy} onClick={close}><Icon name="Close" /></button></header>
     {destructive ? <><p>{edit.kind === "delete-session" ? "Stops owned work and removes the conversation, drafts and queues. Connected PRs remain open and retained project artifacts survive. Linked children are detached, not deleted." : "Stops this project's owned work and removes its Moguri records, artifacts and indexes. Repository files, external PRs, shared package/model stores and diagnostic audit logs are not deleted."}</p>
       <label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I understand and confirm this removal.</label></> :

@@ -8,6 +8,7 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   const [error, setError] = useState("");
   const load = async () => {
     setError("");
+    if (!session.projectId) { setError("Select a project to inspect file changes."); return; }
     try { setData(await sdk.projects.git(session.projectId)); }
     catch (error) { setError(error instanceof Error ? error.message : "Git status could not be read."); }
   };
