@@ -5,6 +5,7 @@ import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
+const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
 type MoguriClient = MoguriSdk;
 
 type Panel = "Changes" | "Terminal" | "Files" | "Browser" | "Side chat" | "Insights" | "Extensions";
@@ -51,9 +52,10 @@ export function App({ client }: { client: MoguriClient }) {
   const [busy, setBusy] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
   const editors = useRef(new Map<string, DraftEditor>());
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
-  const project = snapshot?.projects.find((project) => project.id === (session?.projectId ?? projectId)) ?? snapshot?.projects[0];
+  const project = snapshot?.projects.find((project) => project.id === (boardOpen ? projectId ?? session?.projectId : session?.projectId ?? projectId)) ?? snapshot?.projects[0];
   const editor = useMemo(() => {
     if (!session) return null;
     let value = editors.current.get(session.id);
@@ -90,16 +92,19 @@ export function App({ client }: { client: MoguriClient }) {
   const command = (command: Command) => run(() => client.command(command));
   const canNavigate = () => {
     if (!settingsUnsaved) return true;
-    setNotice("Save your settings edit or reload committed settings before navigating. Your edit is preserved.");
+    setNotice("Save your edit or reload committed values before navigating. Your edit is preserved.");
     return false;
   };
   const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); return true; };
+  const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); return true; };
+  const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; setBoardOpen(false); setSettingsTab(tab); };
+  const openBoard = () => { if (!canNavigate()) return; setSettingsTab(null); setBoardOpen(true); };
   const newSession = () => run(async () => {
     if (!canNavigate()) return;
     if (!project) { setNotice("Open a local project first."); return; }
     await editor?.flush();
     const result = await client.command({ type: "session.create", projectId: project.id });
-    setSelectedId(result.id!); setArchived(false); setNavOpen(false);
+    setSelectedId(result.id!); setArchived(false); setNavOpen(false); setBoardOpen(false);
   });
   const openProject = () => run(async () => {
     if (!canNavigate()) return;
@@ -109,7 +114,7 @@ export function App({ client }: { client: MoguriClient }) {
     const result = await client.command({ type: "project.add", path });
     setProjectId(result.id!);
     const created = await client.command({ type: "session.create", projectId: result.id! });
-    setSelectedId(created.id!); setArchived(false); setNavOpen(false);
+    setSelectedId(created.id!); setArchived(false); setNavOpen(false); setBoardOpen(false);
   });
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
@@ -119,7 +124,7 @@ export function App({ client }: { client: MoguriClient }) {
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
   }, []);
-  return <div className={`app-shell ${navOpen ? "nav-open" : ""} ${panelOpen && !settingsTab ? "context-open" : ""} ${widePanel ? "context-wide" : ""}`}>
+  return <div className={`app-shell ${navOpen ? "nav-open" : ""} ${panelOpen && !settingsTab && !boardOpen ? "context-open" : ""} ${widePanel ? "context-wide" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{project?.name ?? "Your local workspace"}</span>
@@ -128,12 +133,12 @@ export function App({ client }: { client: MoguriClient }) {
     <nav className="project-nav" aria-label="Projects and sessions">
       <div className="nav-heading"><span>Workspace</span><button className="icon-button" aria-label="Open project" title="Open project" onClick={() => void openProject()}>+</button></div>
       <button className="new-session" onClick={() => void newSession()} disabled={!project || busy}><span>+</span> New session</button>
-      <div className="nav-tabs"><button aria-pressed={!archived} onClick={() => setArchived(false)}>Sessions</button><button aria-pressed={archived} onClick={() => setArchived(true)}>Archived</button></div>
+      <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => { if (leaveSurface()) setArchived(false); }}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => { if (leaveSurface()) setArchived(true); }}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       <div className="project-list">
         {snapshot?.projects.map((item) => <section className="project-group" key={item.id}>
-          <button className="project-name" title={item.path} onClick={() => { if (canNavigate()) setProjectId(item.id); }}><Icon name="Files" />{item.name}</button>
+          <button className="project-name" title={item.path} onClick={() => { if (!canNavigate()) return; setProjectId(item.id); if (!boardOpen) { const target = snapshot.sessions.find((session) => session.projectId === item.id); if (target) setSelectedId(target.id); } }}><Icon name="Files" />{item.name}</button>
           {snapshot.sessions.filter((session) => session.projectId === item.id && (session.status === "archived") === archived).map((item) =>
-            <button key={item.id} className={`session-link ${selectedId === item.id ? "selected" : ""}`} aria-current={selectedId === item.id ? "page" : undefined} onClick={() => void run(async () => { if (!canNavigate()) return; await editor?.flush(); setSelectedId(item.id); setNavOpen(false); })}>
+            <button key={item.id} className={`session-link ${selectedId === item.id ? "selected" : ""}`} aria-current={selectedId === item.id ? "page" : undefined} onClick={() => void run(async () => { if (!leaveSurface()) return; await editor?.flush(); setSelectedId(item.id); setProjectId(item.projectId); setNavOpen(false); })}>
               <span className={`status-dot ${item.status}`} /><span className="session-link-text"><span>{title(item)}</span><small>{item.status === "waiting_input" ? "Needs your attention" : item.status}</small></span>
               {item.queue.length > 0 && <span className="queue-count">{item.queue.length}</span>}
             </button>)}
@@ -142,8 +147,8 @@ export function App({ client }: { client: MoguriClient }) {
         {snapshot && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">Archived sessions stay here, ready to restore.</p>}
       </div>
       <div className="nav-footer">
-        <button className="settings-nav-button" aria-label="Settings" onClick={() => setSettingsTab("systemPrompt")}><Icon name="Settings" />Settings</button>
-        <button className="provider-button" onClick={() => { if (leaveSettings()) { setConnections((value) => !value); setPanelOpen(true); } }}>
+        <button className="settings-nav-button" aria-label="Settings" onClick={() => openSettings("systemPrompt")}><Icon name="Settings" />Settings</button>
+        <button className="provider-button" onClick={() => { if (leaveSurface()) { setConnections((value) => !value); setPanelOpen(true); } }}>
           <span className={`status-dot ${snapshot?.provider.status === "connected" ? "completed" : "idle"}`} />
           <span><strong>GitHub Copilot</strong><small>{snapshot?.provider.status ?? "Connecting to service"}</small></span><span>&gt;</span>
         </button>
@@ -152,7 +157,8 @@ export function App({ client }: { client: MoguriClient }) {
     </nav>
     <main className="main-pane">
       {(notice || connectionError) && <div className="notice error" role="alert"><span>{notice ?? connectionError}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
-      {settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={session} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} /></Suspense> : <>
+      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} /></Suspense> :
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={session} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} /></Suspense> : <>
       <header className="session-header">
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         <div className="session-heading"><h1>{session ? title(session) : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Project"} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Local first. Under your control."}</span></div>
@@ -183,16 +189,18 @@ export function App({ client }: { client: MoguriClient }) {
     <aside className="context-pane" aria-label="Session sidebar">
       <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><div><button className="icon-button" aria-label="Resize sidebar" title="Toggle sidebar width" onClick={() => setWidePanel((value) => !value)}>&lt;&gt;</button><button className="icon-button" aria-label="Close sidebar" onClick={() => setPanelOpen(false)}>x</button></div></header>
       <div className="context-content">{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
-        <ContextPanel key={`${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} openSettings={setSettingsTab} />}
+        <ContextPanel key={`${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} openSettings={openSettings} />}
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
-    <nav className="panel-rail" aria-label="Sidebar panels">{panels.map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => { if (leaveSettings()) { setPanel(item); setPanelOpen(true); setConnections(false); } }}><Icon name={item} /></button>)}</nav>
+    <nav className="panel-rail" aria-label="Sidebar panels">{panels.map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => { if (leaveSurface()) { setPanel(item); setPanelOpen(true); setConnections(false); } }}><Icon name={item} /></button>)}</nav>
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "New session", action: newSession }, { name: "Open project", action: openProject },
-      { name: "Connect GitHub Copilot", action: async () => { if (leaveSettings()) { setConnections(true); setPanelOpen(true); } } },
-      { name: "Show Insights and event trace", action: async () => { if (leaveSettings()) { setPanel("Insights"); setPanelOpen(true); setConnections(false); } } },
-      { name: "Settings and editable system prompt", action: async () => setSettingsTab("systemPrompt") },
+      { name: "Connect GitHub Copilot", action: async () => { if (leaveSurface()) { setConnections(true); setPanelOpen(true); } } },
+      { name: "Show Insights and event trace", action: async () => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); setConnections(false); } } },
+      { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
+      { name: "Local project issue board", action: async () => openBoard() },
+      { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
     ]} />}
   </div>;

@@ -4,6 +4,8 @@ import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { MoguriClient } from "../../packages/client/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { dependencyArchive, dependencyProject } from "../fixtures/dependencies.ts";
+import { existsSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
 const artifacts = resolve(".moguri/artifacts");
@@ -12,6 +14,83 @@ const launchFixtureApp = (stateDir: string) => electron.launch({
   executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."],
   env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" },
+});
+
+test("local Kanban, read-only merge/Linear integration and the managed dependency cache share the SDK", async () => {
+  let artifact: Awaited<ReturnType<typeof dependencyArchive>>;
+  let downloads = 0;
+  let key: string | null = null;
+  const fixture = await setupFixture({ platform: {
+    cache: { fetch: async (url) => {
+      if (String(url).includes("api.osv.dev")) return Response.json({ results: [{}] });
+      downloads++; return new Response(artifact.bytes);
+    } },
+    integrations: {
+      vault: { read: async () => key, write: async (_, value) => { key = value; }, remove: async () => { key = null; } },
+      fetch: async (url) => {
+        if (String(url).startsWith("https://api.github.com/")) return Response.json({ number: 9, html_url: "https://github.com/generated/project/pull/9", state: "closed", merged: true, merged_at: "2026-01-01T00:00:00Z" });
+        return Response.json({ data: { team: { id: "generated-team", issues: { nodes: [{ id: "generated-linear-ui", identifier: "GEN-9", title: "Generated Linear UI ticket", description: "Generated fixture only", url: "https://linear.app/generated/issue/GEN-9", updatedAt: "2026-01-01T00:00:00Z" }], pageInfo: { hasNextPage: false, endCursor: null } } } } });
+      },
+    },
+  } });
+  artifact = await dependencyArchive(fixture.directory); await dependencyProject(fixture.project, artifact);
+  const app = await launchFixtureApp(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow();
+    const failures: string[] = []; page.on("pageerror", (error) => failures.push(error.message));
+    await page.getByRole("button", { name: "Issues", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Project issues", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "New issue", exact: true }).click();
+    await page.getByLabel("Issue title", { exact: true }).fill("Generated cache feature");
+    await page.getByLabel("Issue description", { exact: true }).fill("Generated end-to-end ticket.");
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page.getByLabel("Issue title", { exact: true })).toHaveValue("Generated cache feature");
+    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await page.getByRole("button", { name: "Save issue", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Generated cache feature", exact: true })).toBeVisible();
+    await page.getByLabel("Phase for issue 1", { exact: true }).selectOption("in-progress");
+    await expect.poll(() => fixture.service.controller.snapshot().issues[0]?.phaseId).toBe("in-progress");
+    await page.getByRole("button", { name: "Configure phases and integrations", exact: true }).click();
+    await expect(page.getByLabel("Enable read-only Linear import for this project")).not.toBeChecked();
+    await page.getByLabel("Phase name review", { exact: true }).fill("Validation");
+    await page.getByLabel("Merged PR destination", { exact: true }).selectOption("review");
+    await page.getByLabel("Enable read-only Linear import for this project").check();
+    await page.getByLabel("Linear team UUID", { exact: true }).fill("generated-team");
+    await page.getByRole("button", { name: "Save board configuration", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Validation", exact: true })).toBeVisible();
+    await page.getByLabel("Linear personal API key", { exact: true }).fill("generated-linear-ui-key");
+    await page.getByRole("button", { name: "Store Linear key in keychain", exact: true }).click();
+    await expect(page.getByLabel("Linear personal API key", { exact: true })).toHaveValue("");
+    await page.getByRole("button", { name: "Import Linear team issues", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Generated Linear UI ticket", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Configure phases and integrations", exact: true }).click();
+    await page.getByRole("button", { name: "Generated cache feature", exact: true }).click();
+    await page.getByLabel("Connected GitHub PR URL", { exact: true }).fill("https://github.com/generated/project/pull/9");
+    await page.getByRole("button", { name: "Save issue", exact: true }).click();
+    await expect(page.getByLabel("Phase for issue 1", { exact: true })).toHaveValue("review");
+    await expect(page.getByRole("region", { name: "Validation issues" })).toContainText("Generated cache feature");
+    await mkdir(artifacts, { recursive: true });
+    await page.screenshot({ path: join(artifacts, "desktop-project-issues.png") });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1000, 760));
+    await page.screenshot({ path: join(artifacts, "desktop-project-issues-compact.png") });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Dependency cache", exact: true }).click();
+    await page.getByRole("button", { name: "Inspect current lock", exact: true }).click();
+    const prepare = page.getByRole("button", { name: "Prepare verified cache", exact: true });
+    await expect(prepare).toBeDisabled();
+    await page.getByLabel("I approve sending these public dependency names and versions to OSV for advisory checks.").check();
+    await prepare.click();
+    await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "cache.prepare" && job.status === "completed")).toBe(true);
+    await page.getByLabel("I approve replacing this project's node_modules with a managed, script-free install.").check();
+    await page.getByRole("button", { name: "Install with scripts blocked", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "cache.install" && job.status === "completed")).toBe(true);
+    expect(downloads).toBe(1);
+    expect(existsSync(join(fixture.project, "node_modules", artifact.name, "UNSAFE_SCRIPT_RAN"))).toBe(false);
+    await page.screenshot({ path: join(artifacts, "desktop-dependency-cache.png") });
+    expect(JSON.stringify(fixture.service.controller.events(0)).includes("generated-linear-ui-key")).toBe(false);
+    expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);
+  } finally { await app.close(); await fixture.close(); }
 });
 
 test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation and restart", async () => {

@@ -215,6 +215,93 @@ runtime/model or microphone permission, setup fails explicitly; there is no
 cloud fallback. Automated checks use generated recognizers, not real audio,
 weights, microphone access or personal provider authorization.
 
+## Shared dependency cache
+
+Open **Settings / Dependency cache**, choose npm or pnpm and **Inspect current
+lock**. Inspection is local and does not install or run anything. A plan binds
+the project, manager, manifest and lock digests, not a mutable branch name.
+Registered worktrees with common package/version/integrity bytes share one
+profile-owned archive object. Switching branches or editing a lock invalidates
+old plans. Mutable `node_modules` trees are never shared between branches.
+
+Explicitly approve sending public dependency names/versions to **OSV**.
+**Prepare verified cache** checks every exact version before fetching artifacts
+and verifies SHA-512 on insertion and reuse. Known vulnerabilities, missing or
+incomplete responses, pagination, outages and corruption block admission. No
+package is permanently labeled secure; advisory absence is not a malware scan
+or a guarantee that an upstream package is safe.
+
+**Install with scripts blocked** is a second explicit action. It prepares in a
+private clean directory without evaluating repository npm/pnpm configuration,
+pnpm hooks or package/project lifecycle scripts, then rechecks the exact plan
+before replacing the project tree. npm uses its shared archive cache offline;
+pnpm uses its pinned native installer, a shared native store and a loopback
+mirror that serves only this plan's verified artifacts. pnpm uses copy-on-write
+reuse where supported and otherwise copies; npm archive caching does not
+eliminate extracted per-project files. npm must be installed to use its adapter.
+
+Initial formats are **single-project npm package-lock v2/v3** and **pnpm
+lockfile v9**, with public npm-registry SHA-512 packages. Other managers,
+workspaces, Git/local/custom/private resolutions and missing integrity require
+separate qualification; they are not silently skipped.
+
+**Lifecycle execution remains blocked until real SendBox is qualified.**
+Packages needing native/postinstall builds may not be usable after this
+script-free install. A script cannot be sandbox-tested before its bytes exist:
+the safe sequence is advisory preflight, quarantined download, integrity check
+and no host execution. Arbitrary separately approved shell commands are outside
+this managed API and are not magically protected by cache settings.
+
+Use CLI `cache inspect|prepare|install PROJECT_ID MANAGER ...` or TUI
+`/cache inspect npm|pnpm`. Preparation requires the reviewed plan SHA-256 and
+`accept-metadata`; TUI installation additionally requires
+`replace-node-modules`. CLI uses `--accept-dependency-metadata`.
+Jobs retain progress/outcomes and can be cancelled. An interrupted install is
+never successful and may quarantine the project until inspection/resume.
+Old dependency backups, when crash recovery is unconfirmed, are protected
+`.moguri-dependencies-*` paths and must be inspected before manual removal.
+The final staged-tree rename requires the state directory and project to share
+a filesystem. A cross-filesystem rename fails explicitly and restores/preserves
+the old tree. To relocate state, stop its service first, preserve/copy the entire
+private directory and point `MOGURI_STATE_DIR` to it on the target filesystem;
+never delete history or disable protection to retry.
+
+## Local project Kanban and optional Linear
+
+Desktop **Issues** opens this project's local board. **New issue** creates a
+feature, bug or misc ticket with title, description, phase and optional
+connected GitHub PR. There is no assignee and no hosted issue upload. Use
+phase selectors to move, title to edit, and Archive/Restore to retain history.
+Tickets and configuration survive service restart and session archival.
+
+**Configure phases and integrations** names/adds/reorders phases and chooses
+the merged-PR destination. An occupied phase, including archived tickets, cannot
+be removed. Edits have optimistic revisions; another client or PR observation
+cannot silently overwrite an unsaved edit.
+
+Linking a canonical github.com PR authorizes bounded read-only observation while
+Moguri runs. Newly linked PRs are checked immediately, then at most once per
+two minutes with a 20-ticket refresh bound. Only a verified merged response
+advances phase, once. Closed-without-merge, missing auth, outages and stale
+observations leave phase unchanged and show diagnostics. Automatic observation
+can be disabled. Public GitHub API is default; explicitly select your signed-in
+GitHub CLI account for private PRs. This never merges a PR or starts CI.
+
+TUI `/issues` shows the board; `/issue new` opens a full JSON editor and
+`/issue create feature|bug|misc TITLE` is a shortcut. `/issue edit ID`,
+`/issue move ID PHASE`, `/issue archive|restore ID`, `/board edit` and
+`/board refresh` expose the same SDK. CLI `issues list` shows stable IDs;
+mutations require the observed revision. See [SDK examples](sdk.md).
+
+**Linear is optional and off by default.** Enable one exact team UUID, then
+store a personal API key in the dedicated masked/keychain input. Explicit
+imports read at most 50 team tickets per page with retained remote provenance.
+Existing local edits are preserved and no local ticket, repository content,
+assignee or user profile is sent to Linear. Importing does not enable OAuth,
+background two-way sync or remote issue mutation. Disabling the team or
+removing/replacing the key cancels owned imports. Partial HTTP-200 GraphQL
+responses are errors, not partial successful imports.
+
 ## Delivery, drafts and recovery
 
 **Queue** waits for the current turn. **Steer** is bound to that turn and enters
@@ -315,6 +402,7 @@ npm test
 npm run build
 npm run test:e2e
 npm run verify:sdk
+npm run spike:workspace
 npm run spike
 npm audit --audit-level=moderate
 ```
@@ -330,8 +418,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.2.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.2.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.3.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.3.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -348,3 +436,5 @@ declared native bundle icon.
 
 Remaining blockers and unsupported capabilities are listed in
 [Phase 0](architecture/phase-zero.md) and the canonical implementation spec.
+CI is configured only for pushes to `main`. PRs/feature branches do not trigger
+it; development verification runs locally, without manual CI dispatch.

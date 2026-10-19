@@ -69,7 +69,7 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .nav-heading { display: flex; align-items: center; justify-content: space-between; padding-left: 10px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .new-session { display: flex; align-items: center; gap: 12px; width: 100%; margin: 8px 0 20px; text-align: left; font-weight: 550; padding: 9px 12px; }
 .new-session > span { font-size: 18px; color: var(--muted); }
-.nav-tabs { display: flex; padding: 0 5px 12px; gap: 3px; }
+.nav-tabs { display: flex; flex-wrap: wrap; padding: 0 5px 12px; gap: 3px; }
 .nav-tabs button { font-size: 12px; min-height: 28px; padding: 4px 8px; background: transparent; border-color: transparent; color: var(--muted); }
 .nav-tabs button[aria-pressed="true"] { background: var(--surface); color: var(--text); border-color: var(--line); }
 .project-list { overflow: auto; flex: 1; min-height: 0; }
@@ -278,6 +278,49 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .settings-result pre { max-height: 420px; overflow: auto; }
 .settings-result summary, .settings-jobs summary { color: var(--muted); font-size: 12px; }
 .dictate-button { font-size: 11px; padding: 5px 8px; }
+.cache-plan { margin-top: 24px; }
+.cache-plan code { overflow-wrap: anywhere; }
+.cache-plan pre { max-height: 280px; overflow: auto; }
+.project-board-page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+.board-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.board-toolbar > div { flex: 1; min-width: 180px; }
+.board-toolbar h1 { margin: 0 0 5px; font-size: 19px; font-weight: 600; }
+.board-toolbar p { margin: 0; color: var(--muted); font-size: 12px; }
+.board-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px 24px; }
+.board-options span { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.board-configuration, .issue-editor { padding: 24px; border-bottom: 1px solid var(--line); background: var(--subtle); }
+.board-configuration > h2, .issue-editor h2 { font-size: 17px; margin: 24px 0 10px; }
+.board-configuration > h2:first-child, .issue-editor h2 { margin-top: 0; }
+.board-configuration > p, .issue-editor > p { max-width: 72ch; color: var(--muted); font-size: 13px; line-height: 1.7; }
+.board-configuration .setting-field, .issue-editor .setting-field { max-width: 76ch; }
+.board-phase-edit { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0; max-width: 680px; }
+.board-phase-edit code { width: 115px; color: var(--muted); font-size: 11px; }
+.board-phase-edit input { flex: 1; min-width: 120px; }
+.issue-editor header { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.issue-editor header span { color: var(--muted); font-size: 12px; }
+.issue-editor-row { display: flex; gap: 24px; max-width: 720px; }
+.issue-editor-row > label { flex: 1; }
+.issue-editor textarea { min-height: 110px; }
+.kanban-scroll { overflow-x: auto; min-height: 260px; flex: 1; padding: 8px 24px 24px; }
+.kanban-columns { display: grid; align-items: start; gap: 16px; min-height: 100%; }
+.kanban-column { min-width: 0; }
+.kanban-column > header { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); padding: 12px 0; margin-bottom: 16px; }
+.kanban-column h2 { margin: 0; font-size: 13px; font-weight: 600; }
+.kanban-column > header span { color: var(--muted); font-size: 12px; }
+.kanban-empty { color: var(--muted); font-size: 12px; line-height: 1.7; padding: 8px 0; }
+.issue-ticket { padding: 14px 12px; border: 1px solid var(--line); background: var(--subtle); border-radius: 6px; margin-bottom: 12px; overflow-wrap: anywhere; }
+.ticket-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+.issue-kind { color: var(--muted); text-transform: capitalize; }
+.issue-kind.bug { color: var(--danger); }
+.issue-kind.feature { color: var(--accent); }
+.ticket-title { display: block; background: transparent; border-color: transparent; text-align: left; padding: 8px 0; font-size: 13px; font-weight: 600; line-height: 1.65; width: 100%; }
+.ticket-link { font-size: 11px; line-height: 1.65; color: var(--muted); }
+.ticket-link button { display: block; font-size: 11px; padding: 0; text-align: left; min-height: 24px; overflow-wrap: anywhere; }
+.ticket-phase { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11px; margin-top: 12px; }
+.ticket-phase select { color: var(--text); font-size: 12px; width: 100%; }
+.issue-ticket > .quiet { font-size: 11px; padding: 4px 0; }
+.board-footnote { padding: 0 24px 20px; font-size: 11px; color: var(--muted); line-height: 1.7; max-width: 90ch; }
+.board-jobs { margin: 8px 24px 20px; font-size: 12px; }
 @media (max-width: 1050px) {
   .settings-layout { grid-template-columns: 134px minmax(0, 1fr); }
   .settings-content { padding: 24px 18px; }

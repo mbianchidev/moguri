@@ -16,6 +16,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > client-only implementations. They do not complete the later unattended
 > self-evolution, marketplace, memory-tier, routing or execution-backend roadmap.
 
+> The additional [workspace platform slice](architecture/workspace-platform.md)
+> implements integrity/advisory-gated shared npm/pnpm caching, script-free
+> managed installs and a local project Kanban with verified merge transitions
+> and optional read-only Linear imports. Lifecycle execution remains blocked
+> without real SendBox qualification. These features share the SDK and event
+> authority; they do not create a second hosted issue system.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.
