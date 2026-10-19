@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, stateDirectory } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, saveArtifactExport, stateDirectory } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { isRecord } from "../../../packages/protocol/src/index.ts";
 import { MoguriSdk } from "../../../packages/sdk/src/index.ts";
@@ -113,6 +113,22 @@ else {
       trusted(event);
       if (typeof text !== "string" || Buffer.byteLength(text) > 512 * 1024) throw new Error("Clipboard text must be bounded to 512 KiB.");
       if (process.env.MOGURI_TEST_WINDOW !== "hidden") clipboard.writeText(text);
+    });
+    ipcMain.handle("moguri:save-document", async (event, input: unknown) => {
+      trusted(event);
+      if (!isRecord(input) || typeof input.text !== "string" || Buffer.byteLength(input.text) > 8 * 1024 * 1024 || typeof input.digest !== "string" || !/^[a-f0-9]{64}$/.test(input.digest) || input.mediaType !== "application/json" || typeof input.filename !== "string" || !/^[A-Za-z0-9._-]{1,200}\.json$/.test(input.filename)) throw new Error("Use an exact bounded SDK JSON export.");
+      let path: string | undefined;
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+        const directory = process.env.MOGURI_TEST_EXPORT_DIR;
+        if (!directory) throw new Error("Hidden export checks require a generated destination. No real save dialog was opened.");
+        path = join(directory, input.filename);
+      } else {
+        const selected = await dialog.showSaveDialog(mainWindow!, { title: "Export to a new JSON file", defaultPath: input.filename, filters: [{ name: "Moguri artifact export", extensions: ["json"] }] });
+        if (selected.canceled) return null;
+        path = selected.filePath;
+      }
+      if (!path) throw new Error("No export destination was selected.");
+      return saveArtifactExport(path, { filename: input.filename, mediaType: "application/json", text: input.text, digest: input.digest });
     });
     ipcMain.handle("moguri:preview", async (event, input: unknown) => {
       trusted(event);

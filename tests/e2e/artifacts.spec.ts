@@ -1,0 +1,92 @@
+import { _electron as electron, expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { mkdir, readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { setupFixture } from "../fixture.ts";
+
+const require = createRequire(import.meta.url);
+test.skip(process.platform !== "darwin", "Native desktop artifacts are qualified on macOS.");
+test("desktop retains real model provenance, persists exports and keeps artifacts through session/project deletion", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), exports = join(fixture.directory, "generated-exports");
+  await mkdir(exports, { mode: 0o700 });
+  await fixture.configure(); await fixture.send("Generated model answer to retain."); await fixture.terminal();
+  const assistant = fixture.session().messages.find((message) => message.role === "assistant" && message.text)!;
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_EXPORT_DIR: exports } });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Retained artifacts" });
+    await panel.getByRole("button", { name: "New artifact", exact: true }).click();
+    await panel.getByLabel("Artifact kind", { exact: true }).selectOption("decision");
+    await panel.getByLabel("Artifact name", { exact: true }).fill("Generated desktop decision");
+    await panel.getByLabel("Artifact text", { exact: true }).fill("Generated first retained decision.");
+    await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.artifacts.length).toBe(1);
+    await panel.getByLabel("Artifact text", { exact: true }).fill("Generated revised retained decision.");
+    await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.artifacts[0]?.revision).toBe(1);
+    await panel.getByText("Retain a completed message", { exact: true }).click();
+    await panel.getByLabel("Artifact source message", { exact: true }).selectOption(assistant.id);
+    await panel.getByRole("button", { name: "Review exact source", exact: true }).click();
+    await expect(panel).toContainText("Retaining this does not label it as a human answer.");
+    await panel.getByLabel("Promoted artifact name", { exact: true }).fill("Generated reviewed model answer");
+    await panel.getByRole("button", { name: "Retain reviewed message", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.artifacts.length).toBe(2);
+    const retained = sdk.getState().snapshot!.artifacts.find((artifact) => artifact.name === "Generated reviewed model answer")!;
+    expect(retained.sources[0]?.actor).toBe("model");
+    await panel.getByRole("button", { name: "Export artifact", exact: true }).click();
+    const exportName = (await sdk.artifacts.export(retained.id)).export.filename;
+    await expect.poll(async () => readFile(join(exports, exportName), "utf8").catch(() => "")).toContain(assistant.text);
+    await sdk.sessions.delete(fixture.sessionId, true);
+    await expect(panel.getByLabel("Artifact text", { exact: true })).toHaveValue(assistant.text);
+    await panel.getByRole("button", { name: "New artifact", exact: true }).click();
+    await panel.getByLabel("Artifact scope", { exact: true }).selectOption("");
+    await panel.getByLabel("Artifact name", { exact: true }).fill("Generated standalone profile note");
+    await panel.getByLabel("Artifact text", { exact: true }).fill("Generated with no conversation.");
+    await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.artifacts.length).toBe(3);
+    expect(sdk.getState().snapshot!.sessions.length).toBe(0);
+    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Remove", exact: true }).click();
+    const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
+    await expect(removal).toContainText("2 independent documents");
+    await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("retain");
+    await removal.getByText("I understand and confirm this removal.", { exact: true }).click();
+    await removal.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.projects.length).toBe(0);
+    expect((await sdk.artifacts.read(retained.id)).artifact.projectId).toBeNull();
+    await panel.getByLabel("Retained artifact", { exact: true }).selectOption(retained.id);
+    await expect(panel).toContainText("Model output, not a human answer");
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.screenshot({ path: resolve(".moguri/artifacts/retained-artifacts-desktop.png") });
+    await page.setViewportSize({ width: 900, height: 740 });
+    await page.screenshot({ path: resolve(".moguri/artifacts/retained-artifacts-compact.png") });
+    expect(failures).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("desktop project export must be saved before its reviewed copies can be deleted", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), exports = join(fixture.directory, "generated-exports");
+  await mkdir(exports, { mode: 0o700 });
+  const created = await sdk.artifacts.create(fixture.sessionId, { kind: "report", name: "Generated export-only report", text: "Generated exported project content." });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_EXPORT_DIR: exports } });
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Remove", exact: true }).click();
+    const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
+    await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("export");
+    await removal.getByText("I understand and confirm this removal.", { exact: true }).click();
+    await expect(removal.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
+    await removal.getByRole("button", { name: "Save reviewed export", exact: true }).click();
+    await expect(removal).toContainText("Exact export saved.");
+    const document = JSON.parse(await readFile(join(exports, "moguri-project-artifacts.json"), "utf8"));
+    expect(document.documents[0].revisions[0].text).toBe("Generated exported project content.");
+    await removal.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.projects.length).toBe(0);
+    await expect(sdk.artifacts.read(created.id!)).rejects.toThrow(/missing|deleted|outside/);
+    expect(await readFile(join(fixture.project, "fixture.txt"), "utf8")).toBe("generated original\n");
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});

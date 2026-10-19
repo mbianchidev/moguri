@@ -1,0 +1,90 @@
+import { useEffect, useRef, useState } from "react";
+import { ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Icon } from "./Icon.tsx";
+
+const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
+const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status });
+export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDirty, onRequestHandled }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; projectId: string | null; request: ArtifactEditorRequest | null; onDirty: (dirty: boolean) => void; onRequestHandled: () => void;
+}) {
+  const [draft, setDraft] = useState<ArtifactEditorRequest | null>(null), [baseline, setBaseline] = useState("");
+  const [showArchived, setShowArchived] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [confirmed, setConfirmed] = useState(false), [history, setHistory] = useState<RetainedArtifact[]>([]), [nextOffset, setNextOffset] = useState<number | null>(0), [oldText, setOldText] = useState<string | null>(null);
+  const [sourceId, setSourceId] = useState(""), [source, setSource] = useState<(ArtifactSourcePreview & { sessionId: string; sourceId: string }) | null>(null);
+  const [promoteName, setPromoteName] = useState("Retained answer"), [promoteKind, setPromoteKind] = useState<ArtifactKind>("answer");
+  const generation = useRef(0), sourceSession = useRef(session?.id), dirty = Boolean(draft && fields(draft) !== baseline);
+  sourceSession.current = session?.id;
+  const current = draft?.id ? snapshot.artifacts.find((artifact) => artifact.id === draft.id) : undefined;
+  const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
+  const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
+  const accept = (value: ArtifactEditorRequest) => {
+    setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null);
+  };
+  useEffect(() => {
+    if (!request) return;
+    generation.current++; accept(request); setError(""); setNotice(""); onRequestHandled();
+  }, [request]);
+  useEffect(() => { setSource(null); setSourceId(""); }, [session?.id]);
+  const run = async (operation: () => Promise<void>) => {
+    setError(""); setNotice(""); setBusy(true);
+    try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Artifact work failed. Your edit is preserved."); }
+    finally { setBusy(false); }
+  };
+  const load = async (id: string) => {
+    const token = ++generation.current, value = await sdk.artifacts.read(id);
+    if (generation.current === token) accept({ ...value.artifact, text: value.text, sessionId: value.artifact.originSessionId });
+  };
+  const fresh = () => {
+    generation.current++; accept({ id: null, revision: 0, kind: "research-note", name: "", text: "", projectId, sessionId: session?.projectId === projectId ? session.id : null, status: "active" });
+    setError(""); setNotice("");
+  };
+  const save = async () => {
+    if (!draft) return;
+    if (draft.id) { await sdk.artifacts.update(draft.id, { name: draft.name, text: draft.text }, draft.revision); await load(draft.id); }
+    else {
+      const origin = snapshot.sessions.some((session) => session.id === draft.sessionId && session.projectId === draft.projectId) ? draft.sessionId : null;
+      const created = await sdk.artifacts.create(origin, { kind: draft.kind, name: draft.name, text: draft.text, projectId: draft.projectId });
+      await load(created.id!);
+    }
+    setNotice("Retained independently. No conversation, source file or policy was changed.");
+  };
+  return <section className="artifact-panel" aria-label="Retained artifacts" aria-busy={busy}>
+    <p className="fine-print">Retained text, independent of sessions. Never automatic instructions or model context; media is not copied.</p>
+    <div className="panel-toolbar"><label className="setting-field">Document<select aria-label="Retained artifact" value={draft?.id ?? ""} disabled={busy || dirty} onChange={(event) => { const id = event.target.value; if (id) void run(() => load(id)); }}>
+      <option value="">Choose a retained document</option>{documents.map((artifact) => <option key={artifact.id} value={artifact.id}>{artifact.name} / {artifact.kind} / {artifact.projectId ? snapshot.projects.find((project) => project.id === artifact.projectId)?.name ?? "Former project" : "Profile"}{artifact.status === "archived" ? " / archived" : ""}</option>)}
+    </select></label><button className="icon-button" aria-label="New artifact" title="New retained document" disabled={busy || dirty} onClick={fresh}><Icon name="Plus" /></button></div>
+    <label className="check-setting"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived documents</label>
+    {!documents.length && !draft && <p>No retained documents yet. Create one here or retain a completed message below.</p>}
+    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {draft && <>
+      {!draft.id ? <><label className="setting-field">Kind<select aria-label="Artifact kind" value={draft.kind} disabled={busy} onChange={(event) => setDraft({ ...draft, kind: parse(ArtifactKindSchema, event.target.value) })}>{kinds.map((kind) => <option key={kind} value={kind}>{kind.replace("-", " ")}</option>)}</select></label>
+        <label className="setting-field">Scope<select aria-label="Artifact scope" value={draft.projectId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, projectId: event.target.value || null, sessionId: null })}><option value="">Profile / no project</option>{draft.projectId && !snapshot.projects.some((project) => project.id === draft.projectId) && <option value={draft.projectId}>Former project / unavailable</option>}{snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></> :
+        <p className="fine-print">{draft.kind.replace("-", " ")} / {draft.projectId ? snapshot.projects.find((project) => project.id === draft.projectId)?.name ?? "Former project" : "Profile"} / revision {draft.revision}{current?.status === "archived" ? " / archived" : ""}</p>}
+      <label className="setting-field">Name<input aria-label="Artifact name" value={draft.name} maxLength={160} disabled={busy} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
+      {current && <p className="fine-print">{current.origin === "manual" ? "User-entered text, not verified authorship" : current.sources.some((source) => source.actor === "model") ? "Model output, not a human answer" : current.sources.some((source) => source.actor === "user") ? "Canonical user message" : "Source authorship unknown"}{current.edited ? " / explicitly edited" : ""}</p>}
+      <label className="setting-field">Text<textarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
+      {conflict && <p className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</p>}
+      <div className="button-row"><button className="primary" disabled={busy || !draft.name.trim() || conflict || Boolean(draft.id) && !dirty} onClick={() => void run(save)}>Save artifact</button>
+        {draft.id && <button disabled={busy} onClick={() => void run(() => load(draft.id!))}>Reload committed</button>}
+        {(!draft.id || !current) && <button disabled={busy} onClick={() => { setDraft(null); setBaseline(""); }}>Discard local edit</button>}</div>
+      {current && <>
+        <details><summary>Source provenance</summary><pre>{JSON.stringify({ origin: current.origin, originSessionId: current.originSessionId, workspaceId: current.workspaceId, path: current.path, sources: current.sources }, null, 2)}</pre></details>
+        <div className="button-row"><button disabled={busy || dirty || conflict} onClick={() => void run(async () => { await sdk.artifacts.update(current.id, { status: current.status === "active" ? "archived" : "active" }, draft.revision); await load(current.id); })}>{current.status === "active" ? "Archive artifact" : "Restore artifact"}</button>
+          <button disabled={busy || dirty || conflict} onClick={() => void run(async () => { const value = (await sdk.artifacts.export(current.id)).export; const saved = await window.moguri.saveDocument(value); setNotice(saved ? `Export saved to ${saved.path}. Stored copies are unchanged.` : "Export cancelled. Stored copies are unchanged."); })}>Export artifact</button></div>
+        <details><summary>Content revisions</summary><button disabled={busy || nextOffset === null} onClick={() => void run(async () => { const page = await sdk.artifacts.history(current.id, nextOffset ?? 0); setHistory((history) => [...history, ...page.revisions]); setNextOffset(page.nextOffset); })}>Load revisions</button>
+          <div className="artifact-history">{history.map((artifact) => <button key={artifact.revision} disabled={busy} onClick={() => void run(async () => { setOldText((await sdk.artifacts.read(current.id, artifact.revision)).text); })}>Revision {artifact.revision} / {artifact.status}</button>)}</div>{oldText !== null && <pre aria-label="Historical artifact text">{oldText || "(Empty document)"}</pre>}</details>
+        <details><summary>Delete this retained copy</summary><p className="fine-print">Deletes this artifact and its revisions, not source files, conversations or other retained copies.</p><label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy || dirty} onChange={(event) => setConfirmed(event.target.checked)} />Delete this artifact's grants.</label>
+          <button className="danger" disabled={busy || dirty || conflict || !confirmed} onClick={() => void run(async () => { await sdk.artifacts.delete(current.id, draft.revision, true); generation.current++; setDraft(null); setBaseline(""); setNotice("Selected retained artifact deleted. Other copies were preserved."); })}>Delete artifact</button></details>
+      </>}
+    </>}
+    {session && <details><summary>Retain a completed message</summary>
+      <label className="setting-field">Message<select aria-label="Artifact source message" value={sourceId} disabled={busy} onChange={(event) => { setSourceId(event.target.value); setSource(null); }}><option value="">Choose a user or model message</option>{session.messages.filter((message) => ["user", "assistant"].includes(message.role) && message.text).map((message) => <option key={message.id} value={message.id}>{message.role === "user" ? "User" : "Model"}: {message.text.slice(0, 70)}</option>)}</select></label>
+      <button disabled={busy || !sourceId} onClick={() => void run(async () => { const value = (await sdk.artifacts.source(session.id, "message", sourceId)).preview; if (sourceSession.current !== session.id) throw new Error("The source session changed. Review a message from the current session."); setSource({ ...value, sessionId: session.id, sourceId }); })}>Review exact source</button>
+      {source && <><p className="fine-print">{source.source.actor === "model" ? "Model output. Retaining this does not label it as a human answer." : "Canonical user message."} / {source.source.outcome ?? "user input"}</p><pre className="artifact-source-preview">{source.text}</pre>
+        <label className="setting-field">Kind<select aria-label="Promoted artifact kind" value={promoteKind} onChange={(event) => setPromoteKind(parse(ArtifactKindSchema, event.target.value))}>{kinds.map((kind) => <option key={kind}>{kind}</option>)}</select></label>
+        <label className="setting-field">Name<input aria-label="Promoted artifact name" value={promoteName} maxLength={160} onChange={(event) => setPromoteName(event.target.value)} /></label>
+        <button disabled={busy || dirty || !promoteName.trim()} onClick={() => void run(async () => { const created = await sdk.artifacts.promote(source.sessionId, { sourceKind: "message", sourceId: source.sourceId, kind: promoteKind, name: promoteName, expectedDigest: source.digest }); await load(created.id!); setSource(null); })}>Retain reviewed message</button></>}
+    </details>}
+  </section>;
+}

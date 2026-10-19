@@ -666,6 +666,56 @@ Quarantine applies to the failed bound worktree rather than unrelated roots.
 Archive preserves drafts/workspace and holds queued user prompts.
 Project-owned plan snapshots survive session deletion.
 
+## Independent retained documents
+
+Desktop **Artifacts** opens a session-independent library, including when no
+conversation remains. **New artifact** creates a plan, decision, answer, research
+note or report in explicit project/profile scope. Text revisions, archive,
+history, exact JSON export and confirmed deletion use the same SDK as TUI/CLI.
+In TUI, **F5** opens the library without a session; Enter edits JSON and
+Ctrl+Enter saves. Cmd+A selects editor text; Esc discards the unsaved edit.
+Shared `/artifacts`, `/artifact new KIND NAME`, `/artifact ID`,
+`/artifact edit ID`, `history/archive/restore ID`, and
+`delete ID REV confirm-delete` expose the same operations.
+
+**Retain a completed message** first previews exact canonical text/digest.
+Model output remains labeled model output, not a human answer; later edits
+preserve that provenance. File captures have unknown authorship and manual text
+is labeled user-entered, not verified authorship. Sources remain traceable after
+origin-session deletion. These are text copies: images/media are not implicitly
+retained, and documents never become prompts, memory policy or permissions.
+
+```bash
+node bin/moguri.mjs artifact create document.json --project PROJECT_ID
+node bin/moguri.mjs artifact read ARTIFACT_ID
+node bin/moguri.mjs artifact update ARTIFACT_ID changes.json --revision OBSERVED_REVISION
+node bin/moguri.mjs artifact export ARTIFACT_ID --output /absolute/new-export.json
+node bin/moguri.mjs project removal-preview PROJECT_ID
+```
+
+`document.json` contains `kind`, `name` and `text`. Omit both project/session
+options to create a standalone profile document. `changes.json` contains only
+the desired `name`, `text` or `status` changes. Text is bounded to 128 KiB UTF-8;
+exact exports are bounded to 8 MiB and never silently truncated.
+Native desktop export uses an explicit save dialog; TUI
+`/artifact export ID ABSOLUTE_NEW_FILE_PATH` and CLI write a new private file,
+verify its digest and flush it. Existing files are preserved.
+
+Project removal now previews all independent documents, including archived
+ones, and requires an exact-set digest plus an explicit choice:
+retain as profile documents, save the exact export then delete stored copies,
+or delete their grants. A concurrent edit invalidates that preview.
+Desktop asks in the removal dialog; CLI accepts `--artifacts retain|delete|export
+--digest PREVIEW_SHA` and, for export, `--exported-digest SAVED_EXPORT_SHA`.
+TUI uses `/project-removal preview`, `export ABSOLUTE_PATH`,
+`retain PREVIEW_SHA confirm-remove`, `delete PREVIEW_SHA confirm-remove`, or
+`export-delete PREVIEW_SHA SAVED_EXPORT_SHA confirm-remove`.
+Source repository files, external copies and PRs are not erased.
+
+Structured-question events/automatic answer capture, work-item/folder document
+organization and repository `artifacts/` materialization/optional commit remain
+separate first-release work. No automatic repository publication is implied.
+
 ## TUI shortcuts
 
 | Shortcut | Action |
@@ -703,9 +753,9 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 9 preserves earlier state through transactional
+Protocol/database version 10 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
-retention keys, wrapped by an OS-keychain master under
+retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
 database; move the complete state directory on the same keychain. Missing or
 corrupt keys fail explicitly, never create a plaintext fallback or reset

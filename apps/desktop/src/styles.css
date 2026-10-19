@@ -47,6 +47,16 @@ svg { flex-shrink: 0; }
 .quiet { color: var(--muted); }
 .icon-button { padding: 6px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .button-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.artifact-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.artifact-panel .panel-toolbar { align-items: end; }
+.artifact-panel .panel-toolbar .setting-field { flex: 1; }
+.artifact-panel .panel-toolbar select { width: 100%; flex: initial; }
+.artifact-panel .setting-field { min-width: 0; margin: 0; }
+.artifact-panel input, .artifact-panel select, .artifact-panel textarea { width: 100%; }
+.artifact-panel input[type="checkbox"] { width: auto; }
+.artifact-panel .artifact-editor { min-height: 180px; padding: 9px; line-height: 1.6; }
+.artifact-panel pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.artifact-history { display: flex; flex-direction: column; align-items: start; gap: 6px; margin-top: 8px; }
 .muted, .fine-print { color: var(--muted); }
 .fine-print { font-size: 12px; line-height: 1.65; }
 .inline-error, .draft-error { color: var(--danger); font-size: 12px; line-height: 1.5; }

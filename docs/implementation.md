@@ -40,8 +40,11 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > The [managed Local workspace slice](architecture/managed-workspaces.md) adds
 > explicit worktree creation/discovery/removal, change-set context, per-root
 > writer leases and consistent worker/files/plan/terminal/memory/cache roots.
-> Remote/Sandbox mappings, external adoption, compound orchestration and richer
-> independent artifact kinds/revisions remain separate first-release work.
+> Remote/Sandbox mappings, external adoption and compound orchestration remain
+> separate first-release work. The independent-artifact slice now adds the five
+> text classes, exact source actors, revisions and reviewed retain/export/delete
+> choices. Structured questions/answer policy, repository materialization/commit
+> and work-item/folder artifact organization remain open.
 
 ## Why Moguri
 
