@@ -30,6 +30,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > and SDK-backed diff/plan panels. Managed worktrees, Stainless automation and
 > the rest of the first-release acceptance gates are not implied complete.
 
+> The [runtime/input foundation](architecture/runtime-foundation.md) adds
+> explicit local generative endpoints, snapshotted control inheritance and
+> [typed context](architecture/context-inputs.md). The [core SSH slice](architecture/execution-transports.md)
+> runs the same worker/model/file loop remotely with pinned identity and
+> no-replay recovery. Remote side-panel/extension transport, native Sandbox,
+> budgets, managed worktrees, isolated profiles and routing are not implied complete.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

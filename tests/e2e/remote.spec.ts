@@ -1,0 +1,55 @@
+import { _electron as electron, expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { mkdir, realpath, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { setupFixture } from "../fixture.ts";
+import { createSshTarget } from "../fixtures/ssh-target.ts";
+
+const require = createRequire(import.meta.url);
+test.skip(process.platform !== "darwin", "Native desktop/SSH execution is qualified on macOS.");
+test("SSH setup, explicit workspace, model-preserving env selection and real remote execution share the SDK", async () => {
+  const secrets = new Map<string, string>();
+  const fixture = await setupFixture({ workerPath: resolve("dist/worker.mjs"), exposeModels: true, platform: { remote: { vault: {
+    read: async (id) => secrets.get(id) ?? null, write: async (id, token) => { secrets.set(id, token); }, remove: async (id) => { secrets.delete(id); },
+  } } } });
+  await fixture.configure();
+  const root = await realpath(fixture.directory), sshDirectory = join(root, "ssh"), workspace = join(root, "remote-workspace");
+  await mkdir(sshDirectory, { mode: 0o700 }); await mkdir(workspace); await writeFile(join(workspace, "AGENTS.md"), "Generated desktop SSH instructions.");
+  const ssh = await createSshTarget(sshDirectory); ssh.target.command = [process.execPath, resolve("dist/remote-bridge.mjs")];
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const categories = page.getByRole("navigation", { name: "Settings categories" });
+    await categories.getByRole("button", { name: "Remote SSH", exact: true }).click();
+    await page.getByLabel("SSH target (null disables)", { exact: true }).fill(JSON.stringify(ssh.target));
+    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await page.getByRole("button", { name: "Probe SSH target", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Ready: Verified SSH host" })).toBeVisible();
+    expect(fixture.requests.length).toBe(0);
+    await categories.getByRole("button", { name: "Project", exact: true }).click();
+    await page.getByLabel("Remote workspace path", { exact: true }).fill(workspace);
+    await page.getByRole("button", { name: "Save project settings", exact: true }).click();
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await page.getByRole("button", { name: "Execution environment", exact: true }).click();
+    await page.getByRole("dialog", { name: "Execution environment", exact: true }).getByRole("button", { name: /^Remote Verified SSH/ }).click();
+    await expect.poll(() => fixture.session().controls.env).toBe("Remote");
+    expect(fixture.session().controls.modelId).toBe(fixture.modelId);
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated desktop remote answer.");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.session().status).toBe("completed");
+    await expect.poll(() => sdk.getState().snapshot!.executions[0]?.cleanup).toBe("owned-worker-stopped");
+    expect(fixture.requests.length).toBe(1);
+    expect(JSON.stringify(fixture.requests[0])).toContain("Generated desktop SSH instructions.");
+    await page.getByRole("button", { name: "Insights", exact: true }).click();
+    await expect(page.getByText("SSH host Generated loopback SSH, not SendBox-isolated", { exact: true })).toBeVisible();
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.screenshot({ path: resolve(".moguri/artifacts/remote-owned-execution.png") });
+    await page.setViewportSize({ width: 900, height: 740 });
+    await page.screenshot({ path: resolve(".moguri/artifacts/remote-owned-compact.png") });
+    expect(failures).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await ssh.close(); await fixture.close(); }
+});

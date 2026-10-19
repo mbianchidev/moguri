@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { parse, SettingsSchema, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, SettingsSchema, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { McpOAuthPanel } from "./McpOAuthPanel.tsx";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup";
+export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote";
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
   { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
@@ -14,6 +14,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "project", label: "Project" }, { id: "retention", label: "Retention" },
   { id: "instructions", label: "User guidance" }, { id: "notifications", label: "Notifications" },
   { id: "localModels", label: "Local models" }, { id: "startup", label: "Startup defaults" },
+  { id: "remote", label: "Remote SSH" },
 ];
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void;
@@ -35,6 +36,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [token, setToken] = useState("");
   const [modelEndpoint, setModelEndpoint] = useState("");
   const [modelKey, setModelKey] = useState("");
+  const [remoteState, setRemoteState] = useState<RemoteReadiness | null>(null);
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [remoteEndpoint, setRemoteEndpoint] = useState("");
+  const [remoteKey, setRemoteKey] = useState("");
+  const [remoteInspection, setRemoteInspection] = useState("");
   const [tools, setTools] = useState<McpToolInfo[]>([]);
   const [selectedTool, setSelectedTool] = useState<McpToolInfo | null>(null);
   const [argumentsJson, setArgumentsJson] = useState("{}");
@@ -65,6 +71,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   useEffect(() => {
     if (tab === "voice") void run(async () => { const result = await sdk.voice.status(); setVoice(result.voice); });
   }, [tab, snapshot.jobs.filter((job) => job.kind === "voice.download" && job.status === "completed").length]);
+  useEffect(() => { if (tab === "remote") void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [tab, snapshot.settings.revision]);
   const change = <K extends SettingsSection>(section: K, value: UserSettings[K]) => { setDraft((draft) => ({ ...draft, [section]: value })); setDirty(true); };
   const reload = () => { baseRevision.current = snapshot.settings.revision; setDraft(structuredClone(snapshot.settings.values)); setRaw({}); setDirty(false); setRisk(false); setError(""); };
   const save = async () => {
@@ -106,12 +113,31 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           {jsonEditor("localModels", "Local model endpoints")}
           <details><summary>Endpoint configuration example</summary><pre>{JSON.stringify([{ id: "my-local", name: "My local server", enabled: true, baseUrl: "http://127.0.0.1:8080/v1", auth: "none", models: [{ id: "replace-with-advertised-model-id", name: "My local model", contextWindow: 32768, maxTokens: 4096, imageInput: false }] }], null, 2)}</pre></details>
           <p className="fine-print">Declare the actual model limits and image support; discovery never guesses them. HTTP is loopback-only; other explicitly configured endpoints require HTTPS. Unavailable models never fall back to Copilot.</p>
-          {snapshot.provider.connections?.filter((connection) => connection.source === "local").map((connection) => <div className="capability-row" key={connection.id}><div><strong>{connection.name}</strong><small>{connection.status}{connection.diagnostic ? ` / ${connection.diagnostic}` : ""}</small></div></div>)}
+          {snapshot.provider.connections?.filter((connection) => connection.id.startsWith("local.")).map((connection) => <div className="capability-row" key={connection.id}><div><strong>{connection.name}</strong><small>{connection.status}{connection.diagnostic ? ` / ${connection.diagnostic}` : ""}</small></div></div>)}
           <button disabled={dirty || saving} onClick={() => void run(() => sdk.models.refresh())}>Refresh models</button>
           <h3>Endpoint credentials</h3><p className="fine-print">Save bearer-auth configuration first. Keys bind to the exact endpoint and stay in the profile's secret backend, never this JSON or model context.</p>
           <label className="setting-field">Credential endpoint<select aria-label="Local model credential endpoint" value={modelEndpoint} onChange={(event) => { setModelEndpoint(event.target.value); setModelKey(""); }}><option value="">Choose endpoint</option>{snapshot.settings.values.localModels.filter((endpoint) => endpoint.enabled && endpoint.auth === "bearer").map((endpoint) => <option key={endpoint.id} value={endpoint.id}>{endpoint.name}</option>)}</select></label>
           <label className="setting-field">API key<input type="password" autoComplete="off" value={modelKey} maxLength={32768} onChange={(event) => setModelKey(event.target.value)} /></label>
           <div className="button-row"><button disabled={dirty || saving || !modelEndpoint || !modelKey} onClick={() => void run(async () => { await sdk.models.setToken(modelEndpoint, modelKey); setModelKey(""); return "Credential stored. Inspect endpoint discovery status before selecting a model."; })}>Store endpoint key</button><button disabled={dirty || saving || !modelEndpoint} onClick={() => void run(() => sdk.models.clearToken(modelEndpoint))}>Clear endpoint key</button></div></>}
+        {tab === "remote" && <><h2>Remote SSH</h2><p>Run the agent, its file/command tools and inference on an explicitly approved SSH host. The local service keeps authority and history. SSH is not SendBox isolation.</p>
+          {jsonEditor("remote", "SSH target (null disables)")}
+          <details><summary>Target configuration example</summary><pre>{JSON.stringify({ id: "my-ssh", name: "My SSH host", host: "replace-with-host.example", port: 22, user: "replace-with-ssh-user", hostKey: "ssh-ed25519 replace-with-verified-public-key", identityFile: "/absolute/local/path/to/private-identity", stateDir: "/absolute/private/remote-run-state", command: ["/absolute/remote/path/to/node26", "/absolute/remote/path/to/moguri/dist/remote-bridge.mjs"], allowCopilot: false, models: [] }, null, 2)}</pre></details>
+          <p className="settings-warning">Verify the full public host key out of band. The identity stays on this machine; agent forwarding, tunnels and ambient SSH configuration are disabled. Install this exact Moguri build on the target. Setting allowCopilot grants short-lived model access to that verified host, never a refresh credential or your secret store.</p>
+          <p>Set each project's canonical remotePath in Project settings. A localhost model endpoint belongs to the SSH host, not this Mac. Declare remote endpoints in models with the same explicit limits as Local models.</p>
+          <div className="button-row"><button aria-label="Probe SSH target" disabled={dirty || saving || remoteBusy || !snapshot.settings.values.remote} onClick={() => void run(async () => { setRemoteBusy(true); try { await sdk.remote.probe(); } finally { try { setRemoteState((await sdk.remote.status()).remote); } finally { setRemoteBusy(false); } } })}>{remoteBusy ? "Probing..." : "Probe"}</button><button disabled={saving || remoteBusy} onClick={() => void reset("remote")}>Restore remote default</button></div>
+          {remoteState && <p role="status">{remoteState.ready ? "Ready: " : "Not ready: "}{remoteState.diagnostic}</p>}
+          {snapshot.provider.connections?.filter((connection) => connection.id.startsWith("remote.")).map((connection) => <p className="fine-print" key={connection.id}>{connection.name}: {connection.status}{connection.diagnostic ? ` / ${connection.diagnostic}` : ""}</p>)}
+          <h3>Remote endpoint credentials</h3><p className="fine-print">Keys bind to the verified SSH identity and exact model URL. A host-local key is never silently reused on Remote.</p>
+          <label className="setting-field">Credential endpoint<select aria-label="Remote model credential endpoint" value={remoteEndpoint} onChange={(event) => { setRemoteEndpoint(event.target.value); setRemoteKey(""); }}><option value="">Choose endpoint</option>{snapshot.settings.values.remote?.models.filter((endpoint) => endpoint.enabled && endpoint.auth === "bearer").map((endpoint) => <option key={endpoint.id} value={endpoint.id}>{endpoint.name}</option>)}</select></label>
+          <label className="setting-field">API key<input aria-label="Remote model API key" type="password" autoComplete="off" maxLength={32768} value={remoteKey} onChange={(event) => setRemoteKey(event.target.value)} /></label>
+          <div className="button-row"><button disabled={dirty || saving || remoteBusy || !remoteState?.ready || !remoteEndpoint || !remoteKey} onClick={() => void run(async () => { await sdk.remote.setToken(remoteEndpoint, remoteKey); setRemoteKey(""); return "Remote endpoint key stored in its explicit secret backend."; })}>Store endpoint key</button><button disabled={dirty || saving || remoteBusy || !remoteState?.ready || !remoteEndpoint} onClick={() => void run(() => sdk.remote.clearToken(remoteEndpoint))}>Clear endpoint key</button></div>
+          <h3>Owned execution recovery</h3><p className="fine-print">An SSH disconnect requests cancellation, not proof of cleanup. Reconcile existing receipts without replaying work. A partial turn never becomes successful just because late usage arrives.</p>
+          {snapshot.executions.length === 0 && <p className="fine-print">No remote runs yet.</p>}
+          {snapshot.executions.slice(-16).reverse().map((execution) => <details key={execution.id}><summary>{execution.target.name} / {execution.status} / {execution.cleanup}</summary><p className="path">Run <code>{execution.id}</code></p><p>{execution.diagnostic ?? "Owned worker status recorded."}</p>
+            <button disabled={remoteBusy || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(() => sdk.remote.reconcile(execution.id))}>Reconcile receipts</button>
+            <label className="check-setting"><input type="checkbox" checked={remoteInspection === execution.id} onChange={(event) => setRemoteInspection(event.target.checked ? execution.id : "")} />I inspected this run's remote processes. This acknowledgement does not prove containment or cleanup.</label>
+            <button disabled={remoteInspection !== execution.id || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(async () => { await sdk.remote.acknowledge(execution.id, true); setRemoteInspection(""); })}>Record inspection</button></details>)}
+          <p className="fine-print">Remote embedded consoles, local repository-memory retrieval and executable MCP transports are not qualified yet. They remain blocked instead of running on this Mac.</p></>}
         {tab === "startup" && <><h2>New-session defaults</h2><p>Session overrides win over project, Default-profile, global and factory values. Preferences never widen hard environment or permission policy, and saving does not rewrite existing sessions.</p>
           {jsonEditor("startup", "Global and Default-profile startup defaults")}
           {session && <button onClick={() => change("startup", { ...draft.startup, profile: structuredClone(session.controls) })}>Use current controls for Default profile</button>}

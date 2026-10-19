@@ -64,7 +64,8 @@ Moguri telemetry backend or automatic local-network model scan.
 The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
 compact icon/name controls rather than separate labeled rows.
 Factory values are Local, unset model, Manual and Unlimited. Current execution
-is Local with fixed Copilot/configured local models and Unlimited. Manual remains default; Guided displays model
+is Local or explicitly qualified SSH with fixed Copilot/configured local models
+and Unlimited. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
 command grants and cannot grant itself anything. Autopilot Max is unavailable.
 Unready choices explain the limitation
@@ -187,6 +188,63 @@ policy.
 readiness diagnostics, but the native worker transport/guest bundle/workload
 qualification is not complete. Merely entering paths does not enable execution.
 Missing protection is an explicit error, never a Local fallback.
+
+## Remote SSH
+
+**Settings / Remote SSH** configures one explicit host for this profile.
+Install this exact packed Moguri build and Node 26.4+ (26.x) on the target
+first. The worker command may use `moguri worker --stdio`, or an absolute
+compatible Node path followed by the installed `dist/remote-bridge.mjs`.
+No automatic cloud provisioning, identity discovery or remote package install
+runs when saving settings.
+
+The target JSON has `id`, `name`, `host`, `port`, `user`, `hostKey`,
+`identityFile`, `stateDir`, `command`, `allowCopilot` and `models`.
+`hostKey` is the full public key type/base64, verified independently, not a
+fingerprint or trust-on-first-use instruction. `identityFile` is an explicit
+local user-owned private identity with mode 0600 or stricter; its contents are
+never copied. `stateDir` is an absolute canonical private remote directory.
+Moguri disables ambient SSH config, implicit agent use/forwarding, tunnels,
+password prompts, proxy commands and shared control sockets.
+
+Save, then **Probe** or use `/remote probe` / `moguri remote probe`.
+The probe verifies the actual installed worker digest and compatible Node.
+Each project separately sets **Project / Canonical remote path** (`remotePath`);
+Moguri never substitutes the local project folder. Project-free Remote chats
+keep a null filesystem root. A symlink alias or changed root blocks execution.
+Switching env never chooses another model: an incompatible selection is cleared
+so you can choose explicitly. The env menu discloses transfer of approved
+history/attachments to the SSH host.
+
+`allowCopilot: true` explicitly grants short-lived request access to that host,
+not a refresh credential or the local secret store. Copilot metadata is
+rechecked from the SSH host before inference. Remote-local model declarations
+use the same endpoint schema as Local models; `localhost` means the SSH host.
+Discovery and inference both originate there. `/remote-model-token ENDPOINT`
+uses masked TUI input; `moguri remote token ENDPOINT` takes piped stdin. Remote
+keys bind the SSH identity and exact endpoint resource, never reuse host-local
+keys or enter settings/history.
+
+SSH moves execution and secures transport; it does **not** imply SendBox
+containment. Native qualification uses actual generated macOS loopback SSH,
+worker/model/file operations, changed host keys, images, disconnect and a real
+control-plane SIGKILL/restart. It is not proof of an external Linux deployment
+or live Copilot entitlement.
+
+**Owned execution recovery** in Remote settings or Insights exposes the run
+identity and actual state. `/remote reconcile ID` / `moguri remote reconcile ID`
+reads existing encrypted receipts and late usage without starting a second
+worker or replaying tools. Partial turns stay partial. If cleanup cannot be
+confirmed, inspect actual remote processes before explicitly recording
+`/remote acknowledge ID` or CLI `remote acknowledge ID --confirm-review`.
+Acknowledgement is not proof of cleanup. Unknown owned work blocks new
+admission/deletion; session deletion destroys its transport key only after
+settlement or actual user inspection.
+
+Remote embedded terminals, executable MCP transport, local repository-memory
+retrieval and diff/plan panels are not qualified yet and remain blocked.
+An explicit browser URL still opens a client-side preview; Remote localhost
+ports are never mapped to this Mac or tunneled implicitly.
 
 ## Project-free chats, suggestions and settings chat
 
@@ -600,7 +658,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 7 preserves earlier state through transactional
+Protocol/database version 8 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -612,8 +670,8 @@ erasure or deletion of external backups. Keep the original keychain and state
 when restoring a backup.
 
 Global **Allowed environments** policy is available in desktop Connections or
-`/policy all` and `/policy protected`. Requiring Sandbox/Remote intentionally
-blocks all new work in this checkpoint. Already-running Local turns may finish
+`/policy all` and `/policy protected`. Requiring Sandbox/Remote blocks new work
+until an allowed target is genuinely ready. Already-running Local turns may finish
 under their recorded policy revision and are labeled **Local finishing**.
 
 Node currently prints an **experimental FFI** warning for OpenTUI. It is a known
@@ -642,6 +700,7 @@ npm run spike:sessions
 npm run spike:models
 npm run spike:engagement
 npm run spike:runtime
+npm run spike:remote
 npm run spike
 npm audit --audit-level=moderate
 ```

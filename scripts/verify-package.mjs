@@ -15,6 +15,7 @@ execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inhe
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
+await access(join(root, "dist", "remote-bridge.mjs"));
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
@@ -70,8 +71,9 @@ try {
   const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers });
   const snapshot = await response.json();
   assert.equal(snapshot.sessions.length, 1);
-  assert.equal(snapshot.protocolVersion, 7);
+  assert.equal(snapshot.protocolVersion, 8);
   assert.equal(snapshot.settings.values.appearance.theme, "dark");
+  assert.equal((await query({ type: "remote.status" })).remote.ready, false);
   assert.deepEqual(snapshot.sessions[0].controls, { env: "Local", modelId: null, autonomy: "Manual", budget: { kind: "unlimited" } });
   assert.equal((await fetch(`${connection.baseUrl}/v1/snapshot`)).status, 401);
   const general = await send({ type: "session.create" });

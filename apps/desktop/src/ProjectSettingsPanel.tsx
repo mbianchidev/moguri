@@ -66,6 +66,8 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <p className="settings-warning">These are deterministic agent rules, not OS containment. Host command/MCP tools are disabled when they cannot enforce these restrictions. A manually opened user console still runs host code.</p>
     <h3>Sandbox</h3>{json("sandbox", "Project SendBox configuration (null inherits global)")}
     <p className="fine-print">Configuration does not make an unqualified SendBox backend ready. No Local fallback.</p>
+    <h3>Remote SSH workspace</h3><label className="setting-field">Canonical remote path<input aria-label="Remote workspace path" value={values.remotePath ?? ""} placeholder="/absolute/path/on/ssh/host" onChange={(event) => change("remotePath", event.target.value || null)} /></label>
+    <p className="fine-print">An explicit path on the configured SSH host. It is not this local folder, a synchronization setting or a home-directory mount. Remote project chats cannot run until it is approved and canonical.</p>
     <h3>Scripts</h3>{json("scripts", "Project scripts")}
     <p className="fine-print">Use entries with id, name and exact command. Typical names: start, stop, dev, config. Nothing runs when settings are saved.</p>
     <div className="button-row">{values.scripts.map((script) => <button key={script.id} disabled={!canRun} onClick={() => void run(async () => { await sdk.terminal.open(session!.id, 80, 24, script.id); openTerminal(); })}><Icon name="Play" />{script.name}</button>)}</div>
