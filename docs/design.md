@@ -49,6 +49,16 @@ Conversation Markdown is rendered without raw HTML, automatic remote images or
 implicit external navigation. Long transcripts progressively reveal older
 messages. Code stays selectable and horizontally scrollable.
 
+Obvious navigation/copy/edit/delete actions use labeled icons. Contextual primary
+labels are New and Save. Long names truncate within bounded rows while retaining
+their full accessible names; controls wrap rather than overlap. Cmd/Ctrl+Enter
+holds a prompt; sending is a distinct visible action. Mode and held state remain
+textual, not color-only. The sidebar uses the maintained Ghostty canvas with an
+explicit Local user-console boundary, not a custom terminal emulation surface.
+Native browser previews are hidden while dialogs or other task surfaces own
+focus. Project settings and destructive dialogs use the same restrained layout
+and clear source/retention boundaries.
+
 Settings is a full main-pane task surface, with a category rail, persistent save
 state and explicit warning/reset actions. It exposes the shared SDK rather than
 owning capability behavior. Dirty settings survive tab changes and block

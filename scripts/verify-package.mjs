@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, mkdir, readFile, writeFile, access } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, readFile, writeFile, access, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -20,6 +20,9 @@ const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", 
 const icon = join(app, "Contents", "Resources", iconName.endsWith(".icns") ? iconName : `${iconName}.icns`);
 await access(icon);
 assert.deepEqual(await readFile(icon), await readFile(join(root, "dist", "branding", "moguri.icns")));
+const rendererAssets = await readdir(join(root, "dist", "desktop", "renderer", "assets"));
+assert.ok(rendererAssets.some((path) => /^ghostty-vt-.*\.wasm$/.test(path)));
+assert.ok(rendererAssets.some((path) => /^GhosttyTerminal-.*\.js$/.test(path)));
 const temporary = await mkdtemp(join(tmpdir(), "moguri-packaged-"));
 let child;
 let timer;
@@ -35,7 +38,7 @@ try {
       login:()=>{throw new Error("No live authorization in package verification")},
       cancel:async()=>{},logout:async()=>{},prepare:async()=>{throw new Error("No paid inference in package verification")}
     };
-    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider});
+    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67)});
     process.send(service.connection);
     process.on("message",async(message)=>{if(message==="close"){await service.close();process.disconnect();}});
   `;
@@ -57,7 +60,7 @@ try {
   const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers });
   const snapshot = await response.json();
   assert.equal(snapshot.sessions.length, 1);
-  assert.equal(snapshot.protocolVersion, 3);
+  assert.equal(snapshot.protocolVersion, 4);
   assert.equal(snapshot.settings.values.appearance.theme, "dark");
   assert.deepEqual(snapshot.sessions[0].controls, { env: "Local", modelId: null, autonomy: "Manual", budget: { kind: "unlimited" } });
   assert.equal((await fetch(`${connection.baseUrl}/v1/snapshot`)).status, 401);

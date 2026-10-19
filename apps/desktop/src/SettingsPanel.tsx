@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { parse, SettingsSchema, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
+import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
+import { Icon } from "./Icon.tsx";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache";
+export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention";
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
   { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
   { id: "scripts", label: "Scripts" }, { id: "plugins", label: "Plugins" }, { id: "mcpServers", label: "MCP gateway" }, { id: "voice", label: "Voice dictation" },
   { id: "cache", label: "Dependency cache" },
+  { id: "project", label: "Project" }, { id: "retention", label: "Retention" },
 ];
-export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange }: {
-  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void;
+export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [draft, setDraft] = useState(() => structuredClone(snapshot.settings.values));
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState(false);
+  const [projectDirty, setProjectDirty] = useState(false);
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -33,7 +37,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [reviewed, setReviewed] = useState(false);
   const baseRevision = useRef(snapshot.settings.revision);
   const ownSave = useRef(false);
-  useEffect(() => { onUnsavedChange(dirty || saving); return () => onUnsavedChange(false); }, [dirty, saving, onUnsavedChange]);
+  useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
+  useEffect(() => { onUnsavedChange(dirty || saving || projectDirty); return () => onUnsavedChange(false); }, [dirty, saving, projectDirty, onUnsavedChange]);
   useEffect(() => {
     setPreview("");
     if (ownSave.current) return;
@@ -41,10 +46,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     else if (baseRevision.current !== snapshot.settings.revision) setError("Another client changed settings. Your edit is preserved. Reload before applying it.");
   }, [snapshot.settings.revision]);
   useEffect(() => {
-    const close = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
+    const close = (event: BeforeUnloadEvent) => { if (dirty || projectDirty) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", close);
     return () => window.removeEventListener("beforeunload", close);
-  }, [dirty]);
+  }, [dirty, projectDirty]);
   const run = async (operation: () => Promise<unknown>) => {
     setError("");
     try {
@@ -84,11 +89,18 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const activeVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && job.kind.startsWith("voice.") && job.status === "running");
   const completedVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
   const modelPromptChanged = draft.systemPrompt !== snapshot.settings.values.systemPrompt;
+  const projectServers = session ? snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId)?.values.mcpServers ?? [] : [];
   return <section className="settings-page" aria-label="Moguri settings">
-    <header className="settings-toolbar"><button className="quiet" onClick={() => { if (dirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}>Back to session</button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty ? "Unsaved changes" : "Saved"}</span><button disabled={saving || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save settings</button></header>
-    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
+    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || projectDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || projectDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
+    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (projectDirty) { setError("Save or reload this project edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
       <button className="restore-all" onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
+        {tab === "project" && (project ? <ProjectSettingsPanel key={project.id} sdk={sdk} project={project} session={session?.projectId === project.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} /> : <p>Open a project to configure it.</p>)}
+        {tab === "retention" && <><h2>Archived-session retention</h2><p>Off by default. Deletion stops owned work and removes session content while preserving independent project artifacts and external PRs. Diagnostic audit records remain.</p>
+          <label className="check-setting"><input type="checkbox" checked={draft.retention.deleteArchived} onChange={(event) => change("retention", { ...draft.retention, deleteArchived: event.target.checked })} />Automatically delete archived sessions after the configured age</label>
+          <label className="setting-field">Days<input aria-label="Archived retention days" type="number" min={1} max={3650} value={draft.retention.afterDays} onChange={(event) => change("retention", { ...draft.retention, afterDays: Number(event.target.value) })} /></label>
+          <p className="settings-warning">Save explicitly to delegate deletion. Unconfirmed processes block cleanup. This does not erase external backups or close a PR.</p>
+          <button disabled={!snapshot.settings.values.retention.deleteArchived} onClick={() => void run(() => sdk.command({ type: "retention.run" }))}>Run configured cleanup</button></>}
         {tab === "cache" && <DependencyCachePanel key={project?.id} sdk={sdk} project={project} />}
         {error && <div className="notice error" role="alert"><span>{error}</span><button onClick={reload}>Reload current settings</button></div>}
         {session?.pendingApproval && <p className="settings-warning">The main session needs an approval. <button className="quiet" onClick={onBack}>Review exact action</button></p>}
@@ -133,9 +145,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
         {tab === "mcpServers" && <><h2>One native MCP gateway</h2><p>Discover configured MCPs and their tools on demand, check auth, request a call and read result pages. Models do not receive every schema up front and cannot change credentials, approve themselves or install a server.</p>
           {jsonEditor("mcpServers", "Configured MCP servers")}
           <p className="fine-print">Save configuration first. Supported transports: stdio or Streamable HTTP. Bearer auth is keychain-backed; interactive OAuth-only servers remain explicitly unsupported rather than receiving a fabricated login.</p>
-          <label className="setting-field">Server<select value={serverId} onChange={(event) => { setServerId(event.target.value); setTools([]); setSelectedTool(null); }}><option value="builtin">Moguri internal scripts</option>{snapshot.settings.values.mcpServers.filter((server) => server.enabled).map((server) => <option key={server.id} value={server.id}>{server.name}</option>)}</select></label>
-          <div className="button-row"><button onClick={() => void run(async () => { const result = await sdk.mcp.tools(serverId, "", 0, session?.id); setTools(result.tools); return result; })}>Discover tools</button><button onClick={() => void run(() => sdk.mcp.auth(serverId))}>Check credential status</button></div>
-          {serverId !== "builtin" && <><label className="setting-field">Bearer credential (not saved in settings)<input type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} /></label><div className="button-row"><button disabled={!token} onClick={() => void run(async () => { await sdk.mcp.setToken(serverId, token); setToken(""); return "Credential stored in the OS keychain."; })}>Store in keychain</button><button onClick={() => void run(() => sdk.mcp.clearToken(serverId))}>Remove credential</button></div></>}
+          <label className="setting-field">Server<select value={serverId} onChange={(event) => { setServerId(event.target.value); setTools([]); setSelectedTool(null); }}><option value="builtin">Moguri internal scripts</option>{[...snapshot.settings.values.mcpServers, ...projectServers].filter((server) => server.enabled).map((server) => <option key={server.id} value={server.id}>{server.name}</option>)}</select></label>
+          <div className="button-row"><button onClick={() => void run(async () => { const result = await sdk.mcp.tools(serverId, "", 0, session?.id); setTools(result.tools); return result; })}>Discover tools</button><button onClick={() => void run(() => sdk.mcp.auth(serverId, session?.id))}>Check credential status</button></div>
+          {serverId !== "builtin" && <><label className="setting-field">Bearer credential (not saved in settings)<input type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} /></label><div className="button-row"><button disabled={!token} onClick={() => void run(async () => { await sdk.mcp.setToken(serverId, token, session?.id); setToken(""); return "Credential stored in the OS keychain."; })}>Store in keychain</button><button onClick={() => void run(() => sdk.mcp.clearToken(serverId, session?.id))}>Remove credential</button></div></>}
           {tools.map((tool) => <button className="tool-discovery-row" key={tool.name} onClick={() => setSelectedTool(tool)}><strong>{tool.name}</strong><span>{tool.description}</span></button>)}
           {selectedTool && <><h3>{selectedTool.name}</h3><pre>{JSON.stringify(selectedTool.inputSchema, null, 2)}</pre><label className="setting-field">Exact JSON arguments<textarea className="json-editor short" value={argumentsJson} onChange={(event) => setArgumentsJson(event.target.value)} /></label><button disabled={!session || !!session.turnId} onClick={() => void run(async () => { const args: unknown = JSON.parse(argumentsJson); if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("Arguments must be a JSON object."); return sdk.mcp.call(session!.id, selectedTool.serverId, selectedTool.name, args as Record<string, unknown>, selectedTool.digest); })}>Request exact call in main session</button><p className="fine-print">Return to the main session to approve. It must be idle; no second agent is allowed to seize an active turn.</p></>}
           <pre>moguri mcp --session {session?.id ?? "SESSION_ID"}</pre></>}

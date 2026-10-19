@@ -6,5 +6,7 @@ export interface DesktopBridge {
   chooseFile(projectPath: string): Promise<string | null>;
   openExternal(url: string): Promise<void>;
   microphonePermission(): Promise<boolean>;
+  copyText(text: string): Promise<void>;
+  preview(input: { sessionId: string; url: string; bounds: { x: number; y: number; width: number; height: number } } | null): Promise<void>;
 }
 declare global { interface Window { moguri: DesktopBridge } }

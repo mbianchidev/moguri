@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { defaultBoard, type BoardConfig, type IssueInput, type IssueKind, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Icon } from "./Icon.tsx";
 
 const newFields = (phaseId: string): IssueInput => ({ title: "", body: "", kind: "feature", phaseId, pullRequestUrl: null });
 export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }: {
@@ -54,9 +55,9 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }
     setLinearCursor(result.nextCursor); setNotice(result.nextCursor ? "Imported this page. More remote tickets are available." : "Import finished. Existing local edits were preserved; nothing was exported.");
   });
   return <section className="project-board-page" aria-label="Local project issue board">
-    <header className="board-toolbar"><button className="quiet" onClick={onBack}>Back to session</button><div><h1>Project issues</h1><p>{project.name} / local only, no assignees</p></div><button disabled={busy || dirty} onClick={() => void run(async () => {
+    <header className="board-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={onBack}><Icon name="Back" /></button><div><h1>Project issues</h1><p>{project.name} / local only, no assignees</p></div><button disabled={busy || dirty} onClick={() => void run(async () => {
       const job = await sdk.issues.refresh(project.id); setNotice(`Linked-PR check ${job.id} started. Only verified merges advance phases.`);
-    })}>Refresh linked PRs</button><button className="primary" disabled={busy || dirty} onClick={() => edit()}>New issue</button></header>
+    })}>Refresh linked PRs</button><button className="primary" aria-label="New issue" disabled={busy || dirty} onClick={() => edit()}>New</button></header>
     {(error || notice) && <div className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</div>}
     <div className="board-options"><button aria-pressed={archived} onClick={() => setArchived((value) => !value)}>{archived ? "Show active issues" : "Show archived issues"}</button>
       <button aria-expanded={configure} onClick={() => setConfigure((value) => !value)}>Configure phases and integrations</button><span>{board.autoRefreshPrs ? "Linked PRs are observed read-only while Moguri runs." : "Automatic PR observation is off."}</span></div>
@@ -78,7 +79,7 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }
           await sdk.issues.configure(project.id, config, baseRevision); setConfigDirty(false);
           const committed = (await sdk.issues.board(project.id)).board; setConfig(structuredClone(committed)); setBaseRevision(committed.revision);
         } finally { ownSave.current = false; }
-      })}>Save board configuration</button><button disabled={busy} onClick={() => { setConfig(structuredClone(board)); setBaseRevision(board.revision); setConfigDirty(false); setError(""); }}>Reload board configuration</button></div>
+      })} aria-label="Save board configuration">Save</button><button disabled={busy} onClick={() => { setConfig(structuredClone(board)); setBaseRevision(board.revision); setConfigDirty(false); setError(""); }}>Reload</button></div>
       <label className="setting-field">Linear personal API key<input type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} /></label>
       <div className="button-row"><button disabled={!token || busy} onClick={() => void run(async () => { await sdk.linear.setToken(token); setToken(""); setNotice("Linear credential stored only in the OS keychain."); })}>Store Linear key in keychain</button><button disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setNotice("Linear credential removed; owned imports cancelled."); })}>Remove Linear key</button>
         <button disabled={!board.linear.enabled || dirty || busy} onClick={() => void importLinear()}>{linearCursor ? "Import next Linear page" : "Import Linear team issues"}</button><button disabled={busy} onClick={() => void run(async () => { const status = await sdk.linear.status(project.id); setNotice(`${status.credential}. ${status.diagnostic}`); })}>Check Linear status</button></div>
@@ -91,7 +92,7 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }
       <label className="setting-field">Issue description<textarea value={editing.fields.body} maxLength={64 * 1024} onChange={(event) => change({ body: event.target.value })} /></label>
       <label className="setting-field">Connected GitHub PR URL<input type="url" value={editing.fields.pullRequestUrl ?? ""} placeholder="https://github.com/owner/repo/pull/123" onChange={(event) => change({ pullRequestUrl: event.target.value || null })} /></label>
       <p className="fine-print">Linking a PR permits read-only state checks under this board's policy. Only a verified merge moves the ticket. Closed, failed or unauthenticated checks do not.</p>
-      <div className="button-row"><button className="primary" type="submit" disabled={busy || !editing.fields.title.trim()}>Save issue</button><button type="button" disabled={busy} onClick={() => setEditing(null)}>Cancel issue edit</button></div>
+      <div className="button-row"><button className="primary" aria-label="Save issue" type="submit" disabled={busy || !editing.fields.title.trim()}>Save</button><button type="button" disabled={busy} onClick={() => setEditing(null)}>Cancel</button></div>
     </form>}
     <div className="kanban-scroll" role="region" aria-label="Kanban phases, scroll horizontally for more columns" tabIndex={0}><div className="kanban-columns" style={{ gridTemplateColumns: `repeat(${board.columns.length}, minmax(220px, 1fr))` }}>{board.columns.map((column) => {
       const tickets = issues.filter((issue) => issue.phaseId === column.id && issue.archived === archived).sort((a, b) => a.number - b.number);

@@ -120,6 +120,74 @@ readiness diagnostics, but the native worker transport/guest bundle/workload
 qualification is not complete. Merely entering paths does not enable execution.
 Missing protection is an explicit error, never a Local fallback.
 
+## Session workspace and project settings
+
+**Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
+selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
+run, reorder, edit, copy and delete controls; sent prompts also have Copy.
+Held prompts require a separate release, never an automatic timer.
+
+Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
+`/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,
+`/queue`, `/run ID`, `/copy [ID]`, `/settings`, `/models` and `/help`.
+Desktop suggests slash names; TUI displays matching names and `/help`.
+TUI also keeps its existing advanced capability commands.
+
+Read-only is a hard agent tool boundary: scoped reads may be approved, but
+write, shell, MCP execution, evolution and Git mutations are disabled. A mode
+restriction immediately blocks new edit approvals; an active turn acknowledges
+it at the next safe steer/step or completion. Already-started effects cannot be
+rolled back by a mode change. `/agent` returns at a safe boundary with the project
+writer lease. Question-only side sessions cannot promote themselves.
+`/side` snapshots approved parent context into a separate read-only conversation,
+with separate usage, read approvals and cancellation. User-created subsessions
+are attached agent sessions, not the optional model-subagent feature.
+
+The desktop rail exposes Terminal, Browser, Insights, a linked PR when present,
+Changes, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
+terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
+terminal renderer. Terminal input/resize/output are ephemeral, never model
+context or durable command hashes. Closing the panel leaves its shell running;
+Close terminal stops the owned group. Restart does not relaunch or replay a
+shell. Inspect unconfirmed ownership before acknowledging it. The console is
+explicit Local user-controlled host execution, not an agent permission grant,
+folder containment, Sandbox or Remote. Allowed-env policy still applies.
+TUI rejects `/terminal` because it is already a terminal.
+
+Browser is a basic isolated native HTTPS/loopback preview, with no Moguri/Node
+bridge, shared account cookies, automatic model context, popups, downloads or
+permission grants. It hides beneath dialogs. It is not Stainless automation.
+TUI `/browser` opens the default browser only on an explicit command; `/diff`
+displays bounded local changes, and `/plan` opens the existing plan in the
+default application. PR/work-item session creation binds context but never
+silently checks out a branch or starts work.
+
+Session row menus pin, mark unread, rename, group, attach/detach, archive,
+unarchive or delete. Attachments must be acyclic and in the same project.
+Archive stops owned work and holds user prompts. A merged PR does not prevent
+unarchive. Delete preserves external PRs and independent project artifacts,
+detaching surviving children. **Settings / Retention** optionally deletes
+archived sessions after a chosen age; it starts off.
+
+Project menus reorder entries, assign a folder/color, open GitHub, create a
+session from scratch/local work item/verified PR, open settings, change the
+attached folder or remove Moguri-owned project data. Removal never deletes the
+repository, closes a PR, removes shared caches/models or erases diagnostic logs.
+Unconfirmed owned effects block deletion until explicit inspection.
+
+**Project settings** exposes upstream/main/branch pattern, SendBox configuration,
+exact user scripts, preview port, optional read-only `porto list` inventory,
+read-only/denied folders, instructions, MCP and plan paths. Saving never runs a
+script. Host agent command/MCP tools are blocked when they cannot enforce folder
+restrictions. Repo instructions default to AGENTS.md (Agents.md is recognized);
+MCP defaults to mcp.json. Missing files are shown, not silently created/pushed.
+The explicit publishing action creates only missing defaults and pushes a
+selected non-protected branch using an independent index, preserving current
+HEAD, staging and unrelated edits. Partial publication is reported and requires
+inspection. Reviewed MCP import binds its SHA-256 and installs disabled entries;
+credentials remain in the keychain, not repo JSON. Branch settings do not imply
+managed worktree support.
+
 ## Local memory, skills, scripts and plugins
 
 **Settings / Repository memory** opts into indexing. A second switch explicitly
@@ -268,7 +336,7 @@ never delete history or disable protection to retry.
 
 ## Local project Kanban and optional Linear
 
-Desktop **Issues** opens this project's local board. **New issue** creates a
+Desktop **Issues** opens this project's local board. **New** creates a
 feature, bug or misc ticket with title, description, phase and optional
 connected GitHub PR. There is no assignee and no hosted issue upload. Use
 phase selectors to move, title to edit, and Archive/Restore to retain history.
@@ -340,9 +408,10 @@ workspace pauses automatic admission across its sessions. Inspect the workspace
 and processes, then choose **Resume after inspection** or `/resume`.
 That action authorizes continuation; it does not retroactively prove cleanup.
 
-Only one active turn may lease a project at once. Archive preserves the session,
-draft and workspace; restore is explicit. Session/project deletion, artifact
-retention management and managed worktrees are not exposed yet.
+Only one active agent writer may lease a project at once; question-only
+conversations may run in parallel. Archive preserves drafts/workspace and holds
+queued user prompts. Project-owned plan snapshots survive session deletion.
+Managed worktrees remain unavailable.
 
 ## TUI shortcuts
 
@@ -350,7 +419,8 @@ retention management and managed worktrees are not exposed yet.
 | --- | --- |
 | Ctrl+O / Ctrl+N / Ctrl+P | Open project / new session / select session |
 | Ctrl+L / Ctrl+M | Copilot sign-in / model picker |
-| Ctrl+Enter | Send or queue prompt |
+| Cmd/Ctrl+Enter | Hold a prompt in the queue without starting work |
+| Shift+Cmd/Ctrl+Enter | Send now; settings editors still use Ctrl+Enter to save |
 | Ctrl+C | Stop active turn without closing the TUI |
 | Ctrl+Y / Ctrl+D | Approve exact pending tool / deny |
 | Ctrl+V | Focus scrollable full approval arguments |
@@ -362,8 +432,8 @@ retention management and managed worktrees are not exposed yet.
 
 `/help` lists slash commands, including queue editing/reordering, `/steer`,
 `/interrupt`, `/attach`, `/resume`, `/archive`, `/restore` and `/policy`.
-Desktop uses **Ctrl+K** or **Command+K** for its command palette and either
-modifier plus Enter to send.
+Desktop uses **Ctrl+K** or **Command+K** for its command palette. Cmd/Ctrl+Enter
+holds prompts, never starts them. Settings-editor save shortcuts are distinct.
 
 ## State, policy and diagnostics
 
@@ -380,6 +450,17 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
+Protocol/database version 4 preserves earlier state through a transactional
+migration. Payloads and blob grants use independent profile/project/session
+retention keys, wrapped by an OS-keychain master under
+`dev.moguri.profile.default.retention`. Its stable account ID travels with the
+database; move the complete state directory on the same keychain. Missing or
+corrupt keys fail explicitly, never create a plaintext fallback or reset
+history. Session deletion removes its content grants while preserving immutable
+ciphertext audit rows and sanitized accounting. This is not SSD forensic
+erasure or deletion of external backups. Keep the original keychain and state
+when restoring a backup.
+
 Global **Allowed environments** policy is available in desktop Connections or
 `/policy all` and `/policy protected`. Requiring Sandbox/Remote intentionally
 blocks all new work in this checkpoint. Already-running Local turns may finish
@@ -393,6 +474,10 @@ a `node-domexception` deprecation notice during installation. It is not used as
 a Copilot credential source; dependency audits are separate from that notice.
 Cheerio's upstream chain also reports deprecated `whatwg-encoding`. These
 notices are not vulnerability findings or suppressed install failures.
+Vite also reports the approximately 640 kB Ghostty JavaScript chunk as exceeding
+its generic 500 kB warning threshold. It is lazy-loaded when Terminal opens;
+the separately self-hosted WASM is about 423 kB. The warning is not hidden or
+treated as a smaller measured bundle.
 
 ## Verification and packaging
 
@@ -403,6 +488,7 @@ npm run build
 npm run test:e2e
 npm run verify:sdk
 npm run spike:workspace
+npm run spike:sessions
 npm run spike
 npm audit --audit-level=moderate
 ```
@@ -418,14 +504,14 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.3.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.3.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.4.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.4.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
 inside Electron's ASAR filesystem. `node scripts/verify-package.mjs` checks the
 signature/icon, bundled runtime, CLI/TUI entrypoints, embedded SDK, native speech
-readiness and isolated packaged service without
+readiness, bundled Ghostty assets and isolated packaged service without
 using personal credentials. The Electron test can exercise that artifact with
 `MOGURI_TEST_APP=/absolute/path/to/Moguri.app/Contents/MacOS/Moguri npm run test:e2e`.
 Development artifacts are ad-hoc signed, not notarized; do not advertise them as signed

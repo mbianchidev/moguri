@@ -23,6 +23,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > without real SendBox qualification. These features share the SDK and event
 > authority; they do not create a second hosted issue system.
 
+> The [session workspace slice](architecture/session-workspace.md) implements
+> held prompts, shared slash actions, enforced read-only/side sessions,
+> session/project organization, independent plan artifacts and explicit
+> retention/deletion. Desktop uses actual Ghostty WASM, an isolated web preview
+> and SDK-backed diff/plan panels. Managed worktrees, Stainless automation and
+> the rest of the first-release acceptance gates are not implied complete.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

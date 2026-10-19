@@ -4,10 +4,14 @@
 
 Product specification for the full Moguri desktop sidebar. The initial executable
 checkpoint implements the persistent shell, main-session binding, collapse/width
-preferences, owned-command output/stop controls and basic Insights/event trace.
-Changes, Files, Browser, Side chat and Extensions expose explicit unavailable
-states. Interactive terminals, full metrics and the remaining acceptance checks
-are not claimed complete. See [setup](../setup.md).
+preferences and basic Insights/event trace. The session-workspace alpha adds
+actual Ghostty terminals, read-only local diffs, retained editable plans, linked
+PR access, isolated native previews and parallel question-only side sessions.
+Its current rail is Terminal, Browser, Insights, PR when linked, Changes, Plan
+and Side chat. Files/Extensions remain roadmap panels, with capability settings
+elsewhere. Full metrics, Stainless automation, protected/Remote terminals and
+the remaining release acceptance checks are not claimed complete.
+See [setup](../setup.md) and [D16](../architecture/decisions.md#d16-session-workspace-ghostty-and-retention).
 
 ## Purpose
 
@@ -58,6 +62,9 @@ In Remote, query and mutate the selected SSH workspace through its worker. A sam
 ### Terminal
 
 Terminal shows terminals and process trees associated with the main session and worktree. Users can open a terminal, inspect output, send input, and request cancellation.
+Use Ghostty through its maintained web/WASM integration rather than writing a
+terminal emulator. The current Local user console is separate from model tool
+permissions. Input/output are ephemeral and never become implicit agent context.
 
 Moguri records terminal ownership and the requested, acknowledged, completed, failed, or partial cancellation outcome. Closing a terminal view must not silently terminate its process, and a stopped or partially stopped process must not be shown as successful.
 
@@ -74,6 +81,8 @@ Remote files resolve through the authenticated worker and remote workspace ident
 ### Browser
 
 Browser hosts private development previews through the optional [`stainless`](https://github.com/mbianchidev/stainless) integration. It can associate a preview, page, console output, network diagnostics, screenshots, and Playwright activity with the main session.
+The alpha's basic native isolated preview does not claim Stainless diagnostics,
+automation or model-controlled browser tools.
 
 Stainless connection, permission, and health state must be visible. Browser data enters model context only through an explicit user action, tool call, or configured policy. If Stainless is absent or unavailable, the panel shows the missing capability and setup path instead of a broken browser surface.
 
