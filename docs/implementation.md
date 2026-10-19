@@ -27,7 +27,7 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > held prompts, shared slash actions, enforced read-only/side sessions,
 > session/project organization, independent plan artifacts and explicit
 > retention/deletion. Desktop uses actual Ghostty WASM, an isolated web preview
-> and SDK-backed diff/plan panels. Managed worktrees, Stainless automation and
+> and SDK-backed diff/plan panels. Stainless automation and
 > the rest of the first-release acceptance gates are not implied complete.
 
 > The [runtime/input foundation](architecture/runtime-foundation.md) adds
@@ -35,7 +35,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > [typed context](architecture/context-inputs.md). The [core SSH slice](architecture/execution-transports.md)
 > runs the same worker/model/file loop remotely with pinned identity and
 > no-replay recovery. Remote side-panel/extension transport, native Sandbox,
-> budgets, managed worktrees, isolated profiles and routing are not implied complete.
+> budgets, isolated profiles and routing are not implied complete.
+
+> The [managed Local workspace slice](architecture/managed-workspaces.md) adds
+> explicit worktree creation/discovery/removal, change-set context, per-root
+> writer leases and consistent worker/files/plan/terminal/memory/cache roots.
+> Remote/Sandbox mappings, external adoption, compound orchestration and richer
+> independent artifact kinds/revisions remain separate first-release work.
 
 ## Why Moguri
 

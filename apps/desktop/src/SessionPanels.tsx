@@ -9,17 +9,43 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   const load = async () => {
     setError("");
     if (!session.projectId) { setError("Select a project to inspect file changes."); return; }
-    try { setData(await sdk.projects.git(session.projectId)); }
+    try { setData(await sdk.workspaces.git(session.id)); }
     catch (error) { setError(error instanceof Error ? error.message : "Git status could not be read."); }
   };
-  useEffect(() => { void load(); }, [session.id, session.turnId]);
+  useEffect(() => { void load(); }, [session.id, session.workspaceId, session.turnId]);
   return <section className="changes-panel"><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" onClick={() => void load()}><Icon name="Down" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
   </section>;
 }
+export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
+  const [path, setPath] = useState("."), [entries, setEntries] = useState<string[]>([]), [file, setFile] = useState<{ path: string; text: string } | null>(null);
+  const [loading, setLoading] = useState(false), [error, setError] = useState(""), generation = useRef(0);
+  useEffect(() => {
+    const current = ++generation.current; setLoading(true); setError(""); setFile(null);
+    void sdk.workspaces.files(session.id, path).then((result) => { if (generation.current === current) setEntries(result.entries); })
+      .catch((error: unknown) => { if (generation.current === current) { setEntries([]); setError(error instanceof Error ? error.message : "Directory could not be read from the bound root."); } })
+      .finally(() => { if (generation.current === current) setLoading(false); });
+    return () => { generation.current++; };
+  }, [session.id, session.workspaceId, session.controls.env, path]);
+  const open = (entry: string) => {
+    if (entry.endsWith("/")) { setPath(entry.slice(0, -1)); return; }
+    const current = ++generation.current; setLoading(true); setError("");
+    void sdk.workspaces.file(session.id, entry).then((result) => { if (generation.current === current) setFile(result); })
+      .catch((error: unknown) => { if (generation.current === current) setError(error instanceof Error ? error.message : "File could not be read."); })
+      .finally(() => { if (generation.current === current) setLoading(false); });
+  };
+  return <section className="files-panel" aria-label="Bound workspace files"><header className="panel-toolbar">
+    <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
+    {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
+    <p className="fine-print">Read-only view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
+  </section>;
+}
 export function PlanPanel({ sdk, session, onDirty }: { sdk: MoguriSdk; session: Session; onDirty: (dirty: boolean) => void }) {
-  const [plan, setPlan] = useState<{ text: string; digest: string; path: string } | null>(null);
+  const scope = `${session.id}:${session.workspaceId ?? "base"}:${session.controls.env}`;
+  const generation = useRef(0);
+  const [plan, setPlan] = useState<{ text: string; digest: string; path: string; scope: string } | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -30,9 +56,15 @@ export function PlanPanel({ sdk, session, onDirty }: { sdk: MoguriSdk; session: 
     window.addEventListener("beforeunload", close);
     return () => window.removeEventListener("beforeunload", close);
   }, [dirty, saving]);
-  const load = async () => { setError(""); try { const result = await sdk.plans.read(session.id); setPlan(result); setText(result.text); } catch (error) { setError(error instanceof Error ? error.message : "Plan could not be read."); } };
-  useEffect(() => { void load(); }, [session.id]);
-  const readOnly = session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.status === "archived";
+  const load = async () => { const current = ++generation.current; setError(""); try { const result = await sdk.plans.read(session.id); if (generation.current === current) { setPlan({ ...result, scope }); setText(result.text); } } catch (error) { if (generation.current === current) setError(error instanceof Error ? error.message : "Plan could not be read."); } };
+  useEffect(() => {
+    generation.current++;
+    if (dirty && plan?.scope !== scope) setError("The bound workspace changed. Your edit is preserved; copy it or explicitly reload before saving into another root.");
+    else void load();
+    return () => { generation.current++; };
+  }, [scope]);
+  const scopeChanged = plan !== null && plan.scope !== scope;
+  const readOnly = scopeChanged || session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.status === "archived";
   return <section className="plan-panel"><header className="panel-toolbar"><strong title={plan?.path}>{plan?.path ?? "Plan"}</strong><button className="icon-button" aria-label="Reload plan" title="Reload plan, discarding local edits" disabled={saving} onClick={() => void load()}><Icon name="Down" /></button>
     <button className="primary" disabled={!dirty || saving || readOnly} onClick={() => {
       if (!plan) return;
@@ -40,7 +72,7 @@ export function PlanPanel({ sdk, session, onDirty }: { sdk: MoguriSdk; session: 
       void sdk.plans.save(session.id, text, plan.digest).then(() => load()).catch((error: unknown) => setError(error instanceof Error ? error.message : "The plan was not saved; your edit was preserved.")).finally(() => setSaving(false));
     }}>Save</button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {readOnly && <p className="fine-print">Question-only session. Plan editing is disabled.</p>}
+    {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : "Question-only session. Plan editing is disabled."}</p>}
     <textarea aria-label="Project plan" spellCheck={false} value={text} disabled={!plan || readOnly || saving} onChange={(event) => setText(event.target.value)} placeholder="No plan yet. Write one here to create it explicitly." />
     <p className="fine-print">{saving ? "Saving..." : dirty ? "Unsaved edit" : "Saved snapshots survive session deletion."}</p>
   </section>;

@@ -200,6 +200,12 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .attachment-review { width: min(740px, calc(100vw - 36px)); }
 .attachment-review pre { max-height: 280px; overflow: auto; }
 .project-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.workspace-record { margin: 14px 0; min-width: 0; }
+.workspace-record summary { overflow-wrap: anywhere; }
+.workspace-file-list { display: grid; gap: 2px; margin: 12px 0; min-width: 0; }
+.workspace-file-list button { display: flex; align-items: center; gap: 8px; text-align: left; min-width: 0; }
+.workspace-file-list button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-file-content { max-width: 100%; overflow: auto; font-size: 11px; }
 .composer-context-warning { padding: 8px 14px; color: var(--warning-text); font-size: 12px; }
 .attachment-trigger-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-inline: 10px; font-size: 12px; }
 .attachment-trigger-hint small { font-size: 11px; color: var(--muted); }

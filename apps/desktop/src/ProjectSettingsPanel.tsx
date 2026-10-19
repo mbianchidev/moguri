@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { defaultProjectSettings, parse, ProjectSettingsSchema, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 
-export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal }: {
-  sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void;
+export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession }: {
+  sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
 }) {
   const [values, setValues] = useState<ProjectSettings>(defaultProjectSettings);
   const [revision, setRevision] = useState(0);
@@ -60,6 +61,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <label className="setting-field">GitHub read access<select value={values.repo.githubAccess} onChange={(event) => change("repo", { ...values.repo, githubAccess: event.target.value as ProjectSettings["repo"]["githubAccess"] })}><option value="public">Public API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
     <h3>New-session defaults</h3>{json("defaults", "Project startup control overrides")}
     <p className="fine-print">Overrides profile/global preferences for new sessions only. Existing sessions keep their saved controls and source snapshot; policy still wins.</p>
+    {loaded && <ManagedWorkspacePanel sdk={sdk} project={project} settings={values} snapshot={snapshot} disabled={dirty || busy} openSession={openSession} />}
     <h3>Agent folder policy</h3>
     <label className="setting-field">Read-only folders, one per line<textarea aria-label="Read-only folders" value={values.readOnlyFolders.join("\n")} onChange={(event) => change("readOnlyFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
     <label className="setting-field">Denied folders, one per line<textarea aria-label="Denied folders" value={values.deniedFolders.join("\n")} onChange={(event) => change("deniedFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>

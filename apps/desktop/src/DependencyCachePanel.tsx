@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { type DependencyPlan, type MoguriSdk, type PackageManager, type Project } from "../../../packages/sdk/src/index.ts";
 
-export function DependencyCachePanel({ sdk, project }: { sdk: MoguriSdk; project?: Project }) {
+export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: MoguriSdk; project?: Project; workspaceId?: string }) {
   const [manager, setManager] = useState<PackageManager>("npm");
   const [plan, setPlan] = useState<DependencyPlan | null>(null);
   const [accept, setAccept] = useState(false);
@@ -17,8 +17,8 @@ export function DependencyCachePanel({ sdk, project }: { sdk: MoguriSdk; project
   };
   const operate = (install: boolean) => run(async () => {
     if (!project || !plan || !accept) throw new Error("Inspect the current lock and approve dependency metadata sharing first.");
-    if (plan.projectId !== project.id) throw new Error("The project changed. Inspect its own dependency plan first.");
-    const job = install ? await sdk.cache.install(project.id, manager, plan.digest, true) : await sdk.cache.prepare(project.id, manager, plan.digest, true);
+    if (plan.projectId !== project.id || (plan.workspaceId ?? undefined) !== workspaceId) throw new Error("The project/worktree changed. Inspect its own dependency plan first.");
+    const job = install ? await sdk.cache.install(project.id, manager, plan.digest, true, false, workspaceId) : await sdk.cache.prepare(project.id, manager, plan.digest, true, workspaceId);
     setResult(`Job ${job.id} started. Progress, cancellation and its terminal outcome are retained below.`);
   });
   return <section aria-label="Shared dependency cache">
@@ -29,7 +29,7 @@ export function DependencyCachePanel({ sdk, project }: { sdk: MoguriSdk; project
       <option value="npm">npm, package-lock v2/v3</option><option value="pnpm">pnpm, single-project lockfile v9</option>
     </select></label>
     <button disabled={!project || busy} onClick={() => void run(async () => {
-      const { plan } = await sdk.cache.inspect(project!.id, manager);
+      const { plan } = await sdk.cache.inspect(project!.id, manager, workspaceId);
       setPlan(plan); setAccept(false); setReplace(false); setResult("");
     })}>Inspect current lock</button>
     {error && <p className="notice error" role="alert">{error}</p>}

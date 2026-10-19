@@ -314,7 +314,8 @@ Held prompts require a separate release, never an automatic timer.
 
 Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
 `/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,
-`/queue`, `/run ID`, `/copy [ID]`, `/settings`, `/models` and `/help`.
+`/queue`, `/run ID`, `/copy [ID]`, `/workspace`, `/files [PATH]`, `/file PATH`,
+`/settings`, `/models` and `/help`.
 Desktop suggests slash names; TUI displays matching names and `/help`.
 TUI also keeps its existing advanced capability commands.
 
@@ -329,7 +330,7 @@ with separate usage, read approvals and cancellation. User-created subsessions
 are attached agent sessions, not the optional model-subagent feature.
 
 The desktop rail exposes Terminal, Browser, Insights, a linked PR when present,
-Changes, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
+Changes, Files, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
 terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model
 context or durable command hashes. Closing the panel leaves its shell running;
@@ -370,8 +371,51 @@ The explicit publishing action creates only missing defaults and pushes a
 selected non-protected branch using an independent index, preserving current
 HEAD, staging and unrelated edits. Partial publication is reported and requires
 inspection. Reviewed MCP import binds its SHA-256 and installs disabled entries;
-credentials remain in the keychain, not repo JSON. Branch settings do not imply
-managed worktree support.
+credentials remain in the keychain, not repo JSON. Merely saving a branch
+pattern does not create a worktree.
+
+### Managed Local worktrees
+
+**Project settings / Isolated worktrees** creates an explicitly named branch
+from a selected existing base ref, then offers a new bound Local session.
+It never fetches, switches the base checkout, changes its index, runs checkout
+hooks/filters or fetches submodules. Configure an available model explicitly
+before inference; opening the session does not start it.
+
+```bash
+node bin/moguri.mjs workspace list PROJECT_ID
+node bin/moguri.mjs workspace discover PROJECT_ID
+node bin/moguri.mjs workspace create PROJECT_ID moguri/generated-work main
+node bin/moguri.mjs workspace session WORKSPACE_ID
+node bin/moguri.mjs workspace files --session SESSION_ID
+node bin/moguri.mjs workspace file src/example.ts --session SESSION_ID
+node bin/moguri.mjs workspace inspect WORKSPACE_ID
+node bin/moguri.mjs workspace remove WORKSPACE_ID --revision OBSERVED_REVISION --confirm-remove
+```
+
+Shared chat commands are `/workspace list`, `/workspace discover`,
+`/workspace create BRANCH [BASE_REF]`, `/workspace new ID`,
+`/workspace bind ID`, `/workspace inspect ID`, `/workspace remove ID` and
+`/workspace reconcile ID`. Binding is allowed only for a fresh idle conversation,
+never an existing conversation/queue. `/files` and `/file` read the selected
+session's actual root, with protected/denied paths and symlinks excluded.
+They do not attach their contents to a model or grant agent permissions.
+
+The service records ownership, base commit, branch, exact canonical directory
+identity, change-set/ticket/PR association and the creation/removal job.
+Different worktrees have independent writer leases and derived memory indexes;
+package archives remain shared while installation trees stay root-local.
+Git registration discovery is read-only. Unmanaged roots are not adopted or
+deleted; attach their folder as a project explicitly if needed.
+
+Stop, failure or restart leaves potentially partial intent visible. Inspect
+and explicitly reconcile the real registration/root instead of blindly retrying
+Git. Removal refuses dirty/untracked files, active jobs and retained sessions,
+including archived sessions. Delete/unbind eligible sessions first; archive or
+session deletion never removes a checkout. Removal preserves the branch and
+independent plan snapshots. Project relocation/removal refuses retained
+worktrees rather than losing them. Remote/Sandbox mappings, external-worktree
+adoption and compound candidate orchestration are not implemented.
 
 ## Local memory, skills, scripts and plugins
 
@@ -616,10 +660,11 @@ workspace pauses automatic admission across its sessions. Inspect the workspace
 and processes, then choose **Resume after inspection** or `/resume`.
 That action authorizes continuation; it does not retroactively prove cleanup.
 
-Only one active agent writer may lease a project at once; question-only
-conversations may run in parallel. Archive preserves drafts/workspace and holds
-queued user prompts. Project-owned plan snapshots survive session deletion.
-Managed worktrees remain unavailable.
+Only one active agent writer may lease a filesystem root at once; separate
+managed worktrees and question-only conversations may run in parallel.
+Quarantine applies to the failed bound worktree rather than unrelated roots.
+Archive preserves drafts/workspace and holds queued user prompts.
+Project-owned plan snapshots survive session deletion.
 
 ## TUI shortcuts
 
@@ -658,7 +703,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 8 preserves earlier state through transactional
+Protocol/database version 9 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
