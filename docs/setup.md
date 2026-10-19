@@ -242,7 +242,7 @@ eliminate extracted per-project files. npm must be installed to use its adapter.
 
 Initial formats are **single-project npm package-lock v2/v3** and **pnpm
 lockfile v9**, with public npm-registry SHA-512 packages. Other managers,
-workspaces, Git/local/custom/private resolutions and missing integrity require
+workspaces, tags/aliases, Git/local/custom/private/patch resolutions and missing integrity require
 separate qualification; they are not silently skipped.
 
 **Lifecycle execution remains blocked until real SendBox is qualified.**
