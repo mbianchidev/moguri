@@ -34,7 +34,8 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > explicit local generative endpoints, snapshotted control inheritance and
 > [typed context](architecture/context-inputs.md). The [core SSH slice](architecture/execution-transports.md)
 > runs the same worker/model/file loop remotely with pinned identity and
-> no-replay recovery. Remote side-panel/extension transport, native Sandbox
+> no-replay recovery. Read-only files/Git/plan views now share that SSH transport;
+> Remote console/extension/memory transport, native Sandbox
 > and routing are not implied complete by that foundation.
 
 > The [managed Local workspace slice](architecture/managed-workspaces.md) adds

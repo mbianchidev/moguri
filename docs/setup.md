@@ -316,8 +316,16 @@ Acknowledgement is not proof of cleanup. Unknown owned work blocks new
 admission/deletion; session deletion destroys its transport key only after
 settlement or actual user inspection.
 
-Remote embedded terminals, executable MCP transport, local repository-memory
-retrieval and diff/plan panels are not qualified yet and remain blocked.
+**Files**, **Changes** and read-only **Plan** views now use the actual SSH
+workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path in
+CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
+Protected paths, denied folders, file limits and Git filter/hook suppression
+still apply. Changed target/root/policy or a disconnect rejects the read.
+Install this exact protocol-17 worker build on the SSH host and probe it before
+new reads; retained protocol-16 receipts permit inspection, not continuation.
+
+Remote embedded terminals, executable MCP transport, repository-memory
+retrieval and direct plan saves are not qualified yet and remain blocked.
 An explicit browser URL still opens a client-side preview; Remote localhost
 ports are never mapped to this Mac or tunneled implicitly.
 
@@ -972,7 +980,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 16 preserves earlier state through transactional
+Protocol/database version 17 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -1032,8 +1040,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.10.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.10.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.11.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.11.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -1048,7 +1056,7 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.10 checkpoint
+### Historical 0.10 checkpoint
 
 The **0.10.0-alpha.1 / protocol-16** Single-routing artifacts pass strict
 ad-hoc signature/runtime checks and real DMG integrity verification,
@@ -1083,7 +1091,7 @@ Native Sandbox is still unavailable. At that packaging checkpoint, the separatel
 candidate now qualifies startup on the historical protocol-10 image: the
 coordinated SendBox investigation reports 11/11 new authenticated starts,
 10 positive hardened/thread/workspace workloads, and removed owned VMs.
-This is not qualification of the current protocol-16 payload or SDK adapter.
+This was not qualification of that protocol-16 payload or SDK adapter.
 Real API networking had failed CONNECT 502/403; an unapproved Copilot CNAME
 was observed but was not proven to be the sole cause or implicitly added.
 No parent VM probe, production trust/runtime change, personal authorization,
@@ -1113,7 +1121,7 @@ the root-owned matching guest is
 administrator installation; Moguri never installs it or authenticates for you.
 Do not use an unverified/user-writable guest bundle or disable system security.
 
-The current protocol-16 worker, exact approvals, large image and conservative
+The historical protocol-16 worker, exact approvals, large image and conservative
 model/command/control-loss cancellation now pass genuine released-guest
 primitives. Cold DNS/networking still fails in a fresh guest. Installing 0.2.1
 therefore does **not** enable Sandbox, lifecycle scripts or real native model
@@ -1122,6 +1130,8 @@ execution in this alpha. The private staging/evidence prerequisites pass
 0.10 artifacts above are not rebuilt or relabeled by this follow-up.
 See [runtime pins](architecture/runtime-foundation.md#released-sendbox-021)
 and [native measurements and limitations](architecture/execution-transports.md#released-021-qualification).
+Further sandbox work is paused at the user's request pending the separate
+SendBox fix; protocol-17 SSH work does not requalify or enable Sandbox.
 
 ### Historical 0.9.1 checkpoint
 

@@ -390,6 +390,8 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Dashboard" && snapshot) return <UsageDashboard sdk={client} snapshot={snapshot} />;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
+  const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path,
+    snapshot?.projectConfigurations.find((value) => value.projectId === session.projectId), session.controls.env === "Remote" ? snapshot?.settings.values.remote : null]);
   if (!project && ["Terminal", "Changes", "Files", "Plan", "PR"].includes(panel)) return <div className="panel-empty"><Icon name="Files" /><h2>No project selected</h2><p>This chat cannot access workspace files, commands, plans or terminals. Start a project chat for those operations.</p></div>;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={suggestionsAll} chooseSession={chooseSession} modal={modal} />;
   if (panel === "Insights") {
@@ -421,9 +423,9 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   }
   if (panel === "Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} session={session} snapshot={snapshot} /></Suspense>;
   if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
-  if (panel === "Changes") return session.controls.env === "Local" ? <ChangesPanel sdk={client} session={session} /> : <p className="fine-print">The changes panel has no qualified transport for {session.controls.env} yet. No local project's diff was read as a fallback.</p>;
-  if (panel === "Files") return <FilesPanel sdk={client} session={session} />;
-  if (panel === "Plan") return <PlanPanel sdk={client} session={session} onDirty={onDirty} />;
+  if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : <p className="fine-print">The changes panel has no qualified transport for {session.controls.env} yet. No local project's diff was read as a fallback.</p>;
+  if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
+  if (panel === "Plan") return <PlanPanel sdk={client} session={session} workspaceScope={workspaceScope} onDirty={onDirty} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} />;
   if (panel === "PR") return prUrl ? <section><h2>Connected PR</h2><p className="path">{prUrl}</p><button onClick={() => void run(() => window.moguri.openExternal(prUrl))}><Icon name="PR" />Open in GitHub</button><p className="fine-print">This binding does not change the checkout or grant merge/push permission. Local work-item PR states are observed read-only.</p></section> : <p>No PR is connected.</p>;
   return <p>Choose a supported panel.</p>;

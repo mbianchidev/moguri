@@ -5,14 +5,17 @@
 Product specification for the full Moguri desktop sidebar. The initial executable
 checkpoint implements the persistent shell, main-session binding, collapse/width
 preferences and basic Insights/event trace. The session-workspace alpha adds
-actual Ghostty terminals, read-only local diffs, retained editable plans, linked
-PR access, isolated native previews and parallel question-only side sessions.
+actual Ghostty terminals, read-only diffs/files, retained editable Local plans,
+linked PR access, isolated native previews and parallel question-only side
+sessions. Protocol 17 adds Files, Changes and read-only Plan views from the
+actual pinned SSH workspace, without a same-named Local fallback.
 Its current rail is Terminal, Browser, Insights, PR when linked, Changes, Plan,
 Side chat, Suggestions and Attention. Suggestions use explicit scoped source
 review and configuration proposals; attention read state is not a user answer
 or tool decision. Project-free chats show a project-required state for workspace
-panels instead of reusing a previous root. Files/Extensions remain roadmap panels, with capability settings
-elsewhere. Full metrics, Stainless automation, protected/Remote terminals and
+panels instead of reusing a previous root. Extensions remain a roadmap panel,
+with capability settings elsewhere. Direct Remote plan saves, full metrics,
+Stainless automation, protected/Remote terminals and
 the remaining release acceptance checks are not claimed complete.
 See [setup](../setup.md) and [D16](../architecture/decisions.md#d16-session-workspace-ghostty-and-retention).
 

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { createSshTarget } from "../fixtures/ssh-target.ts";
+import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop/SSH execution is qualified on macOS.");
@@ -16,6 +17,10 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
   await fixture.configure();
   const root = await realpath(fixture.directory), sshDirectory = join(root, "ssh"), workspace = join(root, "remote-workspace");
   await mkdir(sshDirectory, { mode: 0o700 }); await mkdir(workspace); await writeFile(join(workspace, "AGENTS.md"), "Generated desktop SSH instructions.");
+  await writeFile(join(workspace, "fixture.txt"), "Generated original SSH panel source.\n");
+  initializeGeneratedRepository(workspace);
+  await writeFile(join(workspace, "fixture.txt"), "Generated remote-only panel change.\n");
+  await mkdir(join(workspace, "docs")); await writeFile(join(workspace, "docs/plan.md"), "Generated remote-only desktop plan.\n");
   const ssh = await createSshTarget(sshDirectory); ssh.target.command = [process.execPath, resolve("dist/remote-bridge.mjs")];
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -44,6 +49,17 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await expect.poll(() => sdk.getState().snapshot!.executions[0]?.cleanup).toBe("owned-worker-stopped");
     expect(fixture.requests.length).toBe(1);
     expect(JSON.stringify(fixture.requests[0])).toContain("Generated desktop SSH instructions.");
+    await page.getByRole("button", { name: "Files", exact: true }).click();
+    await page.getByRole("button", { name: "fixture.txt", exact: true }).click();
+    await expect(page.getByText("Generated remote-only panel change.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Read-only SSH workspace view/)).toBeVisible();
+    await page.getByRole("button", { name: "Changes", exact: true }).click();
+    await expect(page.locator(".unified-diff")).toContainText("Generated remote-only panel change.");
+    await page.getByRole("button", { name: "Plan", exact: true }).click();
+    await expect(page.getByLabel("Project plan", { exact: true })).toHaveValue("Generated remote-only desktop plan.\n");
+    await expect(page.getByLabel("Project plan", { exact: true })).toHaveAttribute("readonly", "");
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    await expect(page.getByText(/Remote plan view is read-only/)).toBeVisible();
     await page.getByRole("button", { name: "Insights", exact: true }).click();
     await expect(page.getByText("SSH host Generated loopback SSH, not SendBox-isolated", { exact: true })).toBeVisible();
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });

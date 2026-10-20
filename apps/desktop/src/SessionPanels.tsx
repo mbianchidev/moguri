@@ -16,6 +16,7 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   return <section className="changes-panel"><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" onClick={() => void load()}><Icon name="Down" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
+    {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;
 }
 export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
@@ -39,11 +40,11 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
-    <p className="fine-print">Read-only view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
+    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
-export function PlanPanel({ sdk, session, onDirty }: { sdk: MoguriSdk; session: Session; onDirty: (dirty: boolean) => void }) {
-  const scope = `${session.id}:${session.workspaceId ?? "base"}:${session.controls.env}`;
+export function PlanPanel({ sdk, session, workspaceScope, onDirty }: { sdk: MoguriSdk; session: Session; workspaceScope: string; onDirty: (dirty: boolean) => void }) {
+  const scope = workspaceScope;
   const generation = useRef(0);
   const [plan, setPlan] = useState<{ text: string; digest: string; path: string; scope: string } | null>(null);
   const [text, setText] = useState("");
@@ -64,7 +65,7 @@ export function PlanPanel({ sdk, session, onDirty }: { sdk: MoguriSdk; session: 
     return () => { generation.current++; };
   }, [scope]);
   const scopeChanged = plan !== null && plan.scope !== scope;
-  const readOnly = scopeChanged || session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.status === "archived";
+  const readOnly = scopeChanged || session.controls.env === "Remote" || session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.status === "archived";
   return <section className="plan-panel"><header className="panel-toolbar"><strong title={plan?.path}>{plan?.path ?? "Plan"}</strong><button className="icon-button" aria-label="Reload plan" title="Reload plan, discarding local edits" disabled={saving} onClick={() => void load()}><Icon name="Down" /></button>
     <button className="primary" disabled={!dirty || saving || readOnly} onClick={() => {
       if (!plan) return;
@@ -72,9 +73,9 @@ export function PlanPanel({ sdk, session, onDirty }: { sdk: MoguriSdk; session: 
       void sdk.plans.save(session.id, text, plan.digest).then(() => load()).catch((error: unknown) => setError(error instanceof Error ? error.message : "The plan was not saved; your edit was preserved.")).finally(() => setSaving(false));
     }}>Save</button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : "Question-only session. Plan editing is disabled."}</p>}
-    <textarea aria-label="Project plan" spellCheck={false} value={text} disabled={!plan || readOnly || saving} onChange={(event) => setText(event.target.value)} placeholder="No plan yet. Write one here to create it explicitly." />
-    <p className="fine-print">{saving ? "Saving..." : dirty ? "Unsaved edit" : "Saved snapshots survive session deletion."}</p>
+    {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : session.controls.env === "Remote" ? "Remote plan view is read-only. Direct workspace saves are not qualified for SSH yet." : "Question-only session. Plan editing is disabled."}</p>}
+    <textarea aria-label="Project plan" spellCheck={false} value={text} readOnly={readOnly} disabled={!plan || saving} onChange={(event) => setText(event.target.value)} placeholder={session.controls.env === "Remote" ? "No plan exists in the approved remote workspace." : "No plan yet. Write one here to create it explicitly."} />
+    <p className="fine-print">{saving ? "Saving..." : dirty ? "Unsaved edit" : session.controls.env === "Remote" ? "Read from the approved SSH workspace. Viewing does not retain an artifact." : "Saved snapshots survive session deletion."}</p>
   </section>;
 }
 export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
