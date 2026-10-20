@@ -1212,7 +1212,7 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.17 checkpoint
+### Source-qualified 0.17 checkpoint
 
 The **0.17.0-alpha.1 / protocol-23** source adds authenticated restart-
 reattachable Local user consoles and retryable private cleanup, through the
@@ -1226,7 +1226,13 @@ actual bundled Node/service/owner qualification. Its native shell measured
 600-MiB Electron-only budget; combined Electron/service/broker totals were
 **806.06 / 808.81 MiB**, with generated user programs reported separately.
 All four consoles used one broker and reattached their original PIDs.
-Fresh-consumer and native desktop qualification is being repeated. An initial
+All **33 source desktop workflows and 33 actual packaged workflows pass in
+1.1 min each**. A fresh installed SDK also passes all four external types,
+explicit native script approval, an independent zero-advisory audit and actual
+installed owner/CLI/TUI restart without replay. The exact delivered SDK file's
+identity is recorded after its separate immutable-archive qualification.
+
+An initial
 native run exposed a harness race: the second held shortcut arrived before the
 first UI submission gate released, although its server queue entry existed.
 The harness now waits for the actual held-submit button, not server state;
@@ -1235,9 +1241,24 @@ verifier incorrectly applied the Electron-only 600-MiB budget to the entire
 runtime: its retained measurement was 554.08 MiB Electron, 277.33 MiB service/
 broker and 831.41 MiB combined. Shell and total figures are now reported
 separately against the original scope, not silently lowered or renamed.
-No 0.17 archive is yet
-advertised as delivered. The latest independently qualified archive remains
-0.16 below; do not overwrite or repack it.
+The idle Ghostty check also exposed an actual zero-byte WASM write error:
+empty output pages are now skipped without dropping a real page or weakening
+input error handling. Initial native failure traces are retained.
+
+These are development artifacts, ad-hoc signed rather than notarized. The
+actual bundled Node/service/broker, one/four consoles, same-process restart,
+SDK/CLI/TUI, model/MCP/OAuth/SSH plan and native runtime are qualified with
+generated fixtures only. The DMG checksum is valid; no personal account,
+microphone, weights, Sandbox probe, tag, release or merge was used.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.17.0-alpha.1-macos-arm64.dmg` | 372190367 | `6d99a2fb913b4d39192cb10a29f2f3cafe616f0ee25ad65aa38591f87c7030b8` |
+| `Moguri-0.17.0-alpha.1-macos-arm64.zip` | 283084315 | `05268bcf364acd02b408c9c2693acb39fc8ada785edb351e477d88b3ca12e568` |
+
+App: `release/0.17.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. The DMG exceeds
+chat's 64-MiB limit and remains local. Qualified 0.16 and older artifacts are
+preserved unchanged; do not rebuild or repack them.
 
 ### Qualified 0.16 checkpoint
 
