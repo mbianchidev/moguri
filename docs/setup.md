@@ -987,8 +987,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.7.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.7.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.8.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.8.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -1003,7 +1003,31 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-The current **0.7.0-alpha.1 / protocol-13** development artifacts pass strict
+The current **0.8.0-alpha.1 / protocol-14** development artifacts pass strict
+ad-hoc signature/runtime verification, **229 full local checks** and all
+**19 hidden workflows against the actual packaged app** (**44.0 s**).
+These add real immutable profiles, private account/data/editors, cross-profile
+root/policy/budget authority and native preview/notification scope to the
+qualified artifact/question/budget foundation.
+
+`hdiutil verify` passes for the actual DMG. The exact delivered SDK archive
+passes a fresh approved external install, all four entrypoint types, actual
+installed CLI selection, compiled model workers in two profiles, separate
+MCP credentials/ledgers and shared global defaults/caps/env restriction.
+Source/consumer audits report zero vulnerabilities. Test output, local state
+and agent metadata are excluded from the app bundle.
+Sandbox/R5, routed decisions/wind-down and the remaining roadmap are not
+qualified by this package. No GitHub release, tag or merge was created.
+
+| Development artifact | SHA-256 |
+| --- | --- |
+| `Moguri-0.8.0-alpha.1-macos-arm64.dmg` | `a23cbd0a2db5291e803fe71e07f165cda5da1e34daa2f4981036291c3d474832` |
+| `Moguri-0.8.0-alpha.1-macos-arm64.zip` | `4071d8b5d1ff496b6b134804c69477f890d63d680dc095c6a16350a05ac755dd` |
+| `moguri-0.8.0-alpha.1.tgz` | `61dc9c21caebadd8fb014bf5bc77ccbedfee5bef450a348b14e9b425934422e5` |
+
+### Historical 0.7 checkpoint
+
+The unchanged **0.7.0-alpha.1 / protocol-13** development artifacts passed strict
 ad-hoc signature/runtime verification and all **17 hidden packaged Electron
 flows** (**37.8 s**), including real structured answers, managed roots,
 repository artifact copies/local commits and explicit estimated budgets.
@@ -1012,7 +1036,7 @@ passes its fresh approved external install, all entrypoint types and generated
 worker/model/budget exchange, with zero audit findings.
 Test output, local state and agent metadata are excluded from the app bundle.
 Sandbox/R5, routed decisions/wind-down, profile isolation and the remaining
-roadmap are not qualified by this package.
+roadmap were not qualified by that package. Use 0.8 for actual isolated profiles.
 
 | Development artifact | SHA-256 |
 | --- | --- |
