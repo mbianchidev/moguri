@@ -1212,7 +1212,19 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.17 checkpoint
+### Development 0.18 prerequisites
+
+The development manifest is 0.18; the latest qualified application/SDK remains
+the immutable 0.17 checkpoint below. The
+[Remote MCP prerequisite](architecture/remote-mcp-primitives.md) uses the real
+pinned SSH supervisor and shared owned connector with generated stdio/HTTP
+servers. Ten SSH cases and three exact process-admission/cleanup cases pass.
+It does not enable Remote MCP, transfer any real credential, change durable
+schemas or qualify an 0.18 archive. Public session/grant/approval, outcome,
+cancellation/recovery and cross-client integration remain required.
+Sandbox work remains paused.
+
+### Current qualified 0.17 checkpoint
 
 The **0.17.0-alpha.1 / protocol-23** source adds authenticated restart-
 reattachable Local user consoles and retryable private cleanup, through the
