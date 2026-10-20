@@ -1079,13 +1079,13 @@ This is not measured confidence calibration, a live paid Copilot/Jev test or
 the completed first milestone. Compound workflows, finite routed budgets and
 reserved wind-down/authorized checkpoint commits remain blocked.
 
-Native Sandbox is still unavailable. The separately user-authenticated R5
+Native Sandbox is still unavailable. At that packaging checkpoint, the separately user-authenticated R5
 candidate now qualifies startup on the historical protocol-10 image: the
 coordinated SendBox investigation reports 11/11 new authenticated starts,
 10 positive hardened/thread/workspace workloads, and removed owned VMs.
 This is not qualification of the current protocol-16 payload or SDK adapter.
-Real API networking still fails CONNECT 502/403: the observed Copilot CNAME
-backend is outside the exact approved domain set and was not implicitly added.
+Real API networking had failed CONNECT 502/403; an unapproved Copilot CNAME
+was observed but was not proven to be the sole cause or implicitly added.
 No parent VM probe, production trust/runtime change, personal authorization,
 microphone recording or model-weight download was used for this checkpoint.
 Known upstream FFI/deprecation, file-package approval, optional `.icon` and lazy
@@ -1101,6 +1101,27 @@ manual run is dispatched.
 The DMG exceeds the chat's 64 MiB attachment limit and stays at its local release
 path; the exact SDK archive can be delivered as an attachment. Earlier qualified
 artifacts are not overwritten or relabeled as protocol 16.
+
+### Native runtime prerequisites after 0.10
+
+The official [SendBox 0.2.1 release](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.1)
+has now passed checksum/build-provenance verification and user-authenticated
+system installation. `/usr/local/bin/sendbox --version` reports `sendbox 0.2.1`;
+the root-owned matching guest is
+`/usr/local/share/sendbox/guest/aarch64/bundle`, with its adjacent
+`release-public.key`. Download and verify the official release before any
+administrator installation; Moguri never installs it or authenticates for you.
+Do not use an unverified/user-writable guest bundle or disable system security.
+
+The current protocol-16 worker, exact approvals, large image and conservative
+model/command/control-loss cancellation now pass genuine released-guest
+primitives. Cold DNS/networking still fails in a fresh guest. Installing 0.2.1
+therefore does **not** enable Sandbox, lifecycle scripts or real native model
+execution in this alpha. The private staging/evidence prerequisites pass
+314 local checks and 21 hidden source-desktop workflows; the existing delivered
+0.10 artifacts above are not rebuilt or relabeled by this follow-up.
+See [runtime pins](architecture/runtime-foundation.md#released-sendbox-021)
+and [native measurements and limitations](architecture/execution-transports.md#released-021-qualification).
 
 ### Historical 0.9.1 checkpoint
 
