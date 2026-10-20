@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm, mkdir, readFile, writeFile, access, readdir } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, readFile, writeFile, access, readdir, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,6 +9,7 @@ import { generatedOAuthServer } from "../tests/fixtures/oauth.ts";
 import { tsImport } from "tsx/esm/api";
 
 const { fixtureProvider } = await tsImport("../tests/fixture.ts", import.meta.url);
+const { createSshTarget } = await tsImport("../tests/fixtures/ssh-target.ts", import.meta.url);
 
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
@@ -33,12 +34,17 @@ assert.ok(rendererAssets.some((path) => /^GhosttyTerminal-.*\.js$/.test(path)));
 const temporary = await mkdtemp(join(tmpdir(), "moguri-packaged-"));
 const oauth = await generatedOAuthServer();
 let modelFixture;
+let ssh;
 let child;
 let timer;
 let exit;
 try {
   modelFixture = await fixtureProvider({ maxOutputTokens: 128, responseMode: "text", replyText: "Generated packaged summary: preserve the retained task, observed outcomes and unresolved work." });
   const preparedModel = await modelFixture.provider.prepare(modelFixture.modelId, AbortSignal.timeout(5000));
+  const sshRoot = join(temporary, "generated-ssh"), remoteRoot = join(temporary, "generated-remote-project");
+  await mkdir(sshRoot, { mode: 0o700 }); await mkdir(remoteRoot, { mode: 0o700 });
+  ssh = await createSshTarget(sshRoot);
+  ssh.target.command = [node, join(root, "bin", "moguri.mjs"), "worker", "--stdio"]; ssh.target.allowCopilot = false;
   const project = join(temporary, "generated-project");
   await mkdir(project);
   await writeFile(join(project, "generated.ts"), "export function packagedSdkKnowledge() { return 'generated'; }");
@@ -55,7 +61,8 @@ try {
       }
     };
     const credentials=new Map();
-    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault:{read:async(id)=>credentials.get(id)??null,write:async(id,value)=>{credentials.set(id,value);},remove:async(id)=>{credentials.delete(id);}},terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}});
+    const vault={read:async(id)=>credentials.get(id)??null,write:async(id,value)=>{credentials.set(id,value);},remove:async(id)=>{credentials.delete(id);}};
+    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}});
     process.send(service.connection);
     const close=async()=>{await service.close();if(process.connected)process.disconnect();};
     process.on("message",async(message)=>{if(message==="close")await close();});
@@ -159,6 +166,25 @@ try {
   await send({ type: "compaction.restore", sessionId: compactor.id, expectedActiveId: proposal.id, expectedSourceDigest: compactionState.sourceDigest, confirm: true });
   assert.equal((await query({ type: "compaction.state", sessionId: compactor.id })).activeId, null);
   assert.equal(modelFixture.requests.length, 4);
+  const remoteSdk = await new MoguriSdk(connection).ready();
+  try {
+    const settings = remoteSdk.settings.get();
+    await remoteSdk.settings.update({ ...settings.values, remote: ssh.target }, settings.revision); await remoteSdk.remote.probe();
+    const configuration = (await remoteSdk.projects.configuration(opened.id)).configuration;
+    await remoteSdk.projects.configure(opened.id, { ...configuration.values, remotePath: await realpath(remoteRoot) }, configuration.revision);
+    const session = await remoteSdk.sessions.create(opened.id, "Generated actual packaged Remote save", { env: "Remote", modelId: null });
+    const plan = await remoteSdk.plans.read(session.id);
+    const text = "Generated actual packaged service/SSH worker plan bytes.\n";
+    const saved = await remoteSdk.plans.save(session.id, text, plan.digest, plan.bindingDigest);
+    assert.equal(await readFile(join(remoteRoot, "docs/plan.md"), "utf8"), text);
+    await assert.rejects(() => readFile(join(project, "docs/plan.md")), { code: "ENOENT" });
+    const artifact = await remoteSdk.artifacts.read(saved.id);
+    assert.equal(artifact.text, text); assert.equal(artifact.artifact.sources[0].boundary.env, "Remote");
+    const operation = (await remoteSdk.plans.saves(session.id)).saves[0];
+    assert.equal(operation.status, "completed"); assert.equal(operation.fileOutcome, "written");
+    assert.equal(remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).usage.length, 0);
+    assert.equal(modelFixture.requests.length, 4);
+  } finally { remoteSdk.disconnect(); }
   const terminal = await send({ type: "terminal.open", sessionId: created.id, cols: 80, rows: 24 });
   const input = await fetch(`${connection.baseUrl}/v1/terminal`, { method: "POST", headers, body: JSON.stringify({ action: "input", terminalId: terminal.id, data: "GENERATED_PACKAGED_PTY_INPUT\n" }) });
   assert.equal(input.status, 200);
@@ -183,7 +209,7 @@ try {
   assert.equal(board.issues[0].title, "Generated packaged SDK ticket");
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker metered compaction generation/review/apply/restore, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction and provider-free pinned SSH plan save with exact independent artifact, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   let confirmed = false;
   try {
@@ -197,8 +223,7 @@ try {
     confirmed = true;
   } finally {
     try { await oauth.close(); } finally {
-      await modelFixture?.close();
-      if (confirmed) await rm(temporary, { recursive: true, force: true });
+      try { await modelFixture?.close(); } finally { await ssh?.close(); if (confirmed) await rm(temporary, { recursive: true, force: true }); }
     }
   }
 }

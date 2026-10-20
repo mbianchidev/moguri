@@ -469,6 +469,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .browser-host > p { font-size: 12px; color: var(--muted); padding: 12px; line-height: 1.8; }
 .plan-panel textarea { flex: 1; min-height: 100px; width: 100%; resize: none; padding: 12px; font: 12px/1.8 ui-monospace, monospace; }
 .plan-panel > p { margin: 0; }
+.plan-panel .path, .plan-panel code, .artifact-panel .path { overflow-wrap: anywhere; }
+.plan-binding, .plan-save-outcome { min-width: 0; font-size: 12px; line-height: 1.65; }
+.plan-binding summary, .plan-save-outcome summary { color: var(--muted); }
+.plan-save-outcome p { margin: 12px 0 0; }
 .changes-panel { min-width: 0; }
 .changes-panel .unified-diff { white-space: pre; max-width: 100%; font-size: 11px; }
 .git-status { font-size: 10px; }

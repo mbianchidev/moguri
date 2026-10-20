@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { DraftEditor, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { useQueueModifier } from "./ChatComposer.tsx";
 
@@ -43,13 +43,17 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
-export function PlanPanel({ sdk, session, workspaceScope, onDirty }: { sdk: MoguriSdk; session: Session; workspaceScope: string; onDirty: (dirty: boolean) => void }) {
+export function PlanPanel({ sdk, session, snapshot, workspaceScope, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; onDirty: (dirty: boolean) => void }) {
   const scope = workspaceScope;
-  const generation = useRef(0);
-  const [plan, setPlan] = useState<{ text: string; digest: string; path: string; scope: string } | null>(null);
+  const generation = useRef(0), currentScope = useRef(scope);
+  currentScope.current = scope;
+  const [plan, setPlan] = useState<({ text: string; digest: string; path: string; scope: string } & Partial<PlanBinding>) | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const save = snapshot.planSaves.findLast((entry) => entry.sessionId === session.id);
+  const execution = snapshot.executions.find((entry) => entry.id === save?.executionId);
   const dirty = plan !== null && text !== plan.text;
   useEffect(() => { onDirty(dirty || saving); return () => onDirty(false); }, [dirty, saving, onDirty]);
   useEffect(() => {
@@ -57,7 +61,15 @@ export function PlanPanel({ sdk, session, workspaceScope, onDirty }: { sdk: Mogu
     window.addEventListener("beforeunload", close);
     return () => window.removeEventListener("beforeunload", close);
   }, [dirty, saving]);
-  const load = async () => { const current = ++generation.current; setError(""); try { const result = await sdk.plans.read(session.id); if (generation.current === current) { setPlan({ ...result, scope }); setText(result.text); } } catch (error) { if (generation.current === current) setError(error instanceof Error ? error.message : "Plan could not be read."); } };
+  const load = async (expectedBinding?: string) => {
+    const current = ++generation.current; setError("");
+    try {
+      const result = await sdk.plans.read(session.id);
+      if (generation.current !== current || currentScope.current !== scope) return;
+      if (expectedBinding && result.bindingDigest !== expectedBinding) { setError("The original save settled, but the workspace changed. Your edit is preserved; reload explicitly before editing another root."); return; }
+      setPlan({ ...result, scope }); setText(result.text);
+    } catch (error) { if (generation.current === current && currentScope.current === scope) setError(error instanceof Error ? error.message : "Plan could not be read."); }
+  };
   useEffect(() => {
     generation.current++;
     if (dirty && plan?.scope !== scope) setError("The bound workspace changed. Your edit is preserved; copy it or explicitly reload before saving into another root.");
@@ -65,17 +77,31 @@ export function PlanPanel({ sdk, session, workspaceScope, onDirty }: { sdk: Mogu
     return () => { generation.current++; };
   }, [scope]);
   const scopeChanged = plan !== null && plan.scope !== scope;
-  const readOnly = scopeChanged || session.controls.env === "Remote" || session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.status === "archived";
-  return <section className="plan-panel"><header className="panel-toolbar"><strong title={plan?.path}>{plan?.path ?? "Plan"}</strong><button className="icon-button" aria-label="Reload plan" title="Reload plan, discarding local edits" disabled={saving} onClick={() => void load()}><Icon name="Down" /></button>
+  const readOnly = scopeChanged || session.controls.env === "Sandbox" || session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.kind === "subagent" || session.status === "archived" ||
+    session.controls.env === "Remote" && (!snapshot.policy.allowedEnvs.includes("Remote") || !snapshot.capabilities.find((capability) => capability.env === "Remote")?.ready || Boolean(session.turnId));
+  return <section className="plan-panel" aria-label="Bound project plan"><header className="panel-toolbar"><strong title={plan?.path}>{plan?.path ?? "Plan"}</strong><button className="icon-button" aria-label="Reload plan" title="Reload plan, discarding local edits" disabled={saving} onClick={() => void load()}><Icon name="Down" /></button>
     <button className="primary" disabled={!dirty || saving || readOnly} onClick={() => {
       if (!plan) return;
       setSaving(true); setError("");
-      void sdk.plans.save(session.id, text, plan.digest).then(() => load()).catch((error: unknown) => setError(error instanceof Error ? error.message : "The plan was not saved; your edit was preserved.")).finally(() => setSaving(false));
+      const capturedScope = scope;
+      void sdk.plans.save(session.id, text, plan.digest, plan.bindingDigest).then(() => {
+        if (currentScope.current !== capturedScope) { setError("The original save settled, but the workspace changed. Your edit is preserved; reload explicitly before editing another root."); return; }
+        return load(plan.bindingDigest);
+      }).catch((error: unknown) => setError(error instanceof Error ? error.message : "The plan was not saved; your edit was preserved.")).finally(() => setSaving(false));
     }}>Save</button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : session.controls.env === "Remote" ? "Remote plan view is read-only. Direct workspace saves are not qualified for SSH yet." : "Question-only session. Plan editing is disabled."}</p>}
+    {plan?.boundary && <details className="plan-binding"><summary>SSH destination and binding</summary><p className="fine-print path">{plan.boundary.root}/{plan.path} / {plan.boundary.hostFingerprint}. Saving uses this exact reviewed binding, not a Local path.</p></details>}
+    {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : session.controls.env === "Remote" && session.mode === "agent" ? "Finish owned work and verify the exact Remote target/policy before saving. No Local fallback." : "Question-only or unavailable workspace. Plan editing is disabled."}</p>}
     <textarea aria-label="Project plan" spellCheck={false} value={text} readOnly={readOnly} disabled={!plan || saving} onChange={(event) => setText(event.target.value)} placeholder={session.controls.env === "Remote" ? "No plan exists in the approved remote workspace." : "No plan yet. Write one here to create it explicitly."} />
-    <p className="fine-print">{saving ? "Saving..." : dirty ? "Unsaved edit" : session.controls.env === "Remote" ? "Read from the approved SSH workspace. Viewing does not retain an artifact." : "Saved snapshots survive session deletion."}</p>
+    <p className="fine-print">{saving ? "Saving exact owned plan. Your edit is preserved until settlement." : dirty ? "Unsaved edit" : session.controls.env === "Remote" ? "Read from the approved SSH workspace. Only explicit saves retain an independent snapshot; no model is called." : "Saved snapshots survive session deletion."}</p>
+    {save && <details className="plan-save-outcome" aria-label="Remote plan save outcome"><summary>Remote save: {save.status}</summary>
+      <p className="fine-print path">Phase: {save.phase}. File: {save.fileOutcome}. Source: {save.root}/{save.path}.</p>
+      <p className="fine-print path">Pinned host: {save.hostFingerprint}. Worker cleanup: {execution?.cleanup === "acknowledged" ? "user inspection acknowledged, not proof" : execution?.cleanup ?? "not confirmed"}. SSH is not sandbox isolation or descendant-containment proof.</p>
+      {save.createdDirectories.length > 0 && <p className="fine-print">Created directories: {save.createdDirectories.join(", ")}. No rollback is implied.</p>}
+      {save.artifactId && <p className="fine-print">Independent retained snapshot: <code>{save.artifactId}</code>. Open it from Artifacts.</p>}
+      {save.diagnostic && <p className="inline-error" role="alert">{save.diagnostic}</p>}
+      {save.status === "running" && <button type="button" disabled={stopping} onClick={() => { setStopping(true); void sdk.plans.stopSave(session.id, save.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Exact save stop was not confirmed.")).finally(() => setStopping(false)); }}>Stop Remote save</button>}
+    </details>}
   </section>;
 }
 export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {

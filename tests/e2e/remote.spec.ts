@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir, realpath, writeFile } from "node:fs/promises";
+import { mkdir, realpath, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
@@ -58,9 +58,16 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await expect(page.locator(".unified-diff")).toContainText("Generated remote-only panel change.");
     await page.getByRole("button", { name: "Plan", exact: true }).click();
     await expect(page.getByLabel("Project plan", { exact: true })).toHaveValue("Generated remote-only desktop plan.\n");
-    await expect(page.getByLabel("Project plan", { exact: true })).toHaveAttribute("readonly", "");
+    await expect(page.getByLabel("Project plan", { exact: true })).not.toHaveAttribute("readonly", "");
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
-    await expect(page.getByText(/Remote plan view is read-only/)).toBeVisible();
+    await page.getByLabel("Project plan", { exact: true }).fill("Generated explicitly saved Remote desktop plan.\n");
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.planSaves.at(-1)?.status).toBe("completed");
+    await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
+    expect(await readFile(join(workspace, "docs/plan.md"), "utf8")).toBe("Generated explicitly saved Remote desktop plan.\n");
+    expect(fixture.requests.length).toBe(1);
+    await page.getByText("Remote save: completed", { exact: true }).click();
+    await expect(page.getByRole("region", { name: "Bound project plan", exact: true })).toContainText("Independent retained snapshot");
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/remote-workspace-plan.png") });
     const otherWorkspace = join(root, "other-remote-workspace");

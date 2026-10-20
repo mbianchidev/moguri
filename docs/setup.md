@@ -356,18 +356,59 @@ Acknowledgement is not proof of cleanup. Unknown owned work blocks new
 admission/deletion; session deletion destroys its transport key only after
 settlement or actual user inspection.
 
-**Files**, **Changes** and read-only **Plan** views now use the actual SSH
+**Files**, **Changes** and **Plan** views use the actual SSH
 workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path in
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-19 worker build on the SSH host and probe it before
-new work; retained protocol-16/17 receipts permit inspection, not continuation.
+Install this exact protocol-20 worker build on the SSH host and probe it before
+new work; retained protocol-16/17/18/19 receipts permit inspection, not continuation.
 
 Remote embedded terminals, executable MCP transport, repository-memory
-retrieval and direct plan saves are not qualified yet and remain blocked.
+retrieval remain blocked. Remote plan saves use an explicit reviewed binding
+and one owned provider-free filesystem operation; they do not use a Local
+project fallback.
 An explicit browser URL still opens a client-side preview; Remote localhost
 ports are never mapped to this Mac or tunneled implicitly.
+
+### Explicit Remote plan editing
+
+Desktop's existing **Plan** editor saves only the reviewed SSH binding and
+expected file digest. Expand **SSH destination and binding** to inspect the
+actual root/peer. **Remote save outcome** exposes phase, actual file/directory
+effects, owned-worker cleanup and retained snapshot; **Stop Remote save**
+targets only that operation. Prompt drafts are independent.
+
+TUI `/plan edit` opens a scoped text editor without a Local file opener. Edit
+the JSON `text` field, then Ctrl+Enter explicitly writes/retains it. Esc discards
+before saving; while pending, Ctrl+C requests the exact save's stop and the
+editor stays preserved until settlement. `/plan saves` and `/plan info ID`
+inspect actual lifecycle; `/plan stop ID` stops one exact operation.
+
+CLI:
+
+```bash
+moguri plan read --session SESSION_ID
+moguri plan save /absolute/generated-plan.md --session SESSION_ID \
+  --digest OBSERVED_SHA_OR_absent --binding REVIEWED_BINDING_SHA
+moguri plan saves --session SESSION_ID
+moguri plan info SAVE_ID --session SESSION_ID
+```
+
+The binding comes from the current Remote plan read. Even two absent files in
+different roots are not interchangeable. Local saves keep the existing
+three-argument SDK/no-binding form. No model, login or tool delegation is needed
+for this manual user action. Session mode, env/folder policy, root leases and
+actual worker qualification still apply.
+
+A save may write bytes before cancellation, scope change, lost acknowledgement
+or retention failure. Partial/unconfirmed errors preserve the edit and actual
+outcome, never imply rollback or authorize replay. Inspect the exact operation
+and actual remote processes before a new explicit save. Real control-plane
+SIGKILL recovery retains the original command intent, and explicit
+reconciliation may retain known written bytes without promoting the original
+partial turn to success. Committed snapshots survive session deletion with
+actual Remote boundary/frame provenance.
 
 ## Project-free chats, suggestions and settings chat
 
@@ -1082,8 +1123,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.13.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.13.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.14.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.14.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
