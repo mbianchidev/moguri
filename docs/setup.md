@@ -1190,9 +1190,9 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.16 source checkpoint
+### Current 0.16 checkpoint
 
-The **0.16.0-alpha.1 / protocol-22** source adds explicit root-bound GitHub
+The **0.16.0-alpha.1 / protocol-22** checkpoint adds explicit root-bound GitHub
 repository metadata and immutable attribution/filtering across SDK, CLI/native
 TUI and desktop. Preview reads Git only; confirmed refresh performs one bounded
 lookup with displayed public or explicit Local CLI access. Source root,
@@ -1211,6 +1211,7 @@ All **448 local checks pass in 327.23 s**, including actual roles/SSH, both
 cancellation boundaries, retention/marker failure, restart without lookup replay,
 profile isolation and configured/unconfigured admission races. All **31**
 hidden source-desktop workflows pass in **1.1 min**, as reported by the runner.
+All **31** workflows against the actual packaged app also pass in **1.1 min**.
 The native TUI's reviewed preview/explicit refresh/state passes without a model.
 Source types/build and audit pass, with zero vulnerabilities. Both bounded
 desktop/compact visual rounds are complete.
@@ -1222,10 +1223,37 @@ retained; no product guard was relaxed.
 
 The pinned CC0-1.0 SPDX metadata dependency was qualified before the feature.
 Model admission never performs a new GitHub lookup or sends metadata to a
-model. Source/consumer artifacts are pending independent qualification at this
-source checkpoint; older qualified archives below remain unchanged.
+model. The exact SDK archive independently passes a fresh script-approved
+install/rebuild/audit, all four external type entrypoints and actual installed
+repository preview/refresh/state, CLI/shared TUI and attributed MCP projections.
+Its snapshot survives source session/project deletion without leaking into a
+different profile. Existing routing, compaction, caps, SSH, artifacts and shared
+foundation gates also pass. Source/consumer audits have zero vulnerabilities.
+
+The actual bundled Node service and owned worker perform a real generated
+repository-attributed model call through the packaged classifier/dataset,
+using only an explicitly selected generated CLI account. Its exact repo/org/
+public-plus-OSI filter resolves the actual reservation, not a renderer proxy.
+Existing packaged MCP, OAuth, compaction, model-free pinned SSH save, PTY,
+branding/Ghostty and weightless speech checks pass. Strict ad-hoc signature/
+assets and real DMG integrity pass.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.16.0-alpha.1-macos-arm64.dmg` | 365633637 | `377f80909a965cb293d72576e5248e1bc64d34de47e2ed368e463f010e6310da` |
+| `Moguri-0.16.0-alpha.1-macos-arm64.zip` | 283041309 | `6211ecfbbbbfb9fdbdab7f128dcc968afad223a118ce249c44ca0578e4ef4334` |
+| `moguri-0.16.0-alpha.1.tgz` | 6667728 | `5af88d82abb19d2006391ebedc153b34b66236162de9f6575f549d6158277681` |
+
+App: `release/0.16.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. The DMG exceeds
+chat's 64 MiB limit and stays local. Artifacts are ad-hoc signed, not
+notarized; no release, tag or merge was created. No repack was used to
+incorporate these final qualification notes; older archives remain unchanged.
 No personal account, paid inference, model weights, microphone or SendBox probe
-was used. See [the exact repository contract](architecture/repository-telemetry.md).
+was used. Known FFI/deprecation, explicit file-package approval, optional
+`.icon` and lazy Ghostty notices remain visible. Remote authenticated CLI,
+consoles/MCP/memory, compound routing/authorized wind-down and decision authority
+remain incomplete; this is not milestone acceptance. Sandbox stays paused.
+See [the exact repository contract](architecture/repository-telemetry.md).
 
 ### Historical 0.15 checkpoint
 
