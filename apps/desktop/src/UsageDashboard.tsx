@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isModelRole, type BudgetBucket, type BudgetQuery, type BudgetResponse, type BudgetTotals, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { dollars } from "./BudgetControls.tsx";
+import { OperationalUsage } from "./OperationalUsage.tsx";
 
 type Result = Extract<BudgetResponse, { type: "budget.dashboard" }>;
 type Filters = Omit<Extract<BudgetQuery, { type: "budget.dashboard" }>, "type">;
@@ -51,6 +52,7 @@ export function UsageDashboard({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Sn
       <details><summary>UTC periods ({result.periods.length})</summary>{result.periods.map((period) => <div className="call-record" key={period.from ?? "unknown"}><strong>{period.from ? `${period.from}${period.to !== period.from ? ` through ${period.to}` : ""}` : "Unverified historical request time"}</strong><span>{period.totals.calls} calls / {tokens(period.totals)} tokens</span><span>{period.totals.estimatedUsd === null ? `${dollars(period.totals.knownEstimatedUsd)} known + unpriced/unreported` : dollars(period.totals.estimatedUsd)} estimated</span></div>)}<p className="fine-print">Calendar boundaries are UTC; edge buckets can be partial. Only periods with recorded calls are listed.</p></details>
       <details><summary>Captured price history ({result.pricing.length})</summary>{result.pricing.map(({ rate, calls }) => <div className="call-record" key={JSON.stringify(rate)}><strong>{snapshot.provider.models.find((model) => model.id === rate.modelId)?.name ?? rate.modelId}</strong><span>{dollars(rate.inputUsdPerMillion)} input / {dollars(rate.outputUsdPerMillion)} output per million tokens</span><small>{rate.effectiveAt} / {rate.source} / {calls} calls</small></div>)}{!result.pricing.length && <p className="fine-print">No captured rates. Missing prices are not free.</p>}<p className="fine-print">Historical user estimates captured at admission, not current vendor prices or invoices. Calls without a captured rate remain unpriced.</p></details>
     </>}
+    <OperationalUsage sdk={sdk} snapshot={snapshot} filters={callFilters} />
     <details><summary>Filters</summary>
       <label className="setting-field">Project<select aria-label="Usage project filter" value={filters.projectId ?? ""} onChange={(event) => choose("projectId", event.target.value || undefined)}><option value="">All / includes removed projects</option>{snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
       <label className="setting-field">Folder<select aria-label="Usage folder filter" value={filters.folderId ?? ""} onChange={(event) => choose("folderId", event.target.value || undefined)}><option value="">All folders</option>{snapshot.projectFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>

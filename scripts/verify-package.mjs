@@ -128,6 +128,15 @@ try {
     assert.ok(approval);
     await sdk.command({ type: "approval.respond", sessionId: general.id, approvalId: approval.id, allow: true });
     assert.equal((await sdk.jobs.wait(called.id, { timeoutMs: 10_000 })).status, "completed");
+    if (PROTOCOL_VERSION >= 21) {
+      const outcomes = await sdk.telemetry.operations({ sessionId: general.id, family: "mcp" });
+      assert.equal(outcomes.totals.completed, 1); assert.equal(outcomes.entries[0].actor, "external");
+      assert.equal(outcomes.entries[0].name, "oauth_echo");
+      assert.equal(Object.hasOwn(outcomes.entries[0], "text"), false);
+      assert.equal(Object.hasOwn(outcomes.entries[0], "arguments"), false);
+      const retained = (await sdk.telemetry.storage()).storage;
+      assert.ok(retained.bytes.total > 0); assert.equal(retained.physicalBytes, null);
+    }
     assert.match((await sdk.mcp.readResult(called.id)).text, /Generated OAuth tool response \[redacted\]/);
     await sdk.mcp.oauthClear("generated-packaged-oauth", general.id);
     assert.equal((await sdk.mcp.auth("generated-packaged-oauth")).state, "required");

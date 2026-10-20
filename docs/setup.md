@@ -984,6 +984,27 @@ filters and bounded pages. Unknown usage, held reservations, estimates and
 unreported bills stay distinct. Other profiles' private ledger rows are never
 combined. Repository/org/visibility filtering awaits its qualified metadata.
 
+**Tool and MCP outcomes** share a separate sanitized, profile-root ledger.
+Ordinary tools and actual MCP attempts are disjoint; discovery/result jobs do
+not inflate counts. Failure rate uses only completed + failed results, with
+denied, stopped, partial, unconfirmed and unknown work visible separately.
+Arguments, command/output/error text and prompts are not retained in this
+ledger. Previously deleted history is unavailable, not zero historical calls.
+User plan saves retain their own explicit control history.
+
+```bash
+node bin/moguri.mjs telemetry operations --filters '{"family":"mcp","range":{"kind":"days","days":30}}'
+node bin/moguri.mjs telemetry storage --profile PROFILE_ID
+```
+
+Native TUI supports `/dashboard operations JSON`, `/dashboard storage` and F7.
+Desktop Dashboard has tool/server/actor groups, sanitized paged history and an
+explicit **Refresh retained size** action. Retained size is current-profile
+key-backed ciphertext, regardless of model/date/project filters. It counts
+event payloads once, encrypted blob grants and encrypted scope keys, not all
+SQLite bytes, repositories, caches or weights. Physical/freed disk and payload
+integrity are not measured. See [the contract](architecture/operation-telemetry.md).
+
 Exhaustion blocks the next chargeable call and retains a diagnostic artifact
 without an extra model. It never claims a Git commit. Full kupo wind-down,
 accepted-work validation/commit and exact billing integration remain separate.
