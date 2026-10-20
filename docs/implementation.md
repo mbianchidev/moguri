@@ -69,6 +69,14 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > step rather than older narration. This does not enable System One/Jev,
 > Autopilot Max, automated steering or a hidden extra model call.
 
+> [Experimental kupo Single](architecture/routing.md) now uses one explicitly
+> approved scoped pool and the existing owned worker, approvals and all-role
+> ledger. It is off by default, requires separate hosted-data consent, records
+> actual router/solver provenance and pauses without fallback on invalid or
+> stale advice. Any finite inherited cap, images or model-specific tuning block
+> this alpha. Cascade, independent critique/revision, candidate application,
+> calibrated thresholds and reserved wind-down remain first-release work.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

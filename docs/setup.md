@@ -66,7 +66,9 @@ The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
 compact icon/name controls rather than separate labeled rows.
 Factory values are Local, unset model, Manual and Unlimited. Current execution
 is Local or explicitly qualified SSH with fixed Copilot/configured local models
-and Unlimited or explicit estimate-based caps. Manual remains default; Guided displays model
+and Unlimited or explicit estimate-based caps. Opt-in kupo Single uses those
+same transports but blocks every finite inherited cap until its wind-down path
+is qualified. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
 command grants and cannot grant itself anything. Autopilot Max is unavailable.
 Unready choices explain the limitation
@@ -145,6 +147,43 @@ creating a session. Inspect **Insights / Startup control sources** or TUI
 `/defaults`. Changing preferences does not rewrite existing/running sessions or
 widen hard policy. Profile startup reset preserves global values. Restoring
 shared global preferences is a separate revision-bound action.
+
+## Experimental kupo Single
+
+In **Settings / kupo Single**, explicitly enable the profile policy, choose one
+discovered classifier, approve up to eight exact solver models and separately
+allow hosted/network task-data transfer if any selected role uses Copilot, a
+non-loopback URL or an unknown endpoint boundary. The configured provider's
+local label is not sufficient. Known loopback-only pools can leave consent off;
+this does not attest what a user-configured proxy does behind that URL.
+Configured-model discovery and inference reject redirects. Saving performs no
+inference and does not select a model. Then explicitly choose **kupo Single
+(alpha)** in the composer. The default remains disabled and no fallback is
+chosen for an invalid plan or unavailable pool.
+
+TUI/CLI share `/kupo status`, `/kupo set POLICY_JSON`, `/kupo history` and
+`/model EXACT_ID` through the SDK; for example, pass the literal reviewed command
+to `moguri slash '/kupo status' --session ID`. Obtain actual canonical IDs from
+`/models`, not invented endpoint names. A policy has `enabled`, `workflow:
+"single"`, `classifierModelId`, `approvedModelIds`, `allowHosted` and
+`minimumConfidence`; the [routing contract](architecture/routing.md) documents
+defaults and every boundary. `/model kupo` explicitly clears prior per-model
+options without starting work. Desktop **Restore kupo defaults**, TUI
+`/settings reset kupo` or `sdk.settings.reset("kupo", revision)` restores the
+disabled policy while preserving history and charges.
+
+The tool-less classifier and selected solver use the same owned worker,
+approvals, env and cumulative ledger. Both calls count, including rejected
+advice; unknown telemetry stays held. **Insights / kupo Single provenance** and
+TUI `/kupo history` expose the actual plan/models; per-call accounting shows
+actual roles. Confidence is model-supplied advice, not a calibrated probability,
+user answer or authority. Stop/restart never replay routing or effects.
+
+This alpha is text-only and requires Unlimited with no finite session, owner,
+profile or global cap. Context/thinking tuning, images, cascade,
+critique/revision, calibrated quality and reserved wind-down/authorized
+checkpoint commits are not qualified. Hard policy can still stop new routed
+calls; it is never removed to enable kupo. Native Sandbox remains unavailable.
 
 ## Isolated profiles
 

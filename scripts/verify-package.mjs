@@ -72,7 +72,7 @@ try {
   const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers });
   const snapshot = await response.json();
   assert.equal(snapshot.sessions.length, 1);
-  assert.equal(snapshot.protocolVersion, 15);
+  assert.equal(snapshot.protocolVersion, 16);
   assert.equal(snapshot.settings.values.appearance.theme, "dark");
   assert.equal((await query({ type: "remote.status" })).remote.ready, false);
   assert.deepEqual(snapshot.sessions[0].controls, { env: "Local", modelId: null, autonomy: "Manual", budget: { kind: "unlimited" } });

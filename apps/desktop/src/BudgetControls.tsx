@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BUDGET_WARNING, type BudgetLimit, type BudgetStatus, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
 export const dollars = (value: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(value);
 const count = (value: number) => new Intl.NumberFormat().format(value);
@@ -66,9 +66,11 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
     } catch (error) { setError(error instanceof Error ? error.message : "Budget was not saved. No cap was silently lifted."); }
     finally { setSaving(false); }
   };
-  const locked = disabled || saving || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
+  const single = scope === "session" && session?.controls.modelId === KUPO_MODEL_ID;
+  const locked = disabled || saving || single || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
   const usdUnavailable = scope === "session" && (!status || !status.rate || status.totals.unpricedCalls > 0);
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
+    {single && <p className="settings-warning">Select a fixed model to set finite session limits. kupo Single wind-down is not qualified. Profile/global caps still apply and block further routed calls; no policy is removed here.</p>}
     <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
     {limited && <><label className="setting-field">Token cap<input aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
       <label className="setting-field">Estimated USD cap<input aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>

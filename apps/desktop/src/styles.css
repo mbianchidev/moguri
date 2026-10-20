@@ -141,6 +141,7 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .message.user .markdown p { margin: 0; }
 .message.tool { border: 1px solid var(--line); padding: 12px; border-radius: 6px; }
 .message.notice { display: block; background: var(--warning-bg); color: var(--warning-text); padding: 12px 14px; border-radius: 4px; }
+.message.notice.info { background: var(--subtle); color: var(--text); }
 .markdown { line-height: 1.8; font-size: 14px; overflow-wrap: anywhere; }
 .markdown p { margin: 0 0 14px; }
 .markdown p:last-child { margin-bottom: 0; }
