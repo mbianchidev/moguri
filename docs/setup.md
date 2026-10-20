@@ -712,9 +712,53 @@ TUI uses `/project-removal preview`, `export ABSOLUTE_PATH`,
 `export-delete PREVIEW_SHA SAVED_EXPORT_SHA confirm-remove`.
 Source repository files, external copies and PRs are not erased.
 
-Work-item/folder document organization and repository `artifacts/`
-materialization/optional commit remain separate first-release work. No
-automatic repository publication is implied.
+Documents can associate with existing profile navigation folders and work items
+from their own project. Associations are revisioned metadata, not filesystem
+authority. The TUI's JSON editor, CLI document/changes JSON and desktop fields
+edit the same SDK values. Retaining a removed project's documents clears their
+work-item link but preserves independent text/history and folder association.
+
+### Reviewed repository artifact copies
+
+The Artifacts panel and project-removal dialog can explicitly copy the complete
+project artifact history, including archived revisions, into
+`artifacts/moguri-SET_SHA.json` in a reviewed Local base/managed root. A normal
+folder need not be a Git repository unless a commit is requested. A new 0600
+file is fsynced and verified without overwriting an existing different copy or
+following destination symlinks. Review sensitive text before storing it in Git.
+These files are user-owned copies, never automatic instructions or model
+context. Remote/Sandbox repository publication is not claimed.
+
+Optional commit creates only the explicitly chosen new non-protected **local**
+branch from the reviewed HEAD. The current checkout, real Git index and
+unrelated staged/unstaged edits stay unchanged. No push, signing or hook/filter
+execution occurs. An existing/racing branch or changed base rejects publication.
+
+```bash
+node bin/moguri.mjs project materialize-preview PROJECT_ID
+node bin/moguri.mjs project materialize-artifacts PROJECT_ID --digest REVIEW_SHA --confirm-write
+node bin/moguri.mjs project materialize-preview PROJECT_ID --workspace WORKSPACE_ID --branch docs/retained-copy
+node bin/moguri.mjs project materialize-artifacts PROJECT_ID --workspace WORKSPACE_ID --branch docs/retained-copy --digest REVIEW_SHA --confirm-write
+node bin/moguri.mjs artifact materialization JOB_ID
+node bin/moguri.mjs artifact stop-materialization JOB_ID
+node bin/moguri.mjs project remove PROJECT_ID --revision OBSERVED_REVISION --confirm-remove --artifacts materialize --digest SET_SHA --materialization-id COMPLETED_JOB_ID
+```
+
+Review digest and artifact-set digest are distinct fields in the preview.
+CLI Ctrl+C requests cancellation and reports the actual partial outcome.
+Shared `/project-removal materialize-preview [WORKSPACE_ID|-] [NEW_BRANCH]`
+and `/project-removal materialize REVIEW_SHA WORKSPACE_ID|- NEW_BRANCH|- confirm-write`
+start the same owned job; `materialization JOB_ID` inspects it,
+`materialize-stop JOB_ID` requests stop, and
+`materialize-delete SET_SHA JOB_ID confirm-remove` chooses verified copies before
+project deletion. Omitted workspace means the explicitly shown base folder,
+not an inferred SSH path. Existing worktrees still need separate clean removal.
+
+Intent and receipt precede effects. Partial/cancelled/interrupted publication
+preserves source grants and quarantines the affected root until inspection.
+Restart never retries a copy or commit. Deletion rechecks a completed receipt,
+current source set, real file digest/private ownership and requested local
+commit; changing/removing the file or branch keeps stored documents intact.
 
 ### Structured questions and actual answers
 
@@ -783,7 +827,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 11 preserves earlier state through transactional
+Protocol/database version 12 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the

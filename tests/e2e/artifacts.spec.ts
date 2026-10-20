@@ -4,6 +4,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop artifacts are qualified on macOS.");
@@ -88,5 +89,64 @@ test("desktop project export must be saved before its reviewed copies can be del
     await expect.poll(() => sdk.getState().snapshot!.projects.length).toBe(0);
     await expect(sdk.artifacts.read(created.id!)).rejects.toThrow(/missing|deleted|outside/);
     expect(await readFile(join(fixture.project, "fixture.txt"), "utf8")).toBe("generated original\n");
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("desktop organizes actual documents and verifies a reviewed local repository commit before project deletion", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const git = initializeGeneratedRepository(fixture.project);
+  git(["config", "user.name", "Generated fixture"]); git(["config", "user.email", "fixture@example.invalid"]);
+  const head = git(["rev-parse", "HEAD"]), index = await readFile(join(fixture.project, ".git/index"));
+  const projectId = fixture.session().projectId, folder = await sdk.projects.folder("Generated evidence folder");
+  const issue = await sdk.issues.create(projectId, { kind: "feature", title: "Generated associated work", body: "", phaseId: "backlog", pullRequestUrl: null });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Retained artifacts" });
+    await panel.getByRole("button", { name: "New artifact", exact: true }).click();
+    await panel.getByLabel("Artifact name", { exact: true }).fill("Generated organized research");
+    await panel.getByLabel("Artifact text", { exact: true }).fill("Generated repository copy with actual folder and work-item provenance.");
+    await panel.getByLabel("Artifact folder", { exact: true }).selectOption(folder.id!);
+    await panel.getByLabel("Artifact work item", { exact: true }).selectOption(issue.id!);
+    await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.artifacts[0]?.workItemId).toBe(issue.id);
+    expect(sdk.getState().snapshot!.artifacts[0]?.folderId).toBe(folder.id);
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.screenshot({ path: resolve(".moguri/artifacts/artifact-organization-desktop.png") });
+    await panel.getByText("Repository copy of project artifacts", { exact: true }).click();
+    const copy = panel.getByRole("region", { name: "Repository artifact copy" });
+    await copy.getByText("Also commit to a new local branch", { exact: true }).click();
+    await copy.getByLabel("Artifact commit branch", { exact: true }).fill("generated/ui-artifact-copy");
+    await copy.getByRole("button", { name: "Review repository copy", exact: true }).click();
+    await expect(copy.getByLabel("Reviewed artifact destination", { exact: true })).toContainText("/artifacts/moguri-");
+    await copy.getByRole("button", { name: "Write and commit reviewed copy", exact: true }).click();
+    await expect(copy).toContainText("Exact repository copy verified");
+    expect(git(["rev-parse", "HEAD"])).toBe(head);
+    expect(await readFile(join(fixture.project, ".git/index"))).toEqual(index);
+    expect(git(["branch", "--list", "generated/ui-artifact-copy"])).toContain("generated/ui-artifact-copy");
+    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Remove", exact: true }).click();
+    const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
+    await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("materialize");
+    await removal.getByText("I understand and confirm this removal.", { exact: true }).click();
+    await expect(removal.getByRole("button", { name: "Delete", exact: true })).toBeDisabled();
+    await removal.getByRole("button", { name: "Review repository copy", exact: true }).click();
+    await page.setViewportSize({ width: 900, height: 740 });
+    await page.screenshot({ path: resolve(".moguri/artifacts/artifact-materialization-compact.png") });
+    await removal.getByRole("button", { name: "Write reviewed repository copy", exact: true }).click();
+    await expect(removal).toContainText("Exact repository copy verified");
+    const publication = sdk.getState().snapshot!.jobs.findLast((job) => job.kind === "project.artifacts.materialize")!;
+    const result = (await sdk.artifacts.materialization(publication.id)).result!;
+    await expect(removal.getByRole("button", { name: "Delete", exact: true })).toBeEnabled();
+    await removal.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.projects.length).toBe(0);
+    expect(sdk.getState().snapshot!.artifacts.length).toBe(0);
+    const persisted = JSON.parse(await readFile(join(result.root, result.path), "utf8"));
+    expect(persisted.documents[0].artifact.workItemId).toBe(issue.id);
+    expect(persisted.documents[0].revisions[0].text).toContain("Generated repository copy");
+    expect(git(["rev-parse", "HEAD"])).toBe(head);
+    expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

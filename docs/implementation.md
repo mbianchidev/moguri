@@ -44,8 +44,10 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > separate first-release work. The independent-artifact slice now adds the five
 > text classes, exact source actors, revisions and reviewed retain/export/delete
 > choices. Structured clarifications now record actual user answers with
-> opt-out independent retention. Delegated decision answers, repository
-> materialization/commit and work-item/folder artifact organization remain open.
+> opt-out independent retention. Folder/work-item associations and reviewed
+> repository history copies with optional new local commits are now wired across
+> clients. Delegated decision answers remain open; no routing or containment
+> qualification is inferred from this artifact slice.
 
 ## Why Moguri
 

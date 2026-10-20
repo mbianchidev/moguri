@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { defaultProjectConfiguration, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
+import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "pr" | "work" | "relocate" | "delete-session" | "remove-project";
@@ -113,10 +115,11 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [artifactPreview, setArtifactPreview] = useState<ProjectArtifactPreview | null>(null), [artifactAction, setArtifactAction] = useState<ProjectArtifactChoice["action"] | "">(""), [exportedDigest, setExportedDigest] = useState("");
+  const [materialized, setMaterialized] = useState<ArtifactMaterialization | null>(null);
   const [previewLoading, setPreviewLoading] = useState(edit.kind === "remove-project");
   const loadArtifacts = async () => {
     if (edit.kind !== "remove-project" || !edit.project) return;
-    setPreviewLoading(true); setError(""); setArtifactAction(""); setExportedDigest("");
+    setPreviewLoading(true); setError(""); setArtifactAction(""); setExportedDigest(""); setMaterialized(null);
     try { setArtifactPreview((await sdk.artifacts.projectPreview(edit.project.id)).preview); }
     catch (error) { setError(error instanceof Error ? error.message : "Artifact impact could not be loaded. Nothing was removed."); }
     finally { setPreviewLoading(false); }
@@ -126,7 +129,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
   const destructive = edit.kind === "delete-session" || edit.kind === "remove-project";
   const currentArtifacts = snapshot.artifacts.filter((artifact) => artifact.projectId === edit.project?.id);
   const staleArtifacts = edit.kind === "remove-project" && (!artifactPreview || currentArtifacts.length !== artifactPreview.artifacts.length || currentArtifacts.some((artifact) => !artifactPreview.artifacts.some((entry) => entry.id === artifact.id && entry.revision === artifact.revision)));
-  const artifactChoiceMissing = edit.kind === "remove-project" && Boolean(artifactPreview?.artifacts.length) && (!artifactAction || artifactAction === "export" && !exportedDigest);
+  const artifactChoiceMissing = edit.kind === "remove-project" && Boolean(artifactPreview?.artifacts.length) && (!artifactAction || artifactAction === "export" && !exportedDigest || artifactAction === "materialize" && (!materialized || materialized.setDigest !== artifactPreview?.digest));
   const titles: Record<EditKind, string> = { rename: "Rename", attach: "Attach session", group: "Session group", "new-group": "New session group", folder: "Project folder", "new-folder": "New project folder", pr: "Session from PR", work: "Session from work item", relocate: "Change attached folder", "delete-session": "Delete session", "remove-project": "Remove project" };
   const submit = async () => {
     setBusy(true); setError("");
@@ -144,7 +147,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
         case "delete-session": if (!confirmed) throw new Error("Confirm deletion first."); await sdk.sessions.delete(edit.session!.id, true); break;
         case "remove-project": {
           if (!confirmed || !configuration || !artifactPreview || staleArtifacts || artifactChoiceMissing) throw new Error("Review the current artifact set and confirm its disposition before removal.");
-          const choice = artifactPreview.artifacts.length && artifactAction ? { action: artifactAction, expectedDigest: artifactPreview.digest, ...(exportedDigest ? { exportedDigest } : {}) } : undefined;
+          const choice = artifactPreview.artifacts.length && artifactAction ? { action: artifactAction, expectedDigest: artifactPreview.digest, ...(exportedDigest ? { exportedDigest } : {}), ...(materialized ? { materializationId: materialized.jobId } : {}) } : undefined;
           await sdk.projects.remove(requiredProject().id, true, configuration.revision, choice); break;
         }
         case "pr": { const result = await sdk.sessions.fromWork(requiredProject().id, { prUrl: value }); await chooseSession(result.id!); break; }
@@ -162,8 +165,8 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
     {destructive ? <><p>{edit.kind === "delete-session" ? "Stops owned work and removes the conversation, drafts and queues. Connected PRs remain open and retained project artifacts survive. Linked children are detached, not deleted." : "Stops this project's owned work and removes its Moguri records and indexes. Choose what happens to independent artifacts. Repository files, external PRs, shared package/model stores and diagnostic audit logs are not deleted. Retained worktrees must be removed separately."}</p>
       {edit.kind === "remove-project" && <section aria-label="Artifact removal impact">{previewLoading ? <p role="status">Loading artifact impact...</p> : artifactPreview && <><p>{artifactPreview.artifacts.length} independent document{artifactPreview.artifacts.length === 1 ? "" : "s"}, including archived copies.</p>
         {artifactPreview.artifacts.length > 0 && <><ul>{artifactPreview.artifacts.map((artifact) => <li key={artifact.id}>{artifact.name} / {artifact.kind} / revision {artifact.revision}</li>)}</ul>
-          <label className="setting-field">Artifact disposition<select aria-label="Artifact disposition" value={artifactAction} disabled={busy || staleArtifacts} onChange={(event) => { const value = event.target.value; if (value === "" || value === "retain" || value === "delete" || value === "export") { setArtifactAction(value); setExportedDigest(""); } }}>
-            <option value="">Choose explicitly</option><option value="retain">Keep as profile documents</option><option value="export">Export to a new file, then delete stored copies</option><option value="delete">Delete retained artifact copies</option></select></label>
+          <label className="setting-field">Artifact disposition<select aria-label="Artifact disposition" value={artifactAction} disabled={busy || staleArtifacts} onChange={(event) => { const value = event.target.value; if (value === "" || value === "retain" || value === "delete" || value === "export" || value === "materialize") { setArtifactAction(value); setExportedDigest(""); setMaterialized(null); } }}>
+            <option value="">Choose explicitly</option><option value="retain">Keep as profile documents</option><option value="export">Export to a new file, then delete stored copies</option><option value="materialize">Copy into repository artifacts/, then delete stored copies</option><option value="delete">Delete retained artifact copies</option></select></label>
           {artifactAction === "export" && <><button type="button" disabled={busy || staleArtifacts} onClick={() => { void (async () => {
             setBusy(true); setError("");
             try {
@@ -174,6 +177,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
             } catch (error) { setError(error instanceof Error ? error.message : "Export was not saved; project copies remain intact."); }
             finally { setBusy(false); }
           })(); }}>Save reviewed export</button><p className="fine-print">{exportedDigest ? "Exact export saved. Deletion still requires your explicit confirmation below." : "Save the exact export to a new file before deleting stored copies."}</p></>}
+          {artifactAction === "materialize" && <ArtifactRepositoryCopy sdk={sdk} snapshot={snapshot} projectId={edit.project!.id} expectedSetDigest={artifactPreview.digest} allowWorkspaces={false} onSaved={setMaterialized} onBusy={setBusy} />}
         </>}
         {staleArtifacts && <p className="settings-warning">The artifact set changed. Reload its impact before choosing.</p>}
       </>}<button type="button" disabled={busy || previewLoading} onClick={() => void loadArtifacts()}>Reload artifact preview</button></section>}
