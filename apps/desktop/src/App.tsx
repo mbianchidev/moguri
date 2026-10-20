@@ -10,6 +10,7 @@ import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
 import { ContextImage } from "./ContextAttachments.tsx";
 import { ArtifactPanel } from "./ArtifactPanel.tsx";
+import { QuestionCard } from "./QuestionCard.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
@@ -64,6 +65,7 @@ export function App({ client }: { client: MoguriClient }) {
   useEffect(() => () => { for (const editor of editors.current.values()) editor.dispose(); }, []);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
+  const pendingQuestion = snapshot?.questions.find((question) => question.id === session?.pendingQuestionId && question.status === "open");
   const copilot = snapshot?.provider.connections?.find((connection) => connection.id === "github-copilot") ?? snapshot?.provider;
   const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
@@ -229,6 +231,7 @@ export function App({ client }: { client: MoguriClient }) {
         </div> :
         <>
           <Timeline session={session} run={run} client={client} />
+          {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} />}
           {session.kind === "metachat" && snapshot && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
           {session.pendingApproval && <section className="approval" aria-label="Tool approval">
             <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>

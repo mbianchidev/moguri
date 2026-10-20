@@ -4,6 +4,10 @@ import { Icon } from "./Icon.tsx";
 
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status });
+const sourceLabel = (artifact: RetainedArtifact) => {
+  if (artifact.origin === "question") return artifact.sources.at(-1)?.actor === "user" ? "Actual user answer; the model question is context, not permission." : "Automated answer, not a human instruction.";
+  return artifact.origin === "manual" ? "User-entered text, not verified authorship" : artifact.sources.some((source) => source.actor === "model") ? "Model output, not a human answer" : artifact.sources.some((source) => source.actor === "user") ? "Canonical user message" : "Source authorship unknown";
+};
 export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDirty, onRequestHandled }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; projectId: string | null; request: ArtifactEditorRequest | null; onDirty: (dirty: boolean) => void; onRequestHandled: () => void;
 }) {
@@ -62,7 +66,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
         <label className="setting-field">Scope<select aria-label="Artifact scope" value={draft.projectId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, projectId: event.target.value || null, sessionId: null })}><option value="">Profile / no project</option>{draft.projectId && !snapshot.projects.some((project) => project.id === draft.projectId) && <option value={draft.projectId}>Former project / unavailable</option>}{snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></> :
         <p className="fine-print">{draft.kind.replace("-", " ")} / {draft.projectId ? snapshot.projects.find((project) => project.id === draft.projectId)?.name ?? "Former project" : "Profile"} / revision {draft.revision}{current?.status === "archived" ? " / archived" : ""}</p>}
       <label className="setting-field">Name<input aria-label="Artifact name" value={draft.name} maxLength={160} disabled={busy} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
-      {current && <p className="fine-print">{current.origin === "manual" ? "User-entered text, not verified authorship" : current.sources.some((source) => source.actor === "model") ? "Model output, not a human answer" : current.sources.some((source) => source.actor === "user") ? "Canonical user message" : "Source authorship unknown"}{current.edited ? " / explicitly edited" : ""}</p>}
+      {current && <p className="fine-print">{sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
       <label className="setting-field">Text<textarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
       {conflict && <p className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</p>}
       <div className="button-row"><button className="primary" disabled={busy || !draft.name.trim() || conflict || Boolean(draft.id) && !dirty} onClick={() => void run(save)}>Save artifact</button>

@@ -57,6 +57,10 @@ svg { flex-shrink: 0; }
 .artifact-panel .artifact-editor { min-height: 180px; padding: 9px; line-height: 1.6; }
 .artifact-panel pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .artifact-history { display: flex; flex-direction: column; align-items: start; gap: 6px; margin-top: 8px; }
+.user-question { margin: 12px 24px; padding: 16px; border: 1px solid var(--control-line); border-radius: 6px; background: var(--surface); max-height: min(250px, 34vh); overflow: auto; flex-shrink: 0; }
+.user-question h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 15px; }
+.user-question .question-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 220px; overflow: auto; line-height: 1.65; }
+.user-question .button-row button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .muted, .fine-print { color: var(--muted); }
 .fine-print { font-size: 12px; line-height: 1.65; }
 .inline-error, .draft-error { color: var(--danger); font-size: 12px; line-height: 1.5; }

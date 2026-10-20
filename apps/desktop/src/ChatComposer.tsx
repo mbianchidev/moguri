@@ -42,8 +42,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const attachmentTrigger = isSlash ? null : parseAttachmentTrigger(draft.text);
   const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
   const held = heldModifier && !isSlash;
+  const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
+  const answering = Boolean(question && delivery === "queue" && !isSlash);
   const canQueue = connected && !busy && !configuring && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
-  const canSend = canQueue && snapshot.provider.status === "connected" && eligibleModel && snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && (delivery === "queue" || Boolean(session.turnId));
+  const canSend = answering ? canQueue && Boolean(draft.text.trim()) && Boolean(question?.allowFreeform || question?.choices.includes(draft.text)) :
+    canQueue && snapshot.provider.status === "connected" && eligibleModel && snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && (delivery === "queue" || Boolean(session.turnId));
   const suggestions = isSlash && !/\s/.test(draft.text) ? slashCommands.filter((command) => command.name.startsWith(draft.text.slice(1))).slice(0, 7) : [];
   useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null); return () => onMenuChange(false); }, [menu, attachmentReview, onMenuChange]);
   const adopt = async (saved: Session["draft"]) => {
@@ -63,7 +66,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   });
   const send = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
-    void run(() => isSlash ? onSlash(session, editor, draft.text) : editor.send(hold ? "queue" : delivery, hold));
+    void run(async () => {
+      if (isSlash) return onSlash(session, editor, draft.text);
+      if (answering && question && !hold) { await editor.flush(); return client.questions.answerDraft(question.id, question.revision); }
+      return editor.send(hold ? "queue" : delivery, hold);
+    });
   };
   const dictate = () => run(async () => {
     await editor.flush();
@@ -81,16 +88,17 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const chooseAttachmentTrigger = () => { if (attachmentTrigger) { setPendingTrigger(attachmentTrigger); setMenu("attach"); } };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
-  const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
+  const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? "Unlimited" : "Configured cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
-  return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description="Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now.">
+  return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description={answering ? "Cmd/Ctrl+Enter queues without answering. Shift+Cmd/Ctrl+Enter answers the actual question." : "Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now."}>
     {session.controls.modelId && !model && <button type="button" className="setup-hint" onClick={onConnect}>Saved model {session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.<Icon name="Down" /></button>}
     {model && !eligibleModel && <button type="button" className="setup-hint" onClick={() => setMenu("model")}>This saved model is not available in {session.controls.env}. Choose a compatible model explicitly.<Icon name="Down" /></button>}
-    {requiresImages && model && !model.imageInput && <p className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</p>}
+    {requiresImages && model && !model.imageInput && !answering && <p className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</p>}
+    {answering && draft.attachments.length > 0 && <p className="composer-context-warning" role="status">Answers consume only text. Attached context stays saved.</p>}
     {session.localFinishing && <p className="local-finishing">Local finishing. New Local turns are blocked by policy.</p>}
     {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>{attachment.kind === "image" ? <ContextImage sdk={client} sessionId={session.id} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "Files"} />}{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
-    <textarea id={`prompt-${session.id}`} placeholder={session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
+    <textarea id={`prompt-${session.id}`} placeholder={answering ? question?.allowFreeform ? "Type your answer..." : "Choose one of the offered answers above..." : session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
       onPaste={(event) => {
         const files = Array.from(event.clipboardData.files); if (!files.length) return;
         event.preventDefault();
@@ -125,7 +133,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         <div className="composer-send-group">
           <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} title={held ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={isSlash || held ? !canQueue : !canSend} onClick={(event) => { event.preventDefault(); send(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held ? "Clock" : "Send"} /></button>
           <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
-            <h2>Delivery</h2>{(["queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "queue" ? session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}<p>Cmd/Ctrl+Enter always holds the prompt instead.</p>
+            <h2>Delivery</h2>{(["queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}<p>Cmd/Ctrl+Enter always holds the prompt instead.</p>
           </ComposerPopover>
         </div>
       </div>

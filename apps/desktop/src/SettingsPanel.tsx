@@ -154,7 +154,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <label className="check-setting"><input type="checkbox" checked={draft.retention.deleteArchived} onChange={(event) => change("retention", { ...draft.retention, deleteArchived: event.target.checked })} />Automatically delete archived sessions after the configured age</label>
           <label className="setting-field">Days<input aria-label="Archived retention days" type="number" min={1} max={3650} value={draft.retention.afterDays} onChange={(event) => change("retention", { ...draft.retention, afterDays: Number(event.target.value) })} /></label>
           <p className="settings-warning">Save explicitly to delegate deletion. Unconfirmed processes block cleanup. This does not erase external backups or close a PR.</p>
-          <button disabled={!snapshot.settings.values.retention.deleteArchived} onClick={() => void run(() => sdk.command({ type: "retention.run" }))}>Run configured cleanup</button></>}
+          <button disabled={!snapshot.settings.values.retention.deleteArchived} onClick={() => void run(() => sdk.command({ type: "retention.run" }))}>Run configured cleanup</button>
+          <h3>Structured answers</h3><label className="check-setting"><input type="checkbox" checked={draft.artifacts.retainAnswers} onChange={(event) => change("artifacts", { retainAnswers: event.target.checked })} />Retain actual answers as independent artifacts</label>
+          <p className="fine-print">On by default. Source question/answer events remain canonical; model or delegated answers never become user instructions or tool permission.</p>
+          <button onClick={() => void run(() => sdk.settings.reset("artifacts", snapshot.settings.revision))}>Restore answer-retention default</button></>}
         {tab === "cache" && <DependencyCachePanel key={`${project?.id}-${session?.workspaceId}`} sdk={sdk} project={project} workspaceId={session?.projectId === project?.id ? session?.workspaceId ?? undefined : undefined} />}
         {error && <div className="notice error" role="alert"><span>{error}</span><button onClick={reload}>Reload current settings</button></div>}
         {session?.pendingApproval && <p className="settings-warning">The main session needs an approval. <button className="quiet" onClick={onBack}>Review exact action</button></p>}

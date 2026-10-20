@@ -1,0 +1,52 @@
+import { _electron as electron, expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { mkdir } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { setupFixture } from "../fixture.ts";
+
+const require = createRequire(import.meta.url);
+test.skip(process.platform !== "darwin", "Native desktop questions are qualified on macOS.");
+test("desktop keeps queue-only shortcuts distinct from actual user answers and retains provenance", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure(); await fixture.send("generated structured question");
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    const card = page.getByRole("region", { name: "User question", exact: true }), prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
+    await expect(card).toContainText("Choose a generated fixture approach?");
+    await expect(page.getByRole("region", { name: "Tool approval" })).toHaveCount(0);
+    const question = sdk.getState().snapshot!.questions[0]!;
+    await prompt.fill("Generated deliberately held followup.");
+    await prompt.press("Meta+Enter");
+    await expect.poll(() => sdk.getState().snapshot!.sessions[0]?.queue[0]?.held).toBe(true);
+    expect(sdk.getState().snapshot!.questions[0]?.status).toBe("open");
+    await prompt.fill("Generated real desktop answer.");
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.screenshot({ path: resolve(".moguri/artifacts/structured-question-desktop.png") });
+    await page.setViewportSize({ width: 900, height: 740 });
+    await page.screenshot({ path: resolve(".moguri/artifacts/structured-question-compact.png") });
+    await page.getByRole("button", { name: "Answer question", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.questions.find((value) => value.id === question.id)?.answer?.actor).toBe("user");
+    await fixture.terminal();
+    expect(sdk.getState().snapshot!.sessions[0]?.draft.text).toBe("");
+    expect(sdk.getState().snapshot!.sessions[0]?.queue[0]?.held).toBe(true);
+    const artifact = sdk.getState().snapshot!.artifacts.find((artifact) => artifact.questionId === question.id)!;
+    expect(artifact.sources.map((source) => source.actor)).toEqual(["model", "user"]);
+    expect((await sdk.artifacts.read(artifact.id)).text).toContain("Generated real desktop answer.");
+    await fixture.send("generated structured question choices only");
+    await expect.poll(() => sdk.getState().snapshot!.questions.filter((value) => value.id !== question.id && value.status === "open").length).toBe(1);
+    const second = sdk.getState().snapshot!.questions.find((value) => value.id !== question.id && value.status === "open")!;
+    await expect(card).toBeVisible();
+    await prompt.fill("Generated unrelated saved draft.");
+    await expect.poll(() => sdk.getState().snapshot!.sessions[0]?.draft.text).toBe("Generated unrelated saved draft.");
+    await card.getByRole("button", { name: "Generated second choice", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.questions.find((value) => value.id === second.id)?.answer?.text).toBe("Generated second choice");
+    await fixture.terminal();
+    expect(sdk.getState().snapshot!.sessions[0]?.draft.text).toBe("Generated unrelated saved draft.");
+    expect(sdk.getState().snapshot!.questions.find((value) => value.id === second.id)?.answer?.text).toBe("Generated second choice");
+    expect(sdk.getState().snapshot!.settings.values.permissions.tools).toEqual([]);
+    expect(failures).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});

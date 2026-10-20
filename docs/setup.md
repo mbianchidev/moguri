@@ -712,9 +712,39 @@ TUI uses `/project-removal preview`, `export ABSOLUTE_PATH`,
 `export-delete PREVIEW_SHA SAVED_EXPORT_SHA confirm-remove`.
 Source repository files, external copies and PRs are not erased.
 
-Structured-question events/automatic answer capture, work-item/folder document
-organization and repository `artifacts/` materialization/optional commit remain
-separate first-release work. No automatic repository publication is implied.
+Work-item/folder document organization and repository `artifacts/`
+materialization/optional commit remain separate first-release work. No
+automatic repository publication is implied.
+
+### Structured questions and actual answers
+
+The model's `ask_user` tool creates a real typed question with optional choices.
+This is distinct from a heuristic question badge. Desktop shows the exact
+question and offered answers; freeform input uses the existing saved composer,
+whose primary **Answer question** action atomically consumes only its text.
+Choosing an offered answer preserves unrelated draft text. In TUI, **F6**
+opens actual choices; Shift+Cmd/Ctrl+Enter answers from saved composer text.
+**Cmd/Ctrl+Enter always holds a queued prompt instead**, including while a
+question is waiting. `/question` inspects the actual pending state; explicit
+`/question answer ID REV TEXT` is also shared by all clients.
+
+```bash
+node bin/moguri.mjs question list
+node bin/moguri.mjs question read QUESTION_ID
+node bin/moguri.mjs question answer QUESTION_ID answer.txt --revision OBSERVED_REVISION
+node bin/moguri.mjs question answer-draft QUESTION_ID --revision OBSERVED_REVISION
+```
+
+Only the actual user endpoint records actor `user`. A model question or answer
+cannot grant tool/Git permission, change policy or become Core memory.
+Never supply credentials in an answer; use connection settings. A stale,
+cancelled or interrupted question rejects input rather than attaching it to a
+new turn. Stop/restart cancels the wait without replay or an invented answer.
+**Settings / Retention / Structured answers** can opt out of automatic
+independent answer artifacts; it defaults on. Answer event, artifact, optional
+draft clearing and receipt are one transaction. Source actors and text remain
+distinct after edits and session deletion. Automated decision-provider answers
+are still unavailable, not mislabeled as human answers.
 
 ## TUI shortcuts
 
@@ -753,7 +783,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 10 preserves earlier state through transactional
+Protocol/database version 11 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
