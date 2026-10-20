@@ -6,6 +6,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { generatedOAuthServer } from "../tests/fixtures/oauth.ts";
+import { tsImport } from "tsx/esm/api";
+
+const { fixtureProvider } = await tsImport("../tests/fixture.ts", import.meta.url);
 
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
@@ -29,20 +32,27 @@ assert.ok(rendererAssets.some((path) => /^ghostty-vt-.*\.wasm$/.test(path)));
 assert.ok(rendererAssets.some((path) => /^GhosttyTerminal-.*\.js$/.test(path)));
 const temporary = await mkdtemp(join(tmpdir(), "moguri-packaged-"));
 const oauth = await generatedOAuthServer();
+let modelFixture;
 let child;
 let timer;
 let exit;
 try {
+  modelFixture = await fixtureProvider({ maxOutputTokens: 128, responseMode: "text", replyText: "Generated packaged summary: preserve the retained task, observed outcomes and unresolved work." });
+  const preparedModel = await modelFixture.provider.prepare(modelFixture.modelId, AbortSignal.timeout(5000));
   const project = join(temporary, "generated-project");
   await mkdir(project);
   await writeFile(join(project, "generated.ts"), "export function packagedSdkKnowledge() { return 'generated'; }");
   const source = `
     import {createRuntime} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
     const provider={
-      state:{status:"disconnected",models:[],login:null,diagnostic:null},
+      state:${JSON.stringify(modelFixture.provider.state)},
       onChange:()=>{},refresh:async()=>provider.onChange(),
       login:()=>{throw new Error("No live authorization in package verification")},
-      cancel:async()=>{},logout:async()=>{},prepare:async()=>{throw new Error("No paid inference in package verification")}
+      cancel:async()=>{},logout:async()=>{},prepare:async(id)=>{
+        const prepared=${JSON.stringify(preparedModel)};
+        if(id!==prepared.model.id)throw new Error("Unknown generated packaged model; no provider fallback");
+        return prepared;
+      }
     };
     const credentials=new Map();
     const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault:{read:async(id)=>credentials.get(id)??null,write:async(id,value)=>{credentials.set(id,value);},remove:async(id)=>{credentials.delete(id);}},terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}});
@@ -115,6 +125,40 @@ try {
     await sdk.mcp.oauthClear("generated-packaged-oauth", general.id);
     assert.equal((await sdk.mcp.auth("generated-packaged-oauth")).state, "required");
   } finally { sdk.disconnect(); }
+  const compactor = await send({ type: "session.create", title: "Generated packaged compaction", overrides: { modelId: modelFixture.modelId } });
+  const currentSnapshot = async () => (await fetch(`${connection.baseUrl}/v1/snapshot`, { headers })).json();
+  for (let turn = 0; turn < 3; turn++) {
+    const session = (await currentSnapshot()).sessions.find((value) => value.id === compactor.id);
+    await send({ type: "draft.save", sessionId: compactor.id, expectedRevision: session.draft.revision, text: `Generated packaged turn ${turn}. ` + "Generated retained packaged context. ".repeat(100), attachments: [] });
+    await send({ type: "message.send", sessionId: compactor.id, expectedRevision: session.draft.revision + 1, delivery: "queue" });
+    let outcome;
+    for (let index = 0; index < 400; index++) {
+      outcome = (await currentSnapshot()).sessions.find((value) => value.id === compactor.id);
+      if (!outcome.turnId) break;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(outcome.status, "completed");
+  }
+  const compactionPreview = (await query({ type: "compaction.preview", sessionId: compactor.id, keepRecentTurns: 1 })).preview;
+  const requested = await send({ type: "compaction.generate", sessionId: compactor.id, modelId: compactionPreview.modelId, keepRecentTurns: 1, expectedDigest: compactionPreview.digest, confirmCost: true });
+  let compactionState, proposal;
+  for (let index = 0; index < 400; index++) {
+    compactionState = await query({ type: "compaction.state", sessionId: compactor.id });
+    proposal = compactionState.compactions.find((value) => value.id === requested.id);
+    if (proposal && proposal.status !== "running") break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.equal(proposal.status, "proposed");
+  assert.match((await query({ type: "compaction.read", sessionId: compactor.id, compactionId: proposal.id })).text, /Generated packaged summary/);
+  await send({ type: "compaction.apply", sessionId: compactor.id, compactionId: proposal.id, expectedRevision: proposal.revision });
+  compactionState = await query({ type: "compaction.state", sessionId: compactor.id });
+  assert.equal(compactionState.activeId, proposal.id);
+  assert.ok(compactionState.estimatedTokens < compactionState.originalEstimatedTokens);
+  const calls = (await query({ type: "budget.calls", sessionId: compactor.id, role: "compaction" })).calls;
+  assert.equal(calls.length, 1); assert.equal(calls[0].reportedTokens, 42);
+  await send({ type: "compaction.restore", sessionId: compactor.id, expectedActiveId: proposal.id, expectedSourceDigest: compactionState.sourceDigest, confirm: true });
+  assert.equal((await query({ type: "compaction.state", sessionId: compactor.id })).activeId, null);
+  assert.equal(modelFixture.requests.length, 4);
   const terminal = await send({ type: "terminal.open", sessionId: created.id, cols: 80, rows: 24 });
   const input = await fetch(`${connection.baseUrl}/v1/terminal`, { method: "POST", headers, body: JSON.stringify({ action: "input", terminalId: terminal.id, data: "GENERATED_PACKAGED_PTY_INPUT\n" }) });
   assert.equal(input.status, 200);
@@ -139,15 +183,22 @@ try {
   assert.equal(board.issues[0].title, "Generated packaged SDK ticket");
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker metered compaction generation/review/apply/restore, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
-  clearTimeout(timer);
-  if (child && child.exitCode === null) {
-    if (child.connected) child.send("close"); else child.kill("SIGTERM");
-    try {
-      await Promise.race([exit, new Promise((_, reject) => { timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error(`Packaged cleanup was not acknowledged; generated diagnostics retained at ${temporary}.`)); }, 6500); })]);
-    } finally { clearTimeout(timer); }
+  let confirmed = false;
+  try {
+    clearTimeout(timer);
+    if (child && child.exitCode === null) {
+      if (child.connected) child.send("close"); else child.kill("SIGTERM");
+      try {
+        await Promise.race([exit, new Promise((_, reject) => { timer = setTimeout(() => { child.kill("SIGTERM"); reject(new Error(`Packaged cleanup was not acknowledged; generated diagnostics retained at ${temporary}.`)); }, 6500); })]);
+      } finally { clearTimeout(timer); }
+    }
+    confirmed = true;
+  } finally {
+    try { await oauth.close(); } finally {
+      await modelFixture?.close();
+      if (confirmed) await rm(temporary, { recursive: true, force: true });
+    }
   }
-  await oauth.close();
-  await rm(temporary, { recursive: true, force: true });
 }
