@@ -993,8 +993,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.9.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.9.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.9.1-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.9.1-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -1009,7 +1009,30 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-The current **0.9.0-alpha.1 / protocol-15** development artifacts pass strict
+The current **0.9.1-alpha.1 / protocol-15** ownership-fix artifacts pass strict
+signature/runtime/DMG verification, **262 full local checks** and all
+**20 hidden workflows against the actual packaged app** (**45.2 s**).
+The exact delivered SDK archive independently passes a fresh approved
+install/rebuild/audit and compiled-model/profile/Guided/platform exchanges,
+with zero audit findings.
+
+This fixes a reproduced cross-profile Remote writer race: Local mappings or
+profile/target aliases cannot admit two writers to the same captured pinned
+SSH peer/canonical root. Existing execution data keeps failed-root quarantine
+through unloaded-profile restart. Pending read-only changes retain the writer;
+actual acknowledgement releases it and wakes another profile. Distinct SSH
+roots stay independent. No new durable schema, account backend, native VM,
+live decision provider or SSH containment guarantee is introduced.
+
+| Development artifact | SHA-256 |
+| --- | --- |
+| `Moguri-0.9.1-alpha.1-macos-arm64.dmg` | `3641ec0977ad7a7d21940d7fb816990936aa52ca38308acf5194dd843e83de03` |
+| `Moguri-0.9.1-alpha.1-macos-arm64.zip` | `0478421518611807c81212e8eca74fbf73b2336db00b8b672746871c53f15e23` |
+| `moguri-0.9.1-alpha.1.tgz` | `7c7de003cd5d92128b2ff8765845cb3e08243b9d75f94cde752c0be44773fa70` |
+
+### Historical 0.9 checkpoint
+
+The unchanged **0.9.0-alpha.1 / protocol-15** development artifacts pass strict
 ad-hoc signature/runtime verification, **247 full local checks** and all
 **20 hidden workflows against the actual packaged app** (**45.3 s**).
 The exact delivered SDK archive passes a fresh approved install/rebuild/audit
@@ -1025,6 +1048,8 @@ The generated System One prototype separately proves bounded wire/failure
 handling, including rejection of finite-token admission because the documented
 API has no output-token-limit field. No real decision provider was called.
 The app is ad-hoc signed only, not notarized or the completed first milestone.
+The later shared-SSH-root ownership defect affects 0.8/0.9 profile mappings;
+prefer 0.9.1 or newer when profiles can target the same Remote workspace.
 
 | Development artifact | SHA-256 |
 | --- | --- |
