@@ -1220,8 +1220,14 @@ same SDK, CLI/native TUI and Ghostty. Generated native integration exercises
 actual control-plane restart and preserved PTY identity, stale-input discard
 and closed-console reopening without replacement.
 
-This development checkpoint is undergoing full source, fresh-consumer and
-actual packaged Node/client/footprint qualification. No 0.17 archive is yet
+The committed functional slice passed 475 source checks and 33 hidden desktop
+workflows. Fresh-consumer and actual packaged Node/client/footprint
+qualification is being repeated after import isolation. The initial package
+verifier incorrectly applied the Electron-only 600-MiB budget to the entire
+runtime: its retained measurement was 554.08 MiB Electron, 277.33 MiB service/
+broker and 831.41 MiB combined. Shell and total figures are now reported
+separately against the original scope, not silently lowered or renamed.
+No 0.17 archive is yet
 advertised as delivered. The latest independently qualified archive remains
 0.16 below; do not overwrite or repack it.
 

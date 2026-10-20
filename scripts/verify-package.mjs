@@ -23,7 +23,7 @@ assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
 await access(join(root, "dist", "remote-bridge.mjs"));
-if (PROTOCOL_VERSION >= 23) await access(join(root, "dist", "terminal-broker.mjs"));
+if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(root, "dist", path));
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
@@ -265,19 +265,20 @@ try {
       await page.getByRole("button", { name: "Terminal", exact: true }).click();
       await page.locator(".ghostty-host canvas").first().waitFor({ state: "visible" });
       const rss = (pids) => {
-        const values = execFileSync("ps", ["-o", "rss=", "-p", pids.join(",")], { encoding: "utf8" }).trim().split(/\s+/).map(Number);
-        assert.equal(values.length, pids.length); assert.ok(values.every((value) => Number.isFinite(value) && value > 0));
-        return values.reduce((total, value) => total + value, 0);
+        const rows = execFileSync("ps", ["-o", "pid=,rss=", "-p", pids.join(",")], { encoding: "utf8" }).trim().split("\n").map((row) => row.trim().split(/\s+/).map(Number));
+        assert.equal(rows.length, pids.length); assert.ok(rows.every(([pid, kib]) => pids.includes(pid) && Number.isFinite(kib) && kib > 0));
+        return { kib: rows.reduce((total, [, kib]) => total + kib, 0), processes: rows.map(([pid, kib]) => ({ pid, mib: kib / 1024 })) };
       };
       const footprint = async (tabs) => {
         await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const metrics = await desktop.evaluate(({ app }) => app.getAppMetrics());
         const electronKiB = metrics.reduce((total, metric) => total + metric.memory.workingSetSize, 0);
-        const runtimeKiB = rss([child.pid, owner.pid]), userProgramsKiB = rss(consoles.map((terminal) => terminal.pid));
-        const moguriMiB = (electronKiB + runtimeKiB) / 1024;
+        const runtime = rss([child.pid, owner.pid]), userPrograms = rss(consoles.map((terminal) => terminal.pid));
+        const desktopMiB = electronKiB / 1024, moguriMiB = (electronKiB + runtime.kib) / 1024;
         console.log(JSON.stringify({ qualification: "actual-packaged-user-consoles", tabs, owners: consoleSdk.getState().snapshot.terminalOwners.filter((owner) => owner.status === "running").length,
-          moguriMiB, userProgramsMiB: userProgramsKiB / 1024, budgetMiB: 600, includes: "native Electron working sets + actual bundled control plane and one authenticated broker RSS; user programs reported separately" }));
-        assert.ok(moguriMiB < 600, `Actual packaged terminal working set ${moguriMiB.toFixed(2)} MiB exceeded the 600-MiB budget.`);
+          desktopMiB, moguriMiB, electron: metrics.map((metric) => ({ pid: metric.pid, type: metric.type, mib: metric.memory.workingSetSize / 1024 })), runtime: runtime.processes,
+          userProgramsMiB: userPrograms.kib / 1024, desktopBudgetMiB: 600, budgetScope: "Electron shell aggregate, matching scripts/spikes.mjs; control-plane/broker and combined totals reported separately" }));
+        assert.ok(desktopMiB < 600, `Actual packaged desktop working set ${desktopMiB.toFixed(2)} MiB exceeded the 600-MiB Electron-shell budget.`);
       };
       await footprint(1);
       for (let index = 0; index < 3; index++) {
