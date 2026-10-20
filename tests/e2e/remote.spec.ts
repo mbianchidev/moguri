@@ -43,6 +43,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.getByRole("dialog", { name: "Execution environment", exact: true }).getByRole("button", { name: /^Remote Verified SSH/ }).click();
     await expect.poll(() => fixture.session().controls.env).toBe("Remote");
     expect(fixture.session().controls.modelId).toBe(fixture.modelId);
+    await expect(page.getByText("Remote execution", { exact: true })).toBeVisible();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated desktop remote answer.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
