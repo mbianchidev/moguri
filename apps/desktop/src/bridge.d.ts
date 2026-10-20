@@ -2,6 +2,7 @@ import type { ArtifactExport, Connection } from "../../../packages/protocol/src/
 
 export interface DesktopBridge {
   connection(): Promise<Connection>;
+  profile(profileId?: string): Promise<string>;
   chooseProject(): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder"): Promise<string | null>;
@@ -10,6 +11,6 @@ export interface DesktopBridge {
   copyText(text: string): Promise<void>;
   saveDocument(document: ArtifactExport): Promise<{ path: string; digest: string } | null>;
   preview(input: { sessionId: string; url: string; bounds: { x: number; y: number; width: number; height: number } } | null): Promise<void>;
-  onNavigateSession(listener: (sessionId: string) => void): () => void;
+  onNavigateSession(listener: (sessionId: string, profileId: string) => void): () => void;
 }
 declare global { interface Window { moguri: DesktopBridge } }

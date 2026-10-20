@@ -26,7 +26,7 @@ export function BudgetSummary({ status }: { status: BudgetStatus }) {
       <dt>Remaining estimated USD</dt><dd>{status.remainingUsd === null ? cappedUsd ? "Unknown / blocked" : "Unlimited" : dollars(status.remainingUsd)}</dd>
       <dt>Provider / billed USD</dt><dd>Not reported</dd></dl>
     {status.ownerSessionId !== status.sessionId && <p className="fine-print">Charged to owning session {status.ownerSessionId}, including its other model-created legs.</p>}
-    {status.limits.map((limit) => <p className="fine-print" key={limit.scope}>{limit.scope === "profile" ? "Profile hard cap" : "Session cap"}: {limit.tokens === null ? "no token cap" : `${count(limit.tokens)} tokens`}; {limit.usd === null ? "no USD cap" : `${dollars(limit.usd)} estimated`}.</p>)}
+    {status.limits.map((limit) => <p className="fine-print" key={limit.scope}>{limit.scope === "global" ? "Global hard cap" : limit.scope === "profile" ? "Profile hard cap" : "Session cap"}: {limit.tokens === null ? "no token cap" : `${count(limit.tokens)} tokens`}; {limit.usd === null ? "no USD cap" : `${dollars(limit.usd)} estimated`}.</p>)}
     {status.diagnostics.map((diagnostic) => <p className="settings-warning" key={diagnostic}>{diagnostic}</p>)}
     <p className="fine-print">Estimates are not a billing guarantee. Missing completion keeps reservations held. Resume, deletion and model changes do not reset this ledger.</p>
   </section>;

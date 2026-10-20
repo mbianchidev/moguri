@@ -6,7 +6,8 @@ import "./styles.css";
 const root = createRoot(document.getElementById("root")!);
 try {
   const connection = await window.moguri.connection();
-  const client = new MoguriSdk(connection, () => window.moguri.connection());
+  const profileId = await window.moguri.profile();
+  const client = new MoguriSdk(connection, () => window.moguri.connection(), profileId);
   root.render(<App client={client} />);
   await client.connect();
 } catch (error) {

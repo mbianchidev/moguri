@@ -6,7 +6,7 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureConnection, saveArtifactExport, stateDirectory } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
-import { isRecord } from "../../../packages/protocol/src/index.ts";
+import { GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier } from "./notifications.ts";
 
@@ -15,6 +15,8 @@ const require = createRequire(import.meta.url);
 let connection: Connection;
 let mainWindow: BrowserWindow | null = null;
 let attentionClient: MoguriSdk | undefined;
+let activeProfileId = process.env.MOGURI_PROFILE_ID ?? PROFILE_ID;
+let profileEpoch = 0;
 const banners = new Map<string, Notification>();
 let preview: { view: WebContentsView; sessionId: string; url: string } | null = null;
 const previewUrl = (input: string) => {
@@ -48,31 +50,45 @@ else {
     };
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
     await connect();
-    attentionClient = await new MoguriSdk(connection).ready();
-    const notifier = new AttentionNotifier(attentionClient.getState().snapshot!.seq);
-    attentionClient.subscribe(() => {
-      const state = attentionClient?.getState();
-      if (!state?.snapshot) return;
-      notifier.observe(state.snapshot, state.events, Boolean(mainWindow?.isFocused()), (banner) => {
-        if (process.env.MOGURI_TEST_WINDOW === "hidden" || !Notification.isSupported()) return;
-        const notification = new Notification({ title: banner.title, body: banner.body, silent: false });
-        banners.set(banner.id, notification);
-        if (banners.size > 100) { const oldest = banners.keys().next().value!; banners.get(oldest)?.close(); banners.delete(oldest); }
-        notification.on("click", () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId); });
-        notification.on("close", () => banners.delete(banner.id));
-        notification.on("failed", (_event, error) => { banners.delete(banner.id); console.error("Moguri OS notification failed:", error); });
-        notification.show();
+    const activateProfile = async (profileId: string) => {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) throw new Error("Choose one explicit user profile; no Default fallback.");
+      if (attentionClient?.profileId === profileId && attentionClient.getState().status === "connected") return profileId;
+      const epoch = ++profileEpoch;
+      const scoped = await new MoguriSdk(connection, async () => { await connect(); return connection; }, profileId).ready();
+      if (epoch !== profileEpoch) { scoped.disconnect(); throw new Error("Another profile selection replaced this request. No scope was rebound."); }
+      attentionClient?.disconnect();
+      attentionClient = scoped; activeProfileId = profileId;
+      for (const banner of banners.values()) banner.close(); banners.clear();
+      const notifier = new AttentionNotifier(scoped.getState().snapshot!.seq);
+      scoped.subscribe(() => {
+        if (attentionClient !== scoped) return;
+        const state = scoped.getState();
+        if (!state.snapshot) return;
+        notifier.observe(state.snapshot, state.events, Boolean(mainWindow?.isFocused()), (banner) => {
+          if (process.env.MOGURI_TEST_WINDOW === "hidden" || !Notification.isSupported()) return;
+          const notification = new Notification({ title: banner.title, body: banner.body, silent: false });
+          banners.set(banner.id, notification);
+          if (banners.size > 100) { const oldest = banners.keys().next().value!; banners.get(oldest)?.close(); banners.delete(oldest); }
+          notification.on("click", () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId, profileId); });
+          notification.on("close", () => banners.delete(banner.id));
+          notification.on("failed", (_event, error) => { banners.delete(banner.id); console.error("Moguri OS notification failed:", error); });
+          notification.show();
+        });
       });
-    });
+      return profileId;
+    };
+    await activateProfile(activeProfileId);
     const rendererRoot = join(app.getAppPath(), "dist", "desktop", "renderer");
     protocol.handle("moguri", async (request) => {
       const url = new URL(request.url);
       if (url.hostname !== "app") return new Response("Unknown Moguri origin.", { status: 403 });
       if (url.pathname.startsWith("/v1/")) {
         if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/query", "/v1/terminal", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
+        const profileId = request.headers.get("X-Moguri-Profile") ?? PROFILE_ID;
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) return new Response("Profile scope denied.", { status: 403 });
         return fetch(`${connection.baseUrl}${url.pathname}`, {
           method: request.method,
-          headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json", "X-Moguri-Profile": profileId },
           ...(request.method === "POST" ? { body: await request.text() } : {}),
           signal: AbortSignal.timeout(20_000),
         });
@@ -86,6 +102,12 @@ else {
       } catch { return new Response("Moguri asset missing. Rebuild the app.", { status: 404 }); }
     });
     ipcMain.handle("moguri:connection", async (event) => { trusted(event); return connect(); });
+    ipcMain.handle("moguri:profile", async (event, profileId: unknown) => {
+      trusted(event);
+      if (profileId === undefined) return activeProfileId;
+      if (typeof profileId !== "string") throw new Error("An explicit profile ID is required.");
+      const selected = await activateProfile(profileId); hidePreview(); return selected;
+    });
     ipcMain.handle("moguri:choose-project", async (event) => {
       trusted(event);
       const result = await dialog.showOpenDialog(mainWindow!, { title: "Open a Moguri project", properties: ["openDirectory"] });
