@@ -993,8 +993,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.8.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.8.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.9.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.9.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -1009,7 +1009,32 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-The current **0.8.0-alpha.1 / protocol-14** development artifacts pass strict
+The current **0.9.0-alpha.1 / protocol-15** development artifacts pass strict
+ad-hoc signature/runtime verification, **247 full local checks** and all
+**20 hidden workflows against the actual packaged app** (**45.3 s**).
+The exact delivered SDK archive passes a fresh approved install/rebuild/audit
+and real compiled-worker Guided recommendation, different actual user answer,
+retained source actors and no additional recommendation request, alongside
+the existing scoped profile/budget/platform exchange. Audits report zero
+vulnerabilities; the actual DMG passes `hdiutil verify`.
+
+This adds provenance-bound Guided offered-choice and tool advice to the
+qualified 0.8 profile foundation. Actual user decisions and hard policy still
+win. Jev/System One, Autopilot Max, kupo and native Sandbox are not enabled.
+The generated System One prototype separately proves bounded wire/failure
+handling, including rejection of finite-token admission because the documented
+API has no output-token-limit field. No real decision provider was called.
+The app is ad-hoc signed only, not notarized or the completed first milestone.
+
+| Development artifact | SHA-256 |
+| --- | --- |
+| `Moguri-0.9.0-alpha.1-macos-arm64.dmg` | `d74f49dfb45eaabeb8b9d3c139b85cb5f1624bdf5d3c4d47ff72f457c394624b` |
+| `Moguri-0.9.0-alpha.1-macos-arm64.zip` | `94750f8601ab664ccbd557bddcfeb916a0c8bda60b86e2dc3c129f53520b0501` |
+| `moguri-0.9.0-alpha.1.tgz` | `55d73c9f7b4f47188ef4a8a871487036c397394dc2e4232c2ac87c420da033c5` |
+
+### Historical 0.8 checkpoint
+
+The unchanged **0.8.0-alpha.1 / protocol-14** development artifacts pass strict
 ad-hoc signature/runtime verification, **229 full local checks** and all
 **19 hidden workflows against the actual packaged app** (**44.0 s**).
 These add real immutable profiles, private account/data/editors, cross-profile
@@ -1042,7 +1067,7 @@ passes its fresh approved external install, all entrypoint types and generated
 worker/model/budget exchange, with zero audit findings.
 Test output, local state and agent metadata are excluded from the app bundle.
 Sandbox/R5, routed decisions/wind-down, profile isolation and the remaining
-roadmap were not qualified by that package. Use 0.8 for actual isolated profiles.
+roadmap were not qualified by that package. Use 0.8 or newer for actual isolated profiles.
 
 | Development artifact | SHA-256 |
 | --- | --- |
