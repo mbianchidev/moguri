@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { DraftEditor, KUPO_MODEL_ID, slashCommands, attachmentTriggers, parseAttachmentTrigger, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
@@ -32,7 +32,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
   const heldModifier = useQueueModifier();
-  const [configuring, setConfiguring] = useState(false);
+  const [configurationCount, setConfigurationCount] = useState(0), [configurationError, setConfigurationError] = useState("");
+  const configuring = configurationCount > 0;
+  const trackConfiguration = useCallback((started: boolean) => setConfigurationCount((count) => count + (started ? 1 : -1)), []);
   const [delivery, setDelivery] = useState<"queue" | "steer" | "interrupt">("queue");
   const model = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
   const eligibleModel = Boolean(model && (!model.environments || model.environments.includes(session.controls.env)));
@@ -93,6 +95,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description={answering ? "Cmd/Ctrl+Enter queues without answering. Shift+Cmd/Ctrl+Enter answers the actual question." : "Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now."}>
+    {configuring && <p className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</p>}
+    {configurationError && menu !== "model" && <p className="inline-error" role="alert">{configurationError}</p>}
     {session.controls.modelId && !model && <button type="button" className="setup-hint" onClick={session.controls.modelId === KUPO_MODEL_ID ? onRouting : onConnect}>{session.controls.modelId === KUPO_MODEL_ID ? "Saved kupo selection is blocked. Inspect its approved pool and hard-budget policy; no fallback was used." : `Saved model ${session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.`}<Icon name="Down" /></button>}
     {model && !eligibleModel && <button type="button" className="setup-hint" onClick={() => setMenu("model")}>This saved model is not available in {session.controls.env}. Choose a compatible model explicitly.<Icon name="Down" /></button>}
     {requiresImages && model && !model.imageInput && !answering && <p className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</p>}
@@ -121,7 +125,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} editor={editor} run={run} capture={capture} initial={pendingTrigger} close={() => setMenu(null)} review={(request) => { setAttachmentReview(request); setMenu(null); }} />)}
         {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => <button className="composer-menu-option" key={capability.env} type="button" disabled={Boolean(session.turnId) || !capability.ready || !snapshot.policy.allowedEnvs.includes(capability.env)} aria-pressed={session.controls.env === capability.env} title={capability.reason} onClick={() => void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); })}><Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{!snapshot.policy.allowedEnvs.includes(capability.env) ? "Blocked by policy" : capability.env === "Local" ? "Host execution, not sandboxed" : capability.ready ? "Verified SSH host, not SendBox isolation" : "Not ready"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>)}<p>Choosing Remote transfers this session's approved history and attachments to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. No host folders are mounted. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button></>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}</span>} model>
-          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onSaving={setConfiguring} />
+          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const grants = snapshot.settings.values.permissions.tools.some((rule) => rule.decision === "allow") || snapshot.settings.values.permissions.commands.some((rule) => rule.decision === "allow");
@@ -174,44 +178,43 @@ function ComposerPopover({ name, label, description, open, toggle, close, trigge
   </div>;
 }
 
-function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting, onSaving, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onRouting: () => void; onSaving: (saving: boolean) => void; requiresImages: boolean }) {
+function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting, onSaving, onError, pending, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onRouting: () => void; onSaving: (saving: boolean) => void; onError: (message: string) => void; pending: boolean; requiresImages: boolean }) {
   const current = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
   const [search, setSearch] = useState("");
   const [window, setWindow] = useState(session.controls.modelOptions?.contextWindow?.toString() ?? "");
   const [effort, setEffort] = useState<ThinkingEffort | "">(session.controls.modelOptions?.thinkingEffort ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  useEffect(() => { onSaving(saving); return () => onSaving(false); }, [saving, onSaving]);
   const revision = useRef(session.revision);
-  const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); };
+  const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
   const select = async (model: ModelInfo) => {
-    setSaving(true); setError("");
+    setSaving(true); onSaving(true); setError(""); onError("");
     try {
       const { modelOptions: _, ...controls } = session.controls;
       const result = await sdk.sessions.configure(session.id, { ...controls, modelId: model.id }, revision.current);
       revision.current = result.revision!; setWindow(""); setEffort("");
-    } catch (error) { setError(error instanceof Error ? error.message : "Model selection failed. No fallback was used."); }
-    finally { setSaving(false); }
+    } catch (error) { const message = error instanceof Error ? error.message : "Model selection failed. No fallback was used."; setError(message); onError(message); }
+    finally { setSaving(false); onSaving(false); }
   };
   const save = async () => {
-    setSaving(true); setError("");
+    setSaving(true); onSaving(true); setError(""); onError("");
     try { const result = await sdk.sessions.modelOptions(session.id, options, revision.current); revision.current = result.revision!; }
-    catch (error) { setError(error instanceof Error ? error.message : "Model settings were not saved."); }
-    finally { setSaving(false); }
+    catch (error) { const message = error instanceof Error ? error.message : "Model settings were not saved."; setError(message); onError(message); }
+    finally { setSaving(false); onSaving(false); }
   };
   return <><h2>Model</h2>{snapshot.provider.status !== "connected" ? <><p>Connect GitHub Copilot to discover account-enabled models.</p><button type="button" onClick={onConnect}>Connect Copilot</button></> : <>
     <input className="composer-model-search" aria-label="Search models" placeholder="Search models" value={search} onChange={(event) => setSearch(event.target.value)} />
-    <div className="composer-model-list">{snapshot.provider.models.filter((model) => (!model.environments || model.environments.includes(session.controls.env)) && model.name.toLowerCase().includes(search.toLowerCase())).map((model) => <button type="button" className="composer-menu-option" key={model.id} aria-pressed={model.id === session.controls.modelId} disabled={saving || Boolean(session.turnId) || dirty || requiresImages && !model.imageInput} title={requiresImages && !model.imageInput ? "This context requires image input." : undefined} onClick={() => void select(model)}><span>{model.name}<small>{model.synthetic ? "Moguri / separately metered router and solver" : `${model.source === "local" ? model.providerId : "GitHub Copilot"} / ${compact(model.contextWindow)} maximum context`}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>)}</div>
+    <div className="composer-model-list">{snapshot.provider.models.filter((model) => (!model.environments || model.environments.includes(session.controls.env)) && model.name.toLowerCase().includes(search.toLowerCase())).map((model) => <button type="button" className="composer-menu-option" key={model.id} aria-pressed={model.id === session.controls.modelId} disabled={saving || pending || Boolean(session.turnId) || dirty || requiresImages && !model.imageInput} title={requiresImages && !model.imageInput ? "This context requires image input." : undefined} onClick={() => void select(model)}><span>{model.name}<small>{model.synthetic ? "Moguri / separately metered router and solver" : `${model.source === "local" ? model.providerId : "GitHub Copilot"} / ${compact(model.contextWindow)} maximum context`}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>)}</div>
     {!snapshot.provider.models.some((model) => !model.environments || model.environments.includes(session.controls.env)) && <p>No approved model is available in this env. For Remote, probe the SSH target and explicitly allow scoped Copilot access or configure a remote-local endpoint.</p>}
     <div className="model-tuning">
-      <label>Working context<input aria-label="Working context window" type="number" min={8192} max={current?.contextWindow ?? 10_000_000} step={1024} value={window} placeholder={current?.synthetic ? "Bound to actual approved solver" : current ? `Model maximum (${count(current.contextWindow)})` : "Select a model"} disabled={!current || current.synthetic || saving || Boolean(session.turnId)} onChange={(event) => setWindow(event.target.value)} /></label>
-      <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length || saving || Boolean(session.turnId)} onChange={(event) => setEffort(event.target.value as ThinkingEffort | "")}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>{current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
+      <label>Working context<input aria-label="Working context window" type="number" min={8192} max={current?.contextWindow ?? 10_000_000} step={1024} value={window} placeholder={current?.synthetic ? "Bound to actual approved solver" : current ? `Model maximum (${count(current.contextWindow)})` : "Select a model"} disabled={!current || current.synthetic || saving || pending || Boolean(session.turnId)} onChange={(event) => setWindow(event.target.value)} /></label>
+      <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length || saving || pending || Boolean(session.turnId)} onChange={(event) => setEffort(event.target.value as ThinkingEffort | "")}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>{current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
       <p>{current?.synthetic ? "Single alpha is text-only. Select a fixed model for context/thinking overrides or finite session limits. Actual per-call roles and models appear in Insights." : "Working context stays within the model maximum. Counts are estimated; overfull requests stop without truncating history."}</p>
       {session.turnId && <p>Stop the active turn before changing model settings.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
-      <div className="button-row"><button type="button" className="primary" disabled={!current || current.synthetic || !dirty || saving || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving} onClick={reload}>Reload</button></div>
+      <div className="button-row"><button type="button" className="primary" disabled={!current || current.synthetic || !dirty || saving || pending || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </div>
   </>}<button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>kupo Single settings</button></>;
 }

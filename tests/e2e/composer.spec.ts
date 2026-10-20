@@ -3,9 +3,76 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { setupFixture } from "../fixture.ts";
+import { isRecord, MoguriError } from "../../packages/sdk/src/index.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer execution is qualified on macOS.");
+test("a failed model update remains visible after closing its menu and releases only its own pending gate", async () => {
+  const fixture = await setupFixture();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  const page = await app.firstWindow(), dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller);
+  let release!: () => void, received = false;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  try {
+    fixture.service.controller.dispatch = async (...args: Parameters<typeof dispatch>) => {
+      const payload: unknown = args[0];
+      if (isRecord(payload) && isRecord(payload.command) && payload.command.type === "session.configure") {
+        received = true; await held; throw new MoguriError("generated_model_refusal", "Generated model update was refused. The original selection is unchanged.", 409);
+      }
+      return dispatch(...args);
+    };
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await expect.poll(() => received).toBe(true); await page.keyboard.press("Escape");
+    const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("/rename Generated preserved failed-model draft");
+    await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeDisabled();
+    release();
+    await expect(page.getByRole("alert")).toContainText("Generated model update was refused");
+    await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled();
+    await expect(prompt).toHaveValue("/rename Generated preserved failed-model draft");
+    expect(fixture.session().controls.modelId).toBeNull(); expect(fixture.requests.length).toBe(0);
+    await expect.poll(() => fixture.session().draft.text).toBe("/rename Generated preserved failed-model draft");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+  } finally { release(); fixture.service.controller.dispatch = dispatch; await app.close(); await fixture.close(); }
+});
+
+test("closing the model menu cannot release an in-flight configuration gate or lose the pending slash draft", async () => {
+  const fixture = await setupFixture();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  const page = await app.firstWindow();
+  const dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller);
+  let release!: () => void, received = false;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  try {
+    fixture.service.controller.dispatch = async (...args: Parameters<typeof dispatch>) => {
+      const payload: unknown = args[0];
+      if (isRecord(payload) && isRecord(payload.command) && payload.command.type === "session.configure") { received = true; await held; }
+      return dispatch(...args);
+    };
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await expect.poll(() => received).toBe(true);
+    await page.keyboard.press("Escape");
+    const prompt = page.getByLabel("Prompt", { exact: true });
+    await prompt.fill("/rename Generated command after configuration");
+    const command = page.getByRole("button", { name: "Run command", exact: true });
+    await expect(command).toBeDisabled();
+    await prompt.press("Meta+Enter");
+    await expect(prompt).toHaveValue("/rename Generated command after configuration");
+    expect(fixture.session().title).not.toBe("Generated command after configuration");
+    release(); await expect(command).toBeEnabled();
+    await prompt.press("Meta+Enter");
+    await expect(page.getByRole("heading", { name: "Generated command after configuration", exact: true })).toBeVisible();
+    expect(fixture.session().controls.modelId).toBe(fixture.modelId); expect(fixture.requests.length).toBe(0);
+  } finally { release(); fixture.service.controller.dispatch = dispatch; await app.close(); await fixture.close(); }
+});
+
 test("compact icon composer preserves queue semantics, model tuning, usage and safe popovers", async () => {
   const fixture = await setupFixture({ reasoning: true });
   const app = await electron.launch({
