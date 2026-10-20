@@ -361,8 +361,8 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-20 worker build on the SSH host and probe it before
-new work; retained protocol-16/17/18/19 receipts permit inspection, not continuation.
+Install this exact protocol-21 worker build on the SSH host and probe it before
+new work; retained protocol-16/17/18/19/20 receipts permit inspection, not continuation.
 
 Remote embedded terminals, executable MCP transport, repository-memory
 retrieval remain blocked. Remote plan saves use an explicit reviewed binding
@@ -1144,8 +1144,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.14.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.14.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.15.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.15.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -1160,7 +1160,38 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.14 checkpoint
+### Current 0.15 source checkpoint
+
+The **0.15.0-alpha.1 / protocol-21** source adds independently retained,
+sanitized tool/MCP outcome metrics and current-profile key-backed ciphertext
+measurements. SDK, CLI/native TUI and desktop share the service projections.
+Declined approval, ordinary tools, actual model/external MCP actors and
+retained-result jobs stay distinct. The known-result failure rate never hides
+partial, stopped, unconfirmed or unknown outcomes as successes. Request/start
+provenance, missing timing and previously deleted history remain explicit.
+
+All **425 local checks pass in 310.09 s**, and all **30** hidden source-desktop
+workflows pass in **1.0 min**, as reported by the runner. Focused coverage also
+exercises actual SSH tools, exclusion of user Remote plan operations, native
+TUI queries, cross-profile byte/outcome isolation and held stale query replies.
+Source types/build pass and audit reports zero vulnerabilities. No sandbox
+probe, personal account, microphone, model weights or paid inference was used.
+
+The first added stale-query gate did not observe the RPC through Playwright's
+network routing and failed before holding a response. Its original trace and
+context are retained separately. The corrected owned-service response hold
+passes, preserving the newer filter's real results after the old reply settles.
+Both bounded desktop/compact visual rounds are complete.
+
+Migration 21 preserves previous ciphertext, grants and receipts. It records a
+compatibility marker and appends retained-only metrics/coverage, never recovered
+private contents. Marker/derived-append failures, unexplained missing keys and
+invalid profile scope fail explicitly without inventing success or zero bytes.
+Storage is not a payload-integrity audit or physical disk/reclamation measure.
+Artifact/fresh-consumer qualification is still pending at this source checkpoint.
+Earlier qualified archives below are unchanged.
+
+### Historical 0.14 checkpoint
 
 The **0.14.0-alpha.1 / protocol-20** checkpoint adds exact user-requested Remote
 plan saves across SDK, CLI, native TUI and desktop. The reviewed plan binding
