@@ -44,8 +44,9 @@ this before authorization. GitHub's formal OpenCode partnership does not imply
 official support for Moguri; see [the access boundary](architecture/phase-zero.md#copilot-access-boundary).
 Only github.com device authorization is exposed in this checkpoint.
 
-Credentials are stored in the OS keychain under `dev.moguri.profile.default`,
-keyed by `github-copilot`. The service alone resolves refresh credentials;
+Credentials are stored in the OS keychain under `dev.moguri.profile.PROFILE_ID`,
+keyed by `github-copilot`. Existing Default keeps
+`dev.moguri.profile.default`; new profiles begin disconnected. The service alone resolves refresh credentials;
 workers receive short-lived request access over private IPC. An unavailable
 keychain is an error, not a reason to write plaintext secrets.
 
@@ -65,7 +66,7 @@ The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
 compact icon/name controls rather than separate labeled rows.
 Factory values are Local, unset model, Manual and Unlimited. Current execution
 is Local or explicitly qualified SSH with fixed Copilot/configured local models
-and Unlimited. Manual remains default; Guided displays model
+and Unlimited or explicit estimate-based caps. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
 command grants and cannot grant itself anything. Autopilot Max is unavailable.
 Unready choices explain the limitation
@@ -136,14 +137,49 @@ the same worker and per-step provider/API-model provenance. Unknown billing is
 still not zero. Request credentials echoed by an untrusted provider are redacted
 across stream chunk boundaries and structured response fields.
 
-**Settings / Startup defaults** separates global and Default-profile control
+**Settings / Startup defaults** separates shared global and current-profile control
 overrides. **Project settings / New-session defaults** adds project precedence.
 Explicit session overrides win; `session create --controls FILE` supports them
 in CLI. The complete values and source/revision snapshot are saved once when
 creating a session. Inspect **Insights / Startup control sources** or TUI
 `/defaults`. Changing preferences does not rewrite existing/running sessions or
-widen hard policy. Multiple isolated Work/Open Source profiles are not yet
-implemented; these profile defaults currently belong to Default only.
+widen hard policy. Profile startup reset preserves global values. Restoring
+shared global preferences is a separate revision-bound action.
+
+## Isolated profiles
+
+Desktop's **Profile** selector and **Manage profiles** create, rename/color and
+explicitly choose a profile. TUI **F8** provides the same operations even
+without a session, including partial setup inspection/retry/stop. Creation
+does not choose the new profile, copy private data or log in. CLI examples:
+
+```bash
+node bin/moguri.mjs profile list
+node bin/moguri.mjs profile create Work --color '#557799'
+node bin/moguri.mjs status --profile PROFILE_ID
+node bin/moguri.mjs tui --profile PROFILE_ID
+node bin/moguri.mjs desktop --profile PROFILE_ID
+node bin/moguri.mjs profile update PROFILE_ID changes.json --revision OBSERVED_REVISION
+```
+
+Metadata changes accept `{"name":"Work renamed","color":"#776655"}` or a
+subset. `MOGURI_PROFILE_ID=PROFILE_ID` is an explicit launch choice; `--profile`
+wins in CLI/TUI. `npm run desktop -- --profile PROFILE_ID` selects the same
+native startup scope. There is no shared last-active selection. Omitted SDK/API
+scope is actual Default, not the previously viewed profile.
+
+Switching flushes saved drafts and blocks unsaved forms/dialogs or active
+dictation. Old work continues in its actual profile. Accounts, settings,
+projects, sessions, retained documents, memory/style/indexes, MCP grants and
+mutable job data stay scoped. Verified public dependency archives and official
+speech weights can share one immutable user cache, not credentials or private
+captures. A common physical repository is not an OS sandbox; root writer
+ownership/quarantine still spans profiles.
+
+Global environment policy, shared global startup values and optional global
+hard budget caps remain authoritative. A new profile cannot escape them.
+Profile deletion/merging and native Sandbox execution are not implemented.
+See the [isolation contract](architecture/profiles.md).
 
 ## Shared SDK and settings
 
@@ -783,10 +819,12 @@ unpriced/unbounded calls keep affected finite choices unavailable. Cache
 categories are included once in total input using the conservative configured
 rate, not an invented discount.
 
-The separate **Default-profile hard policy** applies across sessions, including
+The separate **Current-profile hard policy** applies across sessions, including
 Unlimited preferences. Factory/settings reset does not clear it. Removing or
 changing policy requires the current revision and an explicit user action.
-Only Default is implemented, not Work/Open Source profile isolation.
+The separate **Global hard policy** counts all profiles without combining their
+private task content. Switching profiles, factory resets and source deletion
+cannot refund it.
 
 ```json
 {"kind":"limited","basis":"estimate","tokens":50000}
@@ -797,21 +835,24 @@ node bin/moguri.mjs budget set SESSION_ID session-budget.json --confirm-review
 node bin/moguri.mjs budget status SESSION_ID
 node bin/moguri.mjs budget dashboard --project PROJECT_ID --role solver
 node bin/moguri.mjs budget policy profile-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
+node bin/moguri.mjs budget global global-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
 ```
 
 Profile-limit JSON uses `{"basis":"estimate","tokens":100000}` without `kind`;
 literal `null` explicitly removes policy, not accounting. TUI shares
 `/budget status`, `/budget set TOKENS|- USD|- confirm-estimates`,
 `/budget profile TOKENS|- USD|- REV confirm-estimates` and
-`/budget clear-profile REV confirm-policy`. It displays the warning before the
+`/budget global TOKENS|- USD|- REV confirm-estimates`, with
+`/budget clear-profile REV confirm-policy` or `clear-global` for explicit
+removal. It displays the warning before the
 typed cap is applied. **F7** opens cumulative profile accounting even without
 a session; `/dashboard` supports an explicit filters JSON object.
 
 Desktop **Dashboard** shows authoritative profile totals and actual
 role/provider/model groups, with project/folder/session/provider/model/role
 filters and bounded pages. Unknown usage, held reservations, estimates and
-unreported bills stay distinct. Repository/org/visibility filtering and
-multiple profiles await their qualified metadata/isolation.
+unreported bills stay distinct. Other profiles' private ledger rows are never
+combined. Repository/org/visibility filtering awaits its qualified metadata.
 
 Exhaustion blocks the next chargeable call and retains a diagnostic artifact
 without an extra model. It never claims a Git commit. Full kupo wind-down,
@@ -862,6 +903,7 @@ are still unavailable, not mislabeled as human answers.
 | Ctrl+A / Ctrl+B / Ctrl+K | Active/archive view / recent event trace / command help |
 | Ctrl+G | Shared SDK settings and prompt editor |
 | Ctrl+Space / F4 | Start-stop local dictation / explicitly insert completed transcript |
+| F5 / F7 / F8 | Retained documents / profile usage / isolated profile picker and metadata |
 | Esc / Ctrl+Q | Return to composer / save and leave |
 
 `/help` lists slash commands, including queue editing/reordering, `/steer`,
@@ -875,8 +917,9 @@ The default state directory is `~/Library/Application Support/Moguri` on macOS.
 `MOGURI_STATE_DIR=/absolute/private/directory` selects a separate state directory.
 The directory must be user-owned, non-symlink and mode 0700. Connection metadata
 and the SQLite file are mode 0600. Do not commit this directory.
-A custom state directory is not a separate credential profile: this checkpoint
-has one Default profile and one corresponding OS-keychain namespace.
+A custom state directory is not itself a separate credential profile:
+Default retains its legacy namespace. Create an explicit UUID profile for
+account separation instead of pointing another service at the same database.
 
 The service writes `state.sqlite`, WAL files, `connection.json`, `service.lock`
 and a diagnostic `service.log`. Connection tokens and OAuth credentials are
@@ -884,7 +927,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 13 preserves earlier state through transactional
+Protocol/database version 14 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -899,6 +942,8 @@ Global **Allowed environments** policy is available in desktop Connections or
 `/policy all` and `/policy protected`. Requiring Sandbox/Remote blocks new work
 until an allowed target is genuinely ready. Already-running Local turns may finish
 under their recorded policy revision and are labeled **Local finishing**.
+It is global across profiles, including unloaded/new ones. Per-profile
+settings reset cannot widen it.
 
 Node currently prints an **experimental FFI** warning for OpenTUI. It is a known
 upstream runtime status, not a suppressed error. A native helper preparation

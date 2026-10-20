@@ -45,7 +45,7 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   const [dirty, setDirty] = useState(false), [accepted, setAccepted] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const base = useRef(revision);
   const load = () => { setLimited(Boolean(current)); setTokens(String(current?.tokens ?? "")); setUsd(String(current?.usd ?? "")); base.current = revision; setDirty(false); setAccepted(false); setError(""); setNotice(""); };
-  useEffect(() => { if (!dirty && !saving) load(); else if (base.current !== revision && !saving) setError("Budget controls changed elsewhere. Your edit is preserved; reload before saving."); }, [revision]);
+  useEffect(() => { if (revision <= base.current) return; if (!dirty && !saving) load(); else if (!saving) setError("Budget controls changed elsewhere. Your edit is preserved; reload before saving."); }, [revision, dirty, saving]);
   useEffect(() => { onDirty?.(dirty || saving); return () => onDirty?.(false); }, [dirty, saving, onDirty]);
   const change = () => { setDirty(true); setAccepted(false); setNotice(""); };
   const save = async () => {
@@ -76,7 +76,7 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
     <p className="settings-warning">{BUDGET_WARNING}</p>
     <p className="fine-print">Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</p>
     <label className="check-setting"><input type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>
-    <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} onClick={() => void save()}>{scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"}</button><button type="button" disabled={saving} onClick={load}>Reload budget</button></div>
+    <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} onClick={() => void save()}>{scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"}</button><button type="button" disabled={saving || revision < base.current} onClick={load}>Reload budget</button></div>
     {scope === "session" && session?.turnId && <p className="fine-print">Finish or stop this turn before changing its session preference. A profile policy can still block further calls.</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
   </section>;

@@ -36,7 +36,7 @@ export function ProfileSwitcher({ sdk, snapshot, disabled, expanded, setExpanded
     setMode(null); setBase(null); await reload(); setNotice("Profile metadata saved. Choose a profile explicitly; accounts and project data were not copied.");
   };
   return <section className="profile-switcher" aria-label="Profiles" aria-busy={busy}>
-    <label className="setting-field">Profile<select aria-label="Active profile" value={sdk.profileId} disabled={disabled || busy || dirty || !catalog} onChange={(event) => { const id = event.target.value; void run(() => onSwitch(id)); }}>
+    <label className="setting-field"><span className="profile-label">{snapshot.profile?.color && <span className="status-dot" style={{ backgroundColor: snapshot.profile.color }} aria-hidden="true" />}Profile</span><select aria-label="Active profile" title={snapshot.profile?.name ?? sdk.profileId} value={sdk.profileId} disabled={disabled || busy || dirty || !catalog} onChange={(event) => { const id = event.target.value; void run(() => onSwitch(id)); }}>
       {!catalog && <option value={sdk.profileId}>{snapshot.profile?.name ?? sdk.profileId}</option>}
       {catalog?.profiles.map((profile) => <option key={profile.id} value={profile.id} disabled={profile.status !== "ready"}>{profile.name}{profile.status === "ready" ? "" : ` / ${profile.status}`}</option>)}
     </select></label>
