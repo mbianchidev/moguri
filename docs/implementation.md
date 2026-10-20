@@ -63,6 +63,12 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > preserves Default identity/keys/receipts. Profile deletion/merge, native
 > Sandbox and routed decisions are not implied.
 
+> Guided questions may now carry a bounded recommendation from the already
+> metered current solver response. It retains model provenance and still waits
+> for the actual user, who may choose differently. Tool advice binds the current
+> step rather than older narration. This does not enable System One/Jev,
+> Autopilot Max, automated steering or a hidden extra model call.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.
