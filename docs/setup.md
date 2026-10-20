@@ -1190,7 +1190,44 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.15 checkpoint
+### Current 0.16 source checkpoint
+
+The **0.16.0-alpha.1 / protocol-22** source adds explicit root-bound GitHub
+repository metadata and immutable attribution/filtering across SDK, CLI/native
+TUI and desktop. Preview reads Git only; confirmed refresh performs one bounded
+lookup with displayed public or explicit Local CLI access. Source root,
+policy/revision, response identity and actual Git origin are rechecked.
+Remote origin comes from the pinned machine; Remote authenticated CLI remains
+unavailable, never host-local fallback.
+
+Future router/solver/side/subagent/compaction calls and external Local MCP
+admissions capture verified snapshots. Changed/missing origins and read failures
+stay unassigned. Old names/visibility/licenses/charges are not rewritten by
+refresh, clear, deletion or restart. Public plus recognized OSI license is an
+explicit metadata category, not legal compliance; absent/null license evidence
+and excluded unassigned history have separate coverage.
+
+All **448 local checks pass in 327.23 s**, including actual roles/SSH, both
+cancellation boundaries, retention/marker failure, restart without lookup replay,
+profile isolation and configured/unconfigured admission races. All **31**
+hidden source-desktop workflows pass in **1.1 min**, as reported by the runner.
+The native TUI's reviewed preview/explicit refresh/state passes without a model.
+Source types/build and audit pass, with zero vulnerabilities. Both bounded
+desktop/compact visual rounds are complete.
+
+The first new desktop fixture observed the previous completed turn immediately
+after a second UI Send click. It now waits for the actual second provider
+request before terminal/accounting assertions. Original trace/context remain
+retained; no product guard was relaxed.
+
+The pinned CC0-1.0 SPDX metadata dependency was qualified before the feature.
+Model admission never performs a new GitHub lookup or sends metadata to a
+model. Source/consumer artifacts are pending independent qualification at this
+source checkpoint; older qualified archives below remain unchanged.
+No personal account, paid inference, model weights, microphone or SendBox probe
+was used. See [the exact repository contract](architecture/repository-telemetry.md).
+
+### Historical 0.15 checkpoint
 
 The **0.15.0-alpha.1 / protocol-21** checkpoint adds independently retained,
 sanitized tool/MCP outcome metrics and current-profile key-backed ciphertext
