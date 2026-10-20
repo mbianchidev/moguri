@@ -1139,7 +1139,67 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.13 checkpoint
+### Current 0.14 checkpoint
+
+The **0.14.0-alpha.1 / protocol-20** checkpoint adds exact user-requested Remote
+plan saves across SDK, CLI, native TUI and desktop. The reviewed plan binding
+pins profile/session, path, peer/root/build and current policy even when two
+files are absent. One typed owned filesystem operation initializes no provider,
+calls no model, consumes no prompt draft and never uses a Local fallback.
+Local callers retain their existing three-argument API.
+
+The complete source passes **402 local checks in 317.05 s**. All **29** hidden
+source-desktop workflows and all **29** against the actual packaged app pass
+in **1.1 min each** as reported by the runner. The actual TUI pending editor/
+exact-stop flow passes in **1,535.71 ms**, and reviewed edit/save/retained
+inspection in **1,452.70 ms**, without a Local opener or model.
+
+Real control-plane SIGKILL before authorization and before result receipt
+preserves exact intent and cannot replay a write. Root/mode/folder policy races,
+profile/target-alias writer ownership, failed acknowledgements/retention,
+duplicate commands, exact 128-KiB UTF-8 results and whitespace are covered.
+Stopped post-write work stays partial, actual bytes/independent Remote-boundary
+snapshots remain inspectable, and late receipts never promote the original
+partial turn to success. Known no-effect failures are distinct from uncertain
+filesystem work.
+
+The package verifier starts the **actual bundled Node service and pinned SSH
+worker**, saves a reviewed plan without a model, verifies exact Remote bytes/
+independent artifact and rejects a Local-file fallback. Existing actual
+compaction, OAuth, MCP, PTY, branding/Ghostty and weightless speech gates pass.
+The **exact delivered SDK archive** independently passes a fresh script-reviewed
+install/rebuild/audit, all four external type entrypoints, actual installed CLI/
+SDK Remote saves with reviewed binding, retained artifacts and exact stop/
+scope guards. Synthetic test vaults never use personal keychain credentials.
+Source/consumer audits report zero vulnerabilities.
+
+The first focused desktop run was **3/4**: long path/fingerprint metadata really
+overflowed at compact width. Bounded wrapping/progressive disclosure fixes it;
+all four targeted flows and both full source/package runs above pass. Its
+original trace/context/screenshot remain retained separately. Held settled RPCs
+cannot overwrite a dirty editor with another root's plan. No personal login,
+microphone, model weights, paid inference or SendBox probe was used.
+
+Migration 20 preserves old ciphertexts, scoped receipts, keys/grants and ledger
+charges. Retained protocol-16/17/18/19 SSH metadata is inspectable only, not
+resumable. Remote consoles, executable MCP/repository memory, compound routing,
+decision authority and other first-release gaps remain separate. Sandbox stays
+paused; this is not complete containment or milestone acceptance.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.14.0-alpha.1-macos-arm64.dmg` | 355392968 | `9bb6ab62b80a2b1567ae3b50d8d907c0d55ea08a01aeb0e8aaa36040052268c7` |
+| `Moguri-0.14.0-alpha.1-macos-arm64.zip` | 279032703 | `df36cc68635492d502af8fd19a45559e527eaf14dcc75dd9d19fd32e37110c75` |
+| `moguri-0.14.0-alpha.1.tgz` | 6606378 | `e45de8334107fb56a74531c855c2832a49ebe0a999f758a8d4d809dc377ea1b7` |
+
+App: `release/0.14.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. Clean restore,
+types/build, strict ad-hoc signature/runtime/assets and real DMG integrity pass.
+The DMG exceeds chat's 64 MiB limit and remains local. Development artifacts
+are not notarized; no tag, GitHub release or merge was created. Earlier qualified
+archives stay unchanged. Known FFI/deprecation, explicit file-package approval,
+optional `.icon` and lazy Ghostty notices remain visible.
+
+### Historical 0.13 checkpoint
 
 The **0.13.0-alpha.1 / protocol-19** checkpoint adds reviewed text-context
 compaction through one shared SDK and actual Local/pinned-SSH worker. Explicit
