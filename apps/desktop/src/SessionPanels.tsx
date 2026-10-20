@@ -90,7 +90,7 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
       running = true;
       try {
         const bounds = host.current.getBoundingClientRect();
-        if (bounds.width > 1 && bounds.height > 1) await window.moguri.preview({ sessionId: session.id, url: session.browserUrl, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } });
+        if (bounds.width > 1 && bounds.height > 1) await window.moguri.preview({ sessionId: session.id, url: session.browserUrl, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } }, sdk.profileId);
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : "Preview could not load. No page content was sent to the agent."); }
       finally { running = false; }
     };
@@ -98,7 +98,7 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
     if (host.current) observer.observe(host.current);
     window.addEventListener("scroll", update, true);
     void update();
-    return () => { disposed = true; observer.disconnect(); window.removeEventListener("scroll", update, true); void window.moguri.preview(null).catch(() => console.error("Native preview cleanup was not acknowledged.")); };
+    return () => { disposed = true; observer.disconnect(); window.removeEventListener("scroll", update, true); void window.moguri.preview(null, sdk.profileId).catch(() => console.error("Native preview cleanup was not acknowledged.")); };
   }, [session.id, session.browserUrl]);
   const navigate = async () => { setError(""); try { await sdk.sessions.browser(session.id, url); } catch (error) { setError(error instanceof Error ? error.message : "Preview URL was not accepted."); } };
   return <section className="browser-panel"><form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => setUrl(event.target.value)} />

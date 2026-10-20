@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BUDGET_WARNING, type BudgetLimit, type BudgetStatus, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { BUDGET_WARNING, type BudgetLimit, type BudgetStatus, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
 export const dollars = (value: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(value);
 const count = (value: number) => new Intl.NumberFormat().format(value);
@@ -12,7 +12,7 @@ export function useBudgetStatus(sdk: MoguriSdk, session: Session, snapshot: Snap
       if (current) { setStatus(null); setError(error instanceof Error ? error.message : "Budget accounting is unavailable. No free usage was assumed."); }
     });
     return () => { current = false; };
-  }, [sdk, session.id, session.revision, snapshot.settings.revision, snapshot.budgetPolicy.revision, stamp]);
+  }, [sdk, session.id, session.revision, snapshot.settings.revision, snapshot.budgetPolicy.revision, snapshot.globalBudgetPolicy?.revision, snapshot.globalBudgetSequence, stamp]);
   return { status, error };
 }
 export function BudgetSummary({ status }: { status: BudgetStatus }) {
@@ -35,12 +35,12 @@ export function SessionBudgetSummary({ sdk, snapshot, session }: { sdk: MoguriSd
   const { status, error } = useBudgetStatus(sdk, session, snapshot);
   return <>{status ? <BudgetSummary status={status} /> : <p role="status">{error || "Loading cumulative budget..."}</p>}</>;
 }
-export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDirty, disabled = false }: {
-  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; scope: "session" | "profile"; status?: BudgetStatus | null;
+export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDirty, disabled = false, globalPolicy }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; scope: "session" | "profile" | "global"; status?: BudgetStatus | null; globalPolicy?: GlobalBudgetPolicy;
   onDirty?: (dirty: boolean) => void; disabled?: boolean;
 }) {
-  const current = scope === "profile" ? snapshot.budgetPolicy.limit : session?.controls.budget.kind === "limited" ? session.controls.budget : null;
-  const revision = scope === "profile" ? snapshot.budgetPolicy.revision : session?.revision ?? 0;
+  const current = scope === "global" ? globalPolicy?.limit ?? null : scope === "profile" ? snapshot.budgetPolicy.limit : session?.controls.budget.kind === "limited" ? session.controls.budget : null;
+  const revision = scope === "global" ? globalPolicy?.revision ?? 0 : scope === "profile" ? snapshot.budgetPolicy.revision : session?.revision ?? 0;
   const [limited, setLimited] = useState(Boolean(current)), [tokens, setTokens] = useState(String(current?.tokens ?? "")), [usd, setUsd] = useState(String(current?.usd ?? ""));
   const [dirty, setDirty] = useState(false), [accepted, setAccepted] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const base = useRef(revision);
@@ -59,24 +59,24 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
         if (!tokens && !usd) throw new Error("Set at least one cumulative limit.");
         limit = { basis: "estimate", ...(tokens ? { tokens: Number(tokens) } : {}), ...(usd ? { usd: Number(usd) } : {}) };
       }
-      const result = scope === "profile" ? await sdk.budgets.policy(limit, base.current, true) : session ?
+      const result = scope === "global" ? await sdk.profiles.globalBudget(limit, base.current, true) : scope === "profile" ? await sdk.budgets.policy(limit, base.current, true) : session ?
         await sdk.sessions.configure(session.id, { ...session.controls, budget: limit ? { kind: "limited", ...limit } : { kind: "unlimited" } }, base.current) :
         (() => { throw new Error("Choose a session for this budget."); })();
-      base.current = result.revision!; setDirty(false); setAccepted(false); setNotice(scope === "profile" ? "Profile policy saved. Factory/default resets cannot remove it." : "Session budget saved. Existing usage was not reset.");
+      base.current = result.revision!; setDirty(false); setAccepted(false); setNotice(scope === "global" ? "Global policy saved. Profile switching, source deletion and defaults cannot refund it." : scope === "profile" ? "Profile policy saved. Factory/default resets cannot remove it." : "Session budget saved. Existing usage was not reset.");
     } catch (error) { setError(error instanceof Error ? error.message : "Budget was not saved. No cap was silently lifted."); }
     finally { setSaving(false); }
   };
-  const locked = disabled || saving || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
+  const locked = disabled || saving || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
   const usdUnavailable = scope === "session" && (!status || !status.rate || status.totals.unpricedCalls > 0);
-  return <section aria-label={scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
-    <label className="setting-field">{scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "profile" ? "No profile cap" : "Unlimited, subject to profile policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
+  return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
+    <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
     {limited && <><label className="setting-field">Token cap<input aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
       <label className="setting-field">Estimated USD cap<input aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>
       {usdUnavailable && <><p className="fine-print">USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free.</p>{usd && <button type="button" disabled={locked} onClick={() => { setUsd(""); change(); }}>Remove session USD limit</button>}</>}</>}
     <p className="settings-warning">{BUDGET_WARNING}</p>
     <p className="fine-print">Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</p>
     <label className="check-setting"><input type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>
-    <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} onClick={() => void save()}>{scope === "profile" ? "Save profile budget policy" : "Save session budget"}</button><button type="button" disabled={saving} onClick={load}>Reload budget</button></div>
+    <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} onClick={() => void save()}>{scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"}</button><button type="button" disabled={saving} onClick={load}>Reload budget</button></div>
     {scope === "session" && session?.turnId && <p className="fine-print">Finish or stop this turn before changing its session preference. A profile policy can still block further calls.</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
   </section>;

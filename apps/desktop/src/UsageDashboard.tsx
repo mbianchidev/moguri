@@ -15,7 +15,7 @@ export function UsageDashboard({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Sn
     return () => { current = false; };
   }, [sdk, JSON.stringify(filters), stamp, snapshot.budgetPolicy.revision]);
   const models = [...new Set(snapshot.budgetEntries.map((entry) => entry.modelId))], providers = [...new Set(snapshot.budgetEntries.flatMap((entry) => entry.providerId ? [entry.providerId] : []))], roles = [...new Set(snapshot.budgetEntries.map((entry) => entry.role))];
-  return <section aria-label="Profile usage dashboard" aria-busy={loading}><h2>Usage dashboard</h2><p className="fine-print">Default profile. Every actual model role, including owned children and stopped/unknown requests. Deleting a source does not refund accounting. Estimates are not bills.</p>
+  return <section aria-label="Profile usage dashboard" aria-busy={loading}><h2>Usage dashboard</h2><p className="fine-print">{snapshot.profile?.name ?? sdk.profileId} profile. Every actual agent-model role, including owned children and stopped/unknown requests. Deleting a source does not refund accounting. Estimates are not bills.</p>
     {error && <p className="inline-error" role="alert">{error}</p>}{loading && <p role="status">Updating authoritative totals...</p>}
     {result && <><dl className="facts"><dt>Model calls</dt><dd>{result.totals.calls}</dd><dt>Reported tokens</dt><dd>{tokens(result.totals)}</dd>
       <dt>Held tokens</dt><dd>{result.totals.heldTokens === null ? "Unbounded / unknown" : result.totals.heldTokens.toLocaleString()}</dd>
@@ -37,6 +37,6 @@ export function UsageDashboard({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Sn
       {result.groups.map((group) => <div className="call-record" key={JSON.stringify([group.role, group.modelId, group.providerId])}><strong>{snapshot.provider.models.find((model) => model.id === group.modelId)?.name ?? group.modelId}</strong><small>{group.role} / {group.providerId ?? "unknown provider"}</small><span>{group.totals.calls} calls / {tokens(group.totals)} tokens</span><span>{group.totals.estimatedUsd === null ? "Estimated USD incomplete" : dollars(group.totals.estimatedUsd) + " estimated"}</span></div>)}
       <div className="button-row">{Boolean(filters.offset) && <button type="button" disabled={loading} onClick={() => choose("offset", Math.max(0, (filters.offset ?? 0) - 50))}>Previous roles</button>}{result.nextOffset !== null && <button type="button" disabled={loading} onClick={() => choose("offset", result.nextOffset!)}>Next roles</button>}</div>
     </>}
-    <p className="fine-print">Cached/category tokens are not added again to provider totals. Request wall time is not active generation throughput. Repository/org/visibility metadata and multiple profiles require their separate qualified integrations.</p>
+    <p className="fine-print">Cached/category tokens are not added again to provider totals. Request wall time is not active generation throughput. Repository/org/visibility metadata requires its separate qualified integrations. Other profiles' private task data is not combined here.</p>
   </section>;
 }

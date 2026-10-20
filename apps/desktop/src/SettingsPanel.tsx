@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { parse, SettingsSchema, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness } from "../../../packages/sdk/src/index.ts";
+import { parse, SettingsSchema, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -26,6 +26,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState(false);
   const [projectDirty, setProjectDirty] = useState(false);
+  const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -48,10 +49,12 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [argumentsJson, setArgumentsJson] = useState("{}");
   const [proposal, setProposal] = useState<{ id: string; content: string; digest: string } | null>(null);
   const [reviewed, setReviewed] = useState(false);
+  const [profileCatalog, setProfileCatalog] = useState<ProfileCatalog | null>(null);
   const baseRevision = useRef(snapshot.settings.revision);
   const ownSave = useRef(false);
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
-  useEffect(() => { onUnsavedChange(dirty || saving || projectDirty); return () => onUnsavedChange(false); }, [dirty, saving, projectDirty, onUnsavedChange]);
+  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty;
+  useEffect(() => { onUnsavedChange(dirty || saving || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, nestedDirty, onUnsavedChange]);
   useEffect(() => {
     setPreview("");
     if (ownSave.current) return;
@@ -59,10 +62,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     else if (baseRevision.current !== snapshot.settings.revision) setError("Another client changed settings. Your edit is preserved. Reload before applying it.");
   }, [snapshot.settings.revision]);
   useEffect(() => {
-    const close = (event: BeforeUnloadEvent) => { if (dirty || projectDirty) { event.preventDefault(); event.returnValue = ""; } };
+    const close = (event: BeforeUnloadEvent) => { if (dirty || nestedDirty) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", close);
     return () => window.removeEventListener("beforeunload", close);
-  }, [dirty, projectDirty]);
+  }, [dirty, nestedDirty]);
   const run = async (operation: () => Promise<unknown>) => {
     setError("");
     try {
@@ -74,6 +77,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     if (tab === "voice") void run(async () => { const result = await sdk.voice.status(); setVoice(result.voice); });
   }, [tab, snapshot.jobs.filter((job) => job.kind === "voice.download" && job.status === "completed").length]);
   useEffect(() => { if (tab === "remote") void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [tab, snapshot.settings.revision]);
+  useEffect(() => { if (tab === "budgets" || tab === "startup") void run(async () => { setProfileCatalog((await sdk.profiles.list()).catalog); }); }, [tab, snapshot.profileCatalogRevision]);
   const change = <K extends SettingsSection>(section: K, value: UserSettings[K]) => { setDraft((draft) => ({ ...draft, [section]: value })); setDirty(true); };
   const reload = () => { baseRevision.current = snapshot.settings.revision; setDraft(structuredClone(snapshot.settings.values)); setRaw({}); setDirty(false); setRisk(false); setError(""); };
   const save = async () => {
@@ -107,8 +111,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const selectedServer = [...snapshot.settings.values.mcpServers, ...projectServers].find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
   return <section className="settings-page" aria-label="Moguri settings">
-    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || projectDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || projectDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
-    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (projectDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
+    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
+    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
       <button className="restore-all" onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
         {tab === "budgets" && <><h2>Budgets and model estimates</h2><p>Session caps and profile policy share one cumulative all-role ledger. Unknown usage is not zero. Exact provider-billing caps are not qualified; finite controls require explicit estimate-based accounting.</p>
@@ -116,8 +120,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           {jsonEditor("budgets", "Budget model estimates")}
           <details><summary>Illustrative estimate configuration, not Copilot pricing</summary><pre>{JSON.stringify({ rates: [{ modelId: session?.controls.modelId ?? "replace-with-canonical-model-id", inputUsdPerMillion: 1, outputUsdPerMillion: 2, effectiveAt: new Date().toISOString().slice(0, 10), source: "user-estimate" }], maxPriceAgeDays: 30 }, null, 2)}</pre><p>Replace illustrative rates with your own approved estimate. An explicit zero rate is allowed; unknown metadata never supplies zero automatically.</p></details>
           <button type="button" disabled={saving} onClick={() => void reset("budgets")}>Restore price-estimate defaults</button>
-          <h3>Default-profile hard policy</h3><p>Applies across sessions and model-created legs. Unlimited preferences, default resets, source deletion and restart cannot remove this policy or refund accounting. Removing the policy requires this explicit revision-bound action.</p>
-          <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="profile" onDirty={setProjectDirty} disabled={dirty || saving} />
+          <h3>Current-profile hard policy</h3><p>Applies across this profile's sessions and model-created legs. Unlimited preferences, default resets, source deletion and restart cannot remove this policy or refund accounting. Removing the policy requires this explicit revision-bound action.</p>
+          <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="profile" onDirty={setProfileBudgetDirty} disabled={dirty || saving} />
+          <h3>Global hard policy</h3><p>Applies across every profile. Creating/switching profiles cannot refund global usage or escape unknown held calls. No other profile's task content is disclosed here.</p>
+          {profileCatalog && <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="global" globalPolicy={profileCatalog.globalBudget} onDirty={setGlobalBudgetDirty} disabled={dirty || saving} />}
         </>}
         {tab === "localModels" && <><h2>Configured local models</h2><p>Connect an OpenAI-compatible server you started, such as ds4, Ollama or llama.cpp. Saving performs bounded model discovery only against enabled URLs. It never scans hosts, downloads weights or selects a model automatically.</p>
           {jsonEditor("localModels", "Local model endpoints")}
@@ -148,11 +154,12 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
             <label className="check-setting"><input type="checkbox" checked={remoteInspection === execution.id} onChange={(event) => setRemoteInspection(event.target.checked ? execution.id : "")} />I inspected this run's remote processes. This acknowledgement does not prove containment or cleanup.</label>
             <button disabled={remoteInspection !== execution.id || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(async () => { await sdk.remote.acknowledge(execution.id, true); setRemoteInspection(""); })}>Record inspection</button></details>)}
           <p className="fine-print">Remote embedded consoles, local repository-memory retrieval and executable MCP transports are not qualified yet. They remain blocked instead of running on this Mac.</p></>}
-        {tab === "startup" && <><h2>New-session defaults</h2><p>Session overrides win over project, Default-profile, global and factory values. Preferences never widen hard environment or permission policy, and saving does not rewrite existing sessions.</p>
-          {jsonEditor("startup", "Global and Default-profile startup defaults")}
-          {session && <button onClick={() => change("startup", { ...draft.startup, profile: structuredClone(session.controls) })}>Use current controls for Default profile</button>}
+        {tab === "startup" && <><h2>New-session defaults</h2><p>Session overrides win over project, current-profile, shared global and factory values. Global preferences intentionally apply to every profile. Preferences never widen hard policy, and saving does not rewrite existing sessions.</p>
+          {jsonEditor("startup", "Global and current-profile startup defaults")}
+          {session && <button onClick={() => change("startup", { ...draft.startup, profile: structuredClone(session.controls) })}>Use current controls for this profile</button>}
           <details><summary>Available model IDs</summary>{snapshot.provider.models.map((model) => <p className="fine-print path" key={model.id}>{model.name}: <code>{model.id}</code></p>)}</details>
-          <button onClick={() => void reset("startup")}>Restore startup defaults</button></>}
+          <button onClick={() => void reset("startup")}>Restore profile startup defaults</button>
+          <button disabled={dirty || saving || nestedDirty || !profileCatalog} onClick={() => void run(async () => { if (!profileCatalog) throw new Error("Load the actual global preference revision first."); await sdk.profiles.defaults({}, profileCatalog.globalDefaults.revision); return "Shared global startup preferences restored. Existing sessions and hard policy were preserved."; })}>Restore shared global defaults</button></>}
         {tab === "instructions" && <><h2>Global user guidance</h2><p>Applies across this profile's chats and projects, including project-free chats. Guidance cannot change hard permissions, authenticate a server or approve a tool.</p><label className="setting-field">User guidance<textarea aria-label="Global user guidance" className="json-editor short" value={draft.instructions} onChange={(event) => change("instructions", event.target.value)} /></label><button onClick={() => void reset("instructions")}>Restore guidance defaults</button></>}
         {tab === "notifications" && <><h2>Attention notifications</h2><p>Questions, pending approvals and completed/failed work use the shared service state. Reading a notification never answers or approves anything.</p>
           <label className="check-setting"><input type="checkbox" checked={draft.notifications.inApp} onChange={(event) => change("notifications", { ...draft.notifications, inApp: event.target.checked })} />Show in-app attention dots and icons</label>

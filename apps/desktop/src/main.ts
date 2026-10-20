@@ -18,7 +18,7 @@ let attentionClient: MoguriSdk | undefined;
 let activeProfileId = process.env.MOGURI_PROFILE_ID ?? PROFILE_ID;
 let profileEpoch = 0;
 const banners = new Map<string, Notification>();
-let preview: { view: WebContentsView; sessionId: string; url: string } | null = null;
+let preview: { view: WebContentsView; profileId: string; sessionId: string; url: string } | null = null;
 const previewUrl = (input: string) => {
   const url = new URL(input);
   if (url.username || url.password || (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)))) throw new Error("Only explicit HTTPS or loopback HTTP previews are supported.");
@@ -152,16 +152,22 @@ else {
       if (!path) throw new Error("No export destination was selected.");
       return saveArtifactExport(path, { filename: input.filename, mediaType: "application/json", text: input.text, digest: input.digest });
     });
-    ipcMain.handle("moguri:preview", async (event, input: unknown) => {
+    ipcMain.handle("moguri:preview", async (event, input: unknown, profileId: unknown) => {
       trusted(event);
-      if (input === null) { hidePreview(); return; }
+      if (typeof profileId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) throw new Error("A user profile is required for a native preview.");
+      if (input === null) { if (preview?.profileId === profileId) hidePreview(); return; }
+      if (profileId !== activeProfileId) throw new Error("The preview belongs to an inactive profile. No scope was rebound.");
       if (!isRecord(input) || typeof input.sessionId !== "string" || !/^[A-Za-z0-9-]{1,128}$/.test(input.sessionId) || typeof input.url !== "string" || !isRecord(input.bounds)) throw new Error("A scoped preview URL and bounds are required.");
       const url = previewUrl(input.url);
       const fields = ["x", "y", "width", "height"] as const;
       for (const field of fields) if (typeof input.bounds[field] !== "number" || !Number.isFinite(input.bounds[field])) throw new Error("Preview bounds must be finite numbers.");
-      if (!preview || preview.sessionId !== input.sessionId) {
+      if (!preview || preview.profileId !== profileId || preview.sessionId !== input.sessionId) {
+        const scoped = attentionClient;
+        if (!scoped || scoped.profileId !== profileId) throw new Error("The preview profile is not connected.");
+        if (!scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId)) await scoped.refresh();
+        if (attentionClient !== scoped || activeProfileId !== profileId || !scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId)) throw new Error("This preview session is outside the active profile.");
         hidePreview();
-        const isolated = electronSession.fromPartition(`moguri-preview-${input.sessionId}`, { cache: false });
+        const isolated = electronSession.fromPartition(`moguri-preview-${profileId}-${input.sessionId}`, { cache: false });
         isolated.setPermissionRequestHandler((_view, _permission, done) => done(false));
         isolated.setPermissionCheckHandler(() => false);
         isolated.on("will-download", (event) => event.preventDefault());
@@ -170,7 +176,7 @@ else {
         const navigation = (event: Electron.Event, target: string) => { try { previewUrl(target); } catch { event.preventDefault(); } };
         view.webContents.on("will-navigate", navigation);
         view.webContents.on("will-redirect", navigation);
-        preview = { view, sessionId: input.sessionId, url: "" };
+        preview = { view, profileId, sessionId: input.sessionId, url: "" };
         mainWindow!.contentView.addChildView(view);
       }
       const available = mainWindow!.getContentBounds();
