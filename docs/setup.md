@@ -1220,9 +1220,17 @@ same SDK, CLI/native TUI and Ghostty. Generated native integration exercises
 actual control-plane restart and preserved PTY identity, stale-input discard
 and closed-console reopening without replacement.
 
-The committed functional slice passed 475 source checks and 33 hidden desktop
-workflows. Fresh-consumer and actual packaged Node/client/footprint
-qualification is being repeated after import isolation. The initial package
+The import-isolated slice passed **477 source checks in 342.30 s** and the
+actual bundled Node/service/owner qualification. Its native shell measured
+**529.30 MiB with one console, 531.06 MiB with four**, below the original
+600-MiB Electron-only budget; combined Electron/service/broker totals were
+**806.06 / 808.81 MiB**, with generated user programs reported separately.
+All four consoles used one broker and reattached their original PIDs.
+Fresh-consumer and native desktop qualification is being repeated. An initial
+native run exposed a harness race: the second held shortcut arrived before the
+first UI submission gate released, although its server queue entry existed.
+The harness now waits for the actual held-submit button, not server state;
+the rejected trace remains retained. The initial package
 verifier incorrectly applied the Electron-only 600-MiB budget to the entire
 runtime: its retained measurement was 554.08 MiB Electron, 277.33 MiB service/
 broker and 831.41 MiB combined. Shell and total figures are now reported

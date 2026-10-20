@@ -32,9 +32,16 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
       await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Run command", exact: true })).toBeEnabled();
       await prompt.press("Meta+Enter");
     };
-    await prompt.fill("Generated first held prompt"); await prompt.press("Meta+Enter");
+    const hold = async (text: string, modifier: "Meta" | "Control") => {
+      await prompt.fill(text); await page.keyboard.down(modifier);
+      try {
+        await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Queue prompt without starting work", exact: true })).toBeEnabled();
+        await page.keyboard.press("Enter");
+      } finally { await page.keyboard.up(modifier); }
+    };
+    await hold("Generated first held prompt", "Meta");
     await expect.poll(() => fixture.session().queue.length).toBe(1);
-    await prompt.fill("Generated second held prompt"); await prompt.press("Control+Enter");
+    await hold("Generated second held prompt", "Control");
     await expect.poll(() => fixture.session().queue.length).toBe(2);
     expect(fixture.session().queue.every((item) => item.held)).toBe(true);
     expect(fixture.requests.length).toBe(0);
