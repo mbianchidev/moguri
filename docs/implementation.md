@@ -57,6 +57,14 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > automatic refund, routed kupo wind-down or authorized checkpoint commit is
 > inferred. A budget stop retains a diagnostic artifact without an extra model.
 
+> [Reviewed context compaction](architecture/context-compaction.md) now adds an
+> explicit preview/generate/review/apply/restore workflow through the same SDK,
+> Local/SSH worker and all-role ledger. Original history, complete recent turns
+> and drafts stay retained. Source/model/policy-bound text proposals never become
+> user answers, permissions or automatic memory. Images, automatic compaction
+> and implicit kupo compactor selection remain unsupported. Fresh current-input
+> estimates preserve finite admission without rewriting real reported usage.
+
 > The [profile slice](architecture/profiles.md) adds immutable SDK/store/
 > controller scopes, isolated accounts/data/editors and root-owned global
 > environment policy, startup preferences and budget capacity. Actual CLI/TUI
