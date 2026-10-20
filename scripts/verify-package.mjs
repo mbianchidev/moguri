@@ -13,6 +13,7 @@ const root = join(app, "Contents", "Resources", "app");
 for (const path of [".moguri", ".native", ".impeccable", ".copilot", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
 const node = join(root, "node_modules", "node", "bin", "node");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inherit" });
+const { PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
@@ -72,7 +73,7 @@ try {
   const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers });
   const snapshot = await response.json();
   assert.equal(snapshot.sessions.length, 1);
-  assert.equal(snapshot.protocolVersion, 16);
+  assert.equal(snapshot.protocolVersion, PROTOCOL_VERSION);
   assert.equal(snapshot.settings.values.appearance.theme, "dark");
   assert.equal((await query({ type: "remote.status" })).remote.ready, false);
   assert.deepEqual(snapshot.sessions[0].controls, { env: "Local", modelId: null, autonomy: "Manual", budget: { kind: "unlimited" } });
