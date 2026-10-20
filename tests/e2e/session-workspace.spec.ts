@@ -27,7 +27,11 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     const page = await app.firstWindow();
     const failures: string[] = []; page.on("pageerror", (error) => failures.push(error.message));
     const prompt = page.getByLabel("Prompt", { exact: true });
-    const slash = async (value: string) => { await prompt.fill(value); await prompt.press("Meta+Enter"); };
+    const slash = async (value: string) => {
+      await prompt.fill(value);
+      await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Run command", exact: true })).toBeEnabled();
+      await prompt.press("Meta+Enter");
+    };
     await prompt.fill("Generated first held prompt"); await prompt.press("Meta+Enter");
     await expect.poll(() => fixture.session().queue.length).toBe(1);
     await prompt.fill("Generated second held prompt"); await prompt.press("Control+Enter");
