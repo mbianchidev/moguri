@@ -1056,6 +1056,48 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Current 0.11 checkpoint
+
+The **0.11.0-alpha.1 / protocol-17** checkpoint adds read-only Remote Files,
+Changes and Plan through the pinned SSH worker and existing SDK. The actual
+TUI displays remote file/diff/plan text without invoking a Local file opener;
+the desktop uses the same APIs and follows explicit root remapping. Direct
+Remote plan saves, embedded terminals, executable MCP and repository-memory
+transport remain unavailable. This is not the completed first milestone.
+
+The complete local suite passes **326 checks in 201.84 s**. All **21** hidden
+source-desktop workflows pass in **45.8 s**, and all **21** pass again against
+the actual packaged app in **46.5 s**. The exact delivered SDK archive passes
+independent install/script approval/rebuild/audit, all four entrypoint types
+and actual installed-worker SSH files/Git/plan reads, alongside the existing
+profiles, routing, budgets, artifacts, MCP and Local PTY checks. Source and
+consumer audits report zero vulnerabilities; clean restore, types and build
+pass. Known FFI/deprecation, explicit file-package approval, optional `.icon`
+and lazy Ghostty size notices remain visible.
+
+Migration 17 preserves schema-16 multi-profile ciphertexts, receipts, keys and
+retained grants. Injected migration failure leaves old state unchanged. New
+workspace queries reject incompatible workers; authenticated protocol-16
+receipts remain inspectable without attachment or continuation. Generated real
+SSH checks cover protected/denied paths, exact byte limits, FIFOs, hooks/filters,
+index preservation, Git root redirection, stale binding races, abort and
+shutdown. No personal authorization, paid inference or Sandbox probe is used.
+
+Strict ad-hoc signature/runtime/assets checks and real DMG integrity pass.
+These are development artifacts, not notarized production releases. The app is
+`release/0.11.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.11.0-alpha.1-macos-arm64.dmg` | 361498864 | `26655022d509773c98eca723a9450c73e4cb740382e166e28a52d64d105454e5` |
+| `Moguri-0.11.0-alpha.1-macos-arm64.zip` | 278959509 | `8d868c23508bc36b7d767fd7cbcfb85f07f2ef8ae1b0a73961e88865dab12c1d` |
+| `moguri-0.11.0-alpha.1.tgz` | 6521142 | `bb3fff492b6ef2a1d115a1805378e805568a0b5925402182c67ceb836e6f218c` |
+
+The DMG exceeds chat's 64 MiB attachment limit and remains local. Earlier
+artifacts are unchanged. No release, tag or merge was created. Sandbox work is
+paused at the user's request and remains unavailable; this release neither
+modifies SendBox nor claims detached-descendant containment.
+
 ### Historical 0.10 checkpoint
 
 The **0.10.0-alpha.1 / protocol-16** Single-routing artifacts pass strict
