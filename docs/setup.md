@@ -1058,7 +1058,54 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.11 checkpoint
+### Current 0.12 checkpoint
+
+The **0.12.0-alpha.1 / protocol-18** checkpoint adds inclusive UTC date presets,
+year/custom ranges, day/week/month buckets, captured rate history, retained
+call/owning-turn views and observed stream/category metadata through the shared
+SDK/CLI/TUI/desktop. Filters never change cumulative cap admission. Missing
+cache details or single-event timing stay unknown; delivery rates are not GPU
+generation or productivity. Compaction, broader repository metadata, routed
+wind-down and remaining non-sandbox gaps are not implied complete.
+
+The corrected source passes **341 local checks in 261.37 s**, all **24** hidden
+source-desktop workflows in **48.6 s**, and all **24** against the actual
+packaged app in **49.1 s**. Native TUI exercises dated aggregate/call queries
+without another model request. The exact delivered SDK independently passes
+fresh install/script review/rebuild/audit, four external entrypoint types,
+actual installed CLI dated/call views and shipped SSH worker reads. Source and
+consumer audits report zero vulnerabilities. Clean restore, types/build,
+strict ad-hoc signature/runtime/assets and real DMG integrity pass.
+
+The first packaged run failed one of 22 flows: closing the model popover
+released its pending-settings gate while the request was still in flight.
+A deterministic held-response check reproduced the stale-control/draft race.
+The parent composer now owns the request count through actual settlement;
+errors remain visible after menu closure. Two new controlled checks cover both
+success and refusal, preserved drafts and no extra inference. The original
+failed run, trace, hashes and unqualified artifacts remain retained separately;
+they are not relabeled as successful. Fresh complete source/package runs above
+qualify the corrected artifacts.
+
+Migration 18 preserves old ciphertexts, receipts, keys and charges while
+appending only provable ledger metadata. Missing old timings stay unknown;
+source deletion/restart and failed migration do not refund or replay work.
+Legacy protocol-16/17 receipts remain inspectable, not resumable.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.12.0-alpha.1-macos-arm64.dmg` | 361150562 | `4f26b62445311e4fb4a2410657bef9620cd1f69c202420398203b7ef016de5f0` |
+| `Moguri-0.12.0-alpha.1-macos-arm64.zip` | 278975325 | `6532b74c00f16cc2db18d8932f3ab0fed46cd091bb09ea20c31b00ad95addc7c` |
+| `moguri-0.12.0-alpha.1.tgz` | 6541827 | `c4c05b3eb5adfcfe69f90504c0b32a6c6917807cfe356cd973ae3f5d84039c02` |
+
+App: `release/0.12.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. The DMG exceeds
+chat's 64 MiB limit and remains local. These are ad-hoc-signed, unnotarized
+development artifacts; no tag, release or merge was created. Earlier qualified
+artifacts are unchanged. Known FFI/deprecation, explicit file-package approval,
+optional `.icon` and lazy Ghostty notices remain visible. Sandbox work stays
+paused, with no SendBox probe or stronger containment claim.
+
+### Historical 0.11 checkpoint
 
 The **0.11.0-alpha.1 / protocol-17** checkpoint adds read-only Remote Files,
 Changes and Plan through the pinned SSH worker and existing SDK. The actual
