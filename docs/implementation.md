@@ -34,8 +34,8 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > explicit local generative endpoints, snapshotted control inheritance and
 > [typed context](architecture/context-inputs.md). The [core SSH slice](architecture/execution-transports.md)
 > runs the same worker/model/file loop remotely with pinned identity and
-> no-replay recovery. Remote side-panel/extension transport, native Sandbox,
-> budgets, isolated profiles and routing are not implied complete.
+> no-replay recovery. Remote side-panel/extension transport, native Sandbox
+> and routing are not implied complete by that foundation.
 
 > The [managed Local workspace slice](architecture/managed-workspaces.md) adds
 > explicit worktree creation/discovery/removal, change-set context, per-root
@@ -50,11 +50,18 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > qualification is inferred from this artifact slice.
 
 > The [budget/telemetry slice](architecture/budgets.md) now adds explicitly
-> estimate-based session caps, separate cumulative Default-profile policy,
+> estimate-based session caps, separate cumulative profile/global policy,
 > atomic all-role reservations, held unknowns, exact reported-total settlement,
 > late SSH metering and a shared aggregate dashboard. No exact billing claim,
 > automatic refund, routed kupo wind-down or authorized checkpoint commit is
 > inferred. A budget stop retains a diagnostic artifact without an extra model.
+
+> The [profile slice](architecture/profiles.md) adds immutable SDK/store/
+> controller scopes, isolated accounts/data/editors and root-owned global
+> environment policy, startup preferences and budget capacity. Actual CLI/TUI
+> and packaged desktop switching preserve old owned work; migration 14
+> preserves Default identity/keys/receipts. Profile deletion/merge, native
+> Sandbox and routed decisions are not implied.
 
 ## Why Moguri
 

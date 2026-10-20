@@ -1053,3 +1053,8 @@ Remaining blockers and unsupported capabilities are listed in
 [Phase 0](architecture/phase-zero.md) and the canonical implementation spec.
 CI is configured only for pushes to `main`. PRs/feature branches do not trigger
 it; development verification runs locally, without manual CI dispatch.
+
+`node scripts/decision-spike.mjs` runs the separate generated
+[System One prerequisite](architecture/decision-primitives.md). It does not
+configure an account, send a paid request, enable automatic approval or
+qualify Jev for finite-token admission.
