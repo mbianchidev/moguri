@@ -3,6 +3,7 @@ import { DraftEditor, KUPO_MODEL_ID, slashCommands, attachmentTriggers, parseAtt
 import { Icon } from "./Icon.tsx";
 import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
+import { ContextCompactionReview } from "./ContextCompaction.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -30,6 +31,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [menu, setMenu] = useState<Menu | null>(null);
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
+  const [contextReview, setContextReview] = useState(false);
   const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
   const heldModifier = useQueueModifier();
   const [configurationCount, setConfigurationCount] = useState(0), [configurationError, setConfigurationError] = useState("");
@@ -52,7 +54,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const canSend = answering ? canQueue && Boolean(draft.text.trim()) && Boolean(question?.allowFreeform || question?.choices.includes(draft.text)) :
     canQueue && snapshot.provider.status === "connected" && eligibleModel && snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && (delivery === "queue" || Boolean(session.turnId));
   const suggestions = isSlash && !/\s/.test(draft.text) ? slashCommands.filter((command) => command.name.startsWith(draft.text.slice(1))).slice(0, 7) : [];
-  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null); return () => onMenuChange(false); }, [menu, attachmentReview, onMenuChange]);
+  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || contextReview); return () => onMenuChange(false); }, [menu, attachmentReview, contextReview, onMenuChange]);
   const adopt = async (saved: Session["draft"]) => {
     const text = editor.getState().text;
     editor.receive(saved);
@@ -125,7 +127,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} editor={editor} run={run} capture={capture} initial={pendingTrigger} close={() => setMenu(null)} review={(request) => { setAttachmentReview(request); setMenu(null); }} />)}
         {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => <button className="composer-menu-option" key={capability.env} type="button" disabled={Boolean(session.turnId) || !capability.ready || !snapshot.policy.allowedEnvs.includes(capability.env)} aria-pressed={session.controls.env === capability.env} title={capability.reason} onClick={() => void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); })}><Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{!snapshot.policy.allowedEnvs.includes(capability.env) ? "Blocked by policy" : capability.env === "Local" ? "Host execution, not sandboxed" : capability.ready ? "Verified SSH host, not SendBox isolation" : "Not ready"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>)}<p>Choosing Remote transfers this session's approved history and attachments to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. No host folders are mounted. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button></>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}</span>} model>
-          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
+          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const grants = snapshot.settings.values.permissions.tools.some((rule) => rule.decision === "allow") || snapshot.settings.values.permissions.commands.some((rule) => rule.decision === "allow");
@@ -146,6 +148,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       <span className="sr-only" role="status">{status}</span>
     </div>
     {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => setAttachmentReview(null)} />}
+    {contextReview && <ContextCompactionReview sdk={client} session={session} snapshot={snapshot} close={() => { setContextReview(false); document.getElementById(`prompt-${session.id}`)?.focus(); }} />}
   </form>;
 }
 
@@ -178,7 +181,7 @@ function ComposerPopover({ name, label, description, open, toggle, close, trigge
   </div>;
 }
 
-function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting, onSaving, onError, pending, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onRouting: () => void; onSaving: (saving: boolean) => void; onError: (message: string) => void; pending: boolean; requiresImages: boolean }) {
+function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting, onContext, onSaving, onError, pending, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onRouting: () => void; onContext: () => void; onSaving: (saving: boolean) => void; onError: (message: string) => void; pending: boolean; requiresImages: boolean }) {
   const current = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
   const [search, setSearch] = useState("");
   const [window, setWindow] = useState(session.controls.modelOptions?.contextWindow?.toString() ?? "");
@@ -216,7 +219,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div className="button-row"><button type="button" className="primary" disabled={!current || current.synthetic || !dirty || saving || pending || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </div>
-  </>}<button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>kupo Single settings</button></>;
+  </>}<button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>kupo Single settings</button></>;
 }
 
 function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; editor: DraftEditor }) {

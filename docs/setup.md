@@ -119,6 +119,46 @@ before admission and preserve the complete draft/queue, including prior image
 history; no image is silently dropped. Session snapshots disclose their bounded
 public-text scope, not private continuation or tool/binary payloads.
 
+## Reviewed context compaction
+
+Desktop: **Model / Review context and compactions**. Choose a real compactor and
+how many complete recent turns to keep, then **Preview source**. Previewing does
+not call a model. Inspect the contract/request estimate before **Generate
+proposal**. Read the actual summary, check its review acknowledgement, and use
+**Apply reviewed summary**. Context is never automatically replaced.
+
+The same capability is available through `sdk.compactions` and CLI/native TUI
+`/compact`. Examples:
+
+```text
+/compact state
+/compact preview {"keepRecentTurns":1}
+/compact generate {"digest":"PREVIEW_SHA","modelId":"ACTUAL_MODEL_ID","keepRecentTurns":1} confirm-cost
+/compact read COMPACTION_ID
+/compact stop COMPACTION_ID
+/compact apply COMPACTION_ID REV confirm-reviewed
+/compact discard COMPACTION_ID REV
+/compact restore ACTIVE_ID CURRENT_STATE_SOURCE_SHA confirm-restore
+```
+
+For CLI, use `moguri slash '/compact preview {"keepRecentTurns":1}' --session ID`.
+Copy the actual digest/model/revision from the current preview/history; the
+placeholders above are not valid hashes. A kupo session must explicitly name
+an available fixed compactor in preview options. No fallback is chosen.
+
+Compaction supports text history on Local and qualified core SSH. It uses one
+owned tool-less model call with actual role/cost/cancellation; Remote inference
+stays on the pinned machine. Generate may spend budget even when rejected.
+Absent reports remain unknown/held. Source/model/policy changes, tools,
+incomplete/expanding output and image history fail explicitly.
+
+Original append-only history, complete recent turns and your draft stay
+retained. Restoring originals makes no call and never refunds charges or
+replays tools; normal context-window limits still apply. Session deletion may
+delete its compaction text along with its transcript, but cannot erase the
+independent ledger's real/unknown charges. There is no automatic compaction,
+summary-to-memory promotion, user-answer forgery or new sandbox claim.
+
 ## Local models and startup sources
 
 **Settings / Local models** accepts explicit OpenAI-compatible base URLs and
@@ -321,7 +361,7 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-18 worker build on the SSH host and probe it before
+Install this exact protocol-19 worker build on the SSH host and probe it before
 new work; retained protocol-16/17 receipts permit inspection, not continuation.
 
 Remote embedded terminals, executable MCP transport, repository-memory
@@ -1042,8 +1082,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.12.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.12.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.13.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.13.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
