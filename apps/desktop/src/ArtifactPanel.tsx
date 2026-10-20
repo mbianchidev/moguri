@@ -6,6 +6,7 @@ import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status, folderId: value.folderId ?? null, workItemId: value.workItemId ?? null });
 const sourceLabel = (artifact: RetainedArtifact) => {
+  if (artifact.origin === "checkpoint") return "Deterministic budget checkpoint. No model answer or successful Git commit is implied.";
   if (artifact.origin === "question") return artifact.sources.at(-1)?.actor === "user" ? "Actual user answer; the model question is context, not permission." : "Automated answer, not a human instruction.";
   return artifact.origin === "manual" ? "User-entered text, not verified authorship" : artifact.sources.some((source) => source.actor === "model") ? "Model output, not a human answer" : artifact.sources.some((source) => source.actor === "user") ? "Canonical user message" : "Source authorship unknown";
 };

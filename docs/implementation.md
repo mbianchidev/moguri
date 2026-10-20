@@ -49,6 +49,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > clients. Delegated decision answers remain open; no routing or containment
 > qualification is inferred from this artifact slice.
 
+> The [budget/telemetry slice](architecture/budgets.md) now adds explicitly
+> estimate-based session caps, separate cumulative Default-profile policy,
+> atomic all-role reservations, held unknowns, exact reported-total settlement,
+> late SSH metering and a shared aggregate dashboard. No exact billing claim,
+> automatic refund, routed kupo wind-down or authorized checkpoint commit is
+> inferred. A budget stop retains a diagnostic artifact without an extra model.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

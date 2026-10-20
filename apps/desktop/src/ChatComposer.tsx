@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import { DraftEditor, slashCommands, attachmentTriggers, parseAttachmentTrigger, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
+import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -89,7 +90,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
   const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
-  const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? "Unlimited" : "Configured cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
+  const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit ? "Unlimited preference; profile hard cap applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description={answering ? "Cmd/Ctrl+Enter queues without answering. Shift+Cmd/Ctrl+Enter answers the actual question." : "Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now."}>
     {session.controls.modelId && !model && <button type="button" className="setup-hint" onClick={onConnect}>Saved model {session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.<Icon name="Down" /></button>}
     {model && !eligibleModel && <button type="button" className="setup-hint" onClick={() => setMenu("model")}>This saved model is not available in {session.controls.env}. Choose a compatible model explicitly.<Icon name="Down" /></button>}
@@ -128,7 +129,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         })}<button className="quiet" type="button" onClick={() => { setMenu(null); onGuardrails(); }}>Guardrails</button></>)}
       </div>
       <div className="composer-trailing">
-        {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" ? "Infinity" : "Dollar", <UsageMenu sdk={client} session={session} editor={editor} />)}
+        {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !snapshot.budgetPolicy.limit ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} editor={editor} />)}
         <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceJob ? "Stop local dictation" : "Start local dictation"} title={voiceJob ? "Stop dictation" : "Dictate (Ctrl+Space)"} onClick={() => void dictate()}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
         <div className="composer-send-group">
           <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} title={held ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={isSlash || held ? !canQueue : !canSend} onClick={(event) => { event.preventDefault(); send(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held ? "Clock" : "Send"} /></button>
@@ -214,7 +215,9 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onSaving,
   </>}<button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button></>;
 }
 
-function UsageMenu({ sdk, session, editor }: { sdk: MoguriSdk; session: Session; editor: DraftEditor }) {
+function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; editor: DraftEditor }) {
+  const accounting = useBudgetStatus(sdk, session, snapshot);
+  const [budgetView, setBudgetView] = useState<"usage" | "limits">("usage");
   const [context, setContext] = useState<ModelContextPreview | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -233,7 +236,13 @@ function UsageMenu({ sdk, session, editor }: { sdk: MoguriSdk; session: Session;
     if (!values.length || values.every((value) => value === null)) return null;
     return `${new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}${values.some((value) => value === null) ? " + unknown" : ""}`;
   };
-  return <><header className="composer-usage-heading"><h2>Usage</h2><span>{session.controls.budget.kind === "unlimited" ? "Unlimited" : "Configured cap"}</span></header><dl className="composer-usage"><dt>Input tokens</dt><dd>{tokens("inputTokens")}</dd><dt>Output tokens</dt><dd>{tokens("outputTokens")}</dd><dt>Cached input</dt><dd>{tokens("cacheReadTokens")}</dd><dt>Context estimate</dt><dd>{context ? `~${count(context.estimatedTokens)}${context.contextWindow ? ` / ${count(context.contextWindow)}` : ""}` : error ? "Unavailable" : "Loading..."}</dd>
+  return <><header className="composer-usage-heading"><h2>Usage</h2><span>{session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit ? "Profile cap applies" : "Unlimited" : "Estimated cap"}</span></header>
+    <div className="button-row"><button type="button" aria-pressed={budgetView === "usage"} onClick={() => setBudgetView("usage")}>Current usage</button><button type="button" aria-pressed={budgetView === "limits"} onClick={() => setBudgetView("limits")}>Session budget limits</button></div>
+    <div hidden={budgetView !== "usage"}><dl className="composer-usage"><dt>Input tokens</dt><dd>{tokens("inputTokens")}</dd><dt>Output tokens</dt><dd>{tokens("outputTokens")}</dd><dt>Cached input</dt><dd>{tokens("cacheReadTokens")}</dd><dt>Context estimate</dt><dd>{context ? `~${count(context.estimatedTokens)}${context.contextWindow ? ` / ${count(context.contextWindow)}` : ""}` : error ? "Unavailable" : "Loading..."}</dd>
     {(["estimatedUsd", "providerReportedUsd", "billedUsd"] as const).map((field) => { const value = dollars(field); return value ? <div className="usage-dollar-row" key={field}><dt>{field === "estimatedUsd" ? "Estimated USD" : field === "providerReportedUsd" ? "Provider-reported USD" : "Billed USD"}</dt><dd>{value}</dd></div> : null; })}
-  </dl>{!dollars("estimatedUsd") && !dollars("providerReportedUsd") && !dollars("billedUsd") && <p>USD not reported.</p>}<p>Context includes the saved draft and is estimated. Usage updates after each call; unreported values stay unknown.</p>{error && <p className="inline-error" role="alert">{error}</p>}</>;
+  </dl>{!dollars("estimatedUsd") && !dollars("providerReportedUsd") && !dollars("billedUsd") && <p>USD not reported.</p>}<p>Context includes the saved draft and is estimated. Usage updates after each call; unreported values stay unknown.</p>
+    {accounting.status && <BudgetSummary status={accounting.status} />}
+    </div>
+    <div hidden={budgetView !== "limits"}><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} /></div>
+    {(error || accounting.error) && <p className="inline-error" role="alert">{error || accounting.error}</p>}</>;
 }

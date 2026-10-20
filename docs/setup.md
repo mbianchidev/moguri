@@ -760,6 +760,63 @@ Restart never retries a copy or commit. Deletion rechecks a completed receipt,
 current source set, real file digest/private ownership and requested local
 commit; changing/removing the file or branch keeps stored documents intact.
 
+### Estimated budgets and cumulative usage
+
+Factory preference remains **Unlimited**. The composer's Budget popover now
+separates current accounting from explicit session limits. Choose estimated
+cumulative token and/or USD caps, read the interruption warning and accept the
+estimate policy before saving. The service atomically reserves capacity before
+each real model dispatch and forwards the reduced output limit.
+
+**This is not an exact provider-billing guarantee.** Input is estimated and
+in-flight charges cannot be undone. Real reports settle once. Missing/lost
+completion keeps the entire reservation held, not free; late authenticated SSH
+usage can refine it without replaying a request or completing a partial turn.
+Model-created subagents charge their real owner. Changing models/envs,
+resuming, deleting sources and restarting never resets cumulative accounting.
+
+USD choices require fresh model-specific estimates in **Settings / Budgets**.
+Configure canonical model IDs, input/output USD per million, a UTC effective
+date and `source: "user-estimate"`. No Copilot price is guessed; adapter default
+zero is not a bill. An explicit approved zero estimate is allowed. Historical
+unpriced/unbounded calls keep affected finite choices unavailable. Cache
+categories are included once in total input using the conservative configured
+rate, not an invented discount.
+
+The separate **Default-profile hard policy** applies across sessions, including
+Unlimited preferences. Factory/settings reset does not clear it. Removing or
+changing policy requires the current revision and an explicit user action.
+Only Default is implemented, not Work/Open Source profile isolation.
+
+```json
+{"kind":"limited","basis":"estimate","tokens":50000}
+```
+
+```bash
+node bin/moguri.mjs budget set SESSION_ID session-budget.json --confirm-review
+node bin/moguri.mjs budget status SESSION_ID
+node bin/moguri.mjs budget dashboard --project PROJECT_ID --role solver
+node bin/moguri.mjs budget policy profile-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
+```
+
+Profile-limit JSON uses `{"basis":"estimate","tokens":100000}` without `kind`;
+literal `null` explicitly removes policy, not accounting. TUI shares
+`/budget status`, `/budget set TOKENS|- USD|- confirm-estimates`,
+`/budget profile TOKENS|- USD|- REV confirm-estimates` and
+`/budget clear-profile REV confirm-policy`. It displays the warning before the
+typed cap is applied. **F7** opens cumulative profile accounting even without
+a session; `/dashboard` supports an explicit filters JSON object.
+
+Desktop **Dashboard** shows authoritative profile totals and actual
+role/provider/model groups, with project/folder/session/provider/model/role
+filters and bounded pages. Unknown usage, held reservations, estimates and
+unreported bills stay distinct. Repository/org/visibility filtering and
+multiple profiles await their qualified metadata/isolation.
+
+Exhaustion blocks the next chargeable call and retains a diagnostic artifact
+without an extra model. It never claims a Git commit. Full kupo wind-down,
+accepted-work validation/commit and exact billing integration remain separate.
+
 ### Structured questions and actual answers
 
 The model's `ask_user` tool creates a real typed question with optional choices.
@@ -827,7 +884,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 12 preserves earlier state through transactional
+Protocol/database version 13 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the

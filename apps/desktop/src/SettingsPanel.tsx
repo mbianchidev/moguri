@@ -4,8 +4,9 @@ import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { McpOAuthPanel } from "./McpOAuthPanel.tsx";
+import { BudgetLimitEditor } from "./BudgetControls.tsx";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote";
+export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets";
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
   { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
@@ -15,6 +16,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "instructions", label: "User guidance" }, { id: "notifications", label: "Notifications" },
   { id: "localModels", label: "Local models" }, { id: "startup", label: "Startup defaults" },
   { id: "remote", label: "Remote SSH" },
+  { id: "budgets", label: "Budgets" },
 ];
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal, openSession }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -106,9 +108,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
   return <section className="settings-page" aria-label="Moguri settings">
     <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || projectDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || projectDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
-    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (projectDirty) { setError("Save or reload this project edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
+    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (projectDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
       <button className="restore-all" onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
+        {tab === "budgets" && <><h2>Budgets and model estimates</h2><p>Session caps and profile policy share one cumulative all-role ledger. Unknown usage is not zero. Exact provider-billing caps are not qualified; finite controls require explicit estimate-based accounting.</p>
+          <h3>Model-specific USD estimates</h3><p>Use canonical model IDs and approved input/output USD per million tokens. The input rate applies conservatively to every input category, including cache. A missing/stale rate disables USD admission, not a free request. Save these settings before applying policy.</p>
+          {jsonEditor("budgets", "Budget model estimates")}
+          <details><summary>Illustrative estimate configuration, not Copilot pricing</summary><pre>{JSON.stringify({ rates: [{ modelId: session?.controls.modelId ?? "replace-with-canonical-model-id", inputUsdPerMillion: 1, outputUsdPerMillion: 2, effectiveAt: new Date().toISOString().slice(0, 10), source: "user-estimate" }], maxPriceAgeDays: 30 }, null, 2)}</pre><p>Replace illustrative rates with your own approved estimate. An explicit zero rate is allowed; unknown metadata never supplies zero automatically.</p></details>
+          <button type="button" disabled={saving} onClick={() => void reset("budgets")}>Restore price-estimate defaults</button>
+          <h3>Default-profile hard policy</h3><p>Applies across sessions and model-created legs. Unlimited preferences, default resets, source deletion and restart cannot remove this policy or refund accounting. Removing the policy requires this explicit revision-bound action.</p>
+          <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="profile" onDirty={setProjectDirty} disabled={dirty || saving} />
+        </>}
         {tab === "localModels" && <><h2>Configured local models</h2><p>Connect an OpenAI-compatible server you started, such as ds4, Ollama or llama.cpp. Saving performs bounded model discovery only against enabled URLs. It never scans hosts, downloads weights or selects a model automatically.</p>
           {jsonEditor("localModels", "Local model endpoints")}
           <details><summary>Endpoint configuration example</summary><pre>{JSON.stringify([{ id: "my-local", name: "My local server", enabled: true, baseUrl: "http://127.0.0.1:8080/v1", auth: "none", models: [{ id: "replace-with-advertised-model-id", name: "My local model", contextWindow: 32768, maxTokens: 4096, imageInput: false }] }], null, 2)}</pre></details>

@@ -3,6 +3,7 @@ const paths: Record<string, string> = {
   Files: "M3 6h7l2 3h9v11H3Z", Browser: "M3 5h18v15H3Zm0 4h18",
   Image: "M3 4h18v16H3Zm0 12 5-5 5 5 3-3 5 5M8 8h.01",
   "Side chat": "M4 4h16v12H9l-5 4Z", Insights: "M5 20v-6m7 6V4m7 16V9",
+  Dashboard: "M3 3h18v18H3Zm4 14v-4m5 4V7m5 10v-7",
   Extensions: "M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z",
   Settings: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2-5h4l1 3 3 1 3 3v4l-3 1-1 3-3 3h-4l-1-3-3-1-3-3v-4l3-1 1-3Z",
   Back: "m14 5-7 7 7 7M7 12h14", Copy: "M8 8h12v12H8Zm-4 8V4h12", Edit: "m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z",
