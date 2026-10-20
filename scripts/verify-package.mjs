@@ -10,6 +10,7 @@ import { generatedOAuthServer } from "../tests/fixtures/oauth.ts";
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
 const root = join(app, "Contents", "Resources", "app");
+for (const path of [".moguri", ".native", ".impeccable", ".copilot", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
 const node = join(root, "node_modules", "node", "bin", "node");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inherit" });
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);

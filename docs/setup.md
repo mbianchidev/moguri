@@ -958,6 +958,23 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+The current **0.7.0-alpha.1 / protocol-13** development artifacts pass strict
+ad-hoc signature/runtime verification and all **17 hidden packaged Electron
+flows** (**37.8 s**), including real structured answers, managed roots,
+repository artifact copies/local commits and explicit estimated budgets.
+`hdiutil verify` passes for the actual DMG. The exact delivered SDK archive
+passes its fresh approved external install, all entrypoint types and generated
+worker/model/budget exchange, with zero audit findings.
+Test output, local state and agent metadata are excluded from the app bundle.
+Sandbox/R5, routed decisions/wind-down, profile isolation and the remaining
+roadmap are not qualified by this package.
+
+| Development artifact | SHA-256 |
+| --- | --- |
+| `Moguri-0.7.0-alpha.1-macos-arm64.dmg` | `a9ebb7b43c3ac644560cd302de92f812213191183135908333f2a174fe0152e4` |
+| `Moguri-0.7.0-alpha.1-macos-arm64.zip` | `3cb6f540907953462310becba5d37080cfd5018a3d9bf538a5b279185c8e3c87` |
+| `moguri-0.7.0-alpha.1.tgz` | `3075cf15b8331f6e5fa7d7cd3554c8bdd7cf2c3d802381622048b6b4d8137376` |
+
 Package verification also exercises the compiled service's project-free
 metachat/configuration API, generated OAuth and an exactly approved HTTP MCP
 tool call with credential redaction. It injects a generated vault/issuer rather
