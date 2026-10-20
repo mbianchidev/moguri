@@ -1160,9 +1160,9 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.15 source checkpoint
+### Current 0.15 checkpoint
 
-The **0.15.0-alpha.1 / protocol-21** source adds independently retained,
+The **0.15.0-alpha.1 / protocol-21** checkpoint adds independently retained,
 sanitized tool/MCP outcome metrics and current-profile key-backed ciphertext
 measurements. SDK, CLI/native TUI and desktop share the service projections.
 Declined approval, ordinary tools, actual model/external MCP actors and
@@ -1170,8 +1170,9 @@ retained-result jobs stay distinct. The known-result failure rate never hides
 partial, stopped, unconfirmed or unknown outcomes as successes. Request/start
 provenance, missing timing and previously deleted history remain explicit.
 
-All **425 local checks pass in 310.09 s**, and all **30** hidden source-desktop
-workflows pass in **1.0 min**, as reported by the runner. Focused coverage also
+All **425 local checks pass in 310.09 s**. All **30** hidden source-desktop
+workflows pass in **1.0 min**, and all **30** against the actual packaged app
+pass in **1.1 min**, as reported by the runner. Focused coverage also
 exercises actual SSH tools, exclusion of user Remote plan operations, native
 TUI queries, cross-profile byte/outcome isolation and held stale query replies.
 Source types/build pass and audit reports zero vulnerabilities. No sandbox
@@ -1188,8 +1189,37 @@ compatibility marker and appends retained-only metrics/coverage, never recovered
 private contents. Marker/derived-append failures, unexplained missing keys and
 invalid profile scope fail explicitly without inventing success or zero bytes.
 Storage is not a payload-integrity audit or physical disk/reclamation measure.
-Artifact/fresh-consumer qualification is still pending at this source checkpoint.
-Earlier qualified archives below are unchanged.
+
+The actual bundled Node service passes the exact approved MCP outcome/actor
+and retained-size gates, alongside real packaged OAuth, provider-free pinned
+SSH plan saves, compaction, PTY, branding/Ghostty and weightless speech checks.
+Strict ad-hoc signature/runtime/assets and real DMG integrity pass.
+The **exact SDK archive** independently passes a fresh script-approved
+install/rebuild/audit, four external type entrypoints and actual installed
+CLI/SDK telemetry. A dedicated idle cohort performs an approved MCP call
+without model dispatch; its sanitized outcome remains available after source
+session/project deletion and stays invisible in another profile.
+
+The first consumer extension incorrectly reused an already-deleted source;
+moving its call earlier then hit that original cohort's legitimate non-idle
+guard. Both failed harness logs are preserved. A dedicated idle source fixes
+the qualification, not the product: no session guard was weakened and no
+archive was rebuilt. Source/consumer audits report zero vulnerabilities.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.15.0-alpha.1-macos-arm64.dmg` | 353780484 | `31dfdef43dce4505172897630779e751402b6247e2002a0111bde5a88e20b253` |
+| `Moguri-0.15.0-alpha.1-macos-arm64.zip` | 279056588 | `2001424f15e978374e4add4377c8c519d32212d794ab603ec906731b93544e72` |
+| `moguri-0.15.0-alpha.1.tgz` | 6635119 | `0a85fce62f72700cf99343840cfe75fa0e2b7eea8358caf9e418cb7faa9b1e36` |
+
+App: `release/0.15.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. The DMG exceeds
+chat's 64 MiB limit and remains local. Artifacts are ad-hoc signed, not
+notarized. No tag, release or merge was created; older qualified archives
+are unchanged. Known FFI/deprecation, explicit file-package approval, optional
+`.icon` and lazy 640-kB Ghostty notices remain visible. This is not milestone
+acceptance: repository/org/visibility attribution, remote consoles/extensions,
+compound routing, reserved wind-down/authorized commits and decision authority
+remain separate. Sandbox work remains paused.
 
 ### Historical 0.14 checkpoint
 
