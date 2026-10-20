@@ -27,6 +27,8 @@ test("desktop labels current solver guidance as advice and still requires explic
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/guided-advice-desktop.png") });
     await page.setViewportSize({ width: 900, height: 740 });
+    await expect(card.getByRole("button", { name: "Generated first choice", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(card.getByRole("button", { name: "Generated second choice", exact: true })).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: resolve(".moguri/artifacts/guided-advice-compact.png") });
     await card.getByRole("button", { name: "Generated first choice", exact: true }).click(); await fixture.terminal();
     await expect.poll(() => sdk.getState().snapshot!.questions[0]?.answer?.text).toBe("Generated first choice");
