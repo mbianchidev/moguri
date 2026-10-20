@@ -1212,7 +1212,7 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Source-qualified 0.17 checkpoint
+### Current 0.17 checkpoint
 
 The **0.17.0-alpha.1 / protocol-23** source adds authenticated restart-
 reattachable Local user consoles and retryable private cleanup, through the
@@ -1229,8 +1229,9 @@ All four consoles used one broker and reattached their original PIDs.
 All **33 source desktop workflows and 33 actual packaged workflows pass in
 1.1 min each**. A fresh installed SDK also passes all four external types,
 explicit native script approval, an independent zero-advisory audit and actual
-installed owner/CLI/TUI restart without replay. The exact delivered SDK file's
-identity is recorded after its separate immutable-archive qualification.
+installed owner/CLI/TUI restart without replay. The **exact delivered SDK
+archive**, not a repack, independently passed that same approved install,
+rebuild, audit, external type/runtime and installed SSH/model/terminal suite.
 
 An initial
 native run exposed a harness race: the second held shortcut arrived before the
@@ -1255,12 +1256,13 @@ microphone, weights, Sandbox probe, tag, release or merge was used.
 | --- | ---: | --- |
 | `Moguri-0.17.0-alpha.1-macos-arm64.dmg` | 372190367 | `6d99a2fb913b4d39192cb10a29f2f3cafe616f0ee25ad65aa38591f87c7030b8` |
 | `Moguri-0.17.0-alpha.1-macos-arm64.zip` | 283084315 | `05268bcf364acd02b408c9c2693acb39fc8ada785edb351e477d88b3ca12e568` |
+| `moguri-0.17.0-alpha.1.tgz` | 6705929 | `fe26be2af5e0f52ba4c86bcd1ca3a821c2c7b19e8adf6a550396072d19c7a8b6` |
 
 App: `release/0.17.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. The DMG exceeds
 chat's 64-MiB limit and remains local. Qualified 0.16 and older artifacts are
 preserved unchanged; do not rebuild or repack them.
 
-### Qualified 0.16 checkpoint
+### Previous qualified 0.16 checkpoint
 
 The **0.16.0-alpha.1 / protocol-22** checkpoint adds explicit root-bound GitHub
 repository metadata and immutable attribution/filtering across SDK, CLI/native
