@@ -1144,8 +1144,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.15.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.15.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/<package-version>/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-<package-version>-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
