@@ -321,8 +321,8 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-17 worker build on the SSH host and probe it before
-new reads; retained protocol-16 receipts permit inspection, not continuation.
+Install this exact protocol-18 worker build on the SSH host and probe it before
+new work; retained protocol-16/17 receipts permit inspection, not continuation.
 
 Remote embedded terminals, executable MCP transport, repository-memory
 retrieval and direct plan saves are not qualified yet and remain blocked.
@@ -881,6 +881,8 @@ cannot refund it.
 node bin/moguri.mjs budget set SESSION_ID session-budget.json --confirm-review
 node bin/moguri.mjs budget status SESSION_ID
 node bin/moguri.mjs budget dashboard --project PROJECT_ID --role solver
+node bin/moguri.mjs budget dashboard --filters '{"range":{"kind":"days","days":30},"bucket":"week"}'
+node bin/moguri.mjs budget calls --filters '{"range":{"kind":"year","year":2026},"limit":20}'
 node bin/moguri.mjs budget policy profile-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
 node bin/moguri.mjs budget global global-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
 ```
@@ -980,7 +982,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 17 preserves earlier state through transactional
+Protocol/database version 18 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -1040,8 +1042,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.11.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.11.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.12.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.12.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
