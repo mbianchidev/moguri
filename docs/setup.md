@@ -361,8 +361,8 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-21 worker build on the SSH host and probe it before
-new work; retained protocol-16/17/18/19/20 receipts permit inspection, not continuation.
+Install this exact protocol-22 worker build on the SSH host and probe it before
+new work; retained protocol-16/17/18/19/20/21 receipts permit inspection, not continuation.
 
 Remote embedded terminals, executable MCP transport, repository-memory
 retrieval remain blocked. Remote plan saves use an explicit reviewed binding
@@ -982,7 +982,37 @@ Desktop **Dashboard** shows authoritative profile totals and actual
 role/provider/model groups, with project/folder/session/provider/model/role
 filters and bounded pages. Unknown usage, held reservations, estimates and
 unreported bills stay distinct. Other profiles' private ledger rows are never
-combined. Repository/org/visibility filtering awaits its qualified metadata.
+combined. Repository/org/visibility filtering uses explicit verified snapshots,
+not guesses from project/owner names or today's repository state.
+
+**Repository attribution** is optional and initially unconfigured. In desktop
+Dashboard choose an explicit bound session, review its actual Local/worktree
+or pinned SSH root, then request the displayed GitHub lookup. Public access
+uses the control-plane API without credentials; Local `gh-cli` uses the
+explicitly selected project account. Remote authenticated CLI is unavailable,
+never a host-local account or root fallback.
+
+```bash
+node bin/moguri.mjs repository preview --session SESSION_ID
+node bin/moguri.mjs repository refresh --session SESSION_ID --digest REVIEWED_BINDING --revision OBSERVED_REV --confirm-review
+node bin/moguri.mjs repository state --session SESSION_ID
+node bin/moguri.mjs budget dashboard --filters '{"repositoryId":42,"organization":"generated","visibility":"open-source"}'
+```
+
+Native TUI shares `/repository preview/state`,
+`/repository refresh BINDING REV confirm-lookup`,
+`/repository clear REV confirm-clear` and `/repository stop JOB_ID`.
+Refresh performs no model request. Future model roles and tool/MCP attempts
+capture immutable verified metadata only after rechecking their actual Git
+root; changed/missing provenance stays unassigned. Clearing affects future
+attribution, not old names, visibility or charges. Source/date coverage discloses
+unassigned history excluded by repository filters.
+
+The **open-source** filter specifically means public plus a detected
+OSI-approved SPDX license from the pinned metadata dataset; it is not a
+license/compliance review or a synonym for every public repository. No
+background lookup or retroactive classification runs. See
+[the repository contract](architecture/repository-telemetry.md).
 
 **Tool and MCP outcomes** share a separate sanitized, profile-root ledger.
 Ordinary tools and actual MCP attempts are disjoint; discovery/result jobs do

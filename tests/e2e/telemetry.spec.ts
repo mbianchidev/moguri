@@ -4,6 +4,8 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { generatedRepositoryMetadata } from "../fixtures/repository-info.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native telemetry UI is qualified on macOS.");
@@ -131,4 +133,57 @@ test("desktop tool/MCP outcomes and retained storage use sanitized authoritative
     await expect(operations).toContainText("50.0% (1/2 definitive results)");
     expect(fixture.requests.length).toBe(requests); expect(failures).toEqual([]);
   } finally { release(); fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("desktop explicitly reviews repository lookup and filters immutable owner/visibility evidence without additional inference", async () => {
+  let lookups = 0, license = "MIT";
+  const fixture = await setupFixture({ platform: { integrations: { fetch: async () => { lookups++; return Response.json(generatedRepositoryMetadata(license)); } } } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const git = initializeGeneratedRepository(fixture.project); git(["remote", "add", "origin", "https://github.com/generated/example.git"]);
+  await fixture.configure();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
+    await dashboard.getByText("Repository attribution", { exact: true }).click();
+    const repository = dashboard.getByRole("region", { name: "Repository attribution", exact: true });
+    expect(lookups).toBe(0);
+    await repository.getByLabel("Repository scope session", { exact: true }).selectOption(fixture.sessionId);
+    await repository.getByRole("button", { name: "Review repository binding", exact: true }).click();
+    await expect(repository).toContainText("https://github.com/generated/example");
+    await expect(repository).toContainText("no credential"); expect(lookups).toBe(0);
+    await repository.getByRole("button", { name: "Refresh verified metadata", exact: true }).click();
+    await expect(repository).toContainText("Stored observation"); await expect(repository).toContainText("organization"); await expect(repository).toContainText("MIT");
+    expect(lookups).toBe(1); expect(fixture.requests.length).toBe(0);
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated repository-attributed desktop response.");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await fixture.terminal();
+    await dashboard.getByText("Filters", { exact: true }).click();
+    await dashboard.getByLabel("Usage repository filter", { exact: true }).selectOption("42");
+    await dashboard.getByLabel("Usage organization filter", { exact: true }).selectOption("generated");
+    await dashboard.getByLabel("Usage visibility filter", { exact: true }).selectOption("open-source");
+    await expect(dashboard).toContainText("42"); expect((await sdk.budgets.dashboard({ visibility: "open-source" })).totals.calls).toBe(1);
+    license = "BUSL-1.1";
+    const preview = (await sdk.repositories.preview(fixture.sessionId)).preview, refresh = await sdk.repositories.refresh(fixture.sessionId, preview.bindingDigest, preview.revision, true);
+    expect((await sdk.jobs.wait(refresh.id!)).status).toBe("completed");
+    await expect(repository).toContainText("BUSL-1.1");
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated later non-OSI metadata response.");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.requests.length).toBe(2); await fixture.terminal();
+    expect((await sdk.budgets.dashboard()).totals.calls).toBe(2); expect((await sdk.budgets.dashboard({ visibility: "open-source" })).totals.calls).toBe(1);
+    expect((await sdk.budgets.dashboard({ visibility: "public" })).totals.calls).toBe(2);
+    await repository.getByRole("heading", { name: "Stored observation", exact: true }).scrollIntoViewIfNeeded();
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.screenshot({ path: resolve(".moguri/artifacts/repository-attribution-desktop.png") });
+    await page.setViewportSize({ width: 900, height: 740 }); await repository.getByRole("heading", { name: "Stored observation", exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(".moguri/artifacts/repository-attribution-compact.png") });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await repository.getByRole("button", { name: "Clear future attribution", exact: true }).click();
+    await expect(repository.getByRole("button", { name: "Clear future attribution", exact: true })).toHaveCount(0);
+    expect((await sdk.budgets.dashboard({ repositoryId: 42 })).totals.calls).toBe(2);
+    expect(lookups).toBe(2); expect(fixture.requests.length).toBe(2); expect(failures).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

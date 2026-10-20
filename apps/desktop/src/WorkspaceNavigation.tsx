@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { defaultProjectConfiguration, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -28,7 +28,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   });
   const renderSession = (session: Session, project: Project | undefined, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}>
     <button className="session-link" aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}>
-      <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{session.title === "New session" ? session.messages.find((message) => message.role === "user")?.text.split("\n")[0]?.slice(0, 60) || "New" : session.title}</span>
+      <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{sessionTitle(session, 60, "New")}</span>
         {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionAttention snapshot={snapshot} session={session} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
     <WorkspaceMenu label={`Actions for ${session.title}`}>

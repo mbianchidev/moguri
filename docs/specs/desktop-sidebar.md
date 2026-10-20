@@ -12,7 +12,11 @@ actual pinned SSH workspace, without a same-named Local fallback.
 Protocol 20 adds exact user-requested Remote plan saves with reviewed binding,
 owned no-model execution, actual partial/cleanup state and independently retained
 Remote snapshots. Scope changes preserve dirty editors, including held settled
-RPC responses. Its current rail is Terminal, Browser, Insights, Dashboard, PR when linked, Changes, Plan,
+RPC responses. Protocol 21 adds sanitized tool/MCP outcomes and key-backed
+retained sizes; protocol 22 adds explicit actual-root GitHub metadata review,
+exact refresh/stop, immutable repository/owner/visibility filtering and
+unassigned-history coverage. None of these grant tools or dispatch a model.
+Its current rail is Terminal, Browser, Insights, Dashboard, PR when linked, Changes, Plan,
 Side chat, Suggestions and Attention. Suggestions use explicit scoped source
 review and configuration proposals; attention read state is not a user answer
 or tool decision. Project-free chats show a project-required state for workspace

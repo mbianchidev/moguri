@@ -7,6 +7,7 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { generatedOAuthServer } from "../tests/fixtures/oauth.ts";
 import { tsImport } from "tsx/esm/api";
+import { generatedRepositoryMetadata } from "../tests/fixtures/repository-info.ts";
 
 const { fixtureProvider } = await tsImport("../tests/fixture.ts", import.meta.url);
 const { createSshTarget } = await tsImport("../tests/fixtures/ssh-target.ts", import.meta.url);
@@ -48,6 +49,8 @@ try {
   const project = join(temporary, "generated-project");
   await mkdir(project);
   await writeFile(join(project, "generated.ts"), "export function packagedSdkKnowledge() { return 'generated'; }");
+  const generatedBin = join(temporary, "generated-bin"); await mkdir(generatedBin);
+  await writeFile(join(generatedBin, "gh"), `#!/bin/sh\nprintf '%s' '${JSON.stringify(generatedRepositoryMetadata())}'\n`, { mode: 0o700 });
   const source = `
     import {createRuntime} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
     const provider={
@@ -68,7 +71,7 @@ try {
     process.on("message",async(message)=>{if(message==="close")await close();});
     process.once("SIGTERM",()=>void close());
   `;
-  child = spawn(node, ["--input-type=module", "--eval", source], { stdio: ["ignore", "ignore", "inherit", "ipc"] });
+  child = spawn(node, ["--input-type=module", "--eval", source], { stdio: ["ignore", "ignore", "inherit", "ipc"], env: { ...process.env, PATH: `${generatedBin}:${process.env.PATH}` } });
   exit = new Promise((resolve) => child.once("exit", resolve));
   const connection = await new Promise((resolve, reject) => {
     child.once("message", resolve); child.once("error", reject);
@@ -216,6 +219,28 @@ try {
   const boardResponse = await fetch(`${connection.baseUrl}/v1/query`, { method: "POST", headers, body: JSON.stringify({ type: "board.get", projectId: opened.id }) });
   const board = await boardResponse.json();
   assert.equal(board.issues[0].title, "Generated packaged SDK ticket");
+  if (PROTOCOL_VERSION >= 22) {
+    const repositoryRoot = join(temporary, "generated-attribution-project"); await mkdir(repositoryRoot); await writeFile(join(repositoryRoot, "fixture.txt"), "Generated attributed packaged source.\n");
+    const git = (args) => execFileSync("git", ["--no-pager", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", ...args], { cwd: repositoryRoot, encoding: "utf8" });
+    git(["init", "--initial-branch=main"]); git(["add", "--", "fixture.txt"]); git(["-c", "user.name=Generated fixture", "-c", "user.email=fixture@example.invalid", "commit", "--no-gpg-sign", "-m", "Generated packaged attribution"]);
+    git(["remote", "add", "origin", "https://github.com/generated/example.git"]);
+    const project = await send({ type: "project.add", path: repositoryRoot }), sdk = await new MoguriSdk(connection).ready();
+    try {
+      const configuration = (await sdk.projects.configuration(project.id)).configuration;
+      await sdk.projects.configure(project.id, { ...configuration.values, repo: { ...configuration.values.repo, githubAccess: "gh-cli" } }, configuration.revision);
+      const session = await sdk.sessions.create(project.id, "Generated real packaged attributed call", { modelId: modelFixture.modelId, env: "Local" });
+      const preview = (await sdk.repositories.preview(session.id)).preview, refresh = await sdk.repositories.refresh(session.id, preview.bindingDigest, preview.revision, true);
+      assert.equal((await sdk.jobs.wait(refresh.id)).status, "completed");
+      await sdk.command({ type: "draft.save", sessionId: session.id, expectedRevision: 0, text: "Generated actual bundled repository-attributed model call.", attachments: [] });
+      await sdk.command({ type: "message.send", sessionId: session.id, expectedRevision: 1, delivery: "queue" });
+      let current;
+      for (let index = 0; index < 400; index++) { current = sdk.getState().snapshot.sessions.find((value) => value.id === session.id); if (!current.turnId) break; await new Promise((resolve) => setTimeout(resolve, 20)); }
+      assert.equal(current.status, "completed");
+      const calls = await sdk.budgets.calls({ sessionId: session.id, repositoryId: 42, organization: "generated", visibility: "open-source" });
+      assert.equal(calls.calls.length, 1); assert.equal(calls.calls[0].repository.fullName, "generated/example"); assert.equal(calls.calls[0].repository.osiApproved, true);
+      assert.equal(modelFixture.requests.length, 5);
+    } finally { sdk.disconnect(); }
+  }
   child.send("close");
   assert.equal(await exit, 0);
   console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction and provider-free pinned SSH plan save with exact independent artifact, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
