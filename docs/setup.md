@@ -972,7 +972,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 15 preserves earlier state through transactional
+Protocol/database version 16 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
@@ -1032,8 +1032,8 @@ npm run package:mac
 ```
 
 On macOS arm64 this produces
-`release/0.9.1-alpha.1/Moguri-darwin-arm64/Moguri.app`,
-`release/Moguri-0.9.1-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
+`release/0.10.0-alpha.1/Moguri-darwin-arm64/Moguri.app`,
+`release/Moguri-0.10.0-alpha.1-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development
 application files are unpacked because the external Node service cannot execute
@@ -1048,7 +1048,63 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-The current **0.9.1-alpha.1 / protocol-15** ownership-fix artifacts pass strict
+### Current 0.10 checkpoint
+
+The **0.10.0-alpha.1 / protocol-16** Single-routing artifacts pass strict
+ad-hoc signature/runtime checks and real DMG integrity verification,
+**291 full local checks** in **188.15 s**, and all **21 hidden workflows
+against the actual packaged app** in **46.4 s**. The exact delivered SDK archive
+passes independent install/script approval/rebuild/audit, all four entrypoint
+types and real installed SDK/CLI staged router/solver exchanges. Source and
+consumer audits report zero vulnerabilities. Clean locked restore, build and
+type checks pass.
+
+The same owned Local/SSH worker now stages a bounded, tool-less classifier and
+one explicitly approved solver. Actual roles, model IDs, owning-session charges
+and receipts remain independent from the synthetic selection. Generated tests
+cover missing/over-limit telemetry, failed atomic commitment, revoked
+permissions, concurrent pool/task/cap changes, exact Remote-only file effects,
+model-created children, cancellation and schema-15 profile-preserving recovery.
+Known loopback-only pools work with hosted consent off; configured provider
+labels cannot bypass network/unknown destination consent and redirects are
+blocked. The actual Copilot adapter exposes maintained output limits, not only
+fixture metadata. A first full run caught two obsolete current-version-15
+migration assertions; they were corrected without changing legacy input
+versions, and the complete 291-check run then passed.
+
+Both clients expose opt-in policy, supported model selection and real
+provenance. Successful router notices are informational, not misleading `stop`
+warnings; compact transcript resizing keeps a followed solver answer visible.
+This is not measured confidence calibration, a live paid Copilot/Jev test or
+the completed first milestone. Compound workflows, finite routed budgets and
+reserved wind-down/authorized checkpoint commits remain blocked.
+
+Native Sandbox is still unavailable. The separately user-authenticated R5
+candidate now qualifies startup on the historical protocol-10 image: the
+coordinated SendBox investigation reports 11/11 new authenticated starts,
+10 positive hardened/thread/workspace workloads, and removed owned VMs.
+This is not qualification of the current protocol-16 payload or SDK adapter.
+Real API networking still fails CONNECT 502/403: the observed Copilot CNAME
+backend is outside the exact approved domain set and was not implicitly added.
+No parent VM probe, production trust/runtime change, personal authorization,
+microphone recording or model-weight download was used for this checkpoint.
+Known upstream FFI/deprecation, file-package approval, optional `.icon` and lazy
+Ghostty size notices remain visible. CI remains main-push-only; no feature or
+manual run is dispatched.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.10.0-alpha.1-macos-arm64.dmg` | 354271350 | `e7e743e34c8731227b585519c7900b5be61c76758144b4bac31e3602c7d1230a` |
+| `Moguri-0.10.0-alpha.1-macos-arm64.zip` | 278945413 | `a0904a683d99422d7864895de7c0a3b95ba816e0542116da85017c07a9fb02a4` |
+| `moguri-0.10.0-alpha.1.tgz` | 6493632 | `a767f67756c3ac4546039e977f568b4d077f88f94240330bd33ba563dd9a2814` |
+
+The DMG exceeds the chat's 64 MiB attachment limit and stays at its local release
+path; the exact SDK archive can be delivered as an attachment. Earlier qualified
+artifacts are not overwritten or relabeled as protocol 16.
+
+### Historical 0.9.1 checkpoint
+
+The unchanged **0.9.1-alpha.1 / protocol-15** ownership-fix artifacts pass strict
 signature/runtime/DMG verification, **262 full local checks** and all
 **20 hidden workflows against the actual packaged app** (**45.2 s**).
 The exact delivered SDK archive independently passes a fresh approved
