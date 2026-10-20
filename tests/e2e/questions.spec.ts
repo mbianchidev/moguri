@@ -7,6 +7,41 @@ import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop questions are qualified on macOS.");
+test("desktop labels current solver guidance as advice and still requires explicit actual-user answers and tool decisions", async () => {
+  const fixture = await setupFixture({ questionRecommendation: { choiceIndex: 1, reason: "Generated Guided analysis favors the second option." }, toolAdvice: "Generated current-step guidance: read only the requested fixture." });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.sessions.configure(fixture.sessionId, { ...fixture.session().controls, modelId: fixture.modelId, autonomy: "Guided" });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    const prompt = page.getByRole("textbox", { name: "Prompt", exact: true }), card = page.getByRole("region", { name: "User question", exact: true });
+    await prompt.fill("generated structured question choices only");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(card.getByRole("note", { name: "Model advice", exact: true })).toContainText("Model recommends: Generated second choice");
+    await expect(card).toContainText("Generated Guided analysis favors");
+    expect(sdk.getState().snapshot!.questions[0]?.answer).toBeNull(); expect(fixture.requests.length).toBe(1);
+    await prompt.fill("Generated held followup while advice waits."); await prompt.press("Meta+Enter");
+    await expect.poll(() => fixture.session().queue[0]?.held).toBe(true);
+    expect(sdk.getState().snapshot!.questions[0]?.status).toBe("open"); expect(fixture.requests.length).toBe(1);
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.screenshot({ path: resolve(".moguri/artifacts/guided-advice-desktop.png") });
+    await page.setViewportSize({ width: 900, height: 740 });
+    await page.screenshot({ path: resolve(".moguri/artifacts/guided-advice-compact.png") });
+    await card.getByRole("button", { name: "Generated first choice", exact: true }).click(); await fixture.terminal();
+    await expect.poll(() => sdk.getState().snapshot!.questions[0]?.answer?.text).toBe("Generated first choice");
+    expect(sdk.getState().snapshot!.questions[0]?.answer?.actor).toBe("user"); expect(fixture.requests.length).toBe(2);
+    await prompt.fill("generated tool guided recommendation");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const approval = page.getByRole("region", { name: "Tool approval", exact: true });
+    await expect(approval.getByRole("note", { name: "Model advice", exact: true })).toContainText("Generated current-step guidance");
+    expect(fixture.service.controller.events(0).some((event) => event.event_type === "tool.started" && event.payload.call.name === "read_file")).toBe(false);
+    expect(fixture.requests.length).toBe(3);
+    await approval.getByRole("button", { name: "Deny", exact: true }).click(); await fixture.terminal();
+    expect(failures).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("desktop keeps queue-only shortcuts distinct from actual user answers and retains provenance", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure(); await fixture.send("generated structured question");

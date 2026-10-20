@@ -879,6 +879,12 @@ node bin/moguri.mjs question answer-draft QUESTION_ID --revision OBSERVED_REVISI
 
 Only the actual user endpoint records actor `user`. A model question or answer
 cannot grant tool/Git permission, change policy or become Core memory.
+In **Guided** mode the current solver may recommend one offered choice with a
+reason. Desktop's question card and TUI **F6** show its actual model source.
+No choice is automatically accepted: you may choose another, queue text or
+stop. Tool approvals show only current-step narration, never older advice.
+The recommendation uses the original solver call and does not add a hidden
+request. Retained documents keep model advice and actual user answers distinct.
 Never supply credentials in an answer; use connection settings. A stale,
 cancelled or interrupted question rejects input rather than attaching it to a
 new turn. Stop/restart cancels the wait without replay or an invented answer.
@@ -927,7 +933,7 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
-Protocol/database version 14 preserves earlier state through transactional
+Protocol/database version 15 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
 `dev.moguri.profile.default.retention`. Its stable account ID travels with the
