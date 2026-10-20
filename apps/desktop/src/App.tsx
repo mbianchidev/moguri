@@ -162,7 +162,9 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const showPanel = (next: Panel) => run(async () => {
     if (!leaveSurface()) return;
     setPanel(next); setPanelOpen(true); setConnections(false);
-    if (next === "Terminal" && session?.projectId && !snapshot?.terminals.some((terminal) => terminal.sessionId === session.id && terminal.status === "running")) await client.terminal.open(session.id);
+    if (next === "Terminal" && session?.projectId && session.controls.env === "Local" && snapshot?.policy.allowedEnvs.includes("Local") &&
+      !snapshot.terminals.some((terminal) => terminal.sessionId === session.id) &&
+      !snapshot.terminalOwners.some((owner) => owner.cleanup !== "removed" && !["running", "acknowledged"].includes(owner.status))) await client.terminal.open(session.id);
   });
   const applySlash = async (result: SlashResult) => {
     if (result.kind === "profiles") { if (!canNavigate()) return; setProfileMenu(true); setNavOpen(true); return; }
@@ -420,7 +422,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
       {session.lastError && <p className="inline-error">{session.lastError}</p>}
     </>;
   }
-  if (panel === "Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} session={session} snapshot={snapshot} /></Suspense>;
+  if (panel === "Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} /></Suspense>;
   if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
   if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : <p className="fine-print">The changes panel has no qualified transport for {session.controls.env} yet. No local project's diff was read as a fallback.</p>;
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;

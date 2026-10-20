@@ -361,7 +361,7 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-22 worker build on the SSH host and probe it before
+Install this exact protocol-23 worker build on the SSH host and probe it before
 new work; retained protocol-16/17/18/19/20/21 receipts permit inspection, not continuation.
 
 Remote embedded terminals, executable MCP transport, repository-memory
@@ -498,11 +498,33 @@ Changes, Files, Plan and Side chat. `/terminal`, its requested `/termnial` alias
 terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model
 context or durable command hashes. Closing the panel leaves its shell running;
-Close terminal stops the owned group. Restart does not relaunch or replay a
-shell. Inspect unconfirmed ownership before acknowledging it. The console is
+Close terminal stops the owned group. Explicit service restart reattaches the
+same authenticated Local owner/PTY while it survives; ordinary service stop
+closes its known groups. Missing owner/key/buffer is explicit, never a
+replacement or input replay. Inspect unconfirmed ownership before acknowledging it. The console is
 explicit Local user-controlled host execution, not an agent permission grant,
 folder containment, Sandbox or Remote. Allowed-env policy still applies.
-TUI rejects `/terminal` because it is already a terminal.
+TUI rejects `/terminal` because it is already a terminal. Use `/terminals` for
+existing user consoles: `read ID [OFFSET]`, `reconcile ID`, `close ID`,
+`owner-reconcile OWNER_ID`, or inspection acknowledgement with
+`confirm-inspected`. Owner metadata is profile-shared, including empty owners.
+CLI equivalents are `moguri terminal list|read|reconcile|close` and
+`terminal owner-reconcile OWNER_ID`. `terminal open --session ID` explicitly
+creates a console; `terminal input ID` accepts bounded piped UTF-8 stdin only.
+`acknowledge ID --confirm-review` and `owner-acknowledge OWNER_ID --confirm-review`
+record actual user inspection, not proven cleanup.
+
+Ghostty's reconnect control inspects the existing owner, never opens another
+shell. Hiding the panel or losing a connection discards queued unsent input;
+partly accepted input is not resent. Its owner inspector shows the actual
+Local root/PID and private-resource cleanup status, not the session's possibly
+changed environment label.
+
+`moguri service restart` explicitly preserves user consoles; `service stop`
+and ordinary embedded `runtime.close()` stop them. Failed private cleanup
+retains the writer lock and registry: repair the explicit secret backend or
+inspect unexpected runtime files, then retry stop. Do not delete state or
+launch a second writer. See [the ownership contract](architecture/terminal-reattachment.md).
 
 Browser is a basic isolated native HTTPS/loopback preview, with no Moguri/Node
 bridge, shared account cookies, automatic model context, popups, downloads or
@@ -1190,7 +1212,20 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.16 checkpoint
+### Development 0.17 checkpoint
+
+The **0.17.0-alpha.1 / protocol-23** source adds authenticated restart-
+reattachable Local user consoles and retryable private cleanup, through the
+same SDK, CLI/native TUI and Ghostty. Generated native integration exercises
+actual control-plane restart and preserved PTY identity, stale-input discard
+and closed-console reopening without replacement.
+
+This development checkpoint is undergoing full source, fresh-consumer and
+actual packaged Node/client/footprint qualification. No 0.17 archive is yet
+advertised as delivered. The latest independently qualified archive remains
+0.16 below; do not overwrite or repack it.
+
+### Qualified 0.16 checkpoint
 
 The **0.16.0-alpha.1 / protocol-22** checkpoint adds explicit root-bound GitHub
 repository metadata and immutable attribution/filtering across SDK, CLI/native

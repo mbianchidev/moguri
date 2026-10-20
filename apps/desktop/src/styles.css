@@ -461,10 +461,16 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .panel-toolbar, .terminal-tabs, .browser-address { display: flex; align-items: center; gap: 5px; min-width: 0; flex-shrink: 0; }
 .panel-toolbar > strong { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .panel-toolbar select, .terminal-tabs select, .browser-address input { flex: 1; min-width: 0; width: 0; font-size: 11px; }
+.terminal-tabs { flex-wrap: wrap; }
+.terminal-tabs select { flex-basis: 100%; width: 100%; }
 .context-content:is(.panel-terminal, .panel-browser, .panel-plan, .panel-side-chat) { display: flex; flex-direction: column; padding: 12px 10px; overflow: hidden; }
 .ghostty-panel, .browser-panel, .plan-panel, .side-chat-panel { display: flex; flex-direction: column; flex: 1; gap: 10px; min-width: 0; min-height: 0; }
 .ghostty-host { min-width: 0; min-height: 120px; flex: 1; background: #11161e; overflow: hidden; }
-.terminal-boundary { font-size: 10px; color: var(--muted); line-height: 1.6; margin: 0; flex-shrink: 0; }
+.terminal-boundary { font-size: 10px; color: var(--muted); line-height: 1.6; margin: 0; flex-shrink: 0; overflow-wrap: anywhere; }
+.terminal-owner { flex-shrink: 0; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+.terminal-owner summary { color: var(--muted); }
+.terminal-owner p { margin: 8px 0; }
+.terminal-owner button { font-size: 11px; margin-inline-end: 5px; }
 .browser-host { flex: 1; min-height: 80px; min-width: 0; background: var(--canvas); }
 .browser-host > p { font-size: 12px; color: var(--muted); padding: 12px; line-height: 1.8; }
 .plan-panel textarea { flex: 1; min-height: 100px; width: 100%; resize: none; padding: 12px; font: 12px/1.8 ui-monospace, monospace; }

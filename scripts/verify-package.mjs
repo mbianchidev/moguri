@@ -23,6 +23,7 @@ assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
 await access(join(root, "dist", "remote-bridge.mjs"));
+if (PROTOCOL_VERSION >= 23) await access(join(root, "dist", "terminal-broker.mjs"));
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
@@ -65,15 +66,22 @@ try {
     };
     const credentials=new Map();
     const vault={read:async(id)=>credentials.get(id)??null,write:async(id,value)=>{credentials.set(id,value);},remove:async(id)=>{credentials.delete(id);}};
-    const service=await createRuntime({stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}});
+    const options={stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}};
+    let service=await createRuntime(options);
     process.send(service.connection);
     const close=async()=>{await service.close();if(process.connected)process.disconnect();};
-    process.on("message",async(message)=>{if(message==="close")await close();});
+    process.on("message",async(message)=>{
+      if(message==="close")await close();
+      else if(message==="restart"){
+        await service.close({preserveTerminals:true});service=await createRuntime(options);
+        process.send({kind:"restarted",connection:service.connection});
+      }
+    });
     process.once("SIGTERM",()=>void close());
   `;
   child = spawn(node, ["--input-type=module", "--eval", source], { stdio: ["ignore", "ignore", "inherit", "ipc"], env: { ...process.env, PATH: `${generatedBin}:${process.env.PATH}` } });
   exit = new Promise((resolve) => child.once("exit", resolve));
-  const connection = await new Promise((resolve, reject) => {
+  let connection = await new Promise((resolve, reject) => {
     child.once("message", resolve); child.once("error", reject);
     timer = setTimeout(() => reject(new Error("Packaged service did not become ready.")), 10_000);
   });
@@ -241,9 +249,75 @@ try {
       assert.equal(modelFixture.requests.length, 5);
     } finally { sdk.disconnect(); }
   }
+  if (PROTOCOL_VERSION >= 23) {
+    let consoleSdk = await new MoguriSdk(connection).ready(), desktop;
+    const consoles = [];
+    try {
+      const first = await consoleSdk.terminal.open(created.id);
+      consoles.push((await consoleSdk.terminal.read(first.id)).terminal);
+      const owner = consoleSdk.getState().snapshot.terminalOwners[0];
+      const { _electron } = await import("@playwright/test");
+      desktop = await _electron.launch({ executablePath: join(app, "Contents", "MacOS", "Moguri"), args: [],
+        env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+      const page = await desktop.firstWindow();
+      await page.getByLabel("Prompt", { exact: true }).waitFor();
+      await desktop.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0].webContents.send("moguri:navigate-session", id, "default"), created.id);
+      await page.getByRole("button", { name: "Terminal", exact: true }).click();
+      await page.locator(".ghostty-host canvas").first().waitFor({ state: "visible" });
+      const rss = (pids) => {
+        const values = execFileSync("ps", ["-o", "rss=", "-p", pids.join(",")], { encoding: "utf8" }).trim().split(/\s+/).map(Number);
+        assert.equal(values.length, pids.length); assert.ok(values.every((value) => Number.isFinite(value) && value > 0));
+        return values.reduce((total, value) => total + value, 0);
+      };
+      const footprint = async (tabs) => {
+        await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const metrics = await desktop.evaluate(({ app }) => app.getAppMetrics());
+        const electronKiB = metrics.reduce((total, metric) => total + metric.memory.workingSetSize, 0);
+        const runtimeKiB = rss([child.pid, owner.pid]), userProgramsKiB = rss(consoles.map((terminal) => terminal.pid));
+        const moguriMiB = (electronKiB + runtimeKiB) / 1024;
+        console.log(JSON.stringify({ qualification: "actual-packaged-user-consoles", tabs, owners: consoleSdk.getState().snapshot.terminalOwners.filter((owner) => owner.status === "running").length,
+          moguriMiB, userProgramsMiB: userProgramsKiB / 1024, budgetMiB: 600, includes: "native Electron working sets + actual bundled control plane and one authenticated broker RSS; user programs reported separately" }));
+        assert.ok(moguriMiB < 600, `Actual packaged terminal working set ${moguriMiB.toFixed(2)} MiB exceeded the 600-MiB budget.`);
+      };
+      await footprint(1);
+      for (let index = 0; index < 3; index++) {
+        const opened = await consoleSdk.terminal.open(created.id); consoles.push((await consoleSdk.terminal.read(opened.id)).terminal);
+      }
+      assert.equal(new Set(consoles.map((terminal) => terminal.ownerId)).size, 1);
+      assert.equal(consoleSdk.getState().snapshot.terminalOwners.filter((owner) => owner.status === "running").length, 1);
+      await footprint(4); await desktop.close(); desktop = undefined;
+      consoleSdk.disconnect();
+      const replacement = new Promise((resolve, reject) => {
+        child.once("message", (value) => {
+          clearTimeout(timer);
+          if (value?.kind !== "restarted" || !value.connection) { reject(new Error("Actual bundled service returned no restart connection.")); return; }
+          resolve(value.connection);
+        });
+        timer = setTimeout(() => reject(new Error("Actual bundled controller restart did not complete.")), 10_000);
+      });
+      child.send("restart"); connection = await replacement; headers.Authorization = `Bearer ${connection.token}`;
+      consoleSdk = await new MoguriSdk(connection).ready();
+      for (const terminal of consoles) {
+        const observed = await consoleSdk.terminal.read(terminal.id);
+        assert.equal(observed.terminal.pid, terminal.pid); assert.equal(observed.terminal.ownerId, owner.id);
+        assert.notEqual(observed.terminal.attachmentId, terminal.attachmentId);
+        assert.equal(observed.data.split("GENERATED_PACKAGED_PTY_READY").length - 1, 1);
+      }
+      assert.equal(consoleSdk.getState().snapshot.terminalOwners[0].pid, owner.pid);
+      await consoleSdk.terminal.input(consoles[0].id, "GENERATED_PACKAGED_REATTACHED_INPUT\n");
+      let observed = "";
+      for (let index = 0; index < 50 && !observed.includes("GENERATED_PACKAGED_REATTACHED_INPUT"); index++) {
+        observed = (await consoleSdk.terminal.read(consoles[0].id)).data;
+        if (!observed.includes("GENERATED_PACKAGED_REATTACHED_INPUT")) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      assert.match(observed, /GENERATED_PACKAGED_REATTACHED_INPUT/);
+      for (const terminal of consoles) await consoleSdk.terminal.close(terminal.id);
+      assert.equal(modelFixture.requests.length, 5);
+    } finally { await desktop?.close(); consoleSdk.disconnect(); }
+  }
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan save with exact independent artifact, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan save with exact independent artifact, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-console owner reattachment and measured native/bundled terminal overhead, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   let confirmed = false;
   try {
