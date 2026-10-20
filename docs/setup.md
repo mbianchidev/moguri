@@ -1098,7 +1098,61 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Current 0.12 checkpoint
+### Current 0.13 checkpoint
+
+The **0.13.0-alpha.1 / protocol-19** checkpoint adds reviewed text-context
+compaction through one shared SDK and actual Local/pinned-SSH worker. Explicit
+preview, metered generation, content/history review, apply/discard, exact owned
+stop and original-context restore never rewrite original history, consume the
+draft, invent a user answer or reset charges. Synthetic kupo needs an explicit
+real compactor; images and automatic compaction remain unsupported.
+
+The corrected source passes **366 local checks in 279.27 s**, all **26** hidden
+source-desktop workflows in **52.6 s**, and all **26** against the actual
+packaged app in **52.8 s**. Native TUI drives the real preview/generate/read/
+apply/restore path in **1,105.20 ms**. Separate real pinned-SSH coverage runs the
+same model role without Local fallback. The package verifier also starts the
+actual bundled Node service/worker, not a source-service proxy: three generated
+source turns plus one compactor call retain its actual 42-token report and
+require explicit review/apply/restore. Existing OAuth, PTY, mascot/Ghostty and
+weightless speech checks pass.
+
+The **exact delivered SDK archive** independently passes fresh script-reviewed
+install/rebuild/audit, all four external entrypoint types, actual installed CLI
+preview/generate/read/apply/restore, scoped compaction charges and shipped SSH
+workspace reads. Source/consumer audits report zero vulnerabilities. Clean
+restore, types/build, strict ad-hoc signature/runtime/assets and real DMG
+integrity pass. No personal authorization, microphone, model weights, paid
+inference or SendBox probe was used.
+
+The first source run was **364/365**, not a pass: stable history timestamps
+exposed a historical-usage anchor lowering fresh request sizing. A focused
+48-versus-2,723-token regression now preserves the maintained fresh estimate
+floor and matching output headroom without changing actual usage. Complete
+corrected source/package results above qualify the artifacts. Earlier consumer
+harness failures also remain recorded: it now awaits authoritative operation
+state and checks the structured foreign-profile error, not stale peer state or
+message aliases. Exact compaction stops cannot cancel newer solver work.
+
+Migration 19 preserves old ciphertexts, scoped receipts, grants and ledger
+charges; restart leaves interrupted proposals partial without replay or
+application. Original-context restore and source deletion never refund calls.
+Legacy protocol-16/17/18 SSH receipts are inspectable only. Sandbox work remains
+paused, and the wider first-release/remaining-gap acceptance is not complete.
+
+| Development artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.13.0-alpha.1-macos-arm64.dmg` | 359965723 | `bb8a60f10415ad83287e620ffae0fa2efde0c4830868bd0c347c5d4dcd36a21f` |
+| `Moguri-0.13.0-alpha.1-macos-arm64.zip` | 279005083 | `55e06c9af9c73a453371e9009efdafc865f430e50d8f3ca9aee64e2c02f9bdd4` |
+| `moguri-0.13.0-alpha.1.tgz` | 6574857 | `9ffc9c1eaa8cb9b88fee5a93ddfd11de1d70c85de0f33a32797bdb036da493fa` |
+
+App: `release/0.13.0-alpha.1/Moguri-darwin-arm64/Moguri.app`. The DMG exceeds
+chat's 64 MiB limit and remains local. Artifacts are ad-hoc signed and not
+notarized; no tag, GitHub release or merge was created. Earlier qualified
+artifacts stay unchanged. Known FFI/deprecation, explicit file-package approval,
+optional `.icon` and lazy Ghostty notices remain visible.
+
+### Historical 0.12 checkpoint
 
 The **0.12.0-alpha.1 / protocol-18** checkpoint adds inclusive UTC date presets,
 year/custom ranges, day/week/month buckets, captured rate history, retained
