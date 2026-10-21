@@ -1219,9 +1219,17 @@ the immutable 0.17 checkpoint below. The
 [Remote MCP prerequisite](architecture/remote-mcp-primitives.md) uses the real
 pinned SSH supervisor and shared owned connector with generated stdio/HTTP
 servers. Ten SSH cases and three exact process-admission/cleanup cases pass.
-It does not enable Remote MCP, transfer any real credential, change durable
-schemas or qualify an 0.18 archive. Public session/grant/approval, outcome,
-cancellation/recovery and cross-client integration remain required.
+The private proof did not enable Remote MCP or change durable schemas.
+The subsequent [protocol-24 grant/state foundations](architecture/remote-mcp.md)
+now add deny-by-default peer/resource grants, immutable operation metadata and
+migration rollback. Seven foundation checks and type checks pass; no model,
+server or credential is accessed by a grant preview. Public worker execution,
+outcomes, cancellation/recovery and cross-client integration remain required.
+Scoped catalog discovery also passes four real-SSH checks, including
+access-only generated OAuth, stale authority and actual stdio-server cleanup.
+Tool calls, full result/ACK/restart and native client acceptance are still
+being integrated. No real credential is forwarded or 0.18 archive qualified
+by this foundation.
 Sandbox work remains paused.
 
 ### Current qualified 0.17 checkpoint
