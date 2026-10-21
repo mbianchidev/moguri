@@ -1314,6 +1314,20 @@ or public finite kupo. No new protocol/event, permission or client write surface
 is added. No immutable 0.24 archive/app is qualified; frozen 0.23 and older
 deliveries remain unchanged. Sandbox stays paused.
 
+The same source also adds a [private owned-role continuation prerequisite](architecture/owned-role-protocol.md).
+One actual root-less read-only worker can continue only after an explicit
+retained result, valid bounded reported usage and fresh host authorization.
+Earlier output is not automatically inherited. Generated actual-worker and
+budget probes cover three acknowledged roles, real SQLite receipt failure,
+control loss and the existing 32-step bound. This does not expose
+Cascade/Critique, choose model families or authorize a user action; fixed-model
+generation remains a separately reviewed one-call operation.
+The combined private transport/owned-worker spike passes **32/32 in 5.08 s**,
+with both type checks/build. Actual successful three-role/ledger/reopen takes
+**326.76 ms**; a real failed completion append takes **279.74 ms**, preserves
+the first unknown **99-token** reservation and releases unused plans without
+dispatching the next role. These are generated mechanics, not live quality.
+
 ### Current qualified 0.23.0-alpha.1 checkpoint
 
 Qualified **0.23.0-alpha.1 / protocol and database 31** includes the planned
