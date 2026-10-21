@@ -339,6 +339,13 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .proposal-review > code { font-size: 10px; overflow-wrap: anywhere; }
 .tool-discovery-row { display: flex; flex-direction: column; text-align: left; gap: 7px; width: 100%; margin: 10px 0; padding: 12px; }
 .tool-discovery-row span { font-size: 11px; line-height: 1.65; color: var(--muted); }
+.mcp-remote-panel { border-block: 1px solid var(--line); margin-block: 24px; padding-block: 0 24px; min-width: 0; }
+.mcp-remote-scope { font-size: 12px; line-height: 1.7; margin-block: 20px; }
+.mcp-remote-scope > div { display: grid; grid-template-columns: minmax(100px, .3fr) minmax(0, 1fr); gap: 16px; padding-block: 8px; border-bottom: 1px solid var(--line); }
+.mcp-remote-scope dt { color: var(--muted); }
+.mcp-remote-scope dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.mcp-remote-history { margin-top: 24px; font-size: 12px; }
+.mcp-remote-result { max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .settings-jobs, .settings-result { margin-top: 30px; }
 .settings-result pre { max-height: 420px; overflow: auto; }
 .settings-result summary, .settings-jobs summary { color: var(--muted); font-size: 12px; }

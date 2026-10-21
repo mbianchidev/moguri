@@ -202,6 +202,26 @@ try {
     assert.equal(artifact.text, text); assert.equal(artifact.artifact.sources[0].boundary.env, "Remote");
     const operation = (await remoteSdk.plans.saves(session.id)).saves[0];
     assert.equal(operation.status, "completed"); assert.equal(operation.fileOutcome, "written");
+    if (PROTOCOL_VERSION >= 24) {
+      const preview = (await remoteSdk.mcp.remotePreview(session.id, "builtin")).preview;
+      assert.equal(preview.granted, false);
+      await remoteSdk.mcp.grantRemote(session.id, "builtin", preview.digest, preview.settingsRevision, false, true);
+      await remoteSdk.remote.probe();
+      const tool = (await remoteSdk.mcp.tools("builtin", "grep", 0, session.id)).tools.find((tool) => tool.name === "grep_logs");
+      assert.equal(tool.scope.root, await realpath(remoteRoot));
+      const pending = await remoteSdk.mcp.call(session.id, "builtin", tool.name, { path: "docs/plan.md", query: "Generated actual packaged" }, tool.digest);
+      const waiting = (await remoteSdk.mcp.remoteCalls(session.id)).calls[0];
+      assert.equal(waiting.executionId, null); assert.equal(waiting.actor, "external"); assert.equal(waiting.accessForwarded, false);
+      const approval = remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).pendingApproval;
+      await remoteSdk.command({ type: "approval.respond", sessionId: session.id, approvalId: approval.id, allow: true });
+      assert.equal((await remoteSdk.jobs.wait(pending.id)).status, "completed");
+      const call = (await remoteSdk.mcp.remoteCalls(session.id)).calls[0];
+      assert.equal(call.status, "completed");
+      assert.match(JSON.stringify((await remoteSdk.mcp.remoteCall(session.id, call.id)).result), /Generated actual packaged service/);
+      assert.equal(remoteSdk.getState().snapshot.executions.find((value) => value.id === call.executionId).cleanup, "owned-worker-stopped");
+      await remoteSdk.mcp.revokeRemote(session.id, "builtin", remoteSdk.settings.get().revision, true);
+      assert.match((await remoteSdk.mcp.readResult(pending.id)).text, /Generated actual packaged service/);
+    }
     assert.equal(remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).usage.length, 0);
     assert.equal(modelFixture.requests.length, 4);
   } finally { remoteSdk.disconnect(); }

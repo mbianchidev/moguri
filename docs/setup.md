@@ -683,6 +683,38 @@ auth-status, call and paged-result tools. It cannot change settings or
 credentials or approve itself. Connector failure/cancellation can leave
 external effects unconfirmed; partial is not success and requires inspection.
 
+### Remote MCP in the 0.18 development source
+
+Select an explicitly mapped Remote project, then **Settings / MCP gateway**.
+Expand **Configure backend MCP servers** when changing transports. Use
+**Probe SSH target**, choose the server and **Review Remote grant**. Review the
+profile, host/port/pinned key, Remote root, exact resource and digest before
+checking the review confirmation. Access forwarding is a separate, initially
+unchecked option for authenticated HTTP: a bearer may be long-lived and the
+host can retain received access. Refresh credentials never leave their backend.
+Saving a grant starts no tool. Probe SSH again, discover the current catalog,
+request the exact call and return to the session for its separate approval.
+No selected model is needed for that external operation.
+
+TUI and desktop share `/mcp-remote preview SERVER`,
+`/mcp-remote grant SERVER SHA256 REV confirm-reviewed [forward-access]`,
+`/mcp-remote revoke SERVER REV confirm-revoke`, `calls` and
+`inspect OPERATION_ID`. CLI equivalents are `moguri mcp remote-preview SERVER`,
+`remote-grant SERVER --digest SHA256 --revision N --confirm-review
+[--forward-access]`, `remote-revoke SERVER --revision N --confirm-review`,
+`remote-calls` and `remote-call OPERATION_ID`, each with `--session ID`.
+`mcp servers --session ID` reports configured/review-required/access-required/
+unready metadata without connecting a server or reading an access credential.
+It is not proof of tool availability or approval.
+
+**Recorded Remote calls** shows the actual actor, phase, root and observed or
+unknown forwarding receipt. Inspection remains available after revocation;
+**Reconcile receipts** reads an existing SSH run, never replays an effect.
+Revocation does not need an online/ready host. It also cannot undo access or
+external effects already received. Remote memory, transferred Local scripts
+and embedded Remote consoles remain unavailable. Complete 0.18 archive
+qualification remains in progress; the immutable 0.17 delivery is unchanged.
+
 ## Local NVIDIA dictation
 
 Open **Settings / Voice dictation**, review the linked model card/license and
@@ -1232,7 +1264,10 @@ external MCP calls in the actual SSH worker, never the Local gateway.
 Original intents/results have encrypted session retention, explicit
 stop/partial outcomes and no-replay service-crash reconciliation, including
 after grant revocation. Native client integration and complete related/exact
-archive qualification remain unfinished. No real credential was forwarded
+archive qualification remain unfinished. Shared CLI/TUI commands and the
+factory-dark desktop now expose exact review, separate forwarding consent,
+revocation and retained-operation inspection through the SDK. Actual OpenTUI
+and two hidden desktop workflows pass; no real credential was forwarded
 and no 0.18 archive is qualified by these generated checks.
 Sandbox work remains paused.
 
