@@ -111,6 +111,16 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > reviews stay separate. Compound routing, finite kupo wind-down and real-model
 > quality qualification remain open.
 
+> Protocols 32/33 add independently retained actual role observations and
+> [canonical final-role proposal origin](architecture/role-proposals.md)
+> through separate staging/application reviews. Qualified protocol 34 adds
+> [explicit provider-declared model inspection](architecture/model-evidence.md),
+> not inferred family independence, quality or permission.
+> Development [owned role contracts](architecture/owned-role-contracts.md) add
+> exact response checks and selected prior-result context to that same worker;
+> public compound admission, conditional pattern
+> policy, finite kupo and Max remain unqualified.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

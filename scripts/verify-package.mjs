@@ -504,17 +504,29 @@ try {
     console.log("Actual bundled Node/runtime/SDK/CLI role inspection preserves source-independent raw data, version-4 export, reopen and minimal deletion intent without model preparation or replay.");
   }
   if (PROTOCOL_VERSION >= 33) {
-    const { roleProposalFixture } = await tsImport("../tests/fixtures/role-proposal-api.ts", import.meta.url);
-    const fixture = await roleProposalFixture();
+    const fixture = await (async () => {
+      if (PROTOCOL_VERSION >= 35) {
+        const { roleContractFixture } = await tsImport("../tests/fixtures/role-contract-api.ts", import.meta.url);
+        const value = await roleContractFixture();
+        try {
+          const created = await value.run(), sequence = await value.settled(created.id);
+          assert.equal(sequence.status, "completed"); assert.equal(sequence.inputVersion, 2);
+          return { ...value, sequence };
+        } catch (error) { await value.close(); throw error; }
+      }
+      const { roleProposalFixture } = await tsImport("../tests/fixtures/role-proposal-api.ts", import.meta.url);
+      return roleProposalFixture();
+    })();
     try {
       const proposal = await fixture.sdk.candidates.roleProposal(fixture.sequence.id);
       const evidence = { stateDir: join(fixture.directory, "state"), sequenceId: fixture.sequence.id, sessionId: fixture.sessionId,
         projectId: fixture.sequence.projectId, workspaceId: fixture.workspace.id, sourceRoot: fixture.project, patch: fixture.patch,
-        origin: proposal.document.roleOrigin, commandId: fixture.sequence.commandId, commandDigest: fixture.sequence.commandDigest };
+        origin: proposal.document.roleOrigin, commandId: fixture.sequence.commandId, commandDigest: fixture.sequence.commandDigest,
+        inputVersion: fixture.sequence.inputVersion ?? 1, expectedCalls: PROTOCOL_VERSION >= 35 ? 4 : 3 };
       fixture.sdk.disconnect();
-      if (PROTOCOL_VERSION === 33) {
+      if (PROTOCOL_VERSION === 33 || PROTOCOL_VERSION === 34) {
         const { writeLegacyState } = await tsImport("../tests/fixtures/legacy-state.ts", import.meta.url);
-        await writeLegacyState(fixture.service, 33);
+        await writeLegacyState(fixture.service, PROTOCOL_VERSION);
       } else await fixture.service.close();
       const program = `
         import assert from "node:assert/strict";
@@ -532,6 +544,14 @@ try {
         const index=await readFile(join(evidence.sourceRoot,".git/index")),head=git(["rev-parse","HEAD"]);
         let runtime=await createRuntime(options),sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
         try{
+          if(evidence.inputVersion===2){
+            const gate=await sdk.roleSequences.contract(evidence.sequenceId,2);
+            assert.equal(gate.inputVersion,2);assert.equal(gate.result.status,"valid");assert.equal(gate.result.value.verdict,"revise");
+            assert.deepEqual(gate.contextRoleIndices,[1]);assert.match(gate.warning,/not.*quality/);
+            const cliGate=JSON.parse((await promisify(execFile)(process.execPath,[cli,"roles","contract",evidence.sequenceId,"2"],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
+            assert.deepEqual(cliGate,gate);
+            assert.equal(JSON.parse((await sdk.slash(evidence.sessionId,"/roles contract "+evidence.sequenceId+" 2","tui")).text).result.status,"valid");
+          }
           assert.deepEqual((await sdk.candidates.roleProposal(evidence.sequenceId)).document.roleOrigin,evidence.origin);
           assert.deepEqual((await invoke(["role-proposal",evidence.sequenceId])).document.patch,evidence.patch);
           const reference={roleSequenceId:evidence.sequenceId},review=(await sdk.candidates.preview(evidence.sessionId,evidence.workspaceId,evidence.patch,reference)).preview;
@@ -552,13 +572,14 @@ try {
           assert.equal(applied.candidate.status,"applied");assert.equal(applied.candidate.acceptance.actor,"user");assert.deepEqual(applied.candidate.roleOrigin,evidence.origin);
           assert.equal(await readFile(join(evidence.sourceRoot,"fixture.txt"),"utf8"),evidence.patch.edits[0].text);
           assert.deepEqual(await readFile(join(evidence.sourceRoot,".git/index")),index);assert.equal(git(["rev-parse","HEAD"]),head);
-          assert.equal((await sdk.budgets.calls()).calls.length,3);assert.equal((await sdk.budgets.dashboard()).totals.knownReportedTokens,126);
+          assert.equal((await sdk.budgets.calls()).calls.length,evidence.expectedCalls);assert.equal((await sdk.budgets.dashboard()).totals.knownReportedTokens,evidence.expectedCalls*42);
           assert.throws(()=>runtime.controller.platform.roles.original(evidence.commandId,evidence.commandDigest),{code:"role_sequence_deleted"});
         }finally{sdk.disconnect();await runtime.close();}
       `;
       await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 30_000 });
-      assert.equal(fixture.requests.length, 3);
+      assert.equal(fixture.requests.length, evidence.expectedCalls);
       console.log("Actual bundled Node/runtime/SDK/CLI final-role proposal resolution, exact origin-bound review, separate stage/application, source-role/session deletion, raw-copy/export5/reopen and real-user acceptance passed with model preparation forbidden.");
+      if (PROTOCOL_VERSION >= 35) console.log("Actual bundled Node/runtime/SDK/CLI derives original version-2 role contracts and exact selected-context advice from retained actual role inputs/results, without model preparation or code-quality/approval claims.");
     } finally { await fixture.close(); }
   }
   child.send("close");

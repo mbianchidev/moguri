@@ -1304,7 +1304,42 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
+<a id="development-029-owned-role-contracts"></a>
+### Development 0.29 owned role contracts
+
+Source **0.29.0-alpha.1 / protocol and database 35** extends the existing
+privileged Node owned executor with optional exact router, canonical patch and
+bounded critic response contracts. Each contracted role explicitly selects
+earlier result indices; router explanations cannot enter its later context.
+Known accounting, scope, result retention and actual worker acknowledgement
+still gate every next preparation. Rejected/malformed advice stays retained
+and charged, never approval or a silent retry.
+
+New original input documents use version 2 with immutable `inputVersion:2`
+metadata; version-1 bytes/context semantics are preserved. The additive
+schema-35 marker has raw schema-34 rollback/reopen coverage. Restart an
+incompatible running service explicitly and use the matching worker; never
+delete local state to upgrade.
+
+SDK `roleSequences.contract(ID, INDEX)`, compiled CLI
+`moguri roles contract ID INDEX`, shared/native TUI `/roles contract ID INDEX`
+and **Artifacts / Inspect role contract** read original declared checks.
+`valid` is only a matching shape/binding with known actual accounting, not
+code correctness, independent training, user acceptance or permission.
+Pending, uncontracted, invalid and rejected data remain explicit. Reads do not
+start or resume a model, widen a pool or refund usage.
+
+Current focused gates include strict types/build, actual four-role 168-token
+execution and filtered contexts, charged rejection/no next preparation,
+version-1 compatibility, compiled CLI/shared/native TUI, two hidden desktop
+flows and eight actual controller SIGKILL phases without model/root replay.
+Complete source, independent SDK and exact native delivery qualification are
+still pending. Public pattern scheduling, family/quality, finite kupo,
+accepted-work wind-down and Max remain separate work; Sandbox stays paused.
+See [the full development contract](architecture/owned-role-contracts.md).
+
 <a id="development-028-explicit-model-declarations"></a>
+<a id="current-qualified-0280-alpha1-checkpoint"></a>
 ### Current qualified 0.28.0-alpha.1 checkpoint
 
 Qualified **0.28.0-alpha.1 / protocol and database 34** adds explicit informational

@@ -20,8 +20,9 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const [sourceId, setSourceId] = useState(""), [source, setSource] = useState<(ArtifactSourcePreview & { sessionId: string; sourceId: string }) | null>(null);
   const [promoteName, setPromoteName] = useState("Retained answer"), [promoteKind, setPromoteKind] = useState<ArtifactKind>("answer");
   const [repositoryProject, setRepositoryProject] = useState(projectId ?? "");
-  const [roleIndex, setRoleIndex] = useState("0"), [roleData, setRoleData] = useState<string | null>(null);
+  const [roleIndex, setRoleIndex] = useState("0"), [roleData, setRoleData] = useState<string | null>(null), [roleContract, setRoleContract] = useState<string | null>(null);
   const roleOutput = useRef<HTMLPreElement>(null);
+  const contractOutput = useRef<HTMLPreElement>(null);
   const generation = useRef(0), sourceSession = useRef(session?.id), dirty = Boolean(draft && fields(draft) !== baseline);
   sourceSession.current = session?.id;
   const current = draft?.id ? snapshot.artifacts.find((artifact) => artifact.id === draft.id) : undefined;
@@ -34,7 +35,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   const accept = (value: ArtifactEditorRequest) => {
-    setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null); setRoleIndex("0"); setRoleData(null);
+    setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null); setRoleIndex("0"); setRoleData(null); setRoleContract(null);
   };
   useEffect(() => {
     if (!request) return;
@@ -79,7 +80,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
         <p className="fine-print">{draft.kind.replace("-", " ")} / {draft.projectId ? snapshot.projects.find((project) => project.id === draft.projectId)?.name ?? "Former project" : "Profile"} / revision {draft.revision}{current?.status === "archived" ? " / archived" : ""}</p>}
       {sequence && <section className="artifact-role-sequence" aria-label="Retained role sequence">
         <p className="fine-print">Sequence {sequence.status}. Recorded data only, not a code approval or permission.</p>
-        <label className="setting-field">Recorded role<select aria-label="Retained role index" value={roleIndex} disabled={busy} onChange={(event) => { setRoleIndex(event.target.value); setRoleData(null); }}>
+        <label className="setting-field">Recorded role<select aria-label="Retained role index" value={roleIndex} disabled={busy} onChange={(event) => { generation.current++; setRoleIndex(event.target.value); setRoleData(null); setRoleContract(null); }}>
           {sequence.steps.map((step, index) => <option key={step.planId} value={index}>{index} / {step.role} / {step.modelId} / {step.state}</option>)}
         </select></label>
         <button disabled={busy} onClick={() => void run(async () => {
@@ -90,6 +91,16 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
           }
         })}>Inspect recorded role</button>
         {roleData !== null && <pre ref={roleOutput} tabIndex={0} aria-label="Recorded role data">{roleData}</pre>}
+        {sequence.inputVersion === 2 && <><p className="fine-print">Original declared output and context checks only. Valid is not code quality, independent lineage or acceptance.</p>
+          <button disabled={busy} onClick={() => void run(async () => {
+            const token = generation.current, value = await sdk.roleSequences.contract(sequence.id, Number(roleIndex));
+            if (generation.current === token) {
+              setRoleContract(JSON.stringify(value, null, 2));
+              requestAnimationFrame(() => { contractOutput.current?.focus(); contractOutput.current?.scrollIntoView({ block: "nearest" }); });
+            }
+          })}>Inspect role contract</button>
+          {roleContract !== null && <pre ref={contractOutput} tabIndex={0} aria-label="Role contract evaluation">{roleContract}</pre>}
+        </>}
       </section>}
       <label className="setting-field">Name<input aria-label="Artifact name" value={draft.name} maxLength={160} disabled={busy} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className="setting-field">Folder<select aria-label="Artifact folder" value={draft.folderId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, folderId: event.target.value || null })}><option value="">No folder</option>{snapshot.projectFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>
