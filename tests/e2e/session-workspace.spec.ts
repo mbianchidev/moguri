@@ -38,6 +38,8 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
         await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Queue prompt without starting work", exact: true })).toBeEnabled();
         await page.keyboard.press("Enter");
       } finally { await page.keyboard.up(modifier); }
+      await expect(prompt).toHaveValue("");
+      await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
     };
     await hold("Generated first held prompt", "Meta");
     await expect.poll(() => fixture.session().queue.length).toBe(1);
