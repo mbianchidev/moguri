@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, execFile, execFileSync } from "node:child_process";
+import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { mkdtemp, rm, mkdir, readFile, writeFile, access, readdir, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -469,6 +470,36 @@ try {
       client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready(); await proof.verifyRecovery(client);
       console.log("Actual bundled Node/service/SDK/CLI generation, one owned metered model draft, immutable provenance/version-3 export, separate reviewed stage/apply and missing-receipt restart replay passed without personal inference.");
     } finally { client.disconnect(); modelOptions.replyText = originalReply; }
+  }
+  if (PROTOCOL_VERSION >= 32) {
+    const state = join(temporary, "generated-bundled-role-state");
+    const evidence = JSON.parse(execFileSync(process.execPath, ["--import", "tsx", resolve("tests/fixtures/role-sequence-export.ts"), state], { encoding: "utf8" }));
+    const program = `
+      import assert from "node:assert/strict";
+      import {execFile} from "node:child_process";
+      import {promisify} from "node:util";
+      import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
+      const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
+        refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in role inspection.");},prepare:async()=>{throw Error("No model calls in retained role inspection.");}};
+      const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider};
+      let runtime=await createRuntime(options),sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
+      try{
+        const value=await sdk.roleSequences.read(evidence.sequenceId,1);
+        assert.equal(value.sequence.status,"completed");assert.equal(value.sequence.inputDigest,evidence.inputDigest);assert.ok(value.step.result.includes(evidence.rawMarker));
+        assert.equal(sdk.getState().snapshot.projects.length,0);assert.equal(sdk.getState().snapshot.sessions.some(session=>session.id===evidence.originSessionId),false);
+        const cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
+        const called=JSON.parse((await promisify(execFile)(process.execPath,[cli,"roles",evidence.sequenceId,"1"],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
+        assert.ok(called.step.result.includes(evidence.rawMarker));assert.equal(JSON.parse((await sdk.artifacts.export(evidence.sequenceId)).export.text).schemaVersion,4);
+        sdk.disconnect();await runtime.close();runtime=await createRuntime(options);sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
+        assert.equal((await sdk.roleSequences.read(evidence.sequenceId,1)).sequence.status,"completed");
+        const artifact=(await sdk.artifacts.read(evidence.sequenceId)).artifact;await sdk.artifacts.delete(evidence.sequenceId,artifact.revision,true);
+        await assert.rejects(()=>sdk.roleSequences.read(evidence.sequenceId),{code:"role_sequence_missing"});
+        assert.throws(()=>runtime.controller.platform.roles.original(evidence.commandId,evidence.commandDigest),{code:"role_sequence_deleted"});
+        assert.equal((await sdk.budgets.calls()).calls.length,2);
+      }finally{sdk.disconnect();await runtime.close();}
+    `;
+    await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 15_000 });
+    console.log("Actual bundled Node/runtime/SDK/CLI role inspection preserves source-independent raw data, version-4 export, reopen and minimal deletion intent without model preparation or replay.");
   }
   child.send("close");
   assert.equal(await exit, 0);
