@@ -1290,6 +1290,18 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Development 0.22 compound routing prerequisite
+
+The manifest is now **0.22.0-alpha.1**, still protocol/database 27.
+The [generated compound transport proof](architecture/compound-routing-primitives.md)
+passes **20/20 in 454.56 ms**, alongside both type checks/build, using actual
+bounded pi-ai calls to generated loopback endpoints. Cascade permits one
+configured escalation and Critique one independent critic/bounded revision.
+Costs/unknowns, identities, data locality and failed receipts remain explicit.
+These are unaccepted tool-less proposals, not coding-workspace/application,
+finite-budget wind-down, calibrated quality or a public routing feature.
+No 0.22 SDK/app is qualified. Immutable 0.21 and Sandbox pause are unchanged.
+
 ### Current qualified 0.21.0-alpha.1 checkpoint
 
 Qualified **0.21.0-alpha.1 / protocol/database 27** implements session-bound
