@@ -501,6 +501,60 @@ try {
     await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 15_000 });
     console.log("Actual bundled Node/runtime/SDK/CLI role inspection preserves source-independent raw data, version-4 export, reopen and minimal deletion intent without model preparation or replay.");
   }
+  if (PROTOCOL_VERSION >= 33) {
+    const { roleProposalFixture } = await tsImport("../tests/fixtures/role-proposal-api.ts", import.meta.url);
+    const fixture = await roleProposalFixture();
+    try {
+      const proposal = await fixture.sdk.candidates.roleProposal(fixture.sequence.id);
+      const evidence = { stateDir: join(fixture.directory, "state"), sequenceId: fixture.sequence.id, sessionId: fixture.sessionId,
+        projectId: fixture.sequence.projectId, workspaceId: fixture.workspace.id, sourceRoot: fixture.project, patch: fixture.patch,
+        origin: proposal.document.roleOrigin, commandId: fixture.sequence.commandId, commandDigest: fixture.sequence.commandDigest };
+      fixture.sdk.disconnect(); await fixture.service.close();
+      const program = `
+        import assert from "node:assert/strict";
+        import {execFile,execFileSync} from "node:child_process";
+        import {readFile} from "node:fs/promises";
+        import {join} from "node:path";
+        import {promisify} from "node:util";
+        import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
+        const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
+          refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in native role proposals.");},
+          prepare:async()=>{throw Error("No model preparation in native role proposals.");}};
+        const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider},cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
+        const invoke=async args=>JSON.parse((await promisify(execFile)(process.execPath,[cli,"candidate",...args],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
+        const git=args=>execFileSync("git",["--no-pager","-c","core.hooksPath=/dev/null","-c","core.fsmonitor=false",...args],{cwd:evidence.sourceRoot,encoding:"utf8"});
+        const index=await readFile(join(evidence.sourceRoot,".git/index")),head=git(["rev-parse","HEAD"]);
+        let runtime=await createRuntime(options),sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
+        try{
+          assert.deepEqual((await sdk.candidates.roleProposal(evidence.sequenceId)).document.roleOrigin,evidence.origin);
+          assert.deepEqual((await invoke(["role-proposal",evidence.sequenceId])).document.patch,evidence.patch);
+          const reference={roleSequenceId:evidence.sequenceId},review=(await sdk.candidates.preview(evidence.sessionId,evidence.workspaceId,evidence.patch,reference)).preview;
+          assert.ok(review.warning);assert.notEqual(review.digest,(await sdk.candidates.preview(evidence.sessionId,evidence.workspaceId,evidence.patch)).preview.digest);
+          const staged=await sdk.candidates.wait((await sdk.candidates.stage(evidence.sessionId,evidence.workspaceId,evidence.patch,review.digest,reference)).id);
+          assert.equal(staged.candidate.status,"staged");assert.equal(staged.candidate.acceptance,null);assert.deepEqual(staged.candidate.roleOrigin,evidence.origin);
+          assert.equal(await readFile(join(evidence.sourceRoot,"fixture.txt"),"utf8"),"generated original\\n");
+          const report=(await sdk.artifacts.read(evidence.sequenceId)).artifact;await sdk.artifacts.delete(report.id,report.revision,true);
+          await sdk.refresh();await sdk.sessions.delete(evidence.sessionId,true,sdk.getState().snapshot.sessions.find(session=>session.id===evidence.sessionId).revision);
+          sdk.disconnect();await runtime.close();runtime=await createRuntime(options);sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
+          assert.deepEqual((await sdk.candidates.read(staged.candidate.id)).candidate.roleOrigin,evidence.origin);
+          const copy=JSON.parse((await sdk.artifacts.export(staged.candidate.id)).export.text);assert.equal(copy.schemaVersion,5);
+          for(const digest of [evidence.origin.sequenceInputDigest,evidence.origin.roleInputDigest,evidence.origin.resultDigest])
+            assert.ok(copy.documents[0].candidate.results.some(result=>result.digest===digest&&result.text.length));
+          const user=await sdk.sessions.create(evidence.projectId,"Generated native role-copy reviewer",{env:"Local"});
+          const apply=(await sdk.candidates.applyPreview(staged.candidate.id,user.id)).preview;
+          const applied=await invoke(["apply",staged.candidate.id,"--session",user.id,"--revision",String(staged.candidate.revision),"--digest",apply.digest,"--confirm-write"]);
+          assert.equal(applied.candidate.status,"applied");assert.equal(applied.candidate.acceptance.actor,"user");assert.deepEqual(applied.candidate.roleOrigin,evidence.origin);
+          assert.equal(await readFile(join(evidence.sourceRoot,"fixture.txt"),"utf8"),evidence.patch.edits[0].text);
+          assert.deepEqual(await readFile(join(evidence.sourceRoot,".git/index")),index);assert.equal(git(["rev-parse","HEAD"]),head);
+          assert.equal((await sdk.budgets.calls()).calls.length,3);assert.equal((await sdk.budgets.dashboard()).totals.knownReportedTokens,126);
+          assert.throws(()=>runtime.controller.platform.roles.original(evidence.commandId,evidence.commandDigest),{code:"role_sequence_deleted"});
+        }finally{sdk.disconnect();await runtime.close();}
+      `;
+      await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 30_000 });
+      assert.equal(fixture.requests.length, 3);
+      console.log("Actual bundled Node/runtime/SDK/CLI final-role proposal resolution, exact origin-bound review, separate stage/application, source-role/session deletion, raw-copy/export5/reopen and real-user acceptance passed with model preparation forbidden.");
+    } finally { await fixture.close(); }
+  }
   child.send("close");
   assert.equal(await exit, 0);
   console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP, private Remote gh account/provenance/restart/CLI, session-bound Remote memory/index/CLI/restart/original intent and approved owned MCP retrieval without Local cache reuse, user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
