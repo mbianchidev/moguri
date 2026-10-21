@@ -1319,6 +1319,12 @@ all **41 hidden source desktop workflows in 1.5 min**, and the temporary
 packed SDK's approved/rebuilt four-entrypoint/actual Local-SSH compatibility
 gate. Source/consumer audits are zero. This is source/internal-state
 qualification, not a delivered 0.22 archive or actual packaged desktop.
+The shared file tool additionally propagates owned stop through preparation
+and reports a post-rename stop/durability failure as partial. Its actual worker
+retains the result, quarantines the root and cannot launch a third model leg.
+The related **60-case** Local/SSH/routing gate, **four** hidden desktop/SSH
+flows, build/types and temporary packed-SDK install/audit pass; no additional
+schema, implicit approval or containment guarantee is introduced.
 
 ### Current qualified 0.21.0-alpha.1 checkpoint
 
