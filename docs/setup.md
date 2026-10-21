@@ -1305,9 +1305,9 @@ These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
 <a id="development-029-owned-role-contracts"></a>
-### Development 0.29 owned role contracts
+### Current qualified 0.29.0-alpha.1 checkpoint
 
-Source **0.29.0-alpha.1 / protocol and database 35** extends the existing
+Qualified **0.29.0-alpha.1 / protocol and database 35** extends the existing
 privileged Node owned executor with optional exact router, canonical patch and
 bounded critic response contracts. Each contracted role explicitly selects
 earlier result indices; router explanations cannot enter its later context.
@@ -1329,18 +1329,76 @@ code correctness, independent training, user acceptance or permission.
 Pending, uncontracted, invalid and rejected data remain explicit. Reads do not
 start or resume a model, widen a pool or refund usage.
 
-Current focused gates include strict types/build, actual four-role 168-token
+Focused gates include strict types/build, actual four-role 168-token
 execution and filtered contexts, charged rejection/no next preparation,
 version-1 compatibility, compiled CLI/shared/native TUI, two hidden desktop
 flows and eight actual controller SIGKILL phases without model/root replay.
-Complete source, independent SDK and exact native delivery qualification are
-still pending. Public pattern scheduling, family/quality, finite kupo,
-accepted-work wind-down and Max remain separate work; Sandbox stays paused.
-See [the full development contract](architecture/owned-role-contracts.md).
+The focused final gate passes **30/30 in 19.58 s**. Raw schema-34 marker
+failure/reopen preserves actual version-1 role/candidate ciphertext and the
+prior model-evidence marker; its successful marker measures **4.21 ms**.
+All eight actual controller SIGKILL phases pass for versions 1 and 2, retaining
+0/1/1/3 and 0/1/1/4 original calls respectively, zero restarted calls and no
+root/model preparation. The focused recovery gate is **11/11 in 29.61 s**.
+The integrated prerequisite spike passes **92/92 in 146.20 s**.
+
+Complete source compatibility passes **822/822 in 790.45 s**, with no failed,
+cancelled or skipped cases, strict type checks/declaration build and zero source
+audit findings. All **55 hidden source desktop workflows pass in 2.2 min**,
+and **55 exact packaged-app workflows in 2.1 min**. Compiled CLI, shared/native
+TUI and the existing Artifacts panel inspect both valid and rejected contracts.
+The bounded desktop/compact inspection is complete with no new layout defect.
+
+Fresh and exact SDK archives independently approve/rebuild their installation,
+audit with zero findings and type-check all four external entrypoints.
+Their actual installed controller/worker runs four contracted roles with
+**168 reported tokens**, exact selected contexts and no forwarded router
+explanation. SDK/CLI/shared contract reads, canonical final-role origin,
+separate staging/application, independent raw-copy/source deletion/reopen and
+actual-user acceptance pass. The exact archive's actual worker also passes
+**12/12 private transport/ledger probes in 3.30 s**.
+
+The actual app's bundled Node/runtime/SDK/CLI separately derives retained
+version-2 contracts, selected-context advice and canonical origin, then
+preserves raw-copy/export5/reopen and separate actual-user application with
+model preparation forbidden. This is native reader/publication qualification,
+not a claim of live model-family quality. Existing default Copilot inspection
+also passes in fresh/exact/bundled form (**447.27 / 403.10 / 507.37 ms**),
+using generated memory-only keyring/catalogue interception and zero model calls.
+
+The original failure-injection fixture tried to select encrypted payload
+fields from the plaintext event header. That predicate never ran. It now
+counts visible role-observation headers and fails the exact third atomic append;
+the actual worker retains unknown paid ownership and prepares no next role
+(**1.32 s**). No production fallback, relaxed validation or success claim
+was used to bypass the failed test.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `release/Moguri-0.29.0-alpha.1-macos-arm64.dmg` | 361297147 | `b8057d11d7c08ae75243e9c348a84b9af391c8046f2ce9710a396f39dbe6bf31` |
+| `release/Moguri-0.29.0-alpha.1-macos-arm64.zip` | 283394809 | `ee9eae3a75f63c94065af47625928af531f02d0cb5e2d4c614e9399c35327e61` |
+| `release/moguri-0.29.0-alpha.1.tgz` | 7069033 | `08b67d91c90ebf674a70e80dc160f5927cdeba78f8ff61f3500aef9993dd3788` |
+
+App: `release/0.29.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Actual signature/icon/assets, bundled Node 26.12.0, ZIP integrity and
+`hdiutil verify` pass. **Ad-hoc signed, not notarized.** The DMG exceeds chat's
+64-MiB limit and stays local. Exact archives, including their pre-final-
+qualification documentation, are frozen; final notes do not repack them.
+All three 0.28 identities were rechecked unchanged.
+
+One/four-console **Electron-only aggregates are 534.81 / 538.45 MiB** under
+the **600-MiB Electron-shell** budget. Combined Electron/service/broker is
+**875.02 / 879.17 MiB**, not under 600 MiB; generated user programs are separate.
+Known experimental FFI, lazy Ghostty chunk, transitive deprecations and optional
+newer `.icon` notices remain; the actual declared `.icns` is verified.
+
+Public conditional pattern scheduling, family/quality qualification, finite
+kupo, accepted-work wind-down and Max remain separate work. This is not the
+completed first milestone; Sandbox stays paused. See
+[the full contract](architecture/owned-role-contracts.md).
 
 <a id="development-028-explicit-model-declarations"></a>
 <a id="current-qualified-0280-alpha1-checkpoint"></a>
-### Current qualified 0.28.0-alpha.1 checkpoint
+### Preserved qualified 0.28.0-alpha.1 checkpoint
 
 Qualified **0.28.0-alpha.1 / protocol and database 34** adds explicit informational
 Copilot catalogue inspection, not another model workflow. SDK, compiled CLI,
