@@ -11,6 +11,7 @@ import { generatedRepositoryMetadata } from "../tests/fixtures/repository-info.t
 
 const { fixtureProvider } = await tsImport("../tests/fixture.ts", import.meta.url);
 const { createSshTarget } = await tsImport("../tests/fixtures/ssh-target.ts", import.meta.url);
+const { generatedRemoteGithub } = await tsImport("../tests/fixtures/remote-github.ts", import.meta.url);
 
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
@@ -38,6 +39,7 @@ const temporary = await mkdtemp(join(tmpdir(), "moguri-packaged-"));
 const oauth = await generatedOAuthServer();
 let modelFixture;
 let ssh;
+let github;
 let child;
 let timer;
 let exit;
@@ -48,6 +50,10 @@ try {
   await mkdir(sshRoot, { mode: 0o700 }); await mkdir(remoteRoot, { mode: 0o700 });
   ssh = await createSshTarget(sshRoot);
   ssh.target.command = [node, join(root, "bin", "moguri.mjs"), "worker", "--stdio"]; ssh.target.allowCopilot = false;
+  if (PROTOCOL_VERSION >= 26) {
+    github = await generatedRemoteGithub(sshRoot, ssh.target, { bridge: join(root, "dist", "remote-bridge.mjs"), node });
+    ssh.target = github.target;
+  }
   const project = join(temporary, "generated-project");
   await mkdir(project);
   await writeFile(join(project, "generated.ts"), "export function packagedSdkKnowledge() { return 'generated'; }");
@@ -256,6 +262,26 @@ try {
       assert.match(resumed, /GENERATED_PACKAGED_REMOTE_AFTER_RESTART/);
       await remoteSdk.terminal.close(opened.id);
     }
+    if (PROTOCOL_VERSION >= 26) {
+      const git = (args) => execFileSync("/usr/bin/git", ["--no-pager", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", ...args], { cwd: remoteRoot, encoding: "utf8" });
+      git(["init", "--initial-branch=generated-remote-metadata"]); git(["add", "--", "docs/plan.md"]);
+      git(["-c", "user.name=Generated fixture", "-c", "user.email=fixture@example.invalid", "commit", "--no-gpg-sign", "-m", "Generated bundled SSH repository"]);
+      git(["remote", "add", "origin", "https://github.com/generated/example.git"]);
+      const config = (await remoteSdk.projects.configuration(opened.id)).configuration;
+      await remoteSdk.projects.configure(opened.id, { ...config.values, repo: { ...config.values.repo, githubAccess: "gh-cli" } }, config.revision);
+      await remoteSdk.remote.probe();
+      const preview = (await remoteSdk.repositories.preview(session.id)).preview;
+      assert.equal(preview.lookupBoundary, "remote-gh-cli"); assert.equal(preview.remote.root, await realpath(remoteRoot));
+      const refresh = await remoteSdk.repositories.refresh(session.id, preview.bindingDigest, preview.revision, true);
+      assert.equal((await remoteSdk.jobs.wait(refresh.id)).status, "completed");
+      const retained = (await remoteSdk.repositories.state(session.id)).observation;
+      assert.equal(retained.repository.visibility, "private"); assert.deepEqual(retained.remote, preview.remote);
+      const cli = execFileSync(node, [join(root, "bin", "moguri.mjs"), "slash", "/repository state", "--session", session.id], { env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") }, encoding: "utf8" });
+      assert.match(cli, /remote-gh-cli/);
+      remoteSdk.disconnect(); await replaceService(true); remoteSdk = await new MoguriSdk(connection).ready();
+      await remoteSdk.remote.probe(); assert.deepEqual((await remoteSdk.repositories.state(session.id)).observation, retained);
+      const calls = await github.records(); assert.equal(calls.length, 1); assert.equal(calls[0].home, github.home); assert.equal(calls[0].cwd, await realpath(remoteRoot));
+    }
     assert.equal(remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).usage.length, 0);
     assert.equal(modelFixture.requests.length, 4);
   } finally { remoteSdk.disconnect(); }
@@ -372,7 +398,7 @@ try {
   }
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP and Remote user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP, private Remote gh account/provenance/restart/CLI and user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   let confirmed = false;
   try {

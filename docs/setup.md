@@ -361,8 +361,9 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-25 worker build on the SSH host and probe it before
-new work; retained protocol-16 through protocol-24 receipts permit inspection, not continuation.
+Install the worker matching the SDK/service you use and probe it before new
+work: qualified 0.19 uses protocol 25; current 0.20 development uses protocol
+26. Older run receipts permit inspection, not continuation.
 
 Explicit Remote user consoles use the captured pinned host/root and independent
 authenticated owner through the same SDK/Ghostty. No model is required.
@@ -1056,8 +1057,14 @@ not guesses from project/owner names or today's repository state.
 Dashboard choose an explicit bound session, review its actual Local/worktree
 or pinned SSH root, then request the displayed GitHub lookup. Public access
 uses the control-plane API without credentials; Local `gh-cli` uses the
-explicitly selected project account. Remote authenticated CLI is unavailable,
-never a host-local account or root fallback.
+explicitly selected project account. Protocol-26 development adds Remote
+`gh-cli` using the selected SSH host's account, never a controller account or
+root fallback. Install/authenticate `gh` on that host yourself, choose project
+GitHub CLI access, then review the displayed host/key/root before refreshing.
+The observation retains its captured peer and build. Missing tools/accounts,
+stale authority or control loss cannot silently substitute public/Local access.
+Linked-PR observation and client attachments retain their existing explicit
+control-plane reads. Exact 0.20 archive acceptance remains pending.
 
 ```bash
 node bin/moguri.mjs repository preview --session SESSION_ID

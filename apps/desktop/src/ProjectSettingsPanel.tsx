@@ -59,6 +59,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <label className="setting-field">Branch name pattern<input value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     <p className="fine-print">Placeholders: {"{slug}"} and {"{id}"}. Binding a PR or creating a session does not silently change this folder's checkout.</p>
     <label className="setting-field">GitHub read access<select value={values.repo.githubAccess} onChange={(event) => change("repo", { ...values.repo, githubAccess: event.target.value as ProjectSettings["repo"]["githubAccess"] })}><option value="public">Public API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
+    <p className="fine-print">Repository attribution uses the selected session's Local or pinned SSH account. Its review shows the actual host before lookup. Linked-PR observation and client attachments remain control-plane reads.</p>
     <h3>New-session defaults</h3>{json("defaults", "Project startup control overrides")}
     <p className="fine-print">Overrides profile/global preferences for new sessions only. Existing sessions keep their saved controls and source snapshot; policy still wins.</p>
     {loaded && <ManagedWorkspacePanel sdk={sdk} project={project} settings={values} snapshot={snapshot} disabled={dirty || busy} openSession={openSession} />}
