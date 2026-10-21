@@ -1294,9 +1294,11 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
-### Development 0.27 canonical final-role proposals
+<a id="development-027-canonical-final-role-proposals"></a>
+### Current qualified 0.27.0-alpha.1 checkpoint
 
-Current source is **0.27.0-alpha.1 / protocol and database 33**.
+Qualified **0.27.0-alpha.1 / protocol and database 33** includes the actual
+0.26 internal executor below and adds canonical final-role proposals.
 [Final-role proposals](architecture/role-proposals.md) link an actual retained
 final draft/revision/escalation to an exact separately reviewed candidate.
 SDK `candidates.roleProposal(ID)`, CLI `candidate role-proposal ID`, and native
@@ -1317,11 +1319,62 @@ of the source report/session; exports use version 5. Source application remains
 a separate fresh actual-user review. No implicit inference, validation,
 acceptance, Git commit or public compound mode is added.
 
-Targeted backend/state, compiled/shared/native TUI and two hidden desktop flows
-pass with both type checks/build. Raw schema-32 migration rollback preserves
-all ciphertext/keys/receipts/role data. Whole-source, installed-consumer and
-exact native delivery remain pending; frozen 0.25 and qualified 0.26 source
-are preserved. Sandbox and live personal inference stay off.
+Complete source compatibility passes **793/793 in 704.73 s**, with no failed,
+cancelled or skipped cases, both type checks/declaration build and zero audit
+findings. All **51 hidden source desktop workflows pass in 1.9 min**, and all
+**51 from the exact packaged app in 2.0 min**. The expanded compound spike
+passes **69/69 in 86.42 s**. The targeted backend/state gate passes **21/21 in
+25.62 s**, three compiled/shared/native TUI flows **12.27 s**, and the two new
+desktop flows **7.9 s**. Raw schema-32 marker failure/reopen preserves actual
+role inputs/results, ciphertext, keys, receipts and plans without fabricated
+origin; its successful marker measures **3.85 ms**.
+
+Fresh temporary and exact delivered SDK archives independently install with
+explicit script approval/rebuild, zero vulnerabilities and all four strict
+external entrypoint types. Actual installed controller/worker roles retain
+126 reported tokens; SDK/CLI/shared canonical proposals, origin-bound review,
+separate staging/application, source-role/session deletion, raw-copy/export5/
+reopen and real-user acceptance pass without another model call.
+The exact archive's actual worker also passes **12/12 private transport/ledger
+probes in 3.76 s**. Generated role labels do not attest family or quality.
+
+The actual app's bundled Node/runtime/SDK/CLI separately passes the canonical
+proposal, preview/stage, source-role/session deletion, raw-copy/export5/reopen
+and fresh user application with model preparation forbidden. Previous
+generation, Local/SSH, OAuth/MCP, memory, console and speech-runtime contracts
+remain qualified. The first native qualifier's source-only seeder selected
+nonexistent `worker.mjs` under the namespaced TypeScript loader and correctly
+became partial with zero requests. Its fixture now explicitly launches the
+actual maintained `worker.ts` and requires completed roles; no app, provider,
+policy or archive bytes were changed. The first desktop attempt completed its
+functional assertions but closed before pending/dirty UI protection settled;
+the fixture now observes a clean `beforeunload` before teardown without
+disabling production protection. Failed runs are retained, not counted as passes.
+Both bounded desktop/compact visual rounds and the mechanical UI scan are done.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `release/Moguri-0.27.0-alpha.1-macos-arm64.dmg` | 366078564 | `c59d663874b00c0994b6112ce72cb595bf455b78a3cac15a12de5fc8d8e27a02` |
+| `release/Moguri-0.27.0-alpha.1-macos-arm64.zip` | 283368331 | `6f5b7c962e8505358a941b9afa9ca700ae355d015a512c1290c9c386bead2fdb` |
+| `release/moguri-0.27.0-alpha.1.tgz` | 7037548 | `649919e905a6757015c7adfd019b5afb0e990cdcc95c5ff22ec23ed2dd2a50c7` |
+
+App: `release/0.27.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Exact ad-hoc signature, declared icon, bundled Node 26.12.0, native assets,
+ZIP integrity and `hdiutil verify` pass. **Not notarized.** The DMG exceeds
+chat's 64-MiB attachment limit and remains local. All three archive identities
+are frozen, including their pre-final-qualification documentation. Final notes
+do not repack them; the three 0.25 hashes were rechecked unchanged.
+
+Actual one/four-console **Electron-only aggregates are 536.33 / 541.16 MiB**,
+below the **600-MiB Electron-shell** budget. Combined Electron/service/broker
+totals are **874.70 / 880.03 MiB**, not below 600 MiB; generated user programs
+are separate. Known experimental FFI, transitive `whatwg-encoding`/
+`node-domexception`, lazy Ghostty chunk and optional newer `.icon` notices
+remain documented; the declared `.icns` is verified.
+
+This is not completed public compound routing, real-family/quality calibration,
+finite kupo, Max or a first milestone. Sandbox and live personal inference
+remain off; qualified 0.26 source, frozen 0.25 and earlier deliveries are preserved.
 
 ### Qualified 0.26 internal owned-role source
 
@@ -1359,7 +1412,8 @@ bound and regression fix it. That interrupted attempt is not a passed gate.
 No immutable 0.26 app/archive is claimed. Qualified 0.25 and earlier artifacts
 stay frozen; live personal inference stays off and Sandbox stays paused.
 
-### Current qualified 0.25.0-alpha.1 checkpoint
+<a id="current-qualified-0250-alpha1-checkpoint"></a>
+### Preserved qualified 0.25.0-alpha.1 checkpoint
 
 Qualified **0.25.0-alpha.1 / protocol and database 32** includes the complete
 planned-capacity and acknowledged-worker prerequisites below.
