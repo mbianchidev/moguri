@@ -1255,8 +1255,10 @@ reuses the pinned SSH connector and authenticated broker for actual host
 PTY/root/no-replay/loss/cleanup checks. Five generated cases and both type
 checks pass. The development source now includes protocol-25 immutable
 Remote owner/binding preparation and migration foundations, with Local
-compatibility and marker rollback. Public Remote console execution, complete
-service recovery, client and archive acceptance remain unqualified.
+compatibility and marker rollback. Development service/SDK Remote consoles
+now cover actual host I/O, restart/SIGKILL, missing keys and partial cleanup.
+Native client boundary UX and complete concurrency/cancellation/consumer/
+archive acceptance remain unqualified.
 No Sandbox work was resumed.
 
 ### Current qualified 0.18.0-alpha.2 checkpoint
