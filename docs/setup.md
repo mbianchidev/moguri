@@ -1253,8 +1253,11 @@ The development manifest is 0.19; the qualified SDK/app below remain
 [private Remote console prerequisite](architecture/remote-console-primitives.md)
 reuses the pinned SSH connector and authenticated broker for actual host
 PTY/root/no-replay/loss/cleanup checks. Five generated cases and both type
-checks pass. Public Remote console APIs, durable schema/recovery and client/
-archive acceptance remain unavailable. No Sandbox work was resumed.
+checks pass. The development source now includes protocol-25 immutable
+Remote owner/binding preparation and migration foundations, with Local
+compatibility and marker rollback. Public Remote console execution, complete
+service recovery, client and archive acceptance remain unqualified.
+No Sandbox work was resumed.
 
 ### Current qualified 0.18.0-alpha.2 checkpoint
 
