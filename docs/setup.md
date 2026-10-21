@@ -1264,6 +1264,26 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Development 0.20 Remote GitHub repository metadata
+
+Current development uses **0.20.0-alpha.1 / protocol/database 26**.
+The [Remote metadata slice](architecture/remote-github-metadata.md) adds
+explicit repository-only GETs through the pinned SSH host's existing `gh`
+account. Shared SDK/CLI/native TUI/desktop review shows its actual
+host/key/root; retained observations keep original peer/build provenance.
+No selected model, provider credential, controller account or public fallback
+is needed. Interrupted reads retain partial outcomes and original command
+receipts without replay. Migration preserves schema-25 ciphertext/keys/
+receipts and old Local/public observations.
+
+The full source gate passes **558/558 in 394.59 s**, both type checks/build,
+zero-vulnerability source audit and **39/39 hidden desktop workflows in
+1.4 min**. Real service SIGKILL covers pending/completed reads, cancellation,
+profile isolation and no-replay original receipts. The isolated compiled
+console broker/bridge remain byte-identical to qualified 0.19.
+Exact installed/packaged 0.20 acceptance is still separate; the qualified
+0.19 artifacts below remain unchanged. Sandbox stays paused.
+
 ### Current qualified 0.19.0-alpha.1 checkpoint
 
 **0.19.0-alpha.1 / protocol/database 25** qualifies the complete
