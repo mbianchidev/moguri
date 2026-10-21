@@ -361,11 +361,13 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-23 worker build on the SSH host and probe it before
-new work; retained protocol-16/17/18/19/20/21 receipts permit inspection, not continuation.
+Install this exact protocol-24 worker build on the SSH host and probe it before
+new work; retained protocol-16 through protocol-23 receipts permit inspection, not continuation.
 
-Remote embedded terminals, executable MCP transport, repository-memory
-retrieval remain blocked. Remote plan saves use an explicit reviewed binding
+Remote embedded terminals, repository-memory retrieval and transferred Local
+scripts remain blocked. Remote MCP has an independent reviewed peer/resource
+grant and exact call approval; selecting Remote is never access authorization.
+Remote plan saves use an explicit reviewed binding
 and one owned provider-free filesystem operation; they do not use a Local
 project fallback.
 An explicit browser URL still opens a client-side preview; Remote localhost
@@ -683,7 +685,7 @@ auth-status, call and paged-result tools. It cannot change settings or
 credentials or approve itself. Connector failure/cancellation can leave
 external effects unconfirmed; partial is not success and requires inspection.
 
-### Remote MCP in the 0.18 development source
+### Remote MCP
 
 Select an explicitly mapped Remote project, then **Settings / MCP gateway**.
 Expand **Configure backend MCP servers** when changing transports. Use
@@ -712,8 +714,8 @@ unknown forwarding receipt. Inspection remains available after revocation;
 **Reconcile receipts** reads an existing SSH run, never replays an effect.
 Revocation does not need an online/ready host. It also cannot undo access or
 external effects already received. Remote memory, transferred Local scripts
-and embedded Remote consoles remain unavailable. Complete 0.18 archive
-qualification remains in progress; the immutable 0.17 delivery is unchanged.
+and embedded Remote consoles remain unavailable. Exact current archive
+qualification and preserved earlier identities are recorded below.
 
 ## Local NVIDIA dictation
 
@@ -1244,10 +1246,9 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.18 Remote MCP
+### Protocol-24 Remote MCP qualification
 
-The development manifest is 0.18; the latest qualified application/SDK remains
-the immutable 0.17 checkpoint below. The
+The 0.18 source adds Remote MCP through the existing authority and worker. The
 [Remote MCP prerequisite](architecture/remote-mcp-primitives.md) uses the real
 pinned SSH supervisor and shared owned connector with generated stdio/HTTP
 servers. Ten SSH cases and three exact process-admission/cleanup cases pass.
@@ -1255,20 +1256,17 @@ The private proof did not enable Remote MCP or change durable schemas.
 The subsequent [protocol-24 grant/state foundations](architecture/remote-mcp.md)
 now add deny-by-default peer/resource grants, immutable operation metadata and
 migration rollback. Seven foundation checks and type checks pass; no model,
-server or credential is accessed by a grant preview. Public worker execution,
-outcomes, cancellation/recovery and cross-client integration remain required.
+server or credential is accessed by a grant preview.
 Scoped catalog discovery also passes four real-SSH checks, including
 access-only generated OAuth, stale authority and actual stdio-server cleanup.
 The current source also runs exact approved model-owned and provider-free
 external MCP calls in the actual SSH worker, never the Local gateway.
 Original intents/results have encrypted session retention, explicit
 stop/partial outcomes and no-replay service-crash reconciliation, including
-after grant revocation. Exact archive qualification remains unfinished.
-Shared CLI/TUI commands and the
+after grant revocation. Shared CLI/TUI commands and the
 factory-dark desktop now expose exact review, separate forwarding consent,
 revocation and retained-operation inspection through the SDK. Actual OpenTUI
-and two hidden desktop workflows pass; no real credential was forwarded
-and no 0.18 archive is qualified by these generated checks.
+and two hidden desktop workflows pass. No real credential was forwarded.
 Sandbox work remains paused.
 
 The complete 0.18 source gate passes **519/519 checks in 330.19 s** and
@@ -1279,7 +1277,42 @@ qualify an uninstalled SDK archive or untested packaged app. The existing
 OpenTUI experimental FFI warning and Ghostty chunk-size advisory remain;
 neither is suppressed or treated as a failed cancellation.
 
-### Current qualified 0.17 checkpoint
+### Superseded immutable 0.18.0-alpha.1 artifacts
+
+The exact SDK was independently installed with explicit script approval,
+rebuilt, audited and typechecked through all four entrypoints. Actual installed
+Runtime/CLI/TUI includes a no-model SSH MCP call, scoped grant/catalog/result/
+cleanup and revocation, plus the prior model/compaction/profile/console gates.
+Source and consumer audits both report zero vulnerabilities.
+The actual packaged application passes all **35 hidden desktop workflows in
+1.3 min**, actual bundled Node/worker/SSH MCP, signatures/assets and DMG
+integrity. One/four consoles use one owner and reattach their original PIDs.
+Electron aggregate is **540.48 / 542.42 MiB**; combined
+Electron/service/broker is **852.13 / 854.39 MiB**, with generated user programs
+separate. The original 600-MiB limit applies to Electron only.
+
+A subsequent cross-surface copy check found the Remote SSH settings still
+said executable MCP was unavailable, despite the actual verified
+implementation and new gateway UI. That stale capability sentence is corrected
+in **0.18.0-alpha.2**, with an explicit native regression assertion. Alpha.1
+artifacts remain byte-identical, not rebuilt/repacked to hide that discrepancy.
+Alpha.2 has the same protocol, schema and runtime behavior; its exact new
+artifacts still require independent qualification.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.18.0-alpha.1-macos-arm64.dmg` | 367178471 | `86c41ba8fc4b5070927e73e742c9531688a1b15f947ada5ba60c3c725d210d7a` |
+| `Moguri-0.18.0-alpha.1-macos-arm64.zip` | 283135493 | `0ffa0c6eae787b922988e0faa03e410fc30d6ed0a026ba9d272f2bc6edc56aa7` |
+| `moguri-0.18.0-alpha.1.tgz` | 6761098 | `ab64d68bf21edb070f439c89b3baa750e3c5c289d36ab0b9d50f50026ec89a91` |
+
+Existing experimental FFI, transitive `whatwg-encoding`/`node-domexception`
+deprecations, Ghostty chunk-size and optional newer `.icon` notices remain
+visible. Explicit file-package script approval was completed before rebuild;
+the audit is clean. The checked `.icns` is present. Artifacts are ad-hoc signed,
+not notarized; no tag/release/merge, personal authorization, paid inference,
+microphone, model weights or Sandbox probe occurred.
+
+### Preserved qualified 0.17 checkpoint
 
 The **0.17.0-alpha.1 / protocol-23** source adds authenticated restart-
 reattachable Local user consoles and retryable private cleanup, through the
