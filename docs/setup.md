@@ -60,7 +60,7 @@ account-specific Copilot endpoint returned by the authenticated provider.
 Prompts and approved context go to Copilot when a turn is sent. There is no
 Moguri telemetry backend or automatic local-network model scan.
 
-Development 0.28 can explicitly inspect provider-declared metadata through
+Qualified 0.28 can explicitly inspect provider-declared metadata through
 **Model / Provider-declared model metadata / Read Copilot model declarations**,
 `moguri models evidence MODEL_ID`, or TUI `/model-evidence [MODEL_ID]`.
 The SDK operation is `models.evidence(modelId)`. Omitting the TUI ID uses only
@@ -68,7 +68,7 @@ the current fixed model, never kupo or an inferred provider. No project content
 or inference request is sent. Unknown declarations remain unknown; labels are
 not proof of independent weights, quality, permission or user approval.
 Opening the menu, normal login and ordinary model discovery add no such read.
-See [the current source checkpoint](#development-028-explicit-model-declarations).
+See [the current checkpoint](#development-028-explicit-model-declarations).
 
 ## Work and approvals
 
@@ -1304,9 +1304,10 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
-### Development 0.28 explicit model declarations
+<a id="development-028-explicit-model-declarations"></a>
+### Current qualified 0.28.0-alpha.1 checkpoint
 
-Source **0.28.0-alpha.1 / protocol and database 34** adds explicit informational
+Qualified **0.28.0-alpha.1 / protocol and database 34** adds explicit informational
 Copilot catalogue inspection, not another model workflow. SDK, compiled CLI,
 shared/native TUI and the existing desktop Model menu use one bounded,
 profile-scoped read. It retains no automatic family cache or evidence event
@@ -1319,7 +1320,7 @@ candidates, ciphertext, receipts, independent raw-input/result grants and
 source-report deletion. Raw marker failure/reopen passes, measuring **2.44 ms**
 in the focused gate. Existing state must be migrated, never deleted.
 
-Current focused gates pass **19/19 in 15.99 s**, compiled CLI and native TUI
+The focused gates pass **19/19 in 15.99 s**, compiled CLI and native TUI
 inspection, strict type checks/declaration build and **two hidden desktop
 workflows in 2.0 s**. The integrated prerequisite spike passes **82/82 in
 96.98 s**. The actual built default Copilot adapter, keyring namespace,
@@ -1329,16 +1330,58 @@ and zero evidence events. Its private child replaces only the OS keyring
 module with a generated memory backend and intercepts catalogue networking;
 neither personal credentials nor external inference is used.
 
+Complete source compatibility passes **810/810 in 728.61 s**, with no failed,
+cancelled or skipped cases, strict type checks/declaration build and zero audit
+findings. All **53 hidden source desktop workflows pass in 2.0 min**, and all
+**53 from the exact packaged app in 2.0 min**.
+Fresh temporary and exact delivered SDK archives independently approve/rebuild,
+audit with zero findings, type-check all four external entrypoints and pass
+the existing runtime/worker/retention/SSH/candidate contracts.
+Their actual default Copilot adapters pass in **457.33 / 410.33 ms**, without a
+substituted ProviderAdapter. The exact archive's actual worker separately
+passes **12/12 private transport/ledger cases in 3.29 s**.
+The actual app's bundled Node 26.12.0/runtime/SDK/CLI independently passes the
+same explicit inspector in **408.48 ms**, alongside the prior native contracts.
+
 Both bounded desktop/compact inspection rounds are complete. Long claims and
 digests wrap inside the existing popover; unsupported/unknown/error and
 held-response model changes preserve the ordinary composer draft.
-Full source, independently installed archive and exact native delivery
-qualification are not yet complete. This is not a new qualified macOS archive.
-Frozen 0.27 and earlier bytes below remain unchanged; sandbox work stays paused.
-See [the model-evidence contract](architecture/model-evidence.md).
+The first native full desktop attempt passed 52/53 but raced its second held
+prompt against the first send's still-pending UI consumption. The original
+trace is retained. Its serial fixture now waits for the actual empty/saved
+composer before entering another prompt; it does not suppress conflicts,
+weaken draft protection or change production/archive bytes. The focused
+two-workflow confirmation passes in **5.4 s**, followed by the full 53/53 gate.
+Failed attempts are not counted as complete passes.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `release/Moguri-0.28.0-alpha.1-macos-arm64.dmg` | 370860842 | `f20634aed05a03299052afc6133daf39b1ee255efef33b4a0832f3d5d8f30770` |
+| `release/Moguri-0.28.0-alpha.1-macos-arm64.zip` | 283381783 | `231126600370d13bc0189848c3aad9d5b6257d877a5ab0a0342764d492127efb` |
+| `release/moguri-0.28.0-alpha.1.tgz` | 7053769 | `4f45d9e40b64b83418f868be0cbca11376710c1113695aa4627aba413cc9fe4d` |
+
+App: `release/0.28.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+The actual signature, declared icon/assets, bundled runtime, ZIP integrity
+and `hdiutil verify` pass. **Ad-hoc signed, not notarized.** The DMG exceeds
+chat's 64-MiB limit and remains local. These exact archive bytes, including
+their pre-final-qualification documentation, are frozen; final notes do not
+repack them. All three 0.27 archive identities were rechecked unchanged.
+
+Actual one/four-console **Electron-only aggregates are 535.28 / 538.20 MiB**,
+under the **600-MiB Electron-shell** budget. Combined Electron/service/broker
+totals are **872.72 / 881.42 MiB**, not under 600 MiB; generated user programs
+are separate. Known experimental FFI, lazy Ghostty chunk, transitive
+`whatwg-encoding`/`node-domexception` and optional newer `.icon` notices remain;
+the actual `.icns` is verified.
+
+No live personal Copilot access, independent-family/quality calibration,
+public compound workflow, finite kupo, Max or completed first milestone is
+claimed. Frozen 0.27 and earlier deliveries remain preserved. Sandbox work
+stays paused. See [the model-evidence contract](architecture/model-evidence.md).
 
 <a id="development-027-canonical-final-role-proposals"></a>
-### Current qualified 0.27.0-alpha.1 checkpoint
+<a id="current-qualified-0270-alpha1-checkpoint"></a>
+### Preserved qualified 0.27.0-alpha.1 checkpoint
 
 Qualified **0.27.0-alpha.1 / protocol and database 33** includes the actual
 0.26 internal executor below and adds canonical final-role proposals.
