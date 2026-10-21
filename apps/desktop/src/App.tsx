@@ -10,6 +10,7 @@ import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
 import { ContextImage } from "./ContextAttachments.tsx";
 import { ArtifactPanel } from "./ArtifactPanel.tsx";
+import { CandidatePanel } from "./CandidatePanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
 import { UsageDashboard } from "./UsageDashboard.tsx";
@@ -21,7 +22,7 @@ const GhosttyTerminal = lazy(() => import("./GhosttyTerminal.tsx").then((module)
 type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
-const panels: Panel[] = ["Terminal", "Browser", "Insights", "Dashboard", "PR", "Changes", "Files", "Plan", "Artifacts", "Side chat", "Suggestions", "Attention"];
+const panels: Panel[] = ["Terminal", "Browser", "Insights", "Dashboard", "PR", "Changes", "Files", "Plan", "Artifacts", "Candidates", "Side chat", "Suggestions", "Attention"];
 const number = (value: number) => new Intl.NumberFormat().format(value);
 function savedLayout(): { panel: Panel; open: boolean; wide: boolean } {
   try {
@@ -283,9 +284,9 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <aside className="context-pane" aria-label="Session sidebar">
       <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><div><button className="icon-button" aria-label="Resize sidebar" title="Toggle sidebar width" onClick={() => setWidePanel((value) => !value)}>&lt;&gt;</button><button className="icon-button" aria-label="Close sidebar" onClick={() => { if (canNavigate()) setPanelOpen(false); }}><Icon name="Close" /></button></div></header>
       <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
-        <ContextPanel key={`${client.profileId}-${panel === "Artifacts" || panel === "Dashboard" ? "independent" : session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
+        <ContextPanel key={`${client.profileId}-${panel === "Artifacts" || panel === "Candidates" || panel === "Dashboard" ? "independent" : session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
       </div>
-      <footer className="context-footer">{panel === "Artifacts" ? "Independent of session retention" : panel === "Dashboard" ? "Current-profile cumulative accounting" : "Bound to the main session"}</footer>
+      <footer className="context-footer">{panel === "Artifacts" ? "Independent of session retention" : panel === "Candidates" ? "Retained independently; writes use reviewed roots" : panel === "Dashboard" ? "Current-profile cumulative accounting" : "Bound to the main session"}</footer>
     </aside>
     <nav className="panel-rail" aria-label="Sidebar panels">{panels.filter((item) => item !== "PR" || connectedPr).map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => void showPanel(item)}><Icon name={item} /></button>)}</nav>
     {commandOutput && <CommandOutput text={commandOutput} close={() => setCommandOutput(null)} />}
@@ -388,6 +389,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
 }) {
   const [trace, setTrace] = useState(false);
   if (panel === "Artifacts" && snapshot) return <ArtifactPanel sdk={client} snapshot={snapshot} session={session} projectId={project?.id ?? null} request={artifactRequest} onDirty={onDirty} onRequestHandled={clearArtifactRequest} />;
+  if (panel === "Candidates" && snapshot) return <CandidatePanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} />;
   if (panel === "Dashboard" && snapshot) return <UsageDashboard key={client.profileId} sdk={client} snapshot={snapshot} />;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;

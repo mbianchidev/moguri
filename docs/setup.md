@@ -1290,11 +1290,63 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.22 compound routing prerequisite
+### Development 0.22 Local reviewed-candidate workflow
 
-The manifest is now **0.22.0-alpha.1**, with internal protocol/database **28**
-[candidate records and retention](architecture/candidate-workflows.md) in
-development. The immutable 0.21 delivery remains protocol 27.
+The manifest is now **0.22.0-alpha.1**, protocol/database **29**.
+The [Local candidate contract](architecture/candidate-workflows.md) is wired
+through SDK, compiled CLI, shared commands, actual native TUI and desktop.
+Choose an explicitly Local agent-mode source and a separate clean owned
+worktree at its exact repository/HEAD. No model is selected/called for this
+workflow and no branch, commit or push is created implicitly.
+
+Load or explicitly add proposed files in desktop Candidates, review staging,
+then stage exact bytes separately. A staged proposal is **not accepted**.
+Review source application afresh before applying; changed bases, staged text,
+mode/env, permissions or roots reject stale authority. Immutable proposal/job/
+result history survives origin-session retention. A new explicit compatible
+Local session can own a later acceptance without relabeling imported content
+as user-written instructions.
+
+CLI:
+
+```bash
+moguri candidate preview PATCH.json --session SOURCE --workspace STAGE
+moguri candidate stage PATCH.json --session SOURCE --workspace STAGE --digest PREVIEW_SHA --confirm-write
+moguri candidate apply-preview CANDIDATE_ID --session SOURCE
+moguri candidate apply CANDIDATE_ID --session SOURCE --revision N --digest REVIEW_SHA --confirm-write
+moguri candidate read CANDIDATE_ID
+moguri candidate stop CANDIDATE_ID
+```
+
+For example, a new leaf file can use:
+
+```json
+{"kind":"patch","summary":"Review a new text file","edits":[{"path":"example.txt","baseDigest":"absent","text":"Proposed new file.\n"}]}
+```
+
+Use the exact source digest when replacing an existing file. At most 20 portable distinct
+text paths, 32-KiB patch JSON and a 64-KiB document are supported. Parent
+directories must already exist. No deletion/rename/mode change, validation
+program, quality claim or Remote/Sandbox fallback. `/candidate` exposes the
+same two explicit reviews in the TUI; `/candidates` lists retained outcomes or
+opens the desktop panel.
+
+Actual raw index/HEAD/unrelated files stay preserved. Owned stop records its
+request before abort; no-effect work is cancelled, possible/confirmed effects
+remain partial. Partial roots stay quarantined for explicit existing recovery,
+not rollback/retry. Actual service SIGKILL covers before-effects, after-first-
+file and completed retention with original-command replay protection.
+The focused SDK/file/lease/migration/recovery/client gate passes **94/94 in
+43.04 s**; genuine five-mode SIGKILL passes in **7.19 s**, native TUI in
+**1.75 s**, and compiled CLI/shared commands in **3.66 s**. Source desktop
+workflow and stale-scope protections pass; a fresh approved/audited packed SDK
+also exercises real candidate CLI/application/history/restart.
+
+New immutable 0.22 SDK/app delivery qualification is still separate. The
+immutable 0.21 delivery remains protocol 27 and has not been repacked.
+
+### Earlier 0.22 prerequisites
+
 The [generated compound transport proof](architecture/compound-routing-primitives.md)
 passes **20/20 in 454.56 ms**, alongside both type checks/build, using actual
 bounded pi-ai calls to generated loopback endpoints. Cascade permits one
@@ -1302,18 +1354,19 @@ configured escalation and Critique one independent critic/bounded revision.
 Costs/unknowns, identities, data locality and failed receipts remain explicit.
 These are unaccepted tool-less proposals, not coding-workspace/application,
 finite-budget wind-down, calibrated quality or a public routing feature.
-No 0.22 SDK/app is qualified. Immutable 0.21 and Sandbox pause are unchanged.
+This proof did not qualify an immutable SDK/app. Sandbox pause is unchanged.
 The [private candidate-file gate](architecture/candidate-primitives.md)
 additionally passes **39/39 in 10.48 s**, with **77/77 directly coupled checks
 in 23.78 s** and a fresh approved/audited packed-SDK compatibility install.
 Actual generated compound proposals stage once in a real managed worktree;
 exact review, raw source-index preservation, changed bases/authority and
-partial outcomes are explicit. Public candidate records/clients/recovery,
-model-role integration and wind-down remain unqualified.
+partial outcomes are explicit. At that private checkpoint public records/
+clients/recovery were still absent; model-role integration and wind-down
+remain unqualified after the manual user workflow above.
 The additive candidate foundation binds records/job lifecycle to existing
 independent artifact keys, validates original roots/intents/effects and marks
 interrupted metadata partial without filesystem replay. It is not a public
-stage/apply API, integrated model scheduler or qualified new desktop.
+stage/apply API at that checkpoint, an integrated scheduler or a qualified new desktop.
 The internal protocol-28 foundation passes **631/631 local cases in 494.00 s**,
 all **41 hidden source desktop workflows in 1.5 min**, and the temporary
 packed SDK's approved/rebuilt four-entrypoint/actual Local-SSH compatibility

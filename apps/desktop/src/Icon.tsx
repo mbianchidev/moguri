@@ -15,6 +15,7 @@ const paths: Record<string, string> = {
   PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
   Plan: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
   Artifacts: "M4 3h16v5H4Zm2 5v13h12V8m-8 4h4",
+  Candidates: "M5 3h10l4 4v14H5Zm9 0v5h5M8 14l3 3 5-6",
   Group: "M3 4h18v5H3Zm0 9h8v7H3Zm12 0h6v7h-6Z", Link: "m9 15 6-6M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m2 1 2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0",
   Send: "m21 3-6 18-4-8-8-4Zm0 0L11 13",
   Clock: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2",

@@ -421,6 +421,42 @@ try {
       assert.equal(modelFixture.requests.length, 5);
     } finally { await desktop?.close(); consoleSdk.disconnect(); }
   }
+  if (PROTOCOL_VERSION >= 29) {
+    const { MoguriSdk } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+    const { DatabaseSync } = await import("node:sqlite");
+    const directory = join(temporary, "generated-packaged-candidate"); await mkdir(directory);
+    const original = "Generated actual packaged candidate base.\n", proposed = "Generated actual packaged reviewed bytes.\n";
+    await writeFile(join(directory, "candidate.txt"), original);
+    const git = (args) => execFileSync("git", ["--no-pager", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", ...args], { cwd: directory, encoding: "utf8" });
+    git(["init", "--initial-branch=main"]); git(["add", "--", "candidate.txt"]);
+    git(["-c", "user.name=Generated fixture", "-c", "user.email=fixture@example.invalid", "commit", "--no-gpg-sign", "-m", "Generated packaged candidate base"]);
+    let client = await new MoguriSdk(connection).ready();
+    try {
+      const beforeCalls = modelFixture.requests.length, project = await client.command({ type: "project.add", path: directory });
+      const source = await client.sessions.create(project.id, "Generated packaged candidate source", { env: "Local", modelId: null });
+      const created = await client.workspaces.create(project.id, "moguri/generated-packaged-candidate"), stage = await client.workspaces.wait(created.id);
+      const index = await readFile(join(directory, ".git/index")), head = git(["rev-parse", "HEAD"]);
+      const patch = { kind: "patch", summary: "Generated actual packaged candidate.", edits: [{ path: "candidate.txt", baseDigest: (await import("node:crypto")).createHash("sha256").update(original).digest("hex"), text: proposed }] };
+      const path = join(temporary, "generated-packaged-patch.json"); await writeFile(path, JSON.stringify(patch));
+      const cli = join(root, "bin", "moguri.mjs"), env = { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") };
+      const preview = JSON.parse(execFileSync(node, [cli, "candidate", "preview", path, "--session", source.id, "--workspace", stage.id], { env, encoding: "utf8" })).preview;
+      const staged = JSON.parse(execFileSync(node, [cli, "candidate", "stage", path, "--session", source.id, "--workspace", stage.id, "--digest", preview.digest, "--confirm-write"], { env, encoding: "utf8" }));
+      assert.equal(staged.candidate.status, "staged"); assert.equal(await readFile(join(directory, "candidate.txt"), "utf8"), original);
+      const review = (await client.candidates.applyPreview(staged.candidate.id, source.id)).preview, commandId = randomUUID();
+      const command = { type: "candidate.apply", candidateId: staged.candidate.id, sessionId: source.id, expectedRevision: staged.candidate.revision, expectedDigest: review.digest, confirm: true };
+      await client.command(command, commandId); assert.equal((await client.candidates.wait(staged.candidate.id)).candidate.status, "applied");
+      assert.deepEqual(await readFile(join(directory, ".git/index")), index); assert.equal(git(["rev-parse", "HEAD"]), head);
+      assert.equal(JSON.parse((await client.artifacts.export(staged.candidate.id)).export.text).schemaVersion, 2);
+      client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready();
+      const raw = new DatabaseSync(join(temporary, "state", "state.sqlite"));
+      try { raw.prepare("DELETE FROM receipts WHERE profile_id=? AND id=?").run("default", commandId); } finally { raw.close(); }
+      await writeFile(join(directory, "candidate.txt"), "Generated later actual-packaged user edit.\n");
+      assert.equal((await client.command(command, commandId)).id, staged.candidate.id);
+      assert.equal(await readFile(join(directory, "candidate.txt"), "utf8"), "Generated later actual-packaged user edit.\n");
+      assert.equal(modelFixture.requests.length, beforeCalls);
+      console.log("Actual bundled Node/service/SDK and CLI candidate stage, separate user review/application, raw index/HEAD, version-2 history and lost-receipt restart replay qualification passed without a model.");
+    } finally { client.disconnect(); }
+  }
   child.send("close");
   assert.equal(await exit, 0);
   console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP, private Remote gh account/provenance/restart/CLI, session-bound Remote memory/index/CLI/restart/original intent and approved owned MCP retrieval without Local cache reuse, user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
