@@ -282,6 +282,31 @@ try {
       await remoteSdk.remote.probe(); assert.deepEqual((await remoteSdk.repositories.state(session.id)).observation, retained);
       const calls = await github.records(); assert.equal(calls.length, 1); assert.equal(calls[0].home, github.home); assert.equal(calls[0].cwd, await realpath(remoteRoot));
     }
+    if (PROTOCOL_VERSION >= 27) {
+      const settings = structuredClone(remoteSdk.settings.get().values); settings.memory.enabled = true;
+      await remoteSdk.settings.update(settings, remoteSdk.settings.get().revision);
+      const local = await remoteSdk.memory.index(opened.id); assert.equal((await remoteSdk.jobs.wait(local.id)).status, "completed");
+      await assert.rejects(() => remoteSdk.memory.searchSession(session.id, "Generated actual packaged"), { code: "memory_missing" });
+      const command = { type: "memory.index", sessionId: session.id }, commandId = randomUUID();
+      const indexed = await remoteSdk.command(command, commandId); assert.equal((await remoteSdk.jobs.wait(indexed.id)).status, "completed");
+      const before = (await remoteSdk.memory.state(session.id)).index; assert.equal(before.binding.env, "Remote"); assert.equal(before.binding.root, await realpath(remoteRoot));
+      const hits = await remoteSdk.memory.searchSession(session.id, "Generated actual packaged service");
+      assert.ok(hits.items.some((hit) => hit.text.includes("Generated actual packaged service") && !hit.stale));
+      const cli = execFileSync(node, [join(root, "bin", "moguri.mjs"), "memory", "search", "Generated actual packaged service", "--session", session.id],
+        { env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") }, encoding: "utf8" });
+      assert.match(cli, /Generated actual packaged service/);
+      remoteSdk.disconnect(); await replaceService(true); remoteSdk = await new MoguriSdk(connection).ready();
+      assert.equal((await remoteSdk.command(command, commandId)).id, indexed.id); assert.equal((await remoteSdk.remote.status()).remote.ready, false);
+      await remoteSdk.remote.probe(); assert.deepEqual((await remoteSdk.memory.state(session.id)).index, before);
+      const preview = (await remoteSdk.mcp.remotePreview(session.id, "builtin")).preview;
+      await remoteSdk.mcp.grantRemote(session.id, "builtin", preview.digest, preview.settingsRevision, false, true); await remoteSdk.remote.probe();
+      const tool = (await remoteSdk.mcp.tools("builtin", "memory", 0, session.id)).tools.find((tool) => tool.name === "search_memory");
+      const requested = await remoteSdk.mcp.call(session.id, "builtin", tool.name, { query: "Generated actual packaged service" }, tool.digest);
+      const approval = remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).pendingApproval;
+      await remoteSdk.command({ type: "approval.respond", sessionId: session.id, approvalId: approval.id, allow: true });
+      assert.equal((await remoteSdk.jobs.wait(requested.id)).status, "completed");
+      assert.match((await remoteSdk.mcp.readResult(requested.id)).text, /Generated actual packaged service/);
+    }
     assert.equal(remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).usage.length, 0);
     assert.equal(modelFixture.requests.length, 4);
   } finally { remoteSdk.disconnect(); }
@@ -398,7 +423,7 @@ try {
   }
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP, private Remote gh account/provenance/restart/CLI and user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP, private Remote gh account/provenance/restart/CLI, session-bound Remote memory/index/CLI/restart/original intent and approved owned MCP retrieval without Local cache reuse, user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   let confirmed = false;
   try {

@@ -55,7 +55,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [profileCatalog, setProfileCatalog] = useState<ProfileCatalog | null>(null);
   const baseRevision = useRef(snapshot.settings.revision);
   const ownSave = useRef(false);
+  const memoryKey = JSON.stringify([sdk.profileId, project?.id, session?.id, session?.controls.env, session?.workspaceId,
+    snapshot.projectConfigurations.find((configuration) => configuration.projectId === project?.id)?.revision, snapshot.settings.revision, snapshot.policy.revision]);
+  const memoryScope = useRef({ sdk, key: memoryKey }); memoryScope.current = { sdk, key: memoryKey };
+  const memoryEnv = session?.controls.env ?? "Local";
+  const memoryBlocked = !project || !snapshot.settings.values.memory.enabled || dirty || saving || memoryEnv === "Sandbox";
+  const memoryJobs = snapshot.jobs.filter((job) => job.kind === "memory.index" && job.projectId === project?.id &&
+    (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
+  useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
   const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty;
   useEffect(() => { onUnsavedChange(dirty || saving || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, nestedDirty, onUnsavedChange]);
   useEffect(() => {
@@ -69,12 +77,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     window.addEventListener("beforeunload", close);
     return () => window.removeEventListener("beforeunload", close);
   }, [dirty, nestedDirty]);
-  const run = async (operation: () => Promise<unknown>) => {
+  const run = async (operation: () => Promise<unknown>, owned: () => boolean = () => true) => {
     setError("");
     try {
       const result = await operation();
-      if (result !== undefined) setOutput(typeof result === "string" ? result : JSON.stringify(result, null, 2));
-    } catch (error) { setError(error instanceof Error ? error.message : "The operation failed. Uncommitted edits were preserved."); }
+      if (owned() && result !== undefined) setOutput(typeof result === "string" ? result : JSON.stringify(result, null, 2));
+    } catch (error) { if (owned()) setError(error instanceof Error ? error.message : "The operation failed. Uncommitted edits were preserved."); }
+  };
+  const runMemory = (operation: () => Promise<unknown>) => {
+    const captured = memoryScope.current;
+    return run(operation, () => memoryScope.current.sdk === captured.sdk && memoryScope.current.key === captured.key);
   };
   useEffect(() => {
     if (tab === "voice") void run(async () => { const result = await sdk.voice.status(); setVoice(result.voice); });
@@ -225,12 +237,20 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <h3>Allowed execution environments</h3><p>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.</p>
           <select aria-label="Global allowed environments" value={snapshot.policy.allowedEnvs.includes("Local") ? "all" : "protected"} onChange={(event) => void run(() => sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : ["Sandbox", "Remote"] }))}><option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option></select>
           <p className="fine-print">Resetting ordinary settings does not silently widen this separate security policy.</p></>}
-        {tab === "memory" && <><h2>Local repository memory</h2><p>A persistent SQLite vector database and import/symbol graph, isolated by project. Local lexical vectors need no hosted embeddings or extra provider key. Changed sources are marked stale, never silently treated as current.</p>
-          <label className="check-setting"><input type="checkbox" checked={draft.memory.enabled} onChange={(event) => change("memory", { ...draft.memory, enabled: event.target.checked })} />Enable explicit local indexing and retrieval</label>
+        {tab === "memory" && <><h2>Repository memory</h2><p>A persistent lexical-vector index and import/symbol graph, isolated by profile and actual repository identity. No hosted embedding provider or extra model key. Changed or ignored sources are marked stale, never silently treated as current.</p>
+          <label className="check-setting"><input type="checkbox" checked={draft.memory.enabled} onChange={(event) => change("memory", { ...draft.memory, enabled: event.target.checked })} />Enable explicit repository indexing and retrieval</label>
           <label className="check-setting"><input type="checkbox" checked={draft.memory.useInContext} onChange={(event) => change("memory", { ...draft.memory, useInContext: event.target.checked })} />Allow bounded retrieved source snippets to enter model context</label>
-          <p className="fine-print">Indexing stays local. Context injection can send selected code to the chosen Copilot model. Protected files and ignored paths are excluded. Save before indexing; no repository scan starts just from opening this page.</p>
-          <div className="button-row"><button disabled={!project || !snapshot.settings.values.memory.enabled} onClick={() => void run(() => sdk.memory.index(project!.id, session?.workspaceId ?? undefined))}>Index current project</button><button disabled={!project || !snapshot.settings.values.memory.enabled} onClick={() => void run(() => sdk.memory.graph(project!.id, "", session?.workspaceId ?? undefined))}>Read import/symbol graph</button></div>
-          <label className="setting-field">Search local memory<input value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={!project || !input || !snapshot.settings.values.memory.enabled} onClick={() => void run(() => sdk.memory.search(project!.id, input, 6, session?.workspaceId ?? undefined))}>Search vectors</button>
+          <p className="fine-print">Source capture and freshness checks follow the selected session's {memoryEnv} root. Without a session, project actions are explicitly Local. The derived text/vector cache stays on the control plane; selected snippets may enter the chosen model's context. Protected/ignored paths are excluded. Save before indexing; opening this page never scans or probes a host.</p>
+          {memoryEnv === "Remote" && <p className="settings-warning">Pinned SSH repository memory, not a Local index or SendBox isolation. Inspect the bound index for its actual peer/root/build. Missing or changed hosts fail without fallback.</p>}
+          <div className="button-row"><button disabled={memoryBlocked} onClick={() => void runMemory(() => session ? sdk.memory.indexSession(session.id) : sdk.memory.index(project!.id))}>Index {memoryEnv} repository</button>
+            <button disabled={memoryBlocked || !session} onClick={() => void runMemory(() => sdk.memory.state(session!.id))}>Inspect bound index</button>
+            <button disabled={memoryBlocked} onClick={() => void runMemory(() => session ? sdk.memory.graphSession(session.id) : sdk.memory.graph(project!.id))}>Read import/symbol graph</button></div>
+          <label className="setting-field">Search repository memory<input value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={memoryBlocked || !input} onClick={() => void runMemory(() => session ? sdk.memory.searchSession(session.id, input) : sdk.memory.search(project!.id, input))}>Search vectors</button>
+          {memoryJobs.map((job) => <div className="call-record" key={job.id}><strong>{job.memory?.target.env ?? "Local"} repository index / {job.status}</strong>
+            <p>{["running", "waiting_input"].includes(job.status) ? job.progress : job.status === "completed" ? "Complete captured index published. Inspect its binding and source digest." : "Index settled. Inspect its outcome and the last complete bound cache."}</p>{job.error && <p className="inline-error">{job.error}</p>}
+            {job.memory && <small className="path">{job.memory.target.root}</small>}
+            {["running", "waiting_input"].includes(job.status) && <button onClick={() => void runMemory(() => sdk.jobs.cancel(job.id))}>Stop index {job.id.slice(0, 8)}</button>}
+          </div>)}
           <h3>Coding-style knowledge</h3><p>Save only non-sensitive project conventions. Knowledge outlives a session. Model observations require a proposal and your approval; they are never labeled user-authored facts.</p>
           <button disabled={!project || !input} onClick={() => void run(() => sdk.memory.remember(project!.id, input))}>Remember this project convention</button></>}
         {tab === "subagents" && <><h2>Optional subagents</h2><p>Off by default. When enabled, a depth-one child uses the same fixed model and approved context. It is read-only/tool-less, has separate usage, and belongs to the same cancellation tree.</p>

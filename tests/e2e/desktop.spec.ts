@@ -208,11 +208,11 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(async () => JSON.parse(await page.getByLabel("Tool and exact-command permissions", { exact: true }).inputValue())).toEqual(permission);
     await categories.getByRole("button", { name: "Repository memory", exact: true }).click();
-    await page.getByLabel("Enable explicit local indexing and retrieval").check();
+    await page.getByLabel("Enable explicit repository indexing and retrieval").check();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
-    await page.getByRole("button", { name: "Index current project", exact: true }).click();
+    await page.getByRole("button", { name: "Index Local repository", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "memory.index" && job.status === "completed")).toBe(true);
-    await page.getByLabel("Search local memory", { exact: true }).fill("shared sdk knowledge");
+    await page.getByLabel("Search repository memory", { exact: true }).fill("shared sdk knowledge");
     await page.getByRole("button", { name: "Search vectors", exact: true }).click();
     await expect(page.locator(".settings-result pre")).toContainText("generated.ts");
     await categories.getByRole("button", { name: "MCP gateway", exact: true }).click();

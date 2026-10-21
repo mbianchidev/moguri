@@ -367,7 +367,10 @@ not continuation.
 
 Explicit Remote user consoles use the captured pinned host/root and independent
 authenticated owner through the same SDK/Ghostty. No model is required.
-Repository-memory retrieval and transferred Local scripts remain blocked.
+Protocol-27 development adds session-bound Remote repository memory through
+the same SDK; exact 0.21 archive acceptance remains pending. Source capture/
+freshness runs on the pinned host and never uses an attached Local index.
+Transferred Local scripts remain blocked.
 Remote MCP has an independent reviewed peer/resource
 grant and exact call approval; selecting Remote is never access authorization.
 Remote plan saves use an explicit reviewed binding
@@ -616,19 +619,42 @@ independent plan snapshots. Project relocation/removal refuses retained
 worktrees rather than losing them. Remote/Sandbox mappings, external-worktree
 adoption and compound candidate orchestration are not implemented.
 
-## Local memory, skills, scripts and plugins
+## Repository memory, skills, scripts and plugins
 
 **Settings / Repository memory** opts into indexing. A second switch explicitly
-permits bounded retrieved snippets to enter Copilot context. The database uses
+permits bounded retrieved snippets to enter the chosen model's context. The database uses
 384-dimensional local lexical vectors, not a learned semantic embedding model.
 No embeddings provider is required. Root/nested `.gitignore`, protected paths,
 symlinks, file count, directory traversal and total source size are bounded.
-Unchanged snapshots are reused. Changed, missing or newly ignored files return
-no stale source text. Re-index for an updated import/symbol graph; it is a
-snapshot, not a live compiler.
+Unchanged Local snapshots are reused; explicit Remote indexing captures fresh
+bounded source. Retrieval validates actual-host metadata without rereading the
+whole repository. Changed, missing or newly ignored files return no stale
+source text. Re-index for updated symbols; the graph is a snapshot, not a live
+compiler or hostile timestamp-preserving content proof.
 
-`/memory index`, `/memory search TEXT`, `/memory graph` and
-`/memory remember CONVENTION` expose these APIs in TUI. Save only non-sensitive
+Current 0.21/protocol-27 source exposes `/memory state`, `/memory index`,
+`/memory search TEXT`, `/memory graph [PATH]`, `/memory stop JOB_ID` and
+`/memory remember CONVENTION` in TUI. CLI session commands are:
+
+```bash
+node bin/moguri.mjs memory index --session SESSION_ID
+node bin/moguri.mjs memory state --session SESSION_ID
+node bin/moguri.mjs memory search QUERY --session SESSION_ID
+node bin/moguri.mjs memory graph --session SESSION_ID
+```
+
+They use the session's actual env/profile/peer/root. Legacy commands with an
+explicit project/workspace ID stay Local. Desktop labels Local versus Remote,
+shows real index job outcomes and discards stale held output after scope
+changes. A configured/probed SSH worker and explicit project mapping are
+required; no model is needed. A missing Remote index fails explicitly rather
+than using Local data. Inspect bound metadata before enabling context injection.
+The control plane retains derived text/vectors, not another remote database.
+Indexing/injection remain off by default. The expanded builtin MCP memory
+resource requires new user review; old two-tool grants do not widen.
+See [ownership/recovery](architecture/remote-repository-memory.md).
+
+Save only non-sensitive
 project coding conventions. Knowledge is project-scoped and independent of
 session retention.
 
@@ -724,7 +750,7 @@ It is not proof of tool availability or approval.
 unknown forwarding receipt. Inspection remains available after revocation;
 **Reconcile receipts** reads an existing SSH run, never replays an effect.
 Revocation does not need an online/ready host. It also cannot undo access or
-external effects already received. Remote memory, transferred Local scripts
+external effects already received. Transferred Local scripts
 remain unavailable. Remote user consoles are an independent explicit
 user-open capability, not an MCP resource grant. Exact current archive
 qualification and preserved earlier identities are recorded below.
@@ -1264,21 +1290,28 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.21 Remote memory prerequisite
+### Development 0.21 bound repository memory
 
-The manifest is now **0.21.0-alpha.1**. Its private source proof used protocol
-26; the subsequent typed cache/migration foundation is protocol/database 27.
-The [private memory-source proof](architecture/remote-repository-memory.md)
-passes actual SSH bounded capture/freshness, ignored/denied/protected paths,
-root loss, cancellation and exact aggregate/frame limits. The combined
-**18-case gate passes in 3,466.06 ms**, with both type checks/build.
-The version-27 identity/migration foundation and affected compatibility gate
-pass **54/54 in 8,104.12 ms**. An empty derived-metadata table is not a
-published Remote index.
-Public Remote index/search/graph, context injection and memory MCP tools
-remain unavailable pending atomic scoped cache and complete public recovery/
-client qualification. No 0.21 SDK/app archive is qualified. The exact
-0.20 delivery below remains unchanged; Sandbox stays paused.
+Current **0.21.0-alpha.1 / protocol/database 27** implements session-bound
+Local/Remote lexical indexing, actual-host source validation, atomic typed
+cache publication and original-command no-replay jobs. SDK/CLI/native TUI/
+desktop, direct model search, optional context and exact reviewed MCP memory
+tools share its profile/peer/root. Indexing/injection stay off by default.
+
+The [memory contract](architecture/remote-repository-memory.md) records
+bounded source proof (**18 cases, 3,466.06 ms**), schema/compatibility
+(**54/54, 8,104.12 ms**), cache/carrier (**32/32, 4,065.00 ms**) and the
+public backend/CLI/crash/schema gate (**19/19, 13,988.01 ms**).
+Actual service SIGKILL covers mid-stream, pre-publication and completed
+indexes, including a missing original receipt without recapture. Source/env/
+root/policy changes, malformed arguments, failed intent/outcome retention,
+private profiles and post-publication partial outcomes are explicit.
+The source desktop and Local compatibility flows pass **5/5 in 13.3 s**;
+both bounded desktop/compact visual rounds are complete.
+
+Full source and exact independently installed/packaged 0.21 acceptance remain
+pending. No 0.21 SDK/app archive is qualified. The exact 0.20 delivery below
+remains unchanged; Sandbox stays paused.
 
 ### Current qualified 0.20.0-alpha.1 checkpoint
 
