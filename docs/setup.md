@@ -1212,7 +1212,7 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.18 prerequisites
+### Development 0.18 Remote MCP
 
 The development manifest is 0.18; the latest qualified application/SDK remains
 the immutable 0.17 checkpoint below. The
@@ -1227,9 +1227,13 @@ server or credential is accessed by a grant preview. Public worker execution,
 outcomes, cancellation/recovery and cross-client integration remain required.
 Scoped catalog discovery also passes four real-SSH checks, including
 access-only generated OAuth, stale authority and actual stdio-server cleanup.
-Tool calls, full result/ACK/restart and native client acceptance are still
-being integrated. No real credential is forwarded or 0.18 archive qualified
-by this foundation.
+The current source also runs exact approved model-owned and provider-free
+external MCP calls in the actual SSH worker, never the Local gateway.
+Original intents/results have encrypted session retention, explicit
+stop/partial outcomes and no-replay service-crash reconciliation, including
+after grant revocation. Native client integration and complete related/exact
+archive qualification remain unfinished. No real credential was forwarded
+and no 0.18 archive is qualified by these generated checks.
 Sandbox work remains paused.
 
 ### Current qualified 0.17 checkpoint
