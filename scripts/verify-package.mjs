@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { generatedOAuthServer } from "../tests/fixtures/oauth.ts";
 import { tsImport } from "tsx/esm/api";
 import { generatedRepositoryMetadata } from "../tests/fixtures/repository-info.ts";
+import { qualifyCandidateGeneration } from "./qualify-candidate-generation.mjs";
 
 const { fixtureProvider } = await tsImport("../tests/fixture.ts", import.meta.url);
 const { createSshTarget } = await tsImport("../tests/fixtures/ssh-target.ts", import.meta.url);
@@ -43,8 +44,9 @@ let github;
 let child;
 let timer;
 let exit;
+const modelOptions = { maxOutputTokens: 128, responseMode: "text", replyText: "Generated packaged summary: preserve the retained task, observed outcomes and unresolved work." };
 try {
-  modelFixture = await fixtureProvider({ maxOutputTokens: 128, responseMode: "text", replyText: "Generated packaged summary: preserve the retained task, observed outcomes and unresolved work." });
+  modelFixture = await fixtureProvider(modelOptions);
   const preparedModel = await modelFixture.provider.prepare(modelFixture.modelId, AbortSignal.timeout(5000));
   const sshRoot = join(temporary, "generated-ssh"), remoteRoot = join(temporary, "generated-remote-project");
   await mkdir(sshRoot, { mode: 0o700 }); await mkdir(remoteRoot, { mode: 0o700 });
@@ -456,6 +458,17 @@ try {
       assert.equal(modelFixture.requests.length, beforeCalls);
       console.log("Actual bundled Node/service/SDK and CLI candidate stage, separate user review/application, raw index/HEAD, version-2 history and lost-receipt restart replay qualification passed without a model.");
     } finally { client.disconnect(); }
+  }
+  if (PROTOCOL_VERSION >= 31) {
+    const { MoguriSdk } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+    let client = await new MoguriSdk(connection).ready();
+    const originalReply = modelOptions.replyText;
+    try {
+      const proof = await qualifyCandidateGeneration({ sdk: client, node, cli: join(root, "bin", "moguri.mjs"), directory: join(temporary, "generated-packaged-generation"),
+        stateDir: join(temporary, "state"), modelId: modelFixture.modelId, setReply: (value) => { modelOptions.replyText = value ?? originalReply; }, requests: modelFixture.requests });
+      client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready(); await proof.verifyRecovery(client);
+      console.log("Actual bundled Node/service/SDK/CLI generation, one owned metered model draft, immutable provenance/version-3 export, separate reviewed stage/apply and missing-receipt restart replay passed without personal inference.");
+    } finally { client.disconnect(); modelOptions.replyText = originalReply; }
   }
   child.send("close");
   assert.equal(await exit, 0);

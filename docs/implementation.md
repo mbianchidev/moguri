@@ -103,6 +103,14 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > shared SDK/CLI/TUI/desktop inspection. This is not public finite kupo,
 > automatic Git authority or a claim of real-model quality.
 
+> Protocol 31 adds [owned reviewed generation](architecture/candidate-generations.md):
+> one explicitly cost-reviewed fixed-model Local draft through the existing
+> worker and ledger, original selected snapshots and independently retained
+> model provenance/results. All clients expose the same API. Generation cannot
+> stage, apply, execute a tool or turn advice into acceptance; those file
+> reviews stay separate. Compound routing, finite kupo wind-down and real-model
+> quality qualification remain open.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

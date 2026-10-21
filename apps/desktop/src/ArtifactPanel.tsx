@@ -24,7 +24,9 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   sourceSession.current = session?.id;
   const current = draft?.id ? snapshot.artifacts.find((artifact) => artifact.id === draft.id) : undefined;
   const candidate = draft?.id ? snapshot.candidates.find((candidate) => candidate.id === draft.id) : undefined;
-  const activeCandidate = candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
+  const generated = draft?.id ? snapshot.candidateGenerations.find((generation) => generation.id === draft.id) : undefined;
+  const immutable = Boolean(candidate || generated);
+  const activeCandidate = generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
@@ -52,7 +54,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   };
   const save = async () => {
     if (!draft) return;
-    if (draft.id) { await sdk.artifacts.update(draft.id, { name: draft.name, ...(!candidate ? { text: draft.text } : {}), folderId: draft.folderId ?? null, workItemId: draft.workItemId ?? null }, draft.revision); await load(draft.id); }
+    if (draft.id) { await sdk.artifacts.update(draft.id, { name: draft.name, ...(!immutable ? { text: draft.text } : {}), folderId: draft.folderId ?? null, workItemId: draft.workItemId ?? null }, draft.revision); await load(draft.id); }
     else {
       const origin = snapshot.sessions.some((session) => session.id === draft.sessionId && session.projectId === draft.projectId) ? draft.sessionId : null;
       const created = await sdk.artifacts.create(origin, { kind: draft.kind, name: draft.name, text: draft.text, projectId: draft.projectId, folderId: draft.folderId ?? null, workItemId: draft.workItemId ?? null });
@@ -75,9 +77,9 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
       <label className="setting-field">Name<input aria-label="Artifact name" value={draft.name} maxLength={160} disabled={busy} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className="setting-field">Folder<select aria-label="Artifact folder" value={draft.folderId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, folderId: event.target.value || null })}><option value="">No folder</option>{snapshot.projectFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>
       <label className="setting-field">Work item<select aria-label="Artifact work item" value={draft.workItemId ?? ""} disabled={busy || !draft.projectId} onChange={(event) => setDraft({ ...draft, workItemId: event.target.value || null })}><option value="">No work item</option>{snapshot.issues.filter((issue) => issue.projectId === draft.projectId).map((issue) => <option key={issue.id} value={issue.id}>#{issue.number} {issue.title}{issue.archived ? " / archived" : ""}</option>)}</select></label>
-      {current && <p className="fine-print">{candidate ? "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
+      {current && <p className="fine-print">{generated ? "Immutable generation input/result. Actual model provenance is retained; staging and application require separate reviews." : candidate ? candidate.generationId ? "Derived from a canonical model proposal. Immutable bytes, model provenance and actual user acceptance stay separate." : "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
       {current?.sources.filter((source) => source.boundary?.env === "Remote").map((source, index) => <p className="fine-print path" key={index}>Remote source: {source.boundary?.root}/{source.boundary?.path} / {source.boundary?.hostFingerprint} / {source.outcome ?? "unconfirmed"}</p>)}
-      <label className="setting-field">Text<textarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} readOnly={Boolean(candidate)} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
+      <label className="setting-field">Text<textarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} readOnly={immutable} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
       {conflict && <p className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</p>}
       <div className="button-row"><button className="primary" disabled={busy || !draft.name.trim() || conflict || Boolean(draft.id) && !dirty} onClick={() => void run(save)}>Save artifact</button>
         {draft.id && <button disabled={busy} onClick={() => void run(() => load(draft.id!))}>Reload committed</button>}

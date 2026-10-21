@@ -62,6 +62,8 @@ svg { flex-shrink: 0; }
 .candidate-panel .setting-field { margin: 0; min-width: 0; }
 .candidate-panel input, .candidate-panel select, .candidate-panel textarea { width: 100%; }
 .candidate-panel textarea { min-height: 180px; padding: 9px; line-height: 1.6; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; tab-size: 2; }
+.candidate-panel textarea.generation-task { min-height: 104px; font-family: inherit; font-size: inherit; }
+.candidate-panel .generation-review, .candidate-panel .generation-outcome { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .candidate-panel .candidate-section { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; min-width: 0; }
 .candidate-panel details.candidate-section:not([open]) { display: block; }
 .candidate-panel .candidate-section > summary { font-weight: 600; }
