@@ -164,7 +164,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     setPanel(next); setPanelOpen(true); setConnections(false);
     if (next === "Terminal" && session?.projectId && session.controls.env === "Local" && snapshot?.policy.allowedEnvs.includes("Local") &&
       !snapshot.terminals.some((terminal) => terminal.sessionId === session.id) &&
-      !snapshot.terminalOwners.some((owner) => owner.cleanup !== "removed" && !["running", "acknowledged"].includes(owner.status))) await client.terminal.open(session.id);
+      !snapshot.terminalOwners.some((owner) => !owner.remote && owner.cleanup !== "removed" && !["running", "acknowledged"].includes(owner.status))) await client.terminal.open(session.id);
   });
   const applySlash = async (result: SlashResult) => {
     if (result.kind === "profiles") { if (!canNavigate()) return; setProfileMenu(true); setNavOpen(true); return; }

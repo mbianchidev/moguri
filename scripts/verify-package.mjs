@@ -24,6 +24,7 @@ assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { enc
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
 await access(join(root, "dist", "remote-bridge.mjs"));
 if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(root, "dist", path));
+if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
@@ -66,14 +67,14 @@ try {
     };
     const credentials=new Map();
     const vault={read:async(id)=>credentials.get(id)??null,write:async(id,value)=>{credentials.set(id,value);},remove:async(id)=>{credentials.delete(id);}};
-    const options={stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}};
+    const options={stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{vault,executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}};
     let service=await createRuntime(options);
     process.send(service.connection);
     const close=async()=>{await service.close();if(process.connected)process.disconnect();};
     process.on("message",async(message)=>{
       if(message==="close")await close();
-      else if(message==="restart"){
-        await service.close({preserveTerminals:true});service=await createRuntime(options);
+      else if(message==="restart"||message==="stop-reopen"){
+        await service.close({preserveTerminals:message==="restart"});service=await createRuntime(options);
         process.send({kind:"restarted",connection:service.connection});
       }
     });
@@ -87,6 +88,17 @@ try {
   });
   clearTimeout(timer);
   const headers = { Authorization: `Bearer ${connection.token}`, "Content-Type": "application/json" };
+  const replaceService = async (preserve) => {
+    const ready = new Promise((resolve, reject) => {
+      child.once("message", (value) => {
+        clearTimeout(timer);
+        if (value?.kind !== "restarted" || !value.connection) { reject(new Error("Actual bundled service returned no replacement connection.")); return; }
+        resolve(value.connection);
+      });
+      timer = setTimeout(() => reject(new Error("Actual bundled controller replacement did not complete.")), 10_000);
+    });
+    child.send(preserve ? "restart" : "stop-reopen"); connection = await ready; headers.Authorization = `Bearer ${connection.token}`;
+  };
   const send = async (command) => {
     const response = await fetch(`${connection.baseUrl}/v1/commands`, { method: "POST", headers, body: JSON.stringify({ id: randomUUID(), profileId: "default", command }) });
     assert.equal(response.status, 200);
@@ -186,7 +198,7 @@ try {
   await send({ type: "compaction.restore", sessionId: compactor.id, expectedActiveId: proposal.id, expectedSourceDigest: compactionState.sourceDigest, confirm: true });
   assert.equal((await query({ type: "compaction.state", sessionId: compactor.id })).activeId, null);
   assert.equal(modelFixture.requests.length, 4);
-  const remoteSdk = await new MoguriSdk(connection).ready();
+  let remoteSdk = await new MoguriSdk(connection).ready();
   try {
     const settings = remoteSdk.settings.get();
     await remoteSdk.settings.update({ ...settings.values, remote: ssh.target }, settings.revision); await remoteSdk.remote.probe();
@@ -222,9 +234,38 @@ try {
       await remoteSdk.mcp.revokeRemote(session.id, "builtin", remoteSdk.settings.get().revision, true);
       assert.match((await remoteSdk.mcp.readResult(pending.id)).text, /Generated actual packaged service/);
     }
+    if (PROTOCOL_VERSION >= 25) {
+      await remoteSdk.remote.probe(); assert.ok((await remoteSdk.remote.status()).remote.terminalBuild);
+      const opened = await remoteSdk.terminal.open(session.id);
+      let before;
+      for (let index = 0; index < 100; index++) { before = await remoteSdk.terminal.read(opened.id); if (before.data.includes("GENERATED_PACKAGED_PTY_READY")) break; await new Promise((resolve) => setTimeout(resolve, 15)); }
+      assert.equal(before.terminal.env, "Remote"); assert.equal(before.terminal.binding.root, await realpath(remoteRoot));
+      const owner = remoteSdk.getState().snapshot.terminalOwners.find((value) => value.id === before.terminal.ownerId);
+      assert.equal(owner.remote.target.command[0], node);
+      await remoteSdk.terminal.input(opened.id, "GENERATED_ACTUAL_PACKAGED_REMOTE_INPUT\n");
+      for (let index = 0; index < 100; index++) { if ((await remoteSdk.terminal.read(opened.id)).data.includes("GENERATED_ACTUAL_PACKAGED_REMOTE_INPUT")) break; await new Promise((resolve) => setTimeout(resolve, 15)); }
+      remoteSdk.disconnect(); await replaceService(true); remoteSdk = await new MoguriSdk(connection).ready();
+      const after = await remoteSdk.terminal.read(opened.id);
+      assert.equal(after.terminal.pid, before.terminal.pid); assert.notEqual(after.terminal.attachmentId, before.terminal.attachmentId);
+      assert.equal(remoteSdk.getState().snapshot.terminalOwners.find((value) => value.id === owner.id).pid, owner.pid);
+      assert.match(after.data, /GENERATED_ACTUAL_PACKAGED_REMOTE_INPUT/); assert.equal(after.data.split("GENERATED_PACKAGED_PTY_READY").length - 1, 1);
+      assert.equal((await remoteSdk.remote.status()).remote.ready, false);
+      await remoteSdk.terminal.input(opened.id, "GENERATED_PACKAGED_REMOTE_AFTER_RESTART\n");
+      let resumed = "";
+      for (let index = 0; index < 100 && !resumed.includes("GENERATED_PACKAGED_REMOTE_AFTER_RESTART"); index++) { resumed = (await remoteSdk.terminal.read(opened.id)).data; if (!resumed.includes("GENERATED_PACKAGED_REMOTE_AFTER_RESTART")) await new Promise((resolve) => setTimeout(resolve, 15)); }
+      assert.match(resumed, /GENERATED_PACKAGED_REMOTE_AFTER_RESTART/);
+      await remoteSdk.terminal.close(opened.id);
+    }
     assert.equal(remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).usage.length, 0);
     assert.equal(modelFixture.requests.length, 4);
   } finally { remoteSdk.disconnect(); }
+  if (PROTOCOL_VERSION >= 25) {
+    await replaceService(false);
+    const response = await fetch(`${connection.baseUrl}/v1/snapshot`, { headers }); assert.equal(response.status, 200);
+    const stopped = await response.json();
+    assert.equal(stopped.terminalOwners.filter((owner) => owner.status !== "stopped" && owner.status !== "acknowledged").length, 0);
+    assert.ok(stopped.terminalOwners.every((owner) => owner.cleanup === "removed"));
+  }
   const terminal = await send({ type: "terminal.open", sessionId: created.id, cols: 80, rows: 24 });
   const input = await fetch(`${connection.baseUrl}/v1/terminal`, { method: "POST", headers, body: JSON.stringify({ action: "input", terminalId: terminal.id, data: "GENERATED_PACKAGED_PTY_INPUT\n" }) });
   assert.equal(input.status, 200);
@@ -275,7 +316,8 @@ try {
     try {
       const first = await consoleSdk.terminal.open(created.id);
       consoles.push((await consoleSdk.terminal.read(first.id)).terminal);
-      const owner = consoleSdk.getState().snapshot.terminalOwners[0];
+      const owner = consoleSdk.getState().snapshot.terminalOwners.find((owner) => owner.id === consoles[0].ownerId);
+      assert.equal(owner.remote, undefined);
       const { _electron } = await import("@playwright/test");
       desktop = await _electron.launch({ executablePath: join(app, "Contents", "MacOS", "Moguri"), args: [],
         env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -308,15 +350,7 @@ try {
       assert.equal(consoleSdk.getState().snapshot.terminalOwners.filter((owner) => owner.status === "running").length, 1);
       await footprint(4); await desktop.close(); desktop = undefined;
       consoleSdk.disconnect();
-      const replacement = new Promise((resolve, reject) => {
-        child.once("message", (value) => {
-          clearTimeout(timer);
-          if (value?.kind !== "restarted" || !value.connection) { reject(new Error("Actual bundled service returned no restart connection.")); return; }
-          resolve(value.connection);
-        });
-        timer = setTimeout(() => reject(new Error("Actual bundled controller restart did not complete.")), 10_000);
-      });
-      child.send("restart"); connection = await replacement; headers.Authorization = `Bearer ${connection.token}`;
+      await replaceService(true);
       consoleSdk = await new MoguriSdk(connection).ready();
       for (const terminal of consoles) {
         const observed = await consoleSdk.terminal.read(terminal.id);
@@ -324,7 +358,7 @@ try {
         assert.notEqual(observed.terminal.attachmentId, terminal.attachmentId);
         assert.equal(observed.data.split("GENERATED_PACKAGED_PTY_READY").length - 1, 1);
       }
-      assert.equal(consoleSdk.getState().snapshot.terminalOwners[0].pid, owner.pid);
+      assert.equal(consoleSdk.getState().snapshot.terminalOwners.find((value) => value.id === owner.id).pid, owner.pid);
       await consoleSdk.terminal.input(consoles[0].id, "GENERATED_PACKAGED_REATTACHED_INPUT\n");
       let observed = "";
       for (let index = 0; index < 50 && !observed.includes("GENERATED_PACKAGED_REATTACHED_INPUT"); index++) {
@@ -338,7 +372,7 @@ try {
   }
   child.send("close");
   assert.equal(await exit, 0);
-  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan save with exact independent artifact, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-console owner reattachment and measured native/bundled terminal overhead, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
+  console.log("Verified ad-hoc signature, mascot icon, bundled Node, CLI/TUI, actual packaged service/worker compaction, repository-attributed model call and provider-free pinned SSH plan/MCP and Remote user-console restart/input/original PID/ordinary-stop semantics, independent artifacts, project-free metachat/config SDK, real packaged OAuth and approved HTTP tool call, sanitized MCP outcomes and key-backed storage, PTY transport, exact four-Local-console owner reattachment and measured native/bundled terminal overhead without reading Remote PIDs as Local, Ghostty assets and native speech runtime without weights, microphone or a personal account.");
 } finally {
   let confirmed = false;
   try {

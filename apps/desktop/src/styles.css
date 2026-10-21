@@ -474,6 +474,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .ghostty-panel, .browser-panel, .plan-panel, .side-chat-panel { display: flex; flex-direction: column; flex: 1; gap: 10px; min-width: 0; min-height: 0; }
 .ghostty-host { min-width: 0; min-height: 120px; flex: 1; background: #11161e; overflow: hidden; }
 .terminal-boundary { font-size: 10px; color: var(--muted); line-height: 1.6; margin: 0; flex-shrink: 0; overflow-wrap: anywhere; }
+.terminal-host-boundary { font-size: 11px; line-height: 1.65; margin: 0; flex-shrink: 0; overflow-wrap: anywhere; }
 .terminal-owner { flex-shrink: 0; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
 .terminal-owner summary { color: var(--muted); }
 .terminal-owner p { margin: 8px 0; }

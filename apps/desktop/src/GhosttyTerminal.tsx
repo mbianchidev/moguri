@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FitAddon, Ghostty, Terminal } from "ghostty-web";
 import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
-import type { MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, RemoteReadiness, Session, Snapshot, TerminalOwner } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
@@ -11,15 +11,31 @@ export function GhosttyTerminal({ sdk, session, snapshot, active }: { sdk: Mogur
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [viewEpoch, setViewEpoch] = useState(0);
+  const [remoteState, setRemoteState] = useState<RemoteReadiness | null>(null);
   const terminal = terminals.find((terminal) => terminal.id === selected) ?? terminals.findLast((terminal) => terminal.status === "running") ?? terminals.at(-1);
-  const profileOwner = snapshot.terminalOwners.findLast((owner) => owner.status !== "acknowledged" && owner.cleanup !== "removed");
+  const target = snapshot.settings.values.remote;
+  const matchingPeer = (owner: TerminalOwner | undefined) => Boolean(owner?.remote && target && owner.remote.target.host === target.host &&
+    owner.remote.target.port === target.port && owner.remote.target.user === target.user && owner.remote.target.hostKey === target.hostKey);
+  const scopedOwners = snapshot.terminalOwners.filter((owner) => owner.status !== "acknowledged" && owner.cleanup !== "removed" &&
+    (session.controls.env === "Remote" ? matchingPeer(owner) : session.controls.env === "Local" && !owner.remote));
+  const profileOwner = scopedOwners.at(-1);
   const owner = snapshot.terminalOwners.find((owner) => owner.id === terminal?.ownerId) ?? profileOwner;
   const connected = sdk.getState().status === "connected";
-  const canInput = connected && terminal?.status === "running" && session.status !== "archived" &&
-    session.controls.env === "Local" && snapshot.policy.allowedEnvs.includes("Local");
+  const configuration = snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId);
+  const localRoot = session.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.path :
+    snapshot.projects.find((project) => project.id === session.projectId)?.path;
+  const sameRoot = terminal?.binding && (terminal.env === "Remote" ? matchingPeer(owner) && session.workspaceId === null &&
+    terminal.binding.env === "Remote" && terminal.binding.peerDigest === owner?.remote?.peerDigest && terminal.binding.root === configuration?.values.remotePath :
+    terminal.env === "Local" && terminal.binding.env === "Local" && terminal.binding.root === localRoot);
+  const canInput = connected && terminal?.status === "running" && session.status !== "archived" && sameRoot &&
+    terminal.env === session.controls.env && snapshot.policy.allowedEnvs.includes(terminal.env);
   const canControl = connected && terminal?.ownerId && !["closed", "failed", "acknowledged"].includes(terminal.status);
-  const canOpen = connected && session.controls.env === "Local" && snapshot.policy.allowedEnvs.includes("Local") &&
-    session.status !== "archived" && (!profileOwner || profileOwner.status === "running");
+  const canOpen = connected && session.projectId !== null && ["Local", "Remote"].includes(session.controls.env) && snapshot.policy.allowedEnvs.includes(session.controls.env) &&
+    snapshot.capabilities.some((capability) => capability.env === session.controls.env && capability.ready) &&
+    (session.controls.env !== "Remote" || Boolean(remoteState?.terminalBuild) && session.workspaceId === null) &&
+    !snapshot.terminalOwners.some((owner) => owner.status === "stopped" && owner.cleanup !== "removed") &&
+    session.status !== "archived" && scopedOwners.length <= 1 && (!profileOwner || profileOwner.status === "running");
+  const needsProbe = session.controls.env === "Remote" && connected && (!remoteState?.ready || !remoteState.terminalBuild);
   const host = useRef<HTMLDivElement>(null);
   const emulator = useRef<Terminal | null>(null);
   const actionPending = useRef(false);
@@ -30,6 +46,12 @@ export function GhosttyTerminal({ sdk, session, snapshot, active }: { sdk: Mogur
     catch (error) { setError(error instanceof Error ? error.message : "Terminal operation failed. No input was replayed."); }
     finally { actionPending.current = false; setBusy(false); }
   };
+  useEffect(() => {
+    let current = true; setRemoteState(null);
+    if (session.controls.env === "Remote" && connected && active) void sdk.remote.status().then((result) => { if (current) setRemoteState(result.remote); })
+      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "Remote console build status is unavailable. No Local fallback."); });
+    return () => { current = false; };
+  }, [sdk, session.controls.env, connected, active, snapshot.settings.revision, snapshot.capabilities.find((capability) => capability.env === "Remote")?.ready]);
   useEffect(() => {
     if (!terminal || !host.current || !connected || !active) return;
     let disposed = false;
@@ -92,19 +114,24 @@ export function GhosttyTerminal({ sdk, session, snapshot, active }: { sdk: Mogur
       <button className="icon-button" aria-label="Close terminal" title="Stop this exact owned terminal" disabled={busy || !canControl} onClick={() => void run(() => sdk.terminal.close(terminal!.id))}><Icon name="Close" /></button>
     </header>
     {error && <p className="inline-error" role="alert">{error}</p>}
+    {terminal?.env === "Remote" && owner?.remote && <p className="terminal-host-boundary"><strong>Remote SSH console</strong><br />
+      {owner.remote.target.user}@{owner.remote.target.host}:{owner.remote.target.port}<br /><code>{terminal.binding?.root}</code></p>}
     {!connected && <p className="inline-error" role="status">Control plane disconnected. Queued input was discarded; no shell will be opened automatically.</p>}
     <div ref={host} className="ghostty-host" aria-disabled="true" />
-    {!terminal && <button className="primary" disabled={busy || !canOpen} onClick={() => void run(async () => { const created = await sdk.terminal.open(session.id); setSelected(created.id!); })}>Open terminal</button>}
-    {connected && terminal?.status === "running" && !canInput && <p className="fine-print">Read-only view: this is still the captured Local console. The current session environment or policy does not allow new input.</p>}
+    {!terminal && <button className="primary" disabled={busy || !canOpen} onClick={() => void run(async () => { const created = await sdk.terminal.open(session.id); setSelected(created.id!); })}>{session.controls.env === "Remote" ? "Open Remote terminal" : "Open terminal"}</button>}
+    {needsProbe && <><p className="fine-print">{terminal ? "Existing input stays on its authenticated original owner. Probe the configured SSH worker before opening another Remote console." : remoteState?.terminalDiagnostic ?? "Probe the explicitly configured SSH target and mapped project before a new Remote console. No Local shell is substituted."}</p>
+      <button disabled={busy || !target || session.status === "archived"} onClick={() => void run(async () => { await sdk.remote.probe(); setRemoteState((await sdk.remote.status()).remote); })}>Probe SSH target</button></>}
+    {connected && terminal?.status === "running" && !canInput && <p className="fine-print">Read-only view: this is still the captured {terminal.env ?? "unconfirmed"} console. The current session environment, project mapping or policy does not allow new input.</p>}
     {terminal?.diagnostic && <p className="fine-print">{terminal.diagnostic}</p>}
     {terminal?.status === "unconfirmed" && <button disabled={busy || !connected} onClick={() => void run(() => sdk.terminal.acknowledge(terminal.id, true))}>I inspected its processes</button>}
-    {owner && <details className="terminal-owner"><summary>Shared Local owner / {owner.status}</summary>
+    {owner && <details className="terminal-owner"><summary>Shared {owner.remote ? "Remote" : "Local"} owner / {owner.status}</summary>
       <p><code>{owner.id}</code><br />Broker PID {owner.pid ?? "unobserved"} / private resources {owner.cleanup}</p>
-      {terminal?.binding && <p>Actual Local console root: <code>{terminal.binding.root}</code></p>}
+      {terminal?.binding && <p>Actual {terminal.binding.env} console root: <code>{terminal.binding.root}</code></p>}
+      {owner.remote && <p>Captured SSH host: <code>{owner.remote.target.user}@{owner.remote.target.host}:{owner.remote.target.port}</code><br />Pinned public key: <code>{owner.remote.target.hostKey}</code></p>}
       {owner.diagnostic && <p>{owner.diagnostic}</p>}
       {!["stopped", "acknowledged"].includes(owner.status) && <button disabled={busy || !connected} onClick={() => void run(async () => { await sdk.terminal.reconcileOwner(owner.id); setViewEpoch((epoch) => epoch + 1); })}>Inspect existing owner</button>}
       {owner.status === "unconfirmed" && <button disabled={busy || !connected} onClick={() => void run(() => sdk.terminal.acknowledgeOwner(owner.id, true))}>I inspected this owner</button>}
     </details>}
-    <p className="terminal-boundary">Local user console. Output is volatile, never agent context. Close this panel to detach; service restart reattaches, service stop closes owned groups. Input is never replayed.</p>
+    <p className="terminal-boundary">{terminal?.env === "Remote" || !terminal && session.controls.env === "Remote" ? "Remote user console on its captured SSH host, not SendBox isolation." : "Local user console."} Output is volatile, never agent context. Close this panel to detach; service restart reattaches, service stop closes owned groups. Input is never replayed.</p>
   </section>;
 }
