@@ -362,13 +362,13 @@ CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
 Install the worker matching the SDK/service you use and probe it before new
-work: qualified 0.20 uses protocol 26. Older run receipts permit inspection,
+work: qualified 0.21 uses protocol 27. Older run receipts permit inspection,
 not continuation.
 
 Explicit Remote user consoles use the captured pinned host/root and independent
 authenticated owner through the same SDK/Ghostty. No model is required.
-Protocol-27 development adds session-bound Remote repository memory through
-the same SDK; exact 0.21 archive acceptance remains pending. Source capture/
+Qualified protocol 27 adds session-bound Remote repository memory through
+the same SDK. Source capture/
 freshness runs on the pinned host and never uses an attached Local index.
 Transferred Local scripts remain blocked.
 Remote MCP has an independent reviewed peer/resource
@@ -632,7 +632,7 @@ whole repository. Changed, missing or newly ignored files return no stale
 source text. Re-index for updated symbols; the graph is a snapshot, not a live
 compiler or hostile timestamp-preserving content proof.
 
-Current 0.21/protocol-27 source exposes `/memory state`, `/memory index`,
+Qualified 0.21/protocol 27 exposes `/memory state`, `/memory index`,
 `/memory search TEXT`, `/memory graph [PATH]`, `/memory stop JOB_ID` and
 `/memory remember CONVENTION` in TUI. CLI session commands are:
 
@@ -1290,9 +1290,9 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.21 bound repository memory
+### Current qualified 0.21.0-alpha.1 checkpoint
 
-Current **0.21.0-alpha.1 / protocol/database 27** implements session-bound
+Qualified **0.21.0-alpha.1 / protocol/database 27** implements session-bound
 Local/Remote lexical indexing, actual-host source validation, atomic typed
 cache publication and original-command no-replay jobs. SDK/CLI/native TUI/
 desktop, direct model search, optional context and exact reviewed MCP memory
@@ -1314,11 +1314,41 @@ checks/build, zero-vulnerability source audit and **41/41 hidden source
 desktop workflows in 1.5 min**. The first full run's only failure was an old
 Local-only error wording assertion; it now checks the unchanged typed
 `memory_disabled` denial rather than constraining cross-env guidance.
-Exact independently installed/packaged 0.21 acceptance remains pending.
-No 0.21 SDK/app archive is qualified. The exact 0.20 delivery below remains
-unchanged; Sandbox stays paused.
+The exact SDK independently passes a fresh explicitly approved/rebuilt install,
+zero-vulnerability consumer audit and all four external entrypoint types.
+Installed CLI/TUI/session memory, actual pinned-SSH index/search, original
+command/no new probe on replay, restart and exact approved MCP retrieval pass
+without a model call or Local cache substitution, alongside all prior gates.
 
-### Current qualified 0.20.0-alpha.1 checkpoint
+All **41 workflows pass on the exact packaged app in 1.6 min**. Actual
+bundled Node independently verifies Local-cache exclusion, Remote indexing/
+CLI/original intent/restart/MCP plus prior GitHub/plan/console/model behavior.
+One/four Local consoles share one owner: Electron aggregate is **534.73 /
+538.86 MiB**, with combined Electron/service/broker **882.81 / 887.42 MiB**.
+Generated user programs are separate. The original **600-MiB budget applies
+only to Electron**, not the whole runtime.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.21.0-alpha.1-macos-arm64.dmg` | 371413916 | `c8eff9c3ec7da8562867c5ddc37322f7079a33f5bba56d56eb0a79538a00c608` |
+| `Moguri-0.21.0-alpha.1-macos-arm64.zip` | 283219245 | `6b4b124260b15e9d780c24f005e98c8e023ebc89bed69cf3d42071ecaaa735b2` |
+| `moguri-0.21.0-alpha.1.tgz` | 6857014 | `bc878b993a01a85ab840a091bf4f578b11914f4c808ced1287d2300dfac62f5f` |
+
+App: `release/0.21.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Actual signature/icon/Ghostty/speech assets and DMG integrity pass.
+Artifacts are **ad-hoc signed, not notarized** and will not be repacked.
+The DMG exceeds chat's 64-MiB limit and stays local. Earlier qualified
+archives remain unchanged. Known FFI, transitive deprecation, Ghostty size
+and optional newer `.icon` notices remain visible; script approval completed
+before rebuild, and the actual `.icns` is checked.
+
+No personal authorization, paid inference, microphone, weights, Sandbox
+probe, tag, release or merge occurred. Sandbox stays paused. Compound
+routing/candidate application/wind-down/Max, complete containment and gated
+later work remain unfinished. Memory stays lexical/snapshot-based, not the
+deferred Sky/Terra/Glacier roadmap.
+
+### Preserved qualified 0.20.0-alpha.1 checkpoint
 
 **0.20.0-alpha.1 / protocol/database 26** is independently qualified.
 The [Remote metadata slice](architecture/remote-github-metadata.md) adds
@@ -1366,8 +1396,8 @@ script approval completed before rebuild; actual `.icns` is verified.
 
 No personal authorization, paid inference, microphone, model weights,
 Sandbox probe, tag, release or merge occurred. Sandbox stays paused.
-Remote repository memory, compound routing/wind-down/Max and gated later
-work remain unfinished.
+At that checkpoint, Remote repository memory, compound routing/wind-down/Max
+and gated later work remained unfinished.
 
 ### Preserved qualified 0.19.0-alpha.1 checkpoint
 
