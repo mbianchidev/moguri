@@ -20,18 +20,21 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const [sourceId, setSourceId] = useState(""), [source, setSource] = useState<(ArtifactSourcePreview & { sessionId: string; sourceId: string }) | null>(null);
   const [promoteName, setPromoteName] = useState("Retained answer"), [promoteKind, setPromoteKind] = useState<ArtifactKind>("answer");
   const [repositoryProject, setRepositoryProject] = useState(projectId ?? "");
+  const [roleIndex, setRoleIndex] = useState("0"), [roleData, setRoleData] = useState<string | null>(null);
+  const roleOutput = useRef<HTMLPreElement>(null);
   const generation = useRef(0), sourceSession = useRef(session?.id), dirty = Boolean(draft && fields(draft) !== baseline);
   sourceSession.current = session?.id;
   const current = draft?.id ? snapshot.artifacts.find((artifact) => artifact.id === draft.id) : undefined;
   const candidate = draft?.id ? snapshot.candidates.find((candidate) => candidate.id === draft.id) : undefined;
   const generated = draft?.id ? snapshot.candidateGenerations.find((generation) => generation.id === draft.id) : undefined;
-  const immutable = Boolean(candidate || generated);
-  const activeCandidate = generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
+  const sequence = draft?.id ? snapshot.roleSequences.find((sequence) => sequence.id === draft.id) : undefined;
+  const immutable = Boolean(candidate || generated || sequence);
+  const activeCandidate = sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   const accept = (value: ArtifactEditorRequest) => {
-    setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null);
+    setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null); setRoleIndex("0"); setRoleData(null);
   };
   useEffect(() => {
     if (!request) return;
@@ -74,10 +77,24 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
       {!draft.id ? <><label className="setting-field">Kind<select aria-label="Artifact kind" value={draft.kind} disabled={busy} onChange={(event) => setDraft({ ...draft, kind: parse(ArtifactKindSchema, event.target.value) })}>{kinds.map((kind) => <option key={kind} value={kind}>{kind.replace("-", " ")}</option>)}</select></label>
         <label className="setting-field">Scope<select aria-label="Artifact scope" value={draft.projectId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, projectId: event.target.value || null, sessionId: null, workItemId: null })}><option value="">Profile / no project</option>{draft.projectId && !snapshot.projects.some((project) => project.id === draft.projectId) && <option value={draft.projectId}>Former project / unavailable</option>}{snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></> :
         <p className="fine-print">{draft.kind.replace("-", " ")} / {draft.projectId ? snapshot.projects.find((project) => project.id === draft.projectId)?.name ?? "Former project" : "Profile"} / revision {draft.revision}{current?.status === "archived" ? " / archived" : ""}</p>}
+      {sequence && <section className="artifact-role-sequence" aria-label="Retained role sequence">
+        <p className="fine-print">Sequence {sequence.status}. Recorded data only, not a code approval or permission.</p>
+        <label className="setting-field">Recorded role<select aria-label="Retained role index" value={roleIndex} disabled={busy} onChange={(event) => { setRoleIndex(event.target.value); setRoleData(null); }}>
+          {sequence.steps.map((step, index) => <option key={step.planId} value={index}>{index} / {step.role} / {step.modelId} / {step.state}</option>)}
+        </select></label>
+        <button disabled={busy} onClick={() => void run(async () => {
+          const token = generation.current, value = await sdk.roleSequences.read(sequence.id, Number(roleIndex));
+          if (generation.current === token) {
+            setRoleData(JSON.stringify(value.step, null, 2));
+            requestAnimationFrame(() => { roleOutput.current?.focus(); roleOutput.current?.scrollIntoView({ block: "nearest" }); });
+          }
+        })}>Inspect recorded role</button>
+        {roleData !== null && <pre ref={roleOutput} tabIndex={0} aria-label="Recorded role data">{roleData}</pre>}
+      </section>}
       <label className="setting-field">Name<input aria-label="Artifact name" value={draft.name} maxLength={160} disabled={busy} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className="setting-field">Folder<select aria-label="Artifact folder" value={draft.folderId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, folderId: event.target.value || null })}><option value="">No folder</option>{snapshot.projectFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>
       <label className="setting-field">Work item<select aria-label="Artifact work item" value={draft.workItemId ?? ""} disabled={busy || !draft.projectId} onChange={(event) => setDraft({ ...draft, workItemId: event.target.value || null })}><option value="">No work item</option>{snapshot.issues.filter((issue) => issue.projectId === draft.projectId).map((issue) => <option key={issue.id} value={issue.id}>#{issue.number} {issue.title}{issue.archived ? " / archived" : ""}</option>)}</select></label>
-      {current && <p className="fine-print">{generated ? "Immutable generation input/result. Actual model provenance is retained; staging and application require separate reviews." : candidate ? candidate.generationId ? "Derived from a canonical model proposal. Immutable bytes, model provenance and actual user acceptance stay separate." : "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
+      {current && <p className="fine-print">{sequence ? "Immutable role input and actual model observations. Protocol completion is not a user answer, code-quality proof or approval." : generated ? "Immutable generation input/result. Actual model provenance is retained; staging and application require separate reviews." : candidate ? candidate.generationId ? "Derived from a canonical model proposal. Immutable bytes, model provenance and actual user acceptance stay separate." : "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
       {current?.sources.filter((source) => source.boundary?.env === "Remote").map((source, index) => <p className="fine-print path" key={index}>Remote source: {source.boundary?.root}/{source.boundary?.path} / {source.boundary?.hostFingerprint} / {source.outcome ?? "unconfirmed"}</p>)}
       <label className="setting-field">Text<textarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} readOnly={immutable} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
       {conflict && <p className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</p>}

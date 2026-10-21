@@ -1294,9 +1294,28 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
-### Development 0.24 complete planned capacity
+### Development 0.25 independently retained roles
 
-Current source is **0.24.0-alpha.1 / protocol and database 31**.
+Current source is **0.25.0-alpha.1 / protocol and database 32**.
+[Role observations](architecture/role-sequences.md) retain exact original
+scope/model/plan/command and each admitted input/raw result under their own
+artifact grant. They survive source retention without becoming user answers,
+normal solver context or permission. Unknown accounting cannot authorize a
+later role; stop/restart/late results never replay work or resume a partial
+sequence. The schema-31 migration is additive and preserves original bytes.
+
+SDK `roleSequences.read(id, index?)`, CLI `roles ID [INDEX]`, native TUI
+`/roles [ID [INDEX]]` and desktop Artifacts inspect the same metadata/raw data.
+Generic editing changes metadata only; active reports cannot be archived or
+deleted. Complete exports use version 4; earlier document formats stay intact.
+No create/run/accept/refund client action or public compound workflow is
+enabled. Source qualification is in progress; no immutable 0.25 delivery or
+real-family quality readiness is claimed. Frozen 0.23 stays unchanged and
+Sandbox remains paused.
+
+### Earlier 0.24 complete planned capacity
+
+That qualified source checkpoint used **0.24.0-alpha.1 / protocol and database 31**.
 The internal [planned-capacity batch](architecture/budget-plans.md#complete-planned-batches)
 calculates all same-turn closing-role holds together against current
 session/profile/global limits and prices. Earlier prospective holds count

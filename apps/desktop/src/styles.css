@@ -56,6 +56,8 @@ svg { flex-shrink: 0; }
 .artifact-panel input[type="checkbox"] { width: auto; }
 .artifact-panel .artifact-editor { min-height: 180px; padding: 9px; line-height: 1.6; }
 .artifact-panel pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.artifact-panel .artifact-role-sequence { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.artifact-panel .artifact-role-sequence p { margin: 0; }
 .artifact-history { display: flex; flex-direction: column; align-items: start; gap: 6px; margin-top: 8px; }
 .candidate-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .candidate-panel p { margin: 0; }
