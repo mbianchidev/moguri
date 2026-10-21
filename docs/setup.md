@@ -1290,6 +1290,25 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Development 0.24 complete planned capacity
+
+Current source is **0.24.0-alpha.1 / protocol and database 31**.
+The internal [planned-capacity batch](architecture/budget-plans.md#complete-planned-batches)
+calculates all same-turn closing-role holds together against current
+session/profile/global limits and prices. Earlier prospective holds count
+against later roles; a failed bound produces no prefix or fake model call.
+Callers must append the complete set with their owning intent in one
+transaction before yielding. Single-plan behavior uses this same calculation.
+
+The reservation search also terminates safely at the maximum safe integer;
+aggregate overflow is an explicit failure. The batch spike passes **26/26 in
+1.13 s**, expanded accounting/profile/routing/generation/compaction checks
+**135/135 in 137.08 s**, and both type checks/build. This is a source prerequisite,
+not compound scheduling, live-model quality, authorized checkpoint publication
+or public finite kupo. No new protocol/event, permission or client write surface
+is added. No immutable 0.24 archive/app is qualified; frozen 0.23 and older
+deliveries remain unchanged. Sandbox stays paused.
+
 ### Current qualified 0.23.0-alpha.1 checkpoint
 
 Qualified **0.23.0-alpha.1 / protocol and database 31** includes the planned
