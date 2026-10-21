@@ -1292,7 +1292,9 @@ declared native bundle icon.
 
 ### Development 0.22 compound routing prerequisite
 
-The manifest is now **0.22.0-alpha.1**, still protocol/database 27.
+The manifest is now **0.22.0-alpha.1**, with internal protocol/database **28**
+[candidate records and retention](architecture/candidate-workflows.md) in
+development. The immutable 0.21 delivery remains protocol 27.
 The [generated compound transport proof](architecture/compound-routing-primitives.md)
 passes **20/20 in 454.56 ms**, alongside both type checks/build, using actual
 bounded pi-ai calls to generated loopback endpoints. Cascade permits one
@@ -1308,6 +1310,10 @@ Actual generated compound proposals stage once in a real managed worktree;
 exact review, raw source-index preservation, changed bases/authority and
 partial outcomes are explicit. Public candidate records/clients/recovery,
 model-role integration and wind-down remain unqualified.
+The additive candidate foundation binds records/job lifecycle to existing
+independent artifact keys, validates original roots/intents/effects and marks
+interrupted metadata partial without filesystem replay. It is not a public
+stage/apply API, integrated model scheduler or qualified new desktop.
 
 ### Current qualified 0.21.0-alpha.1 checkpoint
 
