@@ -1290,9 +1290,10 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.22 Local reviewed-candidate workflow
+### Current qualified 0.22.0-alpha.1 checkpoint
 
-The manifest is now **0.22.0-alpha.1**, protocol/database **29**.
+Qualified **0.22.0-alpha.1**, protocol/database **29**, adds the manual Local
+reviewed-candidate workflow.
 The [Local candidate contract](architecture/candidate-workflows.md) is wired
 through SDK, compiled CLI, shared commands, actual native TUI and desktop.
 Choose an explicitly Local agent-mode source and a separate clean owned
@@ -1338,12 +1339,53 @@ not rollback/retry. Actual service SIGKILL covers before-effects, after-first-
 file and completed retention with original-command replay protection.
 The focused SDK/file/lease/migration/recovery/client gate passes **94/94 in
 43.04 s**; genuine five-mode SIGKILL passes in **7.19 s**, native TUI in
-**1.75 s**, and compiled CLI/shared commands in **3.66 s**. Source desktop
-workflow and stale-scope protections pass; a fresh approved/audited packed SDK
-also exercises real candidate CLI/application/history/restart.
+**1.75 s**, and compiled CLI/shared commands in **3.66 s**. The additional
+failed-stop-intent append regression passes in **668.72 ms**: the failure is
+visible, abort still reaches owned work, and no false successful request or
+filesystem effect is recorded. The extended native TUI metadata-only artifact
+editor passes in **1.97 s**, preserving immutable proposal bytes.
 
-New immutable 0.22 SDK/app delivery qualification is still separate. The
-immutable 0.21 delivery remains protocol 27 and has not been repacked.
+The complete source gate passes **656/656 cases in 462.93 s**, both type
+checks/build, zero source audit findings and **43/43 hidden source desktop
+workflows in 1.6 min**. All **43 workflows also pass on the exact packaged
+app in 1.6 min**, including separate candidate staging/application, preserved
+index, immutable document metadata editing and stale read-only scope/draft
+protection. The initial negative-flow cleanup was corrected to explicitly
+discard the unsaved draft and observe the actual close guard release, not
+force-close the window or count its earlier timeout as a pass.
+
+The exact delivered SDK installs into an independent consumer with explicit
+script approval/rebuild, zero audit findings and all four external entrypoint
+types. Installed CLI stage, separate SDK application, version-2 history and
+original-command replay after restart preserve raw index/HEAD without a model,
+alongside the prior Local/SSH/model/profile/retention contracts.
+The actual app's bundled Node/service/SDK and CLI independently pass the same
+candidate flow and a deleted-receipt replay that preserves a later user edit,
+plus prior console, memory, MCP, private GitHub, model and speech-runtime checks.
+
+One/four Local consoles share one owner. Actual Electron aggregates measure
+**534.64 / 537.81 MiB**; combined Electron/service/broker measures
+**898.47 / 905.58 MiB**, with generated user programs separately reported.
+The original **600-MiB budget is Electron-only**, not a whole-runtime claim.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.22.0-alpha.1-macos-arm64.dmg` | 372506384 | `c53ed48f69b2efd1dd63b45370043da7495eca9d28a1a45a47b8c128c4aa63ef` |
+| `Moguri-0.22.0-alpha.1-macos-arm64.zip` | 283270610 | `4f8793f5e34a24dae53336f41c18a38f482145fa4f7721d851943cd5bfd6863e` |
+| `moguri-0.22.0-alpha.1.tgz` | 6918304 | `5e0d76adc5c452ef0cb8fb48d9181ca2cdbb93946473d4e6fec1bab47df27905` |
+
+App: `release/0.22.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Actual signature/icon/Ghostty/speech assets, ZIP and DMG integrity pass.
+These immutable development artifacts are **ad-hoc signed, not notarized**,
+and will not be repacked. The DMG exceeds chat's 64-MiB limit and stays local.
+Known FFI, transitive deprecation, Ghostty chunk-size and optional `.icon`
+notices remain documented; the declared actual `.icns` is verified.
+Earlier qualified archives are unchanged.
+
+No personal authorization, paid inference, microphone, weights, Sandbox
+probe, tag, release or merge occurred. Sandbox remains paused. Public compound
+model roles, finite kupo wind-down/authorized checkpoint commits, Max, complete
+detached/reparented containment and gated later work remain unfinished.
 
 ### Earlier 0.22 prerequisites
 
@@ -1379,7 +1421,7 @@ The related **60-case** Local/SSH/routing gate, **four** hidden desktop/SSH
 flows, build/types and temporary packed-SDK install/audit pass; no additional
 schema, implicit approval or containment guarantee is introduced.
 
-### Current qualified 0.21.0-alpha.1 checkpoint
+### Preserved qualified 0.21.0-alpha.1 checkpoint
 
 Qualified **0.21.0-alpha.1 / protocol/database 27** implements session-bound
 Local/Remote lexical indexing, actual-host source validation, atomic typed
@@ -1431,11 +1473,11 @@ archives remain unchanged. Known FFI, transitive deprecation, Ghostty size
 and optional newer `.icon` notices remain visible; script approval completed
 before rebuild, and the actual `.icns` is checked.
 
-No personal authorization, paid inference, microphone, weights, Sandbox
-probe, tag, release or merge occurred. Sandbox stays paused. Compound
-routing/candidate application/wind-down/Max, complete containment and gated
-later work remain unfinished. Memory stays lexical/snapshot-based, not the
-deferred Sky/Terra/Glacier roadmap.
+At that checkpoint no personal authorization, paid inference, microphone,
+weights, Sandbox probe, tag, release or merge occurred. Sandbox stayed paused;
+compound routing/candidate application/wind-down/Max, complete containment and
+gated later work remained unfinished. Memory stays lexical/snapshot-based,
+not the deferred Sky/Terra/Glacier roadmap.
 
 ### Preserved qualified 0.20.0-alpha.1 checkpoint
 
