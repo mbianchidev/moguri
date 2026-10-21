@@ -1294,6 +1294,29 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
+### Development 0.26 internal owned-role execution
+
+Current source is **0.26.0-alpha.1 / protocol and database 32**. The internal
+[owned executor](architecture/role-sequences.md#internal-owned-execution-026-source)
+now connects complete selected-source/policy/model/context snapshots and
+planned holds to the actual control plane/worker. Every earlier possible
+32-KiB result is budgeted at its maximum JSON escaping before any role starts;
+actual prepared context, known accounting and current authority are rechecked
+at each boundary. Earlier results remain explicitly untrusted data.
+
+Original admission, actual start/result commits, deadline, stop/journal failure
+and no-replay recovery use the existing state, artifact and budget authority.
+The versioned input blob does not change protocol-32 event/database shapes.
+Existing SDK/CLI/TUI/desktop role inspectors read those real records.
+This is a privileged internal Node primitive, not public Cascade/Critique,
+independent-family proof, quality/acceptance or public finite kupo.
+
+The coupled source gate passes **38/38 in 95.50 s**, including four actual
+controller SIGKILL phases in **9.18 s**, both type checks and declaration build.
+Whole-source, installed-consumer and desktop compatibility are pending.
+No immutable 0.26 app/archive is claimed. Qualified 0.25 and earlier artifacts
+stay frozen; live personal inference stays off and Sandbox stays paused.
+
 ### Current qualified 0.25.0-alpha.1 checkpoint
 
 Qualified **0.25.0-alpha.1 / protocol and database 32** includes the complete
