@@ -1290,6 +1290,32 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Development 0.23 reserved-checkpoint prerequisite
+
+The source manifest is now **0.23.0-alpha.1**, still protocol/database **29**.
+The [private checkpoint contract](architecture/winddown-primitives.md) reuses
+the existing ledger and shared temporary-index Git helper. Reserved dispatch
+cannot spend capacity twice, bypass a newly stricter cap, trust an old session,
+change canonical model/input/output or replay a recorded start. An explicitly
+reviewed new local ref can preserve accepted files without staging unrelated
+work or moving source HEAD/index. Failed/denied/partial publication is not
+success or rollback.
+
+The generated gate passes **42/42 in 5.01 s**, final expanded source checks
+**93/93 in 16.25 s**, both type checks/build and six hidden source desktop
+flows in **12.1 s**. Actual bounded router/critic/checkpoint calls retain
+**126 reported tokens within 279 captured tokens**, including original-start
+restart protection and an actual separately authorized accepted-work commit.
+Model output cannot grant that Git approval; the authorizer is an explicit
+fixture, not a public delegated-policy implementation.
+
+A temporary packed SDK passes fresh approved/rebuilt installation, four
+external entrypoint types and existing actual Local/SSH/runtime workflows;
+source/consumer audits are zero. No new 0.23 archive/app is qualified.
+Production compound integration, durable unused-envelope/wind-down outcomes,
+real-family quality and public finite kupo remain blocked. Sandbox stays
+paused; immutable 0.22 and older artifacts are unchanged.
+
 ### Current qualified 0.22.0-alpha.1 checkpoint
 
 Qualified **0.22.0-alpha.1**, protocol/database **29**, adds the manual Local
