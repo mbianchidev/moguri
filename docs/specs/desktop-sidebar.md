@@ -2,7 +2,31 @@
 
 ## Status
 
-Product specification for a planned Moguri desktop surface. It does not describe implemented behavior.
+Product specification for the full Moguri desktop sidebar. The initial executable
+checkpoint implements the persistent shell, main-session binding, collapse/width
+preferences and basic Insights/event trace. The session-workspace alpha adds
+actual Ghostty terminals, read-only diffs/files, retained editable Local plans,
+linked PR access, isolated native previews and parallel question-only side
+sessions. Protocol 17 adds Files, Changes and read-only Plan views from the
+actual pinned SSH workspace, without a same-named Local fallback.
+Protocol 20 adds exact user-requested Remote plan saves with reviewed binding,
+owned no-model execution, actual partial/cleanup state and independently retained
+Remote snapshots. Scope changes preserve dirty editors, including held settled
+RPC responses. Protocol 21 adds sanitized tool/MCP outcomes and key-backed
+retained sizes; protocol 22 adds explicit actual-root GitHub metadata review,
+exact refresh/stop, immutable repository/owner/visibility filtering and
+unassigned-history coverage. None of these grant tools or dispatch a model.
+Its current rail is Terminal, Browser, Insights, Dashboard, PR when linked, Changes, Plan,
+Side chat, Suggestions and Attention. Suggestions use explicit scoped source
+review and configuration proposals; attention read state is not a user answer
+or tool decision. Project-free chats show a project-required state for workspace
+panels instead of reusing a previous root. Extensions remain a roadmap panel,
+with capability settings elsewhere. Full metrics,
+Stainless automation, native Sandbox terminals and
+the remaining release acceptance checks are not claimed complete.
+Protocol-25 source adds explicit pinned SSH user consoles with captured-host
+Ghostty input/restart semantics, separately from protected process isolation.
+See [setup](../setup.md) and [D16](../architecture/decisions.md#d16-session-workspace-ghostty-and-retention).
 
 ## Purpose
 
@@ -53,6 +77,9 @@ In Remote, query and mutate the selected SSH workspace through its worker. A sam
 ### Terminal
 
 Terminal shows terminals and process trees associated with the main session and worktree. Users can open a terminal, inspect output, send input, and request cancellation.
+Use Ghostty through its maintained web/WASM integration rather than writing a
+terminal emulator. The current Local user console is separate from model tool
+permissions. Input/output are ephemeral and never become implicit agent context.
 
 Moguri records terminal ownership and the requested, acknowledged, completed, failed, or partial cancellation outcome. Closing a terminal view must not silently terminate its process, and a stopped or partially stopped process must not be shown as successful.
 
@@ -69,6 +96,8 @@ Remote files resolve through the authenticated worker and remote workspace ident
 ### Browser
 
 Browser hosts private development previews through the optional [`stainless`](https://github.com/mbianchidev/stainless) integration. It can associate a preview, page, console output, network diagnostics, screenshots, and Playwright activity with the main session.
+The alpha's basic native isolated preview does not claim Stainless diagnostics,
+automation or model-controlled browser tools.
 
 Stainless connection, permission, and health state must be visible. Browser data enters model context only through an explicit user action, tool call, or configured policy. If Stainless is absent or unavailable, the panel shows the missing capability and setup path instead of a broken browser surface.
 
@@ -189,7 +218,7 @@ The sidebar shell follows the documented phase order:
 
 ## Acceptance checks
 
-- [ ] The sidebar exists in desktop and is not required in the TUI.
+- [x] The sidebar exists in desktop and is not required in the TUI.
 - [ ] Switching the main session rebinds all panels without leaking state from the previous profile, project, or session.
 - [ ] Changes, Terminal, and Files reflect external and TUI-originated updates without stale writes.
 - [ ] Browser clearly handles connected, missing, disconnected, denied, and failed Stainless states.

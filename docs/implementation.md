@@ -7,7 +7,119 @@ Moguri gives developers one place to run, inspect, steer, stop, resume, and unde
 It is built from zero: Moguri owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
 
 > [!WARNING]
-> Moguri is pre-alpha. This document defines the product direction, architectural constraints, first implementation milestone, and working agreement for contributors. It does not claim that the described features exist yet.
+> Moguri is pre-alpha. An [initial executable macOS checkpoint](setup.md) now exists for Local/Manual Copilot sessions in TUI and desktop. Its [engagement slice](architecture/engagement.md) adds project-free chats, MCP OAuth, scoped suggestions, reviewed settings chats and attention indicators. This document still defines the wider product direction, architectural constraints, first milestone and working agreement; it does not claim completion of every described capability. [Phase 0 evidence](architecture/phase-zero.md) records passes and unresolved release blockers.
+
+> The user-requested [SDK platform slice](architecture/sdk-platform.md) adds
+> default-dark branding, shared prompt/permission settings, opt-in local memory,
+> approved extension proposals, optional read-only subagents, a native MCP
+> gateway and local Nemotron dictation. These use one importable SDK, not
+> client-only implementations. They do not complete the later unattended
+> self-evolution, marketplace, memory-tier, routing or execution-backend roadmap.
+
+> The additional [workspace platform slice](architecture/workspace-platform.md)
+> implements integrity/advisory-gated shared npm/pnpm caching, script-free
+> managed installs and a local project Kanban with verified merge transitions
+> and optional read-only Linear imports. Lifecycle execution remains blocked
+> without real SendBox qualification. These features share the SDK and event
+> authority; they do not create a second hosted issue system.
+
+> The [session workspace slice](architecture/session-workspace.md) implements
+> held prompts, shared slash actions, enforced read-only/side sessions,
+> session/project organization, independent plan artifacts and explicit
+> retention/deletion. Desktop uses actual Ghostty WASM, an isolated web preview
+> and SDK-backed diff/plan panels. Stainless automation and
+> the rest of the first-release acceptance gates are not implied complete.
+
+> The [runtime/input foundation](architecture/runtime-foundation.md) adds
+> explicit local generative endpoints, snapshotted control inheritance and
+> [typed context](architecture/context-inputs.md). The [core SSH slice](architecture/execution-transports.md)
+> runs the same worker/model/file loop remotely with pinned identity and
+> no-replay recovery. Read-only files/Git/plan views now share that SSH transport;
+> Remote console/extension/memory transport, native Sandbox
+> and routing are not implied complete by that foundation.
+> Protocol-24 reviewed Remote MCP and protocol-25
+> [owned Remote user consoles](architecture/remote-user-consoles.md) extend
+> that foundation through the same SDK and actual clients. Their pinned-peer
+> state, exact approvals/ownership and no-replay lifecycle do not qualify
+> native Sandbox, Remote repository memory or later routing/orchestration.
+
+> The [managed Local workspace slice](architecture/managed-workspaces.md) adds
+> explicit worktree creation/discovery/removal, change-set context, per-root
+> writer leases and consistent worker/files/plan/terminal/memory/cache roots.
+> Remote/Sandbox mappings, external adoption and compound orchestration remain
+> separate first-release work. The independent-artifact slice now adds the five
+> text classes, exact source actors, revisions and reviewed retain/export/delete
+> choices. Structured clarifications now record actual user answers with
+> opt-out independent retention. Folder/work-item associations and reviewed
+> repository history copies with optional new local commits are now wired across
+> clients. Delegated decision answers remain open; no routing or containment
+> qualification is inferred from this artifact slice.
+
+> The [budget/telemetry slice](architecture/budgets.md) now adds explicitly
+> estimate-based session caps, separate cumulative profile/global policy,
+> atomic all-role reservations, held unknowns, exact reported-total settlement,
+> late SSH metering and a shared aggregate dashboard. No exact billing claim,
+> automatic refund, routed kupo wind-down or authorized checkpoint commit is
+> inferred. A budget stop retains a diagnostic artifact without an extra model.
+
+> [Reviewed context compaction](architecture/context-compaction.md) now adds an
+> explicit preview/generate/review/apply/restore workflow through the same SDK,
+> Local/SSH worker and all-role ledger. Original history, complete recent turns
+> and drafts stay retained. Source/model/policy-bound text proposals never become
+> user answers, permissions or automatic memory. Images, automatic compaction
+> and implicit kupo compactor selection remain unsupported. Fresh current-input
+> estimates preserve finite admission without rewriting real reported usage.
+
+> The [profile slice](architecture/profiles.md) adds immutable SDK/store/
+> controller scopes, isolated accounts/data/editors and root-owned global
+> environment policy, startup preferences and budget capacity. Actual CLI/TUI
+> and packaged desktop switching preserve old owned work; migration 14
+> preserves Default identity/keys/receipts. Profile deletion/merge, native
+> Sandbox and routed decisions are not implied.
+
+> Guided questions may now carry a bounded recommendation from the already
+> metered current solver response. It retains model provenance and still waits
+> for the actual user, who may choose differently. Tool advice binds the current
+> step rather than older narration. This does not enable System One/Jev,
+> Autopilot Max, automated steering or a hidden extra model call.
+
+> [Experimental kupo Single](architecture/routing.md) now uses one explicitly
+> approved scoped pool and the existing owned worker, approvals and all-role
+> ledger. It is off by default, requires separate hosted-data consent, records
+> actual router/solver provenance and pauses without fallback on invalid or
+> stale advice. Any finite inherited cap, images or model-specific tuning block
+> this alpha. Cascade, independent critique/revision, compound candidate application,
+> calibrated thresholds and reserved wind-down remain first-release work.
+
+> The qualified protocol-29 [manual Local candidate workflow](architecture/candidate-workflows.md)
+> adds model-free exact staging and separately reviewed source application to
+> SDK, CLI, native TUI and desktop. It preserves raw index/HEAD, independent
+> workflow history and honest cancellation/crash outcomes. Its byte/base checks
+> do not enable compound model roles, finite kupo budgets or automatic commits.
+
+> The protocol-30 [planned-budget foundation](architecture/budget-plans.md)
+> separates held future capacity from actual calls in the same ledger. Exact
+> transfers and safe unused release survive stop/restart/source deletion, with
+> shared SDK/CLI/TUI/desktop inspection. This is not public finite kupo,
+> automatic Git authority or a claim of real-model quality.
+
+> Protocol 31 adds [owned reviewed generation](architecture/candidate-generations.md):
+> one explicitly cost-reviewed fixed-model Local draft through the existing
+> worker and ledger, original selected snapshots and independently retained
+> model provenance/results. All clients expose the same API. Generation cannot
+> stage, apply, execute a tool or turn advice into acceptance; those file
+> reviews stay separate. Compound routing, finite kupo wind-down and real-model
+> quality qualification remain open.
+
+> Protocols 32/33 add independently retained actual role observations and
+> [canonical final-role proposal origin](architecture/role-proposals.md)
+> through separate staging/application reviews. Qualified protocol 34 adds
+> [explicit provider-declared model inspection](architecture/model-evidence.md),
+> not inferred family independence, quality or permission.
+> Development [owned role contracts](architecture/owned-role-contracts.md) add
+> exact response checks and selected prior-result context to that same worker;
+> public compound admission, conditional pattern
+> policy, finite kupo and Max remain unqualified.
 
 ## Why Moguri
 

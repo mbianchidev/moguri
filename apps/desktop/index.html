@@ -1,0 +1,19 @@
+<!doctype html>
+<!-- THESIS: A shared, inspectable coding workspace, not a marketing dashboard.
+OWN-WORLD: Dark slate workbench, quiet mint actions, winged face, system type, precise separators.
+STORY: Open a project, authorize Copilot, choose a model, send and inspect or stop work.
+FIRST VIEWPORT: Project navigation left, durable conversation center, session context right,
+four controls directly below the prompt. Connection state stays visible.
+FORM: Operate-mode desktop workspace. Familiar native affordances over decorative novelty. -->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src 'self' ws://127.0.0.1:*; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'" />
+    <title>Moguri</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/renderer.tsx"></script>
+  </body>
+</html>
