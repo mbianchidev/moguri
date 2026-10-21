@@ -97,6 +97,12 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > workflow history and honest cancellation/crash outcomes. Its byte/base checks
 > do not enable compound model roles, finite kupo budgets or automatic commits.
 
+> The protocol-30 [planned-budget foundation](architecture/budget-plans.md)
+> separates held future capacity from actual calls in the same ledger. Exact
+> transfers and safe unused release survive stop/restart/source deletion, with
+> shared SDK/CLI/TUI/desktop inspection. This is not public finite kupo,
+> automatic Git authority or a claim of real-model quality.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

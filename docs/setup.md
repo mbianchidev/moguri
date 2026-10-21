@@ -1290,9 +1290,39 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.23 reserved-checkpoint prerequisite
+### Development 0.23 planned-budget foundation
 
-The source manifest is now **0.23.0-alpha.1**, still protocol/database **29**.
+Current source is **0.23.0-alpha.1 / protocol and database 30**.
+[Planned wind-down holds](architecture/budget-plans.md) now live in the same
+independent profile budget stream without pretending a future reservation is
+a model call. Complete bounds/captured prices, one atomic actual-start transfer,
+root-wide capacity and exact ownership remain enforced. Only canonically
+undispatched held plans release automatically after their owner ends; unknown
+or consumed calls cannot be refunded.
+
+SDK `budgets.plans`, CLI `budget plans`, TUI `/dashboard plans JSON` and desktop
+Dashboard inspect the same retained states. Model calls/prices/bills stay
+separate, source deletion preserves history, and stale UI scope replies cannot
+populate a new filter. Creation/transfer remain internal prerequisites for the
+owned compound scheduler, not a new user/plugin permission or finite route.
+
+The targeted legacy/accounting gate passes **70/70 in 3.53 s**. The actual
+controller SIGKILL case takes **656.10 ms**, releases only its unused 30-token
+plan and preserves the real **9,965-token** interrupted-model hold with exactly
+one request and unchanged source. The generated schema-29-to-30 marker takes
+**1.10 ms** after exact failure rollback without ciphertext/key/receipt rewrites.
+Compiled CLI/shared commands and native TUI inspection pass without inference.
+Two hidden desktop scope/price/release flows pass in **1.9 s**; both bounded
+desktop/compact inspection rounds are complete.
+
+Full source compatibility and temporary packed-SDK qualification remain ahead.
+No immutable 0.23 app/archive is qualified; frozen 0.22 and older artifacts are
+unchanged. Production compound ownership, actual checkpoint-policy integration
+and real-model quality remain gated. Sandbox stays paused.
+
+### Earlier 0.23 reserved-checkpoint prerequisite
+
+That prerequisite used **0.23.0-alpha.1**, protocol/database **29**.
 The [private checkpoint contract](architecture/winddown-primitives.md) reuses
 the existing ledger and shared temporary-index Git helper. Reserved dispatch
 cannot spend capacity twice, bypass a newly stricter cap, trust an old session,

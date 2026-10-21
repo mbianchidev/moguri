@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type BudgetTotals, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
 export const dollars = (value: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(value);
+export const callEstimate = (totals: BudgetTotals) => totals.calls === 0 ? "No model calls" : totals.estimatedUsd === null ?
+  `${dollars(totals.knownEstimatedUsd)} known + unreported/unpriced` : dollars(totals.estimatedUsd);
 const count = (value: number) => new Intl.NumberFormat().format(value);
 export function useBudgetStatus(sdk: MoguriSdk, session: Session, snapshot: Snapshot) {
   const [status, setStatus] = useState<BudgetStatus | null>(null), [error, setError] = useState("");
-  const stamp = snapshot.budgetEntries.map((entry) => `${entry.id}:${entry.status}:${entry.reportedTokens}:${entry.estimatedUsdMicros}`).join("|");
+  const stamp = JSON.stringify([snapshot.budgetEntries.map((entry) => `${entry.id}:${entry.status}:${entry.reportedTokens}:${entry.estimatedUsdMicros}`), snapshot.budgetPlans.map((plan) => `${plan.id}:${plan.revision}`)]);
   useEffect(() => {
     let current = true;
     void sdk.budgets.status(session.id).then((value) => { if (current) { setStatus(value.status); setError(""); } }).catch((error: unknown) => {
@@ -20,8 +22,9 @@ export function BudgetSummary({ status }: { status: BudgetStatus }) {
   return <section aria-label="Cumulative session budget">
     <dl className="facts"><dt>Reported tokens</dt><dd>{totals.reportedTokens === null ? `${count(totals.knownReportedTokens)} known + ${totals.unknownTokenCalls} unknown calls` : count(totals.reportedTokens)}</dd>
       <dt>Held tokens</dt><dd>{totals.heldTokens === null ? "Unbounded / blocks finite admission" : count(totals.heldTokens)}</dd>
+      {totals.plannedHolds > 0 && <><dt>Undispatched model holds</dt><dd>{count(totals.plannedHolds)} / {totals.plannedHeldTokens === null ? "Unknown capacity" : `${count(totals.plannedHeldTokens)} tokens`}</dd></>}
       <dt>Remaining tokens</dt><dd>{status.remainingTokens === null ? cappedTokens ? "Unknown / blocked" : "Unlimited" : count(status.remainingTokens)}</dd>
-      <dt>Estimated USD</dt><dd>{totals.estimatedUsd === null ? `${dollars(totals.knownEstimatedUsd)} known + unreported/unpriced` : dollars(totals.estimatedUsd)}</dd>
+      <dt>Estimated USD</dt><dd>{callEstimate(totals)}</dd>
       <dt>Held estimated USD</dt><dd>{totals.heldUsd === null ? "Unknown" : dollars(totals.heldUsd)}</dd>
       <dt>Remaining estimated USD</dt><dd>{status.remainingUsd === null ? cappedUsd ? "Unknown / blocked" : "Unlimited" : dollars(status.remainingUsd)}</dd>
       <dt>Provider / billed USD</dt><dd>Not reported</dd></dl>
@@ -29,6 +32,7 @@ export function BudgetSummary({ status }: { status: BudgetStatus }) {
     {status.limits.map((limit) => <p className="fine-print" key={limit.scope}>{limit.scope === "global" ? "Global hard cap" : limit.scope === "profile" ? "Profile hard cap" : "Session cap"}: {limit.tokens === null ? "no token cap" : `${count(limit.tokens)} tokens`}; {limit.usd === null ? "no USD cap" : `${dollars(limit.usd)} estimated`}.</p>)}
     {status.diagnostics.map((diagnostic) => <p className="settings-warning" key={diagnostic}>{diagnostic}</p>)}
     <p className="fine-print">Estimates are not a billing guarantee. Missing completion keeps reservations held. Resume, deletion and model changes do not reset this ledger.</p>
+    {totals.plannedHolds > 0 && <p className="fine-print">Planned capacity is not a model call or provider report. Only provably undispatched holds can be released automatically after their owner stops. Dispatched or uncertain usage stays held.</p>}
   </section>;
 }
 export function SessionBudgetSummary({ sdk, snapshot, session }: { sdk: MoguriSdk; snapshot: Snapshot; session: Session }) {
@@ -68,7 +72,7 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   };
   const single = scope === "session" && session?.controls.modelId === KUPO_MODEL_ID;
   const locked = disabled || saving || single || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
-  const usdUnavailable = scope === "session" && (!status || !status.rate || status.totals.unpricedCalls > 0);
+  const usdUnavailable = scope === "session" && (!status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
     {single && <p className="settings-warning">Select a fixed model to set finite session limits. kupo Single wind-down is not qualified. Profile/global caps still apply and block further routed calls; no policy is removed here.</p>}
     <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
