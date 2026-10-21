@@ -1264,6 +1264,18 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Development 0.21 Remote memory prerequisite
+
+The manifest is now **0.21.0-alpha.1**, still protocol/database 26.
+The [private memory-source proof](architecture/remote-repository-memory.md)
+passes actual SSH bounded capture/freshness, ignored/denied/protected paths,
+root loss, cancellation and exact aggregate/frame limits. The combined
+**18-case gate passes in 3,466.06 ms**, with both type checks/build.
+Public Remote index/search/graph, context injection and memory MCP tools
+remain unavailable pending atomic scoped cache and complete public recovery/
+client qualification. No 0.21 SDK/app archive is qualified. The exact
+0.20 delivery below remains unchanged; Sandbox stays paused.
+
 ### Current qualified 0.20.0-alpha.1 checkpoint
 
 **0.20.0-alpha.1 / protocol/database 26** is independently qualified.
