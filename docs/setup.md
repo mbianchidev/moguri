@@ -1,5 +1,11 @@
 # Setup and usage
 
+For current continuation scope, see the
+[first-milestone gap handoff](remaining-milestone-gaps.md).
+The user has reopened previously paused Sandbox integration specifically for
+SendBox 0.2.3. Historical checkpoint measurements below remain scoped to their
+recorded versions; they do not qualify the new runtime or close the milestone.
+
 ## Supported checkpoint
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
