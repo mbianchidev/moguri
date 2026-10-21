@@ -1314,6 +1314,11 @@ The additive candidate foundation binds records/job lifecycle to existing
 independent artifact keys, validates original roots/intents/effects and marks
 interrupted metadata partial without filesystem replay. It is not a public
 stage/apply API, integrated model scheduler or qualified new desktop.
+The internal protocol-28 foundation passes **631/631 local cases in 494.00 s**,
+all **41 hidden source desktop workflows in 1.5 min**, and the temporary
+packed SDK's approved/rebuilt four-entrypoint/actual Local-SSH compatibility
+gate. Source/consumer audits are zero. This is source/internal-state
+qualification, not a delivered 0.22 archive or actual packaged desktop.
 
 ### Current qualified 0.21.0-alpha.1 checkpoint
 
