@@ -1301,6 +1301,13 @@ Costs/unknowns, identities, data locality and failed receipts remain explicit.
 These are unaccepted tool-less proposals, not coding-workspace/application,
 finite-budget wind-down, calibrated quality or a public routing feature.
 No 0.22 SDK/app is qualified. Immutable 0.21 and Sandbox pause are unchanged.
+The [private candidate-file gate](architecture/candidate-primitives.md)
+additionally passes **39/39 in 10.48 s**, with **77/77 directly coupled checks
+in 23.78 s** and a fresh approved/audited packed-SDK compatibility install.
+Actual generated compound proposals stage once in a real managed worktree;
+exact review, raw source-index preservation, changed bases/authority and
+partial outcomes are explicit. Public candidate records/clients/recovery,
+model-role integration and wind-down remain unqualified.
 
 ### Current qualified 0.21.0-alpha.1 checkpoint
 
