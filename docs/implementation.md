@@ -88,8 +88,14 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > ledger. It is off by default, requires separate hosted-data consent, records
 > actual router/solver provenance and pauses without fallback on invalid or
 > stale advice. Any finite inherited cap, images or model-specific tuning block
-> this alpha. Cascade, independent critique/revision, candidate application,
+> this alpha. Cascade, independent critique/revision, compound candidate application,
 > calibrated thresholds and reserved wind-down remain first-release work.
+
+> The qualified protocol-29 [manual Local candidate workflow](architecture/candidate-workflows.md)
+> adds model-free exact staging and separately reviewed source application to
+> SDK, CLI, native TUI and desktop. It preserves raw index/HEAD, independent
+> workflow history and honest cancellation/crash outcomes. Its byte/base checks
+> do not enable compound model roles, finite kupo budgets or automatic commits.
 
 ## Why Moguri
 
