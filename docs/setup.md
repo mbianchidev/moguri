@@ -1327,6 +1327,15 @@ with both type checks/build. Actual successful three-role/ledger/reopen takes
 **326.76 ms**; a real failed completion append takes **279.74 ms**, preserves
 the first unknown **99-token** reservation and releases unused plans without
 dispatching the next role. These are generated mechanics, not live quality.
+Complete source compatibility passes **741/741 in 603.96 s**, both type
+checks/build and zero audit findings; all **47 hidden source desktop workflows**
+pass in **1.8 min**. Fresh temporary SDK installation/approval/rebuild, four
+external entrypoint types and all earlier Local/SSH/generation/batch contracts
+pass with zero consumer vulnerabilities. Its **actual installed worker**
+passes all **12 private role/ledger probes in 3.84 s**, including real
+three-role/retention/reopen and failed-receipt unknown-hold preservation without
+another request. This is not an immutable 0.24 delivery or public compound
+workflow; the current qualified downloadable app/SDK remains 0.23 below.
 
 ### Current qualified 0.23.0-alpha.1 checkpoint
 
