@@ -1303,7 +1303,12 @@ transaction before yielding. Single-plan behavior uses this same calculation.
 The reservation search also terminates safely at the maximum safe integer;
 aggregate overflow is an explicit failure. The batch spike passes **26/26 in
 1.13 s**, expanded accounting/profile/routing/generation/compaction checks
-**135/135 in 137.08 s**, and both type checks/build. This is a source prerequisite,
+**135/135 in 137.08 s**, and both type checks/build. A fresh temporary SDK
+independently installs/approves/rebuilds/audits with zero findings, passes four
+strict external entrypoint types, and exercises exact finite batch
+admission/release plus the prior Local/SSH/generation contracts. Five relevant
+hidden desktop workflows pass in **10.9 s** and three native TUI flows in
+**2.97 s**. This is a source prerequisite,
 not compound scheduling, live-model quality, authorized checkpoint publication
 or public finite kupo. No new protocol/event, permission or client write surface
 is added. No immutable 0.24 archive/app is qualified; frozen 0.23 and older
