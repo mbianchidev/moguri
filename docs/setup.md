@@ -1289,6 +1289,10 @@ production releases or disable system-wide security to run them.
 Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
+For a trusted build whose source and archive identity you have verified,
+see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
+These are manual, app-specific steps, never global Gatekeeper disabling or
+permission to bypass malware warnings.
 
 ### Development 0.24 complete planned capacity
 
