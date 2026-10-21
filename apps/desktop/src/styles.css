@@ -225,6 +225,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .composer-usage-heading > span { font-size: 11px; color: var(--muted); }
 .composer-usage dt { color: var(--muted); }
 .composer-usage dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.model-evidence { overflow-wrap: anywhere; }
+.model-evidence .composer-usage { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
 .usage-dollar-row { display: contents; }
 .setup-hint { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; color: var(--accent); background: var(--selected); display: flex; justify-content: space-between; font-size: 11px; padding: 10px 15px; text-align: left; }
 .attachment-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 0; }

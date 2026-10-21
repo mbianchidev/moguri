@@ -60,6 +60,16 @@ account-specific Copilot endpoint returned by the authenticated provider.
 Prompts and approved context go to Copilot when a turn is sent. There is no
 Moguri telemetry backend or automatic local-network model scan.
 
+Development 0.28 can explicitly inspect provider-declared metadata through
+**Model / Provider-declared model metadata / Read Copilot model declarations**,
+`moguri models evidence MODEL_ID`, or TUI `/model-evidence [MODEL_ID]`.
+The SDK operation is `models.evidence(modelId)`. Omitting the TUI ID uses only
+the current fixed model, never kupo or an inferred provider. No project content
+or inference request is sent. Unknown declarations remain unknown; labels are
+not proof of independent weights, quality, permission or user approval.
+Opening the menu, normal login and ordinary model discovery add no such read.
+See [the current source checkpoint](#development-028-explicit-model-declarations).
+
 ## Work and approvals
 
 The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
@@ -1293,6 +1303,39 @@ For a trusted build whose source and archive identity you have verified,
 see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
+
+### Development 0.28 explicit model declarations
+
+Source **0.28.0-alpha.1 / protocol and database 34** adds explicit informational
+Copilot catalogue inspection, not another model workflow. SDK, compiled CLI,
+shared/native TUI and the existing desktop Model menu use one bounded,
+profile-scoped read. It retains no automatic family cache or evidence event
+and does not select a model, call inference, change the draft or widen policy.
+Local/Remote endpoint families, aliases and synthetic lineage remain unknown.
+Provider-declared metadata is not independent-family or quality qualification.
+
+The additive migration marker preserves actual schema-33 role-origin
+candidates, ciphertext, receipts, independent raw-input/result grants and
+source-report deletion. Raw marker failure/reopen passes, measuring **2.44 ms**
+in the focused gate. Existing state must be migrated, never deleted.
+
+Current focused gates pass **19/19 in 15.99 s**, compiled CLI and native TUI
+inspection, strict type checks/declaration build and **two hidden desktop
+workflows in 2.0 s**. The integrated prerequisite spike passes **82/82 in
+96.98 s**. The actual built default Copilot adapter, keyring namespace,
+SDK/CLI/shared read, exact digest, unknown claims and secret/foreign rejection
+pass in **415.20 ms**, with five generated catalogue reads, zero model calls
+and zero evidence events. Its private child replaces only the OS keyring
+module with a generated memory backend and intercepts catalogue networking;
+neither personal credentials nor external inference is used.
+
+Both bounded desktop/compact inspection rounds are complete. Long claims and
+digests wrap inside the existing popover; unsupported/unknown/error and
+held-response model changes preserve the ordinary composer draft.
+Full source, independently installed archive and exact native delivery
+qualification are not yet complete. This is not a new qualified macOS archive.
+Frozen 0.27 and earlier bytes below remain unchanged; sandbox work stays paused.
+See [the model-evidence contract](architecture/model-evidence.md).
 
 <a id="development-027-canonical-final-role-proposals"></a>
 ### Current qualified 0.27.0-alpha.1 checkpoint

@@ -4,6 +4,7 @@ import { Icon } from "./Icon.tsx";
 import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
 import { ContextCompactionReview } from "./ContextCompaction.tsx";
+import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -219,7 +220,8 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div className="button-row"><button type="button" className="primary" disabled={!current || current.synthetic || !dirty || saving || pending || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </div>
-  </>}<button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>kupo Single settings</button></>;
+  </>}<ModelEvidencePanel sdk={sdk} model={current} scope={JSON.stringify([sdk.profileId, session.id, session.controls.env, current?.id])} remote={session.controls.env === "Remote"} />
+    <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>kupo Single settings</button></>;
 }
 
 function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; editor: DraftEditor }) {

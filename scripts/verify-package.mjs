@@ -10,6 +10,7 @@ import { generatedOAuthServer } from "../tests/fixtures/oauth.ts";
 import { tsImport } from "tsx/esm/api";
 import { generatedRepositoryMetadata } from "../tests/fixtures/repository-info.ts";
 import { qualifyCandidateGeneration } from "./qualify-candidate-generation.mjs";
+import { qualifyModelEvidence } from "./qualify-model-evidence.mjs";
 
 const { fixtureProvider } = await tsImport("../tests/fixture.ts", import.meta.url);
 const { createSshTarget } = await tsImport("../tests/fixtures/ssh-target.ts", import.meta.url);
@@ -48,6 +49,7 @@ let exit;
 const modelOptions = { maxOutputTokens: 128, responseMode: "text", replyText: "Generated packaged summary: preserve the retained task, observed outcomes and unresolved work." };
 try {
   modelFixture = await fixtureProvider(modelOptions);
+  if (PROTOCOL_VERSION >= 34) console.log(await qualifyModelEvidence({ node, packageRoot: root, directory: join(temporary, "generated-explicit-model-evidence") }));
   const preparedModel = await modelFixture.provider.prepare(modelFixture.modelId, AbortSignal.timeout(5000));
   const sshRoot = join(temporary, "generated-ssh"), remoteRoot = join(temporary, "generated-remote-project");
   await mkdir(sshRoot, { mode: 0o700 }); await mkdir(remoteRoot, { mode: 0o700 });
@@ -509,7 +511,11 @@ try {
       const evidence = { stateDir: join(fixture.directory, "state"), sequenceId: fixture.sequence.id, sessionId: fixture.sessionId,
         projectId: fixture.sequence.projectId, workspaceId: fixture.workspace.id, sourceRoot: fixture.project, patch: fixture.patch,
         origin: proposal.document.roleOrigin, commandId: fixture.sequence.commandId, commandDigest: fixture.sequence.commandDigest };
-      fixture.sdk.disconnect(); await fixture.service.close();
+      fixture.sdk.disconnect();
+      if (PROTOCOL_VERSION === 33) {
+        const { writeLegacyState } = await tsImport("../tests/fixtures/legacy-state.ts", import.meta.url);
+        await writeLegacyState(fixture.service, 33);
+      } else await fixture.service.close();
       const program = `
         import assert from "node:assert/strict";
         import {execFile,execFileSync} from "node:child_process";
