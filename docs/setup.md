@@ -1257,28 +1257,64 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.19 owned Remote consoles
+### Current qualified 0.19.0-alpha.1 checkpoint
 
-The development manifest is 0.19; the qualified SDK/app below remain
-**0.18.0-alpha.2 / protocol 24**. The
+**0.19.0-alpha.1 / protocol/database 25** qualifies the complete
+[Remote console slice](architecture/remote-user-consoles.md) through the
+service/SDK/CLI/actual OpenTUI/Ghostty. The
 [private Remote console prerequisite](architecture/remote-console-primitives.md)
-reuses the pinned SSH connector and authenticated broker for actual host
-PTY/root/no-replay/loss/cleanup checks. Five generated cases and both type
-checks pass. The development source now includes the complete protocol-25
-[Remote console slice](architecture/remote-user-consoles.md): immutable
-pre-resource owner/binding state, schema-preserving migration, actual host
-I/O, restart/SIGKILL/lost-input ACKs, missing-key restoration, profiles/
-concurrent capacity/cancellation and partial cleanup retry. CLI, actual
-OpenTUI and Ghostty share the same boundary and generation-safe input.
+reuses the pinned SSH connector and independent authenticated broker.
+Immutable pre-resource owner/binding intent precedes admission; migration
+preserves schema-24 state and existing Local owners. The public slice covers
+actual host I/O, restart/SIGKILL/lost-input ACKs, missing-key restoration,
+profile/alias isolation, concurrent aggregate capacity, cancellation and
+partial cleanup retry. All clients share the captured peer/root and
+generation-safe ephemeral input, without a selected model or new core-agent
+probe for already authenticated recovery.
+
 The corrected full source gate passes **548/548 in 416.23 s**, both type
 checks/build, source audit with zero vulnerabilities and **37/37 hidden
 desktop workflows in 1.3 min**. The first full run's optional-helper probe
 regression is preserved in the architecture history, not hidden by a padded
-fixture or Local fallback. Exact installed/packaged 0.19 acceptance remains
-pending; the current qualified artifacts below are unchanged.
-No Sandbox work was resumed.
+fixture or Local fallback. The exact SDK archive independently passes a
+fresh approved/rebuilt install, zero-vulnerability audit, all four external
+entrypoint types and actual installed Local/Remote owner/input/restart/
+CLI/TUI/no-replay/private-cleanup checks.
 
-### Current qualified 0.18.0-alpha.2 checkpoint
+All **37 workflows pass on the exact packaged app in 1.4 min**. Actual
+bundled Node/service/worker qualification covers provider-free SSH consoles,
+same owner/PID across restart, ordinary stop, prior Remote MCP/plan/model/
+compaction/accounting and Local consoles. The Remote cohort is stopped before
+the separate Local memory cohort; Remote PIDs/endpoints are never interpreted
+as Local.
+
+One/four Local consoles share one owner and retain their original PIDs.
+Electron aggregates measure **533.81 / 535.63 MiB**; combined
+Electron/service/broker totals are **875.70 / 879.94 MiB**. Generated user
+programs are separately reported. The original **600-MiB budget is
+Electron-only**, not the whole runtime.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.19.0-alpha.1-macos-arm64.dmg` | 377315532 | `86be87c43043647a40a5634340e6b608a0c92281e31615a4f12c8b2748bf26a4` |
+| `Moguri-0.19.0-alpha.1-macos-arm64.zip` | 283176621 | `03fca74e2456b955edbb2b3894cd37fa3c9ebb7578a6bb00d728c90d37071efe` |
+| `moguri-0.19.0-alpha.1.tgz` | 6804076 | `ba242c3f03e1c4322518019fb3c497829781fa2923e1d46e3450b07c5f0c5409` |
+
+App: `release/0.19.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Strict ad-hoc signature, actual mascot/Ghostty/speech assets and DMG integrity
+pass. The DMG exceeds chat's 64-MiB limit and remains local. Artifacts are
+**not notarized** and will not be repacked. Prior 0.18/0.17 archives remain
+unchanged. Existing OpenTUI experimental FFI, transitive
+`whatwg-encoding`/`node-domexception` deprecations, Ghostty size and optional
+newer `.icon` notices remain visible; explicit file-package script approval
+was completed and the actual `.icns` is verified.
+
+No personal authorization, paid inference, microphone, model weights, Sandbox
+probe, tag, release or merge occurred. Sandbox stays paused. Remote repository
+memory/authenticated GitHub CLI metadata, compound routing/wind-down/Max and
+gated later work remain unfinished.
+
+### Preserved qualified 0.18.0-alpha.2 checkpoint
 
 **0.18.0-alpha.2 / protocol/database 24** adds reviewed Remote MCP discovery
 and exact model/external calls, through the same SDK, owned SSH worker,
@@ -1318,8 +1354,8 @@ integrity pass. The DMG exceeds chat's 64-MiB limit and remains local.
 Artifacts are **not notarized**. No real authorization, paid inference,
 microphone, model weights, Sandbox probe, tag, release or merge occurred.
 Alpha.2, alpha.1 and older qualified archives remain immutable.
-The wider Remote console/memory/GitHub-CLI, compound routing/wind-down/Max
-and gated later work remain unfinished.
+At that checkpoint, the wider Remote console/memory/GitHub-CLI, compound
+routing/wind-down/Max and gated later work remained unfinished.
 
 ### Protocol-24 Remote MCP qualification history
 
