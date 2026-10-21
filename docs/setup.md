@@ -1294,9 +1294,10 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
-### Development 0.25 independently retained roles
+### Current qualified 0.25.0-alpha.1 checkpoint
 
-Current source is **0.25.0-alpha.1 / protocol and database 32**.
+Qualified **0.25.0-alpha.1 / protocol and database 32** includes the complete
+planned-capacity and acknowledged-worker prerequisites below.
 [Role observations](architecture/role-sequences.md) retain exact original
 scope/model/plan/command and each admitted input/raw result under their own
 artifact grant. They survive source retention without becoming user answers,
@@ -1309,9 +1310,55 @@ SDK `roleSequences.read(id, index?)`, CLI `roles ID [INDEX]`, native TUI
 Generic editing changes metadata only; active reports cannot be archived or
 deleted. Complete exports use version 4; earlier document formats stay intact.
 No create/run/accept/refund client action or public compound workflow is
-enabled. Source qualification is in progress; no immutable 0.25 delivery or
-real-family quality readiness is claimed. Frozen 0.23 stays unchanged and
-Sandbox remains paused.
+enabled. Real-family quality, finite kupo and accepted-work wind-down remain
+separate gates. Sandbox remains paused.
+
+Complete source compatibility passes **760/760 in 543.54 s**, with no failed,
+cancelled or skipped cases, both type checks/build and zero source audit
+findings. All **49 hidden source desktop workflows** and all **49 from the
+exact packaged app** pass in **1.8 min** each. Actual controller SIGKILL covers
+four retained-metadata phases in **1.66 s**, without resolving a checkout,
+preparing a model or replaying a request. Raw schema-31 rollback preserves
+genuine generation data, ciphertext, keys and receipts; the successful marker
+measures **2.20 ms**. Both bounded desktop/compact visual rounds are complete.
+
+Fresh temporary and exact delivered SDK archives independently install with
+explicit script approval/rebuild, zero audit findings and all four strict
+external entrypoint types. Their actual installed runtime/SDK/CLI/shared
+commands read source-independent role inputs/results, export version 4,
+reopen and preserve minimal deletion intent without inference. The exact
+delivered archive's **actual installed worker** also passes **12/12 private
+role/ledger probes in 3.64 s**. Three generated roles retain 126 reported tokens;
+a failed result insert keeps the original unknown 99-token hold and dispatches
+no next role. These are mechanical fixtures, not live quality measurements.
+
+The actual bundled Node/runtime/SDK/CLI independently reads retained role data
+after source deletion, exports version 4, reopens and rejects deleted original
+intent without model preparation. Its existing generation, separately reviewed
+stage/apply, Local/SSH, OAuth/MCP, memory, console and speech-runtime contracts
+also pass. The first external source-fixture copy failed with `EEXIST` because
+its no-overwrite destination was precreated; only the fixture seeder changed.
+That failure remains evidence, not a pass or a reason to weaken copy safety.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `release/Moguri-0.25.0-alpha.1-macos-arm64.dmg` | 360313873 | `3aef26cfd9dce09f12ebc6acd5ee48445a1eca966b02a1639e033cabf4edf981` |
+| `release/Moguri-0.25.0-alpha.1-macos-arm64.zip` | 283344940 | `e1df4d52edf5566e117a971ba05217822c6d7a72e1bba88436ad2e5c13b85c87` |
+| `release/moguri-0.25.0-alpha.1.tgz` | 7009257 | `28a94fc60e8a118f353c47272d4a2fc7a0b34e54e262a35c52611283e5205386` |
+
+App: `release/0.25.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Exact ad-hoc signature, declared icon, bundled Node 26.12.0, native assets,
+ZIP and DMG integrity pass. **Not notarized.** The DMG exceeds chat's 64-MiB
+attachment limit and remains local. These archives are frozen; final
+qualification notes do not repack them. The three 0.23 hashes were rechecked
+unchanged.
+
+Actual one/four-console **Electron-only aggregates are 535.09 / 539.22 MiB**,
+below the **600-MiB Electron-shell** budget. Combined Electron/service/broker
+totals are **876.38 / 881.55 MiB**; generated user programs are separate.
+The combined totals are not below 600 MiB. Known experimental FFI, transitive
+`whatwg-encoding`/`node-domexception`, lazy Ghostty chunk and optional newer
+`.icon` notices remain; the declared `.icns` is verified.
 
 ### Earlier 0.24 complete planned capacity
 
@@ -1357,10 +1404,12 @@ external entrypoint types and all earlier Local/SSH/generation/batch contracts
 pass with zero consumer vulnerabilities. Its **actual installed worker**
 passes all **12 private role/ledger probes in 3.84 s**, including real
 three-role/retention/reopen and failed-receipt unknown-hold preservation without
-another request. This is not an immutable 0.24 delivery or public compound
-workflow; the current qualified downloadable app/SDK remains 0.23 below.
+another request. This was a source prerequisite, not an immutable 0.24 delivery
+or public compound workflow. Its implementation is included in qualified 0.25
+above; frozen 0.23 remains preserved below.
 
-### Current qualified 0.23.0-alpha.1 checkpoint
+<a id="current-qualified-0230-alpha1-checkpoint"></a>
+### Preserved qualified 0.23.0-alpha.1 checkpoint
 
 Qualified **0.23.0-alpha.1 / protocol and database 31** includes the planned
 budget foundation and owned proposal generation.
