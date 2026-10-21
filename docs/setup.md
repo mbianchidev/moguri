@@ -1246,6 +1246,16 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
+### Development 0.19 Remote console prerequisite
+
+The development manifest is 0.19; the qualified SDK/app below remain
+**0.18.0-alpha.2 / protocol 24**. The
+[private Remote console prerequisite](architecture/remote-console-primitives.md)
+reuses the pinned SSH connector and authenticated broker for actual host
+PTY/root/no-replay/loss/cleanup checks. Five generated cases and both type
+checks pass. Public Remote console APIs, durable schema/recovery and client/
+archive acceptance remain unavailable. No Sandbox work was resumed.
+
 ### Current qualified 0.18.0-alpha.2 checkpoint
 
 **0.18.0-alpha.2 / protocol/database 24** adds reviewed Remote MCP discovery
