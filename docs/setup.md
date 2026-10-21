@@ -361,11 +361,13 @@ workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path i
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
-Install this exact protocol-24 worker build on the SSH host and probe it before
-new work; retained protocol-16 through protocol-23 receipts permit inspection, not continuation.
+Install this exact protocol-25 worker build on the SSH host and probe it before
+new work; retained protocol-16 through protocol-24 receipts permit inspection, not continuation.
 
-Remote embedded terminals, repository-memory retrieval and transferred Local
-scripts remain blocked. Remote MCP has an independent reviewed peer/resource
+Explicit Remote user consoles use the captured pinned host/root and independent
+authenticated owner through the same SDK/Ghostty. No model is required.
+Repository-memory retrieval and transferred Local scripts remain blocked.
+Remote MCP has an independent reviewed peer/resource
 grant and exact call approval; selecting Remote is never access authorization.
 Remote plan saves use an explicit reviewed binding
 and one owned provider-free filesystem operation; they do not use a Local
@@ -501,13 +503,15 @@ terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model
 context or durable command hashes. Closing the panel leaves its shell running;
 Close terminal stops the owned group. Explicit service restart reattaches the
-same authenticated Local owner/PTY while it survives; ordinary service stop
+same authenticated Local or pinned SSH owner/PTY while it survives; ordinary service stop
 closes its known groups. Missing owner/key/buffer is explicit, never a
 replacement or input replay. Inspect unconfirmed ownership before acknowledging it. The console is
-explicit Local user-controlled host execution, not an agent permission grant,
-folder containment, Sandbox or Remote. Allowed-env policy still applies.
-TUI rejects `/terminal` because it is already a terminal. Use `/terminals` for
-existing user consoles: `read ID [OFFSET]`, `reconcile ID`, `close ID`,
+explicit user-controlled host execution, not an agent permission grant,
+folder containment or Sandbox isolation. Allowed-env policy still applies.
+Remote shows its captured SSH host/root; it never silently opens a Local shell.
+TUI rejects `/terminal` because it is already a terminal. Use `/terminals open`
+for explicit new Local/Remote admission and `/terminals` for
+existing consoles: `read ID [OFFSET]`, `reconcile ID`, `close ID`,
 `owner-reconcile OWNER_ID`, or inspection acknowledgement with
 `confirm-inspected`. Owner metadata is profile-shared, including empty owners.
 CLI equivalents are `moguri terminal list|read|reconcile|close` and
@@ -519,8 +523,14 @@ record actual user inspection, not proven cleanup.
 Ghostty's reconnect control inspects the existing owner, never opens another
 shell. Hiding the panel or losing a connection discards queued unsent input;
 partly accepted input is not resent. Its owner inspector shows the actual
-Local root/PID and private-resource cleanup status, not the session's possibly
+Local/Remote root/PID, captured peer and private-resource cleanup status, not the session's possibly
 changed environment label.
+New Remote consoles require a current pinned helper probe. An already
+authenticated Remote console can receive allowed original-root input after
+service recovery without a new model/core-agent probe. Changing env, peer,
+project mapping or policy makes its view read-only, while retained read/close
+remain on the original host. The controller's Local shell never selects the
+Remote default shell. See [Remote ownership](architecture/remote-user-consoles.md).
 
 `moguri service restart` explicitly preserves user consoles; `service stop`
 and ordinary embedded `runtime.close()` stop them. Failed private cleanup
@@ -714,7 +724,8 @@ unknown forwarding receipt. Inspection remains available after revocation;
 **Reconcile receipts** reads an existing SSH run, never replays an effect.
 Revocation does not need an online/ready host. It also cannot undo access or
 external effects already received. Remote memory, transferred Local scripts
-and embedded Remote consoles remain unavailable. Exact current archive
+remain unavailable. Remote user consoles are an independent explicit
+user-open capability, not an MCP resource grant. Exact current archive
 qualification and preserved earlier identities are recorded below.
 
 ## Local NVIDIA dictation
@@ -1246,19 +1257,25 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.19 Remote console prerequisite
+### Development 0.19 owned Remote consoles
 
 The development manifest is 0.19; the qualified SDK/app below remain
 **0.18.0-alpha.2 / protocol 24**. The
 [private Remote console prerequisite](architecture/remote-console-primitives.md)
 reuses the pinned SSH connector and authenticated broker for actual host
 PTY/root/no-replay/loss/cleanup checks. Five generated cases and both type
-checks pass. The development source now includes protocol-25 immutable
-Remote owner/binding preparation and migration foundations, with Local
-compatibility and marker rollback. Development service/SDK Remote consoles
-now cover actual host I/O, restart/SIGKILL, missing keys and partial cleanup.
-Native client boundary UX and complete concurrency/cancellation/consumer/
-archive acceptance remain unqualified.
+checks pass. The development source now includes the complete protocol-25
+[Remote console slice](architecture/remote-user-consoles.md): immutable
+pre-resource owner/binding state, schema-preserving migration, actual host
+I/O, restart/SIGKILL/lost-input ACKs, missing-key restoration, profiles/
+concurrent capacity/cancellation and partial cleanup retry. CLI, actual
+OpenTUI and Ghostty share the same boundary and generation-safe input.
+The corrected full source gate passes **548/548 in 416.23 s**, both type
+checks/build, source audit with zero vulnerabilities and **37/37 hidden
+desktop workflows in 1.3 min**. The first full run's optional-helper probe
+regression is preserved in the architecture history, not hidden by a padded
+fixture or Local fallback. Exact installed/packaged 0.19 acceptance remains
+pending; the current qualified artifacts below are unchanged.
 No Sandbox work was resumed.
 
 ### Current qualified 0.18.0-alpha.2 checkpoint

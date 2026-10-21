@@ -22,8 +22,10 @@ review and configuration proposals; attention read state is not a user answer
 or tool decision. Project-free chats show a project-required state for workspace
 panels instead of reusing a previous root. Extensions remain a roadmap panel,
 with capability settings elsewhere. Full metrics,
-Stainless automation, protected/Remote terminals and
+Stainless automation, native Sandbox terminals and
 the remaining release acceptance checks are not claimed complete.
+Protocol-25 source adds explicit pinned SSH user consoles with captured-host
+Ghostty input/restart semantics, separately from protected process isolation.
 See [setup](../setup.md) and [D16](../architecture/decisions.md#d16-session-workspace-ghostty-and-retention).
 
 ## Purpose

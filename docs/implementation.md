@@ -37,6 +37,11 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > no-replay recovery. Read-only files/Git/plan views now share that SSH transport;
 > Remote console/extension/memory transport, native Sandbox
 > and routing are not implied complete by that foundation.
+> Protocol-24 reviewed Remote MCP and protocol-25
+> [owned Remote user consoles](architecture/remote-user-consoles.md) extend
+> that foundation through the same SDK and actual clients. Their pinned-peer
+> state, exact approvals/ownership and no-replay lifecycle do not qualify
+> native Sandbox, Remote repository memory or later routing/orchestration.
 
 > The [managed Local workspace slice](architecture/managed-workspaces.md) adds
 > explicit worktree creation/discovery/removal, change-set context, per-root
