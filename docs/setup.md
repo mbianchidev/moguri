@@ -1246,7 +1246,50 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Protocol-24 Remote MCP qualification
+### Current qualified 0.18.0-alpha.2 checkpoint
+
+**0.18.0-alpha.2 / protocol/database 24** adds reviewed Remote MCP discovery
+and exact model/external calls, through the same SDK, owned SSH worker,
+CLI/native TUI and factory-dark desktop. Grants bind the actual pinned
+peer/resource; authenticated access forwarding requires separate explicit
+consent and never includes refresh credentials. Cancellation, lost receipts,
+real service SIGKILL/restart and late reconciliation retain actual scope,
+actor and partial effects without another connector or false successful turn.
+
+The common protocol-24 implementation passes **519/519 source checks in
+330.19 s** and **35/35 source desktop workflows in 1.2 min**. Alpha.2 changes
+only the version and obsolete Remote SSH capability guidance, with matching
+documentation; its three affected source desktop flows pass in **11.4 s**.
+All **35 workflows pass on the exact alpha.2 packaged app in 1.2 min**.
+Both type checks, the exact independently installed/rebuilt SDK's four
+entrypoints, actual installed Runtime/CLI/TUI/SSH MCP and source/consumer
+audits pass. Both audits report zero vulnerabilities.
+
+Actual bundled Node/service/worker qualification includes approved OAuth/MCP,
+reviewed no-model pinned SSH plan and MCP operations, independent artifacts,
+model/compaction/attribution and restart-reattached user consoles.
+One/four consoles use one owner and reattach their original PIDs.
+Measured Electron aggregates are **534.81 / 536.77 MiB**; combined
+Electron/service/broker totals are **844.66 / 847.16 MiB**. Generated user
+programs are separately reported. The 600-MiB budget applies to Electron,
+not the whole application.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.18.0-alpha.2-macos-arm64.dmg` | 360405333 | `c05001a7e5507bf9ad2ffeb048fe2ca79e6fa4ee1f31d57781c94c3ecd4bc549` |
+| `Moguri-0.18.0-alpha.2-macos-arm64.zip` | 283135509 | `aa49bda8b900a0d09e13de2fc1e0b300d1f9768798a7b6b84908df1a018b24d8` |
+| `moguri-0.18.0-alpha.2.tgz` | 6761691 | `17c75569130856e3f01b7bb24c108e8bea6079fd8c2fd5e6209a5918edc92eed` |
+
+App: `release/0.18.0-alpha.2/Moguri-darwin-arm64/Moguri.app`.
+Strict ad-hoc signature, native icon/Ghostty/speech assets and actual DMG
+integrity pass. The DMG exceeds chat's 64-MiB limit and remains local.
+Artifacts are **not notarized**. No real authorization, paid inference,
+microphone, model weights, Sandbox probe, tag, release or merge occurred.
+Alpha.2, alpha.1 and older qualified archives remain immutable.
+The wider Remote console/memory/GitHub-CLI, compound routing/wind-down/Max
+and gated later work remain unfinished.
+
+### Protocol-24 Remote MCP qualification history
 
 The 0.18 source adds Remote MCP through the existing authority and worker. The
 [Remote MCP prerequisite](architecture/remote-mcp-primitives.md) uses the real
@@ -1296,8 +1339,8 @@ said executable MCP was unavailable, despite the actual verified
 implementation and new gateway UI. That stale capability sentence is corrected
 in **0.18.0-alpha.2**, with an explicit native regression assertion. Alpha.1
 artifacts remain byte-identical, not rebuilt/repacked to hide that discrepancy.
-Alpha.2 has the same protocol, schema and runtime behavior; its exact new
-artifacts still require independent qualification.
+Alpha.2 has the same protocol, schema and runtime behavior. Its independent
+exact-artifact qualification is recorded above.
 
 | Artifact | Bytes | SHA-256 |
 | --- | ---: | --- |
