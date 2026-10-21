@@ -1263,13 +1263,21 @@ The current source also runs exact approved model-owned and provider-free
 external MCP calls in the actual SSH worker, never the Local gateway.
 Original intents/results have encrypted session retention, explicit
 stop/partial outcomes and no-replay service-crash reconciliation, including
-after grant revocation. Native client integration and complete related/exact
-archive qualification remain unfinished. Shared CLI/TUI commands and the
+after grant revocation. Exact archive qualification remains unfinished.
+Shared CLI/TUI commands and the
 factory-dark desktop now expose exact review, separate forwarding consent,
 revocation and retained-operation inspection through the SDK. Actual OpenTUI
 and two hidden desktop workflows pass; no real credential was forwarded
 and no 0.18 archive is qualified by these generated checks.
 Sandbox work remains paused.
+
+The complete 0.18 source gate passes **519/519 checks in 330.19 s** and
+**35/35 hidden desktop workflows in 1.2 min**, including actual OpenTUI and
+the new Remote MCP workflows. Both type checks and source dependency audit
+pass; the audit reports zero vulnerabilities. These source results do not
+qualify an uninstalled SDK archive or untested packaged app. The existing
+OpenTUI experimental FFI warning and Ghostty chunk-size advisory remain;
+neither is suppressed or treated as a failed cancellation.
 
 ### Current qualified 0.17 checkpoint
 
