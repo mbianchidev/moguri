@@ -362,8 +362,8 @@ CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
 still apply. Changed target/root/policy or a disconnect rejects the read.
 Install the worker matching the SDK/service you use and probe it before new
-work: qualified 0.19 uses protocol 25; current 0.20 development uses protocol
-26. Older run receipts permit inspection, not continuation.
+work: qualified 0.20 uses protocol 26. Older run receipts permit inspection,
+not continuation.
 
 Explicit Remote user consoles use the captured pinned host/root and independent
 authenticated owner through the same SDK/Ghostty. No model is required.
@@ -1057,14 +1057,14 @@ not guesses from project/owner names or today's repository state.
 Dashboard choose an explicit bound session, review its actual Local/worktree
 or pinned SSH root, then request the displayed GitHub lookup. Public access
 uses the control-plane API without credentials; Local `gh-cli` uses the
-explicitly selected project account. Protocol-26 development adds Remote
+explicitly selected project account. Protocol 26 adds Remote
 `gh-cli` using the selected SSH host's account, never a controller account or
 root fallback. Install/authenticate `gh` on that host yourself, choose project
 GitHub CLI access, then review the displayed host/key/root before refreshing.
 The observation retains its captured peer and build. Missing tools/accounts,
 stale authority or control loss cannot silently substitute public/Local access.
 Linked-PR observation and client attachments retain their existing explicit
-control-plane reads. Exact 0.20 archive acceptance remains pending.
+control-plane reads.
 
 ```bash
 node bin/moguri.mjs repository preview --session SESSION_ID
@@ -1264,9 +1264,9 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.20 Remote GitHub repository metadata
+### Current qualified 0.20.0-alpha.1 checkpoint
 
-Current development uses **0.20.0-alpha.1 / protocol/database 26**.
+**0.20.0-alpha.1 / protocol/database 26** is independently qualified.
 The [Remote metadata slice](architecture/remote-github-metadata.md) adds
 explicit repository-only GETs through the pinned SSH host's existing `gh`
 account. Shared SDK/CLI/native TUI/desktop review shows its actual
@@ -1281,10 +1281,41 @@ zero-vulnerability source audit and **39/39 hidden desktop workflows in
 1.4 min**. Real service SIGKILL covers pending/completed reads, cancellation,
 profile isolation and no-replay original receipts. The isolated compiled
 console broker/bridge remain byte-identical to qualified 0.19.
-Exact installed/packaged 0.20 acceptance is still separate; the qualified
-0.19 artifacts below remain unchanged. Sandbox stays paused.
 
-### Current qualified 0.19.0-alpha.1 checkpoint
+The exact SDK passes a fresh approved/rebuilt install, zero-vulnerability
+consumer audit, all four external entrypoint types and actual installed
+pinned-SSH account/home/cwd/CLI/TUI/provenance/restart without another request
+or controller fallback. Actual installed Local/Remote console and prior
+model/role/compaction/plan/MCP/profile/budget gates pass unchanged.
+
+All **39 workflows pass on the exact packaged desktop in 1.5 min**.
+Actual bundled Node independently verifies private Remote `gh` origin,
+whitelisted facts, CLI/restart retention, prior Remote MCP/plan and
+original-owner console restart/stop. One/four Local consoles share one owner:
+Electron aggregates are **538.28 / 540.48 MiB**; combined
+Electron/service/broker totals are **885.45 / 894.83 MiB**. Generated user
+programs are separate. The original **600-MiB budget is Electron-only**.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `Moguri-0.20.0-alpha.1-macos-arm64.dmg` | 378746339 | `2fd25ffa3705a54196491d7f8a9496c0594356f9940f1fd35968acbb14912780` |
+| `Moguri-0.20.0-alpha.1-macos-arm64.zip` | 283182031 | `560c4c4154225753e1d639ca3809b7f024666345dfccaff4e105bd6d76dc1ebb` |
+| `moguri-0.20.0-alpha.1.tgz` | 6815659 | `dc8c705e022a695522d29f5b53090cdb9d75327cb761e7098179de23eccb0cb0` |
+
+App: `release/0.20.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+Ad-hoc signature, actual icon/Ghostty/speech assets and DMG integrity pass.
+Artifacts are **not notarized** and will not be repacked. The DMG exceeds
+chat's 64-MiB limit and stays local. Earlier qualified archives are unchanged.
+Existing FFI, transitive `whatwg-encoding`/`node-domexception` deprecation,
+Ghostty size and optional newer `.icon` notices remain visible. Explicit file
+script approval completed before rebuild; actual `.icns` is verified.
+
+No personal authorization, paid inference, microphone, model weights,
+Sandbox probe, tag, release or merge occurred. Sandbox stays paused.
+Remote repository memory, compound routing/wind-down/Max and gated later
+work remain unfinished.
+
+### Preserved qualified 0.19.0-alpha.1 checkpoint
 
 **0.19.0-alpha.1 / protocol/database 25** qualifies the complete
 [Remote console slice](architecture/remote-user-consoles.md) through the
@@ -1337,9 +1368,9 @@ newer `.icon` notices remain visible; explicit file-package script approval
 was completed and the actual `.icns` is verified.
 
 No personal authorization, paid inference, microphone, model weights, Sandbox
-probe, tag, release or merge occurred. Sandbox stays paused. Remote repository
+probe, tag, release or merge occurred. At that checkpoint, Remote repository
 memory/authenticated GitHub CLI metadata, compound routing/wind-down/Max and
-gated later work remain unfinished.
+gated later work remained unfinished.
 
 ### Preserved qualified 0.18.0-alpha.2 checkpoint
 
