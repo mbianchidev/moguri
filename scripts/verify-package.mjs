@@ -473,7 +473,7 @@ try {
   }
   if (PROTOCOL_VERSION >= 32) {
     const state = join(temporary, "generated-bundled-role-state");
-    const evidence = JSON.parse(execFileSync(process.execPath, ["--import", "tsx", resolve("tests/fixtures/role-sequence-export.ts"), state], { encoding: "utf8" }));
+    const evidence = JSON.parse(execFileSync(process.execPath, ["--import", "tsx", resolve("tests/fixtures/role-sequence-export.ts"), state, String(PROTOCOL_VERSION)], { encoding: "utf8" }));
     const program = `
       import assert from "node:assert/strict";
       import {execFile} from "node:child_process";

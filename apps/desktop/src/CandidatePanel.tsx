@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, CandidateStagePreview, CandidateGenerationResponse, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, CandidateStagePreview, CandidateGenerationResponse, CandidateRoleReference, CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { CandidateGenerationPanel } from "./CandidateGenerationPanel.tsx";
+import { CandidateRoleProposalPanel } from "./CandidateRoleProposalPanel.tsx";
 
 interface DraftFile { path: string; baseDigest: string; baseText: string; text: string }
 const summaryDefault = "Review repository changes";
 export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: MoguriSdk; snapshot: Snapshot; session?: Session; onDirty: (dirty: boolean) => void }) {
   const [summary, setSummary] = useState(summaryDefault), [stageId, setStageId] = useState(""), [path, setPath] = useState("");
   const [files, setFiles] = useState<DraftFile[]>([]), [fileIndex, setFileIndex] = useState(0), [draftScope, setDraftScope] = useState<string | null>(null);
-  const [generationOrigin, setGenerationOrigin] = useState<string | undefined>(), [generationDirty, setGenerationDirty] = useState(false);
+  const [modelOrigin, setModelOrigin] = useState<string | CandidateRoleReference | undefined>(), [generationDirty, setGenerationDirty] = useState(false);
   const [preview, setPreview] = useState<{ value: CandidateStagePreview; scope: string; sessionId: string; stageId: string } | null>(null);
   const [selectedId, setSelectedId] = useState(""), [document, setDocument] = useState<CandidateDocument | null>(null);
   const [application, setApplication] = useState<{ value: CandidateApplyPreview; scope: string } | null>(null);
@@ -21,13 +22,13 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const changedScope = draftScope !== null && draftScope !== scope;
   const local = Boolean(session?.projectId && session.controls.env === "Local" && snapshot.policy.allowedEnvs.includes("Local"));
   const writable = local && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId;
-  const dirty = files.some((file) => file.baseDigest === "absent" || file.text !== file.baseText);
+  const dirty = summary !== summaryDefault || files.some((file) => file.baseDigest === "absent" || file.text !== file.baseText);
   const stages = snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session.workspaceId && workspace.status === "ready");
   const candidates = snapshot.candidates.filter((candidate) => !session?.projectId || candidate.projectId === session.projectId || candidate.id === selectedId).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const artifact = snapshot.artifacts.find((artifact) => artifact.id === selectedId);
   const active = selected && ["staging", "applying"].includes(selected.status);
   useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, onDirty]);
-  useEffect(() => { generation.current++; setPreview(null); setApplication(null); if (!files.length) { setDraftScope(null); setStageId(""); } }, [scope]);
+  useEffect(() => { generation.current++; setPreview(null); setApplication(null); if (!files.length && summary === summaryDefault) { setDraftScope(null); setStageId(""); } }, [scope]);
   useEffect(() => { setApplication(null); }, [selectedId, selected?.revision]);
   useEffect(() => {
     const token = ++documentGeneration.current; setDocument(null);
@@ -47,23 +48,31 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     if (!current()) return;
     if (files.some((file) => file.path.normalize("NFC").toLowerCase() === value.path.normalize("NFC").toLowerCase())) throw new Error("This file is already in the proposal. Select it below instead of adding an alias.");
     setFiles([...files, { path: value.path, baseDigest: value.digest, baseText: value.text, text: value.text }]); setFileIndex(files.length);
-    setDraftScope(scope); setPreview(null); setPath(""); setGenerationOrigin(undefined);
+    setDraftScope(scope); setPreview(null); setPath(""); setModelOrigin(undefined);
   });
   const draft = (): CandidatePatch => ({ kind: "patch", summary, edits: files.map(({ path, baseDigest, text }) => ({ path, baseDigest, text })) });
-  const reset = () => { generation.current++; setFiles([]); setFileIndex(0); setDraftScope(null); setPreview(null); setStageId(""); setSummary(summaryDefault); setError(""); setGenerationOrigin(undefined); };
+  const reset = () => { generation.current++; setFiles([]); setFileIndex(0); setDraftScope(null); setPreview(null); setStageId(""); setSummary(summaryDefault); setError(""); setModelOrigin(undefined); };
   const sourceRoot = session?.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.path : project?.path;
-  const loadGenerated = (value: Extract<CandidateGenerationResponse, { type: "candidate.generation.read" }>) => {
-    if (!writable || dirty || !session || value.generation.status !== "proposed" || !value.proposal || value.input.source.root !== sourceRoot ||
-      value.input.source.projectId !== session.projectId || value.input.source.workspaceId !== session.workspaceId || !value.input.stage.workspaceId) throw new Error("Keep the exact compatible Local source and discard/copy unsaved edits before loading a generated proposal.");
-    const selected = value.proposal.patch.edits.map((edit) => {
-      const source = value.input.files.find((file) => file.path === edit.path && file.baseDigest === edit.baseDigest);
+  const loadModelProposal = (document: CandidateDocument, sources: Array<{ path: string; baseDigest: string; text: string | null }>, origin: string | CandidateRoleReference) => {
+    if (!writable || dirty || !session || document.source.root !== sourceRoot || document.source.projectId !== session.projectId ||
+      document.source.workspaceId !== session.workspaceId || !document.stage.workspaceId) throw new Error("Keep the exact compatible Local source and discard/copy unsaved edits before loading a model proposal.");
+    const selected = document.patch.edits.map((edit) => {
+      const source = sources.find((file) => file.path === edit.path && file.baseDigest === edit.baseDigest);
       if (!source) throw new Error("The generated edit lost its exact original source snapshot.");
       return { ...edit, baseText: source.text ?? "" };
     });
-    setFiles(selected); setFileIndex(0); setSummary(value.proposal.patch.summary); setStageId(value.input.stage.workspaceId);
-    setDraftScope(scope); setGenerationOrigin(value.generation.id); setPreview(null); setSelectedId(""); setError("");
-    setNotice("Generated bytes loaded locally. Review exact staging first; source application remains a separate actual-user action.");
+    setFiles(selected); setFileIndex(0); setSummary(document.patch.summary); setStageId(document.stage.workspaceId);
+    setDraftScope(scope); setModelOrigin(origin); setPreview(null); setSelectedId(""); setError("");
     requestAnimationFrame(() => { proposalEditor.current?.focus(); proposalEditor.current?.scrollIntoView({ block: "nearest" }); });
+  };
+  const loadGenerated = (value: Extract<CandidateGenerationResponse, { type: "candidate.generation.read" }>) => {
+    if (value.generation.status !== "proposed" || !value.proposal) throw new Error("Choose an exact retained proposed generation.");
+    loadModelProposal(value.proposal, value.input.files, value.generation.id);
+    setNotice("Generated bytes loaded locally. Review exact staging first; source application remains a separate actual-user action.");
+  };
+  const loadRole = (value: CandidateRoleProposalRead) => {
+    loadModelProposal(value.document, value.sourceFiles, { roleSequenceId: value.document.roleOrigin.sequenceId });
+    setNotice("Canonical final-role bytes loaded locally. Review staging and source application separately. No model or file write was started.");
   };
   return <section className="candidate-panel" aria-label="Reviewed repository candidates" aria-busy={Boolean(busy)}>
     <p className="fine-print">Stage in a separate owned worktree. Review exact bytes before publishing to the source. Manual staging/application use no model; optional generation is explicit and metered. No commit or push.</p>
@@ -76,12 +85,15 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
     {changedScope && <p className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</p>}
     <CandidateGenerationPanel sdk={sdk} snapshot={snapshot} session={session} stageId={stageId} files={files.map(({ path, baseDigest }) => ({ path, baseDigest }))}
-      scope={scope} sourceRoot={sourceRoot} writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty} loadedGenerationId={generationOrigin} onDirty={setGenerationDirty} onLoad={loadGenerated} />
+      scope={scope} sourceRoot={sourceRoot} writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty} loadedGenerationId={typeof modelOrigin === "string" ? modelOrigin : undefined} onDirty={setGenerationDirty} onLoad={loadGenerated} />
+    <CandidateRoleProposalPanel sdk={sdk} snapshot={snapshot} session={session} scope={scope} sourceRoot={sourceRoot}
+      writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty || generationDirty}
+      loadedSequenceId={typeof modelOrigin === "object" ? modelOrigin.roleSequenceId : undefined} onLoad={loadRole} />
     <details className="candidate-section" open={!selectedId}>
       <summary>Draft a proposal</summary>
-      <label className="setting-field">Summary<input aria-label="Candidate summary" value={summary} maxLength={1200} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setSummary(event.target.value); setPreview(null); setGenerationOrigin(undefined); }} /></label>
-      {generationOrigin && <p className="fine-print">Canonical generated proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</p>}
-      <label className="setting-field">Staging worktree<select aria-label="Candidate staging worktree" value={stageId} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setStageId(event.target.value); setPreview(null); setGenerationOrigin(undefined); }}>
+      <label className="setting-field">Summary<input aria-label="Candidate summary" value={summary} maxLength={1200} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setSummary(event.target.value); if (draftScope === null) setDraftScope(scope); setPreview(null); setModelOrigin(undefined); }} /></label>
+      {modelOrigin && <p className="fine-print">Canonical model proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</p>}
+      <label className="setting-field">Staging worktree<select aria-label="Candidate staging worktree" value={stageId} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setStageId(event.target.value); setPreview(null); setModelOrigin(undefined); }}>
         <option value="">Choose a separate owned worktree</option>{stages.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.branch}</option>)}
       </select></label>
       <p className="fine-print">The service checks clean state and the exact source HEAD on preview. Create/select a new worktree explicitly with Project settings or <code>/workspace create BRANCH</code>; no branch is created here.</p>
@@ -91,27 +103,28 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
       {files.length > 0 && <><label className="setting-field">Proposed file<select aria-label="Proposed candidate file" value={String(fileIndex)} disabled={Boolean(busy)} onChange={(event) => setFileIndex(Number(event.target.value))}>{files.map((file, index) => <option key={file.path} value={String(index)}>{file.path} / {file.baseDigest === "absent" ? "new" : "replace"}</option>)}</select></label>
         {selectedFile && <><p className="fine-print path">Recorded base: <code>{selectedFile.baseDigest}</code></p>
           <label className="setting-field">Proposed bytes<textarea ref={proposalEditor} aria-label="Proposed file text" spellCheck={false} value={selectedFile.text} readOnly={changedScope || !writable} disabled={Boolean(busy)} onChange={(event) => {
-            setFiles(files.map((file, index) => index === fileIndex ? { ...file, text: event.target.value } : file)); setPreview(null); setGenerationOrigin(undefined);
+            setFiles(files.map((file, index) => index === fileIndex ? { ...file, text: event.target.value } : file)); setPreview(null); setModelOrigin(undefined);
           }} /></label>
-          <button disabled={Boolean(busy)} onClick={() => { const next = files.filter((_, index) => index !== fileIndex); setFiles(next); setFileIndex(0); setPreview(null); setGenerationOrigin(undefined); if (!next.length) setDraftScope(null); }}>Remove file from proposal</button></>}
+          <button disabled={Boolean(busy)} onClick={() => { const next = files.filter((_, index) => index !== fileIndex); setFiles(next); setFileIndex(0); setPreview(null); setModelOrigin(undefined); if (!next.length) setDraftScope(null); }}>Remove file from proposal</button></>}
       </>}
-      <div className="button-row"><button disabled={Boolean(busy) || !writable || changedScope || !dirty || !stageId || !summary.trim()} onClick={() => void run("Reviewing staging", async (current) => {
+      <div className="button-row"><button disabled={Boolean(busy) || !writable || changedScope || !dirty || !files.length || !stageId || !summary.trim()} onClick={() => void run("Reviewing staging", async (current) => {
         if (!session) return;
-        const value = (await sdk.candidates.preview(session.id, stageId, draft())).preview;
+        const value = (await sdk.candidates.preview(session.id, stageId, draft(), typeof modelOrigin === "object" ? modelOrigin : undefined)).preview;
         if (current()) setPreview({ value, scope, sessionId: session.id, stageId });
       })}>Review staging</button>
         <button className="primary" disabled={Boolean(busy) || !writable || changedScope || !preview || preview.scope !== scope} onClick={() => void run("Staging exact proposal", async (current) => {
           if (!preview) return;
-          const captured = preview, created = await sdk.candidates.stage(captured.sessionId, captured.stageId, captured.value.document.patch, captured.value.digest, generationOrigin);
+          const captured = preview, created = await sdk.candidates.stage(captured.sessionId, captured.stageId, captured.value.document.patch, captured.value.digest, modelOrigin);
           if (current()) setSelectedId(created.id!);
           const result = await sdk.candidates.wait(created.id!);
           if (!current()) return;
           if (result.candidate.status === "staged") { reset(); setSelectedId(result.candidate.id); setNotice("Staged separately. Source files are unchanged; review application before publishing."); }
           else setError(`Candidate ${result.candidate.status}. ${result.candidate.diagnostic ?? "Inspect the retained roots and original job; no success or rollback was inferred."}`);
         })}>Stage reviewed proposal</button>
-        <button disabled={Boolean(busy) || !files.length && !changedScope} onClick={reset}>Discard local proposal</button></div>
+        <button disabled={Boolean(busy) || !files.length && !changedScope && !dirty} onClick={reset}>Discard local proposal</button></div>
       {preview && preview.scope === scope && <div className="candidate-binding" aria-label="Exact staging preview">
         <p className="fine-print path">Local source: {preview.value.document.source.root}<br />Owned stage: {preview.value.document.stage.root}</p>
+        {preview.value.warning && <p className="settings-warning">{preview.value.warning}</p>}
         <p className="fine-print">{preview.value.document.patch.edits.length} exact files / base <code>{preview.value.document.source.head.slice(0, 12)}</code>. Staging does not accept or apply them.</p>
       </div>}
     </details>
@@ -121,7 +134,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
       </header>
       <p className="fine-print path">Local source: {selected.source.branch} / base <code>{selected.source.head.slice(0, 12)}</code></p>
       <details open={selected.status === "partial"}><summary>Captured Local source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage branch: {selected.stage.branch}</p></details>
-      <p className="fine-print">{selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
+      <p className="fine-print">{selected.roleOrigin ? "Derived from the exact final retained model role. Its independent origin is not quality or acceptance." : selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
       {selected.stopRequested && <p className="fine-print">Owned stop was requested; the actual outcome is {selected.status}.</p>}
       {selected.diagnostic && <p className={selected.status === "partial" ? "settings-warning" : "inline-error"} role="alert">{selected.diagnostic}</p>}
       <p className="fine-print">Staged: {selected.stagedPaths.length}/{selected.paths.length}. Source attempts: {selected.attemptedPaths.length}. Confirmed source publications: {selected.appliedPaths.length}.</p>

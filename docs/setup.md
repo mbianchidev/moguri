@@ -1294,9 +1294,38 @@ see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
 
-### Development 0.26 internal owned-role execution
+### Development 0.27 canonical final-role proposals
 
-Current source is **0.26.0-alpha.1 / protocol and database 32**. The internal
+Current source is **0.27.0-alpha.1 / protocol and database 33**.
+[Final-role proposals](architecture/role-proposals.md) link an actual retained
+final draft/revision/escalation to an exact separately reviewed candidate.
+SDK `candidates.roleProposal(ID)`, CLI `candidate role-proposal ID`, and native
+TUI `/candidate role-proposal ID` inspect original model/context/result evidence
+without another model or live source lookup. Completed critic/router data and
+partial/stopped work cannot become code proposers.
+
+For CLI preview/stage, use `--role-sequence ID` to bind that exact origin into
+the preview digest, then the normal `--confirm-write`. Shared preview/stage JSON
+uses `roleSequenceId`. Do not mix it with a generation ID. Desktop's existing
+Candidates panel exposes **Load a retained role proposal** when completed
+proposers exist; loading only fills its local editor. Dirty summary/files/tasks
+and changed scopes remain protected. Edits clear verified attribution.
+
+Staging retains a separate copy of the original sequence/role input and raw
+result, disclosed in its exact preview. Candidate history survives deletion
+of the source report/session; exports use version 5. Source application remains
+a separate fresh actual-user review. No implicit inference, validation,
+acceptance, Git commit or public compound mode is added.
+
+Targeted backend/state, compiled/shared/native TUI and two hidden desktop flows
+pass with both type checks/build. Raw schema-32 migration rollback preserves
+all ciphertext/keys/receipts/role data. Whole-source, installed-consumer and
+exact native delivery remain pending; frozen 0.25 and qualified 0.26 source
+are preserved. Sandbox and live personal inference stay off.
+
+### Qualified 0.26 internal owned-role source
+
+That qualified source checkpoint used **0.26.0-alpha.1 / protocol and database 32**. The internal
 [owned executor](architecture/role-sequences.md#internal-owned-execution-026-source)
 now connects complete selected-source/policy/model/context snapshots and
 planned holds to the actual control plane/worker. Every earlier possible
