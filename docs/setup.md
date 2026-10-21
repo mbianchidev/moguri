@@ -1313,7 +1313,20 @@ independent-family proof, quality/acceptance or public finite kupo.
 
 The coupled source gate passes **38/38 in 95.50 s**, including four actual
 controller SIGKILL phases in **9.18 s**, both type checks and declaration build.
-Whole-source, installed-consumer and desktop compatibility are pending.
+Fresh temporary SDK installation, explicit script approval/rebuild, zero
+consumer vulnerabilities and four external entrypoint types pass. Its actual
+installed controller/worker performs three bounded roles, retains 126 reported
+tokens and explicit untrusted contexts, preserves both checkouts/index/HEAD
+and exposes SDK/CLI/shared reads. Source deletion/reopen and missing/deleted
+original intent cannot replay another paid call. The actual installed worker's
+12 private transport/ledger probes pass in **3.53 s**.
+The extended compound spike passes **60/60 in 56.12 s**, now including actual
+controller ownership/recovery and the shared positive-bound predicate.
+Complete source compatibility passes **781/781 in 602.46 s**, with no failed,
+cancelled or skipped cases. All **49 hidden source desktop workflows pass in
+1.8 min**; source audit is zero. The first full attempt was stopped for the
+extracted predicate's nullable-capacity type error; the explicit safe positive
+bound and regression fix it. That interrupted attempt is not a passed gate.
 No immutable 0.26 app/archive is claimed. Qualified 0.25 and earlier artifacts
 stay frozen; live personal inference stays off and Sandbox stays paused.
 
