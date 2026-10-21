@@ -1309,9 +1309,14 @@ private profiles and post-publication partial outcomes are explicit.
 The source desktop and Local compatibility flows pass **5/5 in 13.3 s**;
 both bounded desktop/compact visual rounds are complete.
 
-Full source and exact independently installed/packaged 0.21 acceptance remain
-pending. No 0.21 SDK/app archive is qualified. The exact 0.20 delivery below
-remains unchanged; Sandbox stays paused.
+The complete corrected source gate passes **590/590 in 430.34 s**, both type
+checks/build, zero-vulnerability source audit and **41/41 hidden source
+desktop workflows in 1.5 min**. The first full run's only failure was an old
+Local-only error wording assertion; it now checks the unchanged typed
+`memory_disabled` denial rather than constraining cross-env guidance.
+Exact independently installed/packaged 0.21 acceptance remains pending.
+No 0.21 SDK/app archive is qualified. The exact 0.20 delivery below remains
+unchanged; Sandbox stays paused.
 
 ### Current qualified 0.20.0-alpha.1 checkpoint
 
