@@ -1290,9 +1290,10 @@ Packager may warn that the optional newer `.icon` format is absent; this build
 uses the generated `.icns`, which package verification checks against its
 declared native bundle icon.
 
-### Development 0.23 owned proposal generation
+### Current qualified 0.23.0-alpha.1 checkpoint
 
-Current source is **0.23.0-alpha.1 / protocol and database 31**.
+Qualified **0.23.0-alpha.1 / protocol and database 31** includes the planned
+budget foundation and owned proposal generation.
 [Owned proposal generation](architecture/candidate-generations.md) adds one
 explicitly cost-reviewed, tool-less fixed-model Local draft through the existing
 worker/ledger. Desktop **Candidates / Generate a separate model proposal** uses
@@ -1323,12 +1324,50 @@ does not stop the model. Actual SIGKILL covers before admission, in flight,
 before result retention and retained output without replay. Schema-30 marker
 failure preserves raw ciphertext/keys/receipts and planned capacity.
 
-Focused client/state/retention/accounting/recovery checks and both hidden
-desktop generation flows pass; full source, external installed SDK and native
-delivery qualification are recorded separately when complete. Both bounded
-desktop/compact visual rounds are complete. This is not compound routing,
-real-model quality calibration, finite kupo or Remote generation. Sandbox
-remains paused; immutable 0.22 and older deliveries are unchanged.
+The complete source gate passes **720/720 in 519.93 s**, both type checks/build
+and zero audit findings. All **47 hidden source desktop workflows** pass in
+**1.7 min** and all **47 from the exact packaged app** in **1.8 min**.
+The focused generation/state/client gate passes **23/23 in 33.17 s**, including
+actual four-phase controller SIGKILL in **5.25 s** and the measured schema marker
+in **0.82 ms** after exact rollback. Both bounded desktop/compact visual rounds
+are complete.
+
+Fresh temporary and exact delivered SDK archives independently install with
+explicit script approval/rebuild, zero audit findings and all four strict
+external entrypoint types. Actual installed SDK/CLI/shared generation uses the
+real owned worker/draft ledger, immutable model provenance and version-3
+history, then separately stages/applies and recovers missing-receipt intent
+without another request. The actual bundled Node/service/worker/SDK/CLI passes
+the same generation path and the preserved Local/SSH/runtime contracts.
+
+The first full source attempt had **719/720** due to an existing SSH
+connectivity fixture's generated-directory `ENOTEMPTY` cleanup. Its isolated
+seven cases and the complete rerun pass without changing production code or
+policy. Failed cleanup is not counted as qualification.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `release/Moguri-0.23.0-alpha.1-macos-arm64.dmg` | 372440230 | `84de54f7bce0f1a5e44b54f98803ab3460268aea7c942dc9ea51d86df06ea11f` |
+| `release/Moguri-0.23.0-alpha.1-macos-arm64.zip` | 283321470 | `914748e9f19a0b3ef6a4ce83922e360388c79f4e59a297d4902cdac4e9fe6485` |
+| `release/moguri-0.23.0-alpha.1.tgz` | 6977966 | `30a9307a1d094b5717a72867d4e9903d911be9ad6f423e3871d03152256d6785` |
+
+App: `release/0.23.0-alpha.1/Moguri-darwin-arm64/Moguri.app`.
+The exact ad-hoc signature, icon, Ghostty/speech assets, bundled Node 26.12.0,
+archive and DMG integrity pass. **Not notarized.** The DMG exceeds chat's
+64-MiB attachment limit and remains local. All qualified archives are frozen;
+the three 0.22 hashes were rechecked unchanged.
+
+Actual one/four-console **Electron-only aggregates are 534.84 / 538.66 MiB**,
+below the **600-MiB Electron-shell** acceptance budget. Combined
+Electron/service/broker totals are **900.48 / 904.58 MiB**; generated user
+programs are separate. Never describe the combined totals as under 600 MiB.
+Known experimental FFI, transitive `whatwg-encoding`/`node-domexception`,
+645.50-kB lazy Ghostty chunk and optional newer `.icon` notices remain
+documented; the declared `.icns` is verified.
+
+This is not completed compound routing, real-model quality calibration,
+finite kupo or Remote generation. Sandbox remains paused; immutable 0.22 and
+older deliveries are unchanged.
 
 ### Earlier 0.23 planned-budget foundation
 
@@ -1361,8 +1400,8 @@ protocol-30 SDK passes explicit installation approval/rebuild, zero consumer
 audit findings, all four external entrypoint types, real installed planned-hold
 SDK/CLI/shared queries and source-deletion/restart release without model calls,
 alongside the earlier Local/SSH/runtime contracts. Source audit is zero.
-No immutable 0.23 app/archive is qualified; frozen 0.22 and older artifacts are
-unchanged. Production compound ownership, actual checkpoint-policy integration
+That source checkpoint did not qualify an immutable 0.23 app/archive; frozen
+0.22 and older artifacts were unchanged. Production compound ownership, actual checkpoint-policy integration
 and real-model quality remain gated. Sandbox stays paused.
 
 ### Earlier 0.23 reserved-checkpoint prerequisite
@@ -1386,12 +1425,14 @@ fixture, not a public delegated-policy implementation.
 
 A temporary packed SDK passes fresh approved/rebuilt installation, four
 external entrypoint types and existing actual Local/SSH/runtime workflows;
-source/consumer audits are zero. No new 0.23 archive/app is qualified.
+source/consumer audits are zero. That prerequisite did not qualify a new 0.23 archive/app.
 Production compound integration, durable unused-envelope/wind-down outcomes,
 real-family quality and public finite kupo remain blocked. Sandbox stays
 paused; immutable 0.22 and older artifacts are unchanged.
 
-### Current qualified 0.22.0-alpha.1 checkpoint
+<a id="current-qualified-0220-alpha1-checkpoint"></a>
+
+### Preserved qualified 0.22.0-alpha.1 checkpoint
 
 Qualified **0.22.0-alpha.1**, protocol/database **29**, adds the manual Local
 reviewed-candidate workflow.
