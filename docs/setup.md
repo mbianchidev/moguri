@@ -54,6 +54,12 @@ DOCX extraction covers body paragraphs/headings/tables, not full visual layout.
 See the [complete contract](architecture/document-attachments.md) for memory
 watchdogs, provenance, recovery and supported limitations.
 
+Existing state upgrades in place through additive schema-42/43 migrations.
+Restart older clients and the service before connecting the matching SDK.
+Keep the original state directory and encryption backend; do not delete state
+to upgrade. Completed document snapshots survive restart without reparsing;
+interrupted captures do not replay or consume the unsent draft.
+
 Current source adds [estimated task completion](architecture/task-progress.md)
 from protocol/database 42. Desktop and TUI always expose the bound-plan checklist,
 rechecked every 15 seconds. Long-running tasks can include separately labeled
