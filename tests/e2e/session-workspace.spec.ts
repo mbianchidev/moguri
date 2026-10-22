@@ -68,6 +68,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: "Run queued message 1", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests.length).toBe(1);
+    await page.locator(".message.user").last().hover();
     await page.getByRole("button", { name: /^Copy sent prompt / }).click();
     await slash("/agent");
     await expect.poll(() => fixture.session().mode).toBe("agent");

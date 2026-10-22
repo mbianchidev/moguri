@@ -49,7 +49,7 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1440, 900));
     const wideCols = (await sdk.terminal.read(terminal.id)).terminal.cols;
     await page.screenshot({ path: join(artifacts, "remote-console-desktop.png") });
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1000, 760));
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 760));
     await expect.poll(async () => (await sdk.terminal.read(terminal.id)).terminal.cols).toBeLessThan(wideCols);
     await page.screenshot({ path: join(artifacts, "remote-console-compact.png") });
     expect(await panel.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);

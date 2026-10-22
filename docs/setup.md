@@ -1321,6 +1321,8 @@ kill. Cancel still discards output and escalates an unresponsive process.
 Failures show the actual native exit status/signal and bounded error text.
 **Settings / Voice dictation / Native speech backend** saves an explicit
 Automatic/CPU/Metal choice. No failure silently switches backends or providers.
+Stop/discard controls and capability-job cancellation stay available while a
+preference save is pending. New recordings are blocked until that save settles.
 
 CLI equivalents:
 

@@ -10,7 +10,7 @@ export function QuestionCard({ sdk, question, decisionPending = false }: { sdk: 
     catch (error) { setError(error instanceof Error ? error.message : "The question changed. Review the actual pending question; no answer was invented."); }
     finally { setBusy(false); }
   };
-  return <section className="user-question" aria-label="User question" aria-busy={busy}>
+  return <section className="user-question" aria-label="User question" aria-busy={busy} tabIndex={0}>
     <h2><Icon name="Question" />Your answer is needed</h2>
     {decisionPending && <p className="fine-print" role="status">A separately metered decision provider is evaluating this exact user-delegated technical choice. You can override it now. Your real answer wins; automated advice is never recorded as you.</p>}
     <div className="question-context" role="group" aria-label="Question and model advice" tabIndex={0}><p className="question-text">{question.question}</p>
