@@ -121,8 +121,8 @@ else {
     });
     ipcMain.handle("moguri:choose-attachment", async (event, kind: unknown) => {
       trusted(event);
-      if (!["file", "image", "folder"].includes(String(kind))) throw new Error("Choose a supported explicit attachment type.");
-      const result = await dialog.showOpenDialog(mainWindow!, { title: kind === "folder" ? "Review a context folder" : "Attach explicit client context", properties: [kind === "folder" ? "openDirectory" : "openFile"], ...(kind === "image" ? { filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }] } : {}) });
+      if (!["file", "image", "folder", "document"].includes(String(kind))) throw new Error("Choose a supported explicit attachment type.");
+      const result = await dialog.showOpenDialog(mainWindow!, { title: kind === "folder" ? "Review a context folder" : "Attach explicit client context", properties: [kind === "folder" ? "openDirectory" : "openFile"], ...(kind === "image" ? { filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }] } : kind === "document" ? { filters: [{ name: "Documents", extensions: ["pdf", "xlsx", "docx"] }] } : {}) });
       return result.canceled ? null : result.filePaths[0] ?? null;
     });
     ipcMain.handle("moguri:open-external", async (event, input: unknown) => {

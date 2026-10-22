@@ -296,6 +296,11 @@ Desktop stop controls cover the active agent, its subagents, and every command o
 
 #### Composer contract
 
+The [estimated completion bar](architecture/task-progress.md) always shows
+available bound-plan checklist progress, periodically rechecked through the
+shared API. Long tasks may also expose separately labeled owning-model advice.
+Neither percentage replaces actual task results, user acceptance or policy.
+
 Keep the prompt and attached context together, with session controls in this order: **Env**, **Model**, **Autonomy level**, **Budget**. Desktop adds an **Attach** button; the TUI and CLI provide the same attachment and configuration capabilities through text pickers and explicit structured inputs, not a desktop-only button.
 
 | Control | Choices | Factory starting value |
@@ -320,13 +325,23 @@ capabilities, including generation previews and future-role admission.
 | Attachment | Trigger | Scope |
 | --- | --- | --- |
 | Single local file | `^` | An explicitly selected client-side file |
+| PDF, Word `.docx`, Excel `.xlsx` | Attach > Document or explicitly selected `^` file | Validated local extraction and encrypted original/extraction snapshots; bounded approved inspection, not whole-document model injection |
 | Local folder | `:` | An explicitly selected client-side folder with a bounded, reviewable file set |
 | GitHub issue | `#` | An issue accessible through the active profile's authorized GitHub integration |
 | GitHub pull request | `#` | A PR accessible through the same integration; label issue and PR results distinctly |
 | Moguri session | `!` | Authorized session context, including permitted archived context |
 | Project file | `@` | A file in the selected project's actual local, sandbox, or remote workspace |
 
-The desktop Attach menu offers all six types. Users can paste clipboard images directly into the desktop composer. TUI image paste depends on terminal/clipboard capabilities; where unsupported, expose explicit file/path attachment instead of pretending pasted text is an image.
+The desktop Attach menu offers these sources and a dedicated Document chooser. Users can paste clipboard images directly into the desktop composer. TUI image paste depends on terminal/clipboard capabilities; where unsupported, expose explicit file/path attachment instead of pretending pasted text is an image.
+
+[Document attachments](architecture/document-attachments.md) preserve PDF page,
+DOCX body paragraph/heading/table and XLSX sheet/cell/cached-value/inert-formula
+provenance. Parse in resource-bounded workers, retain both encrypted source and
+extraction, and disclose unsupported OCR/visual content. Models use bounded
+descriptor list/read/search tools; never recalculate formulas, fetch embedded
+links or grant permission from document instructions. Failed, oversized,
+encrypted or unsupported selections preserve the draft. Existing source/text
+files such as `.java` and image attachments keep their established behavior.
 
 Text pastes over 50 logical lines become exact scoped text-file attachments,
 not whole-paste prompt expansions. Preserve UTF-8 bytes and CRLF/CR/LF endings,

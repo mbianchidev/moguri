@@ -6,6 +6,8 @@ import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetContr
 import { ContextCompactionReview } from "./ContextCompaction.tsx";
 import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
 import { useDecisionStatus } from "./DecisionPanel.tsx";
+import { TaskProgressBar } from "./TaskProgress.tsx";
+import { ContextDocument } from "./DocumentAttachment.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -35,7 +37,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const decisions = useDecisionStatus(client, session, snapshot, menu === "autonomy" || session.controls.autonomy === "Autopilot Max");
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const [contextReview, setContextReview] = useState(false);
+  const [progressReview, setProgressReview] = useState(false);
   const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
+  const [documentCapture, setDocumentCapture] = useState<{ id: string; name: string } | null>(null), [documentError, setDocumentError] = useState("");
   const heldModifier = useQueueModifier();
   const [configurationCount, setConfigurationCount] = useState(0), [configurationError, setConfigurationError] = useState("");
   const configuring = configurationCount > 0;
@@ -51,6 +55,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const isSlash = draft.text.startsWith("/");
   const attachmentTrigger = isSlash ? null : parseAttachmentTrigger(draft.text);
   const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
+  const requiresDocuments = draft.attachments.some((attachment) => attachment.kind === "document") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "document"));
+  const documentBlocked = requiresDocuments && (model?.toolInput === false || session.kind === "metachat" || session.kind === "subagent");
   const held = heldModifier && !isSlash;
   const hardBudget = Boolean(snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
@@ -58,9 +64,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const canQueue = connected && !busy && !configuring && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
   const canSend = answering ? canQueue && Boolean(draft.text.trim()) && Boolean(question?.allowFreeform || question?.choices.includes(draft.text)) :
     canQueue && snapshot.provider.status === "connected" && eligibleModel && !needsNativeStage && (session.controls.autonomy !== "Autopilot Max" || decisions.ready) &&
-    snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && (delivery === "queue" || Boolean(session.turnId));
+    snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && !documentBlocked && (delivery === "queue" || Boolean(session.turnId));
   const suggestions = isSlash && !/\s/.test(draft.text) ? slashCommands.filter((command) => command.name.startsWith(draft.text.slice(1))).slice(0, 7) : [];
-  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || contextReview); return () => onMenuChange(false); }, [menu, attachmentReview, contextReview, onMenuChange]);
+  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || contextReview || progressReview); return () => onMenuChange(false); }, [menu, attachmentReview, contextReview, progressReview, onMenuChange]);
   const adopt = async (saved: Session["draft"]) => {
     const text = editor.getState().text;
     editor.receive(saved);
@@ -76,6 +82,16 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     const saved = client.getState().snapshot?.sessions.find((session) => session.id === editor.sessionId)?.draft;
     if (saved) { if (saved.attachments.some((attachment) => !ids.has(attachment.id))) await adopt(saved); else editor.receive(saved); }
   });
+  const selectFile = (mode: "auto" | "image" | "document") => {
+    void capture(async () => {
+      const path = await window.moguri.chooseAttachment(mode === "auto" ? "file" : mode);
+      if (!path) return;
+      if (mode === "document" || mode === "auto" && /\.(pdf|xlsx|docx)$/i.test(path)) {
+        const id = crypto.randomUUID(); setDocumentCapture({ id, name: path.split(/[\\/]/).at(-1) ?? "Selected document" }); setDocumentError("");
+        try { await client.attachments.document(session.id, path, { captureId: id }); } finally { setDocumentCapture(null); }
+      } else await client.attachments.file(session.id, path, mode);
+    });
+  };
   const send = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
     void run(async () => {
@@ -103,16 +119,20 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description={answering ? "Cmd/Ctrl+Enter queues without answering. Shift+Cmd/Ctrl+Enter answers the actual question." : "Cmd/Ctrl+Enter queues without starting work. Shift+Cmd/Ctrl+Enter sends now."}>
+    <TaskProgressBar sdk={client} session={session} connected={connected} details={progressReview} open={() => setProgressReview(true)} close={() => setProgressReview(false)} />
+    {documentCapture && <div className="document-capture"><p role="status">Extracting {documentCapture.name} locally. No model call; your draft is preserved.</p><progress aria-label="Local document extraction" /><button type="button" onClick={() => void client.attachments.cancelDocument(session.id, documentCapture.id).catch((error: unknown) => setDocumentError(error instanceof Error ? error.message : "Capture stop is unconfirmed. Inspect the saved draft."))}>Cancel extraction</button></div>}
+    {documentError && <p className="inline-error" role="alert">{documentError}</p>}
     {configuring && <p className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</p>}
     {configurationError && menu !== "model" && <p className="inline-error" role="alert">{configurationError}</p>}
     {session.controls.modelId && !model && <button type="button" className="setup-hint" onClick={session.controls.modelId === KUPO_MODEL_ID ? onRouting : onConnect}>{session.controls.modelId === KUPO_MODEL_ID ? "Saved kupo selection is blocked. Inspect its approved pool and hard-budget policy; no fallback was used." : `Saved model ${session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.`}<Icon name="Down" /></button>}
     {model && !eligibleModel && <button type="button" className="setup-hint" onClick={() => setMenu("model")}>This saved model is not available in {session.controls.env}. Choose a compatible model explicitly.<Icon name="Down" /></button>}
     {requiresImages && model && !model.imageInput && !answering && <p className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</p>}
+    {documentBlocked && !answering && <p className="composer-context-warning" role="status">Documents need an ordinary chat and tool-capable model. Your complete draft and held queue are preserved; no document is dropped or expanded into the prompt.</p>}
     {answering && draft.attachments.length > 0 && <p className="composer-context-warning" role="status">Answers consume only text. Attached context stays saved.</p>}
     {session.localFinishing && <p className="local-finishing">Local finishing. New Local turns are blocked by policy.</p>}
     {needsNativeStage && <button type="button" className="setup-hint" onClick={onSandbox}>Review a private native workspace before starting a turn. Your draft and held queue are preserved.<Icon name="Box" /></button>}
     {session.controls.autonomy === "Autopilot Max" && !decisions.ready && <button type="button" className="setup-hint" onClick={onDecisions}>{decisions.reason}<Icon name="Rocket" /></button>}
-    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>{attachment.kind === "image" ? <ContextImage sdk={client} sessionId={session.id} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "Files"} />}{attachment.path}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
+    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>{attachment.kind === "document" ? <ContextDocument sdk={client} sessionId={session.id} attachment={attachment} /> : <>{attachment.kind === "image" ? <ContextImage sdk={client} sessionId={session.id} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "Files"} />}{attachment.path}</>}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
     <textarea id={`prompt-${session.id}`} placeholder={answering ? question?.allowFreeform ? "Type your answer..." : "Choose one of the offered answers above..." : session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
       onPaste={(event) => {
@@ -141,7 +161,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {transcript && transcript.id !== insertedTranscript && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(async () => { await editor.flush(); await client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); setInsertedTranscript(transcript.id); })}>Insert</button></div>}
     <div className="composer-toolbar">
       <div className="composer-leading">
-        {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} editor={editor} run={run} capture={capture} initial={pendingTrigger} close={() => setMenu(null)} review={(request) => { setAttachmentReview(request); setMenu(null); }} />)}
+        {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} editor={editor} run={run} capture={capture} selectFile={selectFile} initial={pendingTrigger} close={() => setMenu(null)} review={(request) => { setAttachmentReview(request); setMenu(null); }} />)}
         {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => <button className="composer-menu-option" key={capability.env} type="button" disabled={Boolean(session.turnId) || !capability.ready || !snapshot.policy.allowedEnvs.includes(capability.env)} aria-pressed={session.controls.env === capability.env} title={capability.reason} onClick={() => void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); })}><Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{!snapshot.policy.allowedEnvs.includes(capability.env) ? "Blocked by policy" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>)}<p>Remote transfers approved context to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. Sandbox uses a separately reviewed private stage and scoped model access, never a live source checkout. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button><button type="button" className="quiet" onClick={() => { setMenu(null); onGuardrails(); }}>Sandbox qualification</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Native workspace and results</button></>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}</span>} model>
           <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />

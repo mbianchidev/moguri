@@ -5,7 +5,7 @@ export interface DesktopBridge {
   profile(profileId?: string): Promise<string>;
   chooseProject(): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
-  chooseAttachment(kind: "file" | "image" | "folder"): Promise<string | null>;
+  chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
   microphonePermission(): Promise<boolean>;
   copyText(text: string): Promise<void>;

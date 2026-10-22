@@ -12,9 +12,81 @@ the endpoint-only probe fails. These primitives do not by themselves enable
 public Sandbox. The current protocol-40 service/SDK/client lifecycle below
 extends them without changing factory settings or broadening policy.
 
+## Document attachments and task completion
+
+The 0.30.0-alpha.1 source uses protocol/database **43**. It extends the existing
+attachment pipeline with validated PDF, Word `.docx` and Excel `.xlsx` snapshots.
+Desktop **Attach > Document** shows local extraction, exact cancellation,
+ready/limited chips and bounded previews/search. **Local text file** still accepts
+source files such as `.java`; file/clipboard images keep their existing behavior.
+Use the picker for documents rather than pasting an Office clipboard file.
+
+CLI examples, with explicitly selected absolute paths and a session ID:
+
+```sh
+moguri context document /absolute/path/report.pdf --session ID
+moguri context document-read ATTACHMENT_ID --session ID --filters '{"page":1,"limit":4096}'
+moguri context document-read ATTACHMENT_ID --session ID --filters '{"sheet":"Sheet1","range":"A1:D20"}'
+moguri context document-search ATTACHMENT_ID --session ID --filters '{"query":"literal text","limit":5}'
+moguri context documents --session ID --filters '{"offset":0,"limit":5}'
+```
+
+TUI uses `/attach-document /absolute/path/report.docx`, `/attached ID`,
+`/document-read ID {"section":2}`, `/document-search ID {"query":"literal"}`
+and `/documents`. Ctrl+C during its capture requests only that capture's stop.
+SDK/CLI capture IDs also support exact `cancelDocument` / `context cancel ID`.
+Cmd/Ctrl+Enter continues to hold prompts without inference.
+
+Original bytes and extracted content share the session/profile encryption
+boundary. Models get descriptors, not complete documents. Bounded approved
+tools use the authenticated snapshot broker on Local and pinned SSH; native
+execution still needs an exact current-protocol qualified workload, never a
+Local fallback. Tool-less chats or explicitly `toolInput: false` local models
+preserve the draft/queue and explain the block.
+
+Limits are 8 MiB originals, 32 MiB ZIP expansion, 200 PDF pages, 32 sheets,
+50,000 actual cells, 2 MiB extraction and a 10-second resource-bounded parser.
+The existing 16 attachments / 12 MiB aggregate counts original plus extracted
+bytes. Exceeded limits, encryption, malformed files and unsupported active
+content fail without truncation or draft loss. No OCR, external conversion,
+external-link fetching, hidden inference or formula recalculation occurs.
+DOCX extraction covers body paragraphs/headings/tables, not full visual layout.
+See the [complete contract](architecture/document-attachments.md) for memory
+watchdogs, provenance, recovery and supported limitations.
+
+Existing state upgrades in place through additive schema-42/43 migrations.
+Restart older clients and the service before connecting the matching SDK.
+Keep the original state directory and encryption backend; do not delete state
+to upgrade. Completed document snapshots survive restart without reparsing;
+interrupted captures do not replay or consume the unsent draft.
+
+Current source adds [estimated task completion](architecture/task-progress.md)
+from protocol/database 42. Desktop and TUI always expose the bound-plan checklist,
+rechecked every 15 seconds. Long-running tasks can include separately labeled
+owning-model estimates at normal safe boundaries, not hidden polling inference.
+CLI `moguri progress --session ID` and `/progress` inspect the same data.
+These percentages do not complete a task or override its plan, policy or result.
+
+### Protocol-43 source qualification
+
+Type checks, production build, the generated document spike, dependency audit
+and actual packed external SDK all pass. Full unit/integration/native-TUI checks
+pass **1,068 cases**, with **nine actual native-workload skips** and no failures
+(979.23 s). Full hidden Electron acceptance passes **70 cases**, with **one
+native-workload skip** and no failures (2.8 min). Source and packed-consumer
+audits report zero vulnerabilities.
+
+The final compact progress layout preserves the original question/answer and
+raw-result viewport assertions. No budget/context, permission, cancellation or
+no-truncation gate was relaxed. See the [qualification history](architecture/document-attachments.md#final-source-acceptance)
+for generated-fixture corrections and precise boundaries. A current protocol-43
+SendBox image still needs separate qualification; old images and historical
+milestone/release claims below are unchanged. Existing npm/OpenTUI/bundle-size
+notices remain nonfatal.
+
 ## Owner-requested platform extension
 
-Current source uses protocol/database **41** for
+The prior source uses protocol/database **41** for
 [reviewed platform workflows](architecture/platform-workflows.md).
 This extends, rather than relabels, the historical protocol-40 acceptance
 below. Marketplace is repository-backed, with no new hosted account/service.

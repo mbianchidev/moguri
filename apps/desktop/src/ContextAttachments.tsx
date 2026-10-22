@@ -7,16 +7,18 @@ export type AttachmentReviewRequest =
   | { kind: "github"; url: string; access: "public" | "gh-cli"; preview: ContextPreview }
   | { kind: "session"; sourceSessionId: string; preview: ContextPreview };
 type Run = (work: () => Promise<unknown>) => Promise<void>;
-export function AttachmentMenu({ sdk, session, project, snapshot, editor, run, capture, review, close, initial }: {
+export function AttachmentMenu({ sdk, session, project, snapshot, editor, run, capture, selectFile, review, close, initial }: {
   sdk: MoguriSdk; session: Session; project?: Project; snapshot: Snapshot; editor: DraftEditor; run: Run; capture: Run;
   review: (request: AttachmentReviewRequest) => void; close: () => void;
+  selectFile: (mode: "auto" | "image" | "document") => void;
   initial?: { prefix: string; query: string } | null;
 }) {
   const [url, setUrl] = useState(initial?.prefix === "#" ? initial.query : ""), [access, setAccess] = useState<"public" | "gh-cli">("public"), [sourceId, setSourceId] = useState(initial?.prefix === "!" && snapshot.sessions.some((source) => source.id === initial.query) ? initial.query : "");
-  const file = (mode: "text" | "image") => { close(); void capture(async () => { const path = await window.moguri.chooseAttachment(mode === "image" ? "image" : "file"); if (path) await sdk.attachments.file(session.id, path, mode); }); };
+  const file = (mode: "auto" | "image" | "document") => { close(); selectFile(mode); };
   return <><h2>Attach context</h2>
     <button className="composer-menu-option" type="button" aria-label="Project text file" disabled={!project} title={!project ? "Select a project for workspace files." : undefined} onClick={() => { if (!project) return; close(); void capture(async () => { const path = await window.moguri.chooseFile(project.path); if (path) await editor.attach(path); }); }}><Icon name="Files" /><span>Project text file<small>@ explicit snapshot from this local project</small></span></button>
-    <button className="composer-menu-option" type="button" onClick={() => file("text")}><Icon name="Files" /><span>Local text file<small>^ explicit client selection</small></span></button>
+    <button className="composer-menu-option" type="button" onClick={() => file("auto")}><Icon name="Files" /><span>Local text file<small>^ source files including Java, or validated documents</small></span></button>
+    <button className="composer-menu-option" type="button" onClick={() => file("document")}><Icon name="Files" /><span>Document<small>PDF, Excel (.xlsx), Word (.docx); local bounded extraction</small></span></button>
     <button className="composer-menu-option" type="button" onClick={() => file("image")}><Icon name="Image" /><span>Image<small>PNG, JPEG or WebP; paste also works</small></span></button>
     <button className="composer-menu-option" type="button" onClick={() => void run(async () => { const path = await window.moguri.chooseAttachment("folder"); if (path) review({ kind: "folder", path, preview: (await sdk.attachments.folderPreview(session.id, path)).preview }); })}><Icon name="Files" /><span>Folder<small>: review exact files and exclusions</small></span></button>
     <label className="setting-field">GitHub issue or PR<input aria-label="GitHub attachment URL" value={url} onChange={(event) => setUrl(event.target.value)} placeholder="https://github.com/owner/repo/issues/1" /></label>
@@ -64,6 +66,7 @@ export function ContextImage({ sdk, sessionId, attachment }: { sdk: MoguriSdk; s
   return source ? <img className="context-image" src={source} alt={attachment.path} /> : error ? <span className="inline-error">{error}</span> : <span role="status">Loading image...</span>;
 }
 export async function clipboardImage(file: File): Promise<string> {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) && /\.(pdf|docx|xlsx)$/i.test(file.name)) throw new Error("Use Attach > Document for PDF, Word or Excel files. Clipboard document capture is unavailable here; your complete draft was preserved.");
   if (file.size > 8 * 1024 * 1024 || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Paste a PNG, JPEG or WebP image up to 8 MiB. No clipboard content was sent.");
   const bytes = new Uint8Array(await file.arrayBuffer()), parts: string[] = [];
   for (let offset = 0; offset < bytes.length; offset += 32768) parts.push(String.fromCharCode(...bytes.subarray(offset, offset + 32768)));
