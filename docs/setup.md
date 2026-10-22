@@ -80,8 +80,33 @@ records/results/publications have independent report grants; deleting a source
 conversation does not erase them. Private stage directories and SendBox's own
 snapshot store are not claimed as cryptographically deleted or reclaimed.
 
-CLI/TUI/desktop setup and every remaining environment/autonomy combination
-still require their own qualification. Native console, MCP, memory, subagent,
+CLI/TUI and hidden desktop now expose that same native authority. Guardrails
+requires saved reviewed artifacts/network scope and explicit model-free
+verification. Select Sandbox without changing autonomy or choosing a substitute
+model, open **Sandbox**, preview exact source text, confirm the file set, then
+prepare the private stage. Ordinary Send and Manual approval controls remain
+shared; Cmd/Ctrl+Enter still holds rather than runs.
+
+The actual TUI native keyboard flow passes in **3.97 s**, including held queue,
+guest tools, human approvals and separately confirmed source publication.
+The hidden desktop native flow passes in **6.5 s**; its independent retained-data
+review case also proves that an existing report is not readiness. Output review
+is consumed on publication and focus moves to the real job outcome. Native
+report editors change only metadata, not original bytes or acceptance.
+The actual guest-loss SDK case passes in **3.42 s**, retaining partial work and
+unknown capacity without conflating the host CLI's code with the signed runtime
+exit. Additional real controller-SIGKILL cases before/after the first source
+copy preserve original publication attempts and lost-receipt idempotence.
+
+Dedicated CLI uses `moguri sandbox status|runs`, explicit
+`probe --confirm-review`, `preview/prepare PATHS.json --session ID`, retained
+`execution/result`, and `publish-preview/publish RUN_ID PATHS.json` with separate
+digest/revision/`--confirm-write`. Shared terminal commands use `/sandbox`;
+`/sandbox preview PATHS_JSON` returns the exact confirmation command rather
+than staging automatically. `--help` and `/help` list inspection, exact-run
+stop, reconciliation and publication-job cancellation.
+
+Other environment/autonomy combinations still require acceptance. Native console, MCP, memory, subagent,
 evolution, Git-stage views and native plan writes fail explicitly instead of
 using a Local source root. Public compound, wind-down and Max remain open.
 
@@ -420,7 +445,7 @@ policy.
 **Sandbox is gated, not enabled by entering paths.** The development SDK now
 has explicit 0.2.3 guest qualification, source review/preparation, execution
 inspection/reconciliation and separately accepted text-output publication.
-Guardrails' complete client setup still needs qualification. Exact release,
+Guardrails requires separate explicit verification of the saved review. Exact release,
 workload, current reviewed network scope and private staging are mandatory;
 missing protection is an explicit error, never a Local fallback.
 

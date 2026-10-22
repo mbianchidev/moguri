@@ -32,6 +32,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
   const [input, setInput] = useState("");
@@ -65,18 +66,19 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
   const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty;
-  useEffect(() => { onUnsavedChange(dirty || saving || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, nestedDirty, onUnsavedChange]);
+  useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => {
     setPreview("");
+    setSandboxReviewed(false);
     if (ownSave.current) return;
     if (!dirty) { baseRevision.current = snapshot.settings.revision; setDraft(structuredClone(snapshot.settings.values)); setRaw({}); }
     else if (baseRevision.current !== snapshot.settings.revision) setError("Another client changed settings. Your edit is preserved. Reload before applying it.");
   }, [snapshot.settings.revision]);
   useEffect(() => {
-    const close = (event: BeforeUnloadEvent) => { if (dirty || nestedDirty) { event.preventDefault(); event.returnValue = ""; } };
+    const close = (event: BeforeUnloadEvent) => { if (dirty || nestedDirty || sandboxBusy) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", close);
     return () => window.removeEventListener("beforeunload", close);
-  }, [dirty, nestedDirty]);
+  }, [dirty, nestedDirty, sandboxBusy]);
   const run = async (operation: () => Promise<unknown>, owned: () => boolean = () => true) => {
     setError("");
     try {
@@ -233,7 +235,14 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <p className="fine-print">A tool rule has id, tool, decision (ask/allow/deny), and a project-relative pathPrefix. Shell grants must name the exact command; blanket shell/wildcard grants are rejected. MCP annotations never count as approval.</p>
           <h3>SendBox</h3><p>Sandbox is a real execution boundary, not a badge. Missing or unqualified prerequisites block protected turns, without Local fallback.</p>
           {jsonEditor("sandbox", "SendBox configuration")}
-          <button onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button className="quiet" onClick={() => void reset("permissions")}>Restore permission defaults</button>
+          <p className="fine-print">Save exact canonical 0.2.3 release/bundle/key paths and hashes, immutable image/worker/bridge pins, bounded resources and every reviewed DNS host. Use configPath null for the managed deny-first policy. Aliases are never inferred or granted; Copilot access is a separate opt-in.</p>
+          <p className="fine-print" role="status">{snapshot.capabilities.find((capability) => capability.env === "Sandbox")?.reason}</p>
+          <label className="check-setting"><input type="checkbox" checked={sandboxReviewed} disabled={dirty || saving || sandboxBusy} onChange={(event) => setSandboxReviewed(event.target.checked)} />I reviewed these committed native artifacts, image and network hosts. Verification may start one model-free VM.</label>
+          <div className="button-row"><button type="button" disabled={dirty || saving || sandboxBusy || !sandboxReviewed || !snapshot.policy.allowedEnvs.includes("Sandbox")} onClick={() => {
+            setSandboxBusy(true);
+            void run(async () => { await sdk.sandbox.probe(); return sdk.sandbox.status(); }).finally(() => setSandboxBusy(false));
+          }}>{sandboxBusy ? "Verifying original native guest..." : "Verify reviewed Sandbox"}</button>
+            <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("permissions")}>Restore permission defaults</button></div>
           <h3>Allowed execution environments</h3><p>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.</p>
           <select aria-label="Global allowed environments" value={snapshot.policy.allowedEnvs.includes("Local") ? "all" : "protected"} onChange={(event) => void run(() => sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : ["Sandbox", "Remote"] }))}><option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option></select>
           <p className="fine-print">Resetting ordinary settings does not silently widen this separate security policy.</p></>}
