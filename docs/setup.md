@@ -8,7 +8,9 @@ recorded versions; they do not qualify the new runtime or close the milestone.
 Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
 host/guest artifacts, actual generated worker/tool/image frames and cancellation.
 Cold provider networking requires a separately reviewed exact DNS-alias scope;
-the endpoint-only probe fails. These primitives do not enable public Sandbox.
+the endpoint-only probe fails. These primitives do not by themselves enable
+public Sandbox. The protocol-37 service/SDK work below extends them without
+changing factory settings or broadening policy.
 
 ## Issue 17 source qualification
 
@@ -41,6 +43,47 @@ No earlier app/SDK archive is rebuilt, no release tag is created, and test
 counts do not establish calibrated quality or completion of issue 17.
 Public Cascade/Critique, finite kupo wind-down/authorized checkpoints,
 System One/Max, production Sandbox and their final acceptance gates remain open.
+
+### Native service/SDK development checkpoint
+
+Current source adds protocol/database **37**, not a new qualified archive.
+Explicitly reviewed SendBox 0.2.3 release/image pins can now qualify the actual
+guest and prepare a bounded private text stage through the SDK. Model/worker
+calls run there, with Manual approvals, scoped pasted-file reads, the shared
+budget ledger and verified original VM cleanup. A project-free model root stays
+null. Source files are copied only by separately reviewed actual-user publication;
+source index/HEAD and unrelated edits are not staged, committed or reset.
+
+Six opt-in actual-native cases pass in **19.59 s**: pinned guest qualification,
+encrypted IPC/failed rollback, ordinary SDK model/tools and source publication,
+project-free long-paste paging, acknowledged cancellation/unknown holds, and real
+controller SIGKILL followed by late usage reconciliation without a new call/VM.
+Inference and metadata responses in these cases are generated inside the guest,
+not live Copilot networking or billed-usage evidence. The endpoint-only cold
+network gate remains separate and failed; no alias is added automatically.
+The latest ordinary execution/publication case passes in **4.08 s**.
+
+Run the actual native cases only with the exact current generated image receipt:
+
+```sh
+MOGURI_NATIVE_INSTALLATION=.native/sendbox-0.2.3/installation.json \
+MOGURI_NATIVE_WORKLOAD=/absolute/path/to/current/qualification.json \
+node --import tsx --test --test-concurrency=1 \
+  tests/sandbox-runtime.test.ts tests/sandbox-service.test.ts \
+  tests/sandbox-recovery.test.ts
+```
+
+Without these explicit receipts the cases are skipped, not counted as native
+qualification. The additive migration preserves ciphertext, command receipts,
+scoped files and unsupported saved windows through failure/reopen. Native
+records/results/publications have independent report grants; deleting a source
+conversation does not erase them. Private stage directories and SendBox's own
+snapshot store are not claimed as cryptographically deleted or reclaimed.
+
+CLI/TUI/desktop setup and every remaining environment/autonomy combination
+still require their own qualification. Native console, MCP, memory, subagent,
+evolution, Git-stage views and native plan writes fail explicitly instead of
+using a Local source root. Public compound, wind-down and Max remain open.
 
 ## Supported checkpoint
 
@@ -172,7 +215,7 @@ unsent draft. A trailing newline counts as an empty final line.
 Model context gets only a scoped filename/digest descriptor. Approved
 `read_file` calls read at most 16 KiB with UTF-8 byte `offset`/`limit` and
 optional literal `search`; use the returned `nextOffset` to continue.
-Local and SSH workers use an authenticated controller snapshot broker, not a
+Local, SSH and qualified native workers use an authenticated controller snapshot broker, not a
 host-path mount or source-file write. Project-free chats get access only to
 their admitted files, never a previous workspace. Sandbox still requires its
 separate execution qualification and cannot fall back to Local.
@@ -374,10 +417,12 @@ settings when navigating away. Section/all reset preserves sessions, knowledge,
 credentials and downloaded models, and does not widen the separate allowed-env
 policy.
 
-**Sandbox is still unavailable.** Guardrails exposes SendBox configuration and
-readiness diagnostics, but the native worker transport/guest bundle/workload
-qualification is not complete. Merely entering paths does not enable execution.
-Missing protection is an explicit error, never a Local fallback.
+**Sandbox is gated, not enabled by entering paths.** The development SDK now
+has explicit 0.2.3 guest qualification, source review/preparation, execution
+inspection/reconciliation and separately accepted text-output publication.
+Guardrails' complete client setup still needs qualification. Exact release,
+workload, current reviewed network scope and private staging are mandatory;
+missing protection is an explicit error, never a Local fallback.
 
 ## Remote SSH
 
