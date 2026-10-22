@@ -275,6 +275,8 @@ actor/model/step, raw evidence, charges and cleanup. Generic document editing
 is metadata-only. A human can answer/approve while the decision is in flight;
 that real answer wins, cancels stale advice and never refunds unknown usage.
 Source/report deletion and restart cannot replay a paid call or tool.
+Applied tool/steering receipts keep their own original evidence grants too:
+deleting the separate report cannot invalidate the still-retained conversation.
 
 The current Jev API has no enforceable output-token-limit field. Its saved
 configuration stays visible, but Max remains blocked with that exact reason;
