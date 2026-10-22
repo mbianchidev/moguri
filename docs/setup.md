@@ -122,6 +122,63 @@ The refreshed no-cache workload receipt is
 `sha256:b03ab376659754d5332cbab352ab3637bb8f6be9e7fc5ae1895a5be183c5e067`.
 This records that checkpoint, not public compound/Max completion.
 
+### Reviewed Local compound source checkpoint
+
+Current source uses protocol/database **38**. In **Settings / kupo routing**,
+choose **Reviewed Cascade / Critique**, review the complete explicit policy
+JSON and save it. Models remain unselected until the user chooses kupo.
+Declare exact Cascade draft/escalation IDs or Critique draft/critic IDs from
+the available configured catalog. Hosted/network data needs explicit consent.
+Critique additionally requires an exact-model, source-backed lineage review:
+paste the source and limitations, review the pair/expiry, add its draft claim
+to matching routes, then separately Save settings. This never fetches a URL
+or inspects provider metadata, and the claim is not proof about training or
+model quality.
+
+In a Local project agent, open **Candidates / Reviewed Cascade / Critique**.
+Select two distinct clean owned worktrees and an actual user-configured
+project validation script. Review the exact task, optional request plan and
+architecture, selected source/new files, bases, eligible roles, privacy and
+model cost. Starting pays only for owned bounded model roles. It does not
+approve staging, execution or source changes. Selected source bases must
+match the clean committed candidate bases; dirty selected input is rejected,
+not silently dropped. Unselected source/index edits remain untouched.
+
+Each proposal pauses for exact candidate plan/architecture/implementation and
+host-command review. Explicitly approve **Stage and run reviewed project
+tests** or decline. Manual permissions, hard denials and folder restrictions
+remain authoritative. Failed drafts stay in their original worktree; one
+configured Cascade escalation or eligible Critique/revision can use the
+alternate. A passing critic cannot override failed tests. A recommended
+candidate is not accepted source: **Inspect recommended candidate**, then use
+the independent **Review source application / Apply reviewed files** flow.
+No dependency install, Git stage, commit or push is implied.
+
+Shared terminal commands are `/compound preview INPUT_JSON`, its returned
+`start SHA confirm-cost INPUT_JSON`, `/compound validation ID` for the exact
+next staging/test confirmation, `read ID`, `deny` and exact `stop`.
+`moguri compound preview INPUT.json --session ID` takes the same selection
+without a `sessionId` override in JSON. Dedicated CLI `start` needs
+`--digest SHA --confirm-cost`; `review ID VALIDATION` additionally needs the
+actual revision/digest and `--confirm-stage-and-test`. `read`, `validation`,
+`deny` and `stop` inspect or control only original retained work.
+
+Composer drafts, typed attachments and held prompts are not consumed or
+silently included in these explicitly selected inputs. Ordinary Send/Resume
+cannot turn a held compound prompt into an unreviewed Single call. Public
+reports and raw role/test data are independently retained; source application
+and Git authority remain separate. Metadata editors cannot replace those
+documents. Artifact export schema 7 includes actual role/test history and
+candidate-origin copies.
+
+The source/client qualification and remaining gates are recorded in
+[the public compound contract](architecture/compound-workflows.md).
+Remote/Sandbox compound transports, finite kupo wind-down, authorized accepted-
+work checkpoints and System One/Max remain unqualified. Native Local commands
+do not prove detached/reparented containment. The schema-38 workload must be
+rebuilt/requalified before native acceptance; older image pins are not reused
+as evidence for this source.
+
 ## Supported checkpoint
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
@@ -345,7 +402,7 @@ shared global preferences is a separate revision-bound action.
 
 ## Experimental kupo Single
 
-In **Settings / kupo Single**, explicitly enable the profile policy, choose one
+In **Settings / kupo routing**, choose **Single**, explicitly enable the profile policy, choose one
 discovered classifier, approve up to eight exact solver models and separately
 allow hosted/network task-data transfer if any selected role uses Copilot, a
 non-loopback URL or an unknown endpoint boundary. The configured provider's
@@ -374,11 +431,13 @@ TUI `/kupo history` expose the actual plan/models; per-call accounting shows
 actual roles. Confidence is model-supplied advice, not a calibrated probability,
 user answer or authority. Stop/restart never replay routing or effects.
 
-This alpha is text-only and requires Unlimited with no finite session, owner,
-profile or global cap. Context/thinking tuning, images, cascade,
-critique/revision, calibrated quality and reserved wind-down/authorized
-checkpoint commits are not qualified. Hard policy can still stop new routed
-calls; it is never removed to enable kupo. Native Sandbox remains unavailable.
+The Single policy is text-only and requires Unlimited with no finite session,
+owner, profile or global cap. Context/thinking tuning, images, calibrated
+quality and reserved wind-down/authorized checkpoint commits are not qualified.
+Use the separately reviewed Compound path above for current Local
+Cascade/Critique development, not an ordinary Single prompt. Hard policy can
+still stop new routed calls; it is never removed to enable kupo. Single's
+native Sandbox transport remains unqualified.
 
 ## Isolated profiles
 

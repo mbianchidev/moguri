@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { parse, SettingsSchema, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, SettingsSchema, CompoundSettingsSchema, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { McpOAuthPanel } from "./McpOAuthPanel.tsx";
 import { RemoteMcpPanel } from "./RemoteMcpPanel.tsx";
 import { BudgetLimitEditor } from "./BudgetControls.tsx";
+import { CompoundLineageReview } from "./CompoundLineageReview.tsx";
 
 export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets" | "kupo";
 const tabs: { id: SettingsTab; label: string }[] = [
@@ -18,7 +19,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "localModels", label: "Local models" }, { id: "startup", label: "Startup defaults" },
   { id: "remote", label: "Remote SSH" },
   { id: "budgets", label: "Budgets" },
-  { id: "kupo", label: "kupo Single" },
+  { id: "kupo", label: "kupo routing" },
 ];
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal, openSession }: {
@@ -30,6 +31,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [dirty, setDirty] = useState(false);
   const [projectDirty, setProjectDirty] = useState(false);
   const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
+  const [lineageDirty, setLineageDirty] = useState(false), [lineageBusy, setLineageBusy] = useState(false);
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
@@ -65,7 +67,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty;
+  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy;
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => {
     setPreview("");
@@ -117,7 +119,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
       return `Restored ${section} defaults. Projects, history, credentials, knowledge and downloaded models were preserved.`;
     } finally { ownSave.current = false; }
   });
-  const jsonEditor = (section: SettingsSection, label: string) => <label className="setting-field">{label}<textarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={saving}
+  const jsonEditor = (section: SettingsSection, label: string, disabled = saving) => <label className="setting-field">{label}<textarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={disabled}
     onChange={(event) => { setRaw((raw) => ({ ...raw, [section]: event.target.value })); setDirty(true); }} spellCheck={false} /></label>;
   const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
   const pending = snapshot.proposals.filter((proposal) => proposal.projectId === project?.id && proposal.status === "pending");
@@ -134,11 +136,32 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   useEffect(() => { setTools([]); setSelectedTool(null); }, [snapshot.profileId, snapshot.settings.revision, snapshot.policy.revision, session?.id, session?.projectId,
     session?.workspaceId, session?.controls.env, session?.mode, session?.pendingMode, snapshot.projectConfigurations.find((configuration) => configuration.projectId === session?.projectId)?.revision]);
   return <section className="settings-page" aria-label="Moguri settings">
-    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
+    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
     <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
-      <button className="restore-all" onClick={() => void reset("all")}>Restore all defaults</button></nav>
+      <button className="restore-all" disabled={lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
-        {tab === "kupo" && <><h2>kupo Single (alpha)</h2><p>One tool-less classifier chooses one explicitly approved solver. Both calls are metered and use the existing agent, permissions and execution env. Configuration never selects a model or starts inference.</p>
+        {tab === "kupo" && <><h2>kupo {draft.kupo.workflow === "compound" ? "Compound (reviewed alpha)" : "Single (alpha)"}</h2>
+          <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy} onChange={(event) => {
+            if (raw.kupo !== undefined) { setError("Save or reload the complete policy JSON before switching workflow shapes. Your unsaved policy was preserved."); return; }
+            const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
+            const pool = { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence };
+            change("kupo", event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
+              limits: { routerTokens: 512, proposalTokens: 2048, criticTokens: 1024, timeoutMs: 300000 } } : { ...pool, workflow: "single" });
+          }}><option value="single">Single</option><option value="compound">Reviewed Cascade / Critique</option></select></label>
+          {draft.kupo.workflow === "compound" ? <>
+            <p>Declare exact Cascade/Critique routes, approved concrete models, hosted-data consent and complete role bounds. The classifier chooses only an eligible declared route. Configuration never selects a model, spends budget, stages code or runs tests.</p>
+            {jsonEditor("kupo", "Complete compound routing policy", saving || lineageBusy)}
+            <p className="fine-print">Each Cascade route needs id, pattern: cascade, draftId and escalationId. Each Critique route needs id, pattern: critique, draftId, criticId and lineageReviewId. Use canonical model IDs below, not names or provider family strings. Up to four routes and eight approved role models.</p>
+            <details><summary>Available exact model IDs</summary><pre>{JSON.stringify(routingModels, null, 2)}</pre></details>
+            <CompoundLineageReview sdk={sdk} models={routingModels} disabled={saving} onDirty={setLineageDirty} onBusy={setLineageBusy}
+              onPrepared={(review, draftId, criticId) => {
+                const policy = parse(CompoundSettingsSchema, raw.kupo === undefined ? draft.kupo : JSON.parse(raw.kupo));
+                const next = { ...policy, lineageReviews: [...policy.lineageReviews, review],
+                  routes: policy.routes.map((route) => route.pattern === "critique" && route.draftId === draftId && route.criticId === criticId ? { ...route, lineageReviewId: review.id } : route) };
+                setRaw((raw) => ({ ...raw, kupo: JSON.stringify(next, null, 2) })); setDirty(true);
+              }} />
+            <p className="settings-warning">Public compound staging/tests are explicitly Local and require a separate actual-user review in Candidates. Remote/Sandbox compound transports, finite wind-down and System One/Max remain unqualified. No fallback or hard-policy bypass.</p>
+          </> : <><p>One tool-less classifier chooses one explicitly approved solver. Both calls are metered and use the existing agent, permissions and execution env. Configuration never selects a model or starts inference.</p>
           <label className="check-setting"><input type="checkbox" aria-label="Enable kupo Single" checked={draft.kupo.enabled} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, enabled: event.target.checked })} />Enable kupo Single for this profile</label>
           <label className="setting-field">Classifier<select aria-label="kupo classifier" value={draft.kupo.classifierModelId ?? ""} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, classifierModelId: event.target.value || null })}><option value="">Choose a configured classifier</option>
             {draft.kupo.classifierModelId && !routingModels.some((model) => model.id === draft.kupo.classifierModelId) && <option value={draft.kupo.classifierModelId}>Saved unavailable model: {draft.kupo.classifierModelId}</option>}
@@ -153,10 +176,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <label className="setting-field">Classifier confidence threshold: {draft.kupo.minimumConfidence.toFixed(2)}<input type="range" aria-label="Classifier confidence threshold" min={0} max={1} step={0.01} value={draft.kupo.minimumConfidence} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, minimumConfidence: Number(event.target.value) })} /></label>
           <p className="fine-print">This is model-supplied advice, not a calibrated probability or permission. Invalid or low-confidence plans pause without another model or fallback.</p>
           <p className="settings-warning">This alpha supports Single text tasks with an Unlimited preference only when no finite session, owner, profile or global cap applies. Images, model-specific tuning, cascade, critique/revision and reserved wind-down remain unavailable. Hard policy is never lifted.</p>
+          </>}
           <h3>Saved-policy availability</h3>{snapshot.routingDiagnostics?.map((diagnostic) => <p className="fine-print" key={diagnostic}>{diagnostic}</p>)}
           <p className="fine-print">After saving, explicitly select kupo in the composer. Changing this policy invalidates pending routed permissions; calls already in flight may still incur usage.</p>
-          <details><summary>Read the fixed classifier contract</summary><pre>{DEFAULT_ROUTER_PROMPT}</pre><p className="fine-print">The editable system prompt still governs the solver. Classifier output is validated data, never solver instructions or a user answer.</p></details>
-          <button type="button" disabled={saving} onClick={() => void reset("kupo")}>Restore kupo defaults</button>
+          {draft.kupo.workflow === "single" && <details><summary>Read the fixed classifier contract</summary><pre>{DEFAULT_ROUTER_PROMPT}</pre><p className="fine-print">The editable system prompt still governs the solver. Classifier output is validated data, never solver instructions or a user answer.</p></details>}
+          <button type="button" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("kupo")}>Restore kupo defaults</button>
         </>}
         {tab === "budgets" && <><h2>Budgets and model estimates</h2><p>Session caps and profile policy share one cumulative all-role ledger. Unknown usage is not zero. Exact provider-billing caps are not qualified; finite controls require explicit estimate-based accounting.</p>
           <h3>Model-specific USD estimates</h3><p>Use canonical model IDs and approved input/output USD per million tokens. The input rate applies conservatively to every input category, including cache. A missing/stale rate disables USD admission, not a free request. Save these settings before applying policy.</p>

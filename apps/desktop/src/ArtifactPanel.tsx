@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeCompound, ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 
@@ -29,9 +29,10 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const candidate = draft?.id ? snapshot.candidates.find((candidate) => candidate.id === draft.id) : undefined;
   const generated = draft?.id ? snapshot.candidateGenerations.find((generation) => generation.id === draft.id) : undefined;
   const sequence = draft?.id ? snapshot.roleSequences.find((sequence) => sequence.id === draft.id) : undefined;
+  const compound = draft?.id ? snapshot.compoundWorkflows.find((workflow) => workflow.id === draft.id) : undefined;
   const native = snapshot.sandboxExecutions?.find((value) => value.id === draft?.id), publication = snapshot.sandboxPublications?.find((value) => value.id === draft?.id);
-  const immutable = Boolean(candidate || generated || sequence || native || publication);
-  const activeCandidate = publication?.status === "publishing" || native && (!["owned-guest-stopped", "acknowledged"].includes(native.cleanup) || native.inspectionIntent?.status === "running") ||
+  const immutable = Boolean(candidate || generated || sequence || compound || native || publication);
+  const activeCandidate = compound && activeCompound(compound) || publication?.status === "publishing" || native && (!["owned-guest-stopped", "acknowledged"].includes(native.cleanup) || native.inspectionIntent?.status === "running") ||
     sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
