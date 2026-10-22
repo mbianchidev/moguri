@@ -10,6 +10,38 @@ host/guest artifacts, actual generated worker/tool/image frames and cancellation
 Cold provider networking requires a separately reviewed exact DNS-alias scope;
 the endpoint-only probe fails. These primitives do not enable public Sandbox.
 
+## Issue 17 source qualification
+
+The shared working-window and scoped-paste slice uses protocol/database **36**.
+SDK, CLI, actual native TUI and hidden desktop checks cover maximum/half and
+declared windows, actual request/role bounds, exact 50/51-line capture, CRLF/CR/LF
+and Unicode, bounded Local/SSH reads, stale approvals, failed persistence,
+concurrent edits, independent child grants and schema-35/restart/no-replay.
+Incompatible settings-only/tool-less chats retain files and fail explicitly.
+
+The final source checkpoint passes **843/843** full unit/integration/native
+checks in **656.46 s**, followed by **56/56** hidden Electron workflows.
+Type checks, production build and `npm run verify:sdk` pass. The external
+consumer installs/audits the actual packed SDK and exercises all entrypoints,
+exact paste/queue/deletion isolation and the existing owned Local/SSH runtime.
+Source and consumer audits report zero vulnerabilities. Generated fixtures use
+no personal credentials, live inference or real microphone.
+
+The first full run exposed nine manually constructed legacy fixtures retaining
+the new schema-36 marker; their future-marker cleanup is corrected, without
+relaxing production migrations. The installed-paste check initially matched
+error wording instead of the actual typed `attachment_session` code; it now
+checks that code. The native composer also ignores deferred programmatic
+CRLF-normalizing change events rather than treating them as concurrent edits.
+
+Existing npm deprecation/initial file-package script-approval notices,
+OpenTUI's experimental FFI warning and the lazy Ghostty chunk-size warning
+remain nonfatal. CI is still main-push-only; no feature/PR run is dispatched.
+No earlier app/SDK archive is rebuilt, no release tag is created, and test
+counts do not establish calibrated quality or completion of issue 17.
+Public Cascade/Critique, finite kupo wind-down/authorized checkpoints,
+System One/Max, production Sandbox and their final acceptance gates remain open.
+
 ## Supported checkpoint
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
