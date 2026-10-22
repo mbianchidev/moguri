@@ -565,9 +565,9 @@ test("Linear restart recovery never replays dispatched or undispatched original 
       const commandId = randomUUID(), original = await f.execute(await f.preview({ action: "issue.create", fields: { title: "Generated interrupted create" } }), commandId);
       const operation = (f.snapshot() as Snapshot & LinearSnapshot).linearOperations[0]!;
       if (dispatched) f.commit([{ event_type: "linear.operation_recorded", profile_id: "default", project_id: "project", payload: { operation: { ...operation, revision: 1, updatedAt: tick(20), dispatched: true } } }]);
-      f.store().db.exec("PRAGMA user_version=40");
+      f.store().db.exec("BEGIN IMMEDIATE; DELETE FROM retention_metadata WHERE id IN ('task_progress_schema','document_attachment_schema'); PRAGMA user_version=40; COMMIT;");
       f.restart();
-      assert.equal(Number(f.store().db.prepare("PRAGMA user_version").get()?.user_version), 41);
+      assert.equal(Number(f.store().db.prepare("PRAGMA user_version").get()?.user_version), PROTOCOL_VERSION);
       const current = await f.runtime().query({ type: "linear.workflow.read", operationId: original.result.id! });
       assert.equal(current.type, "linear.workflow.read"); if (current.type !== "linear.workflow.read") continue;
       assert.equal(current.operation.status, dispatched ? "partial" : "cancelled");

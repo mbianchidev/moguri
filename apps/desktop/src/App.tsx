@@ -9,6 +9,7 @@ import { BrowserPanel, ChangesPanel, FilesPanel, PlanPanel, SideChat } from "./S
 import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
 import { ContextImage } from "./ContextAttachments.tsx";
+import { ContextDocument } from "./DocumentAttachment.tsx";
 import { ArtifactPanel } from "./ArtifactPanel.tsx";
 import { SandboxPanel } from "./SandboxPanel.tsx";
 import { CandidatePanel } from "./CandidatePanel.tsx";
@@ -192,6 +193,16 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     else await showPanel(result.panel);
   };
   const handleSlash = async (target: Session, draft: DraftEditor, text: string) => {
+    if (/^\/attach-(?:document|file|image)(?:\s|$)/.test(text)) {
+      await draft.flush();
+      const result = await client.slash(target.id, text, "desktop");
+      const saved = client.getState().snapshot?.sessions.find((session) => session.id === target.id)?.draft;
+      if (saved) {
+        draft.receive(saved);
+        if (!draft.getState().conflict && draft.getState().text === text) { draft.edit("", saved.attachments); await draft.flush(); }
+      }
+      await applySlash(result); return;
+    }
     await draft.flush(); draft.edit(""); await draft.flush();
     try { await applySlash(await client.slash(target.id, text, "desktop")); }
     catch (error) { if (client.getState().snapshot?.sessions.some((session) => session.id === target.id && session.status !== "archived")) draft.edit(text); throw error; }
@@ -350,6 +361,7 @@ function Timeline({ session, run, client }: { session: Session; run: Run; client
           <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.toolCalls?.length ? "Requesting tool access." : message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
         {message.reasoning && <details><summary>Provider-exposed reasoning</summary><p className="reasoning">{message.reasoning}</p></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <ContextImage sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} />)}</div>}
+        {message.attachments?.some((attachment) => attachment.kind === "document") && <div className="message-documents">{message.attachments.filter((attachment) => attachment.kind === "document").map((attachment) => <ContextDocument sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} />)}</div>}
       </article>)}
     </div>}
   </div>;
@@ -375,6 +387,7 @@ function Queue({ session, command, client }: { session: Session; command: (comma
     {error && <p className="inline-error" role="alert">{error}</p>}
     {session.queue.map((item, index) => <div className="queue-item" key={item.id}>{editing === item.id ? <><textarea aria-label="Edit queued message" value={text} onChange={(event) => setText(event.target.value)} /><button onClick={() => void save(item.id)}>Save</button><button className="quiet" onClick={() => setEditing(null)}>Cancel</button></> :
       <><span className="queue-delivery">{item.held ? "held" : item.delivery === "steer" && item.targetTurnId !== session.turnId ? "unapplied steer" : item.delivery}</span><span className="queue-text" title={item.text}>{item.text || "Attached project context"}</span>
+        {item.attachments.filter((attachment) => attachment.kind === "document").map((attachment) => <ContextDocument key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} />)}
         {item.held && <button className="icon-button" aria-label={`Run queued message ${index + 1}`} title="Release this held prompt" onClick={() => void client.prompts.release(session.id, item.id, session.queueRevision).catch((error: unknown) => setError(error instanceof Error ? error.message : "Prompt could not be released."))}><Icon name="Play" /></button>}
         {item.delivery === "steer" && <button className="quiet" onClick={() => void command({ type: "queue.make-turn", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}>Queue as new turn</button>}
         <button className="icon-button" aria-label={`Copy queued message ${index + 1}`} title="Copy" onClick={() => void window.moguri.copyText(item.text).catch((error: unknown) => setError(error instanceof Error ? error.message : "Copy failed."))}><Icon name="Copy" /></button>

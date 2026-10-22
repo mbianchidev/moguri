@@ -596,3 +596,13 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .task-progress > div { display: flex; justify-content: space-between; gap: 8px; }
 .task-progress progress { width: 100%; height: 6px; accent-color: var(--accent); }
 .task-progress p { margin: 0; overflow-wrap: anywhere; }
+.document-chip { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; max-width: 100%; overflow-wrap: anywhere; }
+.document-chip small { font-size: 10px; color: var(--muted); }
+.document-preview { max-width: min(820px, calc(100vw - 32px)); }
+.document-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32vh; overflow: auto; }
+.document-selection { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 10px 0; }
+.document-selection label { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.document-selection input, .document-selection select { min-width: 0; width: 100%; }
+.document-capture { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.document-capture p { flex-basis: 100%; margin: 0; font-size: 12px; }
+.message-documents { display: flex; flex-wrap: wrap; gap: 6px; }
