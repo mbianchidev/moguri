@@ -14,7 +14,12 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > approved extension proposals, optional read-only subagents, a native MCP
 > gateway and local Nemotron dictation. These use one importable SDK, not
 > client-only implementations. They do not complete the later unattended
-> self-evolution, marketplace, memory-tier, routing or execution-backend roadmap.
+> self-evolution, routing or execution-backend roadmap. The separately
+> owner-requested [protocol-41 platform extension](architecture/platform-workflows.md)
+> now adds reviewed memory tiers, lifecycle hooks, repository-backed catalogs,
+> explicit Git/GitHub and Linear writes, and private/workspace/broader caching.
+> This is not permission to enable unrelated deferred work or claim first-release
+> acceptance from version numbers.
 
 > The additional [workspace platform slice](architecture/workspace-platform.md)
 > implements integrity/advisory-gated shared npm/pnpm caching, script-free

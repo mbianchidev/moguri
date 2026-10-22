@@ -128,9 +128,14 @@ Keep earlier qualified archives immutable. Continue to commit with
 
 ## Not silently added to the milestone
 
-The canonical specification explicitly defers broader orchestrator/session
-groups, multi-repo coordinated workflows, marketplaces/full hooks and
-Sky/Terra/Glacier evolution, full GitHub/two-way Linear/Porto/database plugins,
-scheduling, specialized workflows and managed cloud provisioning.
-Track those existing roadmap items separately; do not turn them into new
-first-milestone blockers or use them to inflate this handoff's estimate.
+The owner subsequently requested the explicitly scoped
+[protocol-41 platform extension](architecture/platform-workflows.md):
+Sky/Terra/Glacier knowledge, reviewed hooks/repository-backed marketplace,
+two-way GitHub/Linear workflows, private/workspace and Python/Rust/Go caches,
+and a qualified SendBox requirement for whole-descendant containment.
+This request does not change this handoff's first-milestone estimate or
+retrospectively qualify older images/archives.
+
+Broader orchestrator/session groups, multi-repo coordination, Porto/database
+plugins, scheduling, specialized modes and managed cloud provisioning remain
+separate deferred work. Do not silently make them new first-milestone blockers.
