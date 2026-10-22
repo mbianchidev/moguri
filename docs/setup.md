@@ -110,6 +110,18 @@ Other environment/autonomy combinations still require acceptance. Native console
 evolution, Git-stage views and native plan writes fail explicitly instead of
 using a Local source root. Public compound, wind-down and Max remain open.
 
+The committed native checkpoint at `b16ce0e` passes **874/874** full local
+checks with the actual native fixture enabled in **705.52 s**, then **58/58**
+hidden Electron cases in **2.1 min**, plus the actual packed external SDK
+install/type/runtime/CLI verification and zero source/consumer audit findings.
+The first sweep caught a shutdown-order regression: an early native cleanup
+await could let a held Remote secret write start a PTY before cancellation.
+Cancellation is now signalled synchronously before cleanup is joined; its
+actual held-write and native/restart checks pass. The failed sweep is not a pass.
+The refreshed no-cache workload receipt is
+`sha256:b03ab376659754d5332cbab352ab3637bb8f6be9e7fc5ae1895a5be183c5e067`.
+This records that checkpoint, not public compound/Max completion.
+
 ## Supported checkpoint
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is

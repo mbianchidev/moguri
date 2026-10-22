@@ -117,6 +117,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup }: {
     </div>}
     {review && execution && review.scope === publicationScope && <section className="candidate-binding" aria-label="Exact native source publication">
       <h3>Separate actual-user publication</h3><p className="fine-print path">Local destination: {review.value.document.root}. HEAD: {review.value.document.git?.head ?? "not a Git root"}.</p>
+      <p className="fine-print">At most {review.value.limits.files} files, {review.value.limits.patchBytes} patch bytes and {review.value.limits.documentBytes} complete review-document bytes.</p>
       <p className="fine-print">{review.value.diagnostic}</p>
       {review.value.document.patch.edits.map((edit) => <details key={edit.path}><summary className="path">{edit.path} / base {edit.baseDigest}</summary><pre className="workspace-file-content">{edit.text}</pre></details>)}
       <label className="check-setting"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I reviewed these exact source bases and output bytes. This authorizes only this copy, not code quality, execution or a Git commit.</label>
