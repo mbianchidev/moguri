@@ -28,7 +28,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
       .catch((error: unknown) => { if (generation.current === current) { setEntries([]); setError(error instanceof Error ? error.message : "Directory could not be read from the bound root."); } })
       .finally(() => { if (generation.current === current) setLoading(false); });
     return () => { generation.current++; };
-  }, [session.id, session.workspaceId, session.controls.env, path]);
+  }, [session.id, session.workspaceId, session.sandboxWorkspaceId, session.controls.env, path]);
   const open = (entry: string) => {
     if (entry.endsWith("/")) { setPath(entry.slice(0, -1)); return; }
     const current = ++generation.current; setLoading(true); setError("");
@@ -40,7 +40,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
-    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
+    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
 export function PlanPanel({ sdk, session, snapshot, workspaceScope, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; onDirty: (dirty: boolean) => void }) {

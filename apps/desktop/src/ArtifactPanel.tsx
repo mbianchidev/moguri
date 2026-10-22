@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeCompound, activeDecision, ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
+import { DecisionPanel } from "./DecisionPanel.tsx";
 
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status, folderId: value.folderId ?? null, workItemId: value.workItemId ?? null });
@@ -29,8 +30,13 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const candidate = draft?.id ? snapshot.candidates.find((candidate) => candidate.id === draft.id) : undefined;
   const generated = draft?.id ? snapshot.candidateGenerations.find((generation) => generation.id === draft.id) : undefined;
   const sequence = draft?.id ? snapshot.roleSequences.find((sequence) => sequence.id === draft.id) : undefined;
-  const immutable = Boolean(candidate || generated || sequence);
-  const activeCandidate = sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
+  const compound = draft?.id ? snapshot.compoundWorkflows.find((workflow) => workflow.id === draft.id) : undefined;
+  const winddown = draft?.id ? snapshot.winddowns.find((record) => record.id === draft.id) : undefined;
+  const decision = draft?.id ? snapshot.decisions.find((record) => record.id === draft.id) : undefined;
+  const native = snapshot.sandboxExecutions?.find((value) => value.id === draft?.id), publication = snapshot.sandboxPublications?.find((value) => value.id === draft?.id);
+  const immutable = Boolean(candidate || generated || sequence || compound || winddown || decision || native || publication);
+  const activeCandidate = decision && activeDecision(decision) || winddown && ["held", "running", "committing"].includes(winddown.status) || compound && activeCompound(compound) || publication?.status === "publishing" || native && (!["owned-guest-stopped", "acknowledged"].includes(native.cleanup) || native.inspectionIntent?.status === "running") ||
+    sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
@@ -68,6 +74,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   };
   return <section className="artifact-panel" aria-label="Retained artifacts" aria-busy={busy}>
     <p className="fine-print">Retained text, independent of sessions. Never automatic instructions or model context; media is not copied.</p>
+    <DecisionPanel sdk={sdk} snapshot={snapshot} session={session} selection={decision?.id} />
     <div className="panel-toolbar"><label className="setting-field">Document<select aria-label="Retained artifact" value={draft?.id ?? ""} disabled={busy || dirty} onChange={(event) => { const id = event.target.value; if (id) void run(() => load(id)); }}>
       <option value="">Choose a retained document</option>{documents.map((artifact) => <option key={artifact.id} value={artifact.id}>{artifact.name} / {artifact.kind} / {artifact.projectId ? snapshot.projects.find((project) => project.id === artifact.projectId)?.name ?? "Former project" : "Profile"}{artifact.folderId ? ` / ${snapshot.projectFolders.find((folder) => folder.id === artifact.folderId)?.name ?? "Former folder"}` : ""}{artifact.workItemId ? ` / #${snapshot.issues.find((issue) => issue.id === artifact.workItemId)?.number ?? "?"}` : ""}{artifact.status === "archived" ? " / archived" : ""}</option>)}
     </select></label><button className="icon-button" aria-label="New artifact" title="New retained document" disabled={busy || dirty} onClick={fresh}><Icon name="Plus" /></button></div>
@@ -105,7 +112,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
       <label className="setting-field">Name<input aria-label="Artifact name" value={draft.name} maxLength={160} disabled={busy} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
       <label className="setting-field">Folder<select aria-label="Artifact folder" value={draft.folderId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, folderId: event.target.value || null })}><option value="">No folder</option>{snapshot.projectFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select></label>
       <label className="setting-field">Work item<select aria-label="Artifact work item" value={draft.workItemId ?? ""} disabled={busy || !draft.projectId} onChange={(event) => setDraft({ ...draft, workItemId: event.target.value || null })}><option value="">No work item</option>{snapshot.issues.filter((issue) => issue.projectId === draft.projectId).map((issue) => <option key={issue.id} value={issue.id}>#{issue.number} {issue.title}{issue.archived ? " / archived" : ""}</option>)}</select></label>
-      {current && <p className="fine-print">{sequence ? "Immutable role input and actual model observations. Protocol completion is not a user answer, code-quality proof or approval." : generated ? "Immutable generation input/result. Actual model provenance is retained; staging and application require separate reviews." : candidate ? candidate.generationId ? "Derived from a canonical model proposal. Immutable bytes, model provenance and actual user acceptance stay separate." : "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
+      {current && <p className="fine-print">{native || publication ? "Immutable native input/result, original owner and actual source-publication acceptance. Use Sandbox to inspect exact outputs; metadata edits cannot rewrite provenance or authorize source copying." : sequence ? "Immutable role input and actual model observations. Protocol completion is not a user answer, code-quality proof or approval." : generated ? "Immutable generation input/result. Actual model provenance is retained; staging and application require separate reviews." : candidate ? candidate.generationId ? "Derived from a canonical model proposal. Immutable bytes, model provenance and actual user acceptance stay separate." : "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
       {current?.sources.filter((source) => source.boundary?.env === "Remote").map((source, index) => <p className="fine-print path" key={index}>Remote source: {source.boundary?.root}/{source.boundary?.path} / {source.boundary?.hostFingerprint} / {source.outcome ?? "unconfirmed"}</p>)}
       <label className="setting-field">Text<textarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} readOnly={immutable} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
       {conflict && <p className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</p>}

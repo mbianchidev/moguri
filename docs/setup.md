@@ -5,8 +5,334 @@ For current continuation scope, see the
 The user has reopened previously paused Sandbox integration specifically for
 SendBox 0.2.3. Historical checkpoint measurements below remain scoped to their
 recorded versions; they do not qualify the new runtime or close the milestone.
+Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
+host/guest artifacts, actual generated worker/tool/image frames and cancellation.
+Cold provider networking requires a separately reviewed exact DNS-alias scope;
+the endpoint-only probe fails. These primitives do not by themselves enable
+public Sandbox. The current protocol-40 service/SDK/client lifecycle below
+extends them without changing factory settings or broadening policy.
+
+## Issue 17 source qualification
+
+### Final protocol-40 source acceptance
+
+The complete current source passes **956/956 unit/integration/native checks
+in 854.52 s**, with no skipped cases on this macOS host. All **64 hidden
+Electron workflows pass in 2.5 min**. The exact current protocol-40 image is
+qualified against released SendBox 0.2.3, including actual guest tools,
+Manual approvals, project-free paste paging, acknowledged cancellation,
+guest loss, real controller SIGKILL and late metering without replay.
+Its immutable pins and narrower networking boundary are recorded in
+[the native qualification](architecture/sendbox-0.2.3.md#protocol-40-source-requalification).
+
+Type checks, production build and actual packed external SDK installation
+pass. `npm run verify:sdk` exercises root/React/Node/MCP entrypoints, the
+installed runtime/worker/CLI and an actual 126-token generated
+solver/decision/solver sequence, independent export/deletion/reopen, plus
+the existing Local/SSH contracts. Source, image and external-consumer audits
+report zero vulnerabilities.
+
+The initial full run found one old assertion expecting
+`budget_plan_capacity` after policy had already fallen below held capacity.
+The current guard correctly reports `budget_exhausted` before dispatch.
+The regression now also checks the unchanged complete hold, zero started
+entries and zero remaining capacity. The 25 affected budget cases and the
+complete 956-case rerun pass; no production cap or admission check was relaxed.
+
+Existing npm deprecation/initial package script-approval notices,
+OpenTUI experimental FFI and lazy Ghostty bundle-size warnings remain
+nonfatal. Injected persistence/scope failures and generated server loss
+produce intentional diagnostics. No personal login, live paid inference,
+real microphone or uncontrolled source checkout is used.
+
+This qualifies the stated generated source boundary, not a new app/SDK
+archive, billed-usage guarantee, calibrated model quality or completed
+Milestone 1. Jev's missing enforceable output bound, endpoint-only cold
+provider networking, Remote/native compound/Max/wind-down and the disclosed
+native side-panel/extension gaps remain blocked. Detached/reparented
+Local/SSH containment remains unproven. CI stays main-push-only, with no
+feature/PR trigger, release/tag, main push, rebase or PR merge.
+
+### Protocol-36 context-only acceptance
+
+The shared working-window and scoped-paste slice uses protocol/database **36**.
+SDK, CLI, actual native TUI and hidden desktop checks cover maximum/half and
+declared windows, actual request/role bounds, exact 50/51-line capture, CRLF/CR/LF
+and Unicode, bounded Local/SSH reads, stale approvals, failed persistence,
+concurrent edits, independent child grants and schema-35/restart/no-replay.
+Incompatible settings-only/tool-less chats retain files and fail explicitly.
+
+That protocol-36 context-only source checkpoint passes **843/843** full unit/integration/native
+checks in **656.46 s**, followed by **56/56** hidden Electron workflows.
+Type checks, production build and `npm run verify:sdk` pass. The external
+consumer installs/audits the actual packed SDK and exercises all entrypoints,
+exact paste/queue/deletion isolation and the existing owned Local/SSH runtime.
+Source and consumer audits report zero vulnerabilities. Generated fixtures use
+no personal credentials, live inference or real microphone.
+
+The first full run exposed nine manually constructed legacy fixtures retaining
+the new schema-36 marker; their future-marker cleanup is corrected, without
+relaxing production migrations. The installed-paste check initially matched
+error wording instead of the actual typed `attachment_session` code; it now
+checks that code. The native composer also ignores deferred programmatic
+CRLF-normalizing change events rather than treating them as concurrent edits.
+
+Existing npm deprecation/initial file-package script-approval notices,
+OpenTUI's experimental FFI warning and the lazy Ghostty chunk-size warning
+remain nonfatal. CI is still main-push-only; no feature/PR run is dispatched.
+No earlier app/SDK archive is rebuilt, no release tag is created, and test
+counts do not establish calibrated quality or completion of issue 17.
+Those context-only results do not qualify public Cascade/Critique, finite
+kupo wind-down/authorized checkpoints, System One/Max or production Sandbox.
+The later source checkpoints below record their own narrower evidence.
+
+### Native service/SDK development checkpoint
+
+Current source adds protocol/database **37**, not a new qualified archive.
+Explicitly reviewed SendBox 0.2.3 release/image pins can now qualify the actual
+guest and prepare a bounded private text stage through the SDK. Model/worker
+calls run there, with Manual approvals, scoped pasted-file reads, the shared
+budget ledger and verified original VM cleanup. A project-free model root stays
+null. Source files are copied only by separately reviewed actual-user publication;
+source index/HEAD and unrelated edits are not staged, committed or reset.
+
+Six opt-in actual-native cases pass in **19.59 s**: pinned guest qualification,
+encrypted IPC/failed rollback, ordinary SDK model/tools and source publication,
+project-free long-paste paging, acknowledged cancellation/unknown holds, and real
+controller SIGKILL followed by late usage reconciliation without a new call/VM.
+Inference and metadata responses in these cases are generated inside the guest,
+not live Copilot networking or billed-usage evidence. The endpoint-only cold
+network gate remains separate and failed; no alias is added automatically.
+The latest ordinary execution/publication case passes in **4.08 s**.
+
+Run the actual native cases only with the exact current generated image receipt:
+
+```sh
+MOGURI_NATIVE_INSTALLATION=.native/sendbox-0.2.3/installation.json \
+MOGURI_NATIVE_WORKLOAD=/absolute/path/to/current/qualification.json \
+node --import tsx --test --test-concurrency=1 \
+  tests/sandbox-runtime.test.ts tests/sandbox-service.test.ts \
+  tests/sandbox-recovery.test.ts
+```
+
+Without these explicit receipts the cases are skipped, not counted as native
+qualification. The additive migration preserves ciphertext, command receipts,
+scoped files and unsupported saved windows through failure/reopen. Native
+records/results/publications have independent report grants; deleting a source
+conversation does not erase them. Private stage directories and SendBox's own
+snapshot store are not claimed as cryptographically deleted or reclaimed.
+
+CLI/TUI and hidden desktop now expose that same native authority. Guardrails
+requires saved reviewed artifacts/network scope and explicit model-free
+verification. Select Sandbox without changing autonomy or choosing a substitute
+model, open **Sandbox**, preview exact source text, confirm the file set, then
+prepare the private stage. Ordinary Send and Manual approval controls remain
+shared; Cmd/Ctrl+Enter still holds rather than runs.
+
+The actual TUI native keyboard flow passes in **3.97 s**, including held queue,
+guest tools, human approvals and separately confirmed source publication.
+The hidden desktop native flow passes in **6.5 s**; its independent retained-data
+review case also proves that an existing report is not readiness. Output review
+is consumed on publication and focus moves to the real job outcome. Native
+report editors change only metadata, not original bytes or acceptance.
+The actual guest-loss SDK case passes in **3.42 s**, retaining partial work and
+unknown capacity without conflating the host CLI's code with the signed runtime
+exit. Additional real controller-SIGKILL cases before/after the first source
+copy preserve original publication attempts and lost-receipt idempotence.
+
+Dedicated CLI uses `moguri sandbox status|runs`, explicit
+`probe --confirm-review`, `preview/prepare PATHS.json --session ID`, retained
+`execution/result`, and `publish-preview/publish RUN_ID PATHS.json` with separate
+digest/revision/`--confirm-write`. Shared terminal commands use `/sandbox`;
+`/sandbox preview PATHS_JSON` returns the exact confirmation command rather
+than staging automatically. `--help` and `/help` list inspection, exact-run
+stop, reconciliation and publication-job cancellation.
+
+Other environment/autonomy combinations still require acceptance. Native console, MCP, memory, subagent,
+evolution, Git-stage views and native plan writes fail explicitly instead of
+using a Local source root. Public compound, wind-down and Max remain open.
+
+The committed native checkpoint at `b16ce0e` passes **874/874** full local
+checks with the actual native fixture enabled in **705.52 s**, then **58/58**
+hidden Electron cases in **2.1 min**, plus the actual packed external SDK
+install/type/runtime/CLI verification and zero source/consumer audit findings.
+The first sweep caught a shutdown-order regression: an early native cleanup
+await could let a held Remote secret write start a PTY before cancellation.
+Cancellation is now signalled synchronously before cleanup is joined; its
+actual held-write and native/restart checks pass. The failed sweep is not a pass.
+The refreshed no-cache workload receipt is
+`sha256:b03ab376659754d5332cbab352ab3637bb8f6be9e7fc5ae1895a5be183c5e067`.
+This records that checkpoint, not public compound/Max completion.
+
+### Reviewed Local compound source checkpoint
+
+Current source uses protocol/database **38**. In **Settings / kupo routing**,
+choose **Reviewed Cascade / Critique**, review the complete explicit policy
+JSON and save it. Models remain unselected until the user chooses kupo.
+Declare exact Cascade draft/escalation IDs or Critique draft/critic IDs from
+the available configured catalog. Hosted/network data needs explicit consent.
+Critique additionally requires an exact-model, source-backed lineage review:
+paste the source and limitations, review the pair/expiry, add its draft claim
+to matching routes, then separately Save settings. This never fetches a URL
+or inspects provider metadata, and the claim is not proof about training or
+model quality.
+
+In a Local project agent, open **Candidates / Reviewed Cascade / Critique**.
+Select two distinct clean owned worktrees and an actual user-configured
+project validation script. Review the exact task, optional request plan and
+architecture, selected source/new files, bases, eligible roles, privacy and
+model cost. Starting pays only for owned bounded model roles. It does not
+approve staging, execution or source changes. Selected source bases must
+match the clean committed candidate bases; dirty selected input is rejected,
+not silently dropped. Unselected source/index edits remain untouched.
+
+Each proposal pauses for exact candidate plan/architecture/implementation and
+host-command review. Explicitly approve **Stage and run reviewed project
+tests** or decline. Manual permissions, hard denials and folder restrictions
+remain authoritative. Failed drafts stay in their original worktree; one
+configured Cascade escalation or eligible Critique/revision can use the
+alternate. A passing critic cannot override failed tests. A recommended
+candidate is not accepted source: **Inspect recommended candidate**, then use
+the independent **Review source application / Apply reviewed files** flow.
+No dependency install, Git stage, commit or push is implied.
+
+Shared terminal commands are `/compound preview INPUT_JSON`, its returned
+`start SHA confirm-cost INPUT_JSON`, `/compound validation ID` for the exact
+next staging/test confirmation, `read ID`, `deny` and exact `stop`.
+`moguri compound preview INPUT.json --session ID` takes the same selection
+without a `sessionId` override in JSON. Dedicated CLI `start` needs
+`--digest SHA --confirm-cost`; `review ID VALIDATION` additionally needs the
+actual revision/digest and `--confirm-stage-and-test`. `read`, `validation`,
+`deny` and `stop` inspect or control only original retained work.
+
+Composer drafts, typed attachments and held prompts are not consumed or
+silently included in these explicitly selected inputs. Ordinary Send/Resume
+cannot turn a held compound prompt into an unreviewed Single call. Public
+reports and raw role/test data are independently retained; source application
+and Git authority remain separate. Metadata editors cannot replace those
+documents. Artifact export schema 7 includes actual role/test history and
+candidate-origin copies.
+
+The source/client qualification and remaining gates are recorded in
+[the public compound contract](architecture/compound-workflows.md).
+Remote/Sandbox compound transports, finite kupo wind-down, authorized accepted-
+work checkpoints and System One/Max remain unqualified. Native Local commands
+do not prove detached/reparented containment. The schema-38 workload must be
+rebuilt/requalified before native acceptance; older image pins are not reused
+as evidence for this source.
 
 ## Supported checkpoint
+
+### Protocol-39 reserved wind-down development
+
+The current [Local wind-down lifecycle](architecture/budget-winddown.md)
+adds explicit `settings.winddown`, default off with no model. Configure it
+in **Settings / Budgets / Budget wind-down policy** using an exact available
+model ID, separate hosted metadata consent, full output tokens and a deadline.
+Saving performs no inference or Git operation. Eligible finite Local kupo
+controls then use actual service readiness, not a client-only bypass.
+Remote/native finite kupo remains unavailable.
+
+Single reserves one complete finishing role with the original turn. Compound
+reserves its router and finisher atomically before a request. Ordinary calls,
+complete future route batches, the finishing call and every inherited
+session/profile/global unit share the same ledger. When ordinary work cannot
+fit, only its original held metadata-only finishing role may run; the
+interrupted task is not labeled complete. Unknown usage remains held.
+A newly stricter cap below actual/held charges blocks even that dispatch.
+
+The model receives canonical call-count/token aggregates and digests, not
+raw task text, code or chat history. Its summary is not validation, source
+acceptance or Git approval. In **Candidates / Budget wind-down checkpoints**,
+separately choose actual-user **applied** candidates, review the exact source
+bytes/modes, current root/base, new local branch and message, then confirm
+**Create reviewed local checkpoint branch**. A temporary index and explicit
+`--no-gpg-sign` preserve the real source index/HEAD and unrelated staged edits.
+No checkout, push, merge, rebase or branch deletion occurs. Decline, partial
+publication and controller loss retain original observations without replay.
+
+SDK `winddown.status/list/read/stop/decline`, `commitPreview/commit` and
+`waitCommit` are shared by all clients. `/winddown commit-preview JSON`
+returns a separate exact `confirm-git` command. Dedicated
+`moguri winddown preview INPUT.json --session ID` and
+`commit INPUT.json --session ID --revision N --digest SHA --confirm-git`
+use the same reviewed input without a session/root/profile override in JSON.
+Readiness, unknown accounting and actual publication are displayed separately.
+Artifact export schema 8 retains the original role and separate actual-user
+Git history; metadata editors cannot replace it.
+
+The schema-38-to-39 migration preserves exact encrypted compound roles/tests,
+receipts and independent data through failure/reopen. This is source
+qualification, not a new archive/release or the final issue-17 sweep. The
+final protocol-40 worker image is covered by the fresh source acceptance above.
+Detached/reparented containment remains unproven.
+
+### Protocol-40 bounded decision providers and Local Max
+
+The [owned decision contract](architecture/owned-decisions.md) adds an
+explicitly selected bounded-model System One-compatible alternative over the
+existing root-less worker, authorizer and all-role ledger. It is not Jev and
+does not infer calibrated quality, training independence or new permissions.
+
+In desktop **Autonomy / Decision provider settings**, edit the complete
+**Decision provider policy** using one exact available model ID from the
+disclosed list. Defaults are disabled, no model, no hosted consent, 512 output
+tokens, a 15-second deadline and four total decision/steering calls per turn.
+Confidence and selected probability have separate 0.9 thresholds; these are
+user policy, not calibrated reliability. Do not put credentials in JSON;
+configure the selected endpoint's explicit secret backend separately.
+Save settings, then separately choose **Autopilot Max**. Saving never changes
+the solver, Env or budget and never starts inference.
+
+`reviewDelegatedTools` can allow, decline or escalate only an already allowed
+exact user tool/command delegation. An ordinary `ask` remains human; hard
+denial wins before a paid role. `technicalQuestions` may contain explicit
+`{id, kind: "technical-choice", question, choices}` entries. Only the exact
+question and identical choices, with freeform disabled, may be answered as
+the actual `decision-provider`. Unseen questions and user-only facts stay
+human; no answer grants tool/Git authority or consumes a human draft.
+When answer retention is enabled, its original scoped decision input/result
+evidence is independently retained too.
+
+Optional `steering` starts off. Its `steeringChoices` are exact user-authored
+`{id, text}` alternatives; `continue` and `askUser` are reserved. The real safe
+solver boundary can apply one bounded choice, add nothing, or pause for human
+review. Human queued steers/mode changes win. Solver context labels provider
+steering as untrusted data, not a fabricated human message.
+
+Use SDK `decisions.status/list/read/stop`, shared
+`/decisions status|list|read ID|stop ID confirm-stop|set POLICY_JSON`, or:
+
+```bash
+moguri decisions status --session ID
+moguri decisions set POLICY.json --confirm-review
+moguri decisions list --session ID
+moguri decisions read DECISION_ID
+moguri decisions stop DECISION_ID
+```
+
+Desktop **Artifacts / Decision-provider observations** shows the actual
+actor/model/step, raw evidence, charges and cleanup. Generic document editing
+is metadata-only. A human can answer/approve while the decision is in flight;
+that real answer wins, cancels stale advice and never refunds unknown usage.
+Source/report deletion and restart cannot replay a paid call or tool.
+Applied tool/steering receipts keep their own original evidence grants too:
+deleting the separate report cannot invalidate the still-retained conversation.
+
+The current Jev API has no enforceable output-token-limit field. Its saved
+configuration stays visible, but Max remains blocked with that exact reason;
+there is no invented `max_tokens` or generative fallback. Remote/native Max
+also stays blocked rather than making its calls on the controller.
+Fixed and kupo Single solvers work independently of Local Max; reviewed
+compound staging/tests/source/Git still need their separate actual-user gates.
+The additive schema-39-to-40 migration preserves original encrypted
+wind-down data, receipts and charges without a state reset.
+
+The earlier focused source/SDK/CLI/TUI checkpoint passes **34/34 checks in 8.55 s**.
+Six hidden desktop checks, including the existing composer regressions, pass
+in **8.3 s**. These generated mechanics are not live Jev/Copilot quality,
+provider-side cancellation or billed cost. Final generated full/packed/native
+acceptance is recorded above rather than inferred from those focused totals.
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
 required to install; `.node-version` and the bundled runtime pin 26.12.0.
@@ -81,14 +407,25 @@ See [the current checkpoint](#development-028-explicit-model-declarations).
 The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
 compact icon/name controls rather than separate labeled rows.
 Factory values are Local, unset model, Manual and Unlimited. Current execution
-is Local or explicitly qualified SSH with fixed Copilot/configured local models
-and Unlimited or explicit estimate-based caps. Opt-in kupo Single uses those
-same transports but blocks every finite inherited cap until its wind-down path
-is qualified. Manual remains default; Guided displays model
+is Local, explicitly qualified native Sandbox or pinned SSH with fixed
+Copilot/configured local models and Unlimited or explicit estimate-based caps.
+Opt-in kupo Single uses its approved transports; finite Local routing needs
+the explicit reserved wind-down policy above. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
-command grants and cannot grant itself anything. Autopilot Max is unavailable.
+command grants and cannot grant itself anything. Local Autopilot Max needs its
+separately configured compatible bounded decision provider. Jev and
+Remote/native Max remain unavailable.
 Unready choices explain the limitation
 or fail with a typed error; no fallback to Local or another model is possible.
+
+**Model / Working context** offers the model maximum and its integer-floored
+half, omitting windows below 8,192 tokens. Actual provider-declared working
+windows replace these derived choices when available. `/model-settings` in
+desktop, TUI or `moguri slash` shows the same service choices and current
+estimate; `/model-settings {"contextWindow":N}` selects an offered exact value.
+`/model-settings reset` restores the model default. An unsupported saved value
+stays visible and blocks inference until explicitly corrected. No history is
+silently truncated and context/output counts remain estimates.
 
 Every tool needs a human approval bound to its exact arguments and policy/
 permission revisions, or an explicit bounded user delegation. Deny wins.
@@ -117,6 +454,20 @@ there is no conversion service. Folder, GitHub issue/PR and session-text
 snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:`, `#` and
 `!` stay literal until the user selects an attachment; Tab offers the typed
 picker without attaching or executing anything.
+
+Text pastes over 50 logical lines become encrypted, immutable `paste_file`
+attachments, preserving exact UTF-8 text and CRLF/CR/LF endings up to 128 KiB.
+Desktop clipboard paste, TUI bracketed paste and SDK `attachments.paste`
+capture immediately; ordinary SDK send and queue edits enforce the same rule.
+Failed saves, overlapping edits or unsupported sizes preserve the complete
+unsent draft. A trailing newline counts as an empty final line.
+Model context gets only a scoped filename/digest descriptor. Approved
+`read_file` calls read at most 16 KiB with UTF-8 byte `offset`/`limit` and
+optional literal `search`; use the returned `nextOffset` to continue.
+Local, SSH and qualified native workers use an authenticated controller snapshot broker, not a
+host-path mount or source-file write. Project-free chats get access only to
+their admitted files, never a previous workspace. Sandbox still requires its
+separate execution qualification and cannot fall back to Local.
 
 TUI/CLI use `/attach-file ABSOLUTE_PATH`, `/attach-image ABSOLUTE_PATH`,
 `/attach-folder [SHA256] PATH`, `/attach-github [gh-cli] [SHA256] URL` and
@@ -206,7 +557,7 @@ shared global preferences is a separate revision-bound action.
 
 ## Experimental kupo Single
 
-In **Settings / kupo Single**, explicitly enable the profile policy, choose one
+In **Settings / kupo routing**, choose **Single**, explicitly enable the profile policy, choose one
 discovered classifier, approve up to eight exact solver models and separately
 allow hosted/network task-data transfer if any selected role uses Copilot, a
 non-loopback URL or an unknown endpoint boundary. The configured provider's
@@ -235,11 +586,13 @@ TUI `/kupo history` expose the actual plan/models; per-call accounting shows
 actual roles. Confidence is model-supplied advice, not a calibrated probability,
 user answer or authority. Stop/restart never replay routing or effects.
 
-This alpha is text-only and requires Unlimited with no finite session, owner,
-profile or global cap. Context/thinking tuning, images, cascade,
-critique/revision, calibrated quality and reserved wind-down/authorized
-checkpoint commits are not qualified. Hard policy can still stop new routed
-calls; it is never removed to enable kupo. Native Sandbox remains unavailable.
+The Single policy is text-only and requires Unlimited with no finite session,
+owner, profile or global cap. Context/thinking tuning, images, calibrated
+quality and reserved wind-down/authorized checkpoint commits are not qualified.
+Use the separately reviewed Compound path above for current Local
+Cascade/Critique development, not an ordinary Single prompt. Hard policy can
+still stop new routed calls; it is never removed to enable kupo. Single's
+native Sandbox transport remains unqualified.
 
 ## Isolated profiles
 
@@ -315,10 +668,12 @@ settings when navigating away. Section/all reset preserves sessions, knowledge,
 credentials and downloaded models, and does not widen the separate allowed-env
 policy.
 
-**Sandbox is still unavailable.** Guardrails exposes SendBox configuration and
-readiness diagnostics, but the native worker transport/guest bundle/workload
-qualification is not complete. Merely entering paths does not enable execution.
-Missing protection is an explicit error, never a Local fallback.
+**Sandbox is gated, not enabled by entering paths.** The development SDK now
+has explicit 0.2.3 guest qualification, source review/preparation, execution
+inspection/reconciliation and separately accepted text-output publication.
+Guardrails requires separate explicit verification of the saved review. Exact release,
+workload, current reviewed network scope and private staging are mandatory;
+missing protection is an explicit error, never a Local fallback.
 
 ## Remote SSH
 

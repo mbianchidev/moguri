@@ -36,5 +36,5 @@ const paths: Record<string, string> = {
   Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
 };
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name === "Sandbox" ? "Box" : name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

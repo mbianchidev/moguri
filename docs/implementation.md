@@ -121,6 +121,16 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > public compound admission, conditional pattern
 > policy, finite kupo and Max remain unqualified.
 
+> Issue-17 development source now adds shared model windows/scoped paste,
+> reviewed native SendBox 0.2.3 execution/publication, Local Cascade/Critique,
+> finite Local wind-down and [owned bounded decisions](architecture/owned-decisions.md).
+> Local Max uses an explicitly configured compatible alternative with fixed
+> or Single-routed solvers; actual user delegation/acceptance remains final.
+> The final generated source/native and packed-consumer sweep passes.
+> Jev's missing output bound, Remote/native compound/Max/wind-down and live
+> quality remain explicit gates. Historical qualified archives and their
+> protocol versions are unchanged.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.
@@ -292,6 +302,14 @@ Keep the prompt and attached context together, with session controls in this ord
 
 The Model control shows setup guidance while unavailable. A configured decision-only provider such as Jev does not unlock a generative model. Discover eligible models before offering kupo, and distinguish configured, available, loading, expired-auth, incompatible, and unreachable states. List only models accessible through the active profile and selected env; discovery does not scan arbitrary hosts or start paid inference. Recheck availability at dispatch, and never silently replace an unavailable saved model.
 
+Working-context choices use the exact model maximum and its integer-floored
+half, excluding values below the shared 8,192-token working minimum. Genuine
+provider-declared supported windows replace those derived choices. SDK, CLI,
+TUI and desktop share the contract; model changes and stale/default overrides
+cannot silently clamp a window or discard history. Request sizing and output
+headroom remain explicitly estimated and are rechecked against actual prepared
+capabilities, including generation previews and future-role admission.
+
 **Attachments and shortcuts:**
 
 | Attachment | Trigger | Scope |
@@ -304,6 +322,17 @@ The Model control shows setup guidance while unavailable. A configured decision-
 | Project file | `@` | A file in the selected project's actual local, sandbox, or remote workspace |
 
 The desktop Attach menu offers all six types. Users can paste clipboard images directly into the desktop composer. TUI image paste depends on terminal/clipboard capabilities; where unsupported, expose explicit file/path attachment instead of pretending pasted text is an image.
+
+Text pastes over 50 logical lines become exact scoped text-file attachments,
+not whole-paste prompt expansions. Preserve UTF-8 bytes and CRLF/CR/LF endings,
+source/profile/session ownership, and unsent text on persistence failure or
+concurrent edits. SDK send/queue paths enforce the rule as well as clipboard
+handlers. The actual execution boundary must expose bounded, approved file
+read/search access, including for project-free chats, without writing an
+unexpected source file or injecting the entire body through another route.
+Disclose a controller-snapshot broker rather than claiming a filesystem mount;
+unsupported tool-less/env combinations retain the data and fail explicitly.
+Retention, child copies, queue/restart and exactly 50/51 lines need coverage.
 
 Pickers produce typed, inspectable, removable references or content snapshots, not ambiguous plain-text expansions. `#` results identify repository, number, and issue/PR type. Session attachments retain source/profile permissions and do not resume or control the source session. Preserve file revisions, source links, and snapshot provenance. Bare prefixes in code, URLs, email addresses, or pasted text remain literal unless the user explicitly selects an attachment. Future `@` agent mentions must be typed and disambiguated from project files.
 

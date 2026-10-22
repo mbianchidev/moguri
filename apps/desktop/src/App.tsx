@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DraftEditor, sessionTitle as title, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, DraftEditor, sessionTitle as title, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -10,6 +10,7 @@ import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
 import { ContextImage } from "./ContextAttachments.tsx";
 import { ArtifactPanel } from "./ArtifactPanel.tsx";
+import { SandboxPanel } from "./SandboxPanel.tsx";
 import { CandidatePanel } from "./CandidatePanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
@@ -22,7 +23,7 @@ const GhosttyTerminal = lazy(() => import("./GhosttyTerminal.tsx").then((module)
 type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
-const panels: Panel[] = ["Terminal", "Browser", "Insights", "Dashboard", "PR", "Changes", "Files", "Plan", "Artifacts", "Candidates", "Side chat", "Suggestions", "Attention"];
+const panels: Panel[] = ["Terminal", "Browser", "Insights", "Dashboard", "PR", "Changes", "Files", "Plan", "Artifacts", "Candidates", "Sandbox", "Side chat", "Suggestions", "Attention"];
 const number = (value: number) => new Intl.NumberFormat().format(value);
 function savedLayout(): { panel: Panel; open: boolean; wide: boolean } {
   try {
@@ -74,6 +75,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
   const pendingQuestion = snapshot?.questions.find((question) => question.id === session?.pendingQuestionId && question.status === "open");
+  const decisionReview = snapshot?.decisions.find((record) => record.sessionId === session?.id && record.turnId === session?.turnId && activeDecision(record));
   const copilot = snapshot?.provider.connections?.find((connection) => connection.id === "github-copilot") ?? snapshot?.provider;
   const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
@@ -265,10 +267,12 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         </div> :
         <>
           <Timeline session={session} run={run} client={client} />
-          {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} />}
+          {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
           {session.kind === "metachat" && snapshot && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
           {session.pendingApproval && <section className="approval" aria-label="Tool approval">
             <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
+            {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
+              <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
             <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will access this project's files."}</p>
             <pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
             {session.pendingApproval.recommendation && session.pendingApproval.recommendationSource?.stepId === session.pendingApproval.stepId && session.pendingApproval.recommendationSource.callId === session.pendingApproval.call.id ?
@@ -277,16 +281,16 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             <div className="approval-actions"><button disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: false })}>Deny</button><button className="primary" disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: true })}>Approve this action</button></div>
           </section>}
           {session.queue.length > 0 && <Queue session={session} command={command} client={client} />}
-          {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onRouting={() => openSettings("kupo")} />}
+          {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => void showPanel("Sandbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
         </>}
       </>}
     </main>
     <aside className="context-pane" aria-label="Session sidebar">
       <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><div><button className="icon-button" aria-label="Resize sidebar" title="Toggle sidebar width" onClick={() => setWidePanel((value) => !value)}>&lt;&gt;</button><button className="icon-button" aria-label="Close sidebar" onClick={() => { if (canNavigate()) setPanelOpen(false); }}><Icon name="Close" /></button></div></header>
       <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
-        <ContextPanel key={`${client.profileId}-${panel === "Artifacts" || panel === "Candidates" || panel === "Dashboard" ? "independent" : session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
+        <ContextPanel key={`${client.profileId}-${panel === "Artifacts" || panel === "Candidates" || panel === "Dashboard" || panel === "Sandbox" ? "independent" : session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("permissions")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
       </div>
-      <footer className="context-footer">{panel === "Artifacts" ? "Independent of session retention" : panel === "Candidates" ? "Retained independently; writes use reviewed roots" : panel === "Dashboard" ? "Current-profile cumulative accounting" : "Bound to the main session"}</footer>
+      <footer className="context-footer">{panel === "Artifacts" ? "Independent of session retention" : panel === "Candidates" ? "Retained independently; writes use reviewed roots" : panel === "Sandbox" ? "Private stages; separate reviewed source publication" : panel === "Dashboard" ? "Current-profile cumulative accounting" : "Bound to the main session"}</footer>
     </aside>
     <nav className="panel-rail" aria-label="Sidebar panels">{panels.filter((item) => item !== "PR" || connectedPr).map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => void showPanel(item)}><Icon name={item} /></button>)}</nav>
     {commandOutput && <CommandOutput text={commandOutput} close={() => setCommandOutput(null)} />}
@@ -380,27 +384,32 @@ function Queue({ session, command, client }: { session: Session; command: (comma
         <button className="icon-button" aria-label={`Remove queued message ${index + 1}`} title="Delete" onClick={() => void command({ type: "queue.remove", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}><Icon name="Trash" /></button></>}</div>)}
   </section>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, prUrl, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, suggestionsAll, chooseSession, modal, artifactRequest, clearArtifactRequest }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, prUrl, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, suggestionsAll, chooseSession, modal, artifactRequest, clearArtifactRequest, setupSandbox }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void; artifactRequest: ArtifactEditorRequest | null; clearArtifactRequest: () => void;
+  setupSandbox: () => void;
 }) {
   const [trace, setTrace] = useState(false);
   if (panel === "Artifacts" && snapshot) return <ArtifactPanel sdk={client} snapshot={snapshot} session={session} projectId={project?.id ?? null} request={artifactRequest} onDirty={onDirty} onRequestHandled={clearArtifactRequest} />;
   if (panel === "Candidates" && snapshot) return <CandidatePanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} />;
+  if (panel === "Sandbox" && snapshot) return <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} />;
   if (panel === "Dashboard" && snapshot) return <UsageDashboard key={client.profileId} sdk={client} snapshot={snapshot} />;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path,
-    snapshot?.projectConfigurations.find((value) => value.projectId === session.projectId), session.controls.env === "Remote" ? snapshot?.settings.values.remote : null]);
+    snapshot?.projectConfigurations.find((value) => value.projectId === session.projectId), session.controls.env === "Remote" ? snapshot?.settings.values.remote : null,
+    session.controls.env === "Sandbox" ? [session.sandboxWorkspaceId, snapshot?.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId)?.revision, snapshot?.settings.values.sandbox] : null]);
   if (!project && ["Terminal", "Changes", "Files", "Plan", "PR"].includes(panel)) return <div className="panel-empty"><Icon name="Files" /><h2>No project selected</h2><p>This chat cannot access workspace files, commands, plans or terminals. Start a project chat for those operations.</p></div>;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={suggestionsAll} chooseSession={chooseSession} modal={modal} />;
   if (panel === "Insights") {
     const execution = snapshot?.executions.findLast((value) => value.sessionId === session.id);
+    const nativeExecution = snapshot?.sandboxExecutions?.findLast((value) => value.sessionId === session.id);
+    const nativeWorkspace = snapshot?.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId);
     const routing = snapshot?.routings.findLast((value) => value.sessionId === session.id);
-    const workspace = session.controls.env === "Remote" ? snapshot?.projectConfigurations.find((value) => value.projectId === project?.id)?.values.remotePath : snapshot?.managedWorkspaces.find((value) => value.id === session.workspaceId)?.path ?? project?.path;
+    const workspace = session.controls.env === "Sandbox" ? nativeWorkspace?.stage?.workspace : session.controls.env === "Remote" ? snapshot?.projectConfigurations.find((value) => value.projectId === project?.id)?.values.remotePath : snapshot?.managedWorkspaces.find((value) => value.id === session.workspaceId)?.path ?? project?.path;
     const known = session.usage.filter((usage) => usage.totalTokens !== null);
     const unknown = session.usage.some((usage) => usage.totalTokens === null);
     const total = known.reduce((sum, usage) => sum + (usage.totalTokens ?? 0), 0);
@@ -408,12 +417,13 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
       <div className="context-binding"><span className={`status-dot ${session.status}`} /><strong>{title(session)}</strong><small>{session.status.replace("_", " ")}</small></div>
       <h2>Session details</h2><dl className="facts">
         <dt>Project</dt><dd>{project?.name ?? "Unavailable"}</dd><dt>Workspace</dt><dd className="path">{workspace ?? "Unavailable"}</dd>
-        <dt>Profile</dt><dd>{snapshot?.profile?.name ?? client.profileId}</dd><dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : "Host execution, not isolated"}</dd>
+        <dt>Profile</dt><dd>{snapshot?.profile?.name ?? client.profileId}</dd><dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
         <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
       </dl>
       {routing && <details><summary>kupo Single provenance</summary><dl className="facts"><dt>Status</dt><dd>{routing.status}</dd><dt>Classifier</dt><dd className="path">{routing.classifierModelId}</dd><dt>Solver advice</dt><dd className="path">{routing.plan?.modelId ?? "No accepted plan"}</dd><dt>Confidence / threshold</dt><dd>{routing.plan?.confidence ?? "Unavailable"} / {routing.policy.minimumConfidence}</dd></dl>
         {routing.plan && <p>{routing.plan.reason}</p>}{routing.diagnostic && <p className="inline-error">{routing.diagnostic}</p>}<p className="fine-print">Model-supplied confidence is not calibrated probability or permission. Inspect per-call accounting below for actual dispatches; classifier output never becomes solver instructions.</p></details>}
       {execution && <details><summary>Owned remote execution</summary><p className="path">{execution.id}</p><p>{execution.status} / cancellation {execution.cancellation} / {execution.cleanup}</p><p>{execution.diagnostic}</p><button disabled={Boolean(session.turnId)} onClick={() => void run(() => client.remote.reconcile(execution.id))}>Reconcile receipts</button></details>}
+      {nativeExecution && <details><summary>Owned native execution</summary><p className="path">{nativeExecution.id}</p><p>{nativeExecution.status} / cancellation {nativeExecution.cancellation} / {nativeExecution.cleanup}</p><p>Model root: {nativeExecution.root ?? "null, project-free"}. Source changes require separate actual-user publication in Sandbox.</p>{nativeExecution.diagnostic && <p className="settings-warning">{nativeExecution.diagnostic}</p>}</details>}
       <details><summary>Startup control sources</summary><pre>{JSON.stringify(session.defaults ?? { source: "legacy explicit session controls" }, null, 2)}</pre><p className="fine-print">These sources were recorded when the session was created. Changing defaults does not rewrite this session.</p></details>
       <h2>Usage</h2><dl className="facts"><dt>Direct model calls</dt><dd>{session.usage.length}</dd><dt>Direct tokens</dt><dd>{known.length ? number(total) + (unknown ? " + unknown" : "") : session.usage.length ? "Unavailable" : "No requests yet"}</dd><dt>Request wall time</dt><dd>{(session.usage.reduce((sum, usage) => sum + usage.requestMs, 0) / 1000).toFixed(2)} s</dd></dl>
       {snapshot && <SessionBudgetSummary sdk={client} snapshot={snapshot} session={session} />}
@@ -426,7 +436,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   }
   if (panel === "Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} /></Suspense>;
   if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
-  if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : <p className="fine-print">The changes panel has no qualified transport for {session.controls.env} yet. No local project's diff was read as a fallback.</p>;
+  if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : snapshot ? <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} /> : null;
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} />;
