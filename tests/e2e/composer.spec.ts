@@ -127,7 +127,7 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     const model = page.getByRole("dialog", { name: "Model", exact: true });
     await model.getByRole("button", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
-    expect(await model.getByLabel("Working context window", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(["", "32768", "16384"]);
+    await expect.poll(() => model.getByLabel("Working context window", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(["", "32768", "16384"]);
     await model.getByLabel("Working context window", { exact: true }).selectOption("16384");
     await model.getByLabel("Working context window", { exact: true }).press("Enter");
     expect(fixture.requests.length).toBe(0);

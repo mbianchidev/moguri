@@ -8,8 +8,12 @@ import { RemoteMcpPanel } from "./RemoteMcpPanel.tsx";
 import { BudgetLimitEditor } from "./BudgetControls.tsx";
 import { CompoundLineageReview } from "./CompoundLineageReview.tsx";
 import { useDecisionStatus } from "./DecisionPanel.tsx";
+import { KnowledgePanel } from "./KnowledgePanel.tsx";
+import { ExtensionPanel } from "./ExtensionPanel.tsx";
+import { GitHubWorkflowPanel } from "./GitHubWorkflowPanel.tsx";
+import { LinearWorkflowPanel } from "./LinearWorkflowPanel.tsx";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets" | "kupo" | "decisions";
+export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets" | "kupo" | "decisions" | "knowledge" | "hooks" | "marketplace" | "github" | "linear";
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
   { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
@@ -22,6 +26,8 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "budgets", label: "Budgets" },
   { id: "kupo", label: "kupo routing" },
   { id: "decisions", label: "Decision providers" },
+  { id: "knowledge", label: "Knowledge tiers" }, { id: "hooks", label: "Lifecycle hooks" }, { id: "marketplace", label: "Marketplace" },
+  { id: "github", label: "GitHub workflows" }, { id: "linear", label: "Linear workflows" },
 ];
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal, openSession }: {
@@ -136,6 +142,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
   const routingModels = snapshot.provider.models.filter((model) => !model.synthetic);
+  const allowed = snapshot.policy.allowedEnvs, environmentChoice = allowed.length === 3 ? "all" : allowed.length === 2 && !allowed.includes("Local") ? "protected" :
+    allowed.length === 1 && allowed[0] === "Sandbox" ? "sandbox" : allowed.length === 1 && allowed[0] === "Remote" ? "remote" : "custom";
   useEffect(() => { setTools([]); setSelectedTool(null); }, [snapshot.profileId, snapshot.settings.revision, snapshot.policy.revision, session?.id, session?.projectId,
     session?.workspaceId, session?.controls.env, session?.mode, session?.pendingMode, snapshot.projectConfigurations.find((configuration) => configuration.projectId === session?.projectId)?.revision]);
   return <section className="settings-page" aria-label="Moguri settings">
@@ -143,6 +151,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
       <button className="restore-all" disabled={lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
+        {tab === "github" && <GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} />}
+        {tab === "linear" && (project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p>Choose a project with an explicitly configured Linear team. No account is inherited.</p>)}
+        {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
+        {(tab === "hooks" || tab === "marketplace") && <ExtensionPanel key={`${snapshot.profileId}:${project?.id}:${tab}`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode={tab} onDirty={setProjectDirty} />}
         {tab === "decisions" && <><h2>Decision providers and Local Max</h2>
           <p>Off by default, with no selected model. Explicitly select a bounded-model System One-compatible transport, exact model ID, output/deadline/call bounds and separate hosted-data consent. Saving never starts inference, selects a solver, changes Env or grants tools.</p>
           {jsonEditor("decisions", "Decision provider policy")}
@@ -259,7 +271,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <h3>Structured answers</h3><label className="check-setting"><input type="checkbox" checked={draft.artifacts.retainAnswers} onChange={(event) => change("artifacts", { retainAnswers: event.target.checked })} />Retain actual answers as independent artifacts</label>
           <p className="fine-print">On by default. Source question/answer events remain canonical; model or delegated answers never become user instructions or tool permission.</p>
           <button onClick={() => void run(() => sdk.settings.reset("artifacts", snapshot.settings.revision))}>Restore answer-retention default</button></>}
-        {tab === "cache" && <DependencyCachePanel key={`${project?.id}-${session?.workspaceId}`} sdk={sdk} project={project} workspaceId={session?.projectId === project?.id ? session?.workspaceId ?? undefined : undefined} />}
+        {tab === "cache" && <>{session && session.controls.env !== "Local" && <p className="settings-warning">This panel explicitly manages the Local project/worktree cache, not packages on the selected {session.controls.env} agent. No remote or Sandbox install is implied.</p>}<DependencyCachePanel key={`${project?.id}-${session?.workspaceId}`} sdk={sdk} project={project} workspaceId={session?.projectId === project?.id ? session?.workspaceId ?? undefined : undefined} /></>}
         {error && <div className="notice error" role="alert"><span>{error}</span><button onClick={reload}>Reload current settings</button></div>}
         {session?.pendingApproval && <p className="settings-warning">The main session needs an approval. <button className="quiet" onClick={onBack}>Review exact action</button></p>}
         {tab === "appearance" && <><h2>Appearance</h2><p>Dark is Moguri's factory theme. This preference is shared by SDK clients; desktop resolves System against the operating system.</p>
@@ -285,11 +297,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           }}>{sandboxBusy ? "Verifying original native guest..." : "Verify reviewed Sandbox"}</button>
             <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("permissions")}>Restore permission defaults</button></div>
           <h3>Allowed execution environments</h3><p>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.</p>
-          <select aria-label="Global allowed environments" value={snapshot.policy.allowedEnvs.includes("Local") ? "all" : "protected"} onChange={(event) => void run(() => sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : ["Sandbox", "Remote"] }))}><option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option></select>
-          <p className="fine-print">Resetting ordinary settings does not silently widen this separate security policy.</p></>}
+          <select aria-label="Global allowed environments" value={environmentChoice} onChange={(event) => void run(() => event.target.value === "sandbox" ? sdk.containment.requireSandbox(true) :
+            sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : event.target.value === "remote" ? ["Remote"] : ["Sandbox", "Remote"] }))}>
+            <option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option>
+            <option value="sandbox">Require qualified SendBox for whole-session containment</option><option value="remote">Require configured Remote SSH</option>
+            {environmentChoice === "custom" && <option value="custom" disabled>Current explicit set: {allowed.join(", ")}</option>}
+          </select>
+          <p className="fine-print">Local and ordinary SSH own known process groups, not arbitrary double-forked/setsid descendants. Whole-session containment requires the qualified owned VM and verified VM teardown; a CLI exit is not proof. Missing qualification blocks work instead of switching environments. Resetting ordinary settings never widens this separate policy.</p></>}
         {tab === "memory" && <><h2>Repository memory</h2><p>A persistent lexical-vector index and import/symbol graph, isolated by profile and actual repository identity. No hosted embedding provider or extra model key. Changed or ignored sources are marked stale, never silently treated as current.</p>
           <label className="check-setting"><input type="checkbox" checked={draft.memory.enabled} onChange={(event) => change("memory", { ...draft.memory, enabled: event.target.checked })} />Enable explicit repository indexing and retrieval</label>
           <label className="check-setting"><input type="checkbox" checked={draft.memory.useInContext} onChange={(event) => change("memory", { ...draft.memory, useInContext: event.target.checked })} />Allow bounded retrieved source snippets to enter model context</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.memory.useTieredContext === true} onChange={(event) => change("memory", { ...draft.memory, useTieredContext: event.target.checked })} />Allow reviewed Sky/Terra/Glacier knowledge in model context</label>
           <p className="fine-print">Source capture and freshness checks follow the selected session's {memoryEnv} root. Without a session, project actions are explicitly Local. The derived text/vector cache stays on the control plane; selected snippets may enter the chosen model's context. Protected/ignored paths are excluded. Save before indexing; opening this page never scans or probes a host.</p>
           {memoryEnv === "Remote" && <p className="settings-warning">Pinned SSH repository memory, not a Local index or SendBox isolation. Inspect the bound index for its actual peer/root/build. Missing or changed hosts fail without fallback.</p>}
           <div className="button-row"><button disabled={memoryBlocked} onClick={() => void runMemory(() => session ? sdk.memory.indexSession(session.id) : sdk.memory.index(project!.id))}>Index {memoryEnv} repository</button>
