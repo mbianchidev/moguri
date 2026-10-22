@@ -1688,8 +1688,8 @@ treated as a smaller measured bundle.
 
 ```bash
 npm run typecheck
-npm test
 npm run build
+npm test
 npm run test:e2e
 npm run verify:sdk
 npm run spike:workspace
@@ -1701,6 +1701,11 @@ npm run spike:remote
 npm run spike
 npm audit --audit-level=moderate
 ```
+
+Build before running the test suite on a clean checkout. Compiled CLI and
+worker integration tests exercise `dist/cli.mjs` and other actual bundled
+entrypoints; dependency installation does not create them. Main-only CI follows
+the same build-before-test order on both runners.
 
 Focused checks use `node --import tsx --test tests/<name>.test.ts`. The native
 TUI and hidden Electron tests drive actual clients against generated local HTTP
