@@ -8,6 +8,35 @@ import { setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The desktop checkpoint is qualified on macOS.");
+test("long clipboard text becomes an exact scoped file and modifier queueing never injects its body or starts inference", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const prompt = page.getByLabel("Prompt", { exact: true });
+    await prompt.fill("Before \u{1f34a} SELECT After");
+    const text = Array.from({ length: 51 }, (_, index) => `Generated exact clipboard ${index} \u{1f34a}`).join("\r\n");
+    await prompt.evaluate((element, text) => {
+      if (!(element instanceof HTMLTextAreaElement)) throw new Error("Generated composer is not a textarea.");
+      element.setSelectionRange(10, 16);
+      const transfer = new DataTransfer(); transfer.setData("text/plain", text);
+      element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }));
+    }, text);
+    await expect(prompt).toHaveValue("Before \u{1f34a}  After");
+    await expect(page.locator(".attachment-list")).toContainText("moguri-attachment/");
+    const attachment = fixture.session().draft.attachments[0]!;
+    expect(attachment.kind).toBe("paste_file");
+    expect((await sdk.attachments.read(fixture.sessionId, attachment.id)).content).toEqual({ kind: "text", text });
+    await prompt.press("Meta+Enter");
+    await expect.poll(() => fixture.session().queue[0]?.held).toBe(true);
+    expect(fixture.session().queue[0]?.text).toBe("Before \u{1f34a}  After");
+    expect(fixture.session().queue[0]?.attachments[0]?.digest).toBe(attachment.digest);
+    expect(fixture.requests.length).toBe(0);
+    expect(errors).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("clipboard images, exact folder review and typed GitHub/session triggers preserve explicit context", async () => {
   const fixture = await setupFixture({ imageInput: true, platform: { integrations: { fetch: async () => Response.json({ number: 7, html_url: "https://github.com/generated/example/issues/7", title: "Generated attachment issue", body: "Generated immutable reference.", state: "open", updated_at: "2026-01-01T00:00:00Z" }) } } });
   await fixture.configure();

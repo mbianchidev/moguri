@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
-import { DraftEditor, KUPO_MODEL_ID, slashCommands, attachmentTriggers, parseAttachmentTrigger, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, slashCommands, attachmentTriggers, parseAttachmentTrigger, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -109,7 +109,16 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
     <textarea id={`prompt-${session.id}`} placeholder={answering ? question?.allowFreeform ? "Type your answer..." : "Choose one of the offered answers above..." : session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
       onPaste={(event) => {
-        const files = Array.from(event.clipboardData.files); if (!files.length) return;
+        const files = Array.from(event.clipboardData.files);
+        if (!files.length) {
+          const text = event.clipboardData.getData("text/plain");
+          if (pasteLineCount(text) > 50) {
+            event.preventDefault();
+            const { selectionStart, selectionEnd } = event.currentTarget;
+            void run(() => editor.paste(text, selectionStart, selectionEnd));
+          }
+          return;
+        }
         event.preventDefault();
         void capture(async () => { if (files.length !== 1) throw new Error("Paste one image at a time. No clipboard files were attached or sent."); const file = files[0]!; await client.attachments.image(session.id, await clipboardImage(file), (file.name || "Clipboard image").slice(0, 100)); });
       }}
@@ -190,6 +199,8 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const revision = useRef(session.revision);
+  const windows = current && !current.synthetic ? modelContextWindows(current) : null;
+  const staleWindow = Boolean(window && !windows?.values.includes(Number(window)));
   const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
@@ -213,12 +224,17 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     <div className="composer-model-list">{snapshot.provider.models.filter((model) => (!model.environments || model.environments.includes(session.controls.env)) && model.name.toLowerCase().includes(search.toLowerCase())).map((model) => <button type="button" className="composer-menu-option" key={model.id} aria-pressed={model.id === session.controls.modelId} disabled={saving || pending || Boolean(session.turnId) || dirty || requiresImages && !model.imageInput} title={requiresImages && !model.imageInput ? "This context requires image input." : undefined} onClick={() => void select(model)}><span>{model.name}<small>{model.synthetic ? "Moguri / separately metered router and solver" : `${model.source === "local" ? model.providerId : "GitHub Copilot"} / ${compact(model.contextWindow)} maximum context`}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>)}</div>
     {!snapshot.provider.models.some((model) => !model.environments || model.environments.includes(session.controls.env)) && <p>No approved model is available in this env. For Remote, probe the SSH target and explicitly allow scoped Copilot access or configure a remote-local endpoint.</p>}
     <div className="model-tuning">
-      <label>Working context<input aria-label="Working context window" type="number" min={8192} max={current?.contextWindow ?? 10_000_000} step={1024} value={window} placeholder={current?.synthetic ? "Bound to actual approved solver" : current ? `Model maximum (${count(current.contextWindow)})` : "Select a model"} disabled={!current || current.synthetic || saving || pending || Boolean(session.turnId)} onChange={(event) => setWindow(event.target.value)} /></label>
+      <label>Working context<select aria-label="Working context window" value={window} disabled={!windows?.values.length || saving || pending || Boolean(session.turnId)} onChange={(event) => setWindow(event.target.value)}>
+        <option value="">{windows?.values[0] ? `${windows.source === "provider" ? "Provider default" : "Model maximum"} (${count(windows.values[0])})` : current?.synthetic ? "Bound to actual approved solver" : "Select a compatible model"}</option>
+        {windows?.values.map((value) => <option key={value} value={value}>{count(value)} tokens{windows.source === "provider" ? " (provider supported)" : value === current?.contextWindow ? " (maximum)" : " (half maximum)"}</option>)}
+        {staleWindow && <option value={window} disabled>Saved unsupported window ({count(Number(window))})</option>}
+      </select></label>
       <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length || saving || pending || Boolean(session.turnId)} onChange={(event) => setEffort(event.target.value as ThinkingEffort | "")}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>{current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
       <p>{current?.synthetic ? "Single alpha is text-only. Select a fixed model for context/thinking overrides or finite session limits. Actual per-call roles and models appear in Insights." : "Working context stays within the model maximum. Counts are estimated; overfull requests stop without truncating history."}</p>
       {session.turnId && <p>Stop the active turn before changing model settings.</p>}
+      {staleWindow && <p className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
-      <div className="button-row"><button type="button" className="primary" disabled={!current || current.synthetic || !dirty || saving || pending || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
+      <div className="button-row"><button type="button" className="primary" disabled={!current || current.synthetic || staleWindow || !dirty || saving || pending || Boolean(session.turnId)} onClick={() => void save()}>Save</button><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </div>
   </>}<ModelEvidencePanel sdk={sdk} model={current} scope={JSON.stringify([sdk.profileId, session.id, session.controls.env, current?.id])} remote={session.controls.env === "Remote"} />
     <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>kupo Single settings</button></>;

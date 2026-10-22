@@ -5,6 +5,10 @@ For current continuation scope, see the
 The user has reopened previously paused Sandbox integration specifically for
 SendBox 0.2.3. Historical checkpoint measurements below remain scoped to their
 recorded versions; they do not qualify the new runtime or close the milestone.
+Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
+host/guest artifacts, actual generated worker/tool/image frames and cancellation.
+Cold provider networking requires a separately reviewed exact DNS-alias scope;
+the endpoint-only probe fails. These primitives do not enable public Sandbox.
 
 ## Supported checkpoint
 
@@ -90,6 +94,15 @@ command grants and cannot grant itself anything. Autopilot Max is unavailable.
 Unready choices explain the limitation
 or fail with a typed error; no fallback to Local or another model is possible.
 
+**Model / Working context** offers the model maximum and its integer-floored
+half, omitting windows below 8,192 tokens. Actual provider-declared working
+windows replace these derived choices when available. `/model-settings` in
+desktop, TUI or `moguri slash` shows the same service choices and current
+estimate; `/model-settings {"contextWindow":N}` selects an offered exact value.
+`/model-settings reset` restores the model default. An unsupported saved value
+stays visible and blocks inference until explicitly corrected. No history is
+silently truncated and context/output counts remain estimates.
+
 Every tool needs a human approval bound to its exact arguments and policy/
 permission revisions, or an explicit bounded user delegation. Deny wins.
 Blanket shell/wildcard allow grants are rejected; shell grants name the exact
@@ -117,6 +130,20 @@ there is no conversion service. Folder, GitHub issue/PR and session-text
 snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:`, `#` and
 `!` stay literal until the user selects an attachment; Tab offers the typed
 picker without attaching or executing anything.
+
+Text pastes over 50 logical lines become encrypted, immutable `paste_file`
+attachments, preserving exact UTF-8 text and CRLF/CR/LF endings up to 128 KiB.
+Desktop clipboard paste, TUI bracketed paste and SDK `attachments.paste`
+capture immediately; ordinary SDK send and queue edits enforce the same rule.
+Failed saves, overlapping edits or unsupported sizes preserve the complete
+unsent draft. A trailing newline counts as an empty final line.
+Model context gets only a scoped filename/digest descriptor. Approved
+`read_file` calls read at most 16 KiB with UTF-8 byte `offset`/`limit` and
+optional literal `search`; use the returned `nextOffset` to continue.
+Local and SSH workers use an authenticated controller snapshot broker, not a
+host-path mount or source-file write. Project-free chats get access only to
+their admitted files, never a previous workspace. Sandbox still requires its
+separate execution qualification and cannot fall back to Local.
 
 TUI/CLI use `/attach-file ABSOLUTE_PATH`, `/attach-image ABSOLUTE_PATH`,
 `/attach-folder [SHA256] PATH`, `/attach-github [gh-cli] [SHA256] URL` and
