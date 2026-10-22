@@ -126,9 +126,10 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > finite Local wind-down and [owned bounded decisions](architecture/owned-decisions.md).
 > Local Max uses an explicitly configured compatible alternative with fixed
 > or Single-routed solvers; actual user delegation/acceptance remains final.
-> Jev's missing output bound, Remote/native Max/wind-down, live quality and
-> final source/native acceptance remain explicit gates. Historical qualified
-> archives and their protocol versions are unchanged.
+> The final generated source/native and packed-consumer sweep passes.
+> Jev's missing output bound, Remote/native compound/Max/wind-down and live
+> quality remain explicit gates. Historical qualified archives and their
+> protocol versions are unchanged.
 
 ## Why Moguri
 

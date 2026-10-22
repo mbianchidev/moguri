@@ -4,9 +4,10 @@ Current issue-17 source continuation: model windows/scoped paste, native
 0.2.3 service/client lifecycle, reviewed Local Cascade/Critique, finite Local
 wind-down/accepted-work checkpoints and
 [bounded Local Max](architecture/owned-decisions.md) now have executable shared
-paths. Final full/packed/fresh-native acceptance and disclosed unsupported
-combinations remain open; this does not change the historical starting point,
-frozen archives, roadmap boundaries or estimate below.
+paths. The [generated full/packed/fresh-native sweep](setup.md#final-protocol-40-source-acceptance)
+passes; live-provider/quality and disclosed unsupported combinations remain
+open. This does not change the historical starting point, frozen archives,
+roadmap boundaries or estimate below.
 
 ## Starting point
 

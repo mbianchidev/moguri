@@ -9,10 +9,51 @@ Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
 host/guest artifacts, actual generated worker/tool/image frames and cancellation.
 Cold provider networking requires a separately reviewed exact DNS-alias scope;
 the endpoint-only probe fails. These primitives do not by themselves enable
-public Sandbox. The protocol-37 service/SDK work below extends them without
-changing factory settings or broadening policy.
+public Sandbox. The current protocol-40 service/SDK/client lifecycle below
+extends them without changing factory settings or broadening policy.
 
 ## Issue 17 source qualification
+
+### Final protocol-40 source acceptance
+
+The complete current source passes **956/956 unit/integration/native checks
+in 854.52 s**, with no skipped cases on this macOS host. All **64 hidden
+Electron workflows pass in 2.5 min**. The exact current protocol-40 image is
+qualified against released SendBox 0.2.3, including actual guest tools,
+Manual approvals, project-free paste paging, acknowledged cancellation,
+guest loss, real controller SIGKILL and late metering without replay.
+Its immutable pins and narrower networking boundary are recorded in
+[the native qualification](architecture/sendbox-0.2.3.md#protocol-40-source-requalification).
+
+Type checks, production build and actual packed external SDK installation
+pass. `npm run verify:sdk` exercises root/React/Node/MCP entrypoints, the
+installed runtime/worker/CLI and an actual 126-token generated
+solver/decision/solver sequence, independent export/deletion/reopen, plus
+the existing Local/SSH contracts. Source, image and external-consumer audits
+report zero vulnerabilities.
+
+The initial full run found one old assertion expecting
+`budget_plan_capacity` after policy had already fallen below held capacity.
+The current guard correctly reports `budget_exhausted` before dispatch.
+The regression now also checks the unchanged complete hold, zero started
+entries and zero remaining capacity. The 25 affected budget cases and the
+complete 956-case rerun pass; no production cap or admission check was relaxed.
+
+Existing npm deprecation/initial package script-approval notices,
+OpenTUI experimental FFI and lazy Ghostty bundle-size warnings remain
+nonfatal. Injected persistence/scope failures and generated server loss
+produce intentional diagnostics. No personal login, live paid inference,
+real microphone or uncontrolled source checkout is used.
+
+This qualifies the stated generated source boundary, not a new app/SDK
+archive, billed-usage guarantee, calibrated model quality or completed
+Milestone 1. Jev's missing enforceable output bound, endpoint-only cold
+provider networking, Remote/native compound/Max/wind-down and the disclosed
+native side-panel/extension gaps remain blocked. Detached/reparented
+Local/SSH containment remains unproven. CI stays main-push-only, with no
+feature/PR trigger, release/tag, main push, rebase or PR merge.
+
+### Protocol-36 context-only acceptance
 
 The shared working-window and scoped-paste slice uses protocol/database **36**.
 SDK, CLI, actual native TUI and hidden desktop checks cover maximum/half and
@@ -223,7 +264,7 @@ Git history; metadata editors cannot replace it.
 The schema-38-to-39 migration preserves exact encrypted compound roles/tests,
 receipts and independent data through failure/reopen. This is source
 qualification, not a new archive/release or the final issue-17 sweep. The
-final protocol-40 worker image still requires fresh native qualification.
+final protocol-40 worker image is covered by the fresh source acceptance above.
 Detached/reparented containment remains unproven.
 
 ### Protocol-40 bounded decision providers and Local Max
@@ -287,10 +328,11 @@ compound staging/tests/source/Git still need their separate actual-user gates.
 The additive schema-39-to-40 migration preserves original encrypted
 wind-down data, receipts and charges without a state reset.
 
-The focused source/SDK/CLI/TUI set passes **34/34 checks in 8.55 s**.
+The earlier focused source/SDK/CLI/TUI checkpoint passes **34/34 checks in 8.55 s**.
 Six hidden desktop checks, including the existing composer regressions, pass
 in **8.3 s**. These generated mechanics are not live Jev/Copilot quality,
-provider-side cancellation, billed cost or final fresh native acceptance.
+provider-side cancellation or billed cost. Final generated full/packed/native
+acceptance is recorded above rather than inferred from those focused totals.
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
 required to install; `.node-version` and the bundled runtime pin 26.12.0.
