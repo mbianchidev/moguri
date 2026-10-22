@@ -16,6 +16,11 @@ test("checklist bar periodically rechecks the actual plan without model calls or
     const page = await app.firstWindow(), bar = page.getByRole("region", { name: "Estimated task completion" });
     await expect(bar).toContainText("1/2 (50%)");
     await expect(bar.getByRole("progressbar", { name: "Plan checklist" })).toHaveAttribute("value", "50");
+    await bar.getByRole("button", { name: "Task progress details", exact: true }).click();
+    const details = page.getByRole("dialog", { name: "Task progress details", exact: true });
+    await expect(details).toContainText("Checklist rechecked every 15 seconds");
+    await expect(details).toContainText("docs/plan.md");
+    await details.getByRole("button", { name: "Close details", exact: true }).click();
     await writeFile(path, "- [x] Generated first step\n- [x] Generated remaining step\n");
     await expect(bar).toContainText("2/2 (100%)", { timeout: 20_000 });
     await expect(bar).toContainText("Estimate only");
