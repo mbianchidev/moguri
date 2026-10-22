@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { activeCompound, ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeCompound, activeDecision, ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
+import { DecisionPanel } from "./DecisionPanel.tsx";
 
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status, folderId: value.folderId ?? null, workItemId: value.workItemId ?? null });
@@ -31,9 +32,10 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const sequence = draft?.id ? snapshot.roleSequences.find((sequence) => sequence.id === draft.id) : undefined;
   const compound = draft?.id ? snapshot.compoundWorkflows.find((workflow) => workflow.id === draft.id) : undefined;
   const winddown = draft?.id ? snapshot.winddowns.find((record) => record.id === draft.id) : undefined;
+  const decision = draft?.id ? snapshot.decisions.find((record) => record.id === draft.id) : undefined;
   const native = snapshot.sandboxExecutions?.find((value) => value.id === draft?.id), publication = snapshot.sandboxPublications?.find((value) => value.id === draft?.id);
-  const immutable = Boolean(candidate || generated || sequence || compound || winddown || native || publication);
-  const activeCandidate = winddown && ["held", "running", "committing"].includes(winddown.status) || compound && activeCompound(compound) || publication?.status === "publishing" || native && (!["owned-guest-stopped", "acknowledged"].includes(native.cleanup) || native.inspectionIntent?.status === "running") ||
+  const immutable = Boolean(candidate || generated || sequence || compound || winddown || decision || native || publication);
+  const activeCandidate = decision && activeDecision(decision) || winddown && ["held", "running", "committing"].includes(winddown.status) || compound && activeCompound(compound) || publication?.status === "publishing" || native && (!["owned-guest-stopped", "acknowledged"].includes(native.cleanup) || native.inspectionIntent?.status === "running") ||
     sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -72,6 +74,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   };
   return <section className="artifact-panel" aria-label="Retained artifacts" aria-busy={busy}>
     <p className="fine-print">Retained text, independent of sessions. Never automatic instructions or model context; media is not copied.</p>
+    <DecisionPanel sdk={sdk} snapshot={snapshot} session={session} selection={decision?.id} />
     <div className="panel-toolbar"><label className="setting-field">Document<select aria-label="Retained artifact" value={draft?.id ?? ""} disabled={busy || dirty} onChange={(event) => { const id = event.target.value; if (id) void run(() => load(id)); }}>
       <option value="">Choose a retained document</option>{documents.map((artifact) => <option key={artifact.id} value={artifact.id}>{artifact.name} / {artifact.kind} / {artifact.projectId ? snapshot.projects.find((project) => project.id === artifact.projectId)?.name ?? "Former project" : "Profile"}{artifact.folderId ? ` / ${snapshot.projectFolders.find((folder) => folder.id === artifact.folderId)?.name ?? "Former folder"}` : ""}{artifact.workItemId ? ` / #${snapshot.issues.find((issue) => issue.id === artifact.workItemId)?.number ?? "?"}` : ""}{artifact.status === "archived" ? " / archived" : ""}</option>)}
     </select></label><button className="icon-button" aria-label="New artifact" title="New retained document" disabled={busy || dirty} onClick={fresh}><Icon name="Plus" /></button></div>

@@ -21,7 +21,7 @@ and Unicode, bounded Local/SSH reads, stale approvals, failed persistence,
 concurrent edits, independent child grants and schema-35/restart/no-replay.
 Incompatible settings-only/tool-less chats retain files and fail explicitly.
 
-The final source checkpoint passes **843/843** full unit/integration/native
+That protocol-36 context-only source checkpoint passes **843/843** full unit/integration/native
 checks in **656.46 s**, followed by **56/56** hidden Electron workflows.
 Type checks, production build and `npm run verify:sdk` pass. The external
 consumer installs/audits the actual packed SDK and exercises all entrypoints,
@@ -41,8 +41,9 @@ OpenTUI's experimental FFI warning and the lazy Ghostty chunk-size warning
 remain nonfatal. CI is still main-push-only; no feature/PR run is dispatched.
 No earlier app/SDK archive is rebuilt, no release tag is created, and test
 counts do not establish calibrated quality or completion of issue 17.
-Public Cascade/Critique, finite kupo wind-down/authorized checkpoints,
-System One/Max, production Sandbox and their final acceptance gates remain open.
+Those context-only results do not qualify public Cascade/Critique, finite
+kupo wind-down/authorized checkpoints, System One/Max or production Sandbox.
+The later source checkpoints below record their own narrower evidence.
 
 ### Native service/SDK development checkpoint
 
@@ -222,8 +223,72 @@ Git history; metadata editors cannot replace it.
 The schema-38-to-39 migration preserves exact encrypted compound roles/tests,
 receipts and independent data through failure/reopen. This is source
 qualification, not a new archive/release or the final issue-17 sweep. The
-current schema-39 worker image still requires fresh native qualification.
-System One/Max and detached/reparented containment remain open.
+final protocol-40 worker image still requires fresh native qualification.
+Detached/reparented containment remains unproven.
+
+### Protocol-40 bounded decision providers and Local Max
+
+The [owned decision contract](architecture/owned-decisions.md) adds an
+explicitly selected bounded-model System One-compatible alternative over the
+existing root-less worker, authorizer and all-role ledger. It is not Jev and
+does not infer calibrated quality, training independence or new permissions.
+
+In desktop **Autonomy / Decision provider settings**, edit the complete
+**Decision provider policy** using one exact available model ID from the
+disclosed list. Defaults are disabled, no model, no hosted consent, 512 output
+tokens, a 15-second deadline and four total decision/steering calls per turn.
+Confidence and selected probability have separate 0.9 thresholds; these are
+user policy, not calibrated reliability. Do not put credentials in JSON;
+configure the selected endpoint's explicit secret backend separately.
+Save settings, then separately choose **Autopilot Max**. Saving never changes
+the solver, Env or budget and never starts inference.
+
+`reviewDelegatedTools` can allow, decline or escalate only an already allowed
+exact user tool/command delegation. An ordinary `ask` remains human; hard
+denial wins before a paid role. `technicalQuestions` may contain explicit
+`{id, kind: "technical-choice", question, choices}` entries. Only the exact
+question and identical choices, with freeform disabled, may be answered as
+the actual `decision-provider`. Unseen questions and user-only facts stay
+human; no answer grants tool/Git authority or consumes a human draft.
+When answer retention is enabled, its original scoped decision input/result
+evidence is independently retained too.
+
+Optional `steering` starts off. Its `steeringChoices` are exact user-authored
+`{id, text}` alternatives; `continue` and `askUser` are reserved. The real safe
+solver boundary can apply one bounded choice, add nothing, or pause for human
+review. Human queued steers/mode changes win. Solver context labels provider
+steering as untrusted data, not a fabricated human message.
+
+Use SDK `decisions.status/list/read/stop`, shared
+`/decisions status|list|read ID|stop ID confirm-stop|set POLICY_JSON`, or:
+
+```bash
+moguri decisions status --session ID
+moguri decisions set POLICY.json --confirm-review
+moguri decisions list --session ID
+moguri decisions read DECISION_ID
+moguri decisions stop DECISION_ID
+```
+
+Desktop **Artifacts / Decision-provider observations** shows the actual
+actor/model/step, raw evidence, charges and cleanup. Generic document editing
+is metadata-only. A human can answer/approve while the decision is in flight;
+that real answer wins, cancels stale advice and never refunds unknown usage.
+Source/report deletion and restart cannot replay a paid call or tool.
+
+The current Jev API has no enforceable output-token-limit field. Its saved
+configuration stays visible, but Max remains blocked with that exact reason;
+there is no invented `max_tokens` or generative fallback. Remote/native Max
+also stays blocked rather than making its calls on the controller.
+Fixed and kupo Single solvers work independently of Local Max; reviewed
+compound staging/tests/source/Git still need their separate actual-user gates.
+The additive schema-39-to-40 migration preserves original encrypted
+wind-down data, receipts and charges without a state reset.
+
+The focused source/SDK/CLI/TUI set passes **34/34 checks in 8.55 s**.
+Six hidden desktop checks, including the existing composer regressions, pass
+in **8.3 s**. These generated mechanics are not live Jev/Copilot quality,
+provider-side cancellation, billed cost or final fresh native acceptance.
 
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
 required to install; `.node-version` and the bundled runtime pin 26.12.0.
@@ -298,12 +363,14 @@ See [the current checkpoint](#development-028-explicit-model-declarations).
 The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
 compact icon/name controls rather than separate labeled rows.
 Factory values are Local, unset model, Manual and Unlimited. Current execution
-is Local or explicitly qualified SSH with fixed Copilot/configured local models
-and Unlimited or explicit estimate-based caps. Opt-in kupo Single uses those
-same transports but blocks every finite inherited cap until its wind-down path
-is qualified. Manual remains default; Guided displays model
+is Local, explicitly qualified native Sandbox or pinned SSH with fixed
+Copilot/configured local models and Unlimited or explicit estimate-based caps.
+Opt-in kupo Single uses its approved transports; finite Local routing needs
+the explicit reserved wind-down policy above. Manual remains default; Guided displays model
 advice but needs human confirmation. Autopilot requires explicit tool or exact
-command grants and cannot grant itself anything. Autopilot Max is unavailable.
+command grants and cannot grant itself anything. Local Autopilot Max needs its
+separately configured compatible bounded decision provider. Jev and
+Remote/native Max remain unavailable.
 Unready choices explain the limitation
 or fail with a typed error; no fallback to Local or another model is possible.
 

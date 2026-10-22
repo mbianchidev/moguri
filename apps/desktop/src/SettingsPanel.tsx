@@ -7,8 +7,9 @@ import { McpOAuthPanel } from "./McpOAuthPanel.tsx";
 import { RemoteMcpPanel } from "./RemoteMcpPanel.tsx";
 import { BudgetLimitEditor } from "./BudgetControls.tsx";
 import { CompoundLineageReview } from "./CompoundLineageReview.tsx";
+import { useDecisionStatus } from "./DecisionPanel.tsx";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets" | "kupo";
+export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets" | "kupo" | "decisions";
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
   { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
@@ -20,12 +21,14 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "remote", label: "Remote SSH" },
   { id: "budgets", label: "Budgets" },
   { id: "kupo", label: "kupo routing" },
+  { id: "decisions", label: "Decision providers" },
 ];
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal, openSession }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const decisions = useDecisionStatus(sdk, session, snapshot, tab === "decisions");
   const [draft, setDraft] = useState(() => structuredClone(snapshot.settings.values));
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState(false);
@@ -140,6 +143,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
       <button className="restore-all" disabled={lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content">
+        {tab === "decisions" && <><h2>Decision providers and Local Max</h2>
+          <p>Off by default, with no selected model. Explicitly select a bounded-model System One-compatible transport, exact model ID, output/deadline/call bounds and separate hosted-data consent. Saving never starts inference, selects a solver, changes Env or grants tools.</p>
+          {jsonEditor("decisions", "Decision provider policy")}
+          <details><summary>Available exact model IDs</summary><pre>{JSON.stringify(routingModels.map(({ id, name, source, environments, contextWindow, maxTokens, endpointBoundary }) => ({ id, name, source, environments, contextWindow, maxTokens, endpointBoundary })), null, 2)}</pre></details>
+          <p className="fine-print">Tool review can only veto/escalate an action already allowed by an exact user rule. Technical questions need kind: technical-choice, an exact question and identical offered choices, with freeform disabled. They are not user-only facts. Steering starts off and selects only original user-authored id/text alternatives; continue and askUser are reserved.</p>
+          <p className="settings-warning">Confidence and selected probability are separate, uncalibrated advice. Jev remains unqualified because its documented API cannot enforce the required output-token bound. Remote/native Max stays blocked, never moved to the Local controller. No provider/model fallback, new permission or Git approval.</p>
+          <h3>Saved-policy readiness</h3><p className="fine-print" role="status">{decisions.reason}</p>
+          <p className="fine-print">After saving, explicitly select Autopilot Max in the composer. Inspect actual model actor, original request, raw output, charges and cancellation under Artifacts / Decision-provider observations. User answers and approvals always win races.</p>
+          <button type="button" disabled={saving} onClick={() => void reset("decisions")}>Restore decision-provider defaults</button>
+        </>}
         {tab === "kupo" && <><h2>kupo {draft.kupo.workflow === "compound" ? "Compound (reviewed alpha)" : "Single (alpha)"}</h2>
           <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy} onChange={(event) => {
             if (raw.kupo !== undefined) { setError("Save or reload the complete policy JSON before switching workflow shapes. Your unsaved policy was preserved."); return; }
@@ -160,7 +173,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
                   routes: policy.routes.map((route) => route.pattern === "critique" && route.draftId === draftId && route.criticId === criticId ? { ...route, lineageReviewId: review.id } : route) };
                 setRaw((raw) => ({ ...raw, kupo: JSON.stringify(next, null, 2) })); setDirty(true);
               }} />
-            <p className="settings-warning">Public compound staging/tests are explicitly Local and require a separate actual-user review in Candidates. Finite Local budgets require the separately configured reserved wind-down policy in Budgets. Remote/Sandbox compound and System One/Max remain unqualified. No fallback or hard-policy bypass.</p>
+            <p className="settings-warning">Public compound staging/tests are explicitly Local and require a separate actual-user review in Candidates. Finite Local budgets require the separately configured reserved wind-down policy in Budgets. Local Max additionally needs an explicit compatible Decision provider; it cannot bypass compound reviews. Remote/Sandbox compound and Max remain unqualified. No fallback or hard-policy bypass.</p>
           </> : <><p>One tool-less classifier chooses one explicitly approved solver. Both calls are metered and use the existing agent, permissions and execution env. Configuration never selects a model or starts inference.</p>
           <label className="check-setting"><input type="checkbox" aria-label="Enable kupo Single" checked={draft.kupo.enabled} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, enabled: event.target.checked })} />Enable kupo Single for this profile</label>
           <label className="setting-field">Classifier<select aria-label="kupo classifier" value={draft.kupo.classifierModelId ?? ""} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, classifierModelId: event.target.value || null })}><option value="">Choose a configured classifier</option>

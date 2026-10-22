@@ -121,6 +121,15 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > public compound admission, conditional pattern
 > policy, finite kupo and Max remain unqualified.
 
+> Issue-17 development source now adds shared model windows/scoped paste,
+> reviewed native SendBox 0.2.3 execution/publication, Local Cascade/Critique,
+> finite Local wind-down and [owned bounded decisions](architecture/owned-decisions.md).
+> Local Max uses an explicitly configured compatible alternative with fixed
+> or Single-routed solvers; actual user delegation/acceptance remains final.
+> Jev's missing output bound, Remote/native Max/wind-down, live quality and
+> final source/native acceptance remain explicit gates. Historical qualified
+> archives and their protocol versions are unchanged.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

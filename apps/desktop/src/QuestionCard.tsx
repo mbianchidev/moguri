@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ModelAdviceSource, MoguriSdk, UserQuestion } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 
-export function QuestionCard({ sdk, question }: { sdk: MoguriSdk; question: UserQuestion }) {
+export function QuestionCard({ sdk, question, decisionPending = false }: { sdk: MoguriSdk; question: UserQuestion; decisionPending?: boolean }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const answer = async (text: string) => {
     setError(""); setBusy(true);
@@ -12,6 +12,7 @@ export function QuestionCard({ sdk, question }: { sdk: MoguriSdk; question: User
   };
   return <section className="user-question" aria-label="User question" aria-busy={busy}>
     <h2><Icon name="Question" />Your answer is needed</h2>
+    {decisionPending && <p className="fine-print" role="status">A separately metered decision provider is evaluating this exact user-delegated technical choice. You can override it now. Your real answer wins; automated advice is never recorded as you.</p>}
     <div className="question-context" role="group" aria-label="Question and model advice" tabIndex={0}><p className="question-text">{question.question}</p>
       {question.recommendation && <ModelAdvice source={question.recommendation} text={question.recommendation.reason} choice={question.recommendation.choice} />}</div>
     {question.choices.length > 0 && <div className="button-row question-choices" role="group" aria-label="Offered answers">{question.choices.map((choice) => <button key={choice} disabled={busy} onClick={() => void answer(choice)}>{choice}</button>)}</div>}
