@@ -296,6 +296,11 @@ Desktop stop controls cover the active agent, its subagents, and every command o
 
 #### Composer contract
 
+The [estimated completion bar](architecture/task-progress.md) always shows
+available bound-plan checklist progress, periodically rechecked through the
+shared API. Long tasks may also expose separately labeled owning-model advice.
+Neither percentage replaces actual task results, user acceptance or policy.
+
 Keep the prompt and attached context together, with session controls in this order: **Env**, **Model**, **Autonomy level**, **Budget**. Desktop adds an **Attach** button; the TUI and CLI provide the same attachment and configuration capabilities through text pickers and explicit structured inputs, not a desktop-only button.
 
 | Control | Choices | Factory starting value |

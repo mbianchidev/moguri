@@ -592,3 +592,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
   .session-heading { flex-basis: 45%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+.task-progress { display: grid; gap: 4px; padding: 4px 0 8px; font-size: 12px; }
+.task-progress > div { display: flex; justify-content: space-between; gap: 8px; }
+.task-progress progress { width: 100%; height: 6px; accent-color: var(--accent); }
+.task-progress p { margin: 0; overflow-wrap: anywhere; }

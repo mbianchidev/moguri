@@ -14,7 +14,14 @@ extends them without changing factory settings or broadening policy.
 
 ## Owner-requested platform extension
 
-Current source uses protocol/database **41** for
+Current source adds [estimated task completion](architecture/task-progress.md)
+on protocol/database 42. Desktop and TUI always expose the bound-plan checklist,
+rechecked every 15 seconds. Long-running tasks can include separately labeled
+owning-model estimates at normal safe boundaries, not hidden polling inference.
+CLI `moguri progress --session ID` and `/progress` inspect the same data.
+These percentages do not complete a task or override its plan, policy or result.
+
+The prior source uses protocol/database **41** for
 [reviewed platform workflows](architecture/platform-workflows.md).
 This extends, rather than relabels, the historical protocol-40 acceptance
 below. Marketplace is repository-backed, with no new hosted account/service.
