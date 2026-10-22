@@ -45,6 +45,41 @@ See the [GitHub](architecture/github-workflows.md),
 supported operations, consent, failures and limits. Source qualification for
 this extension is recorded separately from earlier archive/milestone claims.
 
+### Protocol-41 complete source acceptance
+
+The final native-enabled source passes **1,045/1,045 unit/integration/native
+TUI cases in 935.17 s**, with **zero skips**, followed by **67/67 hidden
+Electron workflows in 2.6 min**. The current immutable worker image also
+passes eight actual pinned SendBox 0.2.3 cases, including observed living
+double-fork/setsid/reparented descendants and verified exact VM absence.
+The new containment primitive takes **2,902.53 ms**, with zero inference calls.
+Its [release/image/payload pins](architecture/platform-workflows.md#protocol-41-source-qualification)
+are distinct from the historical protocol-40 image.
+
+Types, production build and the actual packed external SDK installation pass.
+Root/React/Node/MCP entrypoints, real installed Git tag creation, tier
+expiry/promotion, disabled marketplace/hooks, source-independent receipts and
+the existing Local/SSH/role/budget contracts are exercised without personal
+authorization or live paid inference. Source, image and external consumer
+audits report zero vulnerabilities.
+
+The failed sweeps and precise corrections are retained in
+[the extension qualification](architecture/platform-workflows.md#protocol-41-source-qualification):
+metadata-only cache lease lookup restores private no-source-probe guards;
+generated SSH teardown retries only transient post-shutdown filesystem races;
+UI assertions use the exact new consent and wait for the required asynchronous
+model options. No admission/permission bound or no-replay assertion was relaxed.
+Existing npm deprecation/script-review, OpenTUI FFI and lazy Ghostty bundle-size
+notices remain nonfatal.
+
+This qualifies the stated generated source and actual VM boundary, not a new
+published app/archive, live GitHub/Linear entitlement, autonomous webhooks,
+unattended evolution or completion of Milestone 1. Python/Cargo/Go are verified
+cache-only adapters; Cargo workspace/alternate-registry support remains
+explicitly unavailable. Native Local/SSH still lacks the qualified VM's
+whole-descendant guarantee. CI remains main-push-only: no feature/PR workflow,
+real main push, merge, rebase, release or tag is dispatched by this acceptance.
+
 ## Issue 17 source qualification
 
 ### Final protocol-40 source acceptance
