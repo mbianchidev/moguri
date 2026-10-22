@@ -79,10 +79,10 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     await page.getByRole("button", { name: "Inspect current lock", exact: true }).click();
     const prepare = page.getByRole("button", { name: "Prepare verified cache", exact: true });
     await expect(prepare).toBeDisabled();
-    await page.getByLabel("I approve sending these public dependency names and versions to OSV for advisory checks.").check();
+    await page.getByLabel("I approve sending these exact dependency names and versions to OSV or the explicitly reviewed private advisory destinations above.", { exact: true }).check();
     await prepare.click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "cache.prepare" && job.status === "completed")).toBe(true);
-    await page.getByLabel("I approve replacing this project's node_modules with a managed, script-free install.").check();
+    await page.getByLabel("I approve replacing root/member node_modules with a managed, script-free workspace install.", { exact: true }).check();
     await page.getByRole("button", { name: "Install with scripts blocked", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "cache.install" && job.status === "completed")).toBe(true);
     expect(downloads).toBe(1);
