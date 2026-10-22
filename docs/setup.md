@@ -67,6 +67,23 @@ owning-model estimates at normal safe boundaries, not hidden polling inference.
 CLI `moguri progress --session ID` and `/progress` inspect the same data.
 These percentages do not complete a task or override its plan, policy or result.
 
+### Protocol-43 source qualification
+
+Type checks, production build, the generated document spike, dependency audit
+and actual packed external SDK all pass. Full unit/integration/native-TUI checks
+pass **1,068 cases**, with **nine actual native-workload skips** and no failures
+(979.23 s). Full hidden Electron acceptance passes **70 cases**, with **one
+native-workload skip** and no failures (2.8 min). Source and packed-consumer
+audits report zero vulnerabilities.
+
+The final compact progress layout preserves the original question/answer and
+raw-result viewport assertions. No budget/context, permission, cancellation or
+no-truncation gate was relaxed. See the [qualification history](architecture/document-attachments.md#final-source-acceptance)
+for generated-fixture corrections and precise boundaries. A current protocol-43
+SendBox image still needs separate qualification; old images and historical
+milestone/release claims below are unchanged. Existing npm/OpenTUI/bundle-size
+notices remain nonfatal.
+
 ## Owner-requested platform extension
 
 The prior source uses protocol/database **41** for
