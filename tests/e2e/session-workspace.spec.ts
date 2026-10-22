@@ -74,7 +74,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: "Plan", exact: true }).click();
     const plan = page.getByLabel("Project plan", { exact: true });
     await plan.fill("Generated independent desktop plan.");
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await expect(plan).toHaveValue("Generated independent desktop plan.");
     await page.getByRole("button", { name: "Dismiss", exact: true }).click();
     await page.getByRole("complementary", { name: "Session sidebar" }).getByRole("button", { name: "Save", exact: true }).click();

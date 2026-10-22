@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DraftEditor, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
-import { useQueueModifier } from "./ChatComposer.tsx";
+import { chatSubmission, useQueueModifier } from "./ChatComposer.tsx";
 
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
@@ -154,6 +154,8 @@ function SideConversation({ sdk, session, onSlash, editorFor }: { sdk: MoguriSdk
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [error, setError] = useState("");
   const held = useQueueModifier();
+  const canQueue = Boolean(draft.text.trim()) && !draft.conflict && session.status !== "archived";
+  const canSend = canQueue && !session.turnId;
   useEffect(() => { editor.receive(session.draft); }, [session.draft.revision]);
   const send = (held = false) => {
     setError("");
@@ -164,8 +166,11 @@ function SideConversation({ sdk, session, onSlash, editorFor }: { sdk: MoguriSdk
       {[false, true].map((allow) => <button key={String(allow)} className={allow ? "primary" : ""} onClick={() => void sdk.command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Read approval was not acknowledged."))}>{allow ? "Approve read" : "Deny"}</button>)}</div></section>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     {draft.error && <p className="inline-error" role="alert">{draft.error} <button onClick={() => editor.reload()}>Reload draft</button>{draft.conflict && <button onClick={() => void editor.keepMine().catch((error: unknown) => setError(error instanceof Error ? error.message : "Draft could not be saved."))}>Keep mine</button>}</p>}
-    <textarea aria-label="Side question" value={draft.text} onChange={(event) => editor.edit(event.target.value)} placeholder="Ask about the current context..." onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); send(!event.shiftKey); } }} />
-    <div className="side-controls"><span title="Hard read-only policy"><Icon name="ReadOnly" />Question-only</span><button className="primary icon-button" aria-label={held ? "Queue side question" : "Ask"} title={held ? "Queue without starting" : "Ask"} disabled={!draft.text.trim() || !held && Boolean(session.turnId)} onClick={() => send(held)}><Icon name={held ? "Clock" : "Send"} /></button>
+    <textarea aria-label="Side question" aria-description="Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter holds the question without starting work." value={draft.text} onChange={(event) => editor.edit(event.target.value)} placeholder="Ask about the current context..." onKeyDown={(event) => {
+      const action = chatSubmission(event);
+      if (action && (action === "hold" ? canQueue : canSend)) send(action === "hold");
+    }} />
+    <div className="side-controls"><span title="Hard read-only policy"><Icon name="ReadOnly" />Question-only</span><button className="primary icon-button" aria-label={held ? "Queue side question" : "Ask"} title={held ? "Queue without starting" : "Ask"} disabled={held ? !canQueue : !canSend} onClick={() => send(held)}><Icon name={held ? "Clock" : "Send"} /></button>
       {session.turnId && <button className="icon-button" aria-label="Stop side question" onClick={() => void sdk.command({ type: "session.stop", sessionId: session.id }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not acknowledged."))}><Icon name="Stop" /></button>}</div>
     {session.queue.length > 0 && <div className="side-queue">{session.queue.map((item) => <button key={item.id} disabled={!item.held} onClick={() => void sdk.prompts.release(session.id, item.id, session.queueRevision).catch((error: unknown) => setError(error instanceof Error ? error.message : "Question could not be released."))}>{item.held ? "Run queued question" : "Queued"}: {item.text.slice(0, 35)}</button>)}</div>}
   </>;

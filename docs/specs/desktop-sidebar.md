@@ -57,6 +57,15 @@ The sidebar provides these top-level panels:
 
 Only one panel needs to be open at a time. The sidebar can collapse, resize, show status badges, and preserve its presentation state. Opening an item may create a split panel without changing the main-session binding.
 
+Both the left project navigation and right context pane have draggable inner
+edges and keyboard-focusable separators. Arrow keys resize in 16-pixel steps;
+Home/End use the available bounds. Widths persist locally, with the previous
+wide/narrow right-pane preference accepted on upgrade. Desktop resizing reserves
+at least 340 pixels for chat at the supported window minimum; smaller responsive
+layouts use overlays instead. The right pane's **<>** button hides it without
+ending owned work, and any rail icon reopens its panel. Rail labels appear as
+hover/focus tooltips; unsaved panel edits still prevent collapse/navigation.
+
 Keyboard navigation, focus order, labels, and status announcements must make every panel usable without a pointer.
 
 ## Panels

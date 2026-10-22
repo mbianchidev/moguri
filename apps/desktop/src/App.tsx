@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { activeDecision, DraftEditor, sessionTitle as title, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { activeDecision, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -26,18 +26,49 @@ type MoguriClient = MoguriSdk;
 type Panel = SessionPanel;
 const panels: Panel[] = ["Terminal", "Browser", "Insights", "Dashboard", "PR", "Changes", "Files", "Plan", "Artifacts", "Candidates", "Sandbox", "Side chat", "Suggestions", "Attention"];
 const number = (value: number) => new Intl.NumberFormat().format(value);
-function savedLayout(): { panel: Panel; open: boolean; wide: boolean } {
+interface SidebarLayout { panel: Panel; open: boolean; leftWidth: number; rightWidth: number }
+function savedLayout(): SidebarLayout {
+  const defaults: SidebarLayout = { panel: "Insights", open: true, leftWidth: 232, rightWidth: 288 };
   try {
     const raw = localStorage.getItem("moguri.sidebar");
-    if (!raw) return { panel: "Insights", open: true, wide: false };
+    if (!raw) return defaults;
     const value: unknown = JSON.parse(raw);
-    if (value && typeof value === "object" && "panel" in value && panels.includes(value.panel as Panel) &&
-      "open" in value && typeof value.open === "boolean" && "wide" in value && typeof value.wide === "boolean") {
-      return { panel: value.panel as Panel, open: value.open, wide: value.wide };
+    const panel = isRecord(value) ? panels.find((panel) => panel === value.panel) : undefined;
+    if (isRecord(value) && panel && typeof value.open === "boolean") {
+      const width = (input: unknown, min: number, max: number, fallback: number) =>
+        typeof input === "number" && Number.isFinite(input) ? Math.max(min, Math.min(max, Math.round(input))) : fallback;
+      return { panel, open: value.open, leftWidth: width(value.leftWidth, 180, 400, defaults.leftWidth),
+        rightWidth: width(value.rightWidth, 240, 640, value.wide === true ? 360 : defaults.rightWidth) };
     }
     console.error("Invalid sidebar preference; using the default layout.");
   } catch { console.error("Sidebar preferences are unavailable; using the default layout."); }
-  return { panel: "Insights", open: true, wide: false };
+  return defaults;
+}
+function SidebarResizer({ side, value, min, max, onChange, controls }: {
+  side: "left" | "right"; value: number; min: number; max: number; onChange: (width: number) => void; controls: string;
+}) {
+  const drag = useRef<{ pointer: number; x: number; width: number } | null>(null);
+  const resize = (width: number) => onChange(Math.max(min, Math.min(max, Math.round(width))));
+  return <div className={`sidebar-resizer ${side}`} role="separator" tabIndex={0} aria-orientation="vertical"
+    aria-label={side === "left" ? "Resize projects sidebar" : "Resize session sidebar"} aria-controls={controls}
+    aria-valuemin={min} aria-valuemax={max} aria-valuenow={value} aria-valuetext={`${value} pixels`}
+    onPointerDown={(event) => {
+      if (event.button !== 0) return;
+      event.preventDefault(); event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId);
+      drag.current = { pointer: event.pointerId, x: event.clientX, width: value };
+    }}
+    onPointerMove={(event) => {
+      const start = drag.current;
+      if (start?.pointer === event.pointerId) resize(start.width + (event.clientX - start.x) * (side === "left" ? 1 : -1));
+    }}
+    onPointerUp={(event) => { if (drag.current?.pointer === event.pointerId) { drag.current = null; event.currentTarget.releasePointerCapture(event.pointerId); } }}
+    onLostPointerCapture={() => { drag.current = null; }}
+    onKeyDown={(event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      resize(event.key === "Home" ? min : event.key === "End" ? max :
+        value + (event.key === "ArrowRight" ? 16 : -16) * (side === "left" ? 1 : -1));
+    }} />;
 }
 type Run = (action: () => Promise<unknown>) => Promise<void>;
 export function App({ client: initialClient }: { client: MoguriClient }) {
@@ -50,7 +81,9 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [layout] = useState(savedLayout);
   const [panel, setPanel] = useState<Panel>(layout.panel);
   const [panelOpen, setPanelOpen] = useState(layout.open);
-  const [widePanel, setWidePanel] = useState(layout.wide);
+  const [leftWidth, setLeftWidth] = useState(layout.leftWidth), [rightWidth, setRightWidth] = useState(layout.rightWidth);
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const [panelTooltip, setPanelTooltip] = useState<{ panel: Panel; top: number } | null>(null);
   const [connections, setConnections] = useState(false);
   const [palette, setPalette] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -71,7 +104,20 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [profileMenu, setProfileMenu] = useState(false), [profileDirty, setProfileDirty] = useState(false);
   const switchingProfile = useRef(false);
   const [profilePending, setProfilePending] = useState(false);
+  const panelVisible = panelOpen && !settingsTab && !boardOpen;
+  const leftMax = Math.max(180, Math.min(400, viewportWidth - 44 - 340 - (panelVisible ? 240 : 0)));
+  const navWidth = Math.min(leftWidth, leftMax);
+  const rightMax = Math.max(240, Math.min(640, viewportWidth - 44 - 340 - navWidth));
+  const contextWidth = Math.min(rightWidth, rightMax);
+  const shellStyle: CSSProperties & { "--nav-width": string; "--context-width": string } = {
+    "--nav-width": `${navWidth}px`, "--context-width": `${contextWidth}px`,
+  };
   const editors = useRef(new Map<string, DraftEditor>());
+  useEffect(() => {
+    const resize = () => { setViewportWidth(window.innerWidth); setPanelTooltip(null); };
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
   useEffect(() => () => { for (const editor of editors.current.values()) editor.dispose(); for (const client of clients.current) client.disconnect(); }, []);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
@@ -107,9 +153,9 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [panelDirty, settingsUnsaved, profileDirty, profilePending]);
   useEffect(() => {
-    try { localStorage.setItem("moguri.sidebar", JSON.stringify({ panel, open: panelOpen, wide: widePanel })); }
+    try { localStorage.setItem("moguri.sidebar", JSON.stringify({ panel, open: panelOpen, leftWidth, rightWidth })); }
     catch { setNotice("Sidebar preferences could not be saved. Session state is still owned by the service."); }
-  }, [panel, panelOpen, widePanel]);
+  }, [panel, panelOpen, leftWidth, rightWidth]);
   const run: Run = async (action) => {
     setNotice(null); setBusy(true);
     try { await action(); } catch (error) { setNotice(error instanceof Error ? error.message : "The operation failed. Your draft is preserved."); }
@@ -163,6 +209,11 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (!boardOpen) { const target = snapshot?.sessions.find((session) => session.projectId === id && session.status !== "archived"); if (target) setSelectedId(target.id); }
   };
   const projectSettings = (id: string) => { if (!canNavigate()) return; setSettingsProjectId(id); openSettings("project"); };
+  const hidePanel = () => {
+    if (!canNavigate()) return;
+    setPanelOpen(false); setConnections(false);
+    document.querySelector<HTMLButtonElement>(`[data-sidebar-panel="${panel}"]`)?.focus();
+  };
   const showPanel = (next: Panel) => run(async () => {
     if (!leaveSurface()) return;
     setPanel(next); setPanelOpen(true); setConnections(false);
@@ -232,14 +283,15 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
   }, [nativeModal, composerMenuOpen]);
-  return <><div inert={profilePending} aria-busy={profilePending} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelOpen && !settingsTab && !boardOpen ? "context-open" : ""} ${widePanel ? "context-wide" : ""}`}>
+  return <><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{project?.name ?? "No project"}</span>
       <button className="icon-button notification-trigger" aria-label="Attention notifications" title="Attention" onClick={() => void showPanel("Attention")}><Icon name="Attention" />{snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged) && <span className="attention-unread-dot" />}</button>
       <button className="quiet palette-trigger" onClick={() => setPalette(true)}>Commands <kbd>Ctrl K</kbd></button>
     </header>
-    <nav className="project-nav" aria-label="Projects and sessions">
+    <nav id="project-navigation" className="project-nav" aria-label="Projects and sessions">
+      <SidebarResizer side="left" value={navWidth} min={180} max={leftMax} onChange={setLeftWidth} controls="project-navigation" />
       <div className="nav-heading"><span>Workspace</span><button className="icon-button" aria-label="Open project" title="Open project" onClick={() => void openProject()}>+</button></div>
       <button className="new-session" aria-label="New session" onClick={() => void newSession()} disabled={busy}><Icon name="Plus" />New</button>
       <label className="new-chat-scope"><span className="sr-only">Project for new chat</span><select aria-label="Project for new chat" value={projectId ?? ""} onChange={(event) => { if (canNavigate()) setProjectId(event.target.value || null); }}><option value="">No project</option>{snapshot?.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
@@ -248,7 +300,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       {snapshot && <ProfileSwitcher key={client.profileId} sdk={client} snapshot={snapshot} disabled={busy || settingsUnsaved || panelDirty || nativeModal} expanded={profileMenu} setExpanded={setProfileMenu} onSwitch={openProfile} onDirty={setProfileDirty} />}
       <div className="nav-footer">
         <button className="settings-nav-button" aria-label="Settings" onClick={() => openSettings("systemPrompt")}><Icon name="Settings" />Settings</button>
-        <button className="settings-nav-button" aria-label="Moguri settings chat" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><Icon name="Suggestions" />Settings chat</button>
+        <button className="settings-nav-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><Icon name="Suggestions" />ask Moguri</button>
         <button className="provider-button" onClick={() => { if (leaveSurface()) { setConnections((value) => !value); setPanelOpen(true); } }}>
           <span className={`status-dot ${copilot?.status === "connected" ? "completed" : "idle"}`} />
           <span><strong>GitHub Copilot</strong><small>{copilot?.status ?? "Connecting to service"}</small></span><span>&gt;</span>
@@ -268,7 +320,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         {session?.turnId && <button className="stop-button" disabled={session.status === "stopping"} onClick={() => void command({ type: "session.stop", sessionId: session.id })}>{session.status === "stopping" ? "Stopping..." : "Stop turn"}</button>}
         {session && !session.turnId && (snapshot?.blockedSessions.includes(session.id) || session.workspaceId && snapshot?.blockedWorkspaces.includes(session.workspaceId) || session.projectId && !session.workspaceId && snapshot?.blockedProjects.includes(session.projectId)) && <button title="Inspect unconfirmed effects before continuing. This does not claim cleanup succeeded." onClick={() => void command({ type: "session.resume", sessionId: session.id })}>Resume after inspection</button>}
         {session && !session.turnId && <button className="quiet" onClick={() => void command({ type: session.status === "archived" ? "session.restore" : "session.archive", sessionId: session.id })}>{session.status === "archived" ? "Restore" : "Archive"}</button>}
-        <button className="icon-button" aria-label={panelOpen ? "Collapse session sidebar" : "Open session sidebar"} onClick={() => { if (canNavigate()) { setPanelOpen((value) => !value); setConnections(false); } }}><Icon name="Insights" /></button>
+        <button className="icon-button" aria-label={panelOpen ? "Collapse session sidebar" : "Open session sidebar"} title={panelOpen ? "Hide session sidebar" : "Show session sidebar"} onClick={() => { if (canNavigate()) { setPanelOpen((value) => !value); setConnections(false); } }}><Icon name="Insights" /></button>
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">
@@ -296,14 +348,19 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         </>}
       </>}
     </main>
-    <aside className="context-pane" aria-label="Session sidebar">
-      <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><div><button className="icon-button" aria-label="Resize sidebar" title="Toggle sidebar width" onClick={() => setWidePanel((value) => !value)}>&lt;&gt;</button><button className="icon-button" aria-label="Close sidebar" onClick={() => { if (canNavigate()) setPanelOpen(false); }}><Icon name="Close" /></button></div></header>
+    <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar">
+      <SidebarResizer side="right" value={contextWidth} min={240} max={rightMax} onChange={setRightWidth} controls="session-sidebar" />
+      <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}>&lt;&gt;</button></header>
       <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
         <ContextPanel key={`${client.profileId}-${panel === "Artifacts" || panel === "Candidates" || panel === "Dashboard" || panel === "Sandbox" ? "independent" : session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("permissions")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
       </div>
       <footer className="context-footer">{panel === "Artifacts" ? "Independent of session retention" : panel === "Candidates" ? "Retained independently; writes use reviewed roots" : panel === "Sandbox" ? "Private stages; separate reviewed source publication" : panel === "Dashboard" ? "Current-profile cumulative accounting" : "Bound to the main session"}</footer>
     </aside>
-    <nav className="panel-rail" aria-label="Sidebar panels">{panels.filter((item) => item !== "PR" || connectedPr).map((item) => <button key={item} className={panelOpen && panel === item && !connections ? "active" : ""} aria-label={item} title={item} aria-pressed={panelOpen && panel === item && !connections} onClick={() => void showPanel(item)}><Icon name={item} /></button>)}</nav>
+    <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.filter((item) => item !== "PR" || connectedPr).map((item) => <button key={item} data-sidebar-panel={item} className={panelVisible && panel === item && !connections ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={panelVisible && panel === item && !connections}
+      onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
+      onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })} onBlur={() => setPanelTooltip(null)}
+      onClick={() => void showPanel(item)}><Icon name={item} /></button>)}</nav>
+    {panelTooltip && <div id="sidebar-panel-tooltip" className="sidebar-tooltip" role="tooltip" style={{ top: Math.min(panelTooltip.top, window.innerHeight - 42) }}>{panelTooltip.panel}</div>}
     {commandOutput && <CommandOutput text={commandOutput} close={() => setCommandOutput(null)} />}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "New session", action: newSession }, { name: "Open project", action: openProject },

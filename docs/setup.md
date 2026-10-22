@@ -790,6 +790,20 @@ Send. Holding Cmd/Ctrl visibly turns Send into a clock and queues without
 starting work. The small delivery chevron retains explicit Steer/Interrupt.
 Unavailable execution/autonomy modes remain disabled with their reasons.
 
+In both desktop chat composers, **Enter** sends and **Shift+Enter** inserts a
+newline. **Cmd/Ctrl+Enter** still holds the prompt without running it;
+**Shift+Cmd/Ctrl+Enter** retains the explicit send-now shortcut. Input-method
+composition and held/repeated Enter never submit a prompt. Message copy buttons
+appear on hover or keyboard focus. Conversation text uses the available chat
+width rather than a narrow fixed column.
+
+Drag either sidebar's inner edge to resize it, or focus its separator and use
+Left/Right arrows; Home/End select the available minimum/maximum. Widths survive
+desktop reloads and shrink as necessary to preserve chat space. The right
+sidebar's **<>** button hides it; any labeled icon in the remaining rail opens
+its panel. Those icons show tooltips on hover and keyboard focus. Unsaved panel
+edits still block navigation and collapse.
+
 The model-name popover contains model selection, optional working context and
 the transport's actual supported thinking efforts. The working window stays
 within the model maximum, uses labeled estimates and stops an overfull request
@@ -807,6 +821,15 @@ revisions preserve edits and require a reload. Desktop also protects unsaved
 settings when navigating away. Section/all reset preserves sessions, knowledge,
 credentials and downloaded models, and does not widen the separate allowed-env
 policy.
+
+Desktop toggle/dropdown preferences and model context/thinking choices save
+automatically. Text/JSON settings have a **Save** beside the editor; the settings
+toolbar can still save all pending text edits. Automatic preference changes do
+not save unrelated text, even in the same settings section. An in-flight save
+blocks conflicting navigation, and refusal or another client's revision keeps
+the edit visible rather than silently overwriting committed settings. Budget
+risk acknowledgement, source review, downloads and model proposals remain
+explicit actions, not autosaved approvals.
 
 **Sandbox is gated, not enabled by entering paths.** The development SDK now
 has explicit 0.2.3 guest qualification, source review/preparation, execution
@@ -929,7 +952,7 @@ reconciliation may retain known written bytes without promoting the original
 partial turn to success. Committed snapshots survive session deletion with
 actual Remote boundary/frame provenance.
 
-## Project-free chats, suggestions and settings chat
+## Project-free chats, suggestions and ask Moguri
 
 Desktop's **No project** section and project selector create chats without
 attaching a folder. TUI `/new global` does the same; Ctrl+N keeps the current
@@ -955,7 +978,7 @@ Changing sources requires fresh review. Control/subagent conversations are
 excluded; content is bounded to 12 sessions, eight prompts each, 4,000 Unicode
 characters per prompt and 32 KiB of actual UTF-8 text in total.
 
-**Settings chat**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
+**ask Moguri**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
 Moguri configuration. The model can read non-secret settings and propose
 changes, never authenticate, execute workspace tools or approve/apply its own
 proposal. Global **User guidance** is separate from the factory system prompt.
@@ -1288,6 +1311,16 @@ does not insert partial audio. TUI **Ctrl+Space** starts/stops and **F4** insert
 the completed local transcript into the saved draft. Recording is limited to
 two minutes. WAV transcription accepts regular PCM WAV files up to 64 MiB.
 Insert is explicit and revision-checked; nothing is automatically sent.
+
+Desktop **Ctrl+Space** also starts/stops while the chat is focused, including its
+toolbar, but does not intercept the embedded terminal, side chat or dialogs.
+Holding the shortcut does not repeatedly start/stop. The composer shows startup,
+finalization and failure status. Repeated stop requests are harmless; native
+finalization has up to 30 seconds instead of the previous three-second forced
+kill. Cancel still discards output and escalates an unresponsive process.
+Failures show the actual native exit status/signal and bounded error text.
+**Settings / Voice dictation / Native speech backend** saves an explicit
+Automatic/CPU/Metal choice. No failure silently switches backends or providers.
 
 CLI equivalents:
 

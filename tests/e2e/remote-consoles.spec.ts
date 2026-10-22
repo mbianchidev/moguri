@@ -35,7 +35,7 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
       if (request.action === "input") { received.push(request.data); if (!held) { held = true; await barrier; } }
     };
     await tty.focus(); await page.keyboard.type("AQUEUED_REMOTE_NEVER_SEND"); await expect.poll(() => held).toBe(true);
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click(); release();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click(); release();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     await panel.getByRole("button", { name: "Reconnect existing terminal", exact: true }).click();
     await expect(tty).toHaveAttribute("aria-disabled", "false"); await tty.focus(); await page.keyboard.type("B");

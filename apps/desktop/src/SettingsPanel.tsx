@@ -30,14 +30,16 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "github", label: "GitHub workflows" }, { id: "linear", label: "Linear workflows" },
 ];
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
+type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo";
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal, openSession }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const decisions = useDecisionStatus(sdk, session, snapshot, tab === "decisions");
   const [draft, setDraft] = useState(() => structuredClone(snapshot.settings.values));
+  const [committed, setCommitted] = useState(() => structuredClone(snapshot.settings.values));
   const [raw, setRaw] = useState<Record<string, string>>({});
-  const [dirty, setDirty] = useState(false);
+  const dirty = Object.keys(raw).length > 0 || JSON.stringify(draft) !== JSON.stringify(committed);
   const [projectDirty, setProjectDirty] = useState(false);
   const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
   const [lineageDirty, setLineageDirty] = useState(false), [lineageBusy, setLineageBusy] = useState(false);
@@ -66,6 +68,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   const [reviewed, setReviewed] = useState(false);
   const [profileCatalog, setProfileCatalog] = useState<ProfileCatalog | null>(null);
   const baseRevision = useRef(snapshot.settings.revision);
+  const committedValues = useRef(committed);
   const ownSave = useRef(false);
   const memoryKey = JSON.stringify([sdk.profileId, project?.id, session?.id, session?.controls.env, session?.workspaceId,
     snapshot.projectConfigurations.find((configuration) => configuration.projectId === project?.id)?.revision, snapshot.settings.revision, snapshot.policy.revision]);
@@ -81,10 +84,13 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   useEffect(() => {
     setPreview("");
     setSandboxReviewed(false);
-    if (ownSave.current) return;
-    if (!dirty) { baseRevision.current = snapshot.settings.revision; setDraft(structuredClone(snapshot.settings.values)); setRaw({}); }
+    if (ownSave.current || baseRevision.current === snapshot.settings.revision) return;
+    if (!dirty) {
+      baseRevision.current = snapshot.settings.revision; committedValues.current = snapshot.settings.values;
+      setCommitted(structuredClone(snapshot.settings.values)); setDraft(structuredClone(snapshot.settings.values)); setRaw({});
+    }
     else if (baseRevision.current !== snapshot.settings.revision) setError("Another client changed settings. Your edit is preserved. Reload before applying it.");
-  }, [snapshot.settings.revision]);
+  }, [snapshot.settings.revision, saving]);
   useEffect(() => {
     const close = (event: BeforeUnloadEvent) => { if (dirty || nestedDirty || sandboxBusy) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", close);
@@ -106,35 +112,63 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   }, [tab, snapshot.jobs.filter((job) => job.kind === "voice.download" && job.status === "completed").length]);
   useEffect(() => { if (tab === "remote") void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [tab, snapshot.settings.revision]);
   useEffect(() => { if (tab === "budgets" || tab === "startup") void run(async () => { setProfileCatalog((await sdk.profiles.list()).catalog); }); }, [tab, snapshot.profileCatalogRevision]);
-  const change = <K extends SettingsSection>(section: K, value: UserSettings[K]) => { setDraft((draft) => ({ ...draft, [section]: value })); setDirty(true); };
-  const reload = () => { baseRevision.current = snapshot.settings.revision; setDraft(structuredClone(snapshot.settings.values)); setRaw({}); setDirty(false); setRisk(false); setError(""); };
-  const save = async () => {
+  const change = <K extends SettingsSection>(section: K, value: UserSettings[K]) => setDraft((draft) => ({ ...draft, [section]: value }));
+  const sectionDirty = (section: SettingsSection) => raw[section] !== undefined || JSON.stringify(draft[section]) !== JSON.stringify(committed[section]);
+  const reload = () => {
+    baseRevision.current = snapshot.settings.revision; committedValues.current = snapshot.settings.values;
+    setCommitted(structuredClone(snapshot.settings.values)); setDraft(structuredClone(snapshot.settings.values)); setRaw({}); setRisk(false); setError("");
+  };
+  const write = async (values: UserSettings, saved: (settings: UserSettings) => void, acknowledge = false) => {
+    if (ownSave.current) { setError("Wait for the current settings save to finish. Your edits are preserved."); return; }
     setError(""); setSaving(true); ownSave.current = true;
     try {
-      const values = { ...draft };
-      for (const [key, value] of Object.entries(raw)) Object.assign(values, { [key]: JSON.parse(value) });
       const settings = parse(SettingsSchema, values);
-      const result = await sdk.settings.update(settings, baseRevision.current, risk);
-      baseRevision.current = result.revision!;
-      setDraft(structuredClone(settings)); setDirty(false); setRaw({}); setRisk(false);
+      const result = await sdk.settings.update(settings, baseRevision.current, acknowledge);
+      baseRevision.current = result.revision!; committedValues.current = settings; setCommitted(structuredClone(settings));
+      saved(settings);
     } catch (error) { setError(error instanceof Error ? error.message : "Settings were not saved."); }
     finally { ownSave.current = false; setSaving(false); }
   };
+  const save = async (section?: SettingsSection) => {
+    try {
+      const values = section ? { ...committedValues.current, [section]: draft[section] } : { ...draft };
+      for (const [key, value] of Object.entries(raw)) if (!section || key === section) Object.assign(values, { [key]: JSON.parse(value) });
+      await write(values, (settings) => {
+        setDraft((current) => section ? { ...current, [section]: structuredClone(settings[section]) } : structuredClone(settings));
+        setRaw((current) => { if (!section) return {}; const { [section]: _, ...rest } = current; return rest; });
+        if (!section || section === "systemPrompt") setRisk(false);
+      }, risk);
+    } catch (error) { setError(error instanceof Error ? error.message : "Settings were not saved. Your text is preserved."); }
+  };
+  const automatic = <K extends AutomaticSection>(section: K, patch: Partial<UserSettings[K]>, replace = false) => {
+    if (ownSave.current) { setError("Wait for the current settings save to finish. Your edits are preserved."); return; }
+    if (raw[section] !== undefined) { setError("Save or reload this section's JSON before changing its controls. Your text is preserved."); return; }
+    const value = replace ? patch : { ...committedValues.current[section], ...patch };
+    setDraft((current) => ({ ...current, [section]: replace ? value : { ...current[section], ...patch } }));
+    void write({ ...committedValues.current, [section]: value }, () => {});
+  };
   const reset = (section: SettingsSection | "all") => run(async () => {
-    ownSave.current = true;
+    if (ownSave.current) throw new Error("Wait for the current settings save to finish.");
+    ownSave.current = true; setSaving(true);
     try {
       const result = await sdk.settings.reset(section, baseRevision.current);
-      baseRevision.current = result.revision!; setDraft(structuredClone(sdk.getState().snapshot!.settings.values)); setDirty(false); setRaw({}); setRisk(false);
+      const settings = sdk.getState().snapshot!.settings.values;
+      baseRevision.current = result.revision!; committedValues.current = settings; setCommitted(structuredClone(settings));
+      setDraft((current) => section === "all" ? structuredClone(settings) : { ...current, [section]: structuredClone(settings[section]) });
+      setRaw((current) => { if (section === "all") return {}; const { [section]: _, ...rest } = current; return rest; });
+      if (section === "all" || section === "systemPrompt") setRisk(false);
       return `Restored ${section} defaults. Projects, history, credentials, knowledge and downloaded models were preserved.`;
-    } finally { ownSave.current = false; }
+    } finally { ownSave.current = false; setSaving(false); }
   });
-  const jsonEditor = (section: SettingsSection, label: string, disabled = saving) => <label className="setting-field">{label}<textarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={disabled}
-    onChange={(event) => { setRaw((raw) => ({ ...raw, [section]: event.target.value })); setDirty(true); }} spellCheck={false} /></label>;
+  const saveButton = (section: SettingsSection, label: string, disabled = false) => <button type="button" className="primary" aria-label={label}
+    disabled={disabled || saving || lineageDirty || lineageBusy || !sectionDirty(section) || section === "systemPrompt" && !risk} onClick={() => void save(section)}>Save</button>;
+  const jsonEditor = (section: SettingsSection, label: string, disabled = saving) => <div className="setting-editor"><label className="setting-field">{label}<textarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={disabled}
+    onChange={(event) => setRaw((raw) => ({ ...raw, [section]: event.target.value }))} spellCheck={false} /></label>{saveButton(section, `Save ${label}`, disabled)}</div>;
   const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
   const pending = snapshot.proposals.filter((proposal) => proposal.projectId === project?.id && proposal.status === "pending");
   const activeVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && job.kind.startsWith("voice.") && job.status === "running");
   const completedVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
-  const modelPromptChanged = draft.systemPrompt !== snapshot.settings.values.systemPrompt;
+  const modelPromptChanged = draft.systemPrompt !== committed.systemPrompt;
   const projectServers = session ? snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId)?.values.mcpServers ?? [] : [];
   const configuredServers = [...snapshot.settings.values.mcpServers, ...projectServers].filter((server, index, all) => server.enabled &&
     (!server.projectIds || session?.projectId && server.projectIds.includes(session.projectId)) && all.findIndex((entry) => entry.id === server.id && entry.enabled) === index);
@@ -147,10 +181,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
   useEffect(() => { setTools([]); setSelectedTool(null); }, [snapshot.profileId, snapshot.settings.revision, snapshot.policy.revision, session?.id, session?.projectId,
     session?.workspaceId, session?.controls.env, session?.mode, session?.pendingMode, snapshot.projectConfigurations.find((configuration) => configuration.projectId === session?.projectId)?.revision]);
   return <section className="settings-page" aria-label="Moguri settings">
-    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
-    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
-      <button className="restore-all" disabled={lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
-      <div className="settings-content">
+    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" disabled={saving || sandboxBusy || lineageBusy} onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
+    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} disabled={saving || sandboxBusy || lineageBusy} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
+      <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
+      <div className="settings-content"><fieldset className="settings-fields" disabled={saving}>
         {tab === "github" && <GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} />}
         {tab === "linear" && (project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p>Choose a project with an explicitly configured Linear team. No account is inherited.</p>)}
         {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
@@ -167,11 +201,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
         </>}
         {tab === "kupo" && <><h2>kupo {draft.kupo.workflow === "compound" ? "Compound (reviewed alpha)" : "Single (alpha)"}</h2>
           <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy} onChange={(event) => {
-            if (raw.kupo !== undefined) { setError("Save or reload the complete policy JSON before switching workflow shapes. Your unsaved policy was preserved."); return; }
+            if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
             const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
             const pool = { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence };
-            change("kupo", event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
-              limits: { routerTokens: 512, proposalTokens: 2048, criticTokens: 1024, timeoutMs: 300000 } } : { ...pool, workflow: "single" });
+            automatic("kupo", event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
+              limits: { routerTokens: 512, proposalTokens: 2048, criticTokens: 1024, timeoutMs: 300000 } } : { ...pool, workflow: "single" }, true);
           }}><option value="single">Single</option><option value="compound">Reviewed Cascade / Critique</option></select></label>
           {draft.kupo.workflow === "compound" ? <>
             <p>Declare exact Cascade/Critique routes, approved concrete models, hosted-data consent and complete role bounds. The classifier chooses only an eligible declared route. Configuration never selects a model, spends budget, stages code or runs tests.</p>
@@ -183,22 +217,23 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
                 const policy = parse(CompoundSettingsSchema, raw.kupo === undefined ? draft.kupo : JSON.parse(raw.kupo));
                 const next = { ...policy, lineageReviews: [...policy.lineageReviews, review],
                   routes: policy.routes.map((route) => route.pattern === "critique" && route.draftId === draftId && route.criticId === criticId ? { ...route, lineageReviewId: review.id } : route) };
-                setRaw((raw) => ({ ...raw, kupo: JSON.stringify(next, null, 2) })); setDirty(true);
+                setRaw((raw) => ({ ...raw, kupo: JSON.stringify(next, null, 2) }));
               }} />
             <p className="settings-warning">Public compound staging/tests are explicitly Local and require a separate actual-user review in Candidates. Finite Local budgets require the separately configured reserved wind-down policy in Budgets. Local Max additionally needs an explicit compatible Decision provider; it cannot bypass compound reviews. Remote/Sandbox compound and Max remain unqualified. No fallback or hard-policy bypass.</p>
           </> : <><p>One tool-less classifier chooses one explicitly approved solver. Both calls are metered and use the existing agent, permissions and execution env. Configuration never selects a model or starts inference.</p>
-          <label className="check-setting"><input type="checkbox" aria-label="Enable kupo Single" checked={draft.kupo.enabled} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, enabled: event.target.checked })} />Enable kupo Single for this profile</label>
-          <label className="setting-field">Classifier<select aria-label="kupo classifier" value={draft.kupo.classifierModelId ?? ""} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, classifierModelId: event.target.value || null })}><option value="">Choose a configured classifier</option>
+          <label className="check-setting"><input type="checkbox" aria-label="Enable kupo Single" checked={draft.kupo.enabled} disabled={saving} onChange={(event) => automatic("kupo", { enabled: event.target.checked })} />Enable kupo Single for this profile</label>
+          <label className="setting-field">Classifier<select aria-label="kupo classifier" value={draft.kupo.classifierModelId ?? ""} disabled={saving} onChange={(event) => automatic("kupo", { classifierModelId: event.target.value || null })}><option value="">Choose a configured classifier</option>
             {draft.kupo.classifierModelId && !routingModels.some((model) => model.id === draft.kupo.classifierModelId) && <option value={draft.kupo.classifierModelId}>Saved unavailable model: {draft.kupo.classifierModelId}</option>}
             {routingModels.map((model) => <option key={model.id} value={model.id}>{model.name} / {modelBoundary(model)} / {model.environments?.join(", ") ?? "Local"}</option>)}</select></label>
           <h3>Approved solvers</h3><p className="fine-print">Approve up to eight actual models. Availability, env, context capacity and output bounds are rechecked before each call; this list is not a guarantee of eligibility.</p>
           {routingModels.length === 0 && <p>No configured models. Connect Copilot or configure a local endpoint first.</p>}
           {routingModels.map((model) => <label className="check-setting" key={model.id}><input type="checkbox" aria-label={`Approve solver ${model.name}`} checked={draft.kupo.approvedModelIds.includes(model.id)} disabled={saving || !draft.kupo.approvedModelIds.includes(model.id) && draft.kupo.approvedModelIds.length >= 8}
-            onChange={(event) => change("kupo", { ...draft.kupo, approvedModelIds: event.target.checked ? [...draft.kupo.approvedModelIds, model.id] : draft.kupo.approvedModelIds.filter((id) => id !== model.id) })} /><span>{model.name}<br /><small className="path">{model.id} / {modelBoundary(model)} / {model.environments?.join(", ") ?? "Local"}</small></span></label>)}
-          {draft.kupo.approvedModelIds.filter((id) => !routingModels.some((model) => model.id === id)).map((id) => <label className="check-setting" key={id}><input type="checkbox" aria-label={`Keep unavailable solver ${id}`} checked disabled={saving} onChange={() => change("kupo", { ...draft.kupo, approvedModelIds: draft.kupo.approvedModelIds.filter((value) => value !== id) })} /><span className="path">{id} / unavailable; uncheck to remove</span></label>)}
-          <label className="check-setting"><input type="checkbox" aria-label="Allow hosted or network routing data" checked={draft.kupo.allowHosted} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, allowHosted: event.target.checked })} />Allow approved task history to hosted or network classifiers and solvers</label>
+            onChange={(event) => automatic("kupo", { approvedModelIds: event.target.checked ? [...draft.kupo.approvedModelIds, model.id] : draft.kupo.approvedModelIds.filter((id) => id !== model.id) })} /><span>{model.name}<br /><small className="path">{model.id} / {modelBoundary(model)} / {model.environments?.join(", ") ?? "Local"}</small></span></label>)}
+          {draft.kupo.approvedModelIds.filter((id) => !routingModels.some((model) => model.id === id)).map((id) => <label className="check-setting" key={id}><input type="checkbox" aria-label={`Keep unavailable solver ${id}`} checked disabled={saving} onChange={() => automatic("kupo", { approvedModelIds: draft.kupo.approvedModelIds.filter((value) => value !== id) })} /><span className="path">{id} / unavailable; uncheck to remove</span></label>)}
+          <label className="check-setting"><input type="checkbox" aria-label="Allow hosted or network routing data" checked={draft.kupo.allowHosted} disabled={saving} onChange={(event) => automatic("kupo", { allowHosted: event.target.checked })} />Allow approved task history to hosted or network classifiers and solvers</label>
           <p className="fine-print">Leave this off for explicitly configured loopback endpoints. A provider's local label does not make a network URL local. Loopback is on the execution host, not proof that a configured proxy never forwards data. Model redirects are blocked. Remote also needs its separately approved SSH host and scoped Copilot grant.</p>
           <label className="setting-field">Classifier confidence threshold: {draft.kupo.minimumConfidence.toFixed(2)}<input type="range" aria-label="Classifier confidence threshold" min={0} max={1} step={0.01} value={draft.kupo.minimumConfidence} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, minimumConfidence: Number(event.target.value) })} /></label>
+          {saveButton("kupo", "Save routing threshold")}
           <p className="fine-print">This is model-supplied advice, not a calibrated probability or permission. Invalid or low-confidence plans pause without another model or fallback.</p>
           <p className="settings-warning">Without an explicitly configured qualified Local wind-down policy, Single needs Unlimited and no finite inherited cap. Finite Local turns reserve their finishing capacity before routing. Images and synthetic-model tuning stay blocked; Cascade/Critique needs its separate Compound policy. Hard policy is never lifted.</p>
           </>}
@@ -256,32 +291,33 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <details><summary>Available model IDs</summary>{snapshot.provider.models.map((model) => <p className="fine-print path" key={model.id}>{model.name}: <code>{model.id}</code></p>)}</details>
           <button onClick={() => void reset("startup")}>Restore profile startup defaults</button>
           <button disabled={dirty || saving || nestedDirty || !profileCatalog} onClick={() => void run(async () => { if (!profileCatalog) throw new Error("Load the actual global preference revision first."); await sdk.profiles.defaults({}, profileCatalog.globalDefaults.revision); return "Shared global startup preferences restored. Existing sessions and hard policy were preserved."; })}>Restore shared global defaults</button></>}
-        {tab === "instructions" && <><h2>Global user guidance</h2><p>Applies across this profile's chats and projects, including project-free chats. Guidance cannot change hard permissions, authenticate a server or approve a tool.</p><label className="setting-field">User guidance<textarea aria-label="Global user guidance" className="json-editor short" value={draft.instructions} onChange={(event) => change("instructions", event.target.value)} /></label><button onClick={() => void reset("instructions")}>Restore guidance defaults</button></>}
+        {tab === "instructions" && <><h2>Global user guidance</h2><p>Applies across this profile's chats and projects, including project-free chats. Guidance cannot change hard permissions, authenticate a server or approve a tool.</p><label className="setting-field">User guidance<textarea aria-label="Global user guidance" value={draft.instructions} onChange={(event) => change("instructions", event.target.value)} /></label><div className="button-row">{saveButton("instructions", "Save user guidance")}<button onClick={() => void reset("instructions")}>Restore guidance defaults</button></div></>}
         {tab === "notifications" && <><h2>Attention notifications</h2><p>Questions, pending approvals and completed/failed work use the shared service state. Reading a notification never answers or approves anything.</p>
-          <label className="check-setting"><input type="checkbox" checked={draft.notifications.inApp} onChange={(event) => change("notifications", { ...draft.notifications, inApp: event.target.checked })} />Show in-app attention dots and icons</label>
-          <label className="check-setting"><input type="checkbox" checked={draft.notifications.os} onChange={(event) => change("notifications", { ...draft.notifications, os: event.target.checked })} />Enable OS banners while Moguri desktop runs in the background</label>
-          <label className="check-setting"><input type="checkbox" checked={draft.notifications.previewContent} onChange={(event) => change("notifications", { ...draft.notifications, previewContent: event.target.checked })} />Include session title and message preview in OS banners</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.notifications.inApp} onChange={(event) => automatic("notifications", { inApp: event.target.checked })} />Show in-app attention dots and icons</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.notifications.os} onChange={(event) => automatic("notifications", { os: event.target.checked })} />Enable OS banners while Moguri desktop runs in the background</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.notifications.previewContent} onChange={(event) => automatic("notifications", { previewContent: event.target.checked })} />Include session title and message preview in OS banners</label>
           <p className="settings-warning">OS banners are off by default and respect operating-system permissions/Do Not Disturb. Without content previews, banners use generic text. The OS may ask for permission when the first enabled banner appears. TUI indicators work without desktop; OS banners require it.</p></>}
         {tab === "project" && (project ? <ProjectSettingsPanel key={project.id} sdk={sdk} project={project} session={session?.projectId === project.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} openSession={openSession} /> : <p>Open a project to configure it.</p>)}
         {tab === "retention" && <><h2>Archived-session retention</h2><p>Off by default. Deletion stops owned work and removes session content while preserving independent project artifacts and external PRs. Diagnostic audit records remain.</p>
-          <label className="check-setting"><input type="checkbox" checked={draft.retention.deleteArchived} onChange={(event) => change("retention", { ...draft.retention, deleteArchived: event.target.checked })} />Automatically delete archived sessions after the configured age</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.retention.deleteArchived} onChange={(event) => automatic("retention", { deleteArchived: event.target.checked })} />Automatically delete archived sessions after the configured age</label>
           <label className="setting-field">Days<input aria-label="Archived retention days" type="number" min={1} max={3650} value={draft.retention.afterDays} onChange={(event) => change("retention", { ...draft.retention, afterDays: Number(event.target.value) })} /></label>
+          {saveButton("retention", "Save retention age")}
           <p className="settings-warning">Save explicitly to delegate deletion. Unconfirmed processes block cleanup. This does not erase external backups or close a PR.</p>
           <button disabled={!snapshot.settings.values.retention.deleteArchived} onClick={() => void run(() => sdk.command({ type: "retention.run" }))}>Run configured cleanup</button>
-          <h3>Structured answers</h3><label className="check-setting"><input type="checkbox" checked={draft.artifacts.retainAnswers} onChange={(event) => change("artifacts", { retainAnswers: event.target.checked })} />Retain actual answers as independent artifacts</label>
+          <h3>Structured answers</h3><label className="check-setting"><input type="checkbox" checked={draft.artifacts.retainAnswers} onChange={(event) => automatic("artifacts", { retainAnswers: event.target.checked })} />Retain actual answers as independent artifacts</label>
           <p className="fine-print">On by default. Source question/answer events remain canonical; model or delegated answers never become user instructions or tool permission.</p>
-          <button onClick={() => void run(() => sdk.settings.reset("artifacts", snapshot.settings.revision))}>Restore answer-retention default</button></>}
+          <button onClick={() => void reset("artifacts")}>Restore answer-retention default</button></>}
         {tab === "cache" && <>{session && session.controls.env !== "Local" && <p className="settings-warning">This panel explicitly manages the Local project/worktree cache, not packages on the selected {session.controls.env} agent. No remote or Sandbox install is implied.</p>}<DependencyCachePanel key={`${project?.id}-${session?.workspaceId}`} sdk={sdk} project={project} workspaceId={session?.projectId === project?.id ? session?.workspaceId ?? undefined : undefined} /></>}
         {error && <div className="notice error" role="alert"><span>{error}</span><button onClick={reload}>Reload current settings</button></div>}
         {session?.pendingApproval && <p className="settings-warning">The main session needs an approval. <button className="quiet" onClick={onBack}>Review exact action</button></p>}
         {tab === "appearance" && <><h2>Appearance</h2><p>Dark is Moguri's factory theme. This preference is shared by SDK clients; desktop resolves System against the operating system.</p>
-          <label className="setting-field">Theme<select aria-label="Theme" value={draft.appearance.theme} onChange={(event) => change("appearance", { theme: event.target.value as UserSettings["appearance"]["theme"] })}><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
+          <label className="setting-field">Theme<select aria-label="Theme" value={draft.appearance.theme} onChange={(event) => automatic("appearance", { theme: event.target.value === "light" ? "light" : event.target.value === "system" ? "system" : "dark" })}><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
           <button onClick={() => void reset("appearance")}>Restore appearance defaults</button></>}
         {tab === "systemPrompt" && <><h2>System prompt</h2><p>These are Moguri's actual model instructions, not a desktop-only copy. Edits apply to new turns; running turns keep their recorded instruction snapshot.</p>
           <p className="settings-warning">{SYSTEM_PROMPT_WARNING}</p>
           <label className="setting-field">Editable system prompt<textarea aria-label="Editable system prompt" className="prompt-editor" value={draft.systemPrompt} onChange={(event) => change("systemPrompt", event.target.value)} disabled={saving} spellCheck={false} /></label>
           <label className="check-setting"><input type="checkbox" checked={risk} onChange={(event) => setRisk(event.target.checked)} />I understand this can break functionality. Hard permissions cannot be overridden.</label>
-          <div className="button-row"><button onClick={() => void reset("systemPrompt")}>Restore default system prompt</button><button onClick={() => void run(async () => { const result = await sdk.prompt.preview(session?.id); setPreview(result.effective); })}>View effective committed prompt</button></div>
+          <div className="button-row">{saveButton("systemPrompt", "Save system prompt")}<button onClick={() => void reset("systemPrompt")}>Restore default system prompt</button><button onClick={() => void run(async () => { const result = await sdk.prompt.preview(session?.id); setPreview(result.effective); })}>View effective committed prompt</button></div>
           {preview && <details open><summary>Effective committed instructions, including protected execution guidance and approved project knowledge</summary><pre>{preview}</pre></details>}</>}
         {tab === "permissions" && <><h2>Guardrails and tool guidance</h2><p>Manual asks unless you explicitly preapprove a bounded tool or exact command. Deny rules win. Guided displays model advice but still needs you; Autopilot grants nothing beyond these rules.</p>
           {jsonEditor("permissions", "Tool and exact-command permissions")}
@@ -305,9 +341,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           </select>
           <p className="fine-print">Local and ordinary SSH own known process groups, not arbitrary double-forked/setsid descendants. Whole-session containment requires the qualified owned VM and verified VM teardown; a CLI exit is not proof. Missing qualification blocks work instead of switching environments. Resetting ordinary settings never widens this separate policy.</p></>}
         {tab === "memory" && <><h2>Repository memory</h2><p>A persistent lexical-vector index and import/symbol graph, isolated by profile and actual repository identity. No hosted embedding provider or extra model key. Changed or ignored sources are marked stale, never silently treated as current.</p>
-          <label className="check-setting"><input type="checkbox" checked={draft.memory.enabled} onChange={(event) => change("memory", { ...draft.memory, enabled: event.target.checked })} />Enable explicit repository indexing and retrieval</label>
-          <label className="check-setting"><input type="checkbox" checked={draft.memory.useInContext} onChange={(event) => change("memory", { ...draft.memory, useInContext: event.target.checked })} />Allow bounded retrieved source snippets to enter model context</label>
-          <label className="check-setting"><input type="checkbox" checked={draft.memory.useTieredContext === true} onChange={(event) => change("memory", { ...draft.memory, useTieredContext: event.target.checked })} />Allow reviewed Sky/Terra/Glacier knowledge in model context</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.memory.enabled} onChange={(event) => automatic("memory", { enabled: event.target.checked })} />Enable explicit repository indexing and retrieval</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.memory.useInContext} onChange={(event) => automatic("memory", { useInContext: event.target.checked })} />Allow bounded retrieved source snippets to enter model context</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.memory.useTieredContext === true} onChange={(event) => automatic("memory", { useTieredContext: event.target.checked })} />Allow reviewed Sky/Terra/Glacier knowledge in model context</label>
           <p className="fine-print">Source capture and freshness checks follow the selected session's {memoryEnv} root. Without a session, project actions are explicitly Local. The derived text/vector cache stays on the control plane; selected snippets may enter the chosen model's context. Protected/ignored paths are excluded. Save before indexing; opening this page never scans or probes a host.</p>
           {memoryEnv === "Remote" && <p className="settings-warning">Pinned SSH repository memory, not a Local index or SendBox isolation. Inspect the bound index for its actual peer/root/build. Missing or changed hosts fail without fallback.</p>}
           <div className="button-row"><button disabled={memoryBlocked} onClick={() => void runMemory(() => session ? sdk.memory.indexSession(session.id) : sdk.memory.index(project!.id))}>Index {memoryEnv} repository</button>
@@ -322,15 +358,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <h3>Coding-style knowledge</h3><p>Save only non-sensitive project conventions. Knowledge outlives a session. Model observations require a proposal and your approval; they are never labeled user-authored facts.</p>
           <button disabled={!project || !input} onClick={() => void run(() => sdk.memory.remember(project!.id, input))}>Remember this project convention</button></>}
         {tab === "subagents" && <><h2>Optional subagents</h2><p>Off by default. When enabled, a depth-one child uses the same fixed model and approved context. It is read-only/tool-less, has separate usage, and belongs to the same cancellation tree.</p>
-          <label className="check-setting"><input type="checkbox" checked={draft.subagents.enabled} onChange={(event) => change("subagents", { ...draft.subagents, enabled: event.target.checked })} />Enable optional read-only subagents</label>
-          <label className="setting-field">Maximum parallel children<select value={draft.subagents.maxParallel} onChange={(event) => change("subagents", { ...draft.subagents, maxParallel: Number(event.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
+          <label className="check-setting"><input type="checkbox" checked={draft.subagents.enabled} onChange={(event) => automatic("subagents", { enabled: event.target.checked })} />Enable optional read-only subagents</label>
+          <label className="setting-field">Maximum parallel children<select aria-label="Maximum parallel children" value={draft.subagents.maxParallel} onChange={(event) => automatic("subagents", { maxParallel: Number(event.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
           <label className="setting-field">Read-only assignment<textarea value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={!session || !input || !snapshot.settings.values.subagents.enabled} onClick={() => void run(() => sdk.subagents.run(session!.id, input))}>Run bounded subagent</button></>}
         {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <><h2>{tab === "skills" ? "Standard skills" : tab === "scripts" ? "Foundational and approved scripts" : "Plugins"}</h2>
           <p>{tab === "skills" ? "Import standard SKILL.md front matter and instructions. A skill grants no tool permissions." : tab === "scripts" ? "Built-in grep_logs, fetch_page, search_memory and memory_graph are exposed through the single internal MCP, without generated one-off scripts." : "Version-1 Moguri plugin manifests bundle declarative standard skills. Importing a plugin does not execute a JavaScript entrypoint or install dependencies."}</p>
           {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<input value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} onClick={() => void run(() => tab === "skills" ? sdk.capabilities.importSkill(project!.id, input) : sdk.capabilities.importPlugin(project!.id, input))}>Import disabled {tab === "skills" ? "skill" : "plugin"}</button></>}
           {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code></div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button><button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button></section>)}
           {tab === "scripts" && <p className="settings-warning">Approved custom scripts execute as Local host code, not in a fictional sandbox. Review the full source, enable it explicitly, and approve each call. Use only scripts you trust.</p>}
-          <h3>Optional evolution</h3><label className="check-setting"><input type="checkbox" checked={draft.evolution.enabled} onChange={(event) => change("evolution", { enabled: event.target.checked })} />Allow model-proposed skills, scripts and style knowledge for human review</label><p className="fine-print">Off by default. Nothing applies itself; approval installs disabled content and enabling/execution remain separate actions.</p>
+          <h3>Optional evolution</h3><label className="check-setting"><input type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Allow model-proposed skills, scripts and style knowledge for human review</label><p className="fine-print">Off by default. Nothing applies itself; approval installs disabled content and enabling/execution remain separate actions.</p>
           {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })}>Review full proposal</button></div>)}
           {proposal && <section className="proposal-review"><h3>Review exact proposed content</h3><pre>{proposal.content}</pre><code>SHA-256 {proposal.digest}</code><label className="check-setting"><input type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this exact source. Approval does not grant execution permissions.</label><div className="button-row"><button disabled={!reviewed} onClick={() => void run(() => sdk.capabilities.decide(proposal.id, true, proposal.digest))}>Approve disabled capability</button><button onClick={() => void run(() => sdk.capabilities.decide(proposal.id, false, proposal.digest))}>Reject</button></div></section>}</>}
         {tab === "mcpServers" && <><h2>One native MCP gateway</h2><p>Discover configured MCPs and their tools on demand, check auth, request a call and read result pages. Models do not receive every schema up front and cannot change credentials, approve themselves or install a server.</p>
@@ -346,7 +382,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <pre>moguri mcp --session {session?.id ?? "SESSION_ID"}</pre></>}
         {tab === "voice" && <><h2>Local voice dictation</h2><p>Native NVIDIA Nemotron 3.5 ASR. Download the model once yourself; audio never goes to an ASR cloud or the Copilot provider.</p>
           <p>{voice?.diagnostic ?? "Reading local runtime status..."}</p><p className="fine-print">NVIDIA documents 40 locales: 19 ready, 13 broad coverage, 8 adaptation-only. The last group needs fine-tuning and is not advertised as ready.</p>
-          <label className="setting-field">Language<select value={draft.voice.language} onChange={(event) => change("voice", { ...draft.voice, language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>
+          <label className="setting-field">Language<select value={draft.voice.language} onChange={(event) => automatic("voice", { language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>
+          <label className="setting-field">Native speech backend<select value={draft.voice.backend} onChange={(event) => automatic("voice", { backend: event.target.value === "cpu" ? "cpu" : event.target.value === "metal" ? "metal" : "auto" })}><option value="auto">Automatic</option><option value="cpu">CPU</option><option value="metal" disabled={navigator.platform !== "MacIntel"}>Metal (macOS)</option></select></label>
           <label className="check-setting"><input type="checkbox" checked={acceptLicense} onChange={(event) => setAcceptLicense(event.target.checked)} />I reviewed OpenMDW-1.1 and approve the {voice ? Math.ceil(voice.bytes / 1024 / 1024) : 708} MiB local model download.</label>
           <div className="button-row"><button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"))}>Model card and license</button><button disabled={!acceptLicense || voice?.modelReady} onClick={() => void run(() => sdk.voice.download(true))}>Download model once</button></div>
           <h3>Dictate into this session</h3><div className="button-row"><button disabled={!session || !voice?.modelReady || !voice.runtimeReady || Boolean(activeVoice)} onClick={() => void run(async () => { if (!await window.moguri.microphonePermission()) throw new Error("Microphone permission was denied. No audio was recorded."); return sdk.voice.record(session!.id); })}>Start local microphone</button><button disabled={!activeVoice || activeVoice.kind !== "voice.record"} onClick={() => void run(() => sdk.voice.stop(activeVoice!.id))}>Stop and transcribe</button>{activeVoice && <button onClick={() => void run(() => sdk.jobs.cancel(activeVoice.id))}>Cancel and discard</button>}</div>
@@ -355,6 +392,6 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
           <p className="fine-print">Microphone access is user-initiated and may require OS permission. Recording is bounded to two minutes. A conflicting draft is preserved rather than overwritten.</p></>}
         {snapshot.jobs.length > 0 && <details className="settings-jobs"><summary>Capability jobs and retained results</summary>{snapshot.jobs.slice(-12).reverse().map((job) => <div className="job-row" key={job.id}><div><strong>{job.kind}</strong><small>{job.status}: {job.error ?? job.progress}</small></div>{["running", "waiting_input"].includes(job.status) && <button onClick={() => void run(() => sdk.jobs.cancel(job.id))}>Cancel</button>}{job.resultDigest && <button onClick={() => void run(() => sdk.mcp.readResult(job.id))}>Read result</button>}</div>)}</details>}
         {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}
-      </div></div>
+      </fieldset></div></div>
   </section>;
 }

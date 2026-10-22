@@ -23,8 +23,9 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await page.getByLabel("kupo classifier", { exact: true }).selectOption(fixture.modelId);
     await page.getByLabel("Approve solver Generated routed solver", { exact: true }).check();
     await page.getByLabel("Allow hosted or network routing data", { exact: true }).check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
-    await expect.poll(() => fixture.sdk.routing.policy()?.enabled).toBe(true);
+    await expect.poll(() => fixture.sdk.routing.policy()).toMatchObject({
+      enabled: true, classifierModelId: fixture.modelId, approvedModelIds: [fixture.solverId], allowHosted: true,
+    });
     expect(fixture.session().controls.modelId).toBeNull(); expect(fixture.requests.length).toBe(0); expect(fixture.solver.requests.length).toBe(0);
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/kupo-single-policy.png") });

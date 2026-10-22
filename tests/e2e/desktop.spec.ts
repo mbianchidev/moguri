@@ -119,7 +119,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool task");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect(page.getByRole("region", { name: "Tool approval" })).toBeVisible();
@@ -136,13 +136,13 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByText("Generated work in progress.")).toBeVisible();
     await page.getByRole("button", { name: "Stop turn", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("stopped");
-    await expect(page.getByText("Turn stopped. No automatic retry will run.")).toBeVisible();
+    await expect(page.getByRole("log", { name: "Session transcript" }).getByText("Turn stopped. No automatic retry will run.")).toBeVisible();
     await page.getByRole("button", { name: "Insights", exact: true }).click();
     await page.getByRole("button", { name: "Show recent event trace" }).click();
     await expect(page.getByText("Active-generation throughput is not measured", { exact: false })).toBeVisible();
     await page.screenshot({ path: join(artifacts, "desktop-session.png") });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(900, 760));
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await page.screenshot({ path: join(artifacts, "desktop-compact.png") });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow).toBe(false);
@@ -197,10 +197,8 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     const categories = page.getByRole("navigation", { name: "Settings categories" });
     await categories.getByRole("button", { name: "Appearance", exact: true }).click();
     await page.getByLabel("Theme", { exact: true }).selectOption("light");
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page.getByLabel("Theme", { exact: true }).selectOption("dark");
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await categories.getByRole("button", { name: "Guardrails", exact: true }).click();
     const permission = { tools: [{ id: "generated-ui-deny", tool: "write_file", decision: "deny", pathPrefix: "" }], commands: [] };
@@ -209,7 +207,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect.poll(async () => JSON.parse(await page.getByLabel("Tool and exact-command permissions", { exact: true }).inputValue())).toEqual(permission);
     await categories.getByRole("button", { name: "Repository memory", exact: true }).click();
     await page.getByLabel("Enable explicit repository indexing and retrieval").check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().settings.values.memory.enabled).toBe(true);
     await page.getByRole("button", { name: "Index Local repository", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "memory.index" && job.status === "completed")).toBe(true);
     await page.getByLabel("Search repository memory", { exact: true }).fill("shared sdk knowledge");
