@@ -181,6 +181,50 @@ as evidence for this source.
 
 ## Supported checkpoint
 
+### Protocol-39 reserved wind-down development
+
+The current [Local wind-down lifecycle](architecture/budget-winddown.md)
+adds explicit `settings.winddown`, default off with no model. Configure it
+in **Settings / Budgets / Budget wind-down policy** using an exact available
+model ID, separate hosted metadata consent, full output tokens and a deadline.
+Saving performs no inference or Git operation. Eligible finite Local kupo
+controls then use actual service readiness, not a client-only bypass.
+Remote/native finite kupo remains unavailable.
+
+Single reserves one complete finishing role with the original turn. Compound
+reserves its router and finisher atomically before a request. Ordinary calls,
+complete future route batches, the finishing call and every inherited
+session/profile/global unit share the same ledger. When ordinary work cannot
+fit, only its original held metadata-only finishing role may run; the
+interrupted task is not labeled complete. Unknown usage remains held.
+A newly stricter cap below actual/held charges blocks even that dispatch.
+
+The model receives canonical call-count/token aggregates and digests, not
+raw task text, code or chat history. Its summary is not validation, source
+acceptance or Git approval. In **Candidates / Budget wind-down checkpoints**,
+separately choose actual-user **applied** candidates, review the exact source
+bytes/modes, current root/base, new local branch and message, then confirm
+**Create reviewed local checkpoint branch**. A temporary index and explicit
+`--no-gpg-sign` preserve the real source index/HEAD and unrelated staged edits.
+No checkout, push, merge, rebase or branch deletion occurs. Decline, partial
+publication and controller loss retain original observations without replay.
+
+SDK `winddown.status/list/read/stop/decline`, `commitPreview/commit` and
+`waitCommit` are shared by all clients. `/winddown commit-preview JSON`
+returns a separate exact `confirm-git` command. Dedicated
+`moguri winddown preview INPUT.json --session ID` and
+`commit INPUT.json --session ID --revision N --digest SHA --confirm-git`
+use the same reviewed input without a session/root/profile override in JSON.
+Readiness, unknown accounting and actual publication are displayed separately.
+Artifact export schema 8 retains the original role and separate actual-user
+Git history; metadata editors cannot replace it.
+
+The schema-38-to-39 migration preserves exact encrypted compound roles/tests,
+receipts and independent data through failure/reopen. This is source
+qualification, not a new archive/release or the final issue-17 sweep. The
+current schema-39 worker image still requires fresh native qualification.
+System One/Max and detached/reparented containment remain open.
+
 macOS is the operational target. Node.js 26.4 or newer in the 26.x line is
 required to install; `.node-version` and the bundled runtime pin 26.12.0.
 Use npm 11.20 or newer so the committed installation-script allowlist is honored.

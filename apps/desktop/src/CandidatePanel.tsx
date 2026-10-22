@@ -3,6 +3,7 @@ import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, Candidat
 import { CandidateGenerationPanel } from "./CandidateGenerationPanel.tsx";
 import { CandidateRoleProposalPanel } from "./CandidateRoleProposalPanel.tsx";
 import { CompoundPanel } from "./CompoundPanel.tsx";
+import { WinddownPanel } from "./WinddownPanel.tsx";
 
 interface DraftFile { path: string; baseDigest: string; baseText: string; text: string }
 const summaryDefault = "Review repository changes";
@@ -11,6 +12,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const [files, setFiles] = useState<DraftFile[]>([]), [fileIndex, setFileIndex] = useState(0), [draftScope, setDraftScope] = useState<string | null>(null);
   const [modelOrigin, setModelOrigin] = useState<string | CandidateRoleReference | undefined>(), [generationDirty, setGenerationDirty] = useState(false);
   const [compoundDirty, setCompoundDirty] = useState(false);
+  const [winddownDirty, setWinddownDirty] = useState(false);
   const [preview, setPreview] = useState<{ value: CandidateStagePreview; scope: string; sessionId: string; stageId: string } | null>(null);
   const [selectedId, setSelectedId] = useState(""), [document, setDocument] = useState<CandidateDocument | null>(null);
   const [application, setApplication] = useState<{ value: CandidateApplyPreview; scope: string } | null>(null);
@@ -29,7 +31,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const candidates = snapshot.candidates.filter((candidate) => !session?.projectId || candidate.projectId === session.projectId || candidate.id === selectedId).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const artifact = snapshot.artifacts.find((artifact) => artifact.id === selectedId);
   const active = selected && ["staging", "applying"].includes(selected.status);
-  useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty || compoundDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, compoundDirty, onDirty]);
+  useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty || compoundDirty || winddownDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, compoundDirty, winddownDirty, onDirty]);
   useEffect(() => { generation.current++; setPreview(null); setApplication(null); if (!files.length && summary === summaryDefault) { setDraftScope(null); setStageId(""); } }, [scope]);
   useEffect(() => { setApplication(null); }, [selectedId, selected?.revision]);
   useEffect(() => {
@@ -87,6 +89,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
     {changedScope && <p className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</p>}
     <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
+    <WinddownPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWinddownDirty} />
     <CandidateGenerationPanel sdk={sdk} snapshot={snapshot} session={session} stageId={stageId} files={files.map(({ path, baseDigest }) => ({ path, baseDigest }))}
       scope={scope} sourceRoot={sourceRoot} writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty} loadedGenerationId={typeof modelOrigin === "string" ? modelOrigin : undefined} onDirty={setGenerationDirty} onLoad={loadGenerated} />
     <CandidateRoleProposalPanel sdk={sdk} snapshot={snapshot} session={session} scope={scope} sourceRoot={sourceRoot}

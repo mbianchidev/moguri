@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type BudgetTotals, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type BudgetTotals, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot, type WinddownResponse } from "../../../packages/sdk/src/index.ts";
 
 export const dollars = (value: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(value);
 export const callEstimate = (totals: BudgetTotals) => totals.calls === 0 ? "No model calls" : totals.estimatedUsd === null ?
@@ -47,6 +47,14 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   const revision = scope === "global" ? globalPolicy?.revision ?? 0 : scope === "profile" ? snapshot.budgetPolicy.revision : session?.revision ?? 0;
   const [limited, setLimited] = useState(Boolean(current)), [tokens, setTokens] = useState(String(current?.tokens ?? "")), [usd, setUsd] = useState(String(current?.usd ?? ""));
   const [dirty, setDirty] = useState(false), [accepted, setAccepted] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [winddown, setWinddown] = useState<Extract<WinddownResponse, { type: "winddown.status" }> | null>(null), [winddownError, setWinddownError] = useState("");
+  const routed = scope === "session" && session?.controls.modelId === KUPO_MODEL_ID;
+  useEffect(() => {
+    let current = true; setWinddown(null); setWinddownError("");
+    if (routed && session) void sdk.winddown.status(session.id).then((value) => { if (current) setWinddown(value); })
+      .catch((error: unknown) => { if (current) setWinddownError(error instanceof Error ? error.message : "Actual reserved finishing readiness could not be read. No finite control was enabled."); });
+    return () => { current = false; };
+  }, [sdk, routed, session?.id, session?.controls.env, snapshot.settings.revision, snapshot.policy.revision, snapshot.provider.models]);
   const base = useRef(revision);
   const load = () => { setLimited(Boolean(current)); setTokens(String(current?.tokens ?? "")); setUsd(String(current?.usd ?? "")); base.current = revision; setDirty(false); setAccepted(false); setError(""); setNotice(""); };
   useEffect(() => { if (revision <= base.current) return; if (!dirty && !saving) load(); else if (!saving) setError("Budget controls changed elsewhere. Your edit is preserved; reload before saving."); }, [revision, dirty, saving]);
@@ -70,11 +78,10 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
     } catch (error) { setError(error instanceof Error ? error.message : "Budget was not saved. No cap was silently lifted."); }
     finally { setSaving(false); }
   };
-  const single = scope === "session" && session?.controls.modelId === KUPO_MODEL_ID;
-  const locked = disabled || saving || single || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
-  const usdUnavailable = scope === "session" && (!status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);
+  const locked = disabled || saving || routed && !winddown?.ready || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
+  const usdUnavailable = scope === "session" && (routed ? !winddown?.usdReady : !status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
-    {single && <p className="settings-warning">Select a fixed model to set finite session limits. kupo Single wind-down is not qualified. Profile/global caps still apply and block further routed calls; no policy is removed here.</p>}
+    {routed && <p className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Reading exact reserved finishing readiness..."} Profile/global caps still apply; no policy is removed here.</p>}
     <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
     {limited && <><label className="setting-field">Token cap<input aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
       <label className="setting-field">Estimated USD cap<input aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>
