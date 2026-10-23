@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import { cloneRepositoryFixture } from "../tests/fixtures/clone-repository.ts";
+import { generatedApplication, generatedUpdateFeed } from "../tests/fixtures/updates.ts";
 
 export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
   const root = resolve(packageRoot), stateDir = join(directory, "state"), consoleRoot = join(directory, "console"), started = performance.now();
@@ -20,8 +21,11 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
     prepare: async () => { throw new Error("No model request is allowed in generated entry qualification."); },
   };
   let runtime, sdk;
+  const generatedUpdate = PROTOCOL_VERSION >= 50 && process.platform === "darwin" ? await generatedApplication(join(directory, "generated-release"), "99.0.0-alpha.1") : null;
+  const updateFeed = generatedUpdate ? generatedUpdateFeed(generatedUpdate) : null;
   const runtimeOptions = { stateDir, retentionKey: Buffer.alloc(32, 0x76), provider,
     storage: { locatorDirectory: join(directory, "location"), explicitOverride: false },
+    ...(updateFeed ? { updates: { version: "0.30.0-alpha.1", arch: "arm64", vault, fetch: updateFeed.fetcher, quarantine: async () => {} } } : {}),
     platform: { vault, terminal: { vault, defaultRoot: consoleRoot, executable: "/bin/sh", args: ["-c", "printf 'GENERATED_INSTALLED_GLOBAL_READY\\n'; exec cat"] } } };
   try {
     runtime = await createRuntime(runtimeOptions);
@@ -78,6 +82,22 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
       await sdk.terminal.close(opened.id);
     }
     assert.equal((await sdk.budgets.calls()).calls.length, 0);
+    if (updateFeed) {
+      await sdk.application.updates.setToken(`ghp_${"g".repeat(30)}`);
+      const checked = await sdk.application.updates.check();
+      const deadline = Date.now() + 10_000;
+      let record;
+      do {
+        record = (await sdk.application.updates.read(checked.id)).update;
+        if (record.status === "failed") throw new Error(record.diagnostic);
+        if (record.status === "ready") break;
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      } while (Date.now() < deadline);
+      assert.equal(record.status, "ready");
+      assert.equal(JSON.parse((await run(["updates", "status"])).stdout).update.operation.id, checked.id);
+      assert.equal(JSON.parse((await sdk.slash(general.id, "/updates", "tui")).text).update.operation.id, checked.id);
+      await assert.rejects(() => sdk.application.updates.installPreview(checked.id), /unpackaged|owned.*application/i);
+    }
     if (PROTOCOL_VERSION >= 49) {
       const current = (await sdk.application.status()).configuration;
       await sdk.application.configure({ menuBar: false }, current.revision);

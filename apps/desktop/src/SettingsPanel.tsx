@@ -22,6 +22,7 @@ import { ShortcutEditor } from "./ShortcutEditor.tsx";
 import { NotificationSettings } from "./NotificationSettings.tsx";
 import { ApplicationSettings } from "./ApplicationSettings.tsx";
 import { StorageSettings } from "./StorageSettings.tsx";
+import { UpdateSettings } from "./UpdateSettings.tsx";
 import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
 
 export type { SettingsTab } from "./settings-catalog.ts";
@@ -42,6 +43,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [soundsBusy, setSoundsBusy] = useState(false);
   const [applicationBusy, setApplicationBusy] = useState(false);
   const [storageBusy, setStorageBusy] = useState(false);
+  const [updateBusy, setUpdateBusy] = useState(false);
   const [sql, setSql] = useState<Awaited<ReturnType<MoguriSdk["integrations"]["sqlStatus"]>>["connection"] | null>(null);
   const sqlGeneration = useRef(0);
   const groups = searchSettings(search);
@@ -94,7 +96,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
   const otherNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy;
-  const nestedDirty = otherNestedDirty || storageBusy;
+  const nestedDirty = otherNestedDirty || storageBusy || updateBusy;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, tab]);
@@ -247,7 +249,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
       <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content"><fieldset className="settings-fields" disabled={saving && tab !== "voice"}>
-        {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} /><h3>Profiles</h3><p>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</p>
+        {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
+          <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><h3>Profiles</h3><p>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</p>
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
         {tab === "providers" && <><h2>Model providers</h2><p>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</p><ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
         {tab === "accessibility" && <><h2>Keyboard shortcuts</h2><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>

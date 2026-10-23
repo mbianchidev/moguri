@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, stateDirectory, waitForStorageRelocation } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, stateDirectory, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -22,6 +22,8 @@ let audioGrant: { id: string; profileId: string; epoch: number; expires: number;
 let audioPending = false;
 let tray: Tray | null = null;
 let maintenancePending = false;
+let updateTimer: ReturnType<typeof setInterval> | undefined;
+let updateNoticed: string | null = null;
 const audioGranted = () => {
   const grant = audioGrant, state = attentionClient?.getState();
   return Boolean(grant && grant.profileId === activeProfileId && grant.epoch === profileEpoch && Date.now() < grant.expires &&
@@ -84,8 +86,14 @@ else {
     };
     const soundError = (profileId: string, error: unknown) => {
       const message = error instanceof Error ? error.message : "Notification audio failed. No alternate sound was substituted.";
-      console.error("Moguri notification audio:", message);
+      console.error("Moguri native capability:", message);
       if (profileId === activeProfileId) mainWindow?.webContents.send("moguri:native-error", profileId, message.slice(0, 2048));
+    };
+    const inspectUpdate = async (scoped: MoguriSdk, epoch: number) => {
+      const value = (await scoped.application.updates.status()).update.operation;
+      if (scoped !== attentionClient || epoch !== profileEpoch || !value?.release || value.status !== "ready" || value.id === updateNoticed) return;
+      updateNoticed = value.id;
+      mainWindow?.webContents.send("moguri:update-available", value.id, value.release.manifest.version);
     };
     const requestSound = async (scoped: MoguriSdk, epoch: number, kind: NotificationToneKind, soundId: string, sessionId?: string) => {
       const audio = soundId === "default" ? audioBase64(defaultNotificationWav(kind)) : (await scoped.notifications.sound(soundId)).audio;
@@ -121,6 +129,7 @@ else {
         if (applicationRevision !== state.snapshot.profileCatalogRevision) {
           applicationRevision = state.snapshot.profileCatalogRevision ?? 0;
           void applyApplicationPreferences().catch((error: unknown) => soundError(profileId, error));
+          void inspectUpdate(scoped, epoch).catch((error: unknown) => soundError(profileId, error));
         }
         notifier.observe(state.snapshot, state.events, Boolean(mainWindow?.isFocused()), (banner) => {
           if (process.env.MOGURI_TEST_WINDOW === "hidden" || !Notification.isSupported()) return;
@@ -193,6 +202,22 @@ else {
       const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
       if (!hidden) { app.relaunch(); app.exit(0); }
       return { id: accepted.id, directory: location.dataDir, restarted: false };
+    });
+    ipcMain.handle("moguri:install-update", async (event, id: unknown, expectedDigest: unknown) => {
+      trusted(event);
+      if (process.env.MOGURI_TEST_WINDOW === "hidden" || !app.isPackaged) throw new Error("A generated hidden or unpackaged window cannot replace the running application. Verify the helper using generated bundles instead.");
+      if (typeof id !== "string" || !/^[a-f0-9-]{36}$/.test(id) || typeof expectedDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedDigest) || maintenancePending) throw new Error("Review one exact staged update before its native restart.");
+      const scoped = attentionClient;
+      if (!scoped) throw new Error("The actual store is not connected.");
+      maintenancePending = true;
+      let accepted;
+      try { accepted = await scoped.application.updates.install(id, expectedDigest, process.pid, true); }
+      catch (error) {
+        if (error instanceof ClientError && ["update_install_review_changed", "update_install_state", "update_install_unqualified", "update_install_root"].includes(error.code)) maintenancePending = false;
+        throw error;
+      }
+      scoped.disconnect(); await waitForUpdateInstallArm(accepted.journal, accepted.id, accepted.intentDigest);
+      app.exit(0);
     });
     ipcMain.handle("moguri:profile", async (event, profileId: unknown) => {
       trusted(event);
@@ -366,6 +391,18 @@ else {
       await mainWindow.loadURL("moguri://app/");
     };
     await createWindow();
+    const checkUpdates = async () => {
+      const scoped = attentionClient;
+      if (!scoped || maintenancePending || process.env.MOGURI_TEST_WINDOW === "hidden") return;
+      const configuration = (await scoped.application.status()).configuration;
+      if (!configuration.values.automaticUpdates) return;
+      try { await scoped.application.updates.check(true); }
+      catch (error) { if (!(error instanceof ClientError && error.code === "update_automatic_blocked")) soundError(scoped.profileId, error); }
+    };
+    if (process.env.MOGURI_TEST_WINDOW !== "hidden") {
+      void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error));
+      updateTimer = setInterval(() => { void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error)); }, 4 * 60 * 60_000);
+    }
     app.on("activate", () => { if (!mainWindow) void createWindow(); });
   }).catch((error: unknown) => {
     console.error("Moguri desktop startup failed:", error instanceof Error ? error.message : "Unknown startup error.");
@@ -373,5 +410,5 @@ else {
     app.quit();
   });
   app.on("window-all-closed", () => { attentionClient?.disconnect(); app.quit(); });
-  app.on("will-quit", () => { tray?.destroy(); tray = null; });
+  app.on("will-quit", () => { clearInterval(updateTimer); tray?.destroy(); tray = null; });
 }

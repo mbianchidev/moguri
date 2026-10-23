@@ -33,6 +33,10 @@ test("explicit sound snapshots, separate auto-saved event choices and native pre
     await page.getByLabel("Confirm removal of Generated alert", { exact: true }).check();
     await page.getByRole("button", { name: "Remove Generated alert", exact: true }).click();
     await expect.poll(() => sdk.notifications.list().length).toBe(0);
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     expect(fixture.requests).toEqual([]); expect(errors).toEqual([]);
-  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+  } finally {
+    await app.evaluate(({ BrowserWindow }) => { for (const window of BrowserWindow.getAllWindows()) { window.webContents.removeAllListeners("will-prevent-unload"); window.webContents.on("will-prevent-unload", (event) => event.preventDefault()); } });
+    await app.close(); sdk.disconnect(); await fixture.close();
+  }
 });

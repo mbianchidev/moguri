@@ -16,9 +16,9 @@ chat** first. Viewing a global resource never creates a hidden chat or model
 request. Global and session consoles are separate entrypoints into the existing
 authenticated Ghostty owners, not a new terminal implementation.
 
-The shared preferences below extend this navigation checkpoint. Native updates,
-storage relocation and remaining device/sound controls have separate authority,
-failure and qualification requirements in
+The shared preferences below include device-aware local speech, independent
+notification sounds, root-owned native updates and reviewed store relocation.
+Their explicit authority, failure and qualification requirements are in
 [settings platform](architecture/settings-platform.md).
 
 ## Shared session and instruction preferences
@@ -1091,6 +1091,42 @@ all profiles. Profile settings remain independent. Native failures are visible
 and can be retried from the saved application preference; hidden checks never
 create a real menu-bar item.
 
+**Settings / General / Private GitHub updates** uses a separate PAT stored in the
+secure secret backend. It is not Copilot sign-in or `gh` authentication. Prefer
+a fine-grained token limited to `mbianchidev/moguri` with Contents read access.
+The password field has its own Save; the automatic-check toggle never commits a
+pending token. By default the running desktop checks at startup and every four
+hours, verifies and stages newer eligible releases, and announces availability.
+Without a configured PAT the actual missing-credential status is shown; another
+account/provider is never tried.
+
+Apple signing is not a prerequisite. Ad-hoc/unsigned integrity checks are not
+notarization or independent publisher signing: updates trust the exact configured
+GitHub release repository and verified manifest/asset/bundle digests. Quarantine
+and OS warnings remain. **Review install and restart** binds the actual old/new
+bundle bytes, owned destination and retained previous-app backup. Only a real
+packaged application can install; an unpackaged development build may check/
+stage but cannot replace the checkout. Confirmation saves client drafts, stops
+all owned profile work and restarts through a pinned current-code helper.
+Authenticated terminals survive without input replay; unknown accounting stays
+held. Interrupted/partial work is retained and never automatically installed
+again. An OS launch request is not proof of startup; the next actual running
+bundle must verify its retained version/digest. Inspect the retained journal/
+backup after failure instead of deleting state or bypassing Gatekeeper.
+
+CLI `updates status`, `history`, `read ID`, `check`, `cancel ID`, and
+`install-preview ID` share the SDK. `updates token` accepts the separate PAT only
+through piped stdin; `updates clear-token` removes it. TUI `/updates` supports
+inspection/check/cancel, never credentials or application replacement. Packaging
+emits `Moguri-VERSION-macos-arm64.zip` and the matching `.manifest.json`; both
+must be attached to the same actual release. This task does not publish a
+release, sign/notarize it, or qualify a personal private GitHub token.
+After `npm run package:mac`, `npm run verify:update` runs the actual ZIP and
+manifest through the production bounded extractor, full bundle inventory and
+native identity/architecture checks without launching the app. Its temporary
+stage is independently removed. Generated feed/helper tests remain separate
+from this actual packaging roundtrip and from live release/PAT qualification.
+
 **Settings / Sessions / Retention / Change storage location** reviews a complete
 encrypted-store move, including every profile and independently retained artifact.
 Choose an absent or empty private destination outside existing project, worktree,
@@ -1560,11 +1596,12 @@ Jobs retain progress/outcomes and can be cancelled. An interrupted install is
 never successful and may quarantine the project until inspection/resume.
 Old dependency backups, when crash recovery is unconfirmed, are protected
 `.moguri-dependencies-*` paths and must be inspected before manual removal.
-The final staged-tree rename requires the state directory and project to share
+The final staged-tree rename requires the original cache/resource base and project to share
 a filesystem. A cross-filesystem rename fails explicitly and restores/preserves
-the old tree. To relocate state, stop its service first, preserve/copy the entire
-private directory and point `MOGURI_STATE_DIR` to it on the target filesystem;
-never delete history or disable protection to retry.
+the old tree. Reviewed encrypted-store relocation does not retarget that captured
+cache/resource authority. Use a project on the qualified same filesystem or
+cancel the install; never manually clone state, discard history or disable
+protection to force a retry.
 
 ## Local project Kanban and optional Linear
 

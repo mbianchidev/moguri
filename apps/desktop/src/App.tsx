@@ -196,6 +196,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); setGlobalView(null); return true; };
   const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); };
   useEffect(() => window.moguri.onOpenSettings(() => openSettings("general")), [client, settingsUnsaved, panelDirty, profilePending]);
+  useEffect(() => window.moguri.onUpdateAvailable((_id, version) => setNotice(`Moguri ${version} is verified and staged. Open Settings / General to review installation and restart. Nothing has been replaced.`, true)), [setNotice]);
   const openBoard = () => { if (!canNavigate()) return; setSettingsTab(null); setGlobalView(null); setBoardOpen(true); };
   const openGlobal = (view: GlobalView, sourceId: string | null = null) => {
     if (!canNavigate()) return;

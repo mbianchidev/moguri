@@ -30,6 +30,14 @@ const bridge: DesktopBridge = {
   applyApplicationPreferences: () => ipcRenderer.invoke("moguri:application-preferences"),
   chooseStorageDirectory: () => ipcRenderer.invoke("moguri:choose-storage-directory"),
   relocateStorage: (path, expectedDigest) => ipcRenderer.invoke("moguri:relocate-storage", path, expectedDigest),
+  installUpdate: (id, expectedDigest) => ipcRenderer.invoke("moguri:install-update", id, expectedDigest),
+  onUpdateAvailable: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, id: unknown, version: unknown) => {
+      if (typeof id === "string" && /^[a-f0-9-]{36}$/.test(id) && typeof version === "string" && version.length <= 100) listener(id, version);
+    };
+    ipcRenderer.on("moguri:update-available", receive);
+    return () => ipcRenderer.removeListener("moguri:update-available", receive);
+  },
   onOpenSettings: (listener) => {
     const receive = () => listener();
     ipcRenderer.on("moguri:open-settings", receive);
