@@ -16,10 +16,55 @@ chat** first. Viewing a global resource never creates a hidden chat or model
 request. Global and session consoles are separate entrypoints into the existing
 authenticated Ghostty owners, not a new terminal implementation.
 
-This navigation checkpoint does not by itself implement automatic updates,
-storage relocation or the other new runtime preferences. Their authority,
-failure and qualification contract is in
+The shared preferences below extend this navigation checkpoint. Native updates,
+storage relocation and remaining device/sound controls have separate authority,
+failure and qualification requirements in
 [settings platform](architecture/settings-platform.md).
+
+## Shared session and instruction preferences
+
+Protocol/database **45** adds nested preference normalization without rewriting
+existing events, keys, grants, budgets or saved retention ages. Restart matching
+clients and service to upgrade; do not delete local state.
+
+**Instructions / User guidance** has independently saved README/issue/PR,
+readiness, stack/bootstrap, writing, contact/license and engineering-workflow
+templates. Loading the readiness starter edits the draft only. Contacts and
+licenses remain unset. Five project workflow overrides live in the project's
+settings; an explicit empty override disables that inherited field. All
+guidance enters future recorded prompts, never grants permissions or rewrites
+an in-flight turn.
+
+**Appearance** offers Moguri, Ocean, Orchid and Custom palettes in dark/light
+modes. Custom element colors are saved together and validated against measured
+text, focus, control, selection and semantic contrast. Invalid combinations
+remain editable and never replace committed colors.
+
+**Sessions / Startup defaults** exposes model, supported thinking effort and
+dry/minimal/balanced/detailed response verbosity, plus the existing explicit
+global/profile budget and advanced defaults. Existing sessions keep their saved
+controls. **Execution & permissions** owns default autonomy and tool
+ask/deny behavior; exact grants and deny rules still apply.
+
+**Sessions / Retention** displays the actual encrypted store directory, manages
+confirmed session deletion and optionally prevents macOS idle sleep during real
+owned work plus a configurable tail. It does not override manual sleep, lid
+closure or the remote host. Failures expose the original helper and explicit
+retry; no other process is adopted. CLI `moguri runtime status` and TUI
+`/runtime` read the same runtime data.
+
+Auto-archive and auto-delete both start off with distinct seven-day thresholds.
+Only actual completion ages a session for archive; drafts, held queues, input,
+active descendants/consoles and unconfirmed effects block it. Archived age
+starts at actual archival, not completion. Deletion preserves independently
+retained artifacts/worktrees and all-role budget accounting.
+
+Ticket phase and per-project import configuration live in **Project settings**;
+Linear authentication lives in **Integrations / Linear**, including without a
+project. GitHub integration explicitly checks the existing controller CLI
+account, separate from Copilot and updater credentials. The optional
+**sql-not-so-lite** connection only checks an existing daemon's health; it never
+starts a daemon, requests a Home scan or exposes the private event store.
 
 For current continuation scope, see the
 [first-milestone gap handoff](remaining-milestone-gaps.md).

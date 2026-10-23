@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { activeDecision, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, appearanceColors, themeVariable, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -150,12 +150,16 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   }, [snapshot, selectedId]);
   useEffect(() => { if (session && editor) editor.receive(session.draft); }, [session?.draft.revision, editor]);
   useEffect(() => {
-    const preference = snapshot?.settings.values.appearance.theme ?? "dark";
+    const preference = snapshot?.settings.values.appearance ?? { theme: "dark" };
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => { document.documentElement.dataset.theme = preference === "system" ? media.matches ? "dark" : "light" : preference; };
+    const apply = () => {
+      const mode = preference.theme === "system" ? media.matches ? "dark" : "light" : preference.theme;
+      document.documentElement.dataset.theme = mode;
+      for (const [key, color] of Object.entries(appearanceColors(preference, mode))) document.documentElement.style.setProperty(themeVariable(key), color);
+    };
     apply(); media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
-  }, [snapshot?.settings.values.appearance.theme]);
+  }, [JSON.stringify(snapshot?.settings.values.appearance)]);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (panelDirty || settingsUnsaved || profilePending || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
@@ -321,8 +325,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     </nav>
     <main className="main-pane">
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
-      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} /></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} openTerminal={() => { setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
+      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} /></Suspense> :
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} openGlobalTerminal={() => openGlobal("Global terminal")} openTerminal={() => { setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
       globalView && snapshot ? <section className="global-page" aria-label={`${globalView} workspace`}>
         <header className="global-toolbar"><button className="icon-button" aria-label="Back to chat" onClick={leaveSurface}><Icon name="Back" /></button><h1>{globalView}</h1>
           {["Suggestions", "Artifacts", "Candidates", "Sandbox"].includes(globalView) && <label>Source chat<select aria-label="Resource source chat" value={globalSessionId ?? ""} onChange={(event) => { if (canNavigate()) setGlobalSessionId(event.target.value || null); }}>

@@ -1,32 +1,22 @@
-import { useEffect, useRef, useState } from "react";
-import { defaultBoard, type BoardConfig, type IssueInput, type IssueKind, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { useEffect, useState } from "react";
+import { defaultBoard, type IssueInput, type IssueKind, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 
 const newFields = (phaseId: string): IssueInput => ({ title: "", body: "", kind: "feature", phaseId, pullRequestUrl: null });
-export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }: {
+export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange, onSettings }: {
   sdk: MoguriSdk; project: Project; snapshot: Snapshot; onBack: () => void; onUnsavedChange: (dirty: boolean) => void;
+  onSettings: () => void;
 }) {
   const board = snapshot.boards.find((board) => board.projectId === project.id) ?? defaultBoard(project.id);
   const issues = snapshot.issues.filter((issue) => issue.projectId === project.id);
   const [archived, setArchived] = useState(false);
   const [editing, setEditing] = useState<{ id: string | null; revision: number; fields: IssueInput; base: string } | null>(null);
-  const [config, setConfig] = useState<BoardConfig>(() => structuredClone(board));
-  const [baseRevision, setBaseRevision] = useState(board.revision);
-  const [configDirty, setConfigDirty] = useState(false);
-  const [configure, setConfigure] = useState(false);
-  const [token, setToken] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [linearCursor, setLinearCursor] = useState<string | null>(null);
-  const ownSave = useRef(false);
-  const dirty = configDirty || token.length > 0 || Boolean(editing && JSON.stringify(editing.fields) !== editing.base);
+  const dirty = Boolean(editing && JSON.stringify(editing.fields) !== editing.base);
   useEffect(() => { onUnsavedChange(dirty || busy); return () => onUnsavedChange(false); }, [dirty, busy, onUnsavedChange]);
-  useEffect(() => {
-    if (ownSave.current) return;
-    if (!configDirty) { setConfig(structuredClone(board)); setBaseRevision(board.revision); }
-    else if (board.revision !== baseRevision) setError("Another client changed this board. Your configuration edit is preserved; reload before saving.");
-  }, [board.revision, project.id]);
   const run = async (operation: () => Promise<void>) => {
     setError(""); setNotice(""); setBusy(true);
     try { await operation(); }
@@ -39,7 +29,6 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }
     setEditing({ id: issue?.id ?? null, revision: issue?.revision ?? 0, fields, base: JSON.stringify(fields) }); setError("");
   };
   const change = (value: Partial<IssueInput>) => setEditing((current) => current ? { ...current, fields: { ...current.fields, ...value } } : null);
-  const changeConfig = (value: Partial<BoardConfig>) => { setConfig((current) => ({ ...current, ...value })); setConfigDirty(true); };
   const save = () => run(async () => {
     if (!editing) return;
     if (editing.id) await sdk.issues.update(editing.id, editing.fields, editing.revision);
@@ -60,30 +49,8 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange }
     })}>Refresh linked PRs</button><button className="primary" aria-label="New issue" disabled={busy || dirty} onClick={() => edit()}>New</button></header>
     {(error || notice) && <div className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</div>}
     <div className="board-options"><button aria-pressed={archived} onClick={() => setArchived((value) => !value)}>{archived ? "Show active issues" : "Show archived issues"}</button>
-      <button aria-expanded={configure} onClick={() => setConfigure((value) => !value)}>Configure phases and integrations</button><span>{board.autoRefreshPrs ? "Linked PRs are observed read-only while Moguri runs." : "Automatic PR observation is off."}</span></div>
-    {configure && <section className="board-configuration" aria-label="Board configuration">
-      <h2>Phases</h2><p>Order and name your workflow. Move tickets before removing an occupied phase.</p>
-      {config.columns.map((column, index) => <div className="board-phase-edit" key={column.id}><code>{column.id}</code><input aria-label={`Phase name ${column.id}`} value={column.name} onChange={(event) => changeConfig({ columns: config.columns.map((entry) => entry.id === column.id ? { ...entry, name: event.target.value } : entry) })} />
-        <button aria-label={`Move ${column.name} earlier`} disabled={index === 0} onClick={() => { const columns = [...config.columns]; [columns[index - 1], columns[index]] = [columns[index]!, columns[index - 1]!]; changeConfig({ columns }); }}>Up</button>
-        <button aria-label={`Remove ${column.name} phase`} disabled={config.columns.length <= 2 || config.mergedColumnId === column.id} onClick={() => changeConfig({ columns: config.columns.filter((entry) => entry.id !== column.id) })}>Remove</button></div>)}
-      <button disabled={config.columns.length >= 12} onClick={() => changeConfig({ columns: [...config.columns, { id: `phase-${crypto.randomUUID().slice(0, 8)}`, name: "New phase" }] })}>Add phase</button>
-      <label className="setting-field">Move merged PR tickets to<select aria-label="Merged PR destination" value={config.mergedColumnId} onChange={(event) => changeConfig({ mergedColumnId: event.target.value })}>{config.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>
-      <label className="check-setting"><input type="checkbox" checked={config.autoRefreshPrs} onChange={(event) => changeConfig({ autoRefreshPrs: event.target.checked })} />Observe explicitly linked PRs automatically, without merge or CI actions</label>
-      <label className="setting-field">GitHub read access<select value={config.githubAccess} onChange={(event) => changeConfig({ githubAccess: event.target.value as BoardConfig["githubAccess"] })}><option value="public">Public GitHub API, no account</option><option value="gh-cli">Use my signed-in GitHub CLI account for linked PRs</option></select></label>
-      <h2>Optional Linear</h2><p>Off by default. Explicitly import a team page into local tickets. Nothing here uploads local issue content or repository data.</p>
-      <label className="check-setting"><input type="checkbox" checked={config.linear.enabled} onChange={(event) => changeConfig({ linear: { ...config.linear, enabled: event.target.checked } })} />Enable read-only Linear import for this project</label>
-      <label className="setting-field">Linear team UUID<input value={config.linear.teamId} onChange={(event) => changeConfig({ linear: { ...config.linear, teamId: event.target.value } })} /></label>
-      <div className="button-row"><button disabled={!configDirty || busy} onClick={() => void run(async () => {
-        ownSave.current = true;
-        try {
-          await sdk.issues.configure(project.id, config, baseRevision); setConfigDirty(false);
-          const committed = (await sdk.issues.board(project.id)).board; setConfig(structuredClone(committed)); setBaseRevision(committed.revision);
-        } finally { ownSave.current = false; }
-      })} aria-label="Save board configuration">Save</button><button disabled={busy} onClick={() => { setConfig(structuredClone(board)); setBaseRevision(board.revision); setConfigDirty(false); setError(""); }}>Reload</button></div>
-      <label className="setting-field">Linear personal API key<input type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} /></label>
-      <div className="button-row"><button disabled={!token || busy} onClick={() => void run(async () => { await sdk.linear.setToken(token); setToken(""); setNotice("Linear credential stored only in the OS keychain."); })}>Store Linear key in keychain</button><button disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setNotice("Linear credential removed; owned imports cancelled."); })}>Remove Linear key</button>
-        <button disabled={!board.linear.enabled || dirty || busy} onClick={() => void importLinear()}>{linearCursor ? "Import next Linear page" : "Import Linear team issues"}</button><button disabled={busy} onClick={() => void run(async () => { const status = await sdk.linear.status(project.id); setNotice(`${status.credential}. ${status.diagnostic}`); })}>Check Linear status</button></div>
-    </section>}
+      <button disabled={busy || dirty} onClick={onSettings}>Project settings</button><span>{board.autoRefreshPrs ? "Linked PRs are observed read-only while Moguri runs." : "Automatic PR observation is off."}</span>
+      {board.linear.enabled && <button disabled={dirty || busy} onClick={() => void importLinear()}>{linearCursor ? "Import next Linear page" : "Import Linear team issues"}</button>}</div>
     {editing && <form className="issue-editor" aria-label="Issue editor" onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <header><h2>{editing.id ? "Edit issue" : "New issue"}</h2><span>{editing.id ? `Revision ${editing.revision}` : "Saved only on this device"}</span></header>
       <label className="setting-field">Issue title<input autoFocus value={editing.fields.title} maxLength={160} required onChange={(event) => change({ title: event.target.value })} /></label>

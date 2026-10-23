@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { defaultProjectSettings, parse, ProjectSettingsSchema, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, WORKFLOW_GUIDANCE_FIELDS, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
+import { BoardSettings } from "./BoardSettings.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -12,6 +13,11 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [raw, setRaw] = useState<Record<string, string>>({});
+  const [boardDirty, setBoardDirty] = useState(false);
+  const [repositories, setRepositories] = useState<ProjectRepositoryLayout | null>(null);
+  const [color, setColor] = useState<string | null>(null);
+  const presentation = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id);
+  const colorDirty = color !== null && color !== presentation.color;
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(values) !== JSON.stringify(committed);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
@@ -33,7 +39,13 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     setValues(structuredClone(configuration.values)); setRevision(configuration.revision); setRaw({}); setLoaded(true);
   };
   useEffect(() => { void run(reload); }, [project.id]);
-  useEffect(() => { onDirty(dirty || busy); return () => onDirty(false); }, [dirty, busy, onDirty]);
+  useEffect(() => {
+    let current = true;
+    void sdk.projects.repositories(project.id).then((value) => { if (current) setRepositories(value); })
+      .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "The actual repository layout could not be verified. No upstream control was enabled."); } });
+    return () => { current = false; };
+  }, [sdk, project.id, project.path, JSON.stringify(presentation.values.deniedFolders)]);
+  useEffect(() => { onDirty(dirty || busy || boardDirty || colorDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, colorDirty, onDirty]);
   const committedRevision = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id)?.revision ?? 0;
   useEffect(() => {
     if (loaded && !ownSave.current && committedRevision !== revision) {
@@ -71,15 +83,55 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       } finally { ownSave.current = false; }
     });
   };
+  const workflow = (key: keyof WorkflowGuidance, action: "save" | "override" | "inherit") => {
+    if (ownSave.current || busy) { setError("Wait for the current project settings save. Your edit is preserved."); return; }
+    const guidance = { ...committedValues.current.guidance };
+    if (action === "inherit") delete guidance[key];
+    else guidance[key] = action === "override" ? snapshot.settings.values.guidance?.[key] ?? "" : values.guidance?.[key] ?? "";
+    setValues((current) => {
+      const next = { ...current.guidance };
+      if (action === "inherit") delete next[key]; else next[key] = guidance[key];
+      return { ...current, guidance: next };
+    });
+    return run(async () => {
+      const settings = parse(ProjectSettingsSchema, { ...committedValues.current, guidance });
+      ownSave.current = true;
+      try {
+        const result = await sdk.projects.configure(project.id, settings, revision);
+        committedValues.current = settings; setCommitted(structuredClone(settings)); setRevision(result.revision!);
+      } finally { ownSave.current = false; }
+    });
+  };
   const canRun = session?.projectId === project.id && !dirty && !busy;
+  const saveColor = (color: string) => {
+    if (ownSave.current || busy) { setError("Wait for the current project save. Your icon-color edit is preserved."); return; }
+    setColor(color);
+    void run(async () => {
+      ownSave.current = true;
+      try {
+        const result = await sdk.projects.organize(project.id, { folderId: presentation.folderId, order: presentation.order, color }, revision);
+        setRevision(result.revision!); setColor(null);
+      } finally { ownSave.current = false; }
+    });
+  };
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
     <button className="primary" aria-label="Save project settings" disabled={!loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
     {error && <div className="notice error" role="alert"><span>{error}</span><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
     {!loaded && <p role="status">Loading committed project settings...</p>}
     <fieldset className="project-settings-fields" disabled={!loaded || busy}>
+    <label className="setting-field">Project icon color<input type="color" aria-label={`Icon color for ${project.name}`} value={color ?? presentation.color} onChange={(event) => saveColor(event.target.value)} /></label>
+    {colorDirty && <button type="button" onClick={() => { if (color !== null) saveColor(color); }}>Retry icon color</button>}
+    <BoardSettings sdk={sdk} project={project} snapshot={snapshot} onDirty={setBoardDirty} />
+    <h3>Project instruction overrides</h3><p className="fine-print">Unselected fields inherit this profile's global guidance. An empty explicit override disables that inherited field. Saving a field preserves other pending text and grants no tools.</p>
+    {WORKFLOW_GUIDANCE_FIELDS.map(({ key, label }) => <div className="setting-editor" key={key}>
+      <label className="check-setting"><input type="checkbox" aria-label={`Override ${label}`} checked={Object.hasOwn(values.guidance ?? {}, key)} onChange={(event) => void workflow(key, event.target.checked ? "override" : "inherit")} />Override {label.toLowerCase()}</label>
+      <label className="setting-field">{label}<textarea aria-label={`Project ${label}`} maxLength={65536} readOnly={!Object.hasOwn(values.guidance ?? {}, key)} value={values.guidance?.[key] ?? snapshot.settings.values.guidance?.[key] ?? ""} onChange={(event) => change("guidance", { ...values.guidance, [key]: event.target.value })} /></label>
+      <button type="button" className="primary" aria-label={`Save project ${label}`} disabled={!Object.hasOwn(values.guidance ?? {}, key) || values.guidance?.[key] === committed.guidance?.[key]} onClick={() => void workflow(key, "save")}>Save</button>
+    </div>)}
     <h3>Repository</h3><div className="project-settings-grid">
-      <label className="setting-field">Upstream<input value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>
+      {repositories?.complete && repositories.roots.length === 1 && <label className="setting-field">Upstream<input value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>}
       <label className="setting-field">Main branch<input value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
+    <p className="fine-print">{repositories?.diagnostic ?? "Verifying the bounded Local repository layout before exposing an upstream control."}{repositories?.complete && repositories.roots.length === 1 ? ` Actual repository: ${repositories.roots[0]}. This preference never rebinds the session's root.` : " An upstream control requires exactly one verified repository, including nested roots."}</p>
     <label className="setting-field">Branch name pattern<input value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     {saveButton("repo", "Save repository settings")}
     <p className="fine-print">Placeholders: {"{slug}"} and {"{id}"}. Binding a PR or creating a session does not silently change this folder's checkout.</p>

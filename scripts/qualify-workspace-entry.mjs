@@ -10,7 +10,7 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
   const root = resolve(packageRoot), stateDir = join(directory, "state"), consoleRoot = join(directory, "console"), started = performance.now();
   await mkdir(consoleRoot, { recursive: true });
   const { createRuntime } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
-  const { MoguriSdk } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
+  const { MoguriSdk, PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
   const source = await cloneRepositoryFixture(), secrets = new Map();
   const vault = { read: async (id) => secrets.get(id) ?? null, write: async (id, value) => { secrets.set(id, value); }, remove: async (id) => { secrets.delete(id); } };
   const provider = {
@@ -27,12 +27,28 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
     const general = await sdk.sessions.create(null, "Generated installed project-free chat");
     const session = sdk.getState().snapshot.sessions.find((session) => session.id === general.id);
     if (process.platform === "darwin") await sdk.sessions.configure(session.id, { ...session.controls, autonomy: "Autopilot" });
-    assert.deepEqual(sdk.settings.get().values.permissions, { tools: [], commands: [] });
+    assert.deepEqual(sdk.settings.get().values.permissions.tools, []);
+    assert.deepEqual(sdk.settings.get().values.permissions.commands, []);
+    assert.equal(sdk.settings.get().values.permissions.defaultDecision ?? "ask", "ask");
+    if (PROTOCOL_VERSION >= 45) {
+      const settings = sdk.settings.get();
+      assert.equal(settings.values.retention.archiveCompleted, false);
+      assert.equal(settings.values.retention.afterDays, 7);
+      assert.equal((await sdk.runtime.status()).runtime.power.enabled, false);
+      assert.equal((await sdk.integrations.sqlStatus()).connection.enabled, false);
+      await sdk.settings.update({ ...settings.values, guidance: { responseStyle: "Generated installed instruction preference." },
+        startup: { ...settings.values.startup, profile: { verbosity: "minimal" } } }, settings.revision);
+      const created = await sdk.sessions.create(null, "Generated installed preference inheritance");
+      assert.equal(sdk.getState().snapshot.sessions.find((session) => session.id === created.id).controls.verbosity, "minimal");
+      assert.match((await sdk.prompt.preview(created.id)).effective, /Generated installed instruction preference/);
+      assert.equal(JSON.parse((await sdk.slash(created.id, "/runtime", "tui")).text).type, "runtime.status");
+    }
     const clone = await sdk.projects.clone(source.repository, join(directory, "sdk-clone"), true);
     const job = await sdk.jobs.wait(clone.id); assert.equal(job.status, "completed");
     assert.equal(await readFile(join(directory, "sdk-clone", "generated.txt"), "utf8"), "Generated repository clone contents.\n");
     const cli = join(root, "bin/moguri.mjs");
     const run = (args) => promisify(execFile)(process.execPath, [cli, ...args], { env: { ...process.env, MOGURI_STATE_DIR: stateDir }, timeout: 15_000 });
+    if (PROTOCOL_VERSION >= 45) assert.equal(JSON.parse((await run(["runtime", "status"])).stdout).runtime.power.enabled, false);
     await run(["project", "clone", source.repository, join(directory, "cli-clone"), "--confirm-write"]);
     assert.equal(await readFile(join(directory, "cli-clone", "generated.txt"), "utf8"), "Generated repository clone contents.\n");
     if (process.platform === "darwin") {
@@ -47,7 +63,7 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
       await sdk.terminal.close(opened.id);
     }
     assert.equal((await sdk.budgets.calls()).calls.length, 0);
-    return { status: "PASS", primitive: "Installed protocol-44 SDK/CLI/shared project clone, project-free Autopilot and independent Local console",
+    return { status: "PASS", primitive: `Installed protocol-${PROTOCOL_VERSION} SDK/CLI/shared project clone, project-free Autopilot, shared preferences and independent Local console`,
       ms: performance.now() - started, network: "generated loopback Git only", modelCalls: 0, nativeControls: process.platform === "darwin" ? "passed" : "not qualified" };
   } finally { sdk?.disconnect(); try { await runtime?.close(); } finally { await source.close(); } }
 }

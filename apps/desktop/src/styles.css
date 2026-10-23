@@ -362,6 +362,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .settings-category button { display: block; width: 100%; }
 .settings-search-empty { color: var(--muted); font-size: 12px; padding: 0 10px; line-height: 1.65; }
 .shortcut-map kbd { margin-left: 0; }
+.theme-color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 0 16px; max-width: 850px; }
+.theme-color-grid input[type="color"] { width: 100%; height: 38px; padding: 4px; }
 .settings-layout > nav .restore-all { margin-top: 24px; border-color: var(--line); color: var(--muted); font-size: 11px; }
 .settings-content { min-width: 0; overflow: auto; padding: 28px clamp(20px, 4vw, 64px); }
 .settings-fields, .project-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }

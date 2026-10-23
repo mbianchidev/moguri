@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk, isRecord, MoguriError } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture } from "../fixture.ts";
+import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -137,7 +138,7 @@ test("toggle and dropdown preferences autosave without committing a pending text
     const age = page.getByLabel("Archived retention days", { exact: true });
     await age.fill("91");
     await page.getByLabel("Automatically delete archived sessions after the configured age").check();
-    await expect.poll(() => settings().retention).toEqual({ deleteArchived: true, afterDays: 30 });
+    await expect.poll(() => settings().retention).toEqual({ deleteArchived: true, afterDays: 7, archiveCompleted: false, archiveAfterDays: 7 });
     await expect(age).toHaveValue("91");
     await page.getByRole("button", { name: "Save retention age", exact: true }).click();
     await expect.poll(() => settings().retention.afterDays).toBe(91);
@@ -193,7 +194,9 @@ test("a refused autosave preserves the edit and never overwrites another client'
 });
 
 test("project dropdowns and toggles save only their changed fields, while nearby text saves remain explicit", async () => {
-  const fixture = await setupFixture(), app = await launch(fixture.directory);
+  const fixture = await setupFixture();
+  initializeGeneratedRepository(fixture.project);
+  const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), configuration = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === fixture.session().projectId)?.values;
     await page.getByLabel("Project actions for project", { exact: true }).click();

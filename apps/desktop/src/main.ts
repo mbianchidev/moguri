@@ -202,6 +202,10 @@ else {
       mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
       mainWindow.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("moguri://app/")) event.preventDefault(); });
       mainWindow.webContents.on("will-prevent-unload", (event) => {
+        if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+          console.error("Hidden generated window kept open for pending edits. No native confirmation dialog was opened.");
+          return;
+        }
         const choice = dialog.showMessageBoxSync(mainWindow!, {
           type: "warning", title: "Unsaved changes", message: "Keep Moguri open to save your edits, or explicitly discard them.",
           buttons: ["Keep saving", "Discard unsaved edits"], defaultId: 0, cancelId: 0,

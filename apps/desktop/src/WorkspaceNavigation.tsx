@@ -61,7 +61,6 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         <button onClick={() => open({ kind: "new-group", project })}><Icon name="Group" />New session group</button>
         <button onClick={() => open({ kind: "folder", project })}><Icon name="Files" />Move to folder</button>
         <button onClick={() => open({ kind: "new-folder", project })}><Icon name="Plus" />New folder</button>
-        <label className="menu-color">Icon color<input aria-label={`Icon color for ${project.name}`} type="color" value={configuration.color} onChange={(event) => void run(() => sdk.projects.organize(project.id, { folderId: configuration.folderId, order: configuration.order, color: event.target.value }, configuration.revision))} /></label>
         <button onClick={() => void move(project, -1)}><Icon name="Up" />Move up</button>
         <button onClick={() => void move(project, 1)}><Icon name="Down" />Move down</button>
         <button onClick={() => open({ kind: "relocate", project })}><Icon name="Link" />Change attached folder</button>
