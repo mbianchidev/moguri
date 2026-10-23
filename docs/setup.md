@@ -1125,10 +1125,16 @@ inspection/check/cancel, never credentials or application replacement. Packaging
 emits `Moguri-VERSION-macos-arm64.zip` and the matching `.manifest.json`; both
 must be attached to the same actual release. This task does not publish a
 release, sign/notarize it, or qualify a personal private GitHub token.
+The DMG contains the actual `Moguri.app` bundle and an **Applications** shortcut.
+Drag the app onto that shortcut to install; the mounted image itself is read-only.
+The shortcut is outside the app and is not included in the updater ZIP.
+
 After `npm run package:mac`, `npm run verify:update` runs the actual ZIP and
 manifest through the production bounded extractor, full bundle inventory and
-native identity/architecture checks without launching the app. Its temporary
-stage is independently removed. Generated feed/helper tests remain separate
+native identity/architecture checks, then mounts the DMG read-only without
+opening Finder to verify the app and exact `/Applications` shortcut. No app is
+launched. `npm run verify:update -- --dmg-only` checks just that installer layout.
+Its owned mount is detached and temporary stage independently removed. Generated feed/helper tests remain separate
 from this actual packaging roundtrip and from live release/PAT qualification.
 
 **Settings / Sessions / Retention / Change storage location** reviews a complete
