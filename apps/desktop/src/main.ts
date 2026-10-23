@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -22,6 +22,8 @@ let audioGrant: { id: string; profileId: string; epoch: number; expires: number;
 let audioPending = false;
 let tray: Tray | null = null;
 let maintenancePending = false;
+let closeRequested = false;
+let serviceStoppedForRestart = false;
 let updateTimer: ReturnType<typeof setInterval> | undefined;
 let updateNoticed: string | null = null;
 const audioGranted = () => {
@@ -57,10 +59,47 @@ else {
   app.on("second-instance", () => { mainWindow?.show(); mainWindow?.focus(); });
   void app.whenReady().then(async () => {
     let connecting: Promise<Connection> | undefined;
+    let connectedOwner: { directory: string; connection: Connection } | undefined;
+    let shutdownTask: Promise<void> | undefined, exitAllowed = false;
+    const shutdown = () => {
+      if (shutdownTask) return;
+      closeRequested = true; clearInterval(updateTimer); audioGrant = null;
+      attentionClient?.disconnect();
+      shutdownTask = (async () => {
+        if (connecting) await connecting.catch((error: unknown) => console.error("Connection admission ended during app shutdown:", error instanceof Error ? error.message : "original connection did not complete"));
+        const owner = connectedOwner;
+        if (!serviceStoppedForRestart && owner) await stopMoguriService(owner.directory, { expectedConnection: owner.connection });
+        for (const banner of banners.values()) banner.close(); banners.clear();
+        exitAllowed = true; app.quit();
+      })().catch(async (error: unknown) => {
+        shutdownTask = undefined;
+        const message = error instanceof Error ? error.message : "The original Moguri service did not confirm shutdown. No unknown process was signalled.";
+        console.error("Moguri app shutdown is unconfirmed:", message);
+        if (process.env.MOGURI_TEST_WINDOW === "hidden") return;
+        try {
+          const choice = await dialog.showMessageBox({
+            type: "error", title: "Moguri is still shutting down", message,
+            detail: "Moguri was not marked closed. Its original service/cleanup state is retained; no new service was started and no data was deleted.",
+            buttons: ["Retry shutdown", "Cancel quit"], defaultId: 0, cancelId: 1, noLink: true,
+          });
+          if (choice.response === 0) shutdown();
+          else closeRequested = false;
+        } catch (notificationError) { console.error("Shutdown failure notification could not be shown; the original service remains retained:", notificationError instanceof Error ? notificationError.message : "native notification failed"); }
+      });
+    };
+    app.on("before-quit", (event) => {
+      if (exitAllowed) return;
+      event.preventDefault();
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+      else shutdown();
+    });
+    app.on("window-all-closed", shutdown);
     const connect = async () => {
-      if (maintenancePending) throw new Error("The original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
+      if (maintenancePending || closeRequested) throw new Error("App shutdown or original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
       connecting ??= (async () => {
+        const directory = stateDirectory();
         connection = await ensureConnection({
+          stateDir: directory, explicitStateDir: Boolean(process.env.MOGURI_STATE_DIR && process.env.MOGURI_STATE_DIR_EXPLICIT !== "0"),
           runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs"),
           confirmUpgrade: async (review) => {
             if (process.env.MOGURI_TEST_WINDOW === "hidden") {
@@ -76,12 +115,14 @@ else {
             return choice.response === 0;
           },
         });
+        connectedOwner = { directory, connection: { ...connection } };
         return { ...connection, baseUrl: "moguri://app" };
       })().finally(() => { connecting = undefined; });
       return connecting;
     };
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
     await connect();
+    if (closeRequested) return;
     const applyApplicationPreferences = async () => {
       const scoped = attentionClient, epoch = profileEpoch;
       if (!scoped) throw new Error("The actual profile is not connected to the application store.");
@@ -128,14 +169,14 @@ else {
       return { requested: true };
     };
     const activateProfile = async (profileId: string) => {
-      if (maintenancePending) throw new Error("Whole-store maintenance owns this application. No profile selection or running work was moved.");
+      if (maintenancePending || closeRequested) throw new Error("Shutdown or whole-store maintenance owns this application. No profile selection or running work was moved.");
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) throw new Error("Choose one explicit user profile; no Default fallback.");
       if (attentionClient?.profileId === profileId && attentionClient.getState().status === "connected") return profileId;
       const epoch = ++profileEpoch;
       audioGrant = null;
       mainWindow?.webContents.send("moguri:audio-stop");
       const scoped = await new MoguriSdk(connection, async () => { await connect(); return connection; }, profileId).ready();
-      if (epoch !== profileEpoch) { scoped.disconnect(); throw new Error("Another profile selection replaced this request. No scope was rebound."); }
+      if (epoch !== profileEpoch || closeRequested) { scoped.disconnect(); throw new Error("Another profile selection or app shutdown replaced this request. No scope was rebound."); }
       attentionClient?.disconnect();
       attentionClient = scoped; activeProfileId = profileId;
       for (const banner of banners.values()) banner.close(); banners.clear();
@@ -217,6 +258,7 @@ else {
       }
       scoped.disconnect();
       const location = await waitForStorageRelocation(storage.locatorDirectory, accepted.id, accepted.keyId);
+      serviceStoppedForRestart = true;
       if (scoped !== attentionClient || epoch !== profileEpoch) throw new Error("Storage was relocated, but profile selection changed before restart. Reopen Moguri using the published location; no second copy was started.");
       const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
       if (!hidden) { app.relaunch(); app.exit(0); }
@@ -236,6 +278,7 @@ else {
         throw error;
       }
       scoped.disconnect(); await waitForUpdateInstallArm(accepted.journal, accepted.id, accepted.intentDigest);
+      serviceStoppedForRestart = true;
       app.exit(0);
     });
     ipcMain.handle("moguri:profile", async (event, profileId: unknown) => {
@@ -410,6 +453,7 @@ else {
       await mainWindow.loadURL("moguri://app/");
     };
     await createWindow();
+    if (closeRequested) return;
     const checkUpdates = async () => {
       const scoped = attentionClient;
       if (!scoped || maintenancePending || process.env.MOGURI_TEST_WINDOW === "hidden") return;
@@ -422,13 +466,12 @@ else {
       void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error));
       updateTimer = setInterval(() => { void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error)); }, 4 * 60 * 60_000);
     }
-    app.on("activate", () => { if (!mainWindow) void createWindow(); });
+    app.on("activate", () => { if (!mainWindow && !closeRequested && !maintenancePending) void createWindow(); });
   }).catch((error: unknown) => {
-    if (error instanceof ServiceUpgradeCancelled) { app.quit(); return; }
+    if (error instanceof ServiceUpgradeCancelled || closeRequested) { app.quit(); return; }
     console.error("Moguri desktop startup failed:", error instanceof Error ? error.message : "Unknown startup error.");
     if (process.env.MOGURI_TEST_WINDOW !== "hidden") dialog.showErrorBox("Moguri could not start", error instanceof Error ? error.message : "Inspect the service log.");
     app.quit();
   });
-  app.on("window-all-closed", () => { attentionClient?.disconnect(); app.quit(); });
   app.on("will-quit", () => { clearInterval(updateTimer); tray?.destroy(); tray = null; });
 }

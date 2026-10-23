@@ -11,7 +11,7 @@ const version = require("../package.json").version;
 await access("dist/desktop/renderer/index.html");
 await mkdir("release", { recursive: true });
 const paths = await packager({
-  dir: ".", out: `release/${version}`, name: "Moguri", executableName: "Moguri", appBundleId: "dev.moguri.app",
+  dir: ".", out: `release/builds.noindex/${version}`, name: "Moguri", executableName: "Moguri", appBundleId: "dev.moguri.app",
   icon: "dist/branding/moguri.icns",
   extendInfo: { NSMicrophoneUsageDescription: "Moguri records speech only when you start dictation. Audio is transcribed locally and is never sent to an ASR cloud." },
   platform: "darwin", arch: "arm64", electronVersion, overwrite: true, prune: true,

@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { startService } from "../../apps/service/src/server.ts";
@@ -62,6 +62,8 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
 test("desktop reopens the same Remote owner after service restart without a probe and makes a changed env a read-only captured view", async () => {
   const f = await remoteFixture({ exposeModels: false, platform: { terminal: program } }), sdk = await new MoguriSdk(f.service.connection).ready();
   let app: ElectronApplication | undefined, restarted: Awaited<ReturnType<typeof startService>> | undefined, peer: MoguriSdk | undefined;
+  const entered = join(f.directory, "remote-native-restart-held"), resume = join(f.directory, "remote-native-restart-resume");
+  let nativeHeld: Promise<Error | null> | undefined, nativeError: Error | null = null;
   try {
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote"); app = await launch(f.directory);
     let page = await app.firstWindow();
@@ -72,12 +74,23 @@ test("desktop reopens the same Remote owner after service restart without a prob
     let tty = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(tty).toHaveAttribute("aria-disabled", "false"); await tty.focus(); await page.keyboard.type("GENERATED_REMOTE_NATIVE_BEFORE_RESTART");
     await expect.poll(async () => (await sdk.terminal.read(terminal.id)).data).toContain("GENERATED_REMOTE_NATIVE_BEFORE_RESTART");
-    await app.close(); app = undefined; sdk.disconnect(); await f.service.close({ preserveTerminals: true });
+    nativeHeld = app.evaluate((_electron, paths) => {
+      const fs: typeof import("node:fs") = process.getBuiltinModule("fs");
+      fs.writeFileSync(paths.entered, "Generated Remote native restart hold.");
+      const deadline = Date.now() + 10_000, wait = new Int32Array(new SharedArrayBuffer(4));
+      while (!fs.existsSync(paths.resume) && Date.now() < deadline) Atomics.wait(wait, 0, 0, 10);
+      if (!fs.existsSync(paths.resume)) throw new Error("Generated Remote restart hold expired.");
+    }, { entered, resume }).then(() => null, (error: Error) => { nativeError = error; return error; });
+    await expect.poll(async () => {
+      if (nativeError) throw nativeError;
+      try { return await readFile(entered, "utf8"); } catch (error) { if (error instanceof Error && "code" in error && error.code === "ENOENT") return ""; throw error; }
+    }).toContain("Generated Remote native restart hold.");
+    sdk.disconnect(); await f.service.close({ preserveTerminals: true });
     restarted = await startService({ stateDir: join(f.directory, "state"), provider: f.provider, retentionKey: f.retentionKey, platform: { terminal: { ...program, vault: f.terminalVault } } });
     peer = await new MoguriSdk(restarted.connection).ready();
     expect((await peer.remote.status()).remote.ready).toBe(false);
-    app = await launch(f.directory); page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
+    await writeFile(resume, "Generated Remote replacement ready."); expect(await nativeHeld).toBeNull();
+    await page.getByRole("button", { name: "Reconnect existing terminal", exact: true }).click();
     tty = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(tty).toHaveAttribute("aria-disabled", "false"); await tty.focus(); await page.keyboard.type("GENERATED_REMOTE_NATIVE_AFTER_RESTART");
     await expect.poll(async () => (await peer!.terminal.read(terminal.id)).data).toContain("GENERATED_REMOTE_NATIVE_AFTER_RESTART");
@@ -91,5 +104,9 @@ test("desktop reopens the same Remote owner after service restart without a prob
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
     await expect.poll(() => restarted!.controller.snapshot().terminals[0]?.status).toBe("closed");
     expect(restarted.controller.snapshot().terminalOwners).toHaveLength(1); expect(f.requests).toHaveLength(0);
-  } finally { await app?.close(); sdk.disconnect(); peer?.disconnect(); await restarted?.close(); await f.close(); }
+  } finally {
+    if (app && !restarted && nativeHeld) app.process().kill("SIGTERM");
+    else await writeFile(resume, "Generated Remote teardown release.");
+    await nativeHeld; await app?.close(); sdk.disconnect(); peer?.disconnect(); await restarted?.close(); await f.close();
+  }
 });

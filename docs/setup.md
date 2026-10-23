@@ -18,6 +18,18 @@ the original service or inspect it before retrying; never delete the database,
 keys or session state as a workaround. CLI `moguri service restart` remains an
 explicit action against an authenticated responsive service.
 
+Closing the last desktop window, Cmd+Q and **Quit Moguri** wait for the exact
+connected service to shut down before Electron exits. Running model/tool work
+stops with its real outcome, and ordinary exit closes known user terminal groups
+across profiles. Saved history, profiles, artifacts and unknown budget holds
+remain. This is separate from explicit upgrade/update/storage restarts, which
+retain their reviewed terminal-preservation behavior.
+
+Cancelling an unsaved-edit close leaves the service running. A changed owner or
+failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
+app does not start another service or force-kill a guessed process. Other
+independent state roots are not scanned or stopped by name.
+
 ## Searchable desktop navigation
 
 Settings has a search field and grouped categories. **General** owns profile
@@ -1142,6 +1154,9 @@ release, sign/notarize it, or qualify a personal private GitHub token.
 The DMG contains the actual `Moguri.app` bundle and an **Applications** shortcut.
 Drag the app onto that shortcut to install; the mounted image itself is read-only.
 The shortcut is outside the app and is not included in the updater ZIP.
+Development app bundles are kept under `release/builds.noindex/` so build
+versions do not accumulate as launchable Spotlight duplicates. Distribution DMGs,
+ZIPs and integrity manifests remain directly under `release/`.
 
 After `npm run package:mac`, `npm run verify:update` runs the actual ZIP and
 manifest through the production bounded extractor, full bundle inventory and

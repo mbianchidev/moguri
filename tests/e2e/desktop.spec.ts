@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { MoguriClient } from "../../packages/client/src/index.ts";
+import { startService } from "../../apps/service/src/server.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { dependencyArchive, dependencyProject } from "../fixtures/dependencies.ts";
 import { existsSync } from "node:fs";
@@ -103,7 +104,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
   const packagedRoot = packaged ? resolve(packaged, "../../Resources/app") : undefined;
   const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined });
   await fixture.provider.logout();
-  let app: ElectronApplication | undefined;
+  let app: ElectronApplication | undefined, restarted: Awaited<ReturnType<typeof startService>> | undefined;
   const other = new MoguriClient(fixture.service.connection);
   const launch = () => launchFixtureApp(join(fixture.directory, "state"));
   try {
@@ -157,6 +158,9 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect.poll(() => fixture.session().draft.text).toBe("generated restart-safe draft");
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     await app.close();
+    app = undefined; other.disconnect();
+    restarted = await startService({ stateDir: join(fixture.directory, "state"), provider: fixture.provider, retentionKey: fixture.retentionKey,
+      workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined, platform: { terminal: { vault: fixture.terminalVault } } });
     app = await launch();
     page = await app.firstWindow();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");
@@ -169,7 +173,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     expect(failures).toEqual([]);
     const database = await readFile(join(fixture.directory, "state", "state.sqlite"));
     expect(database.includes(Buffer.from("generated-test-only"))).toBe(false);
-  } finally { other.disconnect(); await app?.close(); await fixture.close(); }
+  } finally { other.disconnect(); await app?.close(); await restarted?.close(); await fixture.close(); }
 });
 
 test("dark mascot branding and shared SDK settings expose prompt, memory, permissions, MCP and optional capabilities", async () => {
