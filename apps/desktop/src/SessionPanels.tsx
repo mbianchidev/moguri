@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { DraftEditor, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { chatSubmission, useQueueModifier } from "./ChatComposer.tsx";
+import { TaskPlanPanel } from "./TaskProgress.tsx";
 
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
@@ -43,7 +44,16 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
-export function PlanPanel({ sdk, session, snapshot, workspaceScope, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; onDirty: (dirty: boolean) => void }) {
+interface PlanPanelProps { sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; onDirty: (dirty: boolean) => void; modal?: (open: boolean) => void }
+export function PlanPanel(props: PlanPanelProps) {
+  const [fileOpen, setFileOpen] = useState(false), [fileDirty, setFileDirty] = useState(false);
+  const fileDirtyChanged = useCallback((dirty: boolean) => { setFileDirty(dirty); props.onDirty(dirty); }, [props.onDirty]);
+  return <><TaskPlanPanel sdk={props.sdk} session={props.session} modal={props.modal} />
+    {props.session.projectId && <><button type="button" className="quiet workspace-plan-toggle" disabled={fileDirty} aria-expanded={fileOpen} onClick={() => setFileOpen((open) => !open)}>{fileOpen ? "Hide workspace plan file" : "Open workspace plan file"}</button>
+      {fileOpen && <WorkspacePlanFile {...props} onDirty={fileDirtyChanged} />}</>}
+  </>;
+}
+function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: PlanPanelProps) {
   const scope = workspaceScope;
   const generation = useRef(0), currentScope = useRef(scope);
   currentScope.current = scope;

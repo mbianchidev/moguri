@@ -51,6 +51,50 @@ notification sounds, root-owned native updates and reviewed store relocation.
 Their explicit authority, failure and qualification requirements are in
 [settings platform](architecture/settings-platform.md).
 
+## Session navigation, plans and queued work
+
+Right-click a session name, use a macOS two-finger click, or press Shift+F10 on
+its focused name for Pin, Rename, Archive, Delete and organization actions.
+Ordinary clicks still open the chat. Archive no longer occupies the chat header.
+Confirmation dialogs offer **Do not ask again** separately for archive/delete;
+change either preference in **Settings / Sessions / Retention**. These preferences
+do not grant permissions, enable automatic cleanup or bypass retained-artifact
+reviews. Deletion still stops owned work and preserves independent documents.
+
+Drag near a sibling row's top/bottom edge to reorder within its pinned/unpinned
+group. Drop in its center to attach, or on the owning project/Chats header to
+detach. Move up/down and Attach/Detach remain keyboard menu alternatives.
+Only the current project's hierarchy changes: workspace, Env and read-only/model
+subagent boundaries do not move. Changed sibling revisions reject the whole
+reorder instead of publishing a partial arrangement.
+
+The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
+chat, not left navigation; restore preserves its previous split width. Agent and
+read-only are a pen/book toggle in the composer. Cmd/Ctrl+K still opens Commands,
+without a titlebar advertisement.
+
+During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
+action. A successful held submission restores Stop and preserves the running
+turn. **Resume queued work** sends one prompt per finished turn, not one combined
+prompt or parallel calls. Stop holds undispatched work; reopening the app does
+not drain it. Interrupt retains its separately requested next-turn behavior.
+
+The Plan tab stays empty until the owning model explicitly supplies at least two
+actionable steps. Model checkmarks and estimates live there only, never above
+the textbox, and never prove acceptance or successful completion. An existing
+repository checklist does not become a task plan. **Open workspace plan file**
+still exposes the separately reviewed Local/SSH file editor and retained saves.
+Every actual model question offers **Other, please specify**, with an explicit
+text answer that neither consumes an unrelated draft nor grants tool permission.
+
+New consoles use embedded Ghostty and the actual execution host's configured
+login shell, including the account shell when a desktop launch omitted SHELL.
+For zsh, ordinary login-shell configuration supplies the prompt; no iTerm,
+Terminal.app or external Ghostty app is launched or impersonated. Closed consoles
+leave the selector while their ownership/cleanup evidence remains retained.
+Existing PTYs are never replaced merely to change their shell. See the
+[protocol-51 interaction contract](architecture/session-interactions.md).
+
 ## Shared session and instruction preferences
 
 Protocol/database **45** adds nested preference normalization without rewriting

@@ -27,7 +27,7 @@ export const SETTINGS_GROUPS = [
   ] },
   { label: "Sessions", items: [
     { id: "startup", label: "Startup defaults", keywords: "default model thinking effort budget autonomy verbosity" },
-    { id: "retention", label: "Retention", keywords: "archive complete delete archived seven days storage sessions resume sleep keep alive" },
+    { id: "retention", label: "Retention", keywords: "archive complete delete archived seven days storage sessions resume sleep keep alive confirmation ask again" },
     { id: "budgets", label: "Budgets", keywords: "default tokens USD limits spend cost estimates policy" },
   ] },
   { label: "Instructions", items: [

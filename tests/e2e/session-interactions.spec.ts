@@ -1,0 +1,208 @@
+import { _electron as electron, expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { compareSessions, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { setupFixture } from "../fixture.ts";
+
+const require = createRequire(import.meta.url);
+const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
+  args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+test.skip(process.platform !== "darwin", "Native desktop interaction qualification is macOS-only.");
+
+test("panel controls maximize over chat without covering navigation, mode is a bottom toggle and Commands stays keyboard-only", async () => {
+  const fixture = await setupFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await expect(page.getByRole("button", { name: /^Commands\b/ })).toHaveCount(0);
+    await expect(page.getByRole("combobox", { name: "Session mode", exact: true })).toHaveCount(0);
+    await expect(page.locator(".session-header").getByRole("button", { name: "Archive", exact: true })).toHaveCount(0);
+    const mode = composer.getByRole("switch", { name: "Agent mode", exact: true });
+    await expect(mode).toHaveAttribute("aria-checked", "true"); await mode.click();
+    await expect.poll(() => fixture.session().mode).toBe("read-only");
+    await expect(mode.locator("svg")).toHaveAttribute("data-icon", "BookOpen");
+    await mode.click(); await expect.poll(() => fixture.session().mode).toBe("agent");
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Ghostty terminal", exact: true })).toHaveAttribute("aria-disabled", "false");
+    const pane = page.getByRole("complementary", { name: "Session sidebar" }), nav = page.getByRole("navigation", { name: "Projects and sessions" });
+    const initial = await pane.boundingBox();
+    await pane.getByRole("button", { name: "Maximize session sidebar", exact: true }).click();
+    const expanded = await pane.boundingBox(), left = await nav.boundingBox();
+    expect(expanded!.width).toBeGreaterThan(initial!.width);
+    expect(expanded!.x).toBeGreaterThanOrEqual(left!.x + left!.width - 1);
+    await expect(composer).toBeHidden();
+    await mkdir(".moguri/artifacts", { recursive: true });
+    await page.screenshot({ path: ".moguri/artifacts/desktop-session-panel-expanded.png" });
+    await pane.getByRole("button", { name: "Restore session sidebar", exact: true }).click();
+    await expect(composer).toBeVisible();
+    await pane.getByRole("button", { name: "Hide session sidebar", exact: true }).click(); await expect(pane).toBeHidden();
+    await page.getByLabel("Prompt", { exact: true }).focus(); await page.keyboard.press("Meta+k");
+    await expect(page.getByRole("dialog").filter({ has: page.getByLabel("Commands", { exact: true }) })).toBeVisible();
+    await page.keyboard.press("Escape");
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("closed Ghostty terminals disappear from the selector without erasing retained owner records", async () => {
+  const gate = Promise.withResolvers<void>(), values = new Map<string, string>();
+  const vault = { read: async (key: string) => values.get(key) ?? null, write: async (key: string, value: string) => { await gate.promise; values.set(key, value); }, remove: async (key: string) => { values.delete(key); } };
+  const fixture = await setupFixture({ platform: { terminal: { vault, executable: process.execPath, args: ["-e", "process.stdin.resume();process.stdout.write('GENERATED_TERMINAL_LIST_READY\\n');"] } } });
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
+    const pane = page.getByRole("region", { name: "Embedded Ghostty terminal", exact: true });
+    await expect(pane.getByRole("button", { name: "Open terminal", exact: true })).toBeDisabled();
+    gate.resolve();
+    await expect(page.getByRole("textbox", { name: "Ghostty terminal", exact: true })).toHaveAttribute("aria-disabled", "false");
+    expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
+    await pane.getByRole("button", { name: "Close terminal", exact: true }).click();
+    await expect(pane.getByRole("combobox", { name: "Selected terminal" })).toHaveValue("");
+    await expect(pane.getByRole("combobox", { name: "Selected terminal" }).locator("option")).toHaveText(["No terminal"]);
+    expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
+    expect(fixture.service.controller.snapshot().terminalOwners).toHaveLength(1);
+  } finally { gate.resolve(); await app.close(); await fixture.close(); }
+});
+
+test("session names open context actions, archive confirmations can be remembered and remain configurable", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const second = await sdk.sessions.create(fixture.session().projectId, "Generated second context chat"), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.locator(".session-row summary")).toHaveCount(0);
+    const first = page.getByRole("button", { name: fixture.session().title, exact: true });
+    await first.click({ button: "right" });
+    const menu = page.getByRole("menu", { name: `Actions for ${fixture.session().title}`, exact: true });
+    await menu.getByRole("menuitem", { name: "Archive", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Archive session", exact: true });
+    await dialog.getByLabel("Do not ask again when archiving sessions", { exact: true }).check();
+    await dialog.getByRole("button", { name: "Archive session", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.settings.values.retention.confirmArchive).toBe(false);
+    const next = page.getByRole("button", { name: "Generated second context chat", exact: true });
+    await next.click(); await next.click({ button: "right" });
+    await page.getByRole("menu").getByRole("menuitem", { name: "Archive", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === second.id)?.status).toBe("archived");
+    await expect(page.getByRole("dialog", { name: "Archive session", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Retention", exact: true }).click();
+    await expect(page.getByLabel("Confirm before archiving a session", { exact: true })).not.toBeChecked();
+    await page.getByLabel("Confirm before archiving a session", { exact: true }).check();
+    await expect.poll(() => sdk.getState().snapshot?.settings.values.retention.confirmArchive).toBe(true);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("native dragging reorders siblings, attaches and detaches without changing roots, with keyboard menu alternatives", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const second = await sdk.sessions.create(fixture.session().projectId, "Generated drag second");
+  const third = await sdk.sessions.create(fixture.session().projectId, "Generated drag third"), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), projectId = fixture.session().projectId;
+    const row = (name: string) => page.locator(".session-row").filter({ has: page.getByRole("button", { name, exact: true }) });
+    const order = () => sdk.getState().snapshot!.sessions.filter((session) => session.projectId === projectId && !session.parentSessionId).sort(compareSessions).map((session) => session.title);
+    await row("Generated drag third").dragTo(row(fixture.session().title), { targetPosition: { x: 30, y: 2 } });
+    await expect.poll(order).toEqual(["Generated drag third", fixture.session().title, "Generated drag second"]);
+    await row("Generated drag third").dragTo(row("Generated drag second"));
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === third.id)?.parentSessionId).toBe(second.id);
+    const attached = sdk.getState().snapshot!.sessions.find((session) => session.id === third.id)!;
+    expect(attached.projectId).toBe(projectId); expect(attached.workspaceId).toBeNull(); expect(attached.controls.env).toBe("Local");
+    await row("Generated drag second").dragTo(row("Generated drag third"));
+    await expect(page.getByRole("alert")).toContainText("acyclic");
+    const project = sdk.getState().snapshot!.projects.find((project) => project.id === projectId)!;
+    await row("Generated drag third").dragTo(page.getByRole("region", { name: `Project ${project.name}`, exact: true }).locator(":scope > header"));
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === third.id)?.parentSessionId ?? null).toBeNull();
+    const link = page.getByRole("button", { name: "Generated drag third", exact: true });
+    await link.focus(); await page.keyboard.press("Shift+F10");
+    const menu = page.getByRole("menu", { name: "Actions for Generated drag third", exact: true });
+    await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown"); await expect(menu.getByRole("menuitem", { name: "Pin", exact: true })).toBeFocused();
+    await page.keyboard.press("Escape"); await expect(link).toBeFocused();
+    await link.press("Shift+F10"); await menu.getByRole("menuitem", { name: "Move down", exact: true }).click();
+    await expect.poll(order).toEqual([fixture.session().title, "Generated drag third", "Generated drag second"]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("remembered delete confirmation applies only to explicit deletion and preserves independent documents", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const title = fixture.session().title;
+  await mkdir(join(fixture.project, "docs")); await writeFile(join(fixture.project, "docs", "plan.md"), "Generated independently retained document.");
+  const artifact = await sdk.plans.capture(fixture.sessionId);
+  const second = await sdk.sessions.create(fixture.session().projectId, "Generated delete second"), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: title, exact: true }).click({ button: "right" });
+    await page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Delete session", exact: true });
+    await dialog.getByLabel("I confirm deletion of this session, including its unsent content.", { exact: true }).check();
+    await dialog.getByLabel("Do not ask again when deleting sessions", { exact: true }).check();
+    await dialog.getByRole("button", { name: "Delete session", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.some((session) => session.id === fixture.sessionId)).toBe(false);
+    expect(sdk.settings.get()?.values.retention.confirmDelete).toBe(false);
+    expect((await sdk.plans.artifact(artifact.id!)).text).toBe("Generated independently retained document.");
+    await page.getByRole("button", { name: "Generated delete second", exact: true }).click({ button: "right" });
+    await page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.some((session) => session.id === second.id)).toBe(false);
+    await expect(page.getByRole("dialog", { name: "Delete session", exact: true })).toHaveCount(0);
+    expect((await sdk.plans.artifact(artifact.id!)).text).toBe("Generated independently retained document.");
+    expect(sdk.settings.get()?.values.retention.deleteArchived).toBe(false);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("holding the primary button during an active turn queues one draft then restores Stop without cancelling", async () => {
+  const fixture = await setupFixture(), app = await launch(fixture.directory);
+  try {
+    await fixture.configure(); await fixture.send("generated slow model task");
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    await expect(page.getByRole("button", { name: "Stop turn", exact: true })).toBeVisible();
+    const turnId = fixture.session().turnId;
+    await prompt.fill("Generated held next turn"); await page.keyboard.down("Meta");
+    const hold = page.getByRole("button", { name: "Queue prompt without starting work", exact: true });
+    await expect(hold.locator("svg")).toHaveAttribute("data-icon", "Clock"); await hold.click();
+    await page.keyboard.up("Meta");
+    await expect.poll(() => fixture.session().queue.some((item) => item.text === "Generated held next turn" && item.held)).toBe(true);
+    await expect(prompt).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Stop turn", exact: true })).toBeVisible();
+    expect(fixture.session().turnId).toBe(turnId); expect(fixture.session().status).not.toBe("stopping");
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("only explicit multi-step model plans show a checklist, exclusively in the Plan sidebar", async () => {
+  const fixture = await setupFixture({ holdAfterTool: true, taskProgress: { action: "plan", title: "Generated explicit change",
+    steps: [{ text: "Inspect generated inputs", status: "done" }, { text: "Implement generated change", status: "pending" }] } });
+  await mkdir(join(fixture.project, "docs")); await writeFile(join(fixture.project, "docs", "plan.md"), "- [x] Existing repository example\n- [ ] Not the task plan\n");
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await expect(composer.getByRole("region", { name: "Estimated task completion" })).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Plan", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Model task plan", exact: true })).toContainText("No task plan");
+    await fixture.configure(); await fixture.send("generated task progress explicit plan");
+    const plan = page.getByRole("region", { name: "Model task plan", exact: true });
+    await expect(plan).toContainText("Generated explicit change");
+    await expect(plan).toContainText("Inspect generated inputs");
+    await expect(plan.getByRole("progressbar", { name: "Plan checklist", exact: true })).toHaveAttribute("value", "50");
+    await expect(composer.getByRole("progressbar")).toHaveCount(0);
+    await mkdir(".moguri/artifacts", { recursive: true });
+    await page.getByLabel("Prompt", { exact: true }).focus();
+    await page.screenshot({ path: ".moguri/artifacts/desktop-model-plan-sidebar.png" });
+    await plan.getByRole("button", { name: "Task progress details", exact: true }).click();
+    const details = page.getByRole("dialog", { name: "Task progress details", exact: true });
+    await expect(details).toContainText("Checklist rechecked every 15 seconds");
+    await expect(details).toContainText("Actual plan source:");
+    await details.getByRole("button", { name: "Close details", exact: true }).click();
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("every model choice question has an explicit Other textbox that preserves the chat draft", async () => {
+  const fixture = await setupFixture({ holdAfterTool: true, questionChoices: ["Generated first choice", "Other, please specify"] }), app = await launch(fixture.directory);
+  try {
+    await fixture.configure(); await fixture.send("generated structured question choices only");
+    const page = await app.firstWindow(), question = page.getByRole("region", { name: "User question", exact: true });
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated unrelated draft");
+    await question.getByRole("button", { name: "Other, please specify", exact: true }).click();
+    await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated distinct actual user choice");
+    await question.getByRole("button", { name: "Send answer", exact: true }).click();
+    await expect(question).toHaveCount(0);
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated unrelated draft");
+    const answered = fixture.service.controller.snapshot().questions.at(-1)!;
+    expect(answered.answer?.actor).toBe("user"); expect(answered.answer?.other).toBe(true);
+  } finally { await app.close(); await fixture.close(); }
+});

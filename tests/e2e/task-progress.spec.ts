@@ -6,7 +6,7 @@ import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The desktop slice is qualified on macOS.");
-test("checklist bar periodically rechecks the actual plan without model calls or declaring the task complete", async () => {
+test("an existing workspace checklist never becomes an automatic model task plan or composer completion bar", async () => {
   const fixture = await setupFixture();
   await mkdir(join(fixture.project, "docs"));
   const path = join(fixture.project, "docs", "plan.md");
@@ -14,16 +14,15 @@ test("checklist bar periodically rechecks the actual plan without model calls or
   const app = await electron.launch({ executablePath: require("electron"), args: ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), bar = page.getByRole("region", { name: "Estimated task completion" });
-    await expect(bar).toContainText("1/2 (50%)");
-    await expect(bar.getByRole("progressbar", { name: "Plan checklist" })).toHaveAttribute("value", "50");
-    await bar.getByRole("button", { name: "Task progress details", exact: true }).click();
-    const details = page.getByRole("dialog", { name: "Task progress details", exact: true });
-    await expect(details).toContainText("Checklist rechecked every 15 seconds");
-    await expect(details).toContainText("docs/plan.md");
-    await details.getByRole("button", { name: "Close details", exact: true }).click();
+    await expect(bar).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Plan", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Model task plan", exact: true })).toContainText("No task plan");
+    await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
+    await expect(page.getByLabel("Project plan", { exact: true })).toHaveValue("- [x] Generated first step\n- [ ] Generated remaining step\n");
     await writeFile(path, "- [x] Generated first step\n- [x] Generated remaining step\n");
-    await expect(bar).toContainText("2/2 (100%)", { timeout: 20_000 });
-    await expect(bar).toContainText("Estimate only");
+    await page.getByRole("button", { name: "Reload plan", exact: true }).click();
+    await expect(page.getByLabel("Project plan", { exact: true })).toHaveValue("- [x] Generated first step\n- [x] Generated remaining step\n");
+    await expect(bar).toHaveCount(0);
     expect(fixture.session().status).not.toBe("completed");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }

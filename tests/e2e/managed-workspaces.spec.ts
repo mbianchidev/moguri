@@ -46,6 +46,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await panels.getByRole("button", { name: "Changes", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated desktop worktree change");
     await panels.getByRole("button", { name: "Plan", exact: true }).click();
+    await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
     await page.getByLabel("Project plan", { exact: true }).fill("Generated isolated desktop plan.");
     await page.locator(".plan-panel").getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(async () => readFile(join(workspace.path, "docs/plan.md"), "utf8").catch(() => "")).toBe("Generated isolated desktop plan.");

@@ -5,13 +5,13 @@ import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, ty
 import { Icon } from "./Icon.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
-export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active, consoleScope }: {
-  sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean; consoleScope?: "global" | "session";
+export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active, consoleScope, opening = false }: {
+  sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean; consoleScope?: "global" | "session"; opening?: boolean;
 }) {
   const [scope, setScope] = useState<"global" | "session">(contextSession?.projectId ? "session" : "global");
   const session = (consoleScope ?? scope) === "session" ? contextSession : undefined, env = session?.controls.env ?? "Local";
   const global = !session;
-  const terminals = snapshot.terminals.filter((terminal) => terminal.sessionId === (session?.id ?? null));
+  const terminals = snapshot.terminals.filter((terminal) => terminal.sessionId === (session?.id ?? null) && terminal.status !== "closed");
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,7 +37,7 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
   const canInput = connected && terminal?.status === "running" && session?.status !== "archived" && sameRoot &&
     terminal.env === env && snapshot.policy.allowedEnvs.includes(terminal.env);
   const canControl = connected && terminal?.ownerId && !["closed", "failed", "acknowledged"].includes(terminal.status);
-  const canOpen = connected && ["Local", "Remote"].includes(env) && snapshot.policy.allowedEnvs.includes(env) &&
+  const canOpen = connected && !opening && ["Local", "Remote"].includes(env) && snapshot.policy.allowedEnvs.includes(env) &&
     snapshot.capabilities.some((capability) => capability.env === env && capability.ready) &&
     (session?.projectId || env === "Local" && Boolean(defaultRoot)) &&
     (!global || !terminals.some((terminal) => !["closed", "failed", "acknowledged"].includes(terminal.status))) &&
