@@ -1,5 +1,9 @@
 # Setup and usage
 
+Current service/SDK/desktop protocol is **50**. Additive upgrades retain existing
+encrypted history, identities, keys, grants and budget holds. Restart matching
+clients and service; never delete state to upgrade.
+
 ## Searchable desktop navigation
 
 Settings has a search field and grouped categories. **General** owns profile
