@@ -206,10 +206,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .composer { flex-shrink: 0; margin: 0 24px 16px; border: 1px solid var(--control-line); border-radius: 9px; background: var(--surface); box-shadow: 0 3px 10px #20293606; }
 .composer > textarea { display: block; width: 100%; border: 0; border-radius: 8px; min-height: 100px; max-height: 220px; padding: 17px; font-size: 14px; line-height: 1.65; resize: vertical; outline-offset: -3px; }
 .composer textarea::placeholder { color: var(--muted); opacity: 1; }
-.composer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 4px; padding: 7px 9px; border-top: 1px solid var(--soft-line); min-width: 0; }
+.composer-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; padding: 7px 9px; border-top: 1px solid var(--soft-line); min-width: 0; }
 .composer-leading, .composer-trailing, .composer-send-group { display: flex; align-items: center; gap: 3px; min-width: 0; }
-.composer-leading { flex: 1; }
-.composer-trailing { flex-shrink: 0; }
+.composer-leading { flex: 1 1 300px; flex-wrap: wrap; }
+.composer-trailing { flex-shrink: 0; margin-left: auto; }
 .composer-control { display: flex; flex-shrink: 0; }
 .composer-toolbar .icon-button { width: 30px; height: 32px; padding: 5px; }
 .composer-toolbar .icon-button svg { width: 17px; height: 17px; }

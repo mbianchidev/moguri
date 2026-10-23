@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
-import { compareSessions, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { compareSessions, isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -148,6 +148,12 @@ test("remembered delete confirmation applies only to explicit deletion and prese
 
 test("holding the primary button during an active turn queues one draft then restores Stop without cancelling", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
+  const dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller), gate = Promise.withResolvers<void>();
+  let entered = false;
+  fixture.service.controller.dispatch = async (raw: unknown) => {
+    if (isRecord(raw) && isRecord(raw.command) && raw.command.type === "message.send" && raw.command.held === true) { entered = true; await gate.promise; }
+    return dispatch(raw);
+  };
   try {
     await fixture.configure(); await fixture.send("generated slow model task");
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
@@ -157,11 +163,15 @@ test("holding the primary button during an active turn queues one draft then res
     const hold = page.getByRole("button", { name: "Queue prompt without starting work", exact: true });
     await expect(hold.locator("svg")).toHaveAttribute("data-icon", "Clock"); await hold.click();
     await page.keyboard.up("Meta");
+    await expect.poll(() => entered).toBe(true);
+    await expect(hold).toBeVisible(); await expect(hold).toBeDisabled();
+    expect(fixture.session().queue).toHaveLength(0);
+    gate.resolve();
     await expect.poll(() => fixture.session().queue.some((item) => item.text === "Generated held next turn" && item.held)).toBe(true);
     await expect(prompt).toHaveValue("");
     await expect(page.getByRole("button", { name: "Stop turn", exact: true })).toBeVisible();
     expect(fixture.session().turnId).toBe(turnId); expect(fixture.session().status).not.toBe("stopping");
-  } finally { await app.close(); await fixture.close(); }
+  } finally { gate.resolve(); fixture.service.controller.dispatch = dispatch; await app.close(); await fixture.close(); }
 });
 
 test("only explicit multi-step model plans show a checklist, exclusively in the Plan sidebar", async () => {

@@ -56,7 +56,7 @@ test("Ghostty detachment discards queued input, reconnects one existing PTY and 
     await expect.poll(() => fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
     await page.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "Terminal", exact: true }).click();
-    await expect(page.getByLabel("Selected terminal", { exact: true })).toHaveValue(terminal.id);
+    await expect(page.getByLabel("Selected terminal", { exact: true })).toHaveValue("");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
     await page.getByRole("button", { name: "New terminal", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(2);

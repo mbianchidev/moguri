@@ -44,6 +44,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const decisions = useDecisionStatus(client, session, snapshot, menu === "autonomy" || session.controls.autonomy === "Autopilot Max");
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const [contextReview, setContextReview] = useState(false);
+  const [heldPending, setHeldPending] = useState(false);
   const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
   const [documentCapture, setDocumentCapture] = useState<{ id: string; name: string } | null>(null), [documentError, setDocumentError] = useState("");
   const heldModifier = useQueueModifier();
@@ -66,7 +67,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const requiresDocuments = draft.attachments.some((attachment) => attachment.kind === "document") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "document"));
   const documentBlocked = requiresDocuments && (model?.toolInput === false || session.kind === "metachat" || session.kind === "subagent");
   const held = heldModifier && !isSlash;
-  const holdingNext = held && Boolean(draft.text.trim() || draft.attachments.length);
+  const holdingNext = heldPending || held && Boolean(draft.text.trim() || draft.attachments.length);
   const hardBudget = Boolean(snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
   const answering = Boolean(question && delivery === "queue" && !isSlash);
@@ -103,10 +104,15 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const send = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
+    if (heldPending) return;
+    const pendingHold = hold && !isSlash;
+    if (pendingHold) setHeldPending(true);
     void run(async () => {
-      if (isSlash) return onSlash(session, editor, draft.text);
-      if (answering && question && !hold) { await editor.flush(); return client.questions.answerDraft(question.id, question.revision); }
-      return editor.send(hold ? "queue" : delivery, hold);
+      try {
+        if (isSlash) return await onSlash(session, editor, draft.text);
+        if (answering && question && !hold) { await editor.flush(); return await client.questions.answerDraft(question.id, question.revision); }
+        return await editor.send(hold ? "queue" : delivery, hold);
+      } finally { if (pendingHold) setHeldPending(false); }
     });
   };
   const dictate = () => {
@@ -122,7 +128,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const chooseAttachmentTrigger = () => { if (attachmentTrigger) { setPendingTrigger(attachmentTrigger); setMenu("attach"); } };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
-  const sendLabel = isSlash ? "Run command" : held ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
+  const sendLabel = isSlash ? "Run command" : held || heldPending ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description={answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without starting work."}>
     {documentCapture && <div className="document-capture"><p role="status">Extracting {documentCapture.name} locally. No model call; your draft is preserved.</p><progress aria-label="Local document extraction" /><button type="button" onClick={() => void client.attachments.cancelDocument(session.id, documentCapture.id).catch((error: unknown) => setDocumentError(error instanceof Error ? error.message : "Capture stop is unconfirmed. Inspect the saved draft."))}>Cancel extraction</button></div>}
@@ -196,7 +202,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"} aria-pressed={dictation.state.phase === "recording"} disabled={dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"} title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`} onClick={dictate}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
-            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} title={held ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={isSlash || held ? !canQueue : !canSend} onClick={(event) => { event.preventDefault(); send(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held ? "Clock" : "Send"} /></button>}
+            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} title={held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || (isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); send(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : "Send"} /></button>}
           <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
             <h2>Delivery</h2>{(["queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}
             {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); send(undefined, held); }}>{sendLabel}</button>}
@@ -224,11 +230,13 @@ function ComposerPopover({ name, label, description, open, toggle, close, trigge
       if (!button.current) return;
       const anchor = button.current.getBoundingClientRect();
       const parent = button.current.closest(".composer")!.getBoundingClientRect();
+      const toolbarTop = button.current.closest(".composer-toolbar")?.getBoundingClientRect().top ?? anchor.top;
+      const anchorTop = Math.min(anchor.top, toolbarTop);
       element.style.width = `${Math.min(360, parent.width, window.innerWidth - 24)}px`;
       const width = element.getBoundingClientRect().width;
       element.style.left = `${Math.max(12, Math.min(parent.right - width, anchor.left, window.innerWidth - width - 12))}px`;
-      element.style.maxHeight = `${Math.max(100, anchor.top - 60)}px`;
-      element.style.top = `${Math.max(50, anchor.top - element.getBoundingClientRect().height - 8)}px`;
+      element.style.maxHeight = `${Math.max(100, anchorTop - 60)}px`;
+      element.style.top = `${Math.max(50, anchorTop - element.getBoundingClientRect().height - 8)}px`;
     };
     const observer = new ResizeObserver(position); observer.observe(element); observer.observe(button.current);
     observer.observe(button.current.closest(".composer")!);

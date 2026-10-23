@@ -138,7 +138,7 @@ test("toggle and dropdown preferences autosave without committing a pending text
     const age = page.getByLabel("Archived retention days", { exact: true });
     await age.fill("91");
     await page.getByLabel("Automatically delete archived sessions after the configured age").check();
-    await expect.poll(() => settings().retention).toEqual({ deleteArchived: true, afterDays: 7, archiveCompleted: false, archiveAfterDays: 7 });
+    await expect.poll(() => settings().retention).toEqual({ deleteArchived: true, afterDays: 7, archiveCompleted: false, archiveAfterDays: 7, confirmArchive: true, confirmDelete: true });
     await expect(age).toHaveValue("91");
     await page.getByRole("button", { name: "Save retention age", exact: true }).click();
     await expect.poll(() => settings().retention.afterDays).toBe(91);

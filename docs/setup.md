@@ -75,7 +75,8 @@ without a titlebar advertisement.
 
 During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
 action. A successful held submission restores Stop and preserves the running
-turn. **Resume queued work** sends one prompt per finished turn, not one combined
+turn. The clock stays visible while acknowledgement is pending, even after
+releasing the modifier. **Resume queued work** sends one prompt per finished turn, not one combined
 prompt or parallel calls. Stop holds undispatched work; reopening the app does
 not drain it. Interrupt retains its separately requested next-turn behavior.
 
