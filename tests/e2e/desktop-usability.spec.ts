@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -12,7 +12,7 @@ import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
-  executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+  executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: [...process.env.MOGURI_TEST_APP ? [] : ["."], "--use-fake-device-for-media-stream"],
   env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
 });
 const close = async (app: ElectronApplication) => {
@@ -227,7 +227,7 @@ test("project dropdowns and toggles save only their changed fields, while nearby
 test("Ctrl+Space starts and finalizes generated local dictation outside the textarea without repeated stops or sending", async () => {
   const weights = Buffer.from("generated desktop recognizer weights");
   const directory = await mkdtemp(join(tmpdir(), "moguri-generated-desktop-speech-")), marker = join(directory, "ready");
-  const prefixArgs = [resolve("tests/fixtures/fake-speech.mjs"), "--started-marker", marker, "--finalize-delay", "3300"];
+  const prefixArgs = [resolve("tests/fixtures/fake-speech.mjs"), "--started-marker", marker, "--transcribe-delay", "3300"];
   const fixture = await setupFixture({ platform: { speech: {
     executable: process.execPath, prefixArgs,
     model: { ...NEMOTRON_MODEL, filename: "generated.gguf", bytes: weights.length, sha256: createHash("sha256").update(weights).digest("hex") },
@@ -241,25 +241,23 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
   let release = () => {};
   try {
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
-    await app.evaluate(({ ipcMain }) => { ipcMain.removeHandler("moguri:microphone-permission"); ipcMain.handle("moguri:microphone-permission", () => true); });
     await prompt.fill("Generated original draft.");
     await page.getByRole("button", { name: "Start local dictation", exact: true }).focus();
     await page.keyboard.press("Control+Space");
-    await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toBeVisible();
-    await expect.poll(() => existsSync(marker)).toBe(true);
+    await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " ", ctrlKey: true, repeat: true })));
-    await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.record")?.status).toBe("running");
+    await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("running");
     await page.keyboard.press("Control+Space");
-    await expect(page.getByRole("status").filter({ hasText: "Finishing local transcription" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Recognizing the captured local WAV" })).toBeVisible();
+    await expect.poll(() => existsSync(marker)).toBe(true);
     await page.keyboard.press("Control+Space");
-    await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.record")?.status).toBe("completed");
+    await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
     await page.getByRole("button", { name: "Insert", exact: true }).click();
     await expect(prompt).toHaveValue("Generated original draft.\nGenerated local dictation.");
-    const previousPid = await readFile(marker, "utf8");
-    await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
-    await expect.poll(() => readFile(marker, "utf8")).not.toBe(previousPid);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await page.getByRole("button", { name: "Start local microphone", exact: true }).click();
+    await expect(page.getByRole("status", { name: "Local microphone status", exact: true })).toContainText("recording");
     let received = false;
     const held = new Promise<void>((resolve) => { release = resolve; });
     fixture.service.controller.dispatch = async (...args: Parameters<typeof dispatch>) => {
@@ -273,14 +271,16 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
     await expect(page.getByRole("button", { name: "Stop and transcribe", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Stop and transcribe", exact: true }).click();
     await page.getByRole("button", { name: "Cancel and discard", exact: true }).click();
-    await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.record")?.status).toBe("cancelled");
-    expect(sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.record")?.resultDigest).toBeNull();
+    await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("cancelled");
+    expect(sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.capture")?.resultDigest).toBeNull();
     release();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     fixture.service.controller.dispatch = dispatch;
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await expect(prompt).toHaveValue("Generated original draft.\nGenerated local dictation.");
     prefixArgs.push("--exit-signal", "SIGTERM");
+    await page.keyboard.press("Control+Space");
+    await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("Control+Space");
     await expect(page.getByRole("alert")).toContainText("signal SIGTERM. Generated native capture failed.");
     await expect(prompt).toHaveValue("Generated original draft.\nGenerated local dictation.");

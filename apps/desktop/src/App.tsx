@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { activeDecision, appearanceColors, themeVariable, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, appearanceColors, themeVariable, shortcutLabel, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -16,6 +16,7 @@ import { CandidatePanel } from "./CandidatePanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
 import { UsageDashboard } from "./UsageDashboard.tsx";
+import { NotificationAudio } from "./notification-audio.ts";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -99,6 +100,14 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [navOpen, setNavOpen] = useState(false);
   const [notice, updateNotice] = useState<{ text: string; info: boolean } | null>(null);
   const setNotice = useCallback((text: string | null, info = false) => updateNotice(text ? { text, info } : null), []);
+  useEffect(() => {
+    const failed = (error: unknown) => setNotice(error instanceof Error ? error.message : "Notification audio failed. No alternate sound was substituted.");
+    const audio = new NotificationAudio(failed);
+    const stopAudio = window.moguri.onAudioStop(() => { void audio.close().catch(failed); });
+    const stopErrors = window.moguri.onNativeError((profileId, message) => { if (profileId === client.profileId) setNotice(message); });
+    const stopSounds = window.moguri.onNotificationAudio((profileId, sound) => { if (profileId === client.profileId) void audio.play(sound).catch(failed); });
+    return () => { stopAudio(); stopErrors(); stopSounds(); void audio.close().catch(failed); };
+  }, [client, setNotice]);
   const [busy, setBusy] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
@@ -203,7 +212,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   });
   const openProfile = async (id: string, targetSessionId?: string) => {
     if (!canNavigate() || nativeModal || commandOutput || palette || composerMenuOpen) throw new Error("Save/discard local edits and close dialogs before switching profiles.");
-    if (snapshot?.jobs.some((job) => job.kind === "voice.record" && job.status === "running")) throw new Error("Stop owned dictation before switching profiles. Audio is not moved to another profile.");
+    if (snapshot?.jobs.some((job) => ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running")) throw new Error("Stop owned dictation before switching profiles. Audio is not moved to another profile.");
     switchingProfile.current = true; setBusy(true); setProfilePending(true);
     let next: MoguriSdk | undefined;
     try {
@@ -289,19 +298,19 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   };
   useEffect(() => {
     const keyboard = (event: KeyboardEvent) => {
-      if (switchingProfile.current || nativeModal || composerMenuOpen || event.target instanceof Element && event.target.closest(".ghostty-host")) return;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPalette((open) => !open); }
+      if (event.defaultPrevented || event.isComposing || switchingProfile.current || nativeModal || composerMenuOpen || event.target instanceof Element && event.target.closest(".ghostty-host, .shortcut-field")) return;
+      if (shortcutMatches(event, snapshot?.settings.values.shortcuts?.commands ?? "Primary+KeyK")) { event.preventDefault(); if (!event.repeat) setPalette((open) => !open); }
       if (event.key === "Escape") { setPalette(false); setNavOpen(false); }
     };
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
-  }, [nativeModal, composerMenuOpen]);
+  }, [nativeModal, composerMenuOpen, snapshot?.settings.values.shortcuts?.commands]);
   return <><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{globalView ?? project?.name ?? "Chats"}</span>
       <button className="icon-button notification-trigger" aria-label="Attention notifications" title="Attention" aria-pressed={globalView === "Attention"} onClick={() => openGlobal("Attention")}><Icon name="Attention" />{snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged) && <span className="attention-unread-dot" />}</button>
-      <button className="quiet palette-trigger" onClick={() => setPalette(true)}>Commands <kbd>Ctrl K</kbd></button>
+      <button className="quiet palette-trigger" onClick={() => setPalette(true)}>Commands <kbd>{shortcutLabel(snapshot?.settings.values.shortcuts?.commands ?? "Primary+KeyK")}</kbd></button>
     </header>
     <nav id="project-navigation" className="project-nav" aria-label="Projects and sessions">
       <SidebarResizer side="left" value={navWidth} min={180} max={leftMax} onChange={setLeftWidth} controls="project-navigation" />

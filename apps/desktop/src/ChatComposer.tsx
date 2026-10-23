@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { DraftEditor, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, slashCommands, attachmentTriggers, parseAttachmentTrigger, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -8,6 +8,7 @@ import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
 import { useDecisionStatus } from "./DecisionPanel.tsx";
 import { TaskProgressBar } from "./TaskProgress.tsx";
 import { ContextDocument } from "./DocumentAttachment.tsx";
+import { useDictation } from "./useDictation.ts";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -56,11 +57,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const eligibleModel = Boolean(model && (!model.environments || model.environments.includes(session.controls.env)));
   const nativeStage = snapshot.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId && value.sessionId === session.id);
   const needsNativeStage = session.controls.env === "Sandbox" && nativeStage?.status !== "ready";
-  const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && job.kind === "voice.record" && job.status === "running");
-  const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe"].includes(job.kind));
-  const [dictationPending, setDictationPending] = useState(false);
-  const dictationBusy = useRef(false);
-  const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
+  const dictation = useDictation(client, session, snapshot, { shortcuts: true, beforeStart: () => editor.flush() });
+  const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running");
+  const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
+  const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind) && job.status === "completed");
   const [insertedTranscript, setInsertedTranscript] = useState<string | null>(null);
   const isSlash = draft.text.startsWith("/");
   const attachmentTrigger = isSlash ? null : parseAttachmentTrigger(draft.text);
@@ -110,31 +110,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       return editor.send(hold ? "queue" : delivery, hold);
     });
   };
-  const dictate = useCallback(async () => {
-    if (dictationBusy.current) return;
-    dictationBusy.current = true; setDictationPending(true);
-    try {
-      await run(async () => {
-        if (voiceJob) return client.voice.stop(voiceJob.id);
-        await editor.flush();
-        const status = (await client.voice.status()).voice;
-        if (!status.runtimeReady || !status.modelReady) throw new Error(status.diagnostic ?? "Set up local dictation in Settings before recording.");
-        if (!await window.moguri.microphonePermission()) throw new Error("Microphone permission was denied. No audio was recorded.");
-        return client.voice.record(session.id);
-      });
-    } finally { dictationBusy.current = false; setDictationPending(false); }
-  }, [client, editor, run, session.id, voiceJob?.id]);
-  useEffect(() => {
-    const shortcut = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || !connected || session.status === "archived" || !event.ctrlKey || event.metaKey || event.altKey || event.shiftKey ||
-        event.code !== "Space" && event.key !== " " || event.isComposing ||
-        event.target instanceof Element && event.target.closest(".ghostty-host, .side-chat-panel, dialog, [popover]")) return;
-      event.preventDefault();
-      if (!event.repeat) void dictate();
-    };
-    window.addEventListener("keydown", shortcut);
-    return () => window.removeEventListener("keydown", shortcut);
-  }, [dictate, connected, session.status]);
+  const dictate = () => {
+    if (voiceJob?.kind === "voice.record") void run(() => client.voice.stop(voiceJob.id));
+    else if (dictation.state.phase === "starting" || dictation.state.phase === "recording") void dictation.finish();
+    else if (dictation.state.phase === "idle" || dictation.state.phase === "failed") void dictation.start();
+  };
   const configure = (controls: Controls) => run(async () => {
     await client.sessions.configure(session.id, controls, session.revision);
     setMenu(null);
@@ -188,7 +168,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {suggestions.length > 0 && <div className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion) => <button type="button" role="option" aria-selected={false} key={suggestion.name} onClick={() => editor.edit(`/${suggestion.name} `)}><strong>/{suggestion.name}</strong><span>{suggestion.description}</span></button>)}</div>}
     {attachmentTrigger && <button className="attachment-trigger-hint quiet" type="button" onClick={chooseAttachmentTrigger}>{attachmentTrigger.prefix} {attachmentTriggers[attachmentTrigger.prefix]}<small>Tab to choose; text stays literal until selection</small></button>}
     {draft.error && <div className="draft-error" role="alert"><p>{draft.error}</p><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
-    {voiceJob && <p className="composer-voice-status fine-print" role="status">{voiceJob.progress || "Starting local dictation. Ctrl+Space stops and transcribes; nothing is sent."}</p>}
+    {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "recording" ? "Recording the selected local microphone. Nothing is sent." : dictation.state.phase === "transcribing" ? "Recognizing the captured local WAV. Nothing is sent." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
+      <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
+    {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <p className="composer-voice-status inline-error" role="alert">{dictation.state.error}</p>}
     {voiceOutcome?.status === "failed" && <p className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Your draft is unchanged."}</p>}
     {transcript && transcript.id !== insertedTranscript && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(async () => { await editor.flush(); await client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); setInsertedTranscript(transcript.id); })}>Insert</button></div>}
     <div className="composer-toolbar">
@@ -206,7 +188,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} editor={editor} />)}
-        <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceJob ? "Stop local dictation" : "Start local dictation"} aria-pressed={Boolean(voiceJob)} disabled={dictationPending || !connected || session.status === "archived"} title={voiceJob ? "Stop and transcribe (Ctrl+Space)" : "Dictate (Ctrl+Space)"} onClick={() => void dictate()}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
+        <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"} aria-pressed={dictation.state.phase === "recording"} disabled={dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"} title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`} onClick={dictate}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
         <div className="composer-send-group">
           {session.turnId ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
             <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} title={held ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={isSlash || held ? !canQueue : !canSend} onClick={(event) => { event.preventDefault(); send(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held ? "Clock" : "Send"} /></button>}

@@ -7,7 +7,13 @@ export interface DesktopBridge {
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
-  microphonePermission(): Promise<boolean>;
+  audioPermission(input: { profileId: string; purpose: "capture" | "devices"; sessionId?: string; jobId?: string }): Promise<string>;
+  releaseAudioPermission(id: string): Promise<void>;
+  onAudioStop(listener: () => void): () => void;
+  chooseNotificationSound(profileId: string): Promise<{ name: string; audio: string } | null>;
+  previewNotificationSound(profileId: string, kind: "needs-input" | "completed", soundId: string): Promise<{ requested: boolean }>;
+  onNotificationAudio(listener: (profileId: string, audio: string) => void): () => void;
+  onNativeError(listener: (profileId: string, message: string) => void): () => void;
   copyText(text: string): Promise<void>;
   saveDocument(document: ArtifactExport): Promise<{ path: string; digest: string } | null>;
   preview(input: { sessionId: string; url: string; bounds: { x: number; y: number; width: number; height: number } } | null, profileId: string): Promise<void>;

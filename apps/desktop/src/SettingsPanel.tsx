@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, GUIDANCE_GROUPS, readinessGuidance, VerbositySchema, SettingsSchema, CompoundSettingsSchema, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, appearanceColors, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, VerbositySchema, SettingsSchema, CompoundSettingsSchema, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -16,6 +16,10 @@ import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
 import { ProviderConnect } from "./ProviderConnect.tsx";
 import { SessionManagement } from "./SessionManagement.tsx";
 import { GitHubConnectionPanel, LinearConnectionPanel } from "./IntegrationConnections.tsx";
+import { useDictation } from "./useDictation.ts";
+import { listMicrophones, type MicrophoneChoice } from "./browser-audio.ts";
+import { ShortcutEditor } from "./ShortcutEditor.tsx";
+import { NotificationSettings } from "./NotificationSettings.tsx";
 import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
 
 export type { SettingsTab } from "./settings-catalog.ts";
@@ -32,6 +36,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [profilesExpanded, setProfilesExpanded] = useState(true), [profilesDirty, setProfilesDirty] = useState(false);
   const [sessionsDirty, setSessionsDirty] = useState(false);
   const [integrationDirty, setIntegrationDirty] = useState(false);
+  const [soundsBusy, setSoundsBusy] = useState(false);
   const [sql, setSql] = useState<Awaited<ReturnType<MoguriSdk["integrations"]["sqlStatus"]>>["connection"] | null>(null);
   const sqlGeneration = useRef(0);
   const groups = searchSettings(search);
@@ -51,6 +56,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [input, setInput] = useState("");
   const [preview, setPreview] = useState("");
   const [voice, setVoice] = useState<VoiceStatus | null>(null);
+  const dictation = useDictation(sdk, session, snapshot, { active: tab === "voice" });
+  const [microphones, setMicrophones] = useState<MicrophoneChoice[]>([]), [devicesBusy, setDevicesBusy] = useState(false);
+  const deviceRequest = useRef<AbortController | null>(null);
   const [runtime, setRuntime] = useState<Awaited<ReturnType<MoguriSdk["runtime"]["status"]>>["runtime"] | null>(null);
   const [acceptLicense, setAcceptLicense] = useState(false);
   const [serverId, setServerId] = useState("builtin");
@@ -80,9 +88,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty;
+  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
-  useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, nestedDirty, onUnsavedChange]);
+  useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
+  useEffect(() => () => deviceRequest.current?.abort(), [sdk, tab]);
   useEffect(() => {
     setPreview("");
     setSandboxReviewed(false);
@@ -178,6 +187,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     void write({ ...committedValues.current, retention: { ...committedValues.current.retention, [key]: value } },
       () => setDraft((current) => ({ ...current, retention: { ...current.retention, [key]: value } })));
   };
+  const voiceShortcut = () => {
+    const shortcut = draft.voice.shortcut ?? "Control+Space";
+    void write({ ...committedValues.current, voice: { ...committedValues.current.voice, shortcut } }, () => {});
+  };
+  const saveShortcut = (key: "commands" | "terminalCopy") => {
+    const value = draft.shortcuts?.[key] ?? (key === "commands" ? "Primary+KeyK" : "Primary+Shift+KeyC");
+    const shortcuts = { commands: "Primary+KeyK", terminalCopy: "Primary+Shift+KeyC", ...committedValues.current.shortcuts, [key]: value };
+    void write({ ...committedValues.current, shortcuts }, () => {});
+  };
   const reset = (section: SettingsSection | "all") => run(async () => {
     if (ownSave.current) throw new Error("Wait for the current settings save to finish.");
     ownSave.current = true; setSaving(true);
@@ -198,7 +216,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
   const pending = snapshot.proposals.filter((proposal) => proposal.projectId === project?.id && proposal.status === "pending");
   const activeVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && job.kind.startsWith("voice.") && job.status === "running");
-  const completedVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe"].includes(job.kind) && job.status === "completed");
+  const completedVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind) && job.status === "completed");
   const modelPromptChanged = draft.systemPrompt !== committed.systemPrompt;
   const projectServers = session ? snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId)?.values.mcpServers ?? [] : [];
   const configuredServers = [...snapshot.settings.values.mcpServers, ...projectServers].filter((server, index, all) => server.enabled &&
@@ -227,11 +245,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
         {tab === "providers" && <><h2>Model providers</h2><p>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</p><ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
         {tab === "accessibility" && <><h2>Keyboard shortcuts</h2><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>
+          <p>Record a qualified chord or enter one explicitly. Save applies only its field. Conflicting and protected editing/system chords are rejected; none disables an optional shortcut. Voice uses the same binding in both sections.</p>
+          <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />
+          <ShortcutEditor label="Terminal copy shortcut" value={draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC"} change={(terminalCopy) => change("shortcuts", { commands: draft.shortcuts?.commands ?? "Primary+KeyK", terminalCopy })} save={() => saveShortcut("terminalCopy")} dirty={draft.shortcuts?.terminalCopy !== committed.shortcuts?.terminalCopy} disabled={saving} />
+          <ShortcutEditor label="Voice shortcut" value={draft.voice.shortcut ?? "Control+Space"} change={(shortcut) => change("voice", { ...draft.voice, shortcut })} save={voiceShortcut} dirty={draft.voice.shortcut !== committed.voice.shortcut} disabled={saving} />
           <dl className="facts shortcut-map">
             <dt>Send or answer in chat</dt><dd><kbd>Enter</kbd></dd><dt>Insert a new line</dt><dd><kbd>Shift+Enter</kbd></dd>
             <dt>Hold a prompt without running</dt><dd><kbd>Cmd/Ctrl+Enter</kbd></dd><dt>Show held-prompt action</dt><dd>Hold Cmd or Ctrl</dd>
-            <dt>Commands</dt><dd><kbd>Cmd/Ctrl+K</kbd></dd><dt>Start / finish dictation</dt><dd><kbd>Ctrl+Space</kbd></dd>
-            <dt>Copy terminal selection</dt><dd><kbd>Cmd/Ctrl+Shift+C</kbd></dd><dt>Close a dialog or popover</dt><dd><kbd>Escape</kbd></dd>
+            <dt>Commands</dt><dd><kbd>{shortcutLabel(committed.shortcuts?.commands ?? "Primary+KeyK")}</kbd></dd><dt>Start / finish dictation</dt><dd><kbd>{shortcutLabel(committed.voice.shortcut ?? "Control+Space")}</kbd></dd>
+            <dt>Copy terminal selection</dt><dd><kbd>{shortcutLabel(committed.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC")}</kbd></dd><dt>Close a dialog or popover</dt><dd><kbd>Escape</kbd></dd>
             <dt>Resize a focused sidebar separator</dt><dd><kbd>Left / Right</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move through popover choices</dt><dd><kbd>Up / Down</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move between controls</dt><dd><kbd>Tab / Shift+Tab</kbd></dd><dt>Activate a focused control</dt><dd><kbd>Enter / Space</kbd></dd>
@@ -387,11 +409,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             <label className="setting-field">{label}<textarea aria-label={label} maxLength={65536} value={draft.guidance?.[key] ?? ""} onChange={(event) => change("guidance", { ...draft.guidance, [key]: event.target.value })} /></label>
             <button type="button" className="primary" aria-label={`Save ${label}`} disabled={saving || (draft.guidance?.[key] ?? "") === (committed.guidance?.[key] ?? "")} onClick={() => saveGuidance(key)}>Save</button>
           </div>)}</section>)}</>}
-        {tab === "notifications" && <><h2>Attention notifications</h2><p>Questions, pending approvals and completed/failed work use the shared service state. Reading a notification never answers or approves anything.</p>
-          <label className="check-setting"><input type="checkbox" checked={draft.notifications.inApp} onChange={(event) => automatic("notifications", { inApp: event.target.checked })} />Show in-app attention dots and icons</label>
-          <label className="check-setting"><input type="checkbox" checked={draft.notifications.os} onChange={(event) => automatic("notifications", { os: event.target.checked })} />Enable OS banners while Moguri desktop runs in the background</label>
-          <label className="check-setting"><input type="checkbox" checked={draft.notifications.previewContent} onChange={(event) => automatic("notifications", { previewContent: event.target.checked })} />Include session title and message preview in OS banners</label>
-          <p className="settings-warning">OS banners are off by default and respect operating-system permissions/Do Not Disturb. Without content previews, banners use generic text. The OS may ask for permission when the first enabled banner appears. TUI indicators work without desktop; OS banners require it.</p></>}
+        {tab === "notifications" && <NotificationSettings sdk={sdk} snapshot={snapshot} values={draft.notifications} disabled={saving} onChange={(patch) => automatic("notifications", patch)} onBusy={setSoundsBusy} onError={setError} onOutput={setOutput} />}
         {tab === "project" && (project ? <ProjectSettingsPanel key={project.id} sdk={sdk} project={project} session={session?.projectId === project.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} openSession={openSession} /> : <p>Open a project to configure it.</p>)}
         {tab === "retention" && <><h2>Archived-session retention</h2><p>Off by default. Deletion stops owned work and removes session content while preserving independent project artifacts and external PRs. Diagnostic audit records remain.</p>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the authoritative data directory..."}</p>
@@ -511,11 +529,26 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <pre>moguri mcp --session {session?.id ?? "SESSION_ID"}</pre></>}
         {tab === "voice" && <><h2>Local voice dictation</h2><p>Native NVIDIA Nemotron 3.5 ASR. Download the model once yourself; audio never goes to an ASR cloud or the Copilot provider.</p>
           <p>{voice?.diagnostic ?? "Reading local runtime status..."}</p><p className="fine-print">NVIDIA documents 40 locales: 19 ready, 13 broad coverage, 8 adaptation-only. The last group needs fine-tuning and is not advertised as ready.</p>
+          <h3>Microphone and activation</h3><p>Device discovery is explicit and briefly opens audio solely to read permitted microphone labels, then stops it. Recording uses exact device selection and browser-normalized local 16-kHz PCM, never an ignored native CLI device flag.</p>
+          <div className="button-row"><button type="button" disabled={devicesBusy || Boolean(activeVoice)} onClick={() => {
+            const request = new AbortController(); deviceRequest.current = request; setDevicesBusy(true);
+            void run(async () => { try { setMicrophones(await listMicrophones(sdk.profileId, request.signal)); } finally { if (deviceRequest.current === request) { deviceRequest.current = null; setDevicesBusy(false); } } });
+          }}>List microphones with explicit audio access</button>{devicesBusy && <button type="button" onClick={() => deviceRequest.current?.abort()}>Cancel microphone discovery</button>}</div>
+          <label className="setting-field">Voice input device<select aria-label="Voice input device" value={draft.voice.inputDeviceId ?? "default"} disabled={saving || devicesBusy} onChange={(event) => automatic("voice", { inputDeviceId: event.target.value })}><option value="default">System default microphone</option>
+            {draft.voice.inputDeviceId && draft.voice.inputDeviceId !== "default" && !microphones.some((device) => device.id === draft.voice.inputDeviceId) && <option value={draft.voice.inputDeviceId}>Saved device; refresh to verify availability</option>}
+            {microphones.filter((device) => device.id !== "default").map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}</select></label>
+          <ShortcutEditor label="Voice shortcut" value={draft.voice.shortcut ?? "Control+Space"} change={(shortcut) => change("voice", { ...draft.voice, shortcut })} save={voiceShortcut} dirty={draft.voice.shortcut !== committed.voice.shortcut} disabled={saving} />
+          <label className="check-setting"><input type="checkbox" checked={draft.voice.pushToTalk ?? false} onChange={(event) => automatic("voice", { pushToTalk: event.target.checked })} />Hold the voice shortcut to talk; release to transcribe</label>
+          <p className="fine-print">Without push-to-talk, press once to record and again to transcribe. Release before startup, blur or sleep stops the original capture without a late microphone or automatic send. Native/TUI capture supports Default only and explicitly rejects a selected desktop device.</p>
           <label className="setting-field">Language<select aria-label="Dictation language" disabled={saving} value={draft.voice.language} onChange={(event) => automatic("voice", { language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>
           <label className="setting-field">Native speech backend<select aria-label="Native speech backend" disabled={saving} value={draft.voice.backend} onChange={(event) => automatic("voice", { backend: event.target.value === "cpu" ? "cpu" : event.target.value === "metal" ? "metal" : "auto" })}><option value="auto">Automatic</option><option value="cpu">CPU</option><option value="metal" disabled={navigator.platform !== "MacIntel"}>Metal (macOS)</option></select></label>
           <label className="check-setting"><input type="checkbox" checked={acceptLicense} onChange={(event) => setAcceptLicense(event.target.checked)} />I reviewed OpenMDW-1.1 and approve the {voice ? Math.ceil(voice.bytes / 1024 / 1024) : 708} MiB local model download.</label>
           <div className="button-row"><button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"))}>Model card and license</button><button disabled={!acceptLicense || voice?.modelReady} onClick={() => void run(() => sdk.voice.download(true))}>Download model once</button></div>
-          <h3>Dictate into this session</h3><div className="button-row"><button disabled={saving || !session || !voice?.modelReady || !voice.runtimeReady || Boolean(activeVoice)} onClick={() => void run(async () => { if (!await window.moguri.microphonePermission()) throw new Error("Microphone permission was denied. No audio was recorded."); return sdk.voice.record(session!.id); })}>Start local microphone</button><button disabled={!activeVoice || activeVoice.kind !== "voice.record"} onClick={() => void run(() => sdk.voice.stop(activeVoice!.id))}>Stop and transcribe</button>{activeVoice && <button onClick={() => void run(() => sdk.jobs.cancel(activeVoice.id))}>Cancel and discard</button>}</div>
+          <h3>Dictate into this session</h3><div className="button-row"><button disabled={saving || !session || !voice?.modelReady || !voice.runtimeReady || Boolean(activeVoice) || dictation.state.phase === "starting" || dictation.state.cleanupPending} onClick={() => void dictation.start()}>Start local microphone</button>
+            <button disabled={dictation.state.phase !== "starting" && dictation.state.phase !== "recording" && activeVoice?.kind !== "voice.record"} onClick={() => { if (activeVoice?.kind === "voice.record") void run(() => sdk.voice.stop(activeVoice.id)); else void dictation.finish(); }}>Stop and transcribe</button>
+            {(activeVoice || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <button onClick={() => { if (activeVoice && activeVoice.id !== dictation.state.id) void run(() => sdk.jobs.cancel(activeVoice.id)); else void dictation.cancel(); }}>Cancel and discard</button>}</div>
+          <p role="status" aria-label="Local microphone status">Microphone: {dictation.state.phase}. {activeVoice?.progress}</p>
+          {dictation.state.error && <p className="inline-error" role="alert">{dictation.state.error}</p>}
           <label className="setting-field">Or use a local WAV path<input value={input} onChange={(event) => setInput(event.target.value)} placeholder="/path/to/recording.wav" /></label><button disabled={saving || !session || !input || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, input))}>Transcribe local WAV</button>
           {completedVoice && <div className="button-row"><button onClick={() => void run(() => sdk.mcp.readResult(completedVoice.id))}>Review transcript</button><button disabled={!session} onClick={() => void run(() => sdk.voice.insert(session!.id, completedVoice.id, session!.draft.revision))}>Insert into saved draft, never send</button></div>}
           <p className="fine-print">Microphone access is user-initiated and may require OS permission. Recording is bounded to two minutes. A conflicting draft is preserved rather than overwritten.</p></>}

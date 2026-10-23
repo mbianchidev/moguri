@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, readFile, realpath } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
@@ -9,8 +9,8 @@ import { cloneRepositoryFixture } from "../tests/fixtures/clone-repository.ts";
 export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
   const root = resolve(packageRoot), stateDir = join(directory, "state"), consoleRoot = join(directory, "console"), started = performance.now();
   await mkdir(consoleRoot, { recursive: true });
-  const { createRuntime } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
-  const { MoguriSdk, PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
+  const { createRuntime, loadNotificationSoundFile } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
+  const { MoguriSdk, PROTOCOL_VERSION, audioFromBase64, defaultNotificationWav } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
   const source = await cloneRepositoryFixture(), secrets = new Map();
   const vault = { read: async (id) => secrets.get(id) ?? null, write: async (id, value) => { secrets.set(id, value); }, remove: async (id) => { secrets.delete(id); } };
   const provider = {
@@ -49,6 +49,19 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
     const cli = join(root, "bin/moguri.mjs");
     const run = (args) => promisify(execFile)(process.execPath, [cli, ...args], { env: { ...process.env, MOGURI_STATE_DIR: stateDir }, timeout: 15_000 });
     if (PROTOCOL_VERSION >= 45) assert.equal(JSON.parse((await run(["runtime", "status"])).stdout).runtime.power.enabled, false);
+    if (PROTOCOL_VERSION >= 47) {
+      const soundPath = join(directory, "Generated installed alert.wav");
+      await writeFile(soundPath, defaultNotificationWav("needs-input"), { mode: 0o600 });
+      const captured = await loadNotificationSoundFile(soundPath);
+      const imported = await sdk.notifications.importSound(captured.name, audioFromBase64(captured.audio));
+      assert.equal((await sdk.notifications.sound(imported.id)).audio, captured.audio);
+      assert.equal(JSON.parse((await run(["notification-sounds", "list"])).stdout)[0].id, imported.id);
+      const shared = await sdk.slash(general.id, "/notification-sounds", "tui");
+      assert.equal(JSON.parse(shared.text)[0].id, imported.id);
+      const sound = sdk.notifications.list()[0];
+      await run(["notification-sounds", "remove", sound.id, "--digest", sound.contentDigest, "--confirm-remove"]);
+      await sdk.refresh(); assert.equal(sdk.notifications.list().length, 0);
+    }
     await run(["project", "clone", source.repository, join(directory, "cli-clone"), "--confirm-write"]);
     assert.equal(await readFile(join(directory, "cli-clone", "generated.txt"), "utf8"), "Generated repository clone contents.\n");
     if (process.platform === "darwin") {

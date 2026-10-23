@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FitAddon, Ghostty, Terminal } from "ghostty-web";
 import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
-import type { MoguriSdk, RemoteReadiness, Session, Snapshot, TerminalOwner } from "../../../packages/sdk/src/index.ts";
+import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
@@ -48,6 +48,8 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
   const host = useRef<HTMLDivElement>(null);
   const emulator = useRef<Terminal | null>(null);
   const actionPending = useRef(false);
+  const copyShortcut = useRef(snapshot.settings.values.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC");
+  copyShortcut.current = snapshot.settings.values.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC";
   const run = async (operation: () => Promise<unknown>) => {
     if (actionPending.current) return;
     actionPending.current = true; setBusy(true); setError("");
@@ -118,7 +120,7 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
           if (!disposed && !current?.options.disableStdin) void sdk.terminal.resize(terminal.id, Math.min(500, Math.max(10, cols)), Math.min(200, Math.max(2, rows))).catch((error: unknown) => { if (!disposed) setError(error instanceof Error ? error.message : "Terminal resize failed."); });
         });
         current.attachCustomKeyEventHandler((event) => {
-          if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "c" && current?.hasSelection()) { void run(() => window.moguri.copyText(current!.getSelection())); return true; }
+          if (shortcutMatches(event, copyShortcut.current) && current?.hasSelection()) { void run(() => window.moguri.copyText(current!.getSelection())); return true; }
           return false;
         });
         fit.fit(); fit.observeResize(); void read();

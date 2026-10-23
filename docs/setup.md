@@ -1100,6 +1100,21 @@ explicitly enabled. Selecting a banner opens its session. Startup and preference
 changes do not replay old banners. TUI shares state without requiring desktop;
 native-banner tests use a generated sink and never show a personal OS banner.
 
+Needs-input and completion sounds each start enabled with an original Moguri
+earcon; application audio starts background-only and is independent from banners.
+Needs-input audio requires the exact pending question/approval, not a heuristic
+badge. Completion audio excludes stopped, partial and failed work. Preview is
+explicit; hidden generated checks suppress all speaker output. OS banners are
+silent to avoid duplicate audio. System volume/device controls still apply.
+
+Import a custom **mono 16-kHz PCM16 WAV, up to ten seconds**, in Notifications.
+Choose it separately for either alert. The private encrypted snapshot survives
+source-file/session deletion and restart. Select another sound before removing
+it; missing audio never becomes a default silently. Each profile retains up to
+32 sounds. CLI `notification-sounds list`, `import FILE.wav --confirm-write`,
+`read ID`, and `remove ID --digest SHA --confirm-remove` share the same resources.
+TUI `/notification-sounds` inspects/removes metadata without terminal playback.
+
 ## Session workspace and project settings
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
@@ -1415,24 +1430,41 @@ size/SHA-256 verified and atomically installed under the private state directory
 Recording passes an existing local GGUF path, never an alias that might
 auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
-Desktop **Dictate** or **Start local microphone** asks OS permission only on
-that user action. **Stop and transcribe** finalizes; **Cancel and discard**
-does not insert partial audio. TUI **Ctrl+Space** starts/stops and **F4** inserts
-the completed local transcript into the saved draft. Recording is limited to
-two minutes. WAV transcription accepts regular PCM WAV files up to 64 MiB.
-Insert is explicit and revision-checked; nothing is automatically sent.
+Desktop dictation requests audio-only OS permission only on explicit activation.
+**Voice input device** lists microphones after a separate explicit request;
+non-default selection is exact, never silently substituted. Browser capture
+downmixes/resamples locally to bounded mono 16-kHz PCM16 WAV and sends that
+transient clip to the existing local file recognizer. This avoids relying on a
+native live-microphone process to finalize on SIGINT. Audio, upload credentials
+and audio fingerprints do not enter durable events, command receipts or model
+context. Private crash staging is removed before another capture; unknown or
+changed staging entries are retained and block capture with a diagnostic.
 
-Desktop **Ctrl+Space** also starts/stops while the chat is focused, including its
-toolbar, but does not intercept the embedded terminal, side chat or dialogs.
-Holding the shortcut does not repeatedly start/stop. The composer shows startup,
-finalization and failure status. Repeated stop requests are harmless; native
-finalization has up to 30 seconds instead of the previous three-second forced
-kill. Cancel still discards output and escalates an unresponsive process.
-Failures show the actual native exit status/signal and bounded error text.
+**Ctrl+Space** starts/stops desktop capture while the main chat is focused,
+including its toolbar, but not the embedded terminal, side chat or dialogs.
+Voice/Accessibility settings share an editable shortcut. Optional push-to-talk
+owns press/release; releasing before admission never opens a late microphone.
+Repeated keydown and stop requests do not create additional clips or uploads.
+Blur, sleep, hidden/unmounted surfaces and profile changes discard owned audio.
+Stop finalizes and transcribes; Cancel discards. Insert remains explicit,
+revision-checked and never automatically sends. Desktop clips are at most two
+minutes, **3,840,044 WAV bytes**; excess/invalid input is rejected, not truncated.
+
+TUI **Ctrl+Space** starts/stops its native default microphone; **F4** inserts the
+completed local transcript. CLI/TUI native live recording does not pretend to
+select a saved desktop device: choose the native default or use explicit file
+transcription. Native file transcription accepts regular PCM WAV up to 64 MiB.
+Live native finalization has up to 30 seconds; cancel escalates an unresponsive
+process. Actual exit status/signal and bounded diagnostics remain visible.
 **Settings / Voice dictation / Native speech backend** saves an explicit
 Automatic/CPU/Metal choice. No failure silently switches backends or providers.
 Stop/discard controls and capability-job cancellation stay available while a
 preference save is pending. New recordings are blocked until that save settles.
+
+**Accessibility / Keyboard shortcuts** also remaps Commands and terminal Copy.
+Protected editing/navigation bindings remain fixed and listed, including Enter
+to send, Shift+Enter newline and Cmd/Ctrl+Enter holding a prompt. Settings reject
+collisions; a shortcut edit needs its adjacent Save and does not save other text.
 
 CLI equivalents:
 
