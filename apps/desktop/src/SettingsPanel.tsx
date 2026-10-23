@@ -12,29 +12,21 @@ import { KnowledgePanel } from "./KnowledgePanel.tsx";
 import { ExtensionPanel } from "./ExtensionPanel.tsx";
 import { GitHubWorkflowPanel } from "./GitHubWorkflowPanel.tsx";
 import { LinearWorkflowPanel } from "./LinearWorkflowPanel.tsx";
+import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
+import { ProviderConnect } from "./ProviderConnect.tsx";
+import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
 
-export type SettingsTab = "appearance" | "systemPrompt" | "permissions" | "memory" | "subagents" | "skills" | "scripts" | "plugins" | "mcpServers" | "voice" | "cache" | "project" | "retention" | "instructions" | "notifications" | "localModels" | "startup" | "remote" | "budgets" | "kupo" | "decisions" | "knowledge" | "hooks" | "marketplace" | "github" | "linear";
-const tabs: { id: SettingsTab; label: string }[] = [
-  { id: "appearance", label: "Appearance" }, { id: "systemPrompt", label: "System prompt" }, { id: "permissions", label: "Guardrails" },
-  { id: "memory", label: "Repository memory" }, { id: "subagents", label: "Subagents" }, { id: "skills", label: "Skills" },
-  { id: "scripts", label: "Scripts" }, { id: "plugins", label: "Plugins" }, { id: "mcpServers", label: "MCP gateway" }, { id: "voice", label: "Voice dictation" },
-  { id: "cache", label: "Dependency cache" },
-  { id: "project", label: "Project" }, { id: "retention", label: "Retention" },
-  { id: "instructions", label: "User guidance" }, { id: "notifications", label: "Notifications" },
-  { id: "localModels", label: "Local models" }, { id: "startup", label: "Startup defaults" },
-  { id: "remote", label: "Remote SSH" },
-  { id: "budgets", label: "Budgets" },
-  { id: "kupo", label: "kupo routing" },
-  { id: "decisions", label: "Decision providers" },
-  { id: "knowledge", label: "Knowledge tiers" }, { id: "hooks", label: "Lifecycle hooks" }, { id: "marketplace", label: "Marketplace" },
-  { id: "github", label: "GitHub workflows" }, { id: "linear", label: "Linear workflows" },
-];
+export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo";
-export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "systemPrompt", onBack, onUnsavedChange, openTerminal, openSession }: {
+export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
+  onSwitchProfile: (id: string) => Promise<void>;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
+  const [search, setSearch] = useState("");
+  const [profilesExpanded, setProfilesExpanded] = useState(true), [profilesDirty, setProfilesDirty] = useState(false);
+  const groups = searchSettings(search);
   const decisions = useDecisionStatus(sdk, session, snapshot, tab === "decisions");
   const [draft, setDraft] = useState(() => structuredClone(snapshot.settings.values));
   const [committed, setCommitted] = useState(() => structuredClone(snapshot.settings.values));
@@ -79,7 +71,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy;
+  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty;
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => {
     setPreview("");
@@ -182,9 +174,26 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
     session?.workspaceId, session?.controls.env, session?.mode, session?.pendingMode, snapshot.projectConfigurations.find((configuration) => configuration.projectId === session?.projectId)?.revision]);
   return <section className="settings-page" aria-label="Moguri settings">
     <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" disabled={saving || sandboxBusy || lineageBusy} onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
-    <div className="settings-layout"><nav aria-label="Settings categories">{tabs.map((item) => <button key={item.id} disabled={saving || sandboxBusy || lineageBusy} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}
+    <div className="settings-layout"><nav aria-label="Settings categories">
+      <label className="settings-search"><span className="sr-only">Search settings</span><input type="search" aria-label="Search settings" placeholder="Search settings" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <span className="sr-only" role="status">{search.trim() ? `${groups.reduce((sum, group) => sum + group.items.length, 0)} settings sections found` : ""}</span>
+      {groups.map((group) => <section className="settings-category" key={group.label} aria-label={`${group.label} settings`}><h2>{group.label}</h2>{group.items.map((item) => <button key={item.id} disabled={saving || sandboxBusy || lineageBusy} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}</section>)}
+      {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
       <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content"><fieldset className="settings-fields" disabled={saving && tab !== "voice"}>
+        {tab === "general" && <><h2>General</h2><h3>Profiles</h3><p>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</p>
+          <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
+        {tab === "providers" && <><h2>Model providers</h2><p>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</p><ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
+        {tab === "accessibility" && <><h2>Keyboard shortcuts</h2><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>
+          <dl className="facts shortcut-map">
+            <dt>Send or answer in chat</dt><dd><kbd>Enter</kbd></dd><dt>Insert a new line</dt><dd><kbd>Shift+Enter</kbd></dd>
+            <dt>Hold a prompt without running</dt><dd><kbd>Cmd/Ctrl+Enter</kbd></dd><dt>Show held-prompt action</dt><dd>Hold Cmd or Ctrl</dd>
+            <dt>Commands</dt><dd><kbd>Cmd/Ctrl+K</kbd></dd><dt>Start / finish dictation</dt><dd><kbd>Ctrl+Space</kbd></dd>
+            <dt>Copy terminal selection</dt><dd><kbd>Cmd/Ctrl+Shift+C</kbd></dd><dt>Close a dialog or popover</dt><dd><kbd>Escape</kbd></dd>
+            <dt>Resize a focused sidebar separator</dt><dd><kbd>Left / Right</kbd>, <kbd>Home / End</kbd></dd>
+            <dt>Move through popover choices</dt><dd><kbd>Up / Down</kbd>, <kbd>Home / End</kbd></dd>
+            <dt>Move between controls</dt><dd><kbd>Tab / Shift+Tab</kbd></dd><dt>Activate a focused control</dt><dd><kbd>Enter / Space</kbd></dd>
+          </dl></>}
         {tab === "github" && <GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} />}
         {tab === "linear" && (project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p>Choose a project with an explicitly configured Linear team. No account is inherited.</p>)}
         {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
@@ -322,7 +331,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
         {tab === "permissions" && <><h2>Guardrails and tool guidance</h2><p>Manual asks unless you explicitly preapprove a bounded tool or exact command. Deny rules win. Guided displays model advice but still needs you; Autopilot grants nothing beyond these rules.</p>
           {jsonEditor("permissions", "Tool and exact-command permissions")}
           <p className="fine-print">A tool rule has id, tool, decision (ask/allow/deny), and a project-relative pathPrefix. Shell grants must name the exact command; blanket shell/wildcard grants are rejected. MCP annotations never count as approval.</p>
-          <h3>SendBox</h3><p>Sandbox is a real execution boundary, not a badge. Missing or unqualified prerequisites block protected turns, without Local fallback.</p>
+          <button type="button" onClick={() => void reset("permissions")}>Restore permission defaults</button></>}
+        {tab === "sendbox" && <><h2>SendBox</h2><p>Sandbox is a real execution boundary, not a badge. Missing or unqualified prerequisites block protected turns, without Local fallback.</p>
           {jsonEditor("sandbox", "SendBox configuration")}
           <p className="fine-print">Save exact canonical 0.2.3 release/bundle/key paths and hashes, immutable image/worker/bridge pins, bounded resources and every reviewed DNS host. Use configPath null for the managed deny-first policy. Aliases are never inferred or granted; Copilot access is a separate opt-in.</p>
           <p className="fine-print" role="status">{snapshot.capabilities.find((capability) => capability.env === "Sandbox")?.reason}</p>
@@ -331,7 +341,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "s
             setSandboxBusy(true);
             void run(async () => { await sdk.sandbox.probe(); return sdk.sandbox.status(); }).finally(() => setSandboxBusy(false));
           }}>{sandboxBusy ? "Verifying original native guest..." : "Verify reviewed Sandbox"}</button>
-            <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("permissions")}>Restore permission defaults</button></div>
+            <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("sandbox")}>Restore SendBox defaults</button></div></>}
+        {tab === "permissions" && <>
           <h3>Allowed execution environments</h3><p>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.</p>
           <select aria-label="Global allowed environments" value={environmentChoice} onChange={(event) => void run(() => event.target.value === "sandbox" ? sdk.containment.requireSandbox(true) :
             sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : event.target.value === "remote" ? ["Remote"] : ["Sandbox", "Remote"] }))}>

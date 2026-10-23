@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { activeDecision, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, DraftEditor, isRecord, sessionTitle as title, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -16,7 +16,6 @@ import { CandidatePanel } from "./CandidatePanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
 import { UsageDashboard } from "./UsageDashboard.tsx";
-import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -26,6 +25,14 @@ type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
 const panels: Panel[] = ["Terminal", "Browser", "Insights", "Dashboard", "PR", "Changes", "Files", "Plan", "Artifacts", "Candidates", "Sandbox", "Side chat", "Suggestions", "Attention"];
+const globalPanels = ["Suggestions", "Dashboard", "Artifacts", "Candidates", "Sandbox", "Attention"] as const;
+type GlobalView = typeof globalPanels[number] | "Global terminal";
+const isGlobalPanel = (value: Panel): value is typeof globalPanels[number] => globalPanels.some((panel) => panel === value);
+const globalNavigation: { view: GlobalView; icon: Panel }[] = [
+  { view: "Suggestions", icon: "Suggestions" }, { view: "Dashboard", icon: "Dashboard" },
+  { view: "Artifacts", icon: "Artifacts" }, { view: "Candidates", icon: "Candidates" },
+  { view: "Sandbox", icon: "Sandbox" }, { view: "Global terminal", icon: "Terminal" },
+];
 const number = (value: number) => new Intl.NumberFormat().format(value);
 interface SidebarLayout { panel: Panel; open: boolean; leftWidth: number; rightWidth: number }
 function savedLayout(): SidebarLayout {
@@ -80,12 +87,13 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [archived, setArchived] = useState(false);
   const [layout] = useState(savedLayout);
-  const [panel, setPanel] = useState<Panel>(layout.panel);
+  const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) ? "Insights" : layout.panel);
+  const [globalView, setGlobalView] = useState<GlobalView | null>(isGlobalPanel(layout.panel) ? layout.panel : null);
+  const [globalSessionId, setGlobalSessionId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(layout.open);
   const [leftWidth, setLeftWidth] = useState(layout.leftWidth), [rightWidth, setRightWidth] = useState(layout.rightWidth);
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const [panelTooltip, setPanelTooltip] = useState<{ panel: Panel; top: number } | null>(null);
-  const [connections, setConnections] = useState(false);
   const [palette, setPalette] = useState(false);
   const [startOpen, setStartOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
@@ -103,10 +111,9 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [commandOutput, setCommandOutput] = useState<string | null>(null);
   const [suggestionsAll, setSuggestionsAll] = useState(false);
   const [artifactRequest, setArtifactRequest] = useState<ArtifactEditorRequest | null>(null);
-  const [profileMenu, setProfileMenu] = useState(false), [profileDirty, setProfileDirty] = useState(false);
   const switchingProfile = useRef(false);
   const [profilePending, setProfilePending] = useState(false);
-  const panelVisible = panelOpen && !settingsTab && !boardOpen;
+  const panelVisible = panelOpen && !settingsTab && !boardOpen && !globalView;
   const leftMax = Math.max(180, Math.min(400, viewportWidth - 44 - 340 - (panelVisible ? 240 : 0)));
   const navWidth = Math.min(leftWidth, leftMax);
   const rightMax = Math.max(240, Math.min(640, viewportWidth - 44 - 340 - navWidth));
@@ -122,6 +129,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   }, []);
   useEffect(() => () => { for (const editor of editors.current.values()) editor.dispose(); for (const client of clients.current) client.disconnect(); }, []);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
+  const globalSession = snapshot?.sessions.find((session) => session.id === globalSessionId);
+  const globalProject = snapshot?.projects.find((project) => project.id === globalSession?.projectId);
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
   const pendingQuestion = snapshot?.questions.find((question) => question.id === session?.pendingQuestionId && question.status === "open");
   const decisionReview = snapshot?.decisions.find((record) => record.sessionId === session?.id && record.turnId === session?.turnId && activeDecision(record));
@@ -149,11 +158,11 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   }, [snapshot?.settings.values.appearance.theme]);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (panelDirty || settingsUnsaved || profileDirty || profilePending || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
+      if (panelDirty || settingsUnsaved || profilePending || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
     };
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [panelDirty, settingsUnsaved, profileDirty, profilePending]);
+  }, [panelDirty, settingsUnsaved, profilePending]);
   useEffect(() => {
     try { localStorage.setItem("moguri.sidebar", JSON.stringify({ panel, open: panelOpen, leftWidth, rightWidth })); }
     catch { setNotice("Sidebar preferences could not be saved. Session state is still owned by the service."); }
@@ -166,14 +175,18 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const command = (command: Command) => run(() => client.command(command));
   const canNavigate = () => {
     if (switchingProfile.current) { setNotice("A profile switch is in progress. Existing work stays in its original profile."); return false; }
-    if (!settingsUnsaved && !panelDirty && !profileDirty) return true;
+    if (!settingsUnsaved && !panelDirty) return true;
     setNotice("Save your edit or reload committed values before navigating. Your edit is preserved.");
     return false;
   };
   const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); return true; };
-  const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); return true; };
-  const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; setBoardOpen(false); setSettingsTab(tab); };
-  const openBoard = () => { if (!canNavigate()) return; setSettingsTab(null); setBoardOpen(true); };
+  const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); setGlobalView(null); return true; };
+  const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); };
+  const openBoard = () => { if (!canNavigate()) return; setSettingsTab(null); setGlobalView(null); setBoardOpen(true); };
+  const openGlobal = (view: GlobalView, sourceId: string | null = null) => {
+    if (!canNavigate()) return;
+    setSettingsTab(null); setBoardOpen(false); setGlobalSessionId(sourceId); setGlobalView(view); setNavOpen(false);
+  };
   const chooseSession = (id: string) => run(async () => {
     if (!leaveSurface()) return;
     await editor?.flush();
@@ -196,8 +209,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       await window.moguri.profile(id);
       for (const editor of editors.current.values()) editor.dispose(); editors.current.clear();
       client.disconnect(); clients.current.delete(client); clients.current.add(next); setClient(next);
-      setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setBoardOpen(false); setConnections(false); setSideSessionId(null);
-      setPalette(false); setCommandOutput(null); setArtifactRequest(null); setProfileMenu(false); setProfileDirty(false); setNotice(null);
+      setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null);
+      setPalette(false); setCommandOutput(null); setArtifactRequest(null); setNotice(null);
     } catch (error) { next?.disconnect(); throw error; }
     finally { switchingProfile.current = false; setBusy(false); setProfilePending(false); }
   };
@@ -213,18 +226,19 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const projectSettings = (id: string) => { if (!canNavigate()) return; setSettingsProjectId(id); openSettings("project"); };
   const hidePanel = () => {
     if (!canNavigate()) return;
-    setPanelOpen(false); setConnections(false);
+    setPanelOpen(false);
     document.querySelector<HTMLButtonElement>(`[data-sidebar-panel="${panel}"]`)?.focus();
   };
   const showPanel = (next: Panel) => run(async () => {
+    if (isGlobalPanel(next)) { openGlobal(next, session?.id ?? null); return; }
     if (!leaveSurface()) return;
-    setPanel(next); setPanelOpen(true); setConnections(false);
+    setPanel(next); setPanelOpen(true);
     if (next === "Terminal" && session?.projectId && session.controls.env === "Local" && snapshot?.policy.allowedEnvs.includes("Local") &&
       !snapshot.terminals.some((terminal) => terminal.sessionId === session.id) &&
       !snapshot.terminalOwners.some((owner) => !owner.remote && owner.cleanup !== "removed" && !["running", "acknowledged"].includes(owner.status))) await client.terminal.open(session.id);
   });
   const applySlash = async (result: SlashResult) => {
-    if (result.kind === "profiles") { if (!canNavigate()) return; setProfileMenu(true); setNavOpen(true); return; }
+    if (result.kind === "profiles") { openSettings("general"); return; }
     if (result.kind === "profile") { await openProfile(result.profileId); return; }
     if (result.kind === "ok") { setNotice(result.message, true); return; }
     if (result.kind === "text") { setCommandOutput(result.text); return; }
@@ -240,7 +254,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       return;
     }
     if (result.panel === "Suggestions") { setSuggestionsAll(result.allProjects ?? false); await showPanel("Suggestions"); }
-    else if (result.panel === "Settings") openSettings("systemPrompt");
+    else if (result.panel === "Settings") openSettings("general");
     else if (result.panel === "Models") { document.querySelector<HTMLButtonElement>('[data-composer-control="model"]')?.click(); }
     else if (result.panel === "Queue") document.querySelector(".queue")?.scrollIntoView({ block: "nearest" });
     else await showPanel(result.panel);
@@ -281,21 +295,24 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   return <><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
-      <span className="titlebar-project">{project?.name ?? "Chats"}</span>
-      <button className="icon-button notification-trigger" aria-label="Attention notifications" title="Attention" onClick={() => void showPanel("Attention")}><Icon name="Attention" />{snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged) && <span className="attention-unread-dot" />}</button>
+      <span className="titlebar-project">{globalView ?? project?.name ?? "Chats"}</span>
+      <button className="icon-button notification-trigger" aria-label="Attention notifications" title="Attention" aria-pressed={globalView === "Attention"} onClick={() => openGlobal("Attention")}><Icon name="Attention" />{snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged) && <span className="attention-unread-dot" />}</button>
       <button className="quiet palette-trigger" onClick={() => setPalette(true)}>Commands <kbd>Ctrl K</kbd></button>
     </header>
     <nav id="project-navigation" className="project-nav" aria-label="Projects and sessions">
       <SidebarResizer side="left" value={navWidth} min={180} max={leftMax} onChange={setLeftWidth} controls="project-navigation" />
       <div className="nav-heading"><span>Workspace</span></div>
       <button className="new-session start-trigger" aria-label="Start" onClick={openStart} disabled={busy || !snapshot}><Icon name="Plus" />Start</button>
+      <div className="nav-scroll">
+      <div className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view)}><Icon name={icon} />{view}</button>)}</div>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => { if (leaveSurface()) setArchived(false); }}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => { if (leaveSurface()) setArchived(true); }}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} settings={projectSettings} modal={setNativeModal} allow={canNavigate} />}
-      {snapshot && <ProfileSwitcher key={client.profileId} sdk={client} snapshot={snapshot} disabled={busy || settingsUnsaved || panelDirty || nativeModal} expanded={profileMenu} setExpanded={setProfileMenu} onSwitch={openProfile} onDirty={setProfileDirty} />}
+      </div>
       <div className="nav-footer">
-        <button className="settings-nav-button" aria-label="Settings" onClick={() => openSettings("systemPrompt")}><Icon name="Settings" />Settings</button>
+        {snapshot && <div className="profile-indicator" aria-label="Current profile">{snapshot.profile?.color && <span className="status-dot" style={{ backgroundColor: snapshot.profile.color }} />}<span>{snapshot.profile?.name ?? client.profileId}</span></div>}
+        <button className="settings-nav-button" aria-label="Settings" onClick={() => openSettings("general")}><Icon name="Settings" />Settings</button>
         <button className="settings-nav-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><Icon name="Suggestions" />ask Moguri</button>
-        <button className="provider-button" onClick={() => { if (leaveSurface()) { setConnections((value) => !value); setPanelOpen(true); } }}>
+        <button className="provider-button" onClick={() => openSettings("providers")}>
           <span className={`status-dot ${copilot?.status === "connected" ? "completed" : "idle"}`} />
           <span><strong>GitHub Copilot</strong><small>{copilot?.status ?? "Connecting to service"}</small></span><span>&gt;</span>
         </button>
@@ -305,7 +322,17 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <main className="main-pane">
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} /></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} openSession={(id) => { void chooseSession(id); }} openTerminal={() => { setSettingsTab(null); setSettingsUnsaved(false); setConnections(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> : <>
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} openTerminal={() => { setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
+      globalView && snapshot ? <section className="global-page" aria-label={`${globalView} workspace`}>
+        <header className="global-toolbar"><button className="icon-button" aria-label="Back to chat" onClick={leaveSurface}><Icon name="Back" /></button><h1>{globalView}</h1>
+          {["Suggestions", "Artifacts", "Candidates", "Sandbox"].includes(globalView) && <label>Source chat<select aria-label="Resource source chat" value={globalSessionId ?? ""} onChange={(event) => { if (canNavigate()) setGlobalSessionId(event.target.value || null); }}>
+            <option value="">Choose an existing chat</option>{globalSessionId && !globalSession && <option value={globalSessionId} disabled>Source chat removed; retained records remain readable</option>}{snapshot.sessions.filter((session) => session.status !== "archived" && session.kind !== "subagent").map((session) => <option key={session.id} value={session.id}>{title(session)}</option>)}
+          </select></label>}
+        </header>
+        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Global terminal" ? <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={!palette && !nativeModal && !commandOutput} consoleScope="global" /></Suspense> :
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
+        </div>
+      </section> : <>
       <header className="session-header">
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
@@ -313,13 +340,13 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         {session && <label className="session-mode" title={session.pendingMode ? "Requested mode applies at the next safe boundary" : "Hard session tool boundary"}><Icon name={session.mode === "read-only" ? "ReadOnly" : "Agent"} /><select aria-label="Session mode" value={session.pendingMode ?? session.mode} disabled={session.kind === "side" || session.kind === "subagent"} onChange={(event) => void run(() => client.sessions.mode(session.id, event.target.value === "agent" ? "agent" : "read-only"))}><option value="agent">Agent</option><option value="read-only">Read-only</option></select>{session.pendingMode && <span className="fine-print">pending</span>}</label>}
         {session && !session.turnId && (snapshot?.blockedSessions.includes(session.id) || session.workspaceId && snapshot?.blockedWorkspaces.includes(session.workspaceId) || session.projectId && !session.workspaceId && snapshot?.blockedProjects.includes(session.projectId)) && <button title="Inspect unconfirmed effects before continuing. This does not claim cleanup succeeded." onClick={() => void command({ type: "session.resume", sessionId: session.id })}>Resume after inspection</button>}
         {session && !session.turnId && <button className="quiet" onClick={() => void command({ type: session.status === "archived" ? "session.restore" : "session.archive", sessionId: session.id })}>{session.status === "archived" ? "Restore" : "Archive"}</button>}
-        <button className="icon-button" aria-label={panelOpen ? "Collapse session sidebar" : "Open session sidebar"} title={panelOpen ? "Hide session sidebar" : "Show session sidebar"} onClick={() => { if (canNavigate()) { setPanelOpen((value) => !value); setConnections(false); } }}><Icon name="Insights" /></button>
+        <button className="icon-button" aria-label={panelOpen ? "Collapse session sidebar" : "Open session sidebar"} title={panelOpen ? "Hide session sidebar" : "Show session sidebar"} onClick={() => { if (canNavigate()) setPanelOpen((value) => !value); }}><Icon name="Insights" /></button>
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">
           <img className="welcome-mascot" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>What are we working on?</h2><p>Start a project-free conversation or open a workspace. Nothing runs until you ask.</p>
           <p className="welcome-start-hint">Choose Start to open a chat or a project.</p>
-          <ProviderConnect provider={snapshot.provider} run={run} client={client} />
+          <button onClick={() => openSettings("providers")}>Configure model providers</button>
         </div> :
         <>
           <Timeline session={session} run={run} client={client} />
@@ -337,19 +364,19 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             <div className="approval-actions"><button disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: false })}>Deny</button><button className="primary" disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: true })}>Approve this action</button></div>
           </section>}
           {session.queue.length > 0 && <Queue session={session} command={command} client={client} />}
-          {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => { setConnections(true); setPanelOpen(true); }} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => void showPanel("Sandbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
+          {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openGlobal("Sandbox", session.id)} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
         </>}
       </>}
     </main>
     <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar">
       <SidebarResizer side="right" value={contextWidth} min={240} max={rightMax} onChange={setRightWidth} controls="session-sidebar" />
-      <header className="context-heading"><strong>{connections ? "Connections" : panel}</strong><button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}>&lt;&gt;</button></header>
-      <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>{connections && snapshot ? <><ProviderConnect provider={snapshot.provider} client={client} run={run} /><PolicySettings snapshot={snapshot} command={command} /></> :
-        <ContextPanel key={`${client.profileId}-${panel === "Artifacts" || panel === "Candidates" || panel === "Dashboard" || panel === "Sandbox" || panel === "Terminal" ? "independent" : session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("permissions")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelOpen && !settingsTab && !boardOpen} />}
+      <header className="context-heading"><strong>{panel}</strong><button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}>&lt;&gt;</button></header>
+      <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>
+        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !composerMenuOpen && !commandOutput && panelVisible} />}
       </div>
-      <footer className="context-footer">{panel === "Artifacts" ? "Independent of session retention" : panel === "Candidates" ? "Retained independently; writes use reviewed roots" : panel === "Sandbox" ? "Private stages; separate reviewed source publication" : panel === "Dashboard" ? "Current-profile cumulative accounting" : panel === "Terminal" ? "User consoles; Global or this chat" : "Bound to the main session"}</footer>
+      <footer className="context-footer">Bound to the main session</footer>
     </aside>
-    <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.filter((item) => item !== "PR" || connectedPr).map((item) => <button key={item} data-sidebar-panel={item} className={panelVisible && panel === item && !connections ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={panelVisible && panel === item && !connections}
+    <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.filter((item) => !isGlobalPanel(item) && (item !== "PR" || connectedPr)).map((item) => <button key={item} data-sidebar-panel={item} className={panelVisible && panel === item ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={panelVisible && panel === item}
       onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
       onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })} onBlur={() => setPanelTooltip(null)}
       onClick={() => void showPanel(item)}><Icon name={item} /></button>)}</nav>
@@ -358,10 +385,10 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} /></Suspense>}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
-      { name: "Connect GitHub Copilot", action: async () => { if (leaveSurface()) { setConnections(true); setPanelOpen(true); } } },
-      { name: "Show Insights and event trace", action: async () => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); setConnections(false); } } },
+      { name: "Connect GitHub Copilot", action: async () => openSettings("providers") },
+      { name: "Show Insights and event trace", action: async () => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); } } },
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
-      { name: "Profiles: choose, create or rename", action: async () => { if (canNavigate()) { setProfileMenu(true); setNavOpen(true); } } },
+      { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
@@ -369,25 +396,6 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</>;
 }
 
-function ProviderConnect({ provider, run, client }: { provider: ProviderState; run: Run; client: MoguriClient }) {
-  const copilot = provider.connections?.find((connection) => connection.id === "github-copilot") ?? provider;
-  return <section className="provider-setup" aria-label="GitHub Copilot connection">
-    <h2>GitHub Copilot</h2>
-    {copilot.status === "connected" ? <><p className="connected-label">Connected through your Copilot account.</p><p>{provider.models.filter((model) => model.source !== "local").length} account-enabled models available. Choose one in the composer.</p>
-      <div className="button-row"><button onClick={() => void run(() => client.command({ type: "provider.refresh" }))}>Refresh connection</button><button className="quiet" onClick={() => void run(() => client.command({ type: "provider.logout" }))}>Sign out</button></div></> :
-      <>
-        <p>Use your existing Copilot subscription. No other provider key is needed.</p>
-        {provider.login ? <div className="device-flow">
-          <p>Open GitHub and enter this one-time code:</p><code aria-label="GitHub device code">{provider.login.code}</code>
-          <button className="primary" onClick={() => void run(() => window.moguri.openExternal(provider.login!.url))}>Open GitHub</button>
-          <p className="muted">Waiting for authorization. Expires at {new Date(provider.login.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.</p>
-          <button className="quiet" onClick={() => void run(() => client.command({ type: "provider.cancel" }))}>Cancel sign-in</button>
-        </div> : <button className="primary" disabled={copilot.status === "connecting"} onClick={() => void run(() => client.command({ type: "provider.login" }))}>{copilot.status === "connecting" ? "Starting sign-in..." : "Sign in with GitHub Copilot"}</button>}
-        <p className="fine-print">Uses pi-ai's third-party device flow, not an official Moguri partnership. GitHub subscription and organization policies apply. Sign-in may enable account model policies. Credentials stay in your OS keychain.</p>
-      </>}
-    {copilot.diagnostic && <p className="inline-error" role="status">{copilot.diagnostic}</p>}
-  </section>;
-}
 function Timeline({ session, run, client }: { session: Session; run: Run; client: MoguriClient }) {
   const scroll = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -461,14 +469,15 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Candidates" && snapshot) return <CandidatePanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} />;
   if (panel === "Sandbox" && snapshot) return <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} />;
   if (panel === "Dashboard" && snapshot) return <UsageDashboard key={client.profileId} sdk={client} snapshot={snapshot} />;
-  if (panel === "Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} /></Suspense>;
+  if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} consoleScope="session" /></Suspense>;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
+  if (panel === "Suggestions" && snapshot) return session ? <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={suggestionsAll} chooseSession={chooseSession} modal={modal} /> :
+    <div className="panel-empty"><Icon name="Suggestions" /><h2>Choose a source chat</h2><p>Select an existing chat above to review its source scope. No hidden chat or model call is created.</p></div>;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path,
     snapshot?.projectConfigurations.find((value) => value.projectId === session.projectId), session.controls.env === "Remote" ? snapshot?.settings.values.remote : null,
     session.controls.env === "Sandbox" ? [session.sandboxWorkspaceId, snapshot?.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId)?.revision, snapshot?.settings.values.sandbox] : null]);
   if (!project && ["Terminal", "Changes", "Files", "Plan", "PR"].includes(panel)) return <div className="panel-empty"><Icon name="Files" /><h2>No project selected</h2><p>This chat cannot access workspace files, commands, plans or terminals. Start a project chat for those operations.</p></div>;
-  if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={suggestionsAll} chooseSession={chooseSession} modal={modal} />;
   if (panel === "Insights") {
     const execution = snapshot?.executions.findLast((value) => value.sessionId === session.id);
     const nativeExecution = snapshot?.sandboxExecutions?.findLast((value) => value.sessionId === session.id);
@@ -500,7 +509,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
     </>;
   }
   if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
-  if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : snapshot ? <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} /> : null;
+  if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : snapshot ? <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} sessionOnly /> : null;
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} />;
@@ -511,12 +520,6 @@ function CommandOutput({ text, close }: { text: string; close: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => { ref.current?.showModal(); }, []);
   return <dialog ref={ref} className="workspace-dialog command-output" onClose={close} aria-label="Command response"><header><h2>Command response</h2><button className="icon-button" aria-label="Close command response" onClick={close}><Icon name="Close" /></button></header><pre>{text}</pre></dialog>;
-}
-function PolicySettings({ snapshot, command }: { snapshot: Snapshot; command: (command: Command) => Promise<void> }) {
-  return <section className="policy-settings"><h2>Allowed environments</h2><p>Global, user-only policy. Excluding Local blocks new turns. Already-running Local turns may finish.</p>
-    <label>Policy<select aria-label="Allowed environments" value={snapshot.policy.allowedEnvs.includes("Local") ? "all" : "protected"} onChange={(event) => void command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : ["Sandbox", "Remote"] })}><option value="all">Allow Local, Sandbox, Remote</option><option value="protected">Require Sandbox or Remote</option></select></label>
-    <p className="fine-print">{snapshot.capabilities.filter((capability) => capability.env !== "Local").map((capability) => `${capability.env}: ${capability.ready ? "ready" : "not ready"}`).join(". ")}. Unqualified targets block new work, without Local fallback.</p>
-  </section>;
 }
 function CommandPalette({ actions, close }: { actions: { name: string; action: () => Promise<void> }[]; close: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);

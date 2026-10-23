@@ -115,6 +115,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByRole("button", { name: "Open GitHub", exact: true })).toBeVisible();
     fixture.provider.authorize();
     await expect(page.getByText("Connected through your Copilot account.")).toBeVisible();
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: /^Model:/ }).click();
     await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
@@ -177,6 +178,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.locator(".brand-mascot")).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "System prompt", exact: true }).click();
     await expect(page.getByRole("heading", { name: "System prompt", exact: true })).toBeVisible();
     const prompt = page.getByLabel("Editable system prompt", { exact: true });
     await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);

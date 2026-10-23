@@ -90,13 +90,14 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     await expect(left).toHaveAttribute("aria-valuenow", String(before + 16));
     await page.getByRole("complementary", { name: "Session sidebar" }).getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeHidden();
-    const candidates = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Candidates", exact: true });
-    await candidates.hover(); await expect(page.getByRole("tooltip")).toHaveText("Candidates");
-    await candidates.click(); await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeVisible();
+    const insights = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true });
+    await insights.hover(); await expect(page.getByRole("tooltip")).toHaveText("Insights");
+    await insights.click(); await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeVisible();
     await page.getByRole("button", { name: "Start", exact: true }).click();
     await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await page.getByRole("button", { name: "ask Moguri", exact: true }).click();
     await expect(page.getByRole("heading", { name: "ask Moguri", exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
     const warning = page.getByText("Staging/applying needs an explicitly Local project session allowed by policy. Your current Env and model were not changed. Retained proposals remain readable.", { exact: true });
     await expect(warning).toBeVisible();
     const styles = await warning.evaluate((element) => {
@@ -104,6 +105,7 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
       return { warning: [warning.fontFamily, warning.fontSize, warning.lineHeight], nearby: [nearby.fontFamily, nearby.fontSize, nearby.lineHeight] };
     });
     expect(styles.warning).toEqual(styles.nearby);
+    await insights.click();
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     expect((await page.getByRole("main").boundingBox())!.width).toBeGreaterThanOrEqual(340);
     await left.press("End"); await right.press("End");

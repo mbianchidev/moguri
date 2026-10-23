@@ -1,5 +1,26 @@
 # Setup and usage
 
+## Searchable desktop navigation
+
+Settings has a search field and grouped categories. **General** owns profile
+management; **Models > Providers** owns Copilot sign-in, separate from repository
+integration. SendBox configuration is under **Execution & permissions**.
+Click a project folder to open that project's settings. Dirty edits block
+leaving their owner; searching never saves or discards text.
+
+The scrollable left sidebar owns Suggestions, Dashboard, independent Artifacts,
+Candidates, native Sandbox management and the Global terminal. The right rail
+contains only current-session tools. Attention is available through the single
+top-bar icon. Where a global action needs a source, select an actual **Source
+chat** first. Viewing a global resource never creates a hidden chat or model
+request. Global and session consoles are separate entrypoints into the existing
+authenticated Ghostty owners, not a new terminal implementation.
+
+This navigation checkpoint does not by itself implement automatic updates,
+storage relocation or the other new runtime preferences. Their authority,
+failure and qualification contract is in
+[settings platform](architecture/settings-platform.md).
+
 For current continuation scope, see the
 [first-milestone gap handoff](remaining-milestone-gaps.md).
 The user has reopened previously paused Sandbox integration specifically for

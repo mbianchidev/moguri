@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, SandboxWorkspacePreview, SandboxResult, SandboxPublicationPreview } from "../../../packages/sdk/src/index.ts";
 
-export function SandboxPanel({ sdk, snapshot, session, onDirty, setup }: {
-  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; onDirty: (dirty: boolean) => void; setup: () => void;
+export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOnly = false }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; onDirty: (dirty: boolean) => void; setup: () => void; sessionOnly?: boolean;
 }) {
   const [paths, setPaths] = useState(""), [source, setSource] = useState<{ value: SandboxWorkspacePreview; revision: number; scope: string } | null>(null);
   const [sourceReviewed, setSourceReviewed] = useState(false), [selectedId, setSelectedId] = useState("");
@@ -12,10 +12,10 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup }: {
   const [busy, setBusy] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const native = snapshot.capabilities.find((capability) => capability.env === "Sandbox");
   const workspace = (snapshot.sandboxWorkspaces ?? []).find((value) => value.id === session?.sandboxWorkspaceId);
-  const executions = [...snapshot.sandboxExecutions ?? []].reverse();
+  const executions = [...snapshot.sandboxExecutions ?? []].filter((value) => !sessionOnly || value.sessionId === session?.id).reverse();
   const execution = executions.find((value) => value.id === selectedId) ?? (selectedId ? undefined : executions.find((value) => value.sessionId === session?.id) ?? executions[0]);
   const owner = snapshot.sessions.find((value) => value.id === execution?.sessionId);
-  const publications = [...snapshot.sandboxPublications ?? []].reverse(), publication = publications.find((value) => value.id === publicationId);
+  const publications = [...snapshot.sandboxPublications ?? []].filter((value) => !sessionOnly || value.sourceSessionId === session?.id).reverse(), publication = publications.find((value) => value.id === publicationId);
   const job = snapshot.jobs.find((value) => value.id === publication?.jobId);
   const configuration = snapshot.projectConfigurations.find((value) => value.projectId === session?.projectId);
   const sourceScope = JSON.stringify([sdk.profileId, session?.id, session?.revision, session?.controls.env, session?.workspaceId, session?.sandboxWorkspaceId,

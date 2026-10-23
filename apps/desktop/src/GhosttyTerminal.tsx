@@ -5,9 +5,11 @@ import type { MoguriSdk, RemoteReadiness, Session, Snapshot, TerminalOwner } fro
 import { Icon } from "./Icon.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
-export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active }: { sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean }) {
+export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active, consoleScope }: {
+  sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean; consoleScope?: "global" | "session";
+}) {
   const [scope, setScope] = useState<"global" | "session">(contextSession?.projectId ? "session" : "global");
-  const session = scope === "session" ? contextSession : undefined, env = session?.controls.env ?? "Local";
+  const session = (consoleScope ?? scope) === "session" ? contextSession : undefined, env = session?.controls.env ?? "Local";
   const global = !session;
   const terminals = snapshot.terminals.filter((terminal) => terminal.sessionId === (session?.id ?? null));
   const [selected, setSelected] = useState<string | null>(null);
@@ -125,7 +127,7 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
     return () => { stopInput(); disposed = true; clearTimeout(timer); current?.dispose(); emulator.current = null; };
   }, [terminal?.id, terminal?.attachmentId, terminal?.status, connected, canInput, viewEpoch, active, sdk]);
   return <section className="ghostty-panel" aria-label="Embedded Ghostty terminal">
-    {contextSession && <label className="terminal-scope">Console<select aria-label="Terminal scope" value={global ? "global" : "session"} onChange={(event) => { setScope(event.target.value === "global" ? "global" : "session"); setSelected(null); setError(""); }}><option value="global">Global terminal</option><option value="session">This chat</option></select></label>}
+    {contextSession && !consoleScope && <label className="terminal-scope">Console<select aria-label="Terminal scope" value={global ? "global" : "session"} onChange={(event) => { setScope(event.target.value === "global" ? "global" : "session"); setSelected(null); setError(""); }}><option value="global">Global terminal</option><option value="session">This chat</option></select></label>}
     <header className="terminal-tabs"><select aria-label="Selected terminal" value={terminal?.id ?? ""} onChange={(event) => setSelected(event.target.value)}>{terminals.map((terminal, index) => <option key={terminal.id} value={terminal.id}>{terminal.title} {index + 1} / {terminal.status}</option>)}{!terminals.length && <option value="">No terminal</option>}</select>
       <button className="icon-button" aria-label={global ? "New global terminal" : "New terminal"} title={global ? "One global terminal per profile" : "New terminal in this chat"} disabled={busy || !canOpen} onClick={() => void openTerminal()}><Icon name="Plus" /></button>
       <button className="icon-button" aria-label="Copy terminal selection" title="Copy selection" disabled={busy || !terminal} onClick={() => void run(() => window.moguri.copyText(emulator.current?.getSelection() ?? ""))}><Icon name="Copy" /></button>

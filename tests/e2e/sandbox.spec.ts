@@ -17,6 +17,7 @@ test("retained native data is not readiness; desktop source publication needs ex
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Sandbox", exact: true }).click();
+    await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     await expect(panel.getByRole("button", { name: "Use Sandbox for this session", exact: true })).toBeDisabled();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
@@ -57,7 +58,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Guardrails", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
     await page.getByLabel("SendBox configuration", { exact: true }).fill(JSON.stringify(fixture.reviewedConfiguration));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     const review = page.getByLabel("I reviewed these committed native artifacts", { exact: false });

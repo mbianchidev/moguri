@@ -51,7 +51,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent && (parent !== null || session.groupId === group))
       .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt)).map((session) => <div key={session.id}>{renderSession(session, project, depth)}{tree(session.id, group, depth + 1)}</div>);
     return <section className="project-group" key={project.id}><header className="project-row">
-      <button className="project-name" title={project.path} onClick={() => chooseProject(project.id)}><span className="project-color" style={{ color: configuration.color }}><Icon name="Files" /></span><span className="project-label">{project.name}</span></button>
+      <button className="project-name" title={`Project settings: ${project.path}`} onClick={() => settings(project.id)}><span className="project-color" style={{ color: configuration.color }}><Icon name="Files" /></span><span className="project-label">{project.name}</span></button>
       <WorkspaceMenu label={`Project actions for ${project.name}`}>
         <button onClick={() => void run(async () => { const result = await sdk.command({ type: "session.create", projectId: project.id }); await chooseSession(result.id!); })}><Icon name="Plus" />New chat</button>
         <button onClick={() => open({ kind: "work", project })}><Icon name="Plan" />From work item</button>
