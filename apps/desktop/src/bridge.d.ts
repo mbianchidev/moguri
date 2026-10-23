@@ -14,6 +14,10 @@ export interface DesktopBridge {
   previewNotificationSound(profileId: string, kind: "needs-input" | "completed", soundId: string): Promise<{ requested: boolean }>;
   onNotificationAudio(listener: (profileId: string, audio: string) => void): () => void;
   onNativeError(listener: (profileId: string, message: string) => void): () => void;
+  applyApplicationPreferences(): Promise<{ menuBar: boolean; suppressed: boolean }>;
+  onOpenSettings(listener: () => void): () => void;
+  chooseStorageDirectory(): Promise<string | null>;
+  relocateStorage(path: string, expectedDigest: string): Promise<{ id: string; directory: string; restarted: boolean }>;
   copyText(text: string): Promise<void>;
   saveDocument(document: ArtifactExport): Promise<{ path: string; digest: string } | null>;
   preview(input: { sessionId: string; url: string; bounds: { x: number; y: number; width: number; height: number } } | null, profileId: string): Promise<void>;

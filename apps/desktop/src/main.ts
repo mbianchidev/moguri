@@ -1,14 +1,14 @@
-import { app, BrowserWindow, Notification, WebContentsView, clipboard, dialog, ipcMain, powerMonitor, protocol, session as electronSession, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, Menu, nativeImage, Notification, Tray, WebContentsView, clipboard, dialog, ipcMain, powerMonitor, protocol, session as electronSession, shell, systemPreferences } from "electron";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, stateDirectory } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, stateDirectory, waitForStorageRelocation } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
-import { audioBase64, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
+import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier } from "./notifications.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
@@ -20,6 +20,8 @@ let activeProfileId = process.env.MOGURI_PROFILE_ID ?? PROFILE_ID;
 let profileEpoch = 0;
 let audioGrant: { id: string; profileId: string; epoch: number; expires: number; sessionId: string | null; jobId: string | null } | null = null;
 let audioPending = false;
+let tray: Tray | null = null;
+let maintenancePending = false;
 const audioGranted = () => {
   const grant = audioGrant, state = attentionClient?.getState();
   return Boolean(grant && grant.profileId === activeProfileId && grant.epoch === profileEpoch && Date.now() < grant.expires &&
@@ -53,11 +55,33 @@ else {
   app.on("second-instance", () => { mainWindow?.show(); mainWindow?.focus(); });
   void app.whenReady().then(async () => {
     const connect = async () => {
+      if (maintenancePending) throw new Error("The original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
       connection = await ensureConnection({ runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs") });
       return { ...connection, baseUrl: "moguri://app" };
     };
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
     await connect();
+    const applyApplicationPreferences = async () => {
+      const scoped = attentionClient, epoch = profileEpoch;
+      if (!scoped) throw new Error("The actual profile is not connected to the application store.");
+      const { configuration } = await scoped.application.status();
+      if (scoped !== attentionClient || epoch !== profileEpoch) throw new Error("Profile selection changed during application preference inspection.");
+      const suppressed = process.env.MOGURI_TEST_WINDOW === "hidden";
+      if (!configuration.values.menuBar && tray) { tray.destroy(); tray = null; }
+      if (configuration.values.menuBar && !tray && !suppressed) {
+        const image = nativeImage.createFromPath(join(app.getAppPath(), "dist", "branding", "moguri.png")).resize({ width: 18, height: 18 });
+        if (image.isEmpty()) throw new Error("Moguri's menu-bar image is missing. The configured flag is retained; no empty icon was reported as visible.");
+        image.setTemplateImage(true);
+        tray = new Tray(image); tray.setToolTip("Moguri");
+        tray.setContextMenu(Menu.buildFromTemplate([
+          { label: "Show Moguri", click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+          { label: "Settings", click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("moguri:open-settings"); } },
+          { type: "separator" }, { label: "Quit Moguri", role: "quit" },
+        ]));
+        tray.on("click", () => { mainWindow?.show(); mainWindow?.focus(); });
+      }
+      return { menuBar: Boolean(tray), suppressed };
+    };
     const soundError = (profileId: string, error: unknown) => {
       const message = error instanceof Error ? error.message : "Notification audio failed. No alternate sound was substituted.";
       console.error("Moguri notification audio:", message);
@@ -77,6 +101,7 @@ else {
       return { requested: true };
     };
     const activateProfile = async (profileId: string) => {
+      if (maintenancePending) throw new Error("Whole-store maintenance owns this application. No profile selection or running work was moved.");
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) throw new Error("Choose one explicit user profile; no Default fallback.");
       if (attentionClient?.profileId === profileId && attentionClient.getState().status === "connected") return profileId;
       const epoch = ++profileEpoch;
@@ -88,10 +113,15 @@ else {
       attentionClient = scoped; activeProfileId = profileId;
       for (const banner of banners.values()) banner.close(); banners.clear();
       const notifier = new AttentionNotifier(scoped.getState().snapshot!.seq);
+      let applicationRevision = -1;
       scoped.subscribe(() => {
         if (attentionClient !== scoped) return;
         const state = scoped.getState();
         if (!state.snapshot) return;
+        if (applicationRevision !== state.snapshot.profileCatalogRevision) {
+          applicationRevision = state.snapshot.profileCatalogRevision ?? 0;
+          void applyApplicationPreferences().catch((error: unknown) => soundError(profileId, error));
+        }
         notifier.observe(state.snapshot, state.events, Boolean(mainWindow?.isFocused()), (banner) => {
           if (process.env.MOGURI_TEST_WINDOW === "hidden" || !Notification.isSupported()) return;
           const notification = new Notification({ title: banner.title, body: banner.body, silent: true });
@@ -103,6 +133,7 @@ else {
           notification.show();
         }, (tone) => { void requestSound(scoped, epoch, tone.kind, tone.soundId, tone.sessionId).catch((error: unknown) => soundError(profileId, error)); });
       });
+      await applyApplicationPreferences();
       return profileId;
     };
     await activateProfile(activeProfileId);
@@ -111,7 +142,7 @@ else {
       const url = new URL(request.url);
       if (url.hostname !== "app") return new Response("Unknown Moguri origin.", { status: 403 });
       if (url.pathname.startsWith("/v1/")) {
-        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/query", "/v1/terminal", "/v1/voice", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
+        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/query", "/v1/terminal", "/v1/voice", "/v1/application", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
         const profileId = request.headers.get("X-Moguri-Profile") ?? PROFILE_ID;
         if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) return new Response("Profile scope denied.", { status: 403 });
         return fetch(`${connection.baseUrl}${url.pathname}`, {
@@ -130,6 +161,39 @@ else {
       } catch { return new Response("Moguri asset missing. Rebuild the app.", { status: 404 }); }
     });
     ipcMain.handle("moguri:connection", async (event) => { trusted(event); return connect(); });
+    ipcMain.handle("moguri:application-preferences", async (event) => { trusted(event); return applyApplicationPreferences(); });
+    ipcMain.handle("moguri:choose-storage-directory", async (event) => {
+      trusted(event);
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+        const destination = process.env.MOGURI_TEST_STORAGE_DESTINATION;
+        if (!destination) throw new Error("Hidden relocation checks require a generated destination. No personal folder picker was opened.");
+        return destination;
+      }
+      const result = await dialog.showOpenDialog(mainWindow!, { title: "Choose the parent folder for Moguri's encrypted data", properties: ["openDirectory"] });
+      return result.canceled || !result.filePaths[0] ? null : join(result.filePaths[0], "Moguri Data");
+    });
+    ipcMain.handle("moguri:relocate-storage", async (event, path: unknown, expectedDigest: unknown) => {
+      trusted(event);
+      if (typeof path !== "string" || typeof expectedDigest !== "string" || !/^[a-f0-9]{64}$/.test(expectedDigest)) throw new Error("Review the exact destination and current relocation digest first.");
+      const scoped = attentionClient, epoch = profileEpoch;
+      if (!scoped) throw new Error("Connect the actual application store before relocating it.");
+      if (maintenancePending) throw new Error("Inspect the original maintenance before requesting another copy or restart.");
+      const storage = (await scoped.application.storage.status()).storage;
+      if (!storage.locatorDirectory) throw new Error("The actual store has no configured location authority.");
+      maintenancePending = true;
+      let accepted;
+      try { accepted = await scoped.application.storage.relocate(path, expectedDigest, true); }
+      catch (error) {
+        if (error instanceof ClientError && ["storage_authority", "storage_override", "storage_destination", "storage_overlap", "storage_review_changed", "profile_missing"].includes(error.code)) maintenancePending = false;
+        throw error;
+      }
+      scoped.disconnect();
+      const location = await waitForStorageRelocation(storage.locatorDirectory, accepted.id, accepted.keyId);
+      if (scoped !== attentionClient || epoch !== profileEpoch) throw new Error("Storage was relocated, but profile selection changed before restart. Reopen Moguri using the published location; no second copy was started.");
+      const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
+      if (!hidden) { app.relaunch(); app.exit(0); }
+      return { id: accepted.id, directory: location.dataDir, restarted: false };
+    });
     ipcMain.handle("moguri:profile", async (event, profileId: unknown) => {
       trusted(event);
       if (profileId === undefined) return activeProfileId;
@@ -309,4 +373,5 @@ else {
     app.quit();
   });
   app.on("window-all-closed", () => { attentionClient?.disconnect(); app.quit(); });
+  app.on("will-quit", () => { tray?.destroy(); tray = null; });
 }

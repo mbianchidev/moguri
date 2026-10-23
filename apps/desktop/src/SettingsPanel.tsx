@@ -20,15 +20,18 @@ import { useDictation } from "./useDictation.ts";
 import { listMicrophones, type MicrophoneChoice } from "./browser-audio.ts";
 import { ShortcutEditor } from "./ShortcutEditor.tsx";
 import { NotificationSettings } from "./NotificationSettings.tsx";
+import { ApplicationSettings } from "./ApplicationSettings.tsx";
+import { StorageSettings } from "./StorageSettings.tsx";
 import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts";
-export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", onBack, onUnsavedChange, openTerminal, openGlobalTerminal, openSession, onSwitchProfile }: {
+export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", onBack, onUnsavedChange, openTerminal, openGlobalTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
   openGlobalTerminal: () => void;
+  prepareMaintenance: () => Promise<void>;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
   const [search, setSearch] = useState("");
@@ -37,6 +40,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [sessionsDirty, setSessionsDirty] = useState(false);
   const [integrationDirty, setIntegrationDirty] = useState(false);
   const [soundsBusy, setSoundsBusy] = useState(false);
+  const [applicationBusy, setApplicationBusy] = useState(false);
+  const [storageBusy, setStorageBusy] = useState(false);
   const [sql, setSql] = useState<Awaited<ReturnType<MoguriSdk["integrations"]["sqlStatus"]>>["connection"] | null>(null);
   const sqlGeneration = useRef(0);
   const groups = searchSettings(search);
@@ -88,7 +93,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const nestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy;
+  const otherNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy;
+  const nestedDirty = otherNestedDirty || storageBusy;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, tab]);
@@ -241,7 +247,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
       <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content"><fieldset className="settings-fields" disabled={saving && tab !== "voice"}>
-        {tab === "general" && <><h2>General</h2><h3>Profiles</h3><p>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</p>
+        {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} /><h3>Profiles</h3><p>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</p>
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
         {tab === "providers" && <><h2>Model providers</h2><p>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</p><ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
         {tab === "accessibility" && <><h2>Keyboard shortcuts</h2><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>
@@ -413,6 +419,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
         {tab === "project" && (project ? <ProjectSettingsPanel key={project.id} sdk={sdk} project={project} session={session?.projectId === project.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} openSession={openSession} /> : <p>Open a project to configure it.</p>)}
         {tab === "retention" && <><h2>Archived-session retention</h2><p>Off by default. Deletion stops owned work and removes session content while preserving independent project artifacts and external PRs. Diagnostic audit records remain.</p>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the authoritative data directory..."}</p>
+          <StorageSettings sdk={sdk} disabled={dirty || saving || otherNestedDirty} onBusy={setStorageBusy} prepareMaintenance={prepareMaintenance} />
           <h3>Keep awake</h3><label className="check-setting"><input type="checkbox" checked={draft.lifecycle?.keepAwake ?? false} onChange={(event) => automatic("lifecycle", { keepAwake: event.target.checked })} />Prevent idle sleep while this profile owns work</label>
           <label className="setting-field">Minutes after owned work finishes<input aria-label="Keep-awake tail minutes" type="number" min={0} max={1440} value={draft.lifecycle?.tailMinutes ?? 5} onChange={(event) => change("lifecycle", { keepAwake: draft.lifecycle?.keepAwake ?? false, tailMinutes: Number(event.target.value) })} /></label>
           <button type="button" className="primary" aria-label="Save keep-awake tail" disabled={saving || draft.lifecycle?.tailMinutes === committed.lifecycle?.tailMinutes} onClick={() => {

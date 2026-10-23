@@ -195,6 +195,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); return true; };
   const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); setGlobalView(null); return true; };
   const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); };
+  useEffect(() => window.moguri.onOpenSettings(() => openSettings("general")), [client, settingsUnsaved, panelDirty, profilePending]);
   const openBoard = () => { if (!canNavigate()) return; setSettingsTab(null); setGlobalView(null); setBoardOpen(true); };
   const openGlobal = (view: GlobalView, sourceId: string | null = null) => {
     if (!canNavigate()) return;
@@ -335,7 +336,11 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <main className="main-pane">
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} /></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} openGlobalTerminal={() => openGlobal("Global terminal")} openTerminal={() => { setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} openGlobalTerminal={() => openGlobal("Global terminal")} prepareMaintenance={async () => {
+        if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
+        for (const editor of editors.current.values()) await editor.flush();
+        if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
+      }} openTerminal={() => { setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
       globalView && snapshot ? <section className="global-page" aria-label={`${globalView} workspace`}>
         <header className="global-toolbar"><button className="icon-button" aria-label="Back to chat" onClick={leaveSurface}><Icon name="Back" /></button><h1>{globalView}</h1>
           {["Suggestions", "Artifacts", "Candidates", "Sandbox"].includes(globalView) && <label>Source chat<select aria-label="Resource source chat" value={globalSessionId ?? ""} onChange={(event) => { if (canNavigate()) setGlobalSessionId(event.target.value || null); }}>

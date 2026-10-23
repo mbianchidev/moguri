@@ -9,7 +9,7 @@ import { cloneRepositoryFixture } from "../tests/fixtures/clone-repository.ts";
 export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
   const root = resolve(packageRoot), stateDir = join(directory, "state"), consoleRoot = join(directory, "console"), started = performance.now();
   await mkdir(consoleRoot, { recursive: true });
-  const { createRuntime, loadNotificationSoundFile } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
+  const { createRuntime, loadNotificationSoundFile, waitForStorageRelocation } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
   const { MoguriSdk, PROTOCOL_VERSION, audioFromBase64, defaultNotificationWav } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
   const source = await cloneRepositoryFixture(), secrets = new Map();
   const vault = { read: async (id) => secrets.get(id) ?? null, write: async (id, value) => { secrets.set(id, value); }, remove: async (id) => { secrets.delete(id); } };
@@ -20,9 +20,11 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
     prepare: async () => { throw new Error("No model request is allowed in generated entry qualification."); },
   };
   let runtime, sdk;
+  const runtimeOptions = { stateDir, retentionKey: Buffer.alloc(32, 0x76), provider,
+    storage: { locatorDirectory: join(directory, "location"), explicitOverride: false },
+    platform: { vault, terminal: { vault, defaultRoot: consoleRoot, executable: "/bin/sh", args: ["-c", "printf 'GENERATED_INSTALLED_GLOBAL_READY\\n'; exec cat"] } } };
   try {
-    runtime = await createRuntime({ stateDir, retentionKey: Buffer.alloc(32, 0x76), provider,
-      platform: { vault, terminal: { vault, defaultRoot: consoleRoot, executable: "/bin/sh", args: ["-c", "printf 'GENERATED_INSTALLED_GLOBAL_READY\\n'; exec cat"] } } });
+    runtime = await createRuntime(runtimeOptions);
     sdk = await new MoguriSdk(runtime.connection).ready();
     const general = await sdk.sessions.create(null, "Generated installed project-free chat");
     const session = sdk.getState().snapshot.sessions.find((session) => session.id === general.id);
@@ -76,6 +78,19 @@ export async function qualifyWorkspaceEntry({ packageRoot, directory }) {
       await sdk.terminal.close(opened.id);
     }
     assert.equal((await sdk.budgets.calls()).calls.length, 0);
+    if (PROTOCOL_VERSION >= 49) {
+      const current = (await sdk.application.status()).configuration;
+      await sdk.application.configure({ menuBar: false }, current.revision);
+      const destination = join(directory, "relocated-state"), review = (await sdk.application.storage.preview(destination)).review;
+      const accepted = await sdk.application.storage.relocate(destination, review.digest, true); sdk.disconnect();
+      await waitForStorageRelocation(runtimeOptions.storage.locatorDirectory, accepted.id, accepted.keyId);
+      await runtime.close(); runtime = await createRuntime({ ...runtimeOptions, stateDir: destination });
+      sdk = await new MoguriSdk(runtime.connection).ready();
+      assert.equal((await sdk.application.status()).configuration.values.menuBar, false);
+      assert.equal((await sdk.application.storage.status()).storage.operation.status, "completed");
+      assert.ok(sdk.getState().snapshot.sessions.some((session) => session.id === general.id));
+      assert.equal((await sdk.budgets.calls()).calls.length, 0);
+    }
     return { status: "PASS", primitive: `Installed protocol-${PROTOCOL_VERSION} SDK/CLI/shared project clone, project-free Autopilot, shared preferences and independent Local console`,
       ms: performance.now() - started, network: "generated loopback Git only", modelCalls: 0, nativeControls: process.platform === "darwin" ? "passed" : "not qualified" };
   } finally { sdk?.disconnect(); try { await runtime?.close(); } finally { await source.close(); } }

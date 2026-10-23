@@ -1084,6 +1084,40 @@ installs a skill disabled; enabling is separate. Repo instructions are written
 locally, never committed or pushed by this flow. A write followed by a storage
 failure is explicitly partial and requires inspection/fresh review.
 
+## Application and storage settings
+
+**Settings / General / Application** controls the actual menu-bar icon across
+all profiles. Profile settings remain independent. Native failures are visible
+and can be retried from the saved application preference; hidden checks never
+create a real menu-bar item.
+
+**Settings / Sessions / Retention / Change storage location** reviews a complete
+encrypted-store move, including every profile and independently retained artifact.
+Choose an absent or empty private destination outside existing project, worktree,
+data and locator roots. Review the exact source, destination, original resource
+base and active-owner count, then explicitly confirm **Move store and restart
+Moguri**. Other edits must be saved first. Model/tool work stops; uncertain
+accounting remains held. Authenticated terminals survive the explicit restart
+without replaying queued input.
+
+Only the closed encrypted SQLite database moves. Captured project/worktree roots,
+profile resources, caches, speech weights and terminal brokers remain at the
+original resource base shown in review. The old encrypted database remains a
+retired backup and cannot start a stale writer. Failed/partial targets are kept
+for inspection, not deleted or retried. Default discovery changes only after
+actual copied bytes and key identity are verified; the first target boot checks
+the exact copy again. Never remove the original resources or private external
+locator as a cleanup shortcut.
+
+An explicit `MOGURI_STATE_DIR` is never cleared: restart without that override
+before changing default storage. CLI `storage status`, `storage preview PATH`
+and `storage move PATH --digest REVIEW_SHA --confirm-write` share the protocol;
+restart CLI/TUI clients explicitly after a successful move. `/runtime storage`
+and `/runtime storage-preview ABSOLUTE_PATH` provide terminal review without a
+hidden session. Corrupt/missing location metadata or changed copied bytes block
+startup; restore the exact original locator or copied database from the retained
+backup instead of deleting state or forcing a stale writer.
+
 ## Attention and notifications
 
 Session indicators distinguish a possible question (`?`), pending approval/

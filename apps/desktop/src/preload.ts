@@ -27,6 +27,14 @@ const bridge: DesktopBridge = {
     ipcRenderer.on("moguri:native-error", receive);
     return () => ipcRenderer.removeListener("moguri:native-error", receive);
   },
+  applyApplicationPreferences: () => ipcRenderer.invoke("moguri:application-preferences"),
+  chooseStorageDirectory: () => ipcRenderer.invoke("moguri:choose-storage-directory"),
+  relocateStorage: (path, expectedDigest) => ipcRenderer.invoke("moguri:relocate-storage", path, expectedDigest),
+  onOpenSettings: (listener) => {
+    const receive = () => listener();
+    ipcRenderer.on("moguri:open-settings", receive);
+    return () => ipcRenderer.removeListener("moguri:open-settings", receive);
+  },
   copyText: (text) => ipcRenderer.invoke("moguri:copy-text", text),
   saveDocument: (document) => ipcRenderer.invoke("moguri:save-document", document),
   preview: (input, profileId) => ipcRenderer.invoke("moguri:preview", input, profileId),
