@@ -139,8 +139,8 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .session-heading { flex: 1 1 64px; min-width: 0; }
 .session-heading h1 { font-size: 14px; font-weight: 600; margin: 0 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .session-heading > span { font-size: 11px; color: var(--muted); }
-.stop-button { color: var(--danger); border-color: var(--error-line); white-space: nowrap; font-size: 12px; }
-.stop-button:hover:not(:disabled) { background: var(--error-bg); }
+.composer-stop { color: var(--danger); border-color: var(--error-line); background: var(--error-bg); }
+.composer-stop:hover:not(:disabled) { color: var(--error-text); border-color: var(--danger); background: var(--error-bg); }
 .nav-toggle { display: none; }
 .notice { padding: 9px 20px; display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.5; background: var(--error-bg); color: var(--error-text); }
 .notice > span { flex: 1; }
@@ -502,6 +502,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .panel-toolbar > strong { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .panel-toolbar select, .terminal-tabs select, .browser-address input { flex: 1; min-width: 0; width: 0; font-size: 11px; }
 .terminal-tabs { flex-wrap: wrap; }
+.terminal-scope { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.terminal-scope select { flex: 1; min-width: 0; font-size: inherit; }
 .terminal-tabs select { flex-basis: 100%; width: 100%; }
 .context-content:is(.panel-terminal, .panel-browser, .panel-plan, .panel-side-chat) { display: flex; flex-direction: column; padding: 12px 10px; overflow: hidden; }
 .ghostty-panel, .browser-panel, .plan-panel, .side-chat-panel { display: flex; flex-direction: column; flex: 1; gap: 10px; min-width: 0; min-height: 0; }
@@ -530,11 +532,22 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .side-controls { display: flex; align-items: center; gap: 8px; font-size: 11px; }
 .side-controls > span { display: flex; align-items: center; gap: 5px; color: var(--muted); flex: 1; }
 .side-controls svg { width: 13px; }
+.side-model { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.side-model select { flex: 1; min-width: 0; }
 .side-queue { max-height: 110px; overflow: auto; }
 .side-queue button { display: block; width: 100%; text-align: left; font-size: 10px; overflow-wrap: anywhere; }
 .side-approval { flex-shrink: 0; max-height: 220px; overflow: auto; border: 1px solid var(--warning-line); background: var(--warning-bg); padding: 10px; border-radius: 5px; font-size: 11px; }
-.new-chat-scope { margin: -12px 0 14px; }
-.new-chat-scope select { width: 100%; font-size: 11px; background: transparent; border-color: var(--line); }
+.start-dialog { width: min(590px, calc(100vw - 36px)); }
+.start-dialog > .start-option { margin-top: 22px; }
+.start-dialog footer button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.start-dialog footer { flex-wrap: wrap; }
+.start-projects { max-height: 34dvh; overflow: auto; }
+.start-option { display: flex; align-items: center; gap: 12px; padding: 12px; width: 100%; text-align: left; border-color: transparent; background: transparent; }
+.start-option > span { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+.start-option strong { font-size: 14px; font-weight: 600; }
+.start-option small { color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.clone-status { margin-block: 20px; overflow-wrap: anywhere; }
+.clone-status progress { width: 100%; }
 .notification-trigger, .session-attention { position: relative; }
 .attention-unread-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--warning-text); }
 .session-attention { display: inline-flex; flex-shrink: 0; color: var(--warning-text); }

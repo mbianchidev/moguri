@@ -4,7 +4,7 @@ import type { DesktopBridge } from "./bridge.d.ts";
 const bridge: DesktopBridge = {
   connection: () => ipcRenderer.invoke("moguri:connection"),
   profile: (profileId) => ipcRenderer.invoke("moguri:profile", profileId),
-  chooseProject: () => ipcRenderer.invoke("moguri:choose-project"),
+  chooseProject: (purpose) => ipcRenderer.invoke("moguri:choose-project", purpose),
   chooseFile: (path) => ipcRenderer.invoke("moguri:choose-file", path),
   chooseAttachment: (kind) => ipcRenderer.invoke("moguri:choose-attachment", kind),
   openExternal: (url) => ipcRenderer.invoke("moguri:open-external", url),

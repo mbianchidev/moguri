@@ -93,8 +93,8 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     const candidates = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Candidates", exact: true });
     await candidates.hover(); await expect(page.getByRole("tooltip")).toHaveText("Candidates");
     await candidates.click(); await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeVisible();
-    await page.getByRole("combobox", { name: "Project for new chat", exact: true }).selectOption("");
-    await page.getByRole("button", { name: "New session", exact: true }).click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await page.getByRole("button", { name: "ask Moguri", exact: true }).click();
     await expect(page.getByRole("heading", { name: "ask Moguri", exact: true })).toBeVisible();
     const warning = page.getByText("Staging/applying needs an explicitly Local project session allowed by policy. Your current Env and model were not changed. Retained proposals remain readable.", { exact: true });

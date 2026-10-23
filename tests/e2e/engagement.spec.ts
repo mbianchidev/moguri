@@ -26,7 +26,8 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("button", { name: "New project-free chat", exact: true }).click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     const created = fixture.service.controller.snapshot().sessions.at(-1)!;
     expect(created.projectId).toBeNull();
     const prompt = page.getByLabel("Prompt", { exact: true });

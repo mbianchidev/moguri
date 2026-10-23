@@ -28,7 +28,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   });
   const renderSession = (session: Session, project: Project | undefined, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}>
     <button className="session-link" aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}>
-      <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{sessionTitle(session, 60, "New")}</span>
+      <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
         {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionAttention snapshot={snapshot} session={session} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
     <WorkspaceMenu label={`Actions for ${session.title}`}>
@@ -53,7 +53,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     return <section className="project-group" key={project.id}><header className="project-row">
       <button className="project-name" title={project.path} onClick={() => chooseProject(project.id)}><span className="project-color" style={{ color: configuration.color }}><Icon name="Files" /></span><span className="project-label">{project.name}</span></button>
       <WorkspaceMenu label={`Project actions for ${project.name}`}>
-        <button onClick={() => void run(async () => { const result = await sdk.command({ type: "session.create", projectId: project.id }); await chooseSession(result.id!); })}><Icon name="Plus" />New</button>
+        <button onClick={() => void run(async () => { const result = await sdk.command({ type: "session.create", projectId: project.id }); await chooseSession(result.id!); })}><Icon name="Plus" />New chat</button>
         <button onClick={() => open({ kind: "work", project })}><Icon name="Plan" />From work item</button>
         <button onClick={() => open({ kind: "pr", project })}><Icon name="PR" />From PR</button>
         <button onClick={() => settings(project.id)}><Icon name="Settings" />Settings</button>
@@ -77,10 +77,10 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt)).map((session) => <div key={session.id}>{renderSession(session, undefined, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
   return <><div className="project-list" aria-busy={busy}>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    <section className="project-group general-chats" aria-label="Project-free chats"><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">No project</span></button><button className="icon-button" aria-label="New project-free chat" title="New project-free chat" onClick={() => void run(async () => { const created = await sdk.sessions.create(null); await chooseSession(created.id!); })}><Icon name="Plus" /></button></header>{generalTree(null)}</section>
+    <section className="project-group general-chats" aria-label="Chats"><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).map((group) => <details className="project-folder" key={group.id} open><summary><Icon name="Files" />{group.name}</summary>{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
-    {!projects.length && <p className="nav-empty">Chat without a project, or open a workspace for coding tools.</p>}
+    {!projects.length && <p className="nav-empty">Use Start for a chat, a local folder or a repository.</p>}
     {archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
   </div>{edit && <NavigationDialog key={`${edit.kind}-${edit.session?.id ?? edit.project?.id}`} edit={edit} sdk={sdk} snapshot={snapshot} close={() => setEdit(null)} chooseSession={chooseSession} />}</>;
 }

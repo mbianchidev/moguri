@@ -551,8 +551,10 @@ is Local, explicitly qualified native Sandbox or pinned SSH with fixed
 Copilot/configured local models and Unlimited or explicit estimate-based caps.
 Opt-in kupo Single uses its approved transports; finite Local routing needs
 the explicit reserved wind-down policy above. Manual remains default; Guided displays model
-advice but needs human confirmation. Autopilot requires explicit tool or exact
-command grants and cannot grant itself anything. Local Autopilot Max needs its
+advice but needs human confirmation. Autopilot is selectable in project and
+project-free chats, including when no tool grants exist. Only explicitly
+delegated tools/commands run without asking; selecting the mode grants nothing.
+Local Autopilot Max needs its
 separately configured compatible bounded decision provider. Jev and
 Remote/native Max remain unavailable.
 Unready choices explain the limitation
@@ -786,8 +788,11 @@ Running turns keep their committed prompt snapshot.
 The desktop toolbar starts with **+ Attach**, then the environment icon
 (house/box/globe), model name and autonomy icon (hand/traffic light/car/rocket).
 Budget is **infinity** while unlimited, followed by microphone and paper-plane
-Send. Holding Cmd/Ctrl visibly turns Send into a clock and queues without
-starting work. The small delivery chevron retains explicit Steer/Interrupt.
+Send. While idle, holding Cmd/Ctrl visibly turns Send into a queue clock.
+During an actual active turn the same button becomes a **red Stop icon**;
+its acknowledged stop preserves your unsent draft. Enter still answers/queues
+and Cmd/Ctrl+Enter still holds prompts. The delivery chevron retains explicit
+Send/Answer/Queue, Steer and Interrupt actions while Stop occupies the main slot.
 Unavailable execution/autonomy modes remain disabled with their reasons.
 
 In both desktop chat composers, **Enter** sends and **Shift+Enter** inserts a
@@ -954,18 +959,36 @@ actual Remote boundary/frame provenance.
 
 ## Project-free chats, suggestions and ask Moguri
 
-Desktop's **No project** section and project selector create chats without
-attaching a folder. TUI `/new global` does the same; Ctrl+N keeps the current
+Desktop uses one **Start** button. Choose **New chat** for a project-free
+conversation, an existing project for a new session there, **Import local
+folder** to attach an explicitly chosen directory, or **Clone repository** to
+clone an HTTPS/SSH URL into a new folder before starting a project chat.
+The general conversation section is **Chats**; there is no project dropdown or
+separate import plus. TUI `/new global` does the same; Ctrl+N keeps the current
 scope, or creates a project-free chat when none is selected. CLI:
 `moguri session create` with no `--project`. Choose a model explicitly as usual.
 Scope is fixed for that session, not silently rebound when a different project
 is selected for new chats.
 
-These chats never reuse a previous root. Workspace project files, shell,
-terminal, diff, plans and repository memory are unavailable. Provider calls,
+These chats never reuse a previous model workspace root. Agent project files,
+shell, diff, plans and repository memory are unavailable. Independent user
+consoles are described below; opening one does not grant a model filesystem
+access. Provider calls,
 explicitly selected client snapshots/images, global guidance/skills and configured global MCPs remain available.
 The internal MCP advertises only its scope-safe page fetcher. A failed general
 chat pauses only itself, not every project-free chat or an unrelated project.
+
+Cloning requires an existing parent folder and a new destination name. It never
+overwrites a directory, initializes submodules, runs hooks/filters, logs in, or
+starts inference. SSH uses existing keys and requires known-hosts verification;
+HTTPS URLs must not embed credentials. Local policy and captured destination/
+containing-workspace writer leases still apply. Cancel preserves partial files,
+and restart or a missing response never automatically repeats the original job.
+Inspect failed/partial jobs and destinations before a separate explicit action.
+CLI: `moguri project clone URL /absolute/new-folder --confirm-write`.
+TUI: `/clone {"repository":"URL","path":"/absolute/new-folder"} confirm-clone`,
+then `/result JOB_ID` after the capability job completes. Existing local folders
+can also be registered with `moguri project add /absolute/folder`.
 
 `/suggestions` opens a local preview of earlier user prompts, with repeated
 phrase hints and source excerpts. A project chat reads only that project;
@@ -1034,6 +1057,10 @@ writer lease. Question-only side sessions cannot promote themselves.
 `/side` snapshots approved parent context into a separate read-only conversation,
 with separate usage, read approvals and cancellation. User-created subsessions
 are attached agent sessions, not the optional model-subagent feature.
+Side chat exposes its own **Model** selector. It inherits the current parent
+selection at creation, but an unset/unavailable/synthetic selection requires an
+explicit concrete model. Choosing it does not change the parent, Env or
+read-only scope, and no failed model is silently substituted.
 
 The desktop rail exposes Terminal, Browser, Insights, a linked PR when present,
 Changes, Files, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
@@ -1057,6 +1084,23 @@ CLI equivalents are `moguri terminal list|read|reconcile|close` and
 creates a console; `terminal input ID` accepts bounded piped UTF-8 stdin only.
 `acknowledge ID --confirm-review` and `owner-acknowledge OWNER_ID --confirm-review`
 record actual user inspection, not proven cleanup.
+
+Terminal also opens without a session. **Global terminal** is one independent
+Local user console per profile, starting in the disclosed canonical home folder.
+**This chat** selects session-owned consoles; a project-free chat explicitly
+opens the disclosed Local root without making it a model workspace. Existing
+project consoles still use their exact project/worktree. Changing chat does not
+rebind the global console, and deleting a chat/project does not delete it.
+Global input obeys Local allowed-env policy; a Remote chat never relabels that
+global host shell Remote.
+
+CLI `moguri terminal default-root` discloses the default without starting a
+process. `terminal open-global /absolute/root` explicitly opens the global
+console. `terminal open --session ID --root /absolute/root` opens a separate
+project-free Local console. TUI `/terminals global` discloses the root;
+`/terminals global /absolute/root` opens it. `/terminals open /absolute/root`
+opens a project-free session console, and `/terminals` includes the profile's
+global console for explicit inspection/read/close.
 
 Ghostty's reconnect control inspects the existing owner, never opens another
 shell. Hiding the panel or losing a connection discards queued unsent input;

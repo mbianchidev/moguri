@@ -146,22 +146,41 @@ export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, e
   return <section className="side-chat-panel"><header className="panel-toolbar"><select aria-label="Question-only side session" value={side?.id ?? ""} onChange={(event) => select(event.target.value)}>{sides.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}{!side && <option value="">Question-only context</option>}</select>
     <button className="icon-button" aria-label="New side chat" title="New question-only side chat" onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Side chat could not be created."))}><Icon name="Plus" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {side ? <SideConversation key={side.id} sdk={sdk} session={side} onSlash={onSlash} editorFor={editorFor} /> : <p className="fine-print">Open a parallel question-only session with a snapshot of this conversation's approved context. It cannot edit code or promote itself.</p>}
+    {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} /> : <p className="fine-print">Open a parallel question-only session with a snapshot of this conversation's approved context. It cannot edit code or promote itself.</p>}
   </section>;
 }
-function SideConversation({ sdk, session, onSlash, editorFor }: { sdk: MoguriSdk; session: Session; onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; editorFor: (session: Session) => DraftEditor }) {
+function SideConversation({ sdk, session, snapshot, onSlash, editorFor }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; editorFor: (session: Session) => DraftEditor }) {
   const editor = useMemo(() => editorFor(session), [editorFor, session.id]);
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [error, setError] = useState("");
+  const [configuring, setConfiguring] = useState(false);
+  const configurationPending = useRef(false);
+  const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") ||
+    session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
+  const models = snapshot.provider.models.filter((model) => !model.synthetic && (!model.environments || model.environments.includes(session.controls.env)) && (!requiresImages || model.imageInput));
+  const model = models.find((model) => model.id === session.controls.modelId);
   const held = useQueueModifier();
-  const canQueue = Boolean(draft.text.trim()) && !draft.conflict && session.status !== "archived";
-  const canSend = canQueue && !session.turnId;
+  const canQueue = Boolean(draft.text.trim()) && !draft.conflict && session.status !== "archived" && !configuring && sdk.getState().status === "connected";
+  const canSend = canQueue && !session.turnId && (draft.text.startsWith("/") || Boolean(model));
   useEffect(() => { editor.receive(session.draft); }, [session.draft.revision]);
   const send = (held = false) => {
     setError("");
     void (draft.text.startsWith("/") ? onSlash(session, editor, draft.text) : editor.send("queue", held)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Question was not sent."));
   };
-  return <><div className="side-transcript" role="log" aria-label="Side chat transcript">{session.messages.slice(-40).map((message) => <article key={message.id}><strong>{message.role === "user" ? "You" : "Moguri"}</strong><p>{message.text}</p></article>)}</div>
+  const chooseModel = async (modelId: string) => {
+    if (configurationPending.current) return;
+    configurationPending.current = true; setConfiguring(true); setError("");
+    try {
+      const { modelOptions: _, ...controls } = session.controls;
+      await sdk.sessions.configure(session.id, { ...controls, modelId: modelId || null }, session.revision);
+    } catch (error) { setError(error instanceof Error ? error.message : "Side-chat model selection was not saved. Your draft is preserved."); }
+    finally { configurationPending.current = false; setConfiguring(false); }
+  };
+  return <><label className="side-model">Model<select aria-label="Side chat model" value={session.controls.modelId ?? ""} disabled={configuring || Boolean(session.turnId)} onChange={(event) => void chooseModel(event.target.value)}>
+    <option value="">Select model</option>{session.controls.modelId && !model && <option value={session.controls.modelId} disabled>Unavailable: {session.controls.modelId}</option>}
+    {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
+    {!model && <p className="fine-print" role="status">{models.length ? "Choose a model for this side chat. Its read-only scope and your draft are preserved." : "No concrete model is available in this environment. Configure or reconnect one in Settings; no provider was substituted."}</p>}
+    <div className="side-transcript" role="log" aria-label="Side chat transcript">{session.messages.slice(-40).map((message) => <article key={message.id}><strong>{message.role === "user" ? "You" : "Moguri"}</strong><p>{message.text}</p></article>)}</div>
     {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre><div className="button-row">
       {[false, true].map((allow) => <button key={String(allow)} className={allow ? "primary" : ""} onClick={() => void sdk.command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Read approval was not acknowledged."))}>{allow ? "Approve read" : "Deny"}</button>)}</div></section>}
     {error && <p className="inline-error" role="alert">{error}</p>}
@@ -170,8 +189,9 @@ function SideConversation({ sdk, session, onSlash, editorFor }: { sdk: MoguriSdk
       const action = chatSubmission(event);
       if (action && (action === "hold" ? canQueue : canSend)) send(action === "hold");
     }} />
-    <div className="side-controls"><span title="Hard read-only policy"><Icon name="ReadOnly" />Question-only</span><button className="primary icon-button" aria-label={held ? "Queue side question" : "Ask"} title={held ? "Queue without starting" : "Ask"} disabled={held ? !canQueue : !canSend} onClick={() => send(held)}><Icon name={held ? "Clock" : "Send"} /></button>
-      {session.turnId && <button className="icon-button" aria-label="Stop side question" onClick={() => void sdk.command({ type: "session.stop", sessionId: session.id }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not acknowledged."))}><Icon name="Stop" /></button>}</div>
+    <div className="side-controls"><span title="Hard read-only policy"><Icon name="ReadOnly" />Question-only</span>{session.turnId ?
+      <button className="icon-button composer-stop" aria-label="Stop side question" disabled={session.status === "stopping"} onClick={() => void sdk.command({ type: "session.stop", sessionId: session.id }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not acknowledged."))}><Icon name="Stop" /></button> :
+      <button className="primary icon-button" aria-label={held ? "Queue side question" : "Ask"} title={held ? "Queue without starting" : "Ask"} disabled={held ? !canQueue : !canSend} onClick={() => send(held)}><Icon name={held ? "Clock" : "Send"} /></button>}</div>
     {session.queue.length > 0 && <div className="side-queue">{session.queue.map((item) => <button key={item.id} disabled={!item.held} onClick={() => void sdk.prompts.release(session.id, item.id, session.queueRevision).catch((error: unknown) => setError(error instanceof Error ? error.message : "Question could not be released."))}>{item.held ? "Run queued question" : "Queued"}: {item.text.slice(0, 35)}</button>)}</div>}
   </>;
 }

@@ -36,7 +36,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await page.setViewportSize({ width: 1440, height: 940 });
     await writeFile(join(workspace.path, "workspace-only.txt"), "Generated file exists only in the owned checkout.");
     await writeFile(join(workspace.path, "fixture.txt"), "Generated desktop worktree change.\n");
-    await record.getByRole("button", { name: "New", exact: true }).click();
+    await record.getByRole("button", { name: "New chat", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.sessions.at(-1)?.workspaceId).toBe(workspace.id);
     const selected = sdk.getState().snapshot!.sessions.at(-1)!;
     const panels = page.getByRole("navigation", { name: "Sidebar panels" });

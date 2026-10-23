@@ -108,9 +108,10 @@ else {
       if (typeof profileId !== "string") throw new Error("An explicit profile ID is required.");
       const selected = await activateProfile(profileId); hidePreview(); return selected;
     });
-    ipcMain.handle("moguri:choose-project", async (event) => {
+    ipcMain.handle("moguri:choose-project", async (event, purpose: unknown) => {
       trusted(event);
-      const result = await dialog.showOpenDialog(mainWindow!, { title: "Open a Moguri project", properties: ["openDirectory"] });
+      if (purpose !== undefined && purpose !== "import" && purpose !== "clone") throw new Error("Choose an import or clone folder explicitly.");
+      const result = await dialog.showOpenDialog(mainWindow!, { title: purpose === "clone" ? "Choose the parent folder for this clone" : "Import a local project folder", properties: ["openDirectory"] });
       return result.canceled ? null : result.filePaths[0] ?? null;
     });
     ipcMain.handle("moguri:choose-file", async (event, projectPath: unknown) => {

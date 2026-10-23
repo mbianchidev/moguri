@@ -3,7 +3,7 @@ import type { ArtifactExport, Connection } from "../../../packages/protocol/src/
 export interface DesktopBridge {
   connection(): Promise<Connection>;
   profile(profileId?: string): Promise<string>;
-  chooseProject(): Promise<string | null>;
+  chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
