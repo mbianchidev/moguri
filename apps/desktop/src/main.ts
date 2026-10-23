@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, stateDirectory, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -56,10 +56,29 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on("second-instance", () => { mainWindow?.show(); mainWindow?.focus(); });
   void app.whenReady().then(async () => {
+    let connecting: Promise<Connection> | undefined;
     const connect = async () => {
       if (maintenancePending) throw new Error("The original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
-      connection = await ensureConnection({ runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs") });
-      return { ...connection, baseUrl: "moguri://app" };
+      connecting ??= (async () => {
+        connection = await ensureConnection({
+          runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs"),
+          confirmUpgrade: async (review) => {
+            if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+              if (!["confirm", "cancel"].includes(process.env.MOGURI_TEST_SERVICE_UPGRADE ?? "")) throw new Error("Hidden service upgrades require an explicit generated confirmation response. No personal service or native dialog was opened.");
+              return process.env.MOGURI_TEST_SERVICE_UPGRADE === "confirm";
+            }
+            const choice = await dialog.showMessageBox({
+              type: "question", title: "Update the Moguri background service",
+              message: `This app needs protocol ${review.requiredProtocol}, but the running service uses ${review.observedProtocol}.`,
+              detail: "Restart the exact authenticated background service to finish the upgrade. Running agent/tool work will stop with its actual partial outcome. History, profiles, budgets and independent artifacts are kept. User terminals are preserved without replaying input. Cancel leaves the old service unchanged.",
+              buttons: ["Restart service", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
+            });
+            return choice.response === 0;
+          },
+        });
+        return { ...connection, baseUrl: "moguri://app" };
+      })().finally(() => { connecting = undefined; });
+      return connecting;
     };
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
     await connect();
@@ -405,6 +424,7 @@ else {
     }
     app.on("activate", () => { if (!mainWindow) void createWindow(); });
   }).catch((error: unknown) => {
+    if (error instanceof ServiceUpgradeCancelled) { app.quit(); return; }
     console.error("Moguri desktop startup failed:", error instanceof Error ? error.message : "Unknown startup error.");
     if (process.env.MOGURI_TEST_WINDOW !== "hidden") dialog.showErrorBox("Moguri could not start", error instanceof Error ? error.message : "Inspect the service log.");
     app.quit();

@@ -4,6 +4,20 @@ Current service/SDK/desktop protocol is **50**. Additive upgrades retain existin
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
 
+An older `connection.json` is not necessarily corrupt. A stale unreachable
+connection can start the current service through its normal writer-lock/recovery
+path without deleting stored history. If an older service is actually running
+and its private token, PID and protocol are confirmed, desktop asks before
+restarting that exact owner. **Restart service** stops in-flight agent work,
+preserves authenticated user terminals, then opens the current client. **Cancel**
+leaves the original service unchanged.
+
+Newer protocols, changed owners, malformed/private-file violations and
+unresponsive health checks are not force-restarted or silently replaced. Close
+the original service or inspect it before retrying; never delete the database,
+keys or session state as a workaround. CLI `moguri service restart` remains an
+explicit action against an authenticated responsive service.
+
 ## Searchable desktop navigation
 
 Settings has a search field and grouped categories. **General** owns profile
