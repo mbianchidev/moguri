@@ -102,8 +102,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       setDrop({ id: session.id, edge: ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "attach" });
     }} onDrop={(event) => dropSession(event, session)}
     onContextMenu={(event) => { event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu(session, anchor, event.clientX, event.clientY); }}>
-    <button className="session-link" data-session-id={session.id} aria-label={session.title} aria-description={`${session.status.replace("_", " ")}. Right-click or Shift+F10 for actions; drag to order or attach.`}
+    <button className="session-link" data-session-id={session.id} aria-label={session.title} aria-description={`${session.status.replace("_", " ")}. Double-click to rename. Right-click or Shift+F10 for actions; drag to order or attach.`}
       aria-haspopup="menu" aria-expanded={menu?.id === session.id} aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}
+      onDoubleClick={(event) => { event.preventDefault(); open({ kind: "rename", session }); }}
       onKeyDown={(event) => {
         if (event.altKey && ["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); void moveSession(session, event.key === "ArrowUp" ? -1 : 1); return; }
         if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
@@ -223,6 +224,7 @@ function WorkspaceMenu({ label, children }: { label: string; children: ReactNode
 }
 function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit: Edit; sdk: MoguriSdk; snapshot: Snapshot; close: () => void; chooseSession: (id: string) => Promise<void> }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(edit.kind === "rename" ? edit.session!.title : edit.kind === "relocate" ? edit.project!.path : "");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
@@ -237,7 +239,10 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
     catch (error) { setError(error instanceof Error ? error.message : "Artifact impact could not be loaded. Nothing was removed."); }
     finally { setPreviewLoading(false); }
   };
-  useEffect(() => { ref.current?.showModal(); }, []);
+  useEffect(() => {
+    ref.current?.showModal();
+    if (edit.kind === "rename") { nameInput.current?.focus(); nameInput.current?.select(); }
+  }, []);
   useEffect(() => { void loadArtifacts(); }, []);
   const destructive = edit.kind === "remove-project";
   const currentArtifacts = snapshot.artifacts.filter((artifact) => artifact.projectId === edit.project?.id);
@@ -295,7 +300,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
       </>}<button type="button" disabled={busy || previewLoading} onClick={() => void loadArtifacts()}>Reload artifact preview</button></section>}
       <label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I understand and confirm this removal.</label></> :
       choices ? <label className="setting-field">Destination<select aria-label="Destination" value={value} onChange={(event) => setValue(event.target.value)}><option value="">{edit.kind === "work" ? "Choose work item" : "None"}</option>{choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> :
-        <label className="setting-field">{edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"}<input aria-label={edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"} autoFocus value={value} onChange={(event) => setValue(event.target.value)} required /></label>}
+        <label className="setting-field">{edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"}<input ref={nameInput} aria-label={edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"} autoFocus value={value} onChange={(event) => setValue(event.target.value)} required /></label>}
     {edit.kind === "pr" && <p className="fine-print">Binds PR context without changing this folder's checkout or starting work.</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className={destructive ? "danger" : "primary"} disabled={busy || previewLoading || staleArtifacts || artifactChoiceMissing || destructive && !confirmed || !destructive && !["attach", "group", "folder"].includes(edit.kind) && !value.trim()} type="submit">{busy ? "Working..." : destructive ? "Delete" : "Save"}</button></footer>
   </form></dialog>;

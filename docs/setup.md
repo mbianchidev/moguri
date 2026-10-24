@@ -439,6 +439,9 @@ Drag a session above or below a sibling to reorder it. Order is saved atomically
 in the service and shared with desktop, TUI and SDK clients. It cannot move a
 session across projects, parents, groups, pinned sections or archive sections.
 Alt+Up/Down and the session action menu provide keyboard alternatives.
+Double-click a session to rename it; its current name is selected in the
+existing dialog. Single click still opens it, and Escape or Cancel leaves its
+name unchanged.
 `moguri session reorder ID...` and `/reorder-sessions ID...` require the complete
 current sibling set, not a partial list. Settings, Issues and Archived toggle
 back to the conversation when selected again in the left sidebar.
