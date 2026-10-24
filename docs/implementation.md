@@ -148,7 +148,7 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > protocol versions are unchanged.
 
 > Protocol 52 adds [app-managed Sandbox](architecture/managed-sandbox.md):
-> bundled SendBox 0.2.3 plus compatible Linux worker/runtime dependencies,
+> bundled SendBox 0.2.4 plus compatible Linux worker/runtime dependencies,
 > exact in-app setup/update review, automatic private workspaces and scoped
 > selected-provider DNS aliases. Default GitHub reads stay distinct from blocked
 > unrelated sites. Legacy manual grants, actual tool approvals, original guest

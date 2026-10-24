@@ -96,14 +96,14 @@ Historical source qualifications below are not relabeled as this integrated run.
 ## Managed SendBox
 
 On supported Apple-silicon macOS with Apple Containerization available, the app
-includes SendBox **0.2.3**, a versioned no-script installer, and a compatible
+includes SendBox **0.2.4**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
 
 Open **Settings > Execution & permissions > SendBox**, choose **Review bundled
 setup**, review the actual version, image, workspace/network policy and install
 location, then choose **Enable Sandbox**. An already configured exact root-owned
-0.2.3 installation can be reused. A fresh installation requests your administrator
+0.2.4 installation can be reused. A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
@@ -131,8 +131,13 @@ Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
 tool rules. These permit subdomains at any depth, not the apex or lookalike
 suffixes. Exact entries remain exact, private-address protections remain in the
 guest, and selected-provider URLs/CNAMEs still require exact admission. No
-wildcard is added automatically. The bundled 0.2.3 runtime does not include the
-separately developing automatic GitHub Meta expansion.
+wildcard or GitHub Meta expansion is enabled automatically by Moguri's adapter.
+The 0.2.4 release includes upstream Meta/effective-scope capabilities, but this
+update retains Moguri's existing exact destination policy.
+
+New factory defaults select 0.2.4. An explicitly saved 0.2.3 selection and its
+release/approval records remain unchanged; using the new bundle still requires
+review. See [the release pins and upgrade boundary](architecture/managed-sandbox.md#default-sendbox-024).
 
 **Check public SendBox releases** checks at startup and every four hours when
 enabled. **Check SendBox updates now** uses the same fixed public repository with
