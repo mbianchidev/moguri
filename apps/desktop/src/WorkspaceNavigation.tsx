@@ -91,6 +91,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   });
   const renderSession = (session: Session, depth: number) => {
     const indicator = sessionIndicator(session, snapshot);
+    const unread = unreadSession(session, snapshot);
     return <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
     draggable={!busy && !actions.busy} onDragStart={(event) => {
       if (!allow()) { event.preventDefault(); return; }
@@ -104,7 +105,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       setDrop({ id: session.id, edge: ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "attach" });
     }} onDrop={(event) => dropSession(event, session)}
     onContextMenu={(event) => { event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu(session, anchor, event.clientX, event.clientY); }}>
-    <button className="session-link" data-session-id={session.id} aria-label={session.title} aria-description={`${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions; drag to order or attach.`}
+    <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions; drag to order or attach.`}
       aria-haspopup="menu" aria-expanded={menu?.id === session.id} aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}
       onDoubleClick={(event) => { event.preventDefault(); open({ kind: "rename", session }); }}
       onKeyDown={(event) => {
@@ -113,7 +114,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top);
       }}>
       <span className="status-dot session-status-dot" data-session-state={indicator.kind} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
-        {session.status === "waiting_input" && <small title="Needs attention">Needs attention</small>}</span><SessionIndicators snapshot={snapshot} session={session} indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
+        {session.status === "waiting_input" && <small title="Needs attention">Needs attention</small>}</span><SessionIndicators indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
     <button className="icon-button session-actions" type="button" aria-label={`Actions for ${session.title}`} aria-haspopup="menu" aria-expanded={menu?.id === session.id}
       onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top); }}><Icon name="More" /></button>
@@ -152,6 +153,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const generalIds = new Set(general.map((session) => session.id));
   const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort(compareSessions).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
   const menuSession = snapshot.sessions.find((session) => session.id === menu?.id), menuProject = snapshot.projects.find((project) => project.id === menuSession?.projectId);
+  const menuUnread = menuSession ? unreadSession(menuSession, snapshot) : false;
   return <><div className="project-list" aria-busy={busy || actions.busy}>
     {(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}
     <section className="project-group general-chats" aria-label="Chats"><header className="project-row" onDragOver={(event) => { if (dragging.current) event.preventDefault(); }} onDrop={(event) => detach(event, null)}><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
@@ -163,7 +165,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   {menu && menuSession && <SessionContextMenu label={`Actions for ${menuSession.title}`} point={menu} close={closeMenu}>
     <button role="menuitem" onClick={() => open({ kind: "rename", project: menuProject, session: menuSession })}><Icon name="Edit" />Rename</button>
     <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name="Pin" />{menuSession.pinned ? "Unpin" : "Pin"}</button>
-    <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { unread: !menuSession.unread }))}><Icon name="ReadOnly" />{menuSession.unread ? "Mark read" : "Mark unread"}</button>
+    <button role="menuitem" onClick={() => void run(async () => {
+      const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];
+      await sdk.sessions.organize(menuSession.id, { unread: !menuUnread });
+      if (ids.length) await sdk.attention.acknowledge(ids.slice(-100));
+    })}><Icon name="ReadOnly" />{menuUnread ? "Mark read" : "Mark unread"}</button>
     <button role="menuitem" onClick={() => void moveSession(menuSession, -1)}><Icon name="Up" />Move up</button>
     <button role="menuitem" onClick={() => void moveSession(menuSession, 1)}><Icon name="Down" />Move down</button>
     <button role="menuitem" disabled={!menuProject} onClick={() => open({ kind: "group", project: menuProject, session: menuSession })}><Icon name="Group" />Move to group</button>
@@ -201,17 +207,18 @@ function SessionContextMenu({ label, point, close, children }: { label: string; 
       buttons[next]?.focus();
     }}>{children}</div>, document.body);
 }
-function SessionIndicators({ snapshot, session, indicator }: { snapshot: Snapshot; session: Session; indicator: ReturnType<typeof sessionIndicator> }) {
+function unreadSession(session: Session, snapshot: Snapshot): boolean {
   const entry = snapshot.attention.findLast((entry) => entry.sessionId === session.id && entry.active);
-  const unread = snapshot.settings.values.notifications.inApp && entry && !entry.acknowledged;
+  return session.unread || Boolean(snapshot.settings.values.notifications.inApp && entry && !entry.acknowledged);
+}
+function SessionIndicators({ indicator }: { indicator: ReturnType<typeof sessionIndicator> }) {
   const names: Partial<Record<typeof indicator.kind, string>> = {
     running: "Progress", question: "Question", approval: "Waiting", completed: "Check", merged: "PRMerged",
     failed: "Issue", partial: "Issue", stopped: "Waiting", queued: "Clock",
   };
   const name = names[indicator.kind];
   return <span className="session-indicators">
-    {name && <span className="session-mark" data-session-state={indicator.kind} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} />
-      {unread && <span className="attention-unread-dot" aria-hidden="true" />}</span>}
+    {name && <span className="session-mark" data-session-state={indicator.kind} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} /></span>}
     {indicator.kind === "completed" && indicator.prUrl && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img" aria-label={indicator.prLabel} title={indicator.prLabel}><Icon name="PR" /></span>}
   </span>;
 }

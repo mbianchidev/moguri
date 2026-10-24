@@ -124,7 +124,8 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .session-link { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 10px; margin: 2px 0; border-color: transparent; background: transparent; }
 .session-link.selected { background: var(--selected); color: var(--selection-text); }
 .session-link-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
-.session-link-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.session-link-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 400; }
+.session-link[data-unread="true"] .session-link-text > span { font-weight: 550; }
 .session-link-text small { font-size: 10px; line-height: 1.2; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status-dot { display: inline-block; border-radius: 50%; width: 6px; height: 6px; background: #858e99; flex-shrink: 0; }
 .status-dot.completed, .status-dot.connected { background: var(--accent); }
@@ -148,7 +149,6 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .session-mark[data-session-state="completed"], .session-pr-icon[data-pr-state="open"] { color: var(--indicator-completed); }
 .session-mark[data-session-state="merged"] { color: var(--indicator-merged); }
 .session-mark[data-session-state="failed"], .session-mark[data-session-state="partial"] { color: var(--danger); }
-.session-mark .attention-unread-dot { width: 4px; height: 4px; top: -2px; right: -2px; }
 @keyframes session-blue-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 @keyframes session-status-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .session-status-dot[data-session-state="running"], .session-mark[data-session-state="running"] svg { animation: none; opacity: 1; } }
@@ -577,7 +577,6 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .session-link[draggable="true"] { cursor: grab; }
 .session-link[draggable="true"]:active { cursor: grabbing; }
 .session-link > svg { width: 12px; height: 12px; color: var(--muted); }
-.unread-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .workspace-menu { flex-shrink: 0; }
 .workspace-menu > summary { display: flex; align-items: center; justify-content: center; list-style: none; width: 28px; min-height: 32px; border-radius: 5px; }
 .workspace-menu > summary::-webkit-details-marker { display: none; }

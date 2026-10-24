@@ -192,6 +192,11 @@ chat** first. Viewing a global resource never creates a hidden chat or model
 request. Global and session consoles are separate entrypoints into the existing
 authenticated Ghostty owners, not a new terminal implementation.
 
+Unread sessions use slightly heavier title text instead of an extra dot.
+Mark read or selecting the session removes that emphasis; an older held read
+action cannot consume a newly arrived question. Actual yellow question/approval
+status and its icon remain until answered/decided, independently of read state.
+
 The shared preferences below include device-aware local speech, independent
 notification sounds, root-owned native updates and reviewed store relocation.
 Their explicit authority, failure and qualification requirements are in
