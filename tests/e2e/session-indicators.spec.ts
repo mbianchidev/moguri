@@ -122,7 +122,7 @@ test("completed rows show checks plus green open or gray draft PRs, while only a
     const openLink = link(open.id!), openIcon = openLink.getByRole("img", { name: "Attached pull request is open", exact: true });
     await openLink.click(); await expect(openLink.locator('[data-icon="Check"]')).toHaveCount(1);
     const green = await contrast(openIcon);
-    expect(green).toBe(await openLink.locator(".session-mark.completed").evaluate((node) => getComputedStyle(node).color));
+    expect(green).toBe(await openLink.locator('.session-mark[data-session-state="completed"]').evaluate((node) => getComputedStyle(node).color));
     expect(green).not.toBe(gray);
     await draftLink.hover(); await contrast(draftIcon);
     const closedLink = link(closed.id!);

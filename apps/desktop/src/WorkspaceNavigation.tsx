@@ -112,8 +112,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
         event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top);
       }}>
-      <span className={`status-dot session-status-dot ${indicator.kind}`} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
-        {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionIndicators snapshot={snapshot} session={session} indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
+      <span className="status-dot session-status-dot" data-session-state={indicator.kind} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
+        {session.status === "waiting_input" && <small title="Needs attention">Needs attention</small>}</span><SessionIndicators snapshot={snapshot} session={session} indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
     <button className="icon-button session-actions" type="button" aria-label={`Actions for ${session.title}`} aria-haspopup="menu" aria-expanded={menu?.id === session.id}
       onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top); }}><Icon name="More" /></button>
@@ -210,9 +210,9 @@ function SessionIndicators({ snapshot, session, indicator }: { snapshot: Snapsho
   };
   const name = names[indicator.kind];
   return <span className="session-indicators">
-    {name && <span className={`session-mark ${indicator.kind}`} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} />
+    {name && <span className="session-mark" data-session-state={indicator.kind} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} />
       {unread && <span className="attention-unread-dot" aria-hidden="true" />}</span>}
-    {indicator.kind === "completed" && indicator.prUrl && <span className={`session-pr-icon ${indicator.prState}`} role="img" aria-label={indicator.prLabel} title={indicator.prLabel}><Icon name="PR" /></span>}
+    {indicator.kind === "completed" && indicator.prUrl && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img" aria-label={indicator.prLabel} title={indicator.prLabel}><Icon name="PR" /></span>}
   </span>;
 }
 function WorkspaceMenu({ label, children }: { label: string; children: ReactNode }) {
