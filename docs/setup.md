@@ -89,6 +89,36 @@ whatwg-encoding/node-domexception chains; Electron and advisory fixes are also
 included. See the [context contract](architecture/context-inputs.md#desktop-interaction-revision)
 and [console ownership contract](architecture/terminal-reattachment.md#global-local-consoles-and-pane-confirmation).
 
+### Protocol-44 source qualification
+
+On macOS arm64 / Node 26, `npm ci`, type checks, the production build, the six
+available baseline primitives and the moderate-or-higher audit pass. The root install emits neither
+reported deprecation warning and the audit reports zero vulnerabilities.
+
+The complete unit/integration/native-TUI run passes **1,082 cases**, with **nine
+physical native-workload skips**, zero failures and a duration of **1,021.86 s**.
+Complete hidden Electron acceptance passes **77 cases**, with **one physical
+native-workload skip**, zero failures and a duration of **3.2 min**. This includes
+actual session dragging/reordering, source and GitHub-file shortcuts, retained
+previews/removal, saved confirmations, compact rail access, independent global
+consoles, existing Local/SSH owner recovery, uniform Settings fonts and generated
+slow-finalization dictation without draft loss or a generative-model request.
+
+The actual packed external SDK passes all public entrypoint/declaration checks,
+safe identifiers, shared sibling order, exact Local source resolution, profile
+isolation, and SDK/CLI/TUI global-console retention after session deletion. All
+**12 installed-worker acknowledgement/accounting/cancellation probes** also pass.
+Legacy fixture corrections preserve strict migration rollback, ciphertext, keys,
+receipts and unknown telemetry; no product assertion or admission gate was relaxed.
+
+Microphone permission is synthetic in tests, recognizers and model bytes are
+generated, and no real speech model, microphone, personal login or paid inference
+is used. These results do not qualify real ASR accuracy, the skipped current
+SendBox workload, Linux UI or a signed/notarized release. Existing OpenTUI FFI
+and lazy Ghostty bundle-size notices remain nonfatal. Minimal external SDK hosts
+can still see upstream npm warnings because dependency overrides are not inherited;
+the [scoped host override](sdk.md#shared-interaction-apis) is documented separately.
+
 ## Document attachments and task completion
 
 Protocol/database **43** introduced the 0.30.0-alpha.1 document slice. It extends the existing
