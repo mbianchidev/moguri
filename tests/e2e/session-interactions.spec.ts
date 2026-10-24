@@ -13,6 +13,7 @@ test.skip(process.platform !== "darwin", "Native desktop interaction qualificati
 test("panel controls maximize over chat without covering navigation, mode is a bottom toggle and Commands stays keyboard-only", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   try {
+    expect(await app.evaluate(() => process.versions.electron)).toBe(require("electron/package.json").version);
     const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
     await expect(page.getByRole("button", { name: /^Commands\b/ })).toHaveCount(0);
     await expect(page.getByRole("combobox", { name: "Session mode", exact: true })).toHaveCount(0);
