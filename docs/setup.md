@@ -1098,6 +1098,14 @@ estimate; `/model-settings {"contextWindow":N}` selects an offered exact value.
 stays visible and blocks inference until explicitly corrected. No history is
 silently truncated and context/output counts remain estimates.
 
+Each response can use the model's declared output maximum within the selected
+context window and its headroom; Moguri does not impose a separate 8,192-token
+response ceiling. Reasoning shares the response allowance. Session/profile/global
+token or USD caps can still reduce the actual forwarded limit. If the provider
+exhausts it, the turn stays partial and shows that exact limit; pending tools
+from the incomplete response do not run. No automatic retry, model fallback or
+budget increase occurs. See [response and reasoning bounds](architecture/model-controls.md#per-response-output-and-reasoning).
+
 Every tool needs a human approval bound to its exact arguments and policy/
 permission revisions, or an explicit bounded user delegation. Deny wins.
 Blanket shell/wildcard allow grants are rejected; shell grants name the exact

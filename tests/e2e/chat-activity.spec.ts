@@ -152,3 +152,22 @@ test("late original turn information never appears in another session", async ()
     expect(fixture.requests.length).toBe(1);
   } finally { release(); fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
 });
+
+test("an incomplete reasoning response shows its actual output limit and does not approve or execute its pending tool", async () => {
+  const fixture = await setupFixture({
+    reasoning: true, maxOutputTokens: 4096, finishReason: "length",
+    toolCall: { name: "read_file", args: { path: "fixture.txt" } },
+  });
+  await fixture.configure(); await fixture.send("Generated partial README inspection."); await fixture.terminal();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    await expect(transcript).toContainText("4096-token output limit");
+    await expect(transcript).toContainText("Reasoning counts toward this limit.");
+    await expect(transcript).toContainText("No tools from this incomplete response were executed.");
+    await expect(page.getByRole("region", { name: "Tool approval", exact: true })).toHaveCount(0);
+    expect(fixture.service.controller.events(0).some((event) => event.event_type === "tool.started")).toBe(false);
+    expect(fixture.requests).toHaveLength(1);
+  } finally { await app.close(); await fixture.close(); }
+});
