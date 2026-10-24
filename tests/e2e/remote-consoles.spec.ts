@@ -18,12 +18,12 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
   const manager = f.controller.platform.sessions.terminals, input = manager.input.bind(manager), received: string[] = [];
   let held = false; const barrier = new Promise<void>((resolve) => { release = resolve; });
   try {
+    const settings = sdk.settings.get()!;
+    await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmTerminalClose: false } }, settings.revision);
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote"); app = await launch(f.directory);
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     const panel = page.getByRole("region", { name: "Embedded Ghostty terminal", exact: true });
-    expect(f.controller.snapshot().terminals).toHaveLength(0);
-    await panel.getByRole("button", { name: "Open Remote terminal", exact: true }).click();
     await expect.poll(() => f.controller.snapshot().terminals.length).toBe(1);
     const terminal = f.controller.snapshot().terminals[0]!;
     const tty = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
@@ -66,7 +66,6 @@ test("desktop reopens the same Remote owner after service restart without a prob
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote"); app = await launch(f.directory);
     let page = await app.firstWindow();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
-    await page.getByRole("button", { name: "Open Remote terminal", exact: true }).click();
     await expect.poll(() => f.controller.snapshot().terminals.length).toBe(1);
     const terminal = f.controller.snapshot().terminals[0]!, owner = f.controller.snapshot().terminalOwners[0]!;
     let tty = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });

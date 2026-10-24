@@ -22,6 +22,8 @@ test("Ghostty detachment discards queued input, reconnects one existing PTY and 
   let held = false, emptyPages = 0, release = () => {};
   const barrier = new Promise<void>((resolve) => { release = resolve; }), received: string[] = [];
   try {
+    const settings = sdk.settings.get()!;
+    await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmTerminalClose: false } }, settings.revision);
     const page = await app.firstWindow(), failures: string[] = []; page.on("pageerror", (error) => failures.push(error.message));
     manager.read = async (...args) => { const result = await read(...args); if (!result.data.length && result.terminal.status === "running") emptyPages++; return result; };
     await page.getByRole("button", { name: "Terminal", exact: true }).click();
@@ -56,10 +58,10 @@ test("Ghostty detachment discards queued input, reconnects one existing PTY and 
     await expect.poll(() => fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
     await page.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "Terminal", exact: true }).click();
-    await expect(page.getByLabel("Selected terminal", { exact: true })).toHaveValue(terminal.id);
-    expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
-    await page.getByRole("button", { name: "New terminal", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(2);
+    expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
+    await page.getByRole("button", { name: "New terminal", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(3);
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
     expect(fixture.requests).toHaveLength(0); expect(failures).toEqual([]);
   } finally { release(); manager.input = original; manager.read = read; sdk.disconnect(); await app.close(); await fixture.close(); }

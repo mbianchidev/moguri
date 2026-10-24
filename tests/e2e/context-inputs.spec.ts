@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
-import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -38,7 +38,10 @@ test("long clipboard text becomes an exact scoped file and modifier queueing nev
 });
 
 test("clipboard images, exact folder review and typed GitHub/session triggers preserve explicit context", async () => {
-  const fixture = await setupFixture({ imageInput: true, platform: { integrations: { fetch: async () => Response.json({ number: 7, html_url: "https://github.com/generated/example/issues/7", title: "Generated attachment issue", body: "Generated immutable reference.", state: "open", updated_at: "2026-01-01T00:00:00Z" }) } } });
+  const fixture = await setupFixture({ imageInput: true, platform: { integrations: {
+    githubCliRead: async () => { throw new MoguriError("github_cli_unavailable", "Generated unavailable account.", 403); },
+    fetch: async () => Response.json({ number: 7, html_url: "https://github.com/generated/example/issues/7", title: "Generated attachment issue", body: "Generated immutable reference.", state: "open", updated_at: "2026-01-01T00:00:00Z" }),
+  } } });
   await fixture.configure();
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   const source = await sdk.sessions.create(null, "Generated source chat");
@@ -47,7 +50,6 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
   const sourceEditor = new DraftEditor(sdk, source.id!, sourceSession.draft);
   try { sourceEditor.edit("Generated source conversation text."); await sourceEditor.send("queue"); } finally { sourceEditor.dispose(); }
   await waitFor(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === source.id)?.status === "completed");
-  await sdk.command({ type: "session.archive", sessionId: source.id! });
   const folder = join(fixture.directory, "generated-ui-folder"); await mkdir(folder);
   await writeFile(join(folder, "allowed.txt"), "Generated context folder."); await writeFile(join(folder, ".env"), "GENERATED_EXCLUDED=not-a-real-secret");
   const png = await sharp({ create: { width: 24, height: 20, channels: 4, background: { r: 40, g: 90, b: 60, alpha: 1 } } }).png().toBuffer();
@@ -69,8 +71,8 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
     await expect(page.locator(".message-images").getByRole("img", { name: "Generated clipboard.png", exact: true })).toBeVisible();
     expect(JSON.stringify(fixture.requests.at(-1)!.messages)).toContain("data:image/png;base64,");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, folder);
-    await prompt.fill(":"); await prompt.press("Tab");
-    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Folder/ }).click();
+    await prompt.fill("^"); await prompt.press("Tab");
+    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Local folder/ }).click();
     const review = page.getByRole("dialog", { name: "Review attachment", exact: true });
     await expect(review).toContainText("allowed.txt");
     await expect(review.getByRole("button", { name: "Attach", exact: true })).toBeDisabled();
@@ -84,15 +86,14 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
     await expect(prompt).toHaveValue("");
-    await prompt.fill(`!${source.id}`); await prompt.press("Tab");
-    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: "Preview session context", exact: true }).click();
+    await prompt.fill(`:${source.id}`); await prompt.press("Tab");
     await expect(review).toContainText("Generated source conversation text.");
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/typed-context-review.png") });
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
     await expect.poll(() => fixture.session().draft.attachments.map((attachment) => attachment.kind)).toEqual(["folder", "github_issue", "session"]);
-    expect(fixture.service.controller.snapshot().sessions.find((session) => session.id === source.id)?.status).toBe("archived");
+    expect(fixture.service.controller.snapshot().sessions.find((session) => session.id === source.id)?.status).toBe("completed");
     expect(fixture.requests.length).toBe(2);
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     await page.screenshot({ path: resolve(".moguri/artifacts/typed-context-compact.png") });

@@ -325,14 +325,24 @@ capabilities, including generation previews and future-role admission.
 | Attachment | Trigger | Scope |
 | --- | --- | --- |
 | Single local file | `^` | An explicitly selected client-side file |
-| PDF, Word `.docx`, Excel `.xlsx` | Attach > Document or explicitly selected `^` file | Validated local extraction and encrypted original/extraction snapshots; bounded approved inspection, not whole-document model injection |
-| Local folder | `:` | An explicitly selected client-side folder with a bounded, reviewable file set |
+| PDF, Word `.docx`, Excel `.xlsx`, image | Attach > Local file or explicitly selected `^` file | Validated local extraction/normalization and encrypted snapshots; bounded approved document inspection, not whole-document model injection |
+| Local folder | `^/absolute/folder` | An explicitly selected client-side folder with a bounded, reviewable file set |
 | GitHub issue | `#` | An issue accessible through the active profile's authorized GitHub integration |
 | GitHub pull request | `#` | A PR accessible through the same integration; label issue and PR results distinctly |
-| Moguri session | `!` | Authorized session context, including permitted archived context |
-| Project file | `@` | A file in the selected project's actual local, sandbox, or remote workspace |
+| GitHub file | `@owner/repo/path` | Exact public or explicitly authenticated CLI-readable UTF-8 file snapshot |
+| Moguri session | `:session-name` | Same-profile public transcript; desktop lists non-archived sessions, while explicit SDK/CLI review can still select retained archived context |
+| Local project file or folder | `@project-name/path` | Explicit named Local source; the current session's bound Local worktree is used when applicable, never silently replaced by its base checkout |
 
-The desktop Attach menu offers these sources and a dedicated Document chooser. Users can paste clipboard images directly into the desktop composer. TUI image paste depends on terminal/clipboard capabilities; where unsupported, expose explicit file/path attachment instead of pretending pasted text is an image.
+The desktop Attach menu has five entries: Project file or folder, Issue or pull
+request, Session, Local file and Local folder. The local-file picker accepts
+source/text, documents and images without duplicate menu entries. Local project
+names contain only ASCII letters, digits, hyphens and underscores. `#137` uses
+the current project's GitHub upstream; project-free chats specify
+`owner/repo#137`. `!` remains a legacy session alias. Workspace reads on SSH or
+native execution retain their separate exact-root APIs and never become a Local
+fallback. Users can paste clipboard images directly into the desktop composer.
+TUI image paste depends on terminal/clipboard capabilities; where unsupported,
+expose explicit file/path attachment instead of pretending pasted text is an image.
 
 [Document attachments](architecture/document-attachments.md) preserve PDF page,
 DOCX body paragraph/heading/table and XLSX sheet/cell/cached-value/inert-formula

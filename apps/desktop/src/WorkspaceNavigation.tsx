@@ -1,18 +1,21 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { defaultProjectConfiguration, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { compareSessionOrder, defaultProjectConfiguration, isRecord, sessionOrderScope, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
+import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "pr" | "work" | "relocate" | "delete-session" | "remove-project";
 interface Edit { kind: EditKind; project?: Project; session?: Session }
-export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, settings, modal, allow }: {
+export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, settings, terminal, modal, allow }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
-  modal: (open: boolean) => void; allow: () => boolean;
+  modal: (open: boolean) => void; allow: () => boolean; terminal: (projectId: string) => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const [error, setError] = useState("");
+  const dragged = useRef<string | null>(null);
+  const [drop, setDrop] = useState<{ id: string; edge: "before" | "after" } | null>(null);
   useEffect(() => { modal(Boolean(edit)); return () => modal(false); }, [edit, modal]);
   const run = async (operation: () => Promise<unknown>) => { setError(""); try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Workspace action failed."); } };
   const open = (value: Edit) => { if (allow()) setEdit(value); };
@@ -26,8 +29,49 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     [siblings[index], siblings[target]] = [siblings[target]!, siblings[index]!];
     await sdk.projects.reorder(configuration.folderId, siblings.map((project) => ({ projectId: project.id, revision: folder(project).revision })));
   });
-  const renderSession = (session: Session, project: Project | undefined, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}>
-    <button className="session-link" aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}>
+  const orderedGroups = useMemo(() => {
+    const groups = new Map<string, Session[]>();
+    for (const session of snapshot.sessions) {
+      const scope = sessionOrderScope(session), group = groups.get(scope) ?? [];
+      group.push(session); groups.set(scope, group);
+    }
+    for (const group of groups.values()) group.sort(compareSessionOrder);
+    return groups;
+  }, [snapshot.sessions]);
+  const sameScope = (a: Session, b: Session) => sessionOrderScope(a) === sessionOrderScope(b);
+  const siblings = (session: Session) => orderedGroups.get(sessionOrderScope(session)) ?? [];
+  const moveSession = (session: Session, delta: number) => run(async () => {
+    const values = siblings(session), index = values.findIndex((value) => value.id === session.id), target = index + delta;
+    if (target < 0 || target >= values.length) return;
+    [values[index], values[target]] = [values[target]!, values[index]!];
+    await sdk.sessions.reorder(values.map((value) => value.id));
+  });
+  const clearDrag = () => { dragged.current = null; setDrop(null); };
+  const renderSession = (session: Session, project: Project | undefined, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
+    onDragOver={(event) => {
+      const source = snapshot.sessions.find((value) => value.id === dragged.current);
+      if (!source || source.id === session.id || !sameScope(source, session)) return;
+      event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = "move";
+      const edge = event.clientY < event.currentTarget.getBoundingClientRect().top + event.currentTarget.getBoundingClientRect().height / 2 ? "before" : "after";
+      setDrop((current) => current?.id === session.id && current.edge === edge ? current : { id: session.id, edge });
+    }}
+    onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((current) => current?.id === session.id ? null : current); }}
+    onDrop={(event) => {
+      if (!dragged.current || drop?.id !== session.id) return;
+      event.preventDefault(); event.stopPropagation();
+      const raw = event.dataTransfer.getData(SESSION_DRAG_TYPE), edge = drop.edge;
+      clearDrag();
+      void run(async () => {
+        const value: unknown = JSON.parse(raw), source = isRecord(value) && value.profileId === sdk.profileId ? snapshot.sessions.find((source) => source.id === value.sessionId) : undefined;
+        if (!source || !sameScope(source, session)) throw new Error("Move sessions only within their current project, parent, group and pin section.");
+        const values = siblings(session).filter((value) => value.id !== source.id), index = values.findIndex((value) => value.id === session.id);
+        values.splice(index + (edge === "after" ? 1 : 0), 0, source);
+        await sdk.sessions.reorder(values.map((value) => value.id));
+      });
+    }}>
+    <button className="session-link" draggable={!busy} onDragStart={(event) => { if (!allow()) { event.preventDefault(); return; } dragged.current = session.id; event.dataTransfer.setData(SESSION_DRAG_TYPE, JSON.stringify({ profileId: sdk.profileId, sessionId: session.id })); event.dataTransfer.effectAllowed = "copyMove"; }} onDragEnd={clearDrag}
+      onKeyDown={(event) => { if (event.altKey && ["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); void moveSession(session, event.key === "ArrowUp" ? -1 : 1); } }}
+      aria-description="Drag to reorder or attach content to a chat. Alt+Up or Alt+Down reorders within this section." aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}>
       <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{sessionTitle(session, 60, "New")}</span>
         {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionAttention snapshot={snapshot} session={session} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
@@ -35,6 +79,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       <button onClick={() => open({ kind: "rename", project, session })}><Icon name="Edit" />Rename</button>
       <button onClick={() => void run(() => sdk.sessions.organize(session.id, { pinned: !session.pinned }))}><Icon name="Pin" />{session.pinned ? "Unpin" : "Pin"}</button>
       <button onClick={() => void run(() => sdk.sessions.organize(session.id, { unread: !session.unread }))}><Icon name="ReadOnly" />{session.unread ? "Mark read" : "Mark unread"}</button>
+      <button aria-label={`Move session ${session.title} up`} disabled={siblings(session)[0]?.id === session.id} onClick={() => void moveSession(session, -1)}><Icon name="Up" />Move up</button>
+      <button aria-label={`Move session ${session.title} down`} disabled={siblings(session).at(-1)?.id === session.id} onClick={() => void moveSession(session, 1)}><Icon name="Down" />Move down</button>
       <button disabled={!project} onClick={() => open({ kind: "group", project, session })}><Icon name="Group" />Move to group</button>
       <button disabled={Boolean(session.turnId) || session.kind === "subagent"} onClick={() => open({ kind: "attach", project, session })}><Icon name="Link" />Attach to session</button>
       {session.parentSessionId && <button disabled={Boolean(session.turnId) || session.kind === "subagent"} onClick={() => void run(() => sdk.sessions.organize(session.id, { parentSessionId: null }))}><Icon name="Back" />Detach</button>}
@@ -49,7 +95,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const visible = new Set(sessions.map((session) => session.id));
     const tree = (parent: string | null, group: string | null, depth = 0): ReactNode => sessions.filter((session) =>
       (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent && (parent !== null || session.groupId === group))
-      .sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt)).map((session) => <div key={session.id}>{renderSession(session, project, depth)}{tree(session.id, group, depth + 1)}</div>);
+      .sort(compareSessionOrder).map((session) => <div key={session.id}>{renderSession(session, project, depth)}{tree(session.id, group, depth + 1)}</div>);
     return <section className="project-group" key={project.id}><header className="project-row">
       <button className="project-name" title={project.path} onClick={() => chooseProject(project.id)}><span className="project-color" style={{ color: configuration.color }}><Icon name="Files" /></span><span className="project-label">{project.name}</span></button>
       <WorkspaceMenu label={`Project actions for ${project.name}`}>
@@ -57,6 +103,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         <button onClick={() => open({ kind: "work", project })}><Icon name="Plan" />From work item</button>
         <button onClick={() => open({ kind: "pr", project })}><Icon name="PR" />From PR</button>
         <button onClick={() => settings(project.id)}><Icon name="Settings" />Settings</button>
+        <button onClick={() => terminal(project.id)}><Icon name="Terminal" />Open project terminal</button>
         <button onClick={() => void run(async () => { const info = await sdk.projects.git(project.id, false); if (!info.repository) throw new Error("This attached folder has no supported GitHub upstream."); await window.moguri.openExternal(info.repository); })}><Icon name="PR" />Open in GitHub</button>
         <button onClick={() => open({ kind: "new-group", project })}><Icon name="Group" />New session group</button>
         <button onClick={() => open({ kind: "folder", project })}><Icon name="Files" />Move to folder</button>
@@ -74,7 +121,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const projects = [...snapshot.projects].sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
   const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived);
   const generalIds = new Set(general.map((session) => session.id));
-  const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort((a, b) => Number(b.pinned) - Number(a.pinned) || a.createdAt.localeCompare(b.createdAt)).map((session) => <div key={session.id}>{renderSession(session, undefined, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
+  const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort(compareSessionOrder).map((session) => <div key={session.id}>{renderSession(session, undefined, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
   return <><div className="project-list" aria-busy={busy}>
     {error && <p className="inline-error" role="alert">{error}</p>}
     <section className="project-group general-chats" aria-label="Project-free chats"><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">No project</span></button><button className="icon-button" aria-label="New project-free chat" title="New project-free chat" onClick={() => void run(async () => { const created = await sdk.sessions.create(null); await chooseSession(created.id!); })}><Icon name="Plus" /></button></header>{generalTree(null)}</section>

@@ -9,15 +9,92 @@ Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
 host/guest artifacts, actual generated worker/tool/image frames and cancellation.
 Cold provider networking requires a separately reviewed exact DNS-alias scope;
 the endpoint-only probe fails. These primitives do not by themselves enable
-public Sandbox. The current protocol-40 service/SDK/client lifecycle below
+public Sandbox. The recorded protocol-40 service/SDK/client lifecycle below
 extends them without changing factory settings or broadening policy.
+
+## Desktop interactions
+
+Unreleased source uses protocol/database **44**. The right rail starts with
+Dashboard, Artifacts, Candidates, Sandbox, Suggestions and Global Terminal,
+followed by session-bound tools.
+
+| Attach menu | Shortcut | Selection |
+| --- | --- | --- |
+| Project file or folder | `@project-name/path` | Explicit named Local project; the selected Local session uses its bound worktree |
+| Issue or pull request | `#137`, `owner/repo#137` | Current project's GitHub upstream, or an explicitly named repository |
+| Session | `:session-name` | Dropdown of non-archived sessions in this profile |
+| Local file | `^/absolute/file.pdf` | Source/text, PDF, DOCX, XLSX or supported image through one picker |
+| Local folder | `^/absolute/folder` | Exact bounded file set and exclusions, reviewed before attachment |
+
+GitHub files use `@owner/repo/README.md` through the GitHub chooser. Automatic
+access tries the Local control plane's GitHub CLI account and, if unavailable,
+uses only the public API with that boundary disclosed in the preview. Switching
+access/source/destination after preview requires fresh review. Remote GitHub
+files currently support exact UTF-8 text up to 128 KiB, not binary conversion.
+Project-free chats must specify a repository for issues/PRs. Names of Local
+projects contain only letters, digits, `-` and `_`; existing display names are
+normalized deterministically, with collision suffixes, without changing IDs,
+folders or repository files.
+
+Click any attached chip to inspect the retained snapshot. Session context opens
+as JSON, images open enlarged, and documents keep their bounded page/section/
+cell previews. Remove works on draft context, never deletes the original file,
+and does not rewrite sent messages. Dropping a sidebar session onto the composer
+attaches its content after source/destination review; it does not reparent,
+resume or otherwise control that session. **Do not ask me again** suppresses
+future session-attachment dialogs only. Source/digest, profile, destination and
+draft-revision checks remain enforced.
+
+Drag a session above or below a sibling to reorder it. Order is saved atomically
+in the service and shared with desktop, TUI and SDK clients. It cannot move a
+session across projects, parents, groups, pinned sections or archive sections.
+Alt+Up/Down and the session action menu provide keyboard alternatives.
+`moguri session reorder ID...` and `/reorder-sessions ID...` require the complete
+current sibling set, not a partial list. Settings, Issues and Archived toggle
+back to the conversation when selected again in the left sidebar.
+
+**Global Terminal** is independent of every project/worktree/session and opens
+in the canonical Moguri data directory selected by the runtime, including
+`MOGURI_STATE_DIR` when configured. It is a Local user console, not agent context
+or SendBox isolation. Global allowed-env policy still applies. To work in a
+project, use its action menu's **Open project terminal**, the session's Terminal
+panel, or `/terminal`. Explicitly opening an eligible terminal pane starts the
+console without a Start button. Restoring a saved pane or reconnecting does not
+replay a launch; existing authenticated owners are reused.
+
+Closing a terminal pane asks for confirmation and detaches its view, leaving
+consoles running. Its **Do not ask me again** option is saved in this profile.
+The console's X button explicitly terminates that exact console without a
+dialog. It never immediately relaunches a replacement. Both confirmation
+preferences are available under **Settings > Confirmations**, including reset
+to the default of asking.
+
+Dictation shows Preparing, Recording and Finalizing separately. Recording starts
+only after the pinned local runtime reports its microphone ready. Stop allows
+up to one minute to drain the final transcript instead of killing it after three
+seconds; explicit cancellation still discards output and escalates a stuck
+process. Automatic language detection uses the runtime's native default.
+Stopping in the composer appends the completed transcript to the saved draft,
+preserving text typed during finalization and never sending a prompt. Errors
+are shown next to the active voice controls, not in a general Settings job log.
+Runtime/model setup and explicit model-license consent remain required. Tests
+use generated recognizers and synthetic permission responses, not a microphone
+or real speech model, so they do not establish actual ASR accuracy.
+
+The additive schema-44 migration preserves ciphertext, receipts and existing
+attachment grants. Restart the service and clients together; keep the existing
+data directory and encryption backend. The root install uses maintained
+encoding-sniffer and Node-native fetch compatibility instead of deprecated
+whatwg-encoding/node-domexception chains; Electron and advisory fixes are also
+included. See the [context contract](architecture/context-inputs.md#desktop-interaction-revision)
+and [console ownership contract](architecture/terminal-reattachment.md#global-local-consoles-and-pane-confirmation).
 
 ## Document attachments and task completion
 
-The 0.30.0-alpha.1 source uses protocol/database **43**. It extends the existing
+Protocol/database **43** introduced the 0.30.0-alpha.1 document slice. It extends the existing
 attachment pipeline with validated PDF, Word `.docx` and Excel `.xlsx` snapshots.
-Desktop **Attach > Document** shows local extraction, exact cancellation,
-ready/limited chips and bounded previews/search. **Local text file** still accepts
+Desktop **Attach > Local file** shows local extraction, exact cancellation,
+ready/limited chips and bounded previews/search. **Local file** also accepts
 source files such as `.java`; file/clipboard images keep their existing behavior.
 Use the picker for documents rather than pasting an Office clipboard file.
 

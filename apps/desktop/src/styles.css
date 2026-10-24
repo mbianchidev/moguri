@@ -213,6 +213,15 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .composer-menu-option[aria-pressed="true"] { color: var(--selection-text); background: var(--selected); }
 .composer-menu-option[aria-pressed="true"] small { color: inherit; }
 .composer-menu-option > svg:last-child { width: 14px; }
+.attach-popover { padding: 8px; border-radius: 12px; border-color: var(--line); }
+.attachment-menu .composer-menu-option { min-height: 44px; padding: 10px 12px; font-size: 14px; background: transparent; }
+.attachment-menu kbd { color: var(--muted); font: inherit; margin-left: auto; padding: 0; border: 0; background: transparent; }
+.attachment-menu hr { border: 0; border-top: 1px solid var(--soft-line); margin: 8px 12px; }
+.attachment-picker { padding: 6px; }
+.attachment-picker > header { display: flex; align-items: center; gap: 8px; }
+.attachment-picker > header h2 { margin: 0; }
+.attachment-picker .setting-field { margin: 14px 0; }
+.context-session-options { max-height: 230px; overflow: auto; }
 .composer-model-search { width: 100%; margin-bottom: 8px; font-size: 12px; }
 .composer-model-list { max-height: 180px; overflow: auto; }
 .model-tuning { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -232,12 +241,23 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .attachment-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px 0; }
 .attachment-list > span { display: flex; align-items: center; gap: 6px; font-size: 11px; background: var(--subtle); padding: 2px 4px 2px 7px; border: 1px solid var(--line); border-radius: 4px; max-width: 100%; overflow-wrap: anywhere; }
 .attachment-list svg { width: 13px; height: 13px; }
-.attachment-list button { padding: 2px 6px; border: 0; min-height: 24px; background: transparent; }
+.attachment-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+.attachment-chip > button { padding: 2px 6px; border: 0; min-height: 24px; background: transparent; }
+.attachment-preview-button { display: inline-flex; align-items: center; gap: 7px; text-align: left; min-width: 0; }
+.attachment-preview-button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .context-image { display: block; max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 4px; background: var(--subtle); }
 .attachment-list .context-image { width: 48px; height: 40px; }
 .message-images { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .attachment-review { width: min(740px, calc(100vw - 36px)); }
 .attachment-review pre { max-height: 280px; overflow: auto; }
+.attachment-preview { width: min(780px, calc(100vw - 36px)); }
+.attachment-preview pre { max-height: 60vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.attachment-preview .context-image { width: auto; height: auto; max-width: 100%; max-height: 65vh; margin-inline: auto; }
+.attachment-session-suggestions { display: grid; gap: 2px; margin: 0 12px; max-height: 200px; overflow: auto; }
+.attachment-session-suggestions button { display: flex; align-items: center; gap: 9px; text-align: left; border-color: transparent; }
+.attachment-session-suggestions [aria-selected="true"] { background: var(--selected); color: var(--selection-text); }
+.session-drop-target { box-shadow: 0 0 0 2px var(--accent); }
+.session-drop-hint { margin: 8px 14px; color: var(--accent); font-size: 12px; }
 .project-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .workspace-record { margin: 14px 0; min-width: 0; }
 .workspace-record summary { overflow-wrap: anywhere; }
@@ -278,6 +298,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .panel-rail { background: var(--sidebar); border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 3px; }
 .panel-rail button { border: 0; background: transparent; padding: 9px; min-height: 36px; display: flex; color: var(--muted); }
 .panel-rail button.active { color: var(--accent); background: var(--selected); }
+.panel-rail-item { display: flex; flex-direction: column; align-items: center; }
+.panel-rail-item hr { width: 22px; margin: 4px 0 10px; border: 0; border-top: 1px solid var(--line); }
 .panel-empty { padding-top: 12px; }
 .panel-empty > svg { width: 26px; height: 26px; color: var(--muted); }
 .panel-empty h2 { font-size: 14px; margin: 18px 0 12px; }
@@ -347,6 +369,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .setting-field .prompt-editor { min-height: 350px; font-family: inherit; max-height: 65vh; }
 .setting-field .json-editor { min-height: 260px; font: 12px/1.7 ui-monospace, monospace; }
 .setting-field .json-editor.short { min-height: 110px; }
+.settings-page :is(pre, code, .json-editor) { font-family: inherit; }
 .check-setting { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.7; margin: 16px 0; max-width: 76ch; }
 .check-setting input { width: 15px; height: 15px; margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
 .settings-content .settings-warning { color: var(--warning-text); background: var(--warning-bg); padding: 12px 14px; border: 1px solid var(--warning-line); border-radius: 5px; font-size: 12px; }
@@ -367,9 +390,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .mcp-remote-scope dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .mcp-remote-history { margin-top: 24px; font-size: 12px; }
 .mcp-remote-result { max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.settings-jobs, .settings-result { margin-top: 30px; }
+.settings-result { margin-top: 30px; }
 .settings-result pre { max-height: 420px; overflow: auto; }
-.settings-result summary, .settings-jobs summary { color: var(--muted); font-size: 12px; }
+.settings-result summary { color: var(--muted); font-size: 12px; }
 .cache-plan { margin-top: 24px; }
 .cache-plan code { overflow-wrap: anywhere; }
 .cache-plan pre { max-height: 280px; overflow: auto; }
@@ -425,6 +448,11 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .project-color { display: inline-flex; flex-shrink: 0; }
 .session-row.selected { background: var(--selected); border-radius: 5px; }
 .session-row.selected .session-link { color: var(--selection-text); }
+.session-row.drop-before::before, .session-row.drop-after::after { content: ""; position: absolute; inset-inline: 6px; height: 2px; background: var(--accent); pointer-events: none; z-index: 1; }
+.session-row.drop-before::before { top: 0; }
+.session-row.drop-after::after { bottom: 0; }
+.session-link[draggable="true"] { cursor: grab; }
+.session-link[draggable="true"]:active { cursor: grabbing; }
 .session-link > svg { width: 12px; height: 12px; color: var(--muted); }
 .unread-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 .workspace-menu { flex-shrink: 0; }
@@ -491,7 +519,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .panel-toolbar select, .terminal-tabs select, .browser-address input { flex: 1; min-width: 0; width: 0; font-size: 11px; }
 .terminal-tabs { flex-wrap: wrap; }
 .terminal-tabs select { flex-basis: 100%; width: 100%; }
-.context-content:is(.panel-terminal, .panel-browser, .panel-plan, .panel-side-chat) { display: flex; flex-direction: column; padding: 12px 10px; overflow: hidden; }
+.context-content:is(.panel-terminal, .panel-global-terminal, .panel-browser, .panel-plan, .panel-side-chat) { display: flex; flex-direction: column; padding: 12px 10px; overflow: hidden; }
 .ghostty-panel, .browser-panel, .plan-panel, .side-chat-panel { display: flex; flex-direction: column; flex: 1; gap: 10px; min-width: 0; min-height: 0; }
 .ghostty-host { min-width: 0; min-height: 120px; flex: 1; background: #11161e; overflow: hidden; }
 .terminal-boundary { font-size: 10px; color: var(--muted); line-height: 1.6; margin: 0; flex-shrink: 0; overflow-wrap: anywhere; }

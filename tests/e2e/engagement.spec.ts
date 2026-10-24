@@ -31,7 +31,7 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     expect(created.projectId).toBeNull();
     const prompt = page.getByLabel("Prompt", { exact: true });
     await page.getByRole("button", { name: "Attach", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: "Project text file", exact: true })).toBeDisabled();
+    await expect(page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Project file or folder/ })).toBeEnabled();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: /^Model:/ }).click();
     await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
