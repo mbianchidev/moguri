@@ -4,6 +4,9 @@ A harness for your AI that works on your terms, both in a CLI (TUI) format and a
 
 Moguri is built from zero with borrowed libraries. The [implementation specification](docs/implementation.md) defines the product and delivery order; [architecture decisions](docs/architecture/decisions.md) records the chosen stack.
 
+The opt-in [Rust SDK research prototype](docs/architecture/rust-sdk-spike.md)
+retains the issue-22 experiments; it does not replace the production SDK or TUI.
+
 ## Initial implementation
 
 The first executable checkpoint includes an **OpenTUI terminal client** and an

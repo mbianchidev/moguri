@@ -1,0 +1,15 @@
+/target/
+/pkg-web/
+/tools/
+/toolchain/
+/results/
+/generated-browser-profile/
+/advisory-db/
+/advisory-db..lock
+/sdk-native.node
+/sdk-fixture.mjs
+/query-aot.mjs
+/query-aot.raw.mjs
+/dataset.json
+/query-schema.json
+/command-schema.json

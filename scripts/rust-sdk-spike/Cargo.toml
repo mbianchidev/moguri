@@ -1,0 +1,12 @@
+[workspace]
+resolver = "3"
+members = ["core", "native", "wasm", "cli"]
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sdk-study-core = { path = "core" }
+
+[profile.release]
+strip = false
+lto = "thin"
