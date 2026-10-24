@@ -6,7 +6,7 @@ import { setupFixture } from "../fixture.ts";
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop settings are qualified on macOS.");
 
-test("searchable grouped settings preserve edits and keep global resources off the session rail", async () => {
+test("searchable settings preserve edits and both navigation surfaces open the same independent resources", async () => {
   const fixture = await setupFixture();
   const app = await electron.launch({
     executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -16,9 +16,9 @@ test("searchable grouped settings preserve edits and keep global resources off t
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
-    for (const name of ["Suggestions", "Dashboard", "Artifacts", "Candidates", "Sandbox", "Attention"]) {
-      await expect(rail.getByRole("button", { name, exact: true })).toHaveCount(0);
-    }
+    await expect.poll(async () => (await rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")))).slice(0, 6))
+      .toEqual(["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal"]);
+    await expect(rail.getByRole("button", { name: "Attention", exact: true })).toHaveCount(0);
     const navigation = page.getByRole("navigation", { name: "Projects and sessions" });
     await expect(navigation.getByRole("button", { name: "Manage profiles", exact: true })).toHaveCount(0);
     await expect(navigation.getByLabel("Active profile", { exact: true })).toHaveCount(0);

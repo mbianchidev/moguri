@@ -239,7 +239,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
         else {
           const action = chatSubmission(event);
-          if (action && (isSlash || action === "hold" ? canQueue : canSend)) send(undefined, action === "hold");
+          if (!action) return;
+          event.preventDefault();
+          if (isSlash || action === "hold" ? canQueue : canSend) send(undefined, action === "hold");
         }
       }} />
     {suggestions.length > 0 && <div className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion) => <button type="button" role="option" aria-selected={false} key={suggestion.name} onClick={() => editor.edit(`/${suggestion.name} `)}><strong>/{suggestion.name}</strong><span>{suggestion.description}</span></button>)}</div>}

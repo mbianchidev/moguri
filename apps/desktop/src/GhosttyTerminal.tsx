@@ -45,8 +45,8 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
   return <>{error && <p className="inline-error" role="alert">{error}</p>}<div ref={host} className="ghostty-host agent-ghostty-host" aria-label="Agent terminal output" aria-readonly="true" />
     <pre className="sr-only" aria-label="Agent command transcript" aria-live="off">{text}</pre></>;
 }
-export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active, consoleScope, opening = false, visible = active, autoStart = false }: {
-  sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean; consoleScope?: "global" | "session"; opening?: boolean; visible?: boolean; autoStart?: boolean;
+export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active, consoleScope, opening = false, visible = active, autoStart = false, onAutoStartHandled }: {
+  sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean; consoleScope?: "global" | "session"; opening?: boolean; visible?: boolean; autoStart?: boolean; onAutoStartHandled?: () => void;
 }) {
   const [scope, setScope] = useState<"global" | "session">(contextSession?.projectId ? "session" : "global");
   const session = (consoleScope ?? scope) === "session" ? contextSession : undefined, env = session?.controls.env ?? "Local";
@@ -105,10 +105,13 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
   });
   useEffect(() => {
     if (!visible) { autoOpened.current = false; return; }
-    if (!active || !autoStart || !canOpen || autoOpened.current) return;
+    if (!active || !autoStart || autoOpened.current) return;
+    const existing = terminals.some((terminal) => !["closed", "failed", "acknowledged"].includes(terminal.status));
+    if (!existing && !canOpen) return;
     autoOpened.current = true;
-    if (!terminals.some((terminal) => !["closed", "failed", "acknowledged"].includes(terminal.status))) void openTerminal();
-  }, [visible, active, autoStart, canOpen, session?.id, env, terminals]);
+    onAutoStartHandled?.();
+    if (!existing) void openTerminal();
+  }, [visible, active, autoStart, canOpen, session?.id, env, terminals, onAutoStartHandled]);
   useEffect(() => {
     let current = true;
     if (connected && active && env === "Local" && !session?.projectId) void sdk.terminal.defaultRoot().then((value) => { if (current) setDefaultRoot(value.root); })

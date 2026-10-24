@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { setupFixture } from "../fixture.ts";
+import { setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop questions are qualified on macOS.");
@@ -59,7 +59,7 @@ test("desktop keeps queue-only shortcuts distinct from actual user answers and r
     const card = page.getByRole("region", { name: "User question", exact: true }), prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
     await expect(card).toContainText("Choose a generated fixture approach?");
     await expect(page.getByRole("region", { name: "Tool approval" })).toHaveCount(0);
-    const question = sdk.getState().snapshot!.questions[0]!;
+    const question = await waitFor(() => sdk.getState().snapshot?.questions.find((question) => question.status === "open"));
     await prompt.fill("Generated deliberately held followup.");
     await prompt.press("Meta+Enter");
     await expect.poll(() => sdk.getState().snapshot!.sessions[0]?.queue[0]?.held).toBe(true);

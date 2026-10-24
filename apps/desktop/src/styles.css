@@ -180,7 +180,8 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .message.user { padding: 16px 18px; background: var(--subtle); border-radius: 8px; }
 .message.user .markdown p { margin: 0; }
 .conversation-turn { margin-bottom: 24px; }
-.response-turn, .session-activities, .activity-read-error { max-width: 76ch; margin-inline: auto; min-width: 0; }
+.response-turn { min-width: 0; }
+.session-activities, .activity-read-error { max-width: 76ch; margin-inline: auto; min-width: 0; }
 .response-turn > .message { margin-bottom: 18px; }
 .activity-row { margin: 5px 0; min-width: 0; }
 .activity-row > summary { display: flex; align-items: center; gap: 9px; list-style: none; min-height: 30px; color: var(--muted); padding: 3px 0; }

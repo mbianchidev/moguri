@@ -16,8 +16,12 @@ RPC responses. Protocol 21 adds sanitized tool/MCP outcomes and key-backed
 retained sizes; protocol 22 adds explicit actual-root GitHub metadata review,
 exact refresh/stop, immutable repository/owner/visibility filtering and
 unassigned-history coverage. None of these grant tools or dispatch a model.
-Its current rail is Terminal, Browser, Insights, Dashboard, PR when linked, Changes, Plan,
-Side chat, Suggestions and Attention. Suggestions use explicit scoped source
+Its current rail starts with Dashboard, Artifacts, Candidates, Sandbox,
+Suggestions and Global Terminal, followed by Terminal, Browser, Insights,
+PR when linked, Changes, Files, Plan and Side chat. Attention is in the top bar.
+Profile-resource shortcuts open the same independent workspace as the left
+navigation; source-chat selection never creates a hidden session.
+Suggestions use explicit scoped source
 review and configuration proposals; attention read state is not a user answer
 or tool decision. Project-free chats show a project-required state for agent workspace
 panels instead of reusing a previous root. The user-console exception below
@@ -31,15 +35,18 @@ See [setup](../setup.md) and [D16](../architecture/decisions.md#d16-session-work
 
 ## Purpose
 
-The desktop app has a persistent, session-aware sidebar beside the main session. The sidebar gives users supporting views without replacing or obscuring the primary chat.
+The desktop app has a persistent, session-aware sidebar beside the main session.
+Session-bound tools support that chat; profile-wide resources instead open an
+independent central workspace with Back to chat. Their rail shortcuts do not
+create a second resource owner or another chat.
 
 This sidebar is desktop-only. The TUI keeps its own navigation and split-panel presentation and does not implement this sidebar contract. Both clients still use the same typed local API, domain model, event stream, permissions, and cancellation semantics.
 
 ## Product rules
 
 - The session in the primary pane is the **main session** for the sidebar.
-- Switching the main session rebinds every sidebar panel to that session, its project, and its worktree.
-- The Terminal panel can explicitly select the independent profile-owned Global console instead. Changing chats never rebinds that console.
+- Switching the main session rebinds session-scoped panels to that session, its project, and its worktree.
+- Terminal has separate private User and read-only Agent tabs. Global Terminal opens the independent profile-owned Local console; changing chats never rebinds that console.
 - Sidebar content comes from the local control plane. Panels must not keep authoritative copies of session, terminal, file, extension, or usage state.
 - Desktop-only layout preferences such as width, collapsed state, active panel, and inline-metric visibility may remain local UI preferences.
 - Actions that affect Git, processes, files, sessions, extensions, or remote systems use the same policy checks, autonomy level, and human or delegated approval attribution as every other client. Opening a panel grants no new delegation.
@@ -47,15 +54,10 @@ This sidebar is desktop-only. The TUI keeps its own navigation and split-panel p
 
 ## Navigation and layout
 
-The sidebar provides these top-level panels:
-
-1. Changes
-2. Terminal
-3. Files
-4. Browser
-5. Side chat
-6. Insights
-7. Extensions
+The first six rail entries are Dashboard, Artifacts, Candidates, Sandbox,
+Suggestions and Global Terminal, in that order. Session tools then appear as
+Terminal, Browser, Insights, PR when linked, Changes, Files, Plan and Side chat.
+Extensions remains a roadmap panel, not an implemented additional entry.
 
 Only one panel needs to be open at a time. The sidebar can collapse, resize, show status badges, and preserve its presentation state. Opening an item may create a split panel without changing the main-session binding.
 

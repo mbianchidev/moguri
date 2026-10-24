@@ -218,6 +218,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     action();
   };
   const confirmTerminalNavigation = () => new Promise<boolean>((resolve) => beforeHidingTerminal(() => resolve(true), () => resolve(false)));
+  const terminalOpeningHandled = (panel: Panel, sessionId: string | null) => setTerminalIntent((intent) =>
+    intent?.panel === panel && intent.sessionId === sessionId ? null : intent);
   const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; beforeHidingTerminal(() => { setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); }); };
   const settingsMenu = useRef(openSettings); settingsMenu.current = openSettings;
   useEffect(() => window.moguri.onOpenSettings(() => settingsMenu.current("general")), [client]);
@@ -403,7 +405,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             <option value="">Choose an existing chat</option>{globalSessionId && !globalSession && <option value={globalSessionId} disabled>Source chat removed; retained records remain readable</option>}{snapshot.sessions.filter((session) => session.status !== "archived" && session.kind !== "subagent").map((session) => <option key={session.id} value={session.id}>{title(session)}</option>)}
           </select></label>}
         </header>
-        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Global terminal" ? <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={!palette && !nativeModal && !terminalDismiss && !commandOutput} consoleScope="global" visible autoStart={terminalIntent?.panel === "Global Terminal"} /></Suspense> :
+        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Global terminal" ? <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={!palette && !nativeModal && !terminalDismiss && !commandOutput} consoleScope="global" visible autoStart={terminalIntent?.panel === "Global Terminal"} onAutoStartHandled={() => terminalOpeningHandled("Global Terminal", null)} /></Suspense> :
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
         </div>
       </section> : <>
@@ -445,7 +447,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         <button className="icon-button" aria-label={panelMaximized ? "Restore session sidebar" : "Maximize session sidebar"} title={panelMaximized ? "Restore split view" : "Expand over chat; keep navigation visible"} onClick={() => { if (canChangePanel()) setPanelMaximized((value) => !value); }}><Icon name={panelMaximized ? "Minimize" : "Maximize"} /></button>
         <button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}><Icon name="PanelRight" /></button></header>
       <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>
-        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} terminalPending={busy} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === panel && terminalIntent.sessionId === session?.id} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && !commandOutput && panelVisible} />}
+        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} artifactRequest={artifactRequest} clearArtifactRequest={() => setArtifactRequest(null)} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} terminalPending={busy} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === panel && terminalIntent.sessionId === session?.id} onTerminalOpeningHandled={() => terminalOpeningHandled(panel, session?.id ?? null)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && !commandOutput && panelVisible} />}
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
@@ -500,7 +502,7 @@ function Timeline({ session, snapshot, run, client, modal }: { session: Session;
     if (message.role === "tool" || message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome)) return null;
     return <article key={`message-${message.id}`} className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
-          {message.role === "user" && <button className="icon-button message-copy" title="Copy message" aria-label={`Copy sent prompt ${message.id}`} onClick={() => void run(() => window.moguri.copyText(message.text))}><Icon name="Copy" /></button>}</header>
+          {message.role !== "notice" && <button className="icon-button message-copy" title="Copy message" aria-label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} onClick={() => void run(() => window.moguri.copyText(message.text))}><Icon name="Copy" /></button>}</header>
         <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><p className="reasoning">{message.reasoning}</p></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
@@ -569,10 +571,10 @@ function Queue({ session, command, client, modal }: { session: Session; command:
         <button className="icon-button" aria-label={`Remove queued message ${index + 1}`} title="Delete" onClick={() => void command({ type: "queue.remove", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}><Icon name="Trash" /></button></>}</div>)}
   </section>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, prUrl, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, suggestionsAll, chooseSession, modal, artifactRequest, clearArtifactRequest, setupSandbox, terminalPending = false }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, prUrl, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, artifactRequest, clearArtifactRequest, setupSandbox, terminalPending = false }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
-  onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean;
+  onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; onTerminalOpeningHandled?: () => void;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void; artifactRequest: ArtifactEditorRequest | null; clearArtifactRequest: () => void;
   setupSandbox: () => void;
@@ -583,9 +585,9 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Candidates" && snapshot) return <CandidatePanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} />;
   if (panel === "Sandbox" && snapshot) return <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} />;
   if (panel === "Dashboard" && snapshot) return <UsageDashboard key={client.profileId} sdk={client} snapshot={snapshot} />;
-  if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} opening={terminalPending} /></Suspense>;
+  if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} opening={terminalPending} onAutoStartHandled={onTerminalOpeningHandled} /></Suspense>;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
-  if (panel === "Global Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} /></Suspense>;
+  if (panel === "Global Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} onAutoStartHandled={onTerminalOpeningHandled} /></Suspense>;
   if (panel === "Suggestions" && snapshot) return session ? <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={suggestionsAll} chooseSession={chooseSession} modal={modal} /> :
     <div className="panel-empty"><Icon name="Suggestions" /><h2>Choose a source chat</h2><p>Select an existing chat above to review its source scope. No hidden chat or model call is created.</p></div>;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
