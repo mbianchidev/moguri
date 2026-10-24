@@ -217,3 +217,28 @@ test("every model choice question has an explicit Other textbox that preserves t
     expect(answered.answer?.actor).toBe("user"); expect(answered.answer?.other).toBe(true);
   } finally { await app.close(); await fixture.close(); }
 });
+
+test("question-only side chats expose the same explicit Other answer without changing the parent or read-only boundary", async () => {
+  const fixture = await setupFixture({ holdAfterTool: true }), app = await launch(fixture.directory);
+  try {
+    await fixture.configure();
+    const page = await app.firstWindow();
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated parent draft stays separate");
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Side chat", exact: true }).click();
+    const side = page.locator(".side-chat-panel");
+    await side.getByRole("button", { name: "New side chat", exact: true }).click();
+    await side.getByRole("combobox", { name: "Side chat model", exact: true }).selectOption(fixture.modelId);
+    await side.getByRole("textbox", { name: "Side question", exact: true }).fill("generated structured question choices only");
+    await side.getByRole("button", { name: "Ask", exact: true }).click();
+    const question = side.getByRole("region", { name: "User question", exact: true });
+    await question.getByRole("button", { name: "Other, please specify", exact: true }).click();
+    await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated explicit side alternative");
+    await question.getByRole("button", { name: "Send answer", exact: true }).click();
+    await expect(question).toHaveCount(0);
+    const state = fixture.service.controller.snapshot(), child = state.sessions.find((session) => session.kind === "side")!;
+    const answered = state.questions.find((entry) => entry.sessionId === child.id)!;
+    expect(answered.answer?.other).toBe(true); expect(answered.answer?.actor).toBe("user");
+    expect(child.mode).toBe("read-only");
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated parent draft stays separate");
+  } finally { await app.close(); await fixture.close(); }
+});
