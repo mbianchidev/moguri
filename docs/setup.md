@@ -42,6 +42,36 @@ The transactional upgrade from schema 45 to 46 changes no SQL layout,
 ciphertext, grants or receipts and never replays commands. Restart service and clients together.
 See [the ownership and capability contract](architecture/agent-terminal.md).
 
+### Protocol-46 source qualification
+
+On macOS arm64 / Node 26, type checks and the production build pass. The complete
+unit/integration/native-TUI suite passes **1,112 cases**, with **nine physical
+native-workload skips**, zero failures and a duration of **979.63 s**.
+Complete hidden Electron acceptance passes **84 cases**, with **one physical
+native-workload skip**, zero failures and a duration of **3.2 min**.
+
+Generated model flows execute and reread actual Local and pinned loopback-SSH
+command output. They prove private User console bytes stay out of model
+requests, explicit read denial and read-only mode remain enforced, held reads
+cannot outlive policy revocation/stop, and agent cancellation preserves the
+separate User console. Other checks cover exact source/session isolation,
+Unicode tail bounds, schema-45 ciphertext/receipt preservation, restart without
+command replay, native read-only Ghostty, keyboard escape, stale-view rejection
+and unavailable history without a false empty state.
+
+The packed external SDK passes browser-safe entrypoint/declaration checks and
+Agent SDK/React/CLI/TUI scope/source inspection. All **12 actual installed-worker
+acknowledgement/accounting/cancellation probes** pass. The audit reports
+**zero vulnerabilities**. Project-free models do not receive an unusable
+terminal tool; the unchanged context/headroom guard remains enforced.
+Read-only declaration tests inspect actual tool names, not strings appearing
+in descriptions, while preserving the existing no-write/no-execution checks.
+
+No personal console, account, microphone or paid inference was used. Physical
+SendBox workloads, Linux UI and signed/notarized release gates remain
+unqualified; source version numbers and generated SSH evidence do not close
+them. Earlier protocol qualification records below remain historical.
+
 ## Chat activity and usage
 
 Protocol 45 introduced this activity slice. Chat operations appear as compact
