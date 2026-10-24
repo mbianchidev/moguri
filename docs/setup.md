@@ -368,6 +368,30 @@ Those context-only results do not qualify public Cascade/Critique, finite
 kupo wind-down/authorized checkpoints, System One/Max or production Sandbox.
 The later source checkpoints below record their own narrower evidence.
 
+### SendBox image compatibility and failed verification
+
+Under **Settings > Execution & permissions**, review and save the exact
+SendBox installation, immutable workload image, worker/bridge digests and
+network hostnames, then explicitly verify. A syntactically valid configuration
+can still pin an incompatible workload: the historical image
+`sha256:517fba3d59a3be64c04166dff9de038168580ce67315c4de538503636e3680b0`
+uses protocol **50**, not the current **51**. Use the actual matching image
+receipt; changing JSON version fields cannot upgrade those bytes.
+
+Version refusal now names the guest and required protocols before initialization
+or provider access. New failed probes retain their original signed guest identity
+for exact cleanup. Earlier failed private intents are not silently cleared,
+adopted or replayed. An original unconfirmed cleanup record is not proof that
+a guest is currently running or permission to stop one by name.
+
+If verification instead reports a provider-network failure, review the actual
+proxy/DNS boundary. API-only access may reject the provider's current DNS alias.
+No alias is added automatically, and offline guest qualification does not
+establish Copilot connectivity. Sandbox consoles remain unavailable independently
+of core native-agent readiness. See the
+[protocol-51 bootstrap contract](architecture/sendbox-0.2.3.md#protocol-51-bootstrap-and-private-qualification)
+for ownership, cleanup and network limitations.
+
 ### Native service/SDK development checkpoint
 
 Current source adds protocol/database **37**, not a new qualified archive.
