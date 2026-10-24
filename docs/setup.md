@@ -1049,6 +1049,20 @@ or already-running work; use the visible stop control to stop a turn.
 a state directory already owned by another service. `npm start -- --help`
 prints the built terminal client's entry-point help.
 
+The TUI composer uses **Enter to send** and **Shift+Enter for a newline**.
+Cmd/Ctrl+Enter still holds without running; Shift+Cmd/Ctrl+Enter sends now.
+Settings/JSON editors keep their separate Ctrl+Enter save action. Shift requires
+a terminal that reports the modifier; OpenTUI negotiates its existing enhanced
+keyboard protocol, and Ctrl+J remains a newline fallback in legacy terminals.
+
+Moguri's effective model prompt includes first-party product/setup facts even
+in project-free chats and with a custom editable system prompt. It knows this
+repository, the source-build commands above, the TUI/desktop entrypoints and
+current alpha/platform limits without asking for Moguri's official guide.
+This does not inspect an installed version, account or current client, publish
+an npm package, enable repository memory, install anything or grant permission.
+Saved prompt settings are unchanged; running turns keep their captured prompt.
+
 ## Sign in with GitHub Copilot
 
 Desktop: open **GitHub Copilot**, choose **Sign in with GitHub Copilot**, then
