@@ -55,6 +55,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     const terminal = sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)!;
     await expect.poll(async () => (await sdk.terminal.read(terminal.id)).data).toContain(workspace.path);
     await panels.getByRole("button", { name: "Files", exact: true }).click();
+    await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Hide terminal", exact: true }).click();
     await page.getByRole("button", { name: "fixture.txt", exact: true }).click();
     await page.screenshot({ path: resolve(".moguri/artifacts/managed-workspace-files.png") });
     await page.setViewportSize({ width: 900, height: 740 });

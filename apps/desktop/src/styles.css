@@ -295,10 +295,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
 .facts .path { font: 10px/1.7 ui-monospace, monospace; }
 .context-footer { padding: 12px 16px; border-top: 1px solid var(--line); font-size: 10px; color: var(--muted); }
-.panel-rail { background: var(--sidebar); border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 3px; }
+.panel-rail { background: var(--sidebar); border-left: 1px solid var(--line); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 3px; min-height: 0; overflow-y: auto; }
 .panel-rail button { border: 0; background: transparent; padding: 9px; min-height: 36px; display: flex; color: var(--muted); }
 .panel-rail button.active { color: var(--accent); background: var(--selected); }
-.panel-rail-item { display: flex; flex-direction: column; align-items: center; }
+.panel-rail-item { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
 .panel-rail-item hr { width: 22px; margin: 4px 0 10px; border: 0; border-top: 1px solid var(--line); }
 .panel-empty { padding-top: 12px; }
 .panel-empty > svg { width: 26px; height: 26px; color: var(--muted); }

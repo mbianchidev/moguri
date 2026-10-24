@@ -136,7 +136,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByText("Generated work in progress.")).toBeVisible();
     await page.getByRole("button", { name: "Stop turn", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("stopped");
-    await expect(page.getByText("Turn stopped. No automatic retry will run.")).toBeVisible();
+    await expect(page.getByRole("log", { name: "Session transcript", exact: true }).getByText("Turn stopped. No automatic retry will run.")).toBeVisible();
     await page.getByRole("button", { name: "Insights", exact: true }).click();
     await page.getByRole("button", { name: "Show recent event trace" }).click();
     await expect(page.getByText("Active-generation throughput is not measured", { exact: false })).toBeVisible();

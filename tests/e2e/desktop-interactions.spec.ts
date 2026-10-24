@@ -54,6 +54,10 @@ test("attachment menu matches the five-source layout, previews retained files/im
     await expect.poll(() => fixture.session().draft.attachments.length).toBe(0);
     await expect(prompt).toHaveValue("");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
+    const attention = rail.getByRole("button", { name: "Attention", exact: true });
+    await attention.scrollIntoViewIfNeeded(); await expect(attention).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); await fixture.close(); }
 });
