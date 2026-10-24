@@ -29,7 +29,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     integrations: {
       vault: { read: async () => key, write: async (_, value) => { key = value; }, remove: async () => { key = null; } },
       fetch: async (url) => {
-        if (String(url).startsWith("https://api.github.com/")) return Response.json({ number: 9, html_url: "https://github.com/generated/project/pull/9", state: "closed", merged: true, merged_at: "2026-01-01T00:00:00Z" });
+        if (String(url).startsWith("https://api.github.com/")) return Response.json({ number: 9, html_url: "https://github.com/generated/project/pull/9", state: "closed", draft: false, merged: true, merged_at: "2026-01-01T00:00:00Z" });
         return Response.json({ data: { team: { id: "generated-team", issues: { nodes: [{ id: "generated-linear-ui", identifier: "GEN-9", title: "Generated Linear UI ticket", description: "Generated fixture only", url: "https://linear.app/generated/issue/GEN-9", updatedAt: "2026-01-01T00:00:00Z" }], pageInfo: { hasNextPage: false, endCursor: null } } } } });
       },
     },

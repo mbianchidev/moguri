@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { activeDecision, appearanceColors, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, appearanceColors, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -156,7 +156,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const copilot = snapshot?.provider.connections?.find((connection) => connection.id === "github-copilot") ?? snapshot?.provider;
   const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
-  const connectedPr = session?.prUrl ?? snapshot?.issues.find((issue) => issue.id === session?.workItemId)?.pullRequest?.url ?? null;
+  const connectedPr = session && snapshot ? sessionPullRequestUrl(session, snapshot) : null;
   const editorFor = useCallback((target: Session) => {
     let value = editors.current.get(target.id);
     if (!value) { value = new DraftEditor(client, target.id, target.draft); editors.current.set(target.id, value); }
@@ -174,7 +174,11 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     const apply = () => {
       const mode = preference.theme === "system" ? media.matches ? "dark" : "light" : preference.theme;
       document.documentElement.dataset.theme = mode;
-      for (const [key, color] of Object.entries(appearanceColors(preference, mode))) document.documentElement.style.setProperty(themeVariable(key), color);
+      const colors = appearanceColors(preference, mode);
+      for (const [key, color] of Object.entries(colors)) document.documentElement.style.setProperty(themeVariable(key), color);
+      for (const [suffix, background] of [["", colors.sidebar], ["-hover", colors.hover], ["-selected", colors.selected]] as const) {
+        for (const [key, color] of Object.entries(sessionIndicatorColors(background))) document.documentElement.style.setProperty(`--session-${key}${suffix}`, color);
+      }
     };
     apply(); media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);

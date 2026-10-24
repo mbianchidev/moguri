@@ -131,6 +131,26 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .status-dot.running { background: #8bb4e8; }
 .status-dot.waiting_input, .attention-dot { background: var(--warning-text); }
 .status-dot.failed, .status-dot.partial { background: var(--danger); }
+.session-link { --indicator-running: var(--session-running); --indicator-attention: var(--session-attention); --indicator-completed: var(--session-completed); --indicator-merged: var(--session-merged); --indicator-draft: var(--session-draft); }
+.session-link:hover { --indicator-running: var(--session-running-hover); --indicator-attention: var(--session-attention-hover); --indicator-completed: var(--session-completed-hover); --indicator-merged: var(--session-merged-hover); --indicator-draft: var(--session-draft-hover); }
+.session-row.selected .session-link { background: transparent; --indicator-running: var(--session-running-selected); --indicator-attention: var(--session-attention-selected); --indicator-completed: var(--session-completed-selected); --indicator-merged: var(--session-merged-selected); --indicator-draft: var(--session-draft-selected); }
+.session-status-dot.running { background: var(--indicator-running); animation: session-blue-pulse 1.6s ease-in-out infinite; }
+.session-status-dot.question, .session-status-dot.approval { background: var(--indicator-attention); }
+.session-status-dot.completed { background: var(--indicator-completed); }
+.session-status-dot.merged { background: var(--indicator-merged); }
+.session-indicators { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.session-mark, .session-pr-icon { position: relative; display: inline-flex; flex-shrink: 0; color: var(--indicator-draft); }
+.session-mark svg, .session-pr-icon svg { width: 15px; height: 15px; }
+.session-mark.running { color: var(--indicator-running); }
+.session-mark.running svg { animation: session-status-spin 1s linear infinite; }
+.session-mark.question, .session-mark.approval { color: var(--indicator-attention); }
+.session-mark.completed, .session-pr-icon.open { color: var(--indicator-completed); }
+.session-mark.merged { color: var(--indicator-merged); }
+.session-mark.failed, .session-mark.partial { color: var(--danger); }
+.session-mark .attention-unread-dot { width: 4px; height: 4px; top: -2px; right: -2px; }
+@keyframes session-blue-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@keyframes session-status-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .session-status-dot.running, .session-mark.running svg { animation: none; opacity: 1; } }
 .queue-count { color: var(--muted); font-size: 11px; }
 .nav-empty { padding: 5px 12px; font-size: 12px; line-height: 1.7; color: var(--muted); }
 .nav-footer { padding: 12px 0; border-top: 1px solid var(--line); margin-top: 10px; }
@@ -683,12 +703,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .start-option small { color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .clone-status { margin-block: 20px; overflow-wrap: anywhere; }
 .clone-status progress { width: 100%; }
-.notification-trigger, .session-attention { position: relative; }
+.notification-trigger { position: relative; }
 .attention-unread-dot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--warning-text); }
-.session-attention { display: inline-flex; flex-shrink: 0; color: var(--warning-text); }
-.session-attention.read { color: var(--muted); }
-.session-attention svg { width: 15px; height: 15px; }
-.session-attention .attention-unread-dot { width: 4px; height: 4px; top: -2px; right: -2px; }
 .suggestions-panel { min-width: 0; }
 .suggestion-hint { margin: 14px 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .suggestion-hint p { font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }

@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **53**. Additive upgrades retain existing
+Current service/SDK/desktop protocol is **54**. Additive upgrades retain existing
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
 
@@ -10,6 +10,16 @@ version numbers alone cannot distinguish the two histories. Required markers
 and the final version advance atomically, without rewriting encrypted events,
 keys, receipts or source grants. Missing main-line markers or invalid provenance
 fail explicitly and preserve state. See [retained-state upgrades](sdk.md#retained-state-upgrades).
+
+Protocol 54 adds exact-scoped, read-only session PR observations and explicit
+draft state. The additive indicator marker does not rewrite encrypted history
+or turn old missing draft information into a ready PR. Session dots and trailing
+icons show active work or required input before a merged PR, then completion:
+blue blinking dot/spinner, yellow question or approval pause, green completed
+check with a green open or gray draft PR, or purple merged-PR glyph.
+Reduced motion keeps those indicators static. Failure, partial, stopped and
+held states never become successful completion.
+See [session indicator authority](architecture/session-interactions.md#session-status-and-linked-pr-indicators).
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -2112,6 +2122,15 @@ advances phase, once. Closed-without-merge, missing auth, outages and stale
 observations leave phase unchanged and show diagnostics. Automatic observation
 can be disabled. Public GitHub API is default; explicitly select your signed-in
 GitHub CLI account for private PRs. This never merges a PR or starts CI.
+
+Direct session and managed-workspace PR links share the same read-only
+observation preference. Up to four session reads can be in flight; fresh
+observations are retained for two minutes and a verified merge is stable.
+Matching work-item links reuse the board's current observation. Project-free
+links stay public-only with no root or inherited account. Private reads use the
+exact bound Local root and explicitly selected control-plane `gh` access,
+not a Remote SSH account. Missing access stays visibly unverified with its
+diagnostic; no account, provider or base checkout is substituted.
 
 TUI `/issues` shows the board; `/issue new` opens a full JSON editor and
 `/issue create feature|bug|misc TITLE` is a shortcut. `/issue edit ID`,

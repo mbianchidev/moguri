@@ -26,6 +26,7 @@ const paths: Record<string, string> = {
   Play: "m7 4 14 8-14 8Z", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
   Agent: "m5 5 14 14M5 19 19 5M8 3v4m-5 4h4m13 2h-4m-4 8v-4",
   PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
+  PRMerged: "M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12-7a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6 7v10m0-9a4 4 0 0 0 4 4h6",
   Plan: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
   Artifacts: "M4 3h16v5H4Zm2 5v13h12V8m-8 4h4",
   Candidates: "M5 3h10l4 4v14H5Zm9 0v5h5M8 14l3 3 5-6",

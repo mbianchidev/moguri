@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { compareSessions, defaultProjectConfiguration, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { compareSessions, defaultProjectConfiguration, sessionIndicator, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -89,7 +89,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     [siblings[index], siblings[target]] = [siblings[target]!, siblings[index]!];
     await sdk.projects.reorder(configuration.folderId, siblings.map((project) => ({ projectId: project.id, revision: folder(project).revision })));
   });
-  const renderSession = (session: Session, depth: number) => <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
+  const renderSession = (session: Session, depth: number) => {
+    const indicator = sessionIndicator(session, snapshot);
+    return <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
     draggable={!busy && !actions.busy} onDragStart={(event) => {
       if (!allow()) { event.preventDefault(); return; }
       dragging.current = { id: session.id, revision: session.revision, profileId: sdk.profileId, projectId: session.projectId };
@@ -102,7 +104,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       setDrop({ id: session.id, edge: ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "attach" });
     }} onDrop={(event) => dropSession(event, session)}
     onContextMenu={(event) => { event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu(session, anchor, event.clientX, event.clientY); }}>
-    <button className="session-link" data-session-id={session.id} aria-label={session.title} aria-description={`${session.status.replace("_", " ")}. Double-click to rename. Right-click or Shift+F10 for actions; drag to order or attach.`}
+    <button className="session-link" data-session-id={session.id} aria-label={session.title} aria-description={`${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions; drag to order or attach.`}
       aria-haspopup="menu" aria-expanded={menu?.id === session.id} aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}
       onDoubleClick={(event) => { event.preventDefault(); open({ kind: "rename", session }); }}
       onKeyDown={(event) => {
@@ -110,12 +112,13 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
         event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top);
       }}>
-      <span className={`status-dot ${session.status}`} /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
-        {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionAttention snapshot={snapshot} session={session} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
+      <span className={`status-dot session-status-dot ${indicator.kind}`} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
+        {session.status === "waiting_input" && <small>Needs attention</small>}</span><SessionIndicators snapshot={snapshot} session={session} indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.unread && <span className="unread-dot" title="Unread" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
     <button className="icon-button session-actions" type="button" aria-label={`Actions for ${session.title}`} aria-haspopup="menu" aria-expanded={menu?.id === session.id}
       onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top); }}><Icon name="More" /></button>
   </div>;
+  };
   const renderProject = (project: Project) => {
     const configuration = folder(project);
     const sessions = snapshot.sessions.filter((session) => session.projectId === project.id && (session.status === "archived") === archived);
@@ -198,11 +201,19 @@ function SessionContextMenu({ label, point, close, children }: { label: string; 
       buttons[next]?.focus();
     }}>{children}</div>, document.body);
 }
-function SessionAttention({ snapshot, session }: { snapshot: Snapshot; session: Session }) {
+function SessionIndicators({ snapshot, session, indicator }: { snapshot: Snapshot; session: Session; indicator: ReturnType<typeof sessionIndicator> }) {
   const entry = snapshot.attention.findLast((entry) => entry.sessionId === session.id && entry.active);
-  if (!entry || !snapshot.settings.values.notifications.inApp) return null;
-  const label = entry.kind === "question" ? entry.source === "heuristic" ? "Possible question" : "Question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Approval needed" : "Attention needed";
-  return <span className={`session-attention ${entry.acknowledged ? "read" : "unread"}`} title={label} aria-label={label}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />{!entry.acknowledged && <span className="attention-unread-dot" />}</span>;
+  const unread = snapshot.settings.values.notifications.inApp && entry && !entry.acknowledged;
+  const names: Partial<Record<typeof indicator.kind, string>> = {
+    running: "Progress", question: "Question", approval: "Waiting", completed: "Check", merged: "PRMerged",
+    failed: "Issue", partial: "Issue", stopped: "Waiting", queued: "Clock",
+  };
+  const name = names[indicator.kind];
+  return <span className="session-indicators">
+    {name && <span className={`session-mark ${indicator.kind}`} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} />
+      {unread && <span className="attention-unread-dot" aria-hidden="true" />}</span>}
+    {indicator.kind === "completed" && indicator.prUrl && <span className={`session-pr-icon ${indicator.prState}`} role="img" aria-label={indicator.prLabel} title={indicator.prLabel}><Icon name="PR" /></span>}
+  </span>;
 }
 function WorkspaceMenu({ label, children }: { label: string; children: ReactNode }) {
   const ref = useRef<HTMLDetailsElement>(null);
