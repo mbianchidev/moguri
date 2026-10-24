@@ -20,7 +20,7 @@ test("desktop applies warned estimate-based caps, preserves hard policy through 
     const input = (await sdk.sessions.context(fixture.sessionId)).context.estimatedTokens;
     await composer.getByRole("button", { name: "Budget and usage", exact: true }).click();
     const menu = page.getByRole("dialog", { name: "Budget and usage", exact: true });
-    await menu.getByText("Session budget limits", { exact: true }).click();
+    await menu.getByRole("button", { name: "View usage and limits...", exact: true }).click();
     const controls = menu.getByRole("region", { name: "Session budget controls", exact: true });
     await controls.getByLabel("session budget mode", { exact: true }).selectOption("limited");
     await controls.getByLabel("session token cap", { exact: true }).fill(String(Math.ceil(input) + 16));

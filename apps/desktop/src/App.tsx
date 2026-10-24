@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { activeDecision, DraftEditor, sessionTitle as title, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
-import { useMoguri } from "../../../packages/sdk/src/react.ts";
+import { activeDecision, DraftEditor, sessionTitle as title, type ActivityEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type ProviderState, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -16,6 +16,7 @@ import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
+import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
@@ -302,7 +303,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
           <ProviderConnect provider={snapshot.provider} run={run} client={client} />
         </div> :
         <>
-          <Timeline session={session} run={run} client={client} modal={setNativeModal} />
+          <Timeline session={session} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
           {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
           {session.kind === "metachat" && snapshot && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
           {session.pendingApproval && <section className="approval" aria-label="Tool approval">
@@ -363,7 +364,8 @@ function ProviderConnect({ provider, run, client }: { provider: ProviderState; r
     {copilot.diagnostic && <p className="inline-error" role="status">{copilot.diagnostic}</p>}
   </section>;
 }
-function Timeline({ session, run, client, modal }: { session: Session; run: Run; client: MoguriClient; modal: (open: boolean) => void }) {
+function Timeline({ session, snapshot, run, client, modal }: { session: Session; snapshot: Snapshot; run: Run; client: MoguriClient; modal: (open: boolean) => void }) {
+  const activity = useSessionActivity(client, session, snapshot);
   const scroll = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const [limit, setLimit] = useState(150);
@@ -375,21 +377,56 @@ function Timeline({ session, run, client, modal }: { session: Session; run: Run;
     const observer = new ResizeObserver(() => { if (follow.current) view.scrollTop = view.scrollHeight; });
     observer.observe(view); if (content.current) observer.observe(content.current);
     return () => observer.disconnect();
-  }, [session.id, session.messages.length === 0]);
+  }, [session.id]);
   useEffect(() => { if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; }, [session.messages.length, session.messages.at(-1)?.text, session.id]);
-  return <div ref={scroll} className="timeline" role="log" aria-label="Session transcript" onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}>
-    {session.messages.length === 0 ? <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId ? <>Ask a question, explore this project, or make a change.<br />You review every tool action before it runs.</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract">    <span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId ? `${session.controls.env} execution` : "No workspace access"}</span><span>Manual approvals</span><span>Durable history</span></div></div> : <div ref={content}>
-      {session.messages.length > limit && <button className="load-history" onClick={() => setLimit((value) => value + 150)}>Show earlier messages ({session.messages.length - limit})</button>}
-      {session.messages.slice(-limit).map((message) => <article key={message.id} className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}>
-        <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : message.role === "tool" ? message.toolCalls?.[0]?.name ?? "Tool" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
-          {message.role !== "notice" && <button className="icon-button message-copy" title="Copy message" aria-label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} onClick={() => void run(() => window.moguri.copyText(message.text))}><Icon name="Copy" /></button>}</header>
-        {message.role === "tool" ? <details open={message.outcome === "running"}><summary>{message.outcome === "running" ? "Command output" : `Tool result: ${message.outcome}`}</summary><pre>{message.text}</pre></details> :
-          <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.toolCalls?.length ? "Requesting tool access." : message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
-        {message.reasoning && <details><summary>Provider-exposed reasoning</summary><p className="reasoning">{message.reasoning}</p></details>}
+  const entries = activity.activity?.entries ?? [], positions = new Map(activity.activity?.messageOrder.map((entry) => [entry.id, entry.sequence]) ?? []);
+  const groups = new Map<string, PublicMessage[]>();
+  for (const message of session.messages.slice(-limit)) {
+    const key = message.turnId || `notice-${message.id}`, group = groups.get(key) ?? [];
+    group.push(message); groups.set(key, group);
+  }
+  const accountingStamp = JSON.stringify([session.turnId, session.status, snapshot.budgetEntries.filter((entry) => entry.sessionId === session.id || entry.ownerSessionId === session.id)
+    .map((entry) => [entry.id, entry.status, entry.reportedTokens, entry.estimatedUsdMicros, entry.outcome])]);
+  const renderMessage = (message: PublicMessage) => {
+    if (message.role === "tool" || message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome)) return null;
+    return <article key={`message-${message.id}`} className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}>
+        <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
+          {message.role === "user" && <button className="icon-button message-copy" title="Copy message" aria-label={`Copy sent prompt ${message.id}`} onClick={() => void run(() => window.moguri.copyText(message.text))}><Icon name="Copy" /></button>}</header>
+        <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>
+        {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><p className="reasoning">{message.reasoning}</p></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
         {message.attachments?.some((attachment) => attachment.kind !== "image") && <div className="message-documents attachment-list">{message.attachments.filter((attachment) => attachment.kind !== "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
-      </article>)}
-    </div>}
+      </article>;
+  };
+  return <div ref={scroll} className="timeline" role="log" aria-label="Session transcript" onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content}>
+    {session.messages.length === 0 && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId ? <>Ask a question, explore this project, or make a change.<br />You review every tool action before it runs.</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId ? `${session.controls.env} execution` : "No workspace access"}</span><span>Manual approvals</span><span>Durable history</span></div></div>}
+    {session.messages.length > limit && <button className="load-history" onClick={() => setLimit((value) => value + 150)}>Show earlier messages ({session.messages.length - limit})</button>}
+    {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
+    {activity.error && <p className="inline-error activity-read-error" role="alert">{activity.error}</p>}
+    {[...groups].map(([turnId, messages]) => {
+      const first = messages[0]?.role === "user" ? messages[0] : null;
+      const operations = entries.filter((entry) => entry.turnId === turnId && entry.kind !== "model");
+      const parts: Array<{ sequence: number; message?: PublicMessage; operation?: ActivityEntry }> = [
+        ...messages.filter((message) => message.id !== first?.id && message.role !== "tool").map((message) => ({ sequence: positions.get(message.id) ?? Number.MAX_SAFE_INTEGER, message })),
+        ...operations.map((operation) => ({ sequence: operation.sequence, operation })),
+      ];
+      parts.sort((a, b) => a.sequence - b.sequence || Number(Boolean(b.operation)) - Number(Boolean(a.operation)));
+      return <div className="conversation-turn" key={JSON.stringify([client.profileId, session.id, turnId])} data-turn-id={turnId}>
+        {first && renderMessage(first)}
+        <section className="response-turn" aria-label="Assistant response">
+          {parts.map((part) => part.operation ? <ActivityRow sdk={client} entry={part.operation} version={activity.activity?.sequence ?? 0} key={part.operation.id} /> : part.message ? renderMessage(part.message) : null)}
+          {messages.some((message) => message.role === "tool") && activity.loading && <p className="fine-print" role="status">Loading retained operations...</p>}
+          {session.turnId === turnId && !activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === turnId)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
+          {messages[0]?.turnId && <TurnActions sdk={client} sessionId={session.id} turnId={turnId} stamp={accountingStamp}
+            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text))} run={run} modal={modal} />}
+        </section>
+      </div>;
+    })}
+    {entries.some((entry) => entry.turnId === null) && <section className="session-activities" aria-label="Session actions"><h2>Session actions</h2>
+      {entries.filter((entry) => entry.turnId === null).map((entry) => <ActivityRow sdk={client} entry={entry} version={activity.activity?.sequence ?? 0} key={entry.id} />)}
+      {!activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === null)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
+    </section>}
+  </div>
   </div>;
 }
 function Queue({ session, command, client, modal }: { session: Session; command: (command: Command) => Promise<void>; client: MoguriClient; modal: (open: boolean) => void }) {

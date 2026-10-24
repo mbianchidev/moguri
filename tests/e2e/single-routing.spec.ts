@@ -40,7 +40,7 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await page.keyboard.press("Escape");
     await composer.getByRole("button", { name: "Budget and usage", exact: true }).click();
     const budget = page.getByRole("dialog", { name: "Budget and usage", exact: true });
-    await budget.getByRole("button", { name: "Session budget limits", exact: true }).click();
+    await budget.getByRole("button", { name: "View usage and limits...", exact: true }).click();
     await expect(budget.getByLabel("session budget mode", { exact: true })).toBeDisabled();
     await expect(budget).toContainText("Profile/global caps still apply");
     await page.keyboard.press("Escape");

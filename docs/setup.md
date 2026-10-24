@@ -12,9 +12,43 @@ the endpoint-only probe fails. These primitives do not by themselves enable
 public Sandbox. The recorded protocol-40 service/SDK/client lifecycle below
 extends them without changing factory settings or broadening policy.
 
+## Chat activity and usage
+
+Current source uses protocol/database **45**. Chat operations appear as compact
+icon-led rows for file reads/creation/edits, file/skill/web search, skill loading,
+GitHub/Linear issue creation, commands/scripts, MCP calls and actual questions.
+Expand a row for its original arguments/result, local start date/time, observed
+duration and retained UTF-8 output size. Large results use explicit byte pages.
+Running operations have an elapsed wall timer; waiting, failed, stopped,
+partial and unconfirmed outcomes stay distinct.
+
+**Thought** opens only already-public provider-exposed reasoning. Its duration
+covers the whole model request, not separately measured thinking. Hidden model
+contexts, private role results and user-terminal input/output are not exposed.
+Explicit skill selection and reviewed GitHub/Linear actions without an owning
+turn appear under **Session actions**, not attributed to an adjacent response.
+
+Hover a response, or focus its actions with the keyboard, to **Copy response**
+or open **Turn information**. Copy excludes tools/reasoning. Info uses that
+turn's original model/context and complete owning-turn accounting, not the
+currently selected model or newly edited rates. Unknown quantities stay unknown.
+
+The composer budget button opens a compact view: **Est. USD**, plan, session
+calls, input/output/cache tokens and estimated context window. **View usage and
+limits...** opens detailed accounting and the existing warned budget controls.
+These are not provider billing, subscription-plan balances or AI credits.
+Hard policy and unknown held usage remain enforced.
+
+SDK `activity.list/read/turn/response`, CLI `activity list/turn/read --session ID`
+and shared `/activity` use the same retained service view. Results require the
+exact current-profile source session; its deletion cannot recover contents from
+the independent sanitized operation ledger. The additive schema-45 upgrade
+preserves existing ciphertext, keys and receipts. Restart clients/service
+together without deleting state. See [the contract](architecture/chat-activity.md).
+
 ## Desktop interactions
 
-Unreleased source uses protocol/database **44**. The right rail starts with
+Protocol 44 introduced these interaction changes. The right rail starts with
 Dashboard, Artifacts, Candidates, Sandbox, Suggestions and Global Terminal,
 followed by session-bound tools.
 

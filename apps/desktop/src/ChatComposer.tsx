@@ -7,6 +7,7 @@ import { ContextCompactionReview } from "./ContextCompaction.tsx";
 import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
 import { useDecisionStatus } from "./DecisionPanel.tsx";
 import { TaskProgressBar } from "./TaskProgress.tsx";
+import { estimatedCost } from "./ChatActivity.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -352,24 +353,35 @@ function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session
     void (async () => { await editor.flush(); const result = await sdk.sessions.context(session.id); if (current) { setContext(result.context); setError(""); } })().catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "Context usage is unavailable."); });
     return () => { current = false; };
   }, [session.draft.revision, session.revision, session.usage.length, session.usage.at(-1)?.outcome]);
-  const tokens = (field: "inputTokens" | "outputTokens" | "cacheReadTokens") => {
-    if (!session.usage.length) return "0";
-    const values = session.usage.map((usage) => usage[field]);
-    const known = values.filter((value): value is number => value !== null);
-    return known.length ? `${count(known.reduce((sum, value) => sum + value, 0))}${known.length < values.length ? " + unknown" : ""}` : "Not reported";
-  };
-  const dollars = (field: "estimatedUsd" | "providerReportedUsd" | "billedUsd") => {
-    const values = session.usage.map((usage) => usage[field]);
-    if (!values.length || values.every((value) => value === null)) return null;
-    return `${new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}${values.some((value) => value === null) ? " + unknown" : ""}`;
-  };
-  return <><header className="composer-usage-heading"><h2>Usage</h2><span>{session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit ? "Hard policy applies" : "Unlimited" : "Estimated cap"}</span></header>
-    <div className="button-row"><button type="button" aria-pressed={budgetView === "usage"} onClick={() => setBudgetView("usage")}>Current usage</button><button type="button" aria-pressed={budgetView === "limits"} onClick={() => setBudgetView("limits")}>Session budget limits</button></div>
-    <div hidden={budgetView !== "usage"}><dl className="composer-usage"><dt>Input tokens</dt><dd>{tokens("inputTokens")}</dd><dt>Output tokens</dt><dd>{tokens("outputTokens")}</dd><dt>Cached input</dt><dd>{tokens("cacheReadTokens")}</dd><dt>Context estimate</dt><dd>{context ? `~${count(context.estimatedTokens)}${context.contextWindow ? ` / ${count(context.contextWindow)}` : ""}` : error ? "Unavailable" : "Loading..."}</dd>
-    {(["estimatedUsd", "providerReportedUsd", "billedUsd"] as const).map((field) => { const value = dollars(field); return value ? <div className="usage-dollar-row" key={field}><dt>{field === "estimatedUsd" ? "Estimated USD" : field === "providerReportedUsd" ? "Provider-reported USD" : "Billed USD"}</dt><dd>{value}</dd></div> : null; })}
-  </dl>{!dollars("estimatedUsd") && !dollars("providerReportedUsd") && !dollars("billedUsd") && <p>USD not reported.</p>}<p>Context includes the saved draft and is estimated. Usage updates after each call; unreported values stay unknown.</p>
-    {accounting.status && <BudgetSummary status={accounting.status} />}
+  const totals = accounting.status?.totals;
+  const tokens = (value: number | null | undefined, known = 0) => value === undefined ? "Loading..." : value === null ? known > 0 ? `${count(known)} + unknown` : "Not reported" : count(value);
+  const plan = session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based limits";
+  const used = context?.estimatedTokens, window = context?.contextWindow;
+  const percent = used !== undefined && window ? used / window * 100 : null;
+  return <>
+    <div hidden={budgetView !== "usage"} className="compact-budget">
+      <dl className="compact-usage">
+        <div className="compact-cost-row"><dt>Est. USD</dt><dd title="Captured model-specific estimates, including owning-session roles; not a bill.">{totals ? estimatedCost(totals) : accounting.error ? "Unavailable" : "Loading..."}</dd></div>
+        <div><dt>Plan</dt><dd>{plan}</dd></div>
+        <div><dt>Session</dt><dd>{totals ? `${count(totals.calls)} model call${totals.calls === 1 ? "" : "s"}` : "Loading..."}{accounting.status && accounting.status.ownerSessionId !== session.id && <small>Charged to the owning session</small>}</dd></div>
+        <div><dt>Tokens</dt><dd className="compact-token-lines">
+          <span><Icon name="Up" /><span><span className="sr-only">Input tokens </span>{tokens(totals?.inputTokens, totals?.knownInputTokens)}<small> ({tokens(totals?.cacheReadTokens)} cached)</small></span></span>
+          <span><Icon name="Down" /><span><span className="sr-only">Output tokens </span>{tokens(totals?.outputTokens, totals?.knownOutputTokens)}</span></span>
+        </dd></div>
+        <div><dt>Context</dt><dd>
+          {percent !== null && used !== undefined && window ? <meter className="compact-context-meter" aria-label="Estimated context window" min={0} max={window} value={Math.min(used, window)}
+            aria-valuetext={`Estimated ${count(used)} tokens of ${count(window)}`} /> : <div className="compact-context-meter" aria-hidden="true" />}
+          <div className="compact-context-values"><span>{percent === null ? context ? `~${count(context.estimatedTokens)}` : error ? "Unavailable" : "Loading..." : `~${Math.round(percent)}%`}</span><span title="Selected working window">{window ? count(window) : "No model window"}</span></div>
+          {percent !== null && percent > 100 && <small className="inline-error">Over the working window; context is not truncated.</small>}
+        </dd></div>
+      </dl>
+      <p className="compact-usage-note">Context is estimated, including the saved draft.{totals?.estimatedUsd === null && totals.knownEstimatedUsd === 0 ? " USD not reported or priced." : ""}</p>
+      {totals && (totals.unknownTokenCalls > 0 || totals.heldTokens === null) && <p className="compact-usage-note">Unknown usage/holds remain charged. Open limits for details.</p>}
+      <button className="compact-usage-link" type="button" onClick={() => setBudgetView("limits")}>View usage and limits...</button>
     </div>
-    <div hidden={budgetView !== "limits"}><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} /></div>
+    <div hidden={budgetView !== "limits"}><header className="composer-usage-heading"><button className="icon-button" type="button" aria-label="Back to compact usage" onClick={() => setBudgetView("usage")}><Icon name="Back" /></button><h2>Usage and limits</h2></header>
+      <details><summary>Detailed session accounting</summary>{accounting.status && <BudgetSummary status={accounting.status} />}</details>
+      <h3>Session budget limits</h3><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} />
+    </div>
     {(error || accounting.error) && <p className="inline-error" role="alert">{error || accounting.error}</p>}</>;
 }

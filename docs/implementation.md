@@ -67,6 +67,12 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > automatic refund, routed kupo wind-down or authorized checkpoint commit is
 > inferred. A budget stop retains a diagnostic artifact without an extra model.
 
+> [Chat activity](architecture/chat-activity.md) adds compact operation rows,
+> session-scoped original arguments/results, observed timing/output quantities,
+> public-response copy and original turn information. The compact usage view
+> keeps all-role accounting and hard policy; it does not expose hidden reasoning,
+> invent AI credits or change execution/approval authority.
+
 > [Reviewed context compaction](architecture/context-compaction.md) now adds an
 > explicit preview/generate/review/apply/restore workflow through the same SDK,
 > Local/SSH worker and all-role ledger. Original history, complete recent turns
