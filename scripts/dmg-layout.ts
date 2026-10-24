@@ -96,6 +96,8 @@ export async function verifyDmgLayout(mountpoint: string, version: string) {
   assert.equal(layout.backgroundId, entry.ino, "The Finder alias must resolve to this image's actual background, not a build-host file.");
   assert.deepEqual(await readFile(join(mountpoint, ".VolumeIcon.icns")), await readFile(join(root, "dist/branding/moguri.icns")));
   for (const page of [0, 1]) {
+    const metadata = await sharp(background, { page }).metadata();
+    assert.equal(metadata.pages, 2); assert.equal(metadata.density, 72 * (page + 1), "Retina artwork must preserve the same logical Finder size.");
     const expected = await sharp(await dmgBackground(page + 1)).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     const actual = await sharp(background, { page }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     assert.equal(actual.info.width, expected.info.width); assert.equal(actual.info.height, expected.info.height);
