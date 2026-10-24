@@ -83,6 +83,10 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
     await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
     await review.getByRole("button", { name: "Enable Sandbox", exact: true }).click();
     await expect(panel.getByRole("status").filter({ hasText: "Setup completed" })).toBeVisible({ timeout: 30_000 });
+    await expect.poll(() => sdk.settings.get()?.revision).toBe(service.controller.snapshot().settings.revision);
+    const reviewedSettings = structuredClone(sdk.settings.get()!);
+    reviewedSettings.values.sandbox.qualification!.allowedDomains.push("*.generated-tools.test");
+    await sdk.settings.update(reviewedSettings.values, reviewedSettings.revision); await sdk.sandbox.probe();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Execution environment", exact: true }).click();
     await page.getByRole("dialog", { name: "Execution environment", exact: true }).getByRole("button", { name: /^Sandbox Verified SendBox/ }).click();
@@ -98,6 +102,7 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     expect((await sdk.workspaces.file(created.id!, "fixture.txt")).text).toBe("generated native replacement\n");
     expect(service.controller.snapshot().sandboxWorkspaces![0]?.preparation?.kind).toBe("automatic");
+    expect(service.controller.snapshot().sandboxExecutions![0]?.networkScope?.allowedDomains).toContain("*.generated-tools.test");
     expect(provider.requests.length).toBe(0); expect(errors).toEqual([]); passed = true;
   } finally { await app.close(); await fixture.close(passed); }
 });

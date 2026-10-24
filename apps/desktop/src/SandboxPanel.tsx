@@ -85,7 +85,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {execution && <div className="candidate-section" aria-label="Original native run">
       <p className="fine-print">Native outcome: {execution.status}. Worker: {execution.workerOutcome ?? "not acknowledged"}. Cleanup: {execution.cleanup}. Cancellation: {execution.cancellation}.</p>
       <p className="fine-print path">Original VM: {execution.nativeSessionId ?? "unbound"}. CLI exit: {execution.cliExitCode ?? "unreported"}. Model root: {execution.root ?? "null"}. Original source: {execution.sourceRoot ?? "none"}.</p>
-      {execution.networkScope && <p className="fine-print">Effective provider/network hosts: {execution.networkScope.allowedDomains.join(", ")}. Captured for this original execution; not a wildcard or permission for unrelated destinations.</p>}
+      {execution.networkScope && <p className="fine-print">Captured tool/provider domain rules: {execution.networkScope.allowedDomains.join(", ")}. Exact entries stay exact; only an explicitly reviewed *.domain.com rule permits subdomains, not its apex. Provider endpoints and aliases remain exact.</p>}
       {execution.diagnostic && <p className="settings-warning">{execution.diagnostic}</p>}
       <div className="button-row">
         {active && <button type="button" disabled={Boolean(busy)} onClick={() => void run("Stopping original native turn", async () => { await sdk.sandbox.stop(execution.id); setNotice("Stop requested only for the original native owner. Inspect its actual outcome and cleanup."); })}>Stop this native turn</button>}

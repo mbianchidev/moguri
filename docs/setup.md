@@ -64,6 +64,13 @@ execution. No permanent historical grant or hardcoded alias is inferred.
 uses the enforced guest proxy and requires ordinary tool permission. This is not
 an interactive browser or a general native MCP grant.
 
+Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
+tool rules. These permit subdomains at any depth, not the apex or lookalike
+suffixes. Exact entries remain exact, private-address protections remain in the
+guest, and selected-provider URLs/CNAMEs still require exact admission. No
+wildcard is added automatically. The bundled 0.2.3 runtime does not include the
+separately developing automatic GitHub Meta expansion.
+
 **Check public SendBox releases** checks at startup and every four hours when
 enabled. **Check SendBox updates now** uses the same fixed public repository with
 no Copilot, CLI or private updater token. The configured version stays selected.
