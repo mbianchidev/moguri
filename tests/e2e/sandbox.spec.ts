@@ -19,6 +19,7 @@ test("retained native data is not readiness; desktop source publication needs ex
     await page.getByRole("button", { name: "Sandbox", exact: true }).click();
     await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
+    await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "Use Sandbox for this session", exact: true })).toBeDisabled();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${fixture.result.files[0]!.bytes} bytes`, { exact: true }).click();
@@ -59,6 +60,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
+    await page.getByText("Advanced manual configuration", { exact: true }).click();
     await page.getByLabel("SendBox configuration", { exact: true }).fill(JSON.stringify(fixture.reviewedConfiguration));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     const review = page.getByLabel("I reviewed these committed native artifacts", { exact: false });
@@ -75,6 +77,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: /^Review a private native workspace before starting a turn/ }).click();
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
+    await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
     await panel.getByLabel("Native source paths", { exact: true }).fill("fixture.txt");
     await panel.getByRole("button", { name: "Preview native source", exact: true }).click();
     const source = panel.getByRole("region", { name: "Exact native source review", exact: true });

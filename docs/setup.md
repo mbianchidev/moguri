@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **50**. Additive upgrades retain existing
+Current service/SDK/desktop protocol is **52**. Additive upgrades retain existing
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
 
@@ -29,6 +29,57 @@ Cancelling an unsaved-edit close leaves the service running. A changed owner or
 failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
 app does not start another service or force-kill a guessed process. Other
 independent state roots are not scanned or stopped by name.
+
+## Managed SendBox
+
+On supported Apple-silicon macOS with Apple Containerization available, the app
+includes SendBox **0.2.3**, a versioned no-script installer, and a compatible
+digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
+dependencies. You do not run a build, container command or SHA command to use it.
+
+Open **Settings > Execution & permissions > SendBox**, choose **Review bundled
+setup**, review the actual version, image, workspace/network policy and install
+location, then choose **Enable Sandbox**. An already configured exact root-owned
+0.2.3 installation can be reused. A fresh installation requests your administrator
+approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
+installation or approves the OS dialog for you. Unsupported prerequisites block
+setup without a Local fallback.
+
+After qualification, select **Sandbox** in the composer and send normally.
+Private project/worktree copies are prepared automatically under ignore/folder
+rules; project-free chats get an empty root-less workspace. There is no required
+file preview or empty-stage confirmation. Successful private work persists across
+turns. After cancellation/rollback, verified retained private work is copied into
+a newly owned stage rather than being discarded or silently replaced by the
+original checkout. Source publication still has its separate exact review.
+
+Provider networking uses the actual prepared HTTPS endpoint, not an assumed
+canonical Copilot host. Managed policy resolves and allows its bounded public
+CNAME chain automatically, capturing the effective hosts with the original
+execution. No permanent historical grant or hardcoded alias is inferred.
+`github.com` and `api.github.com` are default tool destinations; unrelated
+`google.com` remains denied. The native public-page tool works without a project,
+uses the enforced guest proxy and requires ordinary tool permission. This is not
+an interactive browser or a general native MCP grant.
+
+**Check public SendBox releases** checks at startup and every four hours when
+enabled. **Check SendBox updates now** uses the same fixed public repository with
+no Copilot, CLI or private updater token. The configured version stays selected.
+Choose another eligible version, prepare its signed release for review, then
+approve separately before installation/activation. Unknown digests, changed trust
+roots, cancelled authorization and interrupted operations remain explicit; old
+versions and active work are not deleted or replayed.
+
+Approved managed setup requalifies the existing version on restart, without
+reinstalling it or draining saved queues. A changed Moguri worker requires its
+matching bundled setup review, not old manually copied image hashes. **Advanced
+manual configuration** and exact-file staging remain available for experts;
+old manual configurations do not silently gain the managed policy.
+
+CLI/TUI expose `/sandbox setup` and its exact confirmation command, plus
+`/sandbox updates`. Embeddings can explicitly provide the same distribution
+through the Node SDK; root/React entrypoints remain browser-safe. See the
+[managed contract and qualification](architecture/managed-sandbox.md).
 
 ## Searchable desktop navigation
 

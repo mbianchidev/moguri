@@ -28,6 +28,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
   currentScope.current = scope;
   const available = native?.ready && snapshot.policy.allowedEnvs.includes("Sandbox");
   const prepared = session?.controls.env === "Sandbox" && available && !session.turnId && session.status !== "archived";
+  const automatic = snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces;
   const retained = result && result.id === execution?.id && result.digest === execution?.resultDigest ? result.value : null;
   const active = owner?.turnId === execution?.turnId;
   useEffect(() => { setSource(null); setSourceReviewed(false); }, [sourceScope]);
@@ -51,8 +52,10 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     <button type="button" disabled={Boolean(busy)} onClick={setup}>Review Sandbox configuration</button>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
-    <details className="candidate-section" open={!workspace}>
-      <summary>Review a private source stage</summary>
+    {automatic && <p className="fine-print" role="status">Private workspaces are prepared automatically when you send. {session?.projectId ? "The bound project is copied under its folder/ignore policy; your source checkout is never mounted." : "This chat keeps an empty, root-less private workspace."} Retained work is preserved across turns.</p>}
+    {!automatic && <p className="fine-print">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</p>}
+    <details className="candidate-section">
+      <summary>Advanced exact-file workspace preparation</summary>
       <p className="fine-print">Only selected text snapshots enter the VM. Model root is {session?.projectId ? <code>/workspace</code> : "null in a project-free chat"}; the Local source is never mounted or written by native tools.</p>
       {!session ? <p>Choose an existing session before preparing its private workspace.</p> : <>
         {session.controls.env !== "Sandbox" && <button type="button" disabled={Boolean(busy) || !available || Boolean(session.turnId)} onClick={() => void run("Selecting Sandbox", async () => { await sdk.sessions.env(session.id, "Sandbox", session.revision); })}>Use Sandbox for this session</button>}
@@ -82,6 +85,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {execution && <div className="candidate-section" aria-label="Original native run">
       <p className="fine-print">Native outcome: {execution.status}. Worker: {execution.workerOutcome ?? "not acknowledged"}. Cleanup: {execution.cleanup}. Cancellation: {execution.cancellation}.</p>
       <p className="fine-print path">Original VM: {execution.nativeSessionId ?? "unbound"}. CLI exit: {execution.cliExitCode ?? "unreported"}. Model root: {execution.root ?? "null"}. Original source: {execution.sourceRoot ?? "none"}.</p>
+      {execution.networkScope && <p className="fine-print">Effective provider/network hosts: {execution.networkScope.allowedDomains.join(", ")}. Captured for this original execution; not a wildcard or permission for unrelated destinations.</p>}
       {execution.diagnostic && <p className="settings-warning">{execution.diagnostic}</p>}
       <div className="button-row">
         {active && <button type="button" disabled={Boolean(busy)} onClick={() => void run("Stopping original native turn", async () => { await sdk.sandbox.stop(execution.id); setNotice("Stop requested only for the original native owner. Inspect its actual outcome and cleanup."); })}>Stop this native turn</button>}

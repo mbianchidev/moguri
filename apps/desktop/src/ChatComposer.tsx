@@ -55,7 +55,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const model = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
   const eligibleModel = Boolean(model && (!model.environments || model.environments.includes(session.controls.env)));
   const nativeStage = snapshot.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId && value.sessionId === session.id);
-  const needsNativeStage = session.controls.env === "Sandbox" && nativeStage?.status !== "ready";
+  const automaticNative = snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces;
+  const needsNativeStage = session.controls.env === "Sandbox" && nativeStage?.status !== "ready" && !automaticNative;
   const dictation = useDictation(client, session, snapshot, { shortcuts: true, beforeStart: () => editor.flush() });
   const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running");
   const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));

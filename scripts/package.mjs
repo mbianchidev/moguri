@@ -1,11 +1,13 @@
 import { packager } from "@electron/packager";
 import { execFileSync } from "node:child_process";
-import { access, lstat, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, lstat, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 
 if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Development packaging is validated for macOS arm64 only.");
 const require = createRequire(import.meta.url);
+const { prepareSandboxDistribution } = await import("./prepare-sandbox-distribution.mjs");
+const native = await prepareSandboxDistribution();
 const electronVersion = require("electron/package.json").version;
 const version = require("../package.json").version;
 await access("dist/desktop/renderer/index.html");
@@ -19,6 +21,11 @@ const paths = await packager({
   ignore: [/^\/(?:\.git|\.moguri|\.native|\.impeccable|\.copilot|release|tests|test-results|playwright-report|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS)\.md$/],
 });
 const app = resolve(paths[0], "Moguri.app");
+const nativeRoot = join(app, "Contents", "Resources", "moguri-native"); await mkdir(nativeRoot);
+for (const path of ["manifest.json", native.distribution.vendor.installer.path, native.distribution.worker.archive.path, "SendBox.LICENSE"]) {
+  await copyFile(join(native.root, path), join(nativeRoot, path));
+  await chmod(join(nativeRoot, path), 0o644);
+}
 execFileSync("codesign", ["--force", "--deep", "--sign", "-", "--entitlements", "scripts/entitlements.mac.plist", app], { stdio: "inherit" });
 const archive = resolve(`release/Moguri-${version}-macos-arm64.zip`);
 await rm(archive, { force: true });

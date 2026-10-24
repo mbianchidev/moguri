@@ -18,7 +18,7 @@ export const SETTINGS_GROUPS = [
   ] },
   { label: "Execution & permissions", items: [
     { id: "permissions", label: "Guardrails", keywords: "default tool permission allow deny ask autonomy execution environment policy" },
-    { id: "sendbox", label: "SendBox", keywords: "sandbox native isolation managed VM image network" },
+    { id: "sendbox", label: "SendBox", keywords: "sandbox native isolation managed VM image network bundled runtime automatic workspace DNS alias provider version update installer" },
     { id: "remote", label: "Remote SSH", keywords: "host target identity credentials recovery" },
     { id: "subagents", label: "Subagents", keywords: "parallel children read only" },
     { id: "scripts", label: "Scripts", keywords: "execution capabilities approved host code" },

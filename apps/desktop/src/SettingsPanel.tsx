@@ -24,10 +24,11 @@ import { ApplicationSettings } from "./ApplicationSettings.tsx";
 import { StorageSettings } from "./StorageSettings.tsx";
 import { UpdateSettings } from "./UpdateSettings.tsx";
 import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
+import { SandboxSetupPanel } from "./SandboxSetupPanel.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
-type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts";
+type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement";
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", onBack, onUnsavedChange, openTerminal, openGlobalTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
@@ -58,6 +59,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
+  const [sandboxDraftDirty, setSandboxDraftDirty] = useState(false);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
   const [input, setInput] = useState("");
@@ -96,7 +98,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
   const otherNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy;
-  const nestedDirty = otherNestedDirty || storageBusy || updateBusy;
+  const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, tab]);
@@ -481,15 +483,18 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <p className="fine-print">A tool rule has id, tool, decision (ask/allow/deny), and a project-relative pathPrefix. Shell grants must name the exact command; blanket shell/wildcard grants are rejected. MCP annotations never count as approval.</p>
           <button type="button" onClick={() => void reset("permissions")}>Restore permission defaults</button></>}
         {tab === "sendbox" && <><h2>SendBox</h2><p>Sandbox is a real execution boundary, not a badge. Missing or unqualified prerequisites block protected turns, without Local fallback.</p>
+          <SandboxSetupPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} value={draft.sandboxManagement} disabled={dirty || saving || otherNestedDirty} onBusy={setSandboxBusy} onDirty={setSandboxDraftDirty}
+            update={(patch) => automatic("sandboxManagement", patch)} />
+          <details className="candidate-section"><summary>Advanced manual configuration</summary>
           {jsonEditor("sandbox", "SendBox configuration")}
-          <p className="fine-print">Save exact canonical 0.2.3 release/bundle/key paths and hashes, immutable image/worker/bridge pins, bounded resources and every reviewed DNS host. Use configPath null for the managed deny-first policy. Aliases are never inferred or granted; Copilot access is a separate opt-in.</p>
+          <p className="fine-print">Manual configurations keep their exact artifact and host scope. Managed setup supplies compatible pins and separately enables selected-provider aliases. Custom worker builds must match this app's protocol; changing JSON cannot upgrade old bytes.</p>
           <p className="fine-print" role="status">{snapshot.capabilities.find((capability) => capability.env === "Sandbox")?.reason}</p>
           <label className="check-setting"><input type="checkbox" checked={sandboxReviewed} disabled={dirty || saving || sandboxBusy} onChange={(event) => setSandboxReviewed(event.target.checked)} />I reviewed these committed native artifacts, image and network hosts. Verification may start one model-free VM.</label>
           <div className="button-row"><button type="button" disabled={dirty || saving || sandboxBusy || !sandboxReviewed || !snapshot.policy.allowedEnvs.includes("Sandbox")} onClick={() => {
             setSandboxBusy(true);
             void run(async () => { await sdk.sandbox.probe(); return sdk.sandbox.status(); }).finally(() => setSandboxBusy(false));
           }}>{sandboxBusy ? "Verifying original native guest..." : "Verify reviewed Sandbox"}</button>
-            <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("sandbox")}>Restore SendBox defaults</button></div></>}
+            <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())}>Check Sandbox readiness</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("sandbox")}>Restore SendBox defaults</button></div></details></>}
         {tab === "permissions" && <>
           <h3>Allowed execution environments</h3><p>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.</p>
           <select aria-label="Global allowed environments" value={environmentChoice} onChange={(event) => void run(() => event.target.value === "sandbox" ? sdk.containment.requireSandbox(true) :

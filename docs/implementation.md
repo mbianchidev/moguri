@@ -136,6 +136,14 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > quality remain explicit gates. Historical qualified archives and their
 > protocol versions are unchanged.
 
+> Protocol 52 adds [app-managed Sandbox](architecture/managed-sandbox.md):
+> bundled SendBox 0.2.3 plus compatible Linux worker/runtime dependencies,
+> exact in-app setup/update review, automatic private workspaces and scoped
+> selected-provider DNS aliases. Default GitHub reads stay distinct from blocked
+> unrelated sites. Legacy manual grants, actual tool approvals, original guest
+> ownership, source publication and budget accounting remain separate.
+> This is the supported macOS slice, not Linux or the completed roadmap.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.
@@ -406,6 +414,7 @@ The local control plane remains the authoritative event writer in all three envs
 - Global user-only **allowed envs** policy initially permits all three envs, subject to readiness. It can restrict new execution to Sandbox or Remote. Remote satisfies that policy without requiring SendBox on the target; display its actual SSH-host boundary rather than a SendBox badge. A stricter Sandbox-only policy remains possible. Agents, autonomy levels, and repo/project defaults cannot widen the allowed set.
 - Excluding Local blocks new Local turns, including queued messages, new child-agent turns, and recovery after a restart. Turns already running at the policy-change boundary may finish under their recorded prior policy. Persist that boundary atomically with turn admission, and show these turns as **Local finishing**, not sandboxed. Changing a default alone does not move a running turn between backends.
 - SendBox execution starts only after runtime, workload image, guest artifacts, policy, credentials, and workspace checks succeed. Missing or unsupported capabilities produce actionable diagnostics; never retry on the host or issue model requests while sandbox readiness is unconfirmed.
+- The macOS app distributes a compatible pinned worker image with Linux Node/native dependencies and a reviewed versioned SendBox installer. Managed setup prepares private project/worktree or root-less workspaces automatically; per-turn text previews are not a prerequisite. Resolve only actual admitted provider endpoints and their bounded public DNS aliases under the explicit managed policy. Default GitHub tool access does not authorize unrelated sites, provider substitution, private destinations or source writes. Automatic/manual public-release checks never activate an unreviewed version or overwrite an active installation.
 - Remote requires verified SSH host identity, usable credentials, a reachable machine, a compatible worker/toolchain, an approved workspace, and model connectivity from that machine. Never copy SSH private keys or the local secret store into the worker. A connection failure is not permission to run locally.
 - TUI, desktop, CLI, and the later VS Code extension expose the selected and effective env, target host, default/policy source, runtime health, and launch or cleanup failures through the same API. Terminals, subagents, MCP calls, and executable extensions cannot bypass the selected boundary.
 
