@@ -19,6 +19,11 @@ test("panel controls maximize over chat without covering navigation, mode is a b
     await expect(page.getByRole("combobox", { name: "Session mode", exact: true })).toHaveCount(0);
     await expect(page.locator(".session-header").getByRole("button", { name: "Archive", exact: true })).toHaveCount(0);
     const mode = composer.getByRole("switch", { name: "Agent mode", exact: true });
+    await composer.getByRole("button", { name: "Attach", exact: true }).focus();
+    await page.keyboard.press("Tab");
+    await expect(mode).toBeFocused();
+    const attachBounds = await composer.getByRole("button", { name: "Attach", exact: true }).boundingBox(), modeBounds = await mode.boundingBox();
+    expect(modeBounds!.x).toBeGreaterThanOrEqual(attachBounds!.x + attachBounds!.width);
     await expect(mode).toHaveAttribute("aria-checked", "true"); await mode.click();
     await expect.poll(() => fixture.session().mode).toBe("read-only");
     await expect(mode.locator("svg")).toHaveAttribute("data-icon", "BookOpen");

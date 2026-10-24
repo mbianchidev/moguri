@@ -70,7 +70,8 @@ reorder instead of publishing a partial arrangement.
 
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and
-read-only are a pen/book toggle in the composer. Cmd/Ctrl+K still opens Commands,
+read-only are a pen/book toggle immediately after the composer's **+** attachment
+button. Cmd/Ctrl+K still opens Commands,
 without a titlebar advertisement.
 
 During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
