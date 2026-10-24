@@ -46,6 +46,33 @@ the independent sanitized operation ledger. The additive schema-45 upgrade
 preserves existing ciphertext, keys and receipts. Restart clients/service
 together without deleting state. See [the contract](architecture/chat-activity.md).
 
+### Protocol-45 source qualification
+
+On macOS arm64 / Node 26, type checks and the production build pass. The complete
+unit/integration/native-TUI suite passes **1,097 cases**, with **nine physical
+native-workload skips**, zero failures and a duration of **1,097.37 s**.
+Complete hidden Electron acceptance passes **80 cases**, with **one physical
+native-workload skip**, zero failures and a duration of **3.4 min**.
+
+The actual packed external SDK passes all public entrypoint/declaration checks,
+including the browser-safe activity/React surface, original session-granted
+skill bytes, CLI/TUI reads and profile/deletion isolation without inference.
+All **12 actual installed-worker acknowledgement/accounting/cancellation
+probes** pass. The dependency audit reports **zero vulnerabilities**.
+
+Generated coverage includes exact file/command/MCP inputs/results, actual
+question answers versus stop, original model/context/captured rates, public-only
+reasoning, atomic skill/grant rollback, UTF-8 paging, reused call IDs, shared
+cancellation cursors, bounded live tails, late results, source restart and
+schema-44 ciphertext preservation. Hidden UI coverage exercises hover/keyboard
+copy/info, stale-session isolation, reduced-motion timers, compact layout and
+unchanged warned hard-budget controls.
+
+No real microphone, speech weights, personal authorization or paid inference
+was used. The skipped current SendBox workload, real ASR accuracy, Linux UI and
+signed/notarized release remain unqualified. Historical protocol-44 results
+below remain separate; current source does not relabel them as new acceptance.
+
 ## Desktop interactions
 
 Protocol 44 introduced these interaction changes. The right rail starts with
