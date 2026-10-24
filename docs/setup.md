@@ -37,6 +37,62 @@ failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
 app does not start another service or force-kill a guessed process. Other
 independent state roots are not scanned or stopped by name.
 
+## Protocol-53 integrated source qualification
+
+The 2026-10-24 integration merges main `5d1f97e` through the two-parent merge
+`2f28e7f`, with final desktop preservation fixes in `f9f476b` and deterministic
+Electron revision coverage in `29d7b07`. It preserves main's unified Start and
+cloning, independent consoles, searchable settings/profiles/preferences,
+device-aware browser audio and sounds, native application/storage/update
+controls, connection upgrades and owned shutdown, task plans/Other answers,
+and managed SendBox setup/staging/bootstrap/network controls.
+
+The original requested attachment/navigation/terminal/voice changes, activity,
+compact usage and separate Agent terminal are all retained. Main's per-message
+copy controls and available chat width also remain; turn-level response/info
+actions supplement rather than replace them. Opening intent is consumed once,
+so returning from Settings or remounting User cannot relaunch a closed console.
+Enter consumes its native event; Shift+Enter, IME composition and explicit held
+prompts retain their distinct behavior.
+
+| Check | Observed result |
+| --- | --- |
+| Locked root install, type checks and production build | PASS; neither requested root deprecation warning |
+| Complete unit/integration/worker/CLI/native-TUI suite | 1,259 passed, 14 physical-native skips, zero failures; 1,269.69 s |
+| Complete hidden Electron suite | 119 passed, 2 physical-native skips, zero failures; 4.1 min |
+| Actual external packed SDK | All entrypoints, declarations and installed client/runtime paths pass; all 12 installed-worker probes pass |
+| Cross-client Linear revision synchronization | 3 repeated hidden runs pass without weakening stale-review rejection |
+| Final packaged Ghostty and generated browser dictation | 2 hidden Electron cases pass in 4.8 s |
+| Root, generated SDK host and no-cache image dependency audits | Zero vulnerabilities |
+| Actual macOS package and bundled native distribution | PASS; original no-script installer and protocol-53 worker digests verified |
+| Production update consumer and actual DMG layout | PASS; 740,331,550-byte ZIP/manifest verified in 100.00 s; read-only DMG mount verified |
+
+The full Node suite ran on `2f28e7f`. The subsequent fixes change only desktop
+presentation, Electron coverage and documentation. A Git comparison verifies
+the final service, SDK, CLI, TUI, build scripts, manifests and generated Node
+test inputs remain byte-identical to that full run. Final type checks and the
+complete Electron run cover the desktop follow-ups. Of 245 incoming-main paths,
+175 main-only paths remain byte-identical; deliberate main-only changes are the
+Confirmations catalogue entry, the sidebar contract and updated Electron
+expectations for the requested interaction behavior.
+
+The native image was built without cache in 40.11 s and verifies the exact
+locked Linux arm64 payload and generated PTY. Its immutable local identity is
+`docker.io/library/moguri-worker@sha256:62a19e9b4a87f18aa73a32b0d579199097518b1e7aa3bb5cd207b76db87c3a5f`.
+This is image/package qualification, not proof of actual SendBox VM containment
+or Linux release readiness. The 14 unit and 2 desktop skips retain their physical
+native prerequisites. Personal accounts, microphones, speech weights and paid
+inference were not used; actual ASR accuracy remains unqualified. The macOS
+bundle is ad-hoc signed, not notarized.
+
+Root and image installs no longer emit the requested deprecated-package notices.
+npm does not inherit a dependency's overrides, so a generated external SDK host
+without its own compatibility policy still reports those upstream notices;
+the scoped host configuration remains in [the SDK guide](sdk.md).
+Non-blocking build/package notices remain for large UI chunks and the optional
+Apple `.icon` companion format; the ordinary bundled `.icns` is retained.
+Historical source qualifications below are not relabeled as this integrated run.
+
 ## Managed SendBox
 
 On supported Apple-silicon macOS with Apple Containerization available, the app
