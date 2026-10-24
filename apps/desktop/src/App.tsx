@@ -26,14 +26,16 @@ const SessionTerminal = lazy(() => import("./SessionTerminal.tsx").then((module)
 type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
-const panels: Panel[] = ["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal", "Terminal", "Browser", "Insights", "PR", "Changes", "Files", "Plan", "Side chat", "Attention"];
+const panels: Panel[] = ["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"];
 const globalPanels = ["Suggestions", "Dashboard", "Artifacts", "Candidates", "Sandbox", "Attention"] as const;
+const savedPanels: Panel[] = [...panels, ...globalPanels, "Global Terminal", "PR"];
 type GlobalView = typeof globalPanels[number] | "Global terminal";
 const isGlobalPanel = (value: Panel): value is typeof globalPanels[number] => globalPanels.some((panel) => panel === value);
-const globalNavigation: { view: GlobalView; icon: Panel }[] = [
-  { view: "Suggestions", icon: "Suggestions" }, { view: "Dashboard", icon: "Dashboard" },
+const globalNavigation: { view: GlobalView; icon: Panel; label?: string }[] = [
+  { view: "Dashboard", icon: "Dashboard" },
   { view: "Artifacts", icon: "Artifacts" }, { view: "Candidates", icon: "Candidates" },
-  { view: "Sandbox", icon: "Sandbox" }, { view: "Global terminal", icon: "Terminal" },
+  { view: "Sandbox", icon: "Sandbox" }, { view: "Suggestions", icon: "Suggestions" },
+  { view: "Global terminal", icon: "Terminal", label: "Global Terminal" },
 ];
 const number = (value: number) => new Intl.NumberFormat().format(value);
 interface SidebarLayout { panel: Panel; open: boolean; maximized: boolean; leftWidth: number; rightWidth: number }
@@ -43,7 +45,7 @@ function savedLayout(): SidebarLayout {
     const raw = localStorage.getItem("moguri.sidebar");
     if (!raw) return defaults;
     const value: unknown = JSON.parse(raw);
-    const panel = isRecord(value) ? panels.find((panel) => panel === value.panel) : undefined;
+    const panel = isRecord(value) ? savedPanels.find((panel) => panel === value.panel) : undefined;
     if (isRecord(value) && panel && typeof value.open === "boolean") {
       const width = (input: unknown, min: number, max: number, fallback: number) =>
         typeof input === "number" && Number.isFinite(input) ? Math.max(min, Math.min(max, Math.round(input))) : fallback;
@@ -299,7 +301,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (!canChangePanel()) return;
     beforeHidingTerminal(() => {
       setPanelOpen(false);
-      document.querySelector<HTMLButtonElement>(`[data-sidebar-panel="${panel}"]`)?.focus();
+      document.querySelector<HTMLButtonElement>(`[data-sidebar-panel="${panels.includes(panel) ? panel : "Insights"}"]`)?.focus();
     });
   };
   const showPanel = (next: Panel) => run(async () => {
@@ -380,7 +382,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <div className="nav-heading"><span>Workspace</span></div>
       <button className="new-session start-trigger" aria-label="Start" onClick={openStart} disabled={busy || !snapshot}><Icon name="Plus" />Start</button>
       <div className="nav-scroll">
-      <div className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{view}</button>)}</div>
+      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon, label = view }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{label}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }} />}
       </div>
@@ -455,8 +457,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
-    <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.filter((item) => item !== "Attention" && (item !== "PR" || connectedPr)).map((item) => {
-      const pressed = item === "Global Terminal" ? globalView === "Global terminal" : isGlobalPanel(item) ? globalView === item : panelVisible && panel === item;
+    <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.map((item) => {
+      const pressed = panelVisible && panel === item;
       return <button key={item} data-sidebar-panel={item} className={pressed ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={pressed}
       onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
       onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })} onBlur={() => setPanelTooltip(null)}

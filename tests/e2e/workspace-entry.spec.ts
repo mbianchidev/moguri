@@ -126,7 +126,7 @@ test("a real global Ghostty console opens without any session and stays separate
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Global terminal", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Global Terminal", exact: true }).click();
     await expect(page.getByRole("button", { name: "Open global terminal", exact: true })).toHaveCount(0);
     await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(1);
     const terminal = fixture.service.controller.snapshot().terminals[0]!;
@@ -147,7 +147,7 @@ test("a real global Ghostty console opens without any session and stays separate
     await closing.getByLabel("Do not ask me again when closing terminal").check();
     await closing.getByRole("button", { name: "Hide terminal", exact: true }).click();
     await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Global terminal", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Global Terminal", exact: true }).click();
     await expect(tty).toHaveAttribute("aria-disabled", "false");
     expect(fixture.service.controller.snapshot().terminals.length).toBe(1);
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();

@@ -25,9 +25,9 @@ test("attachment menu matches the five-source layout, previews retained files/im
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
-    await expect(rail.getByRole("button")).toHaveCount(13);
-    expect((await rail.getByRole("button").all()).slice(0, 6).length).toBe(6);
-    expect((await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).slice(0, 6)).toEqual(["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal"]);
+    await expect(rail.getByRole("button")).toHaveCount(7);
+    expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"]);
+    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal"]);
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated complete unsent prompt.");
     const path = join(fixture.directory, "generated-preview.txt"); await writeFile(path, "Generated immutable attached file.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);
@@ -153,7 +153,7 @@ test("global terminals auto-start only on explicit opening, confirm pane hides, 
   const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GLOBAL_READY\\n'+process.cwd()+'\\n');"], brokerPath: resolve("dist/terminal-broker.mjs") };
   const fixture = await setupFixture({ platform: { terminal: program } }), app = await launch(fixture.directory);
   try {
-    const page = await app.firstWindow(), rail = page.getByRole("navigation", { name: "Sidebar panels" });
+    const page = await app.firstWindow(), rail = page.getByRole("navigation", { name: "Profile resources", exact: true });
     await rail.getByRole("button", { name: "Global Terminal", exact: true }).click();
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(input).toHaveAttribute("aria-disabled", "false");
@@ -161,7 +161,7 @@ test("global terminals auto-start only on explicit opening, confirm pane hides, 
     expect(terminal.sessionId).toBeNull(); expect(terminal.projectId).toBeNull(); expect(terminal.binding?.root).toBe(await realpath(join(fixture.directory, "state")));
     await expect(page.getByRole("button", { name: "Open terminal", exact: true })).toHaveCount(0);
     await rail.getByRole("button", { name: "Global Terminal", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Close terminal pane", exact: true })).toHaveCount(0);
+    await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Keep open", exact: true }).click();
     await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Sessions", exact: true }).click();
     await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Keep open", exact: true }).click();
     await expect(page.getByRole("region", { name: "Global terminal workspace", exact: true })).toBeVisible();

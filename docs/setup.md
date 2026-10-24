@@ -182,9 +182,11 @@ integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
 
-The scrollable left sidebar owns Suggestions, Dashboard, independent Artifacts,
-Candidates, native Sandbox management and the Global terminal. The right rail
-contains only current-session tools. Attention is available through the single
+The scrollable left sidebar is ordered **Dashboard, Artifacts, Candidates,
+Sandbox, Suggestions, Global Terminal**. The right rail contains only
+**Terminal, Browser, Insights, Changes, Files, Plan, Side chat**, in that order.
+Global views are not duplicated there, and linking a PR does not add a rail tab;
+the existing `/pr` action still opens its auxiliary view. Attention uses the single
 top-bar icon. Where a global action needs a source, select an actual **Source
 chat** first. Viewing a global resource never creates a hidden chat or model
 request. Global and session consoles are separate entrypoints into the existing
@@ -422,11 +424,11 @@ below remain separate; current source does not relabel them as new acceptance.
 
 ## Desktop interactions
 
-Protocol 44 introduced these interaction changes. The right rail starts with
-Dashboard, Artifacts, Candidates, Sandbox, Suggestions and Global Terminal,
-followed by session-bound tools. These shortcuts use the same independent
-resources as the left navigation, with the current chat selected as an existing
-source where applicable. Attention remains in the top bar. The unified Start
+Protocol 44 introduced these interaction changes. Global resources live in
+the left sidebar: Dashboard, Artifacts, Candidates, Sandbox, Suggestions,
+Global Terminal. The right rail is reserved for Terminal, Browser, Insights,
+Changes, Files, Plan and Side chat. Global actions and existing slash commands
+retain their independently scoped source selection. Attention remains in the top bar. The unified Start
 chooser and project-free navigation remain available.
 
 | Attach menu | Shortcut | Selection |
