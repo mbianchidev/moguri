@@ -46,6 +46,8 @@ installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
 
 After qualification, select **Sandbox** in the composer and send normally.
+Managed engine qualification does not contact an unselected model provider;
+actual selected-provider access is checked before a turn's model admission.
 Private project/worktree copies are prepared automatically under ignore/folder
 rules; project-free chats get an empty root-less workspace. There is no required
 file preview or empty-stage confirmation. Successful private work persists across
