@@ -5,6 +5,8 @@ import { execFile, execFileSync } from "node:child_process";
 import { parseArgs, promisify } from "node:util";
 import { stageUpdateArchive } from "../apps/service/src/update-archive.ts";
 import { parse, UpdateManifestSchema } from "../packages/protocol/src/index.ts";
+import { bundleTreeSha512, verifyBundleIdentity } from "../apps/service/src/bundle-tree.ts";
+import { verifyDmgLayout } from "./dmg-layout.ts";
 
 if (process.platform !== "darwin") throw new Error("Actual macOS update-package roundtrip is not Linux release qualification.");
 const version = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
@@ -35,7 +37,11 @@ try {
   const applications = join(mountpoint, "Applications");
   assert.ok((await lstat(applications)).isSymbolicLink(), "The DMG must offer an Applications shortcut for drag-to-install.");
   assert.equal(await readlink(applications), "/Applications", "The install shortcut must target the system Applications folder.");
-  console.log(JSON.stringify({ status: "PASS", primitive: "Actual DMG drag-to-Applications layout", version: manifest.version, applicationExecuted: false }));
+  const layout = await verifyDmgLayout(mountpoint, manifest.version);
+  await verifyBundleIdentity(join(mountpoint, "Moguri.app"), manifest.version, manifest.arch);
+  assert.equal(await bundleTreeSha512(join(mountpoint, "Moguri.app")), manifest.bundleSha512, "The styled DMG must preserve the exact signed application bytes from the update manifest.");
+  console.log(JSON.stringify({ status: "PASS", primitive: "Actual DMG Finder geometry, native icons, 1x/2x background and unchanged signed application",
+    version: manifest.version, window: layout.window.WindowBounds, iconSize: layout.iconSize, positions: layout.positions, applicationExecuted: false, finderOpened: false }));
 } finally {
   if (mounted) await run("/usr/bin/hdiutil", ["detach", mountpoint], { timeout: 30_000, maxBuffer: 4096 });
   let safe = true;

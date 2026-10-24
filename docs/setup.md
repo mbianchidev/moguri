@@ -2561,8 +2561,24 @@ portable foundation, with macOS-only operational tests skipped.
 npm run package:mac
 ```
 
+DMG packaging also needs Python 3.10 or newer. The build creates a private
+`.native/dmgbuild-py<version>-<manifest-digest>/` environment and installs only
+the three SHA-256-locked wheels in `scripts/requirements-dmg.txt` from PyPI.
+System Python packages are never changed, and Python/build tools are not shipped
+in the app. Runtime/TUI installation requirements remain unchanged.
+
+The DMG opens in a native 540-by-380-point icon-view window: Moguri on the
+left, Applications on the right, with 80-point icons, 12-point native labels,
+and a light-gray/dashed-arrow background at both normal and Retina density.
+The title is `Moguri <version>-arm64`. Only the real app and Applications link
+are visible; toolbars, sidebars and status/path bars stay hidden. This matches
+the supplied Porto installer proportions without using Porto branding.
+Finder metadata is written offline, never through Finder/AppleScript automation.
+`npm run verify:update -- --dmg-only` checks the actual read-only mounted image,
+including the background alias, exact pixels/geometry and unchanged signed app.
+
 On macOS arm64 this produces
-`release/<package-version>/Moguri-darwin-arm64/Moguri.app`,
+`release/builds.noindex/<package-version>/Moguri-darwin-arm64/Moguri.app`,
 `release/Moguri-<package-version>-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development

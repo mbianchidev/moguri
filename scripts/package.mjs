@@ -1,8 +1,9 @@
 import { packager } from "@electron/packager";
 import { execFileSync } from "node:child_process";
-import { access, chmod, copyFile, lstat, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { access, chmod, copyFile, lstat, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { buildDmg } from "./dmg-layout.ts";
 
 if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Development packaging is validated for macOS arm64 only.");
 const require = createRequire(import.meta.url);
@@ -31,10 +32,7 @@ const archive = resolve(`release/Moguri-${version}-macos-arm64.zip`);
 await rm(archive, { force: true });
 execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, archive]);
 const image = resolve(`release/Moguri-${version}-macos-arm64.dmg`);
-await rm(image, { force: true });
-const imageRoot = resolve(paths[0]);
-await symlink("/Applications", join(imageRoot, "Applications"));
-execFileSync("hdiutil", ["create", "-volname", "Moguri", "-srcfolder", imageRoot, "-ov", "-format", "UDZO", image], { stdio: "inherit" });
+await buildDmg(app, image, version);
 const { bundleTreeSha512, fileSha512, verifyBundleIdentity, verifyStandaloneInstallerRuntime } = await import("../dist/update-tools.mjs");
 await verifyBundleIdentity(app, version, "arm64");
 await verifyStandaloneInstallerRuntime(join(app, "Contents", "Resources", "app", "node_modules", "node", "bin", "node"));
