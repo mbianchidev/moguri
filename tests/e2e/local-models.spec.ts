@@ -41,7 +41,9 @@ test("local model setup is independent of Copilot and startup controls are inher
     await page.getByLabel("Project startup control overrides", { exact: true }).fill('{"modelOptions":{"contextWindow":16384}}');
     await page.getByRole("button", { name: "Save project settings", exact: true }).click();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
-    await page.locator(".new-session").click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page.getByRole("dialog", { name: "Start", exact: true }).locator(".start-projects").getByRole("button").click();
+    await expect.poll(() => fixture.service.controller.snapshot().sessions.length).toBe(2);
     const current = fixture.service.controller.snapshot().sessions.at(-1)!;
     expect(current.controls.modelId).toBe(fixture.session().controls.modelId);
     expect(current.controls.modelOptions?.contextWindow).toBe(16384);

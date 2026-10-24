@@ -36,7 +36,7 @@ test("Ghostty detachment discards queued input, reconnects one existing PTY and 
       if (request.action === "input") { received.push(request.data); if (!held) { held = true; await barrier; } }
     };
     await input.focus(); await page.keyboard.type("AQUEUED_NEVER_SUBMIT"); await expect.poll(() => held).toBe(true);
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     release();
     await page.getByRole("button", { name: "Terminal", exact: true }).click();
     await page.getByRole("button", { name: "Reconnect existing terminal", exact: true }).click();
@@ -56,7 +56,7 @@ test("Ghostty detachment discards queued input, reconnects one existing PTY and 
     await expect.poll(() => fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
     await page.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "Terminal", exact: true }).click();
-    await expect(page.getByLabel("Selected terminal", { exact: true })).toHaveValue(terminal.id);
+    await expect(page.getByLabel("Selected terminal", { exact: true })).toHaveValue("");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
     await page.getByRole("button", { name: "New terminal", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(2);

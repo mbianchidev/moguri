@@ -29,7 +29,11 @@ test("desktop labels current solver guidance as advice and still requires explic
     await page.setViewportSize({ width: 900, height: 740 });
     await expect(card.getByRole("button", { name: "Generated first choice", exact: true })).toBeInViewport({ ratio: 1 });
     await expect(card.getByRole("button", { name: "Generated second choice", exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Answer question", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Stop turn", exact: true })).toBeInViewport({ ratio: 1 });
+    await page.setViewportSize({ width: 840, height: 620 });
+    await expect(card.getByRole("button", { name: "Generated first choice", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(card.getByRole("button", { name: "Generated second choice", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Stop turn", exact: true })).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: resolve(".moguri/artifacts/guided-advice-compact.png") });
     await card.getByRole("button", { name: "Generated first choice", exact: true }).click(); await fixture.terminal();
     await expect.poll(() => sdk.getState().snapshot!.questions[0]?.answer?.text).toBe("Generated first choice");
@@ -65,7 +69,7 @@ test("desktop keeps queue-only shortcuts distinct from actual user answers and r
     await page.screenshot({ path: resolve(".moguri/artifacts/structured-question-desktop.png") });
     await page.setViewportSize({ width: 900, height: 740 });
     await page.screenshot({ path: resolve(".moguri/artifacts/structured-question-compact.png") });
-    await page.getByRole("button", { name: "Answer question", exact: true }).click();
+    await prompt.press("Enter");
     await expect.poll(() => sdk.getState().snapshot!.questions.find((value) => value.id === question.id)?.answer?.actor).toBe("user");
     await fixture.terminal();
     expect(sdk.getState().snapshot!.sessions[0]?.draft.text).toBe("");

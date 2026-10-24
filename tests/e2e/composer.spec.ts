@@ -129,10 +129,10 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await expect.poll(() => model.getByLabel("Working context window", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(["", "32768", "16384"]);
     await model.getByLabel("Working context window", { exact: true }).selectOption("16384");
+    await expect.poll(() => fixture.session().controls.modelOptions?.contextWindow).toBe(16384);
     await model.getByLabel("Working context window", { exact: true }).press("Enter");
     expect(fixture.requests.length).toBe(0);
     await model.getByLabel("Thinking effort", { exact: true }).selectOption("low");
-    await model.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 16384, thinkingEffort: "low" });
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/composer-model-menu.png") });

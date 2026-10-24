@@ -13,7 +13,7 @@ test("desktop inspects original selected-context contracts as data, never qualit
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
     const panel = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await panel.getByLabel("Retained artifact", { exact: true }).selectOption(created.id);
     const roles = panel.getByRole("region", { name: "Retained role sequence", exact: true });
@@ -42,7 +42,7 @@ test("a rejected critic remains inspectable with actual charged data and cannot 
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
     const panel = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await panel.getByLabel("Retained artifact", { exact: true }).selectOption(created.id);
     const roles = panel.getByRole("region", { name: "Retained role sequence", exact: true });

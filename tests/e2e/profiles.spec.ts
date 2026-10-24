@@ -25,9 +25,9 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     const active = page.getByLabel("Active profile", { exact: true });
     await expect(active).toHaveValue("default");
-    await page.getByRole("button", { name: "Manage profiles", exact: true }).click();
     await page.getByRole("button", { name: "New profile", exact: true }).click();
     await page.getByLabel("Profile name", { exact: true }).fill("Generated desktop Beta");
     await page.getByLabel("Profile accent", { exact: true }).fill("#557799");
@@ -48,9 +48,11 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
       await region.getByText("I accept estimate-based accounting and interruption risk.", { exact: true }).click();
     }
     await policy.getByRole("button", { name: "Save profile budget policy", exact: true }).click();
-    await expect(policy).toContainText("Profile policy saved."); await expect(active).toBeDisabled();
+    await expect(policy).toContainText("Profile policy saved.");
+    await expect.poll(() => page.evaluate(() => { const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; })).toBe(true);
     await global.getByRole("button", { name: "Save global budget policy", exact: true }).click();
-    await expect(global).toContainText("Global policy saved."); await expect(active).toBeEnabled();
+    await expect(global).toContainText("Global policy saved.");
+    await expect.poll(() => page.evaluate(() => { const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; })).toBe(false);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated private Default desktop draft.");
     await fixture.send(fixture.sdk, background.id!, "generated slow Default-owned profile switch");
@@ -58,22 +60,24 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     const originalRefresh = fixture.providers[1]!.provider.refresh.bind(fixture.providers[1]!.provider);
     const gate = new Promise<void>((resolve) => { release = resolve; }); let entered = false;
     fixture.providers[1]!.provider.refresh = async () => { entered = true; await gate; await originalRefresh(); };
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await active.selectOption(profile.id);
     await waitFor(() => entered);
     await expect(page.locator(".app-shell")).toHaveAttribute("inert", "");
     release();
     await expect(page.getByRole("heading", { name: "What are we working on?", exact: true })).toBeVisible();
-    await expect(active).toHaveValue(profile.id);
+    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated desktop Beta");
     await expect(page.getByText("Generated Default-only document", { exact: true })).toHaveCount(0);
     expect(fixture.session(fixture.sdk, first.id!).draft.text).toBe("Generated private Default desktop draft.");
     expect(fixture.session(fixture.sdk, background.id!).turnId).toBeTruthy();
-    await page.getByRole("button", { name: "New chat", exact: true }).click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated private Beta desktop draft.");
     const beta = await fixture.service.profiles.control(profile.id);
     await expect.poll(() => beta.snapshot().sessions.length).toBe(1);
     expect(beta.snapshot().sessions[0]!.controls.modelId).toBeNull();
     expect(beta.snapshot().provider.status).toBe("disconnected");
-    await page.getByRole("button", { name: "Manage profiles", exact: true }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Rename / color", exact: true }).click();
     await page.getByLabel("Profile name", { exact: true }).fill("Generated desktop Beta renamed");
     await page.getByLabel("Profile accent", { exact: true }).fill("#776655");
@@ -82,11 +86,12 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     await expect(active.locator("option:checked")).toHaveText("Generated desktop Beta renamed");
     await fixture.sdk.command({ type: "session.stop", sessionId: background.id! });
     await waitFor(() => !fixture.session(fixture.sdk, background.id!).turnId);
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated private Beta desktop draft.");
     await mkdir(artifacts, { recursive: true });
     await page.screenshot({ path: join(artifacts, "profiles-desktop.png") });
     await page.setViewportSize({ width: 900, height: 740 });
-    if (!await active.isVisible()) await page.getByRole("button", { name: "Toggle projects", exact: true }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.screenshot({ path: join(artifacts, "profiles-compact.png") });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await active.selectOption("default");
@@ -107,7 +112,7 @@ test("native profile startup and preview partitions reject foreign sessions and 
   const previewUrls = () => app.evaluate(({ BrowserWindow, WebContentsView }) => BrowserWindow.getAllWindows()[0]!.contentView.children.filter((child) => child instanceof WebContentsView).map((child) => child.webContents.getURL()));
   try {
     const page = await app.firstWindow();
-    await expect(page.getByLabel("Active profile", { exact: true })).toHaveValue(profile.id);
+    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated native Beta");
     await expect(page.getByRole("heading", { name: "Generated native Beta chat", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Generated native Default", exact: true })).toHaveCount(0);
     await expect(page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: a.id!, url, bounds })).rejects.toThrow(/inactive profile/);
@@ -122,10 +127,10 @@ test("native profile startup and preview partitions reject foreign sessions and 
     await page.evaluate(() => window.moguri.preview(null, "default")); await expect.poll(previewUrls).toContain(url);
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-session", id, "default"), b.id!);
     await expect(page.getByRole("alert")).toContainText("notification's session was removed from its actual profile");
-    await expect(page.getByLabel("Active profile", { exact: true })).toHaveValue(profile.id);
+    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated native Beta");
     await page.getByRole("button", { name: "Dismiss", exact: true }).click();
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-session", id, "default"), a.id!);
-    await expect(page.getByLabel("Active profile", { exact: true })).toHaveValue("default"); await expect.poll(previewUrls).not.toContain(url);
+    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Default"); await expect.poll(previewUrls).not.toContain(url);
     await page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: a.id!, url, bounds });
     await page.evaluate((profileId) => window.moguri.preview(null, profileId), profile.id); await expect.poll(previewUrls).toContain(url);
     await expect(page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: b.id!, url, bounds })).rejects.toThrow(/outside the active profile/);

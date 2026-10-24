@@ -14,7 +14,8 @@ test("desktop stages source edits separately, applies only a fresh exact review 
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Candidates", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
+    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByLabel("Candidate summary", { exact: true }).fill("Generated desktop reviewed change");
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
@@ -41,7 +42,7 @@ test("desktop stages source edits separately, applies only a fresh exact review 
     await page.screenshot({ path: resolve(".moguri/artifacts/candidates-desktop.png") });
     await page.setViewportSize({ width: 900, height: 740 });
     await page.screenshot({ path: resolve(".moguri/artifacts/candidates-compact.png") });
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
     const artifacts = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await artifacts.getByLabel("Retained artifact", { exact: true }).selectOption(candidate.id);
     await expect(artifacts.getByLabel("Artifact text", { exact: true })).toHaveAttribute("readonly", "");
@@ -61,7 +62,8 @@ test("a held desktop preview cannot stage into a changed read-only scope or disc
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Candidates", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
+    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt");
