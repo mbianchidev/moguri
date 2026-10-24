@@ -3,8 +3,8 @@ import type { MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/ind
 import { AgentTerminal } from "./AgentTerminal.tsx";
 import { GhosttyTerminal } from "./GhosttyTerminal.tsx";
 
-export function SessionTerminal({ sdk, session, snapshot, active, visible, autoStart }: {
-  sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean; visible: boolean; autoStart: boolean;
+export function SessionTerminal({ sdk, session, snapshot, active, visible, autoStart, opening = false }: {
+  sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean; visible: boolean; autoStart: boolean; opening?: boolean;
 }) {
   const [selected, setSelected] = useState<"user" | "agent">("user"), id = useId();
   const user = useRef<HTMLButtonElement>(null), agent = useRef<HTMLButtonElement>(null);
@@ -19,7 +19,7 @@ export function SessionTerminal({ sdk, session, snapshot, active, visible, autoS
       <button ref={agent} id={`${id}-agent`} type="button" role="tab" aria-selected={selected === "agent"} aria-controls={`${id}-panel`} tabIndex={selected === "agent" ? 0 : -1} onClick={() => setSelected("agent")}>Agent</button>
     </div>
     <div className="terminal-owned-panel" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${selected}`}>
-      {selected === "user" ? <GhosttyTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} visible={visible} autoStart={autoStart} /> :
+      {selected === "user" ? <GhosttyTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} visible={visible} autoStart={autoStart} opening={opening} consoleScope="session" /> :
         <AgentTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} />}
     </div>
   </section>;

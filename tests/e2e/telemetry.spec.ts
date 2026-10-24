@@ -26,7 +26,7 @@ test("desktop UTC windows, captured prices, stream observations and retained cal
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests.length).toBe(1);
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Date range and buckets", { exact: true }).click();
     await dashboard.getByLabel("Usage date range", { exact: true }).selectOption("7");
@@ -90,7 +90,7 @@ test("desktop tool/MCP outcomes and retained storage use sanitized authoritative
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await fixture.approve(); await fixture.terminal();
     await fixture.send("generated failing command"); await fixture.approve(); await fixture.terminal();
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Tool and MCP outcomes", { exact: true }).click();
     const operations = dashboard.getByRole("region", { name: "Tool and MCP outcomes", exact: true });
@@ -146,7 +146,7 @@ test("desktop explicitly reviews repository lookup and filters immutable owner/v
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Repository attribution", { exact: true }).click();
     const repository = dashboard.getByRole("region", { name: "Repository attribution", exact: true });
@@ -158,9 +158,14 @@ test("desktop explicitly reviews repository lookup and filters immutable owner/v
     await repository.getByRole("button", { name: "Refresh verified metadata", exact: true }).click();
     await expect(repository).toContainText("Stored observation"); await expect(repository).toContainText("organization"); await expect(repository).toContainText("MIT");
     expect(lookups).toBe(1); expect(fixture.requests.length).toBe(0);
+    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated repository-attributed desktop response.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await fixture.terminal();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await dashboard.getByText("Repository attribution", { exact: true }).click();
+    await repository.getByLabel("Repository scope session", { exact: true }).selectOption(fixture.sessionId);
+    await repository.getByRole("button", { name: "Review repository binding", exact: true }).click();
     await dashboard.getByText("Filters", { exact: true }).click();
     await dashboard.getByLabel("Usage repository filter", { exact: true }).selectOption("42");
     await dashboard.getByLabel("Usage organization filter", { exact: true }).selectOption("generated");
@@ -170,11 +175,16 @@ test("desktop explicitly reviews repository lookup and filters immutable owner/v
     const preview = (await sdk.repositories.preview(fixture.sessionId)).preview, refresh = await sdk.repositories.refresh(fixture.sessionId, preview.bindingDigest, preview.revision, true);
     expect((await sdk.jobs.wait(refresh.id!)).status).toBe("completed");
     await expect(repository).toContainText("BUSL-1.1");
+    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated later non-OSI metadata response.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.requests.length).toBe(2); await fixture.terminal();
     expect((await sdk.budgets.dashboard()).totals.calls).toBe(2); expect((await sdk.budgets.dashboard({ visibility: "open-source" })).totals.calls).toBe(1);
     expect((await sdk.budgets.dashboard({ visibility: "public" })).totals.calls).toBe(2);
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await dashboard.getByText("Repository attribution", { exact: true }).click();
+    await repository.getByLabel("Repository scope session", { exact: true }).selectOption(fixture.sessionId);
+    await repository.getByRole("button", { name: "Review repository binding", exact: true }).click();
     await repository.getByRole("heading", { name: "Stored observation", exact: true }).scrollIntoViewIfNeeded();
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/repository-attribution-desktop.png") });

@@ -22,6 +22,7 @@ test("desktop saves a reviewed SSH plan without a selected model, preserves the 
     await expect.poll(() => f.session().draft.text).toBe("Generated unsent prompt survives a manual plan save.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toContainText("Draft saved");
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Plan", exact: true }).click();
+    await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
     const plan = page.getByRole("region", { name: "Bound project plan", exact: true }), text = "Generated manually reviewed Remote desktop plan.\n\nNo model or Local fallback.\n";
     await expect(plan).toContainText("SSH destination and binding");
     await plan.getByLabel("Project plan", { exact: true }).fill(text);
@@ -41,7 +42,7 @@ test("desktop saves a reviewed SSH plan without a selected model, preserves the 
     await page.screenshot({ path: resolve(".moguri/artifacts/remote-plan-save-compact.png") });
     expect(await plan.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
     const save = f.controller.snapshot().planSaves.at(-1)!;
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
     await page.getByLabel("Retained artifact", { exact: true }).selectOption(save.artifactId!);
     await expect(page.getByText("User-requested Remote file snapshot, not a chat answer or permission.", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Artifact text", { exact: true })).toHaveValue(text);
@@ -57,6 +58,7 @@ test("desktop exact save stop after written bytes preserves the editor and repor
     app = await openApp(f.directory);
     const page = await app.firstWindow();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Plan", exact: true }).click();
+    await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
     const plan = page.getByRole("region", { name: "Bound project plan", exact: true }), text = "Generated Remote bytes before explicit desktop stop.\n";
     await plan.getByLabel("Project plan", { exact: true }).fill(text);
     await plan.getByRole("button", { name: "Save", exact: true }).click();
@@ -92,6 +94,7 @@ test("a settled original save cannot load a new mapping over the dirty editor wh
     app = await openApp(f.directory);
     const page = await app.firstWindow();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Plan", exact: true }).click();
+    await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
     const plan = page.getByRole("region", { name: "Bound project plan", exact: true }), text = "Generated original binding edit preserved after settlement.\n";
     await plan.getByLabel("Project plan", { exact: true }).fill(text);
     await plan.getByRole("button", { name: "Save", exact: true }).click();

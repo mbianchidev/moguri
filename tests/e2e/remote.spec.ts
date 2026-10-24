@@ -59,6 +59,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.getByRole("button", { name: "Changes", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated remote-only panel change.");
     await page.getByRole("button", { name: "Plan", exact: true }).click();
+    await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
     await expect(page.getByLabel("Project plan", { exact: true })).toHaveValue("Generated remote-only desktop plan.\n");
     await expect(page.getByLabel("Project plan", { exact: true })).not.toHaveAttribute("readonly", "");
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();

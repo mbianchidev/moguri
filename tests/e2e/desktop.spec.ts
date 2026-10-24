@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { MoguriClient } from "../../packages/client/src/index.ts";
+import { startService } from "../../apps/service/src/server.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { dependencyArchive, dependencyProject } from "../fixtures/dependencies.ts";
 import { existsSync } from "node:fs";
@@ -50,20 +51,25 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     await expect(page.getByRole("button", { name: "Generated cache feature", exact: true })).toBeVisible();
     await page.getByLabel("Phase for issue 1", { exact: true }).selectOption("in-progress");
     await expect.poll(() => fixture.service.controller.snapshot().issues[0]?.phaseId).toBe("in-progress");
-    await page.getByRole("button", { name: "Configure phases and integrations", exact: true }).click();
+    await page.getByRole("button", { name: "Project settings", exact: true }).click();
     await expect(page.getByLabel("Enable read-only Linear import for this project")).not.toBeChecked();
     await page.getByLabel("Phase name review", { exact: true }).fill("Validation");
     await page.getByLabel("Merged PR destination", { exact: true }).selectOption("review");
-    await page.getByLabel("Enable read-only Linear import for this project").check();
     await page.getByLabel("Linear team UUID", { exact: true }).fill("generated-team");
     await page.getByRole("button", { name: "Save board configuration", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Validation", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Save Linear team", exact: true }).click();
+    await page.getByLabel("Enable read-only Linear import for this project").check();
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Linear workflows", exact: true }).click();
     await page.getByLabel("Linear personal API key", { exact: true }).fill("generated-linear-ui-key");
     await page.getByRole("button", { name: "Store Linear key in keychain", exact: true }).click();
     await expect(page.getByLabel("Linear personal API key", { exact: true })).toHaveValue("");
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await page.getByRole("button", { name: "Issues", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Validation", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Import Linear team issues", exact: true }).click();
     await expect(page.getByRole("button", { name: "Generated Linear UI ticket", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Configure phases and integrations", exact: true }).click();
     await page.getByRole("button", { name: "Generated cache feature", exact: true }).click();
     await page.getByLabel("Connected GitHub PR URL", { exact: true }).fill("https://github.com/generated/project/pull/9");
     await page.getByRole("button", { name: "Save issue", exact: true }).click();
@@ -98,7 +104,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
   const packagedRoot = packaged ? resolve(packaged, "../../Resources/app") : undefined;
   const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined });
   await fixture.provider.logout();
-  let app: ElectronApplication | undefined;
+  let app: ElectronApplication | undefined, restarted: Awaited<ReturnType<typeof startService>> | undefined;
   const other = new MoguriClient(fixture.service.connection);
   const launch = () => launchFixtureApp(join(fixture.directory, "state"));
   try {
@@ -115,11 +121,12 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByRole("button", { name: "Open GitHub", exact: true })).toBeVisible();
     fixture.provider.authorize();
     await expect(page.getByText("Connected through your Copilot account.")).toBeVisible();
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: /^Model:/ }).click();
     await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool task");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect(page.getByRole("region", { name: "Tool approval" })).toBeVisible();
@@ -142,7 +149,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByText("Active-generation throughput is not measured", { exact: false })).toBeVisible();
     await page.screenshot({ path: join(artifacts, "desktop-session.png") });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(900, 760));
-    await page.getByRole("button", { name: "Close sidebar", exact: true }).click();
+    await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await page.screenshot({ path: join(artifacts, "desktop-compact.png") });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow).toBe(false);
@@ -151,6 +158,9 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect.poll(() => fixture.session().draft.text).toBe("generated restart-safe draft");
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     await app.close();
+    app = undefined; other.disconnect();
+    restarted = await startService({ stateDir: join(fixture.directory, "state"), provider: fixture.provider, retentionKey: fixture.retentionKey,
+      workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined, platform: { terminal: { vault: fixture.terminalVault } } });
     app = await launch();
     page = await app.firstWindow();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");
@@ -163,7 +173,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     expect(failures).toEqual([]);
     const database = await readFile(join(fixture.directory, "state", "state.sqlite"));
     expect(database.includes(Buffer.from("generated-test-only"))).toBe(false);
-  } finally { other.disconnect(); await app?.close(); await fixture.close(); }
+  } finally { other.disconnect(); await app?.close(); await restarted?.close(); await fixture.close(); }
 });
 
 test("dark mascot branding and shared SDK settings expose prompt, memory, permissions, MCP and optional capabilities", async () => {
@@ -177,6 +187,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.locator(".brand-mascot")).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "System prompt", exact: true }).click();
     await expect(page.getByRole("heading", { name: "System prompt", exact: true })).toBeVisible();
     const prompt = page.getByLabel("Editable system prompt", { exact: true });
     await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);
@@ -197,10 +208,8 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     const categories = page.getByRole("navigation", { name: "Settings categories" });
     await categories.getByRole("button", { name: "Appearance", exact: true }).click();
     await page.getByLabel("Theme", { exact: true }).selectOption("light");
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page.getByLabel("Theme", { exact: true }).selectOption("dark");
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await categories.getByRole("button", { name: "Guardrails", exact: true }).click();
     const permission = { tools: [{ id: "generated-ui-deny", tool: "write_file", decision: "deny", pathPrefix: "" }], commands: [] };
@@ -209,7 +218,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect.poll(async () => JSON.parse(await page.getByLabel("Tool and exact-command permissions", { exact: true }).inputValue())).toEqual(permission);
     await categories.getByRole("button", { name: "Repository memory", exact: true }).click();
     await page.getByLabel("Enable explicit repository indexing and retrieval").check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().settings.values.memory.enabled).toBe(true);
     await page.getByRole("button", { name: "Index Local repository", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "memory.index" && job.status === "completed")).toBe(true);
     await page.getByLabel("Search repository memory", { exact: true }).fill("shared sdk knowledge");

@@ -26,7 +26,8 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("button", { name: "New project-free chat", exact: true }).click();
+    await page.getByRole("button", { name: "Start", exact: true }).click();
+    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     const created = fixture.service.controller.snapshot().sessions.at(-1)!;
     expect(created.projectId).toBeNull();
     const prompt = page.getByLabel("Prompt", { exact: true });
@@ -62,7 +63,7 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await prompt.fill("generated question"); await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().attention.some((entry) => entry.sessionId === meta.id && entry.active && entry.kind === "question")).toBe(true);
     await expect(page.locator(".session-row.selected").getByLabel("Possible question", { exact: true })).toBeVisible();
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Attention", exact: true }).click();
+    await page.getByRole("button", { name: "Attention notifications", exact: true }).click();
     await expect(page.getByRole("region", { name: "Attention list", exact: true })).toContainText("Possible question");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     await page.screenshot({ path: join(artifacts, "engagement-attention-compact.png") });
@@ -73,7 +74,6 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await expect(page.getByLabel("Enable OS banners while Moguri desktop runs in the background")).not.toBeChecked();
     await expect(page.getByLabel("Include session title and message preview in OS banners")).not.toBeChecked();
     await page.getByLabel("Enable OS banners while Moguri desktop runs in the background").check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => sdk.settings.get()!.values.notifications.os).toBe(true);
     expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }

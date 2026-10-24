@@ -19,8 +19,9 @@ unassigned-history coverage. None of these grant tools or dispatch a model.
 Its current rail is Terminal, Browser, Insights, Dashboard, PR when linked, Changes, Plan,
 Side chat, Suggestions and Attention. Suggestions use explicit scoped source
 review and configuration proposals; attention read state is not a user answer
-or tool decision. Project-free chats show a project-required state for workspace
-panels instead of reusing a previous root. Extensions remain a roadmap panel,
+or tool decision. Project-free chats show a project-required state for agent workspace
+panels instead of reusing a previous root. The user-console exception below
+does not grant a model workspace. Extensions remain a roadmap panel,
 with capability settings elsewhere. Full metrics,
 Stainless automation, native Sandbox terminals and
 the remaining release acceptance checks are not claimed complete.
@@ -38,6 +39,7 @@ This sidebar is desktop-only. The TUI keeps its own navigation and split-panel p
 
 - The session in the primary pane is the **main session** for the sidebar.
 - Switching the main session rebinds every sidebar panel to that session, its project, and its worktree.
+- The Terminal panel can explicitly select the independent profile-owned Global console instead. Changing chats never rebinds that console.
 - Sidebar content comes from the local control plane. Panels must not keep authoritative copies of session, terminal, file, extension, or usage state.
 - Desktop-only layout preferences such as width, collapsed state, active panel, and inline-metric visibility may remain local UI preferences.
 - Actions that affect Git, processes, files, sessions, extensions, or remote systems use the same policy checks, autonomy level, and human or delegated approval attribution as every other client. Opening a panel grants no new delegation.
@@ -56,6 +58,15 @@ The sidebar provides these top-level panels:
 7. Extensions
 
 Only one panel needs to be open at a time. The sidebar can collapse, resize, show status badges, and preserve its presentation state. Opening an item may create a split panel without changing the main-session binding.
+
+Both the left project navigation and right context pane have draggable inner
+edges and keyboard-focusable separators. Arrow keys resize in 16-pixel steps;
+Home/End use the available bounds. Widths persist locally, with the previous
+wide/narrow right-pane preference accepted on upgrade. Desktop resizing reserves
+at least 340 pixels for chat at the supported window minimum; smaller responsive
+layouts use overlays instead. The right pane's **<>** button hides it without
+ending owned work, and any rail icon reopens its panel. Rail labels appear as
+hover/focus tooltips; unsaved panel edits still prevent collapse/navigation.
 
 Keyboard navigation, focus order, labels, and status announcements must make every panel usable without a pointer.
 
@@ -77,6 +88,10 @@ In Remote, query and mutate the selected SSH workspace through its worker. A sam
 ### Terminal
 
 Terminal shows terminals and process trees associated with the main session and worktree. Users can open a terminal, inspect output, send input, and request cancellation.
+The **Global terminal** scope is also available without any session, limited to
+one Local console per profile. **This chat** keeps its own consoles; a
+project-free chat explicitly opens the disclosed Local home root, never inherits
+a project root. Opening either is a user action, not model workspace authority.
 Use Ghostty through its maintained web/WASM integration rather than writing a
 terminal emulator. The current Local user console is separate from model tool
 permissions. Input/output are ephemeral and never become implicit agent context.

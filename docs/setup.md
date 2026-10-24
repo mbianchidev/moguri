@@ -1,5 +1,214 @@
 # Setup and usage
 
+Current service/SDK/desktop protocol is **53**. Additive upgrades retain existing
+encrypted history, identities, keys, grants and budget holds. Restart matching
+clients and service; never delete state to upgrade.
+
+Protocol 53 converges the independent main-line schemas 44-52 and desktop
+schemas 44-46. The original desktop provenance marker identifies that lineage;
+version numbers alone cannot distinguish the two histories. Required markers
+and the final version advance atomically, without rewriting encrypted events,
+keys, receipts or source grants. Missing main-line markers or invalid provenance
+fail explicitly and preserve state. See [retained-state upgrades](sdk.md#retained-state-upgrades).
+
+An older `connection.json` is not necessarily corrupt. A stale unreachable
+connection can start the current service through its normal writer-lock/recovery
+path without deleting stored history. If an older service is actually running
+and its private token, PID and protocol are confirmed, desktop asks before
+restarting that exact owner. **Restart service** stops in-flight agent work,
+preserves authenticated user terminals, then opens the current client. **Cancel**
+leaves the original service unchanged.
+
+Newer protocols, changed owners, malformed/private-file violations and
+unresponsive health checks are not force-restarted or silently replaced. Close
+the original service or inspect it before retrying; never delete the database,
+keys or session state as a workaround. CLI `moguri service restart` remains an
+explicit action against an authenticated responsive service.
+
+Closing the last desktop window, Cmd+Q and **Quit Moguri** wait for the exact
+connected service to shut down before Electron exits. Running model/tool work
+stops with its real outcome, and ordinary exit closes known user terminal groups
+across profiles. Saved history, profiles, artifacts and unknown budget holds
+remain. This is separate from explicit upgrade/update/storage restarts, which
+retain their reviewed terminal-preservation behavior.
+
+Cancelling an unsaved-edit close leaves the service running. A changed owner or
+failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
+app does not start another service or force-kill a guessed process. Other
+independent state roots are not scanned or stopped by name.
+
+## Managed SendBox
+
+On supported Apple-silicon macOS with Apple Containerization available, the app
+includes SendBox **0.2.3**, a versioned no-script installer, and a compatible
+digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
+dependencies. You do not run a build, container command or SHA command to use it.
+
+Open **Settings > Execution & permissions > SendBox**, choose **Review bundled
+setup**, review the actual version, image, workspace/network policy and install
+location, then choose **Enable Sandbox**. An already configured exact root-owned
+0.2.3 installation can be reused. A fresh installation requests your administrator
+approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
+installation or approves the OS dialog for you. Unsupported prerequisites block
+setup without a Local fallback.
+
+After qualification, select **Sandbox** in the composer and send normally.
+Managed engine qualification does not contact an unselected model provider;
+actual selected-provider access is checked before a turn's model admission.
+Private project/worktree copies are prepared automatically under ignore/folder
+rules; project-free chats get an empty root-less workspace. There is no required
+file preview or empty-stage confirmation. Successful private work persists across
+turns. After cancellation/rollback, verified retained private work is copied into
+a newly owned stage rather than being discarded or silently replaced by the
+original checkout. Source publication still has its separate exact review.
+
+Provider networking uses the actual prepared HTTPS endpoint, not an assumed
+canonical Copilot host. Managed policy resolves and allows its bounded public
+CNAME chain automatically, capturing the effective hosts with the original
+execution. No permanent historical grant or hardcoded alias is inferred.
+`github.com` and `api.github.com` are default tool destinations; unrelated
+`google.com` remains denied. The native public-page tool works without a project,
+uses the enforced guest proxy and requires ordinary tool permission. This is not
+an interactive browser or a general native MCP grant.
+
+Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
+tool rules. These permit subdomains at any depth, not the apex or lookalike
+suffixes. Exact entries remain exact, private-address protections remain in the
+guest, and selected-provider URLs/CNAMEs still require exact admission. No
+wildcard is added automatically. The bundled 0.2.3 runtime does not include the
+separately developing automatic GitHub Meta expansion.
+
+**Check public SendBox releases** checks at startup and every four hours when
+enabled. **Check SendBox updates now** uses the same fixed public repository with
+no Copilot, CLI or private updater token. The configured version stays selected.
+Choose another eligible version, prepare its signed release for review, then
+approve separately before installation/activation. Unknown digests, changed trust
+roots, cancelled authorization and interrupted operations remain explicit; old
+versions and active work are not deleted or replayed.
+
+Approved managed setup requalifies the existing version on restart, without
+reinstalling it or draining saved queues. A changed Moguri worker requires its
+matching bundled setup review, not old manually copied image hashes. **Advanced
+manual configuration** and exact-file staging remain available for experts;
+old manual configurations do not silently gain the managed policy.
+
+CLI/TUI expose `/sandbox setup` and its exact confirmation command, plus
+`/sandbox updates`. Embeddings can explicitly provide the same distribution
+through the Node SDK; root/React entrypoints remain browser-safe. See the
+[managed contract and qualification](architecture/managed-sandbox.md).
+
+## Searchable desktop navigation
+
+Settings has a search field and grouped categories. **General** owns profile
+management; **Models > Providers** owns Copilot sign-in, separate from repository
+integration. SendBox configuration is under **Execution & permissions**.
+Click a project folder to open that project's settings. Dirty edits block
+leaving their owner; searching never saves or discards text.
+
+The scrollable left sidebar owns Suggestions, Dashboard, independent Artifacts,
+Candidates, native Sandbox management and the Global terminal. The right rail
+contains only current-session tools. Attention is available through the single
+top-bar icon. Where a global action needs a source, select an actual **Source
+chat** first. Viewing a global resource never creates a hidden chat or model
+request. Global and session consoles are separate entrypoints into the existing
+authenticated Ghostty owners, not a new terminal implementation.
+
+The shared preferences below include device-aware local speech, independent
+notification sounds, root-owned native updates and reviewed store relocation.
+Their explicit authority, failure and qualification requirements are in
+[settings platform](architecture/settings-platform.md).
+
+## Session navigation, plans and queued work
+
+Right-click a session name, use a macOS two-finger click, or press Shift+F10 on
+its focused name for Pin, Rename, Archive, Delete and organization actions.
+Ordinary clicks still open the chat. Archive no longer occupies the chat header.
+Confirmation dialogs offer **Do not ask again** separately for archive/delete;
+change either preference in **Settings / Sessions / Retention**. These preferences
+do not grant permissions, enable automatic cleanup or bypass retained-artifact
+reviews. Deletion still stops owned work and preserves independent documents.
+
+Drag near a sibling row's top/bottom edge to reorder within its pinned/unpinned
+group. Drop in its center to attach, or on the owning project/Chats header to
+detach. Move up/down and Attach/Detach remain keyboard menu alternatives.
+Only the current project's hierarchy changes: workspace, Env and read-only/model
+subagent boundaries do not move. Changed sibling revisions reject the whole
+reorder instead of publishing a partial arrangement.
+
+The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
+chat, not left navigation; restore preserves its previous split width. Agent and
+read-only are a pen/book toggle immediately after the composer's **+** attachment
+button. Cmd/Ctrl+K still opens Commands,
+without a titlebar advertisement.
+
+During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
+action. A successful held submission restores Stop and preserves the running
+turn. The clock stays visible while acknowledgement is pending, even after
+releasing the modifier. **Resume queued work** sends one prompt per finished turn, not one combined
+prompt or parallel calls. Stop holds undispatched work; reopening the app does
+not drain it. Interrupt retains its separately requested next-turn behavior.
+
+The Plan tab stays empty until the owning model explicitly supplies at least two
+actionable steps. Model checkmarks and estimates live there only, never above
+the textbox, and never prove acceptance or successful completion. An existing
+repository checklist does not become a task plan. **Open workspace plan file**
+still exposes the separately reviewed Local/SSH file editor and retained saves.
+Every actual model question offers **Other, please specify**, with an explicit
+text answer that neither consumes an unrelated draft nor grants tool permission.
+
+New consoles use embedded Ghostty and the actual execution host's configured
+login shell, including the account shell when a desktop launch omitted SHELL.
+For zsh, ordinary login-shell configuration supplies the prompt; no iTerm,
+Terminal.app or external Ghostty app is launched or impersonated. Closed consoles
+leave the selector while their ownership/cleanup evidence remains retained.
+Existing PTYs are never replaced merely to change their shell. See the
+[protocol-51 interaction contract](architecture/session-interactions.md).
+
+## Shared session and instruction preferences
+
+Protocol/database **45** adds nested preference normalization without rewriting
+existing events, keys, grants, budgets or saved retention ages. Restart matching
+clients and service to upgrade; do not delete local state.
+
+**Instructions / User guidance** has independently saved README/issue/PR,
+readiness, stack/bootstrap, writing, contact/license and engineering-workflow
+templates. Loading the readiness starter edits the draft only. Contacts and
+licenses remain unset. Five project workflow overrides live in the project's
+settings; an explicit empty override disables that inherited field. All
+guidance enters future recorded prompts, never grants permissions or rewrites
+an in-flight turn.
+
+**Appearance** offers Moguri, Ocean, Orchid and Custom palettes in dark/light
+modes. Custom element colors are saved together and validated against measured
+text, focus, control, selection and semantic contrast. Invalid combinations
+remain editable and never replace committed colors.
+
+**Sessions / Startup defaults** exposes model, supported thinking effort and
+dry/minimal/balanced/detailed response verbosity, plus the existing explicit
+global/profile budget and advanced defaults. Existing sessions keep their saved
+controls. **Execution & permissions** owns default autonomy and tool
+ask/deny behavior; exact grants and deny rules still apply.
+
+**Sessions / Retention** displays the actual encrypted store directory, manages
+confirmed session deletion and optionally prevents macOS idle sleep during real
+owned work plus a configurable tail. It does not override manual sleep, lid
+closure or the remote host. Failures expose the original helper and explicit
+retry; no other process is adopted. CLI `moguri runtime status` and TUI
+`/runtime` read the same runtime data.
+
+Auto-archive and auto-delete both start off with distinct seven-day thresholds.
+Only actual completion ages a session for archive; drafts, held queues, input,
+active descendants/consoles and unconfirmed effects block it. Archived age
+starts at actual archival, not completion. Deletion preserves independently
+retained artifacts/worktrees and all-role budget accounting.
+
+Ticket phase and per-project import configuration live in **Project settings**;
+Linear authentication lives in **Integrations / Linear**, including without a
+project. GitHub integration explicitly checks the existing controller CLI
+account, separate from Copilot and updater credentials. The optional
+**sql-not-so-lite** connection only checks an existing daemon's health; it never
+starts a daemon, requests a Home scan or exposes the private event store.
+
 For current continuation scope, see the
 [first-milestone gap handoff](remaining-milestone-gaps.md).
 The user has reopened previously paused Sandbox integration specifically for
@@ -38,8 +247,9 @@ CLI `agent-terminal list --session ID` and
 `agent-terminal read COMMAND_ID [UTF8_OFFSET|tail] --session ID`, shared
 `/agent-terminal list/read`, and `sdk.agentTerminals.list/read` inspect the
 same exact session/profile records. Source deletion removes this access.
-The transactional upgrade from schema 45 to 46 changes no SQL layout,
-ciphertext, grants or receipts and never replays commands. Restart service and clients together.
+The original desktop schema-46 view is included in protocol 53. Convergence
+changes no SQL layout, ciphertext, grants or receipts and never replays commands.
+Restart service and clients together.
 See [the ownership and capability contract](architecture/agent-terminal.md).
 
 ### Protocol-46 source qualification
@@ -137,7 +347,10 @@ below remain separate; current source does not relabel them as new acceptance.
 
 Protocol 44 introduced these interaction changes. The right rail starts with
 Dashboard, Artifacts, Candidates, Sandbox, Suggestions and Global Terminal,
-followed by session-bound tools.
+followed by session-bound tools. These shortcuts use the same independent
+resources as the left navigation, with the current chat selected as an existing
+source where applicable. Attention remains in the top bar. The unified Start
+chooser and project-free navigation remain available.
 
 | Attach menu | Shortcut | Selection |
 | --- | --- | --- |
@@ -177,7 +390,9 @@ back to the conversation when selected again in the left sidebar.
 **Global Terminal** is independent of every project/worktree/session and opens
 in the canonical Moguri data directory selected by the runtime, including
 `MOGURI_STATE_DIR` when configured. It is a Local user console, not agent context
-or SendBox isolation. Global allowed-env policy still applies. To work in a
+or SendBox isolation. Explicit independent-root console APIs remain supported;
+their captured root is shown, never relabeled as the data directory.
+Global allowed-env policy still applies. To work in a
 project, use its action menu's **Open project terminal**, the session's Terminal
 panel, or `/terminal`. Explicitly opening an eligible terminal pane starts the
 console without a Start button. Restoring a saved pane or reconnecting does not
@@ -190,17 +405,20 @@ dialog. It never immediately relaunches a replacement. Both confirmation
 preferences are available under **Settings > Confirmations**, including reset
 to the default of asking.
 
-Dictation shows Preparing, Recording and Finalizing separately. Recording starts
-only after the pinned local runtime reports its microphone ready. Stop allows
-up to one minute to drain the final transcript instead of killing it after three
-seconds; explicit cancellation still discards output and escalates a stuck
-process. Automatic language detection uses the runtime's native default.
-Stopping in the composer appends the completed transcript to the saved draft,
-preserving text typed during finalization and never sending a prompt. Errors
+Desktop dictation retains device-aware browser capture, local 16-kHz PCM,
+configurable shortcuts and push-to-talk. Completed capture stays visible as
+**Dictation ready** until explicit **Insert**, which preserves text typed during
+recognition and never sends a prompt. Native live recording separately shows
+Preparing, Recording and Finalizing: recording starts only after the pinned
+runtime reports readiness. Its Stop allows up to one minute to drain the final
+transcript instead of killing it after three seconds; cancellation still
+discards output and escalates a stuck process. Automatic language selection
+uses the runtime's native default. Stopping an existing native recording in
+the composer inserts only its exact completed result into the current draft. Errors
 are shown next to the active voice controls, not in a general Settings job log.
 Runtime/model setup and explicit model-license consent remain required. Tests
-use generated recognizers and synthetic permission responses, not a microphone
-or real speech model, so they do not establish actual ASR accuracy.
+use generated recognizers and Electron's generated audio device, not a personal
+microphone or real speech model, so they do not establish actual ASR accuracy.
 
 The additive schema-44 migration preserves ciphertext, receipts and existing
 attachment grants. Restart the service and clients together; keep the existing
@@ -453,6 +671,30 @@ counts do not establish calibrated quality or completion of issue 17.
 Those context-only results do not qualify public Cascade/Critique, finite
 kupo wind-down/authorized checkpoints, System One/Max or production Sandbox.
 The later source checkpoints below record their own narrower evidence.
+
+### SendBox image compatibility and failed verification
+
+Under **Settings > Execution & permissions**, review and save the exact
+SendBox installation, immutable workload image, worker/bridge digests and
+network hostnames, then explicitly verify. A syntactically valid configuration
+can still pin an incompatible workload: the historical image
+`sha256:517fba3d59a3be64c04166dff9de038168580ce67315c4de538503636e3680b0`
+uses protocol **50**, not the current **51**. Use the actual matching image
+receipt; changing JSON version fields cannot upgrade those bytes.
+
+Version refusal now names the guest and required protocols before initialization
+or provider access. New failed probes retain their original signed guest identity
+for exact cleanup. Earlier failed private intents are not silently cleared,
+adopted or replayed. An original unconfirmed cleanup record is not proof that
+a guest is currently running or permission to stop one by name.
+
+If verification instead reports a provider-network failure, review the actual
+proxy/DNS boundary. API-only access may reject the provider's current DNS alias.
+No alias is added automatically, and offline guest qualification does not
+establish Copilot connectivity. Sandbox consoles remain unavailable independently
+of core native-agent readiness. See the
+[protocol-51 bootstrap contract](architecture/sendbox-0.2.3.md#protocol-51-bootstrap-and-private-qualification)
+for ownership, cleanup and network limitations.
 
 ### Native service/SDK development checkpoint
 
@@ -779,8 +1021,10 @@ is Local, explicitly qualified native Sandbox or pinned SSH with fixed
 Copilot/configured local models and Unlimited or explicit estimate-based caps.
 Opt-in kupo Single uses its approved transports; finite Local routing needs
 the explicit reserved wind-down policy above. Manual remains default; Guided displays model
-advice but needs human confirmation. Autopilot requires explicit tool or exact
-command grants and cannot grant itself anything. Local Autopilot Max needs its
+advice but needs human confirmation. Autopilot is selectable in project and
+project-free chats, including when no tool grants exist. Only explicitly
+delegated tools/commands run without asking; selecting the mode grants nothing.
+Local Autopilot Max needs its
 separately configured compatible bounded decision provider. Jev and
 Remote/native Max remain unavailable.
 Unready choices explain the limitation
@@ -1014,9 +1258,26 @@ Running turns keep their committed prompt snapshot.
 The desktop toolbar starts with **+ Attach**, then the environment icon
 (house/box/globe), model name and autonomy icon (hand/traffic light/car/rocket).
 Budget is **infinity** while unlimited, followed by microphone and paper-plane
-Send. Holding Cmd/Ctrl visibly turns Send into a clock and queues without
-starting work. The small delivery chevron retains explicit Steer/Interrupt.
+Send. While idle, holding Cmd/Ctrl visibly turns Send into a queue clock.
+During an actual active turn the same button becomes a **red Stop icon**;
+its acknowledged stop preserves your unsent draft. Enter still answers/queues
+and Cmd/Ctrl+Enter still holds prompts. The delivery chevron retains explicit
+Send/Answer/Queue, Steer and Interrupt actions while Stop occupies the main slot.
 Unavailable execution/autonomy modes remain disabled with their reasons.
+
+In both desktop chat composers, **Enter** sends and **Shift+Enter** inserts a
+newline. **Cmd/Ctrl+Enter** still holds the prompt without running it;
+**Shift+Cmd/Ctrl+Enter** retains the explicit send-now shortcut. Input-method
+composition and held/repeated Enter never submit a prompt. Message copy buttons
+appear on hover or keyboard focus. Conversation text uses the available chat
+width rather than a narrow fixed column.
+
+Drag either sidebar's inner edge to resize it, or focus its separator and use
+Left/Right arrows; Home/End select the available minimum/maximum. Widths survive
+desktop reloads and shrink as necessary to preserve chat space. The right
+sidebar's **<>** button hides it; any labeled icon in the remaining rail opens
+its panel. Those icons show tooltips on hover and keyboard focus. Unsaved panel
+edits still block navigation and collapse.
 
 The model-name popover contains model selection, optional working context and
 the transport's actual supported thinking efforts. The working window stays
@@ -1035,6 +1296,15 @@ revisions preserve edits and require a reload. Desktop also protects unsaved
 settings when navigating away. Section/all reset preserves sessions, knowledge,
 credentials and downloaded models, and does not widen the separate allowed-env
 policy.
+
+Desktop toggle/dropdown preferences and model context/thinking choices save
+automatically. Text/JSON settings have a **Save** beside the editor; the settings
+toolbar can still save all pending text edits. Automatic preference changes do
+not save unrelated text, even in the same settings section. An in-flight save
+blocks conflicting navigation, and refusal or another client's revision keeps
+the edit visible rather than silently overwriting committed settings. Budget
+risk acknowledgement, source review, downloads and model proposals remain
+explicit actions, not autosaved approvals.
 
 **Sandbox is gated, not enabled by entering paths.** The development SDK now
 has explicit 0.2.3 guest qualification, source review/preparation, execution
@@ -1157,20 +1427,38 @@ reconciliation may retain known written bytes without promoting the original
 partial turn to success. Committed snapshots survive session deletion with
 actual Remote boundary/frame provenance.
 
-## Project-free chats, suggestions and settings chat
+## Project-free chats, suggestions and ask Moguri
 
-Desktop's **No project** section and project selector create chats without
-attaching a folder. TUI `/new global` does the same; Ctrl+N keeps the current
+Desktop uses one **Start** button. Choose **New chat** for a project-free
+conversation, an existing project for a new session there, **Import local
+folder** to attach an explicitly chosen directory, or **Clone repository** to
+clone an HTTPS/SSH URL into a new folder before starting a project chat.
+The general conversation section is **Chats**; there is no project dropdown or
+separate import plus. TUI `/new global` does the same; Ctrl+N keeps the current
 scope, or creates a project-free chat when none is selected. CLI:
 `moguri session create` with no `--project`. Choose a model explicitly as usual.
 Scope is fixed for that session, not silently rebound when a different project
 is selected for new chats.
 
-These chats never reuse a previous root. Workspace project files, shell,
-terminal, diff, plans and repository memory are unavailable. Provider calls,
+These chats never reuse a previous model workspace root. Agent project files,
+shell, diff, plans and repository memory are unavailable. Independent user
+consoles are described below; opening one does not grant a model filesystem
+access. Provider calls,
 explicitly selected client snapshots/images, global guidance/skills and configured global MCPs remain available.
 The internal MCP advertises only its scope-safe page fetcher. A failed general
 chat pauses only itself, not every project-free chat or an unrelated project.
+
+Cloning requires an existing parent folder and a new destination name. It never
+overwrites a directory, initializes submodules, runs hooks/filters, logs in, or
+starts inference. SSH uses existing keys and requires known-hosts verification;
+HTTPS URLs must not embed credentials. Local policy and captured destination/
+containing-workspace writer leases still apply. Cancel preserves partial files,
+and restart or a missing response never automatically repeats the original job.
+Inspect failed/partial jobs and destinations before a separate explicit action.
+CLI: `moguri project clone URL /absolute/new-folder --confirm-write`.
+TUI: `/clone {"repository":"URL","path":"/absolute/new-folder"} confirm-clone`,
+then `/result JOB_ID` after the capability job completes. Existing local folders
+can also be registered with `moguri project add /absolute/folder`.
 
 `/suggestions` opens a local preview of earlier user prompts, with repeated
 phrase hints and source excerpts. A project chat reads only that project;
@@ -1183,7 +1471,7 @@ Changing sources requires fresh review. Control/subagent conversations are
 excluded; content is bounded to 12 sessions, eight prompts each, 4,000 Unicode
 characters per prompt and 32 KiB of actual UTF-8 text in total.
 
-**Settings chat**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
+**ask Moguri**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
 Moguri configuration. The model can read non-secret settings and propose
 changes, never authenticate, execute workspace tools or approve/apply its own
 proposal. Global **User guidance** is separate from the factory system prompt.
@@ -1200,6 +1488,85 @@ installs a skill disabled; enabling is separate. Repo instructions are written
 locally, never committed or pushed by this flow. A write followed by a storage
 failure is explicitly partial and requires inspection/fresh review.
 
+## Application and storage settings
+
+**Settings / General / Application** controls the actual menu-bar icon across
+all profiles. Profile settings remain independent. Native failures are visible
+and can be retried from the saved application preference; hidden checks never
+create a real menu-bar item.
+
+**Settings / General / Private GitHub updates** uses a separate PAT stored in the
+secure secret backend. It is not Copilot sign-in or `gh` authentication. Prefer
+a fine-grained token limited to `mbianchidev/moguri` with Contents read access.
+The password field has its own Save; the automatic-check toggle never commits a
+pending token. By default the running desktop checks at startup and every four
+hours, verifies and stages newer eligible releases, and announces availability.
+Without a configured PAT the actual missing-credential status is shown; another
+account/provider is never tried.
+
+Apple signing is not a prerequisite. Ad-hoc/unsigned integrity checks are not
+notarization or independent publisher signing: updates trust the exact configured
+GitHub release repository and verified manifest/asset/bundle digests. Quarantine
+and OS warnings remain. **Review install and restart** binds the actual old/new
+bundle bytes, owned destination and retained previous-app backup. Only a real
+packaged application can install; an unpackaged development build may check/
+stage but cannot replace the checkout. Confirmation saves client drafts, stops
+all owned profile work and restarts through a pinned current-code helper.
+Authenticated terminals survive without input replay; unknown accounting stays
+held. Interrupted/partial work is retained and never automatically installed
+again. An OS launch request is not proof of startup; the next actual running
+bundle must verify its retained version/digest. Inspect the retained journal/
+backup after failure instead of deleting state or bypassing Gatekeeper.
+
+CLI `updates status`, `history`, `read ID`, `check`, `cancel ID`, and
+`install-preview ID` share the SDK. `updates token` accepts the separate PAT only
+through piped stdin; `updates clear-token` removes it. TUI `/updates` supports
+inspection/check/cancel, never credentials or application replacement. Packaging
+emits `Moguri-VERSION-macos-arm64.zip` and the matching `.manifest.json`; both
+must be attached to the same actual release. This task does not publish a
+release, sign/notarize it, or qualify a personal private GitHub token.
+The DMG contains the actual `Moguri.app` bundle and an **Applications** shortcut.
+Drag the app onto that shortcut to install; the mounted image itself is read-only.
+The shortcut is outside the app and is not included in the updater ZIP.
+Development app bundles are kept under `release/builds.noindex/` so build
+versions do not accumulate as launchable Spotlight duplicates. Distribution DMGs,
+ZIPs and integrity manifests remain directly under `release/`.
+
+After `npm run package:mac`, `npm run verify:update` runs the actual ZIP and
+manifest through the production bounded extractor, full bundle inventory and
+native identity/architecture checks, then mounts the DMG read-only without
+opening Finder to verify the app and exact `/Applications` shortcut. No app is
+launched. `npm run verify:update -- --dmg-only` checks just that installer layout.
+Its owned mount is detached and temporary stage independently removed. Generated feed/helper tests remain separate
+from this actual packaging roundtrip and from live release/PAT qualification.
+
+**Settings / Sessions / Retention / Change storage location** reviews a complete
+encrypted-store move, including every profile and independently retained artifact.
+Choose an absent or empty private destination outside existing project, worktree,
+data and locator roots. Review the exact source, destination, original resource
+base and active-owner count, then explicitly confirm **Move store and restart
+Moguri**. Other edits must be saved first. Model/tool work stops; uncertain
+accounting remains held. Authenticated terminals survive the explicit restart
+without replaying queued input.
+
+Only the closed encrypted SQLite database moves. Captured project/worktree roots,
+profile resources, caches, speech weights and terminal brokers remain at the
+original resource base shown in review. The old encrypted database remains a
+retired backup and cannot start a stale writer. Failed/partial targets are kept
+for inspection, not deleted or retried. Default discovery changes only after
+actual copied bytes and key identity are verified; the first target boot checks
+the exact copy again. Never remove the original resources or private external
+locator as a cleanup shortcut.
+
+An explicit `MOGURI_STATE_DIR` is never cleared: restart without that override
+before changing default storage. CLI `storage status`, `storage preview PATH`
+and `storage move PATH --digest REVIEW_SHA --confirm-write` share the protocol;
+restart CLI/TUI clients explicitly after a successful move. `/runtime storage`
+and `/runtime storage-preview ABSOLUTE_PATH` provide terminal review without a
+hidden session. Corrupt/missing location metadata or changed copied bytes block
+startup; restore the exact original locator or copied database from the retained
+backup instead of deleting state or forcing a stale writer.
+
 ## Attention and notifications
 
 Session indicators distinguish a possible question (`?`), pending approval/
@@ -1215,6 +1582,21 @@ respect OS permissions/Do Not Disturb, and use generic text unless previews are
 explicitly enabled. Selecting a banner opens its session. Startup and preference
 changes do not replay old banners. TUI shares state without requiring desktop;
 native-banner tests use a generated sink and never show a personal OS banner.
+
+Needs-input and completion sounds each start enabled with an original Moguri
+earcon; application audio starts background-only and is independent from banners.
+Needs-input audio requires the exact pending question/approval, not a heuristic
+badge. Completion audio excludes stopped, partial and failed work. Preview is
+explicit; hidden generated checks suppress all speaker output. OS banners are
+silent to avoid duplicate audio. System volume/device controls still apply.
+
+Import a custom **mono 16-kHz PCM16 WAV, up to ten seconds**, in Notifications.
+Choose it separately for either alert. The private encrypted snapshot survives
+source-file/session deletion and restart. Select another sound before removing
+it; missing audio never becomes a default silently. Each profile retains up to
+32 sounds. CLI `notification-sounds list`, `import FILE.wav --confirm-write`,
+`read ID`, and `remove ID --digest SHA --confirm-remove` share the same resources.
+TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 ## Session workspace and project settings
 
@@ -1239,6 +1621,10 @@ writer lease. Question-only side sessions cannot promote themselves.
 `/side` snapshots approved parent context into a separate read-only conversation,
 with separate usage, read approvals and cancellation. User-created subsessions
 are attached agent sessions, not the optional model-subagent feature.
+Side chat exposes its own **Model** selector. It inherits the current parent
+selection at creation, but an unset/unavailable/synthetic selection requires an
+explicit concrete model. Choosing it does not change the parent, Env or
+read-only scope, and no failed model is silently substituted.
 
 The desktop rail exposes Terminal, Browser, Insights, a linked PR when present,
 Changes, Files, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
@@ -1262,6 +1648,23 @@ CLI equivalents are `moguri terminal list|read|reconcile|close` and
 creates a console; `terminal input ID` accepts bounded piped UTF-8 stdin only.
 `acknowledge ID --confirm-review` and `owner-acknowledge OWNER_ID --confirm-review`
 record actual user inspection, not proven cleanup.
+
+Terminal also opens without a session. **Global terminal** is one independent
+Local user console per profile, starting in the disclosed canonical home folder.
+**This chat** selects session-owned consoles; a project-free chat explicitly
+opens the disclosed Local root without making it a model workspace. Existing
+project consoles still use their exact project/worktree. Changing chat does not
+rebind the global console, and deleting a chat/project does not delete it.
+Global input obeys Local allowed-env policy; a Remote chat never relabels that
+global host shell Remote.
+
+CLI `moguri terminal default-root` discloses the default without starting a
+process. `terminal open-global /absolute/root` explicitly opens the global
+console. `terminal open --session ID --root /absolute/root` opens a separate
+project-free Local console. TUI `/terminals global` discloses the root;
+`/terminals global /absolute/root` opens it. `/terminals open /absolute/root`
+opens a project-free session console, and `/terminals` includes the profile's
+global console for explicit inspection/read/close.
 
 Ghostty's reconnect control inspects the existing owner, never opens another
 shell. Hiding the panel or losing a connection discards queued unsent input;
@@ -1510,12 +1913,41 @@ size/SHA-256 verified and atomically installed under the private state directory
 Recording passes an existing local GGUF path, never an alias that might
 auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
-Desktop **Dictate** or **Start local microphone** asks OS permission only on
-that user action. **Stop and transcribe** finalizes; **Cancel and discard**
-does not insert partial audio. TUI **Ctrl+Space** starts/stops and **F4** inserts
-the completed local transcript into the saved draft. Recording is limited to
-two minutes. WAV transcription accepts regular PCM WAV files up to 64 MiB.
-Insert is explicit and revision-checked; nothing is automatically sent.
+Desktop dictation requests audio-only OS permission only on explicit activation.
+**Voice input device** lists microphones after a separate explicit request;
+non-default selection is exact, never silently substituted. Browser capture
+downmixes/resamples locally to bounded mono 16-kHz PCM16 WAV and sends that
+transient clip to the existing local file recognizer. This avoids relying on a
+native live-microphone process to finalize on SIGINT. Audio, upload credentials
+and audio fingerprints do not enter durable events, command receipts or model
+context. Private crash staging is removed before another capture; unknown or
+changed staging entries are retained and block capture with a diagnostic.
+
+**Ctrl+Space** starts/stops desktop capture while the main chat is focused,
+including its toolbar, but not the embedded terminal, side chat or dialogs.
+Voice/Accessibility settings share an editable shortcut. Optional push-to-talk
+owns press/release; releasing before admission never opens a late microphone.
+Repeated keydown and stop requests do not create additional clips or uploads.
+Blur, sleep, hidden/unmounted surfaces and profile changes discard owned audio.
+Stop finalizes and transcribes; Cancel discards. Insert remains explicit,
+revision-checked and never automatically sends. Desktop clips are at most two
+minutes, **3,840,044 WAV bytes**; excess/invalid input is rejected, not truncated.
+
+TUI **Ctrl+Space** starts/stops its native default microphone; **F4** inserts the
+completed local transcript. CLI/TUI native live recording does not pretend to
+select a saved desktop device: choose the native default or use explicit file
+transcription. Native file transcription accepts regular PCM WAV up to 64 MiB.
+Live native finalization has up to 60 seconds; cancel escalates an unresponsive
+process. Actual exit status/signal and bounded diagnostics remain visible.
+**Settings / Voice dictation / Native speech backend** saves an explicit
+Automatic/CPU/Metal choice. No failure silently switches backends or providers.
+Stop/discard controls and capability-job cancellation stay available while a
+preference save is pending. New recordings are blocked until that save settles.
+
+**Accessibility / Keyboard shortcuts** also remaps Commands and terminal Copy.
+Protected editing/navigation bindings remain fixed and listed, including Enter
+to send, Shift+Enter newline and Cmd/Ctrl+Enter holding a prompt. Settings reject
+collisions; a shortcut edit needs its adjacent Save and does not save other text.
 
 CLI equivalents:
 
@@ -1577,11 +2009,12 @@ Jobs retain progress/outcomes and can be cancelled. An interrupted install is
 never successful and may quarantine the project until inspection/resume.
 Old dependency backups, when crash recovery is unconfirmed, are protected
 `.moguri-dependencies-*` paths and must be inspected before manual removal.
-The final staged-tree rename requires the state directory and project to share
+The final staged-tree rename requires the original cache/resource base and project to share
 a filesystem. A cross-filesystem rename fails explicitly and restores/preserves
-the old tree. To relocate state, stop its service first, preserve/copy the entire
-private directory and point `MOGURI_STATE_DIR` to it on the target filesystem;
-never delete history or disable protection to retry.
+the old tree. Reviewed encrypted-store relocation does not retarget that captured
+cache/resource authority. Use a project on the qualified same filesystem or
+cancel the install; never manually clone state, discard history or disable
+protection to force a retry.
 
 ## Local project Kanban and optional Linear
 

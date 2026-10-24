@@ -16,8 +16,10 @@ test("retained native data is not readiness; desktop source publication needs ex
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("button", { name: "Sandbox", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Sandbox", exact: true }).click();
+    await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
+    await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "Use Sandbox for this session", exact: true })).toBeDisabled();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${fixture.result.files[0]!.bytes} bytes`, { exact: true }).click();
@@ -57,7 +59,8 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Guardrails", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
+    await page.getByText("Advanced manual configuration", { exact: true }).click();
     await page.getByLabel("SendBox configuration", { exact: true }).fill(JSON.stringify(fixture.reviewedConfiguration));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     const review = page.getByLabel("I reviewed these committed native artifacts", { exact: false });
@@ -74,6 +77,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: /^Review a private native workspace before starting a turn/ }).click();
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
+    await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
     await panel.getByLabel("Native source paths", { exact: true }).fill("fixture.txt");
     await panel.getByRole("button", { name: "Preview native source", exact: true }).click();
     const source = panel.getByRole("region", { name: "Exact native source review", exact: true });
@@ -82,6 +86,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await source.getByLabel("I reviewed this exact file set and its contents.", { exact: true }).check();
     await source.getByRole("button", { name: "Prepare reviewed native stage", exact: true }).click();
     await expect.poll(() => session().sandboxWorkspaceId).toBeTruthy();
+    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
     await expect(prompt).toHaveValue("generated native write");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => session().pendingApproval?.call.name).toBe("read_file");
@@ -91,6 +96,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await expect.poll(() => session().status).toBe("completed");
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     expect(session().usage.map((usage) => usage.totalTokens)).toEqual([42, 42, 42]);
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Sandbox", exact: true }).click();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${Buffer.byteLength("generated native replacement\n")} bytes`, { exact: true }).click();
     await panel.getByLabel("Select native output fixture.txt", { exact: true }).check();

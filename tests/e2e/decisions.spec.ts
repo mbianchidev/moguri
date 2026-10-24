@@ -33,7 +33,7 @@ test("desktop explicitly saves a compatible decision policy, enables Local Max i
     await composer.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => f.service.controller.snapshot().decisions[0]?.status).toBe("applied");
     await expect.poll(() => f.session().status).toBe("completed");
-    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
     const decisions = page.getByRole("region", { name: "Decision-provider observations", exact: true });
     await expect(decisions).toContainText("Decision applied"); await expect(decisions).toContainText(f.decisionModelId);
     await expect(decisions).toContainText("42"); await expect(decisions).toContainText("decision-provider");
