@@ -20,6 +20,8 @@ check with a green open or gray draft PR, or purple merged-PR glyph.
 Reduced motion keeps those indicators static. Failure, partial, stopped and
 held states never become successful completion.
 See [session indicator authority](architecture/session-interactions.md#session-status-and-linked-pr-indicators).
+The current [protocol-54 qualification](architecture/session-interactions.md#protocol-54-qualification)
+covers complete Node/Electron suites, the packed SDK and actual development package.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
