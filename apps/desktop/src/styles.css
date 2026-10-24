@@ -590,6 +590,17 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .context-content:is(.panel-terminal, .panel-global-terminal, .panel-browser, .panel-plan, .panel-side-chat) { display: flex; flex-direction: column; padding: 12px 10px; overflow: hidden; }
 .ghostty-panel, .browser-panel, .plan-panel, .side-chat-panel { display: flex; flex-direction: column; flex: 1; gap: 10px; min-width: 0; min-height: 0; }
 .ghostty-host { min-width: 0; min-height: 120px; flex: 1; background: #11161e; overflow: hidden; }
+.session-terminal, .terminal-owned-panel, .agent-terminal { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; gap: 10px; }
+.terminal-ownership { display: flex; gap: 4px; flex-shrink: 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.terminal-ownership button { font-size: 12px; padding: 6px 12px; background: transparent; border-color: transparent; color: var(--muted); }
+.terminal-ownership button[aria-selected="true"] { color: var(--text); background: var(--subtle); border-color: var(--line); }
+.agent-command-line { display: block; min-height: 18px; max-height: 76px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; flex-shrink: 0; }
+.agent-command-meta { display: flex; flex-wrap: wrap; gap: 5px 12px; font-size: 10px; color: var(--muted); margin: 0; }
+.agent-command-meta strong { color: var(--text); font-weight: 500; }
+.agent-follow { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); flex: 1; }
+.agent-output-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; font-size: 10px; color: var(--muted); }
+.agent-output-pages > span { flex: 1; }
+.agent-output-pages button { padding: 4px; font-size: 10px; }
 .terminal-boundary { font-size: 10px; color: var(--muted); line-height: 1.6; margin: 0; flex-shrink: 0; overflow-wrap: anywhere; }
 .terminal-host-boundary { font-size: 11px; line-height: 1.65; margin: 0; flex-shrink: 0; overflow-wrap: anywhere; }
 .terminal-owner { flex-shrink: 0; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }

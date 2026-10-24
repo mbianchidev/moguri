@@ -73,6 +73,11 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > keeps all-role accounting and hard policy; it does not expose hidden reasoning,
 > invent AI credits or change execution/approval authority.
 
+> The [separate Agent terminal](architecture/agent-terminal.md) exposes actual
+> approved command requests/results and bounded original rereads through the
+> same SDK/worker. User and Global consoles stay private. Each command owns its
+> existing PTY; interactive stdin or persistent shared shell state is not added.
+
 > [Reviewed context compaction](architecture/context-compaction.md) now adds an
 > explicit preview/generate/review/apply/restore workflow through the same SDK,
 > Local/SSH worker and all-role ledger. Original history, complete recent turns

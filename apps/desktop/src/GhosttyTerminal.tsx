@@ -5,6 +5,46 @@ import type { MoguriSdk, RemoteReadiness, Session, Snapshot, TerminalOwner } fro
 import { Icon } from "./Icon.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
+export function GhosttyOutput({ text, active, scope }: { text: string; active: boolean; scope: string }) {
+  const host = useRef<HTMLDivElement>(null), emulator = useRef<Terminal | null>(null), latest = useRef(text);
+  const [error, setError] = useState("");
+  latest.current = text;
+  useEffect(() => {
+    if (!active || !host.current) return;
+    const container = host.current;
+    // Leave Tab to browser focus navigation, not Ghostty's keyboard capture.
+    const tab = (event: KeyboardEvent) => { if (event.key === "Tab") event.stopImmediatePropagation(); };
+    container.addEventListener("keydown", tab, true);
+    let disposed = false, current: Terminal | undefined;
+    setError("");
+    void (async () => {
+      try {
+        ghostty ??= Ghostty.load(wasmUrl);
+        const runtime = await ghostty;
+        if (disposed || !host.current) return;
+        current = new Terminal({ ghostty: runtime, cols: 120, rows: 30, fontSize: 12, scrollback: 1500, disableStdin: true,
+          theme: { background: "#11161e", foreground: "#e1e8f0", cursor: "#a8d7bc" } });
+        current.open(host.current); emulator.current = current;
+        host.current.setAttribute("aria-label", "Agent terminal output");
+        host.current.setAttribute("aria-readonly", "true");
+        host.current.contentEditable = "false";
+        current.textarea?.setAttribute("aria-label", "Read-only Agent output");
+        current.textarea?.setAttribute("readonly", "");
+        current.attachCustomKeyEventHandler(() => true);
+        const fit = new FitAddon(); current.loadAddon(fit); fit.fit(); fit.observeResize();
+        if (latest.current) current.write(latest.current);
+      } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : "Ghostty could not render the retained Agent output."); }
+    })();
+    return () => { disposed = true; container.removeEventListener("keydown", tab, true); current?.dispose(); emulator.current = null; };
+  }, [active, scope]);
+  useEffect(() => {
+    const current = emulator.current;
+    if (!current) return;
+    current.reset(); if (text) current.write(text);
+  }, [text]);
+  return <>{error && <p className="inline-error" role="alert">{error}</p>}<div ref={host} className="ghostty-host agent-ghostty-host" aria-label="Agent terminal output" aria-readonly="true" />
+    <pre className="sr-only" aria-label="Agent command transcript" aria-live="off">{text}</pre></>;
+}
 export function GhosttyTerminal({ sdk, session, snapshot, active, visible, autoStart }: { sdk: MoguriSdk; session?: Session; snapshot: Snapshot; active: boolean; visible: boolean; autoStart: boolean }) {
   const env = session?.controls.env ?? "Local";
   const terminals = snapshot.terminals.filter((terminal) => terminal.sessionId === (session?.id ?? null));

@@ -12,9 +12,39 @@ the endpoint-only probe fails. These primitives do not by themselves enable
 public Sandbox. The recorded protocol-40 service/SDK/client lifecycle below
 extends them without changing factory settings or broadening policy.
 
+## Separate Agent terminal
+
+Current source uses protocol/database **46**. The session's **Terminal** pane
+has separate **User** and **Agent** tabs. User remains your private, interactive
+console. Agent shows Moguri's actual command requests/results and live output;
+merely opening either Agent history or a retained result never starts a model
+or shell. Global Terminal remains private and user-only.
+
+Moguri runs commands through the existing approved `run_command` capability,
+then can list or reread exact original output with `read_agent_terminal`.
+Command approvals, exact-command grants, environment/root/folder policy,
+timeouts, cancellation and unknown cleanup retain their existing semantics.
+The Agent tab labels pending, denied, failed, partial and unconfirmed work
+without inventing success, and follows bounded UTF-8 output tails by default.
+Earlier pages and commands remain explicitly accessible.
+
+Each command uses a fresh owned PTY, not a persistent interactive shell.
+Shell variables and a changed directory do not implicitly carry to the next
+command. The Agent viewer has no keyboard-input route; use the User tab for
+personal typing and **Stop** in chat to cancel active agent work. Agent command
+output is part of its approved tool history; User/Global input/output is not.
+
+CLI `agent-terminal list --session ID` and
+`agent-terminal read COMMAND_ID [UTF8_OFFSET|tail] --session ID`, shared
+`/agent-terminal list/read`, and `sdk.agentTerminals.list/read` inspect the
+same exact session/profile records. Source deletion removes this access.
+The transactional upgrade from schema 45 to 46 changes no SQL layout,
+ciphertext, grants or receipts and never replays commands. Restart service and clients together.
+See [the ownership and capability contract](architecture/agent-terminal.md).
+
 ## Chat activity and usage
 
-Current source uses protocol/database **45**. Chat operations appear as compact
+Protocol 45 introduced this activity slice. Chat operations appear as compact
 icon-led rows for file reads/creation/edits, file/skill/web search, skill loading,
 GitHub/Linear issue creation, commands/scripts, MCP calls and actual questions.
 Expand a row for its original arguments/result, local start date/time, observed
