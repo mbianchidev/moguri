@@ -83,6 +83,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await source.getByLabel("I reviewed this exact file set and its contents.", { exact: true }).check();
     await source.getByRole("button", { name: "Prepare reviewed native stage", exact: true }).click();
     await expect.poll(() => session().sandboxWorkspaceId).toBeTruthy();
+    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
     await expect(prompt).toHaveValue("generated native write");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => session().pendingApproval?.call.name).toBe("read_file");
@@ -92,6 +93,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await expect.poll(() => session().status).toBe("completed");
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     expect(session().usage.map((usage) => usage.totalTokens)).toEqual([42, 42, 42]);
+    await page.getByRole("button", { name: "Sandbox", exact: true }).click();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${Buffer.byteLength("generated native replacement\n")} bytes`, { exact: true }).click();
     await panel.getByLabel("Select native output fixture.txt", { exact: true }).check();
