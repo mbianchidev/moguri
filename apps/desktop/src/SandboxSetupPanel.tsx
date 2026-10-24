@@ -89,7 +89,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       onChange={(event) => update({ automaticWorkspaces: event.target.checked })} />Prepare private session workspaces automatically</label>
     <label className="check-setting"><input type="checkbox" checked={management.automaticProviderNetwork} disabled={disabled || busy}
       onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Automatically allow the selected model provider's actual HTTPS endpoint and public DNS aliases</label>
-    <p className="fine-print">GitHub website/API access is included. Other websites stay denied unless you add them explicitly. No host credentials, private/metadata addresses or Local fallback are granted.</p>
+    <p className="fine-print">GitHub website/API access is included. Review the selected release's network delegation below: SendBox 0.2.4 expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</p>
     {review && <section className="candidate-binding" aria-label="Exact managed Sandbox review">
       <h4>SendBox {review.version} / Moguri protocol {review.protocol}</h4>
       <p>{review.diagnostic}</p>

@@ -41,6 +41,10 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     const review = panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
     const enable = review.getByRole("button", { name: "Enable Sandbox", exact: true });
     await expect(enable).toBeDisabled();
+    await expect(review).toContainText("GitHub Meta network delegation");
+    await expect(review).toContainText("shared-cloud");
+    await expect(review).toContainText("hourly");
+    expect(imports).toBe(0); expect(probes).toBe(0);
     await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
     await enable.click();
     await expect.poll(() => controller.snapshot().settings.values.sandboxManagement?.enabled).toBe(true);

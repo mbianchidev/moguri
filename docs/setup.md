@@ -122,18 +122,22 @@ Provider networking uses the actual prepared HTTPS endpoint, not an assumed
 canonical Copilot host. Managed policy resolves and allows its bounded public
 CNAME chain automatically, capturing the effective hosts with the original
 execution. No permanent historical grant or hardcoded alias is inferred.
-`github.com` and `api.github.com` are default tool destinations; unrelated
-`google.com` remains denied. The native public-page tool works without a project,
+`github.com` and `api.github.com` are default tool grants. In SendBox 0.2.4,
+`github.com` also delegates GitHub Meta domains and IPv4/IPv6 CIDRs, including
+shared-cloud ranges, refreshed before readiness and hourly. This is broader than
+exact-host-only egress and can cover shared infrastructure; setup review states
+that explicitly before Enable Sandbox. The native public-page tool works without a project,
 uses the enforced guest proxy and requires ordinary tool permission. This is not
 an interactive browser or a general native MCP grant.
 
 Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
 tool rules. These permit subdomains at any depth, not the apex or lookalike
-suffixes. Exact entries remain exact, private-address protections remain in the
+suffixes. Except for the disclosed 0.2.4 GitHub Meta delegation, exact entries
+remain exact. Private-address protections remain in the
 guest, and selected-provider URLs/CNAMEs still require exact admission. No
-wildcard or GitHub Meta expansion is enabled automatically by Moguri's adapter.
-The 0.2.4 release includes upstream Meta/effective-scope capabilities, but this
-update retains Moguri's existing exact destination policy.
+additional wildcard is added automatically by Moguri. Per the owner's explicit
+choice, 0.2.4's default GitHub grant includes the disclosed Meta delegation.
+Selected-provider credentials and tool approvals remain separate.
 
 New factory defaults select 0.2.4. An explicitly saved 0.2.3 selection and its
 release/approval records remain unchanged; using the new bundle still requires
