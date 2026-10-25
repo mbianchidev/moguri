@@ -47,7 +47,7 @@ async function imageFixture() {
   } };
 }
 
-test("attached image previews are large, uncropped and responsive while files and draft actions stay compact", async () => {
+test("attached images stay compact and expand only after explicit activation", async () => {
   const owned = await imageFixture();
   try {
     const composer = owned.page.getByRole("form", { name: "Message composer", exact: true });
@@ -56,16 +56,20 @@ test("attached image previews are large, uncropped and responsive while files an
       const image = composer.getByRole("img", { name, exact: true });
       await expect(image).toBeVisible();
       const bounds = await image.boundingBox();
-      expect(bounds?.width).toBeGreaterThanOrEqual(144);
-      expect(bounds?.height).toBeGreaterThanOrEqual(112);
+      expect(bounds?.width).toBeLessThanOrEqual(48);
+      expect(bounds?.height).toBeLessThanOrEqual(40);
+      expect((await composer.getByRole("button", { name: `Preview attachment ${name}`, exact: true }).boundingBox())?.height).toBeLessThanOrEqual(44);
       await expect(image).toHaveCSS("object-fit", "contain");
     }
     const note = composer.getByRole("button", { name: "Preview attachment generated-preview-note.txt", exact: true });
     expect((await note.boundingBox())?.height).toBeLessThan(48);
-    await owned.page.screenshot({ path: join(artifacts, "desktop-large-image-attachments.png") });
+    await owned.page.screenshot({ path: join(artifacts, "desktop-compact-image-attachments.png") });
     const open = composer.getByRole("button", { name: "Preview attachment generated-landscape.png", exact: true });
-    await open.focus(); await owned.page.keyboard.press("Enter");
     const dialog = owned.page.getByRole("dialog", { name: "Attachment preview generated-landscape.png", exact: true });
+    await expect(dialog).toHaveCount(0);
+    await open.hover();
+    await expect(dialog).toHaveCount(0);
+    await open.focus(); await owned.page.keyboard.press("Enter");
     const large = dialog.getByRole("img", { name: "generated-landscape.png", exact: true });
     await expect(large).toBeVisible();
     expect((await dialog.boundingBox())?.width).toBeGreaterThan(1100);
@@ -93,7 +97,7 @@ test("attached image previews are large, uncropped and responsive while files an
   } finally { await owned.close(); }
 });
 
-test("sent images stay large and inspectable without gaining draft removal or new model calls", async () => {
+test("sent images stay compact until clicked without gaining draft removal or new model calls", async () => {
   const owned = await imageFixture();
   try {
     const prompt = owned.page.getByLabel("Prompt", { exact: true });
@@ -105,15 +109,18 @@ test("sent images stay large and inspectable without gaining draft removal or ne
     for (const name of ["generated-landscape.png", "generated-portrait.png"]) {
       const image = sent.getByRole("img", { name, exact: true });
       const bounds = await image.boundingBox();
-      expect(bounds?.width).toBeGreaterThanOrEqual(300);
-      expect(bounds?.height).toBeGreaterThanOrEqual(240);
+      expect(bounds?.width).toBeLessThanOrEqual(48);
+      expect(bounds?.height).toBeLessThanOrEqual(40);
     }
     await sent.getByRole("button", { name: "Preview attachment generated-landscape.png", exact: true }).click();
     const dialog = owned.page.getByRole("dialog", { name: "Attachment preview generated-landscape.png", exact: true });
-    await expect(dialog.getByRole("img", { name: "generated-landscape.png", exact: true })).toBeVisible();
+    const expanded = dialog.getByRole("img", { name: "generated-landscape.png", exact: true });
+    await expect(expanded).toBeVisible();
+    expect((await expanded.boundingBox())?.width).toBeGreaterThan(1000);
+    expect((await expanded.boundingBox())?.height).toBeGreaterThan(550);
     await expect(dialog.getByRole("button", { name: "Remove attachment", exact: true })).toHaveCount(0);
     await dialog.getByRole("button", { name: "Close preview", exact: true }).click();
-    await owned.page.screenshot({ path: join(artifacts, "desktop-large-sent-images.png") });
+    await owned.page.screenshot({ path: join(artifacts, "desktop-compact-sent-images.png") });
     expect(owned.fixture.requests).toHaveLength(1);
     expect(owned.fixture.session().messages.find((message) => message.role === "user")?.attachments).toHaveLength(3);
   } finally { await owned.close(); }

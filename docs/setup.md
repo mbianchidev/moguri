@@ -530,11 +530,12 @@ folders or repository files.
 
 Click any attached chip to inspect the retained snapshot. Session context opens
 as JSON, images open enlarged, and documents keep their bounded page/section/
-cell previews. Image attachments use larger thumbnails in the composer and
-large cards in sent messages. Opening an image uses a near-full-window viewer,
+cell previews. Image attachments stay compact in the composer and sent messages,
+with a small thumbnail and filename. Only clicking or keyboard-activating an
+attachment opens its image in the near-full-window viewer,
 preserves its aspect ratio without cropping, and keeps Close/Remove visible on
-smaller windows. Multiple draft images wrap inside a bounded scrolling area;
-text/document chips stay compact. These are display changes only, not extra
+smaller windows. Multiple attachments wrap as compact file-like chips;
+hovering never expands an image. These are display changes only, not extra
 image capture, model context or image processing.
 Remove works on draft context, never deletes the original file,
 and does not rewrite sent messages. Dropping a sidebar session onto the composer
@@ -545,15 +546,15 @@ draft-revision checks remain enforced.
 
 ### Image preview display qualification
 
-Image previews grew from 48x40-pixel composer thumbnails to 128-pixel-high
-tiles; sent-image cards use up to 440x320 pixels. The image-only dialog now
+Inline images use compact 36x28-pixel thumbnails rather than expanded cards.
+Only explicit activation opens the image-only dialog, which
 occupies the available window, up to 1440x960 pixels, while preserving image
 aspect ratio and keeping Close/Remove visible at 840x620. Text/document chips,
 retained bytes, model context, permissions and source-file retention are
 unchanged. Ten service/runtime/worker/SDK/native-host bundles are SHA-256
 identical to the qualified backend checkpoint; no schema or dependency changed.
 
-The final complete hidden Electron run passes **168 cases, two skipped, zero
+The preceding expanded-viewer checkpoint's complete hidden Electron run passed **168 cases, two skipped, zero
 failed** (170 total) in **5.3 minutes**. The actual rebuilt app passes **11
 image/browser cases in 29.7 seconds**. The fresh packed SDK/install/audit and
 all 12 installed-worker probes pass; audits find zero vulnerabilities.
@@ -562,7 +563,7 @@ running and awaits the real SSH grid growth acknowledgement before checking
 shrinkage, without changing production behavior, sleeping or weakening the
 comparison. Combined image/Remote cases pass three repetitions: **12/12**.
 
-The matching native distribution remains protocol 56 / SendBox 0.2.4 with the
+That checkpoint's native distribution remains protocol 56 / SendBox 0.2.4 with the
 same pinned worker image. Its check passes in **4,224.97 ms**; the actual
 **740,607,177-byte ZIP** passes the production update consumer in
 **103,047.20 ms**. The **754,273,639-byte DMG** passes native Finder geometry
