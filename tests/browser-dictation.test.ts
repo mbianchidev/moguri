@@ -20,6 +20,7 @@ test("push-to-talk release before service admission never opens a late microphon
   assert.equal(opened, 0); assert.equal(uploaded, 0);
   assert.deepEqual(cancelled, ["generated-original-capture"]);
   assert.equal(controller.getState().phase, "idle");
+  assert.match(controller.getState().error ?? "", /before.*ready/i);
 });
 
 test("a late media stream is discarded after release, while its original lease is cancelled once", async () => {
@@ -73,5 +74,17 @@ test("failed cancellation retains the exact original lease for explicit discard 
   assert.equal(starts, 1);
   await controller.cancel();
   assert.equal(cancellations, 2); assert.equal(controller.getState().phase, "idle");
+  controller.dispose();
+});
+
+test("external cancellation is visible rather than silently returning to idle without a transcript", async () => {
+  const controller = new SpeechCaptureController({
+    begin: async () => ({ id: "generated-external-stop", token: "generated-private-lease" }),
+    acquire: async () => ({ finish: async () => new Float32Array(160), discard: async () => {} }),
+    upload: async () => {}, cancel: async () => {},
+  });
+  await controller.start(); await controller.finish();
+  controller.observe("generated-external-stop", "cancelled", "Generated original dictation was cancelled.");
+  assert.match(controller.getState().error ?? "", /cancelled/i);
   controller.dispose();
 });

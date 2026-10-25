@@ -7,7 +7,8 @@ import { ContextCompactionReview } from "./ContextCompaction.tsx";
 import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
 import { useDecisionStatus } from "./DecisionPanel.tsx";
 import { estimatedCost } from "./ChatActivity.tsx";
-import { useDictation } from "./useDictation.ts";
+import { useDictation, useDictationTranscript } from "./useDictation.ts";
+import { DictationButton } from "./DictationButton.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -66,7 +67,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const dictation = useDictation(client, session, snapshot, { shortcuts: true, beforeStart: () => editor.flush() });
   const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running");
   const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
-  const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind) && job.status === "completed");
+  const transcript = voiceOutcome?.status === "completed" ? voiceOutcome : undefined;
+  const transcriptPreview = useDictationTranscript(client, session.id, transcript?.id);
   const voiceFinalizing = finishingVoice || Boolean(voiceJob?.progress?.startsWith("Finalizing"));
   const voicePreparing = voiceJob?.kind === "voice.record" && Boolean(voiceJob.progress?.startsWith("Preparing"));
   const [insertedTranscript, setInsertedTranscript] = useState<string | null>(null);
@@ -267,7 +269,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
     {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <p className="composer-voice-status inline-error" role="alert">{dictation.state.error}</p>}
     {voiceOutcome?.status === "failed" && <p className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Your draft is unchanged."}</p>}
-    {transcript && transcript.id !== insertedTranscript && !finishingVoice && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(() => insertTranscript(transcript.id))}>Insert</button></div>}
+    {transcript && transcript.id !== insertedTranscript && !finishingVoice && <div className="composer-transcript"><Icon name="Mic" /><div className="composer-transcript-text"><strong>Dictation ready</strong>
+      {transcriptPreview?.error ? <p className="inline-error" role="alert">{transcriptPreview.error}</p> : <p aria-label="Dictation transcript">{transcriptPreview?.text ?? "Loading the local transcript..."}</p>}</div>
+      <button type="button" disabled={!transcriptPreview?.text} onClick={() => void run(() => insertTranscript(transcript.id))}>Insert</button></div>}
     <div className="composer-toolbar">
       <div className="composer-leading">
         {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} run={run} capture={capture} selectFile={selectFile} attachPath={attachPath} initial={pendingTrigger} close={() => setMenu(null)} review={reviewAttachment} />)}
@@ -290,7 +294,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} editor={editor} />)}
-        <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"} aria-pressed={dictation.state.phase === "recording"} disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"} title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`} onClick={() => void dictate()}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
+        <DictationButton state={dictation.state} pushToTalk={Boolean(snapshot.settings.values.voice.pushToTalk && voiceJob?.kind !== "voice.record")} recording={Boolean(voiceJob)}
+          label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"}
+          disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"}
+          title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`}
+          start={dictation.start} finish={dictation.finish} cancel={dictation.cancel} toggle={() => void dictate()} />
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
             <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || undefined} title={resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || (resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : resumeAction ? "Play" : "Send"} /></button>}

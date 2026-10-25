@@ -9,7 +9,7 @@ import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, Servic
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
-import { AttentionNotifier } from "./notifications.ts";
+import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
 
@@ -163,14 +163,12 @@ else {
       updateNoticed = value.id;
       mainWindow?.webContents.send("moguri:update-available", value.id, value.release.manifest.version);
     };
-    const requestSound = async (scoped: MoguriSdk, epoch: number, kind: NotificationToneKind, soundId: string, sessionId?: string) => {
+    const requestSound = async (scoped: MoguriSdk, epoch: number, kind: NotificationToneKind, soundId: string, automatic?: NotificationTone) => {
       const audio = soundId === "default" ? audioBase64(defaultNotificationWav(kind)) : (await scoped.notifications.sound(soundId)).audio;
-      if (attentionClient !== scoped || epoch !== profileEpoch || !mainWindow || mainWindow.isDestroyed()) return { requested: false };
-      if (sessionId) {
-        const snapshot = scoped.getState().snapshot, preferences = snapshot?.settings.values.notifications;
-        const choice = kind === "needs-input" ? preferences?.needsInputSound : preferences?.completedSound;
-        if (!snapshot?.sessions.some((session) => session.id === sessionId) || !choice?.enabled || choice.id !== soundId ||
-          mainWindow.isFocused() && !preferences?.soundWhileFocused) return { requested: false };
+      if (attentionClient !== scoped || epoch !== profileEpoch || scoped.getState().status !== "connected" || !mainWindow || mainWindow.isDestroyed()) return { requested: false };
+      if (automatic) {
+        const snapshot = scoped.getState().snapshot;
+        if (!snapshot || !notificationToneAllowed(snapshot, automatic, mainWindow.isFocused())) return { requested: false };
       }
       if (process.env.MOGURI_TEST_WINDOW === "hidden") return { requested: false };
       mainWindow.webContents.send("moguri:notification-audio", scoped.profileId, audio);
@@ -189,11 +187,12 @@ else {
       attentionClient = scoped; activeProfileId = profileId;
       for (const banner of banners.values()) banner.close(); banners.clear();
       const notifier = new AttentionNotifier(scoped.getState().snapshot!.seq);
-      let applicationRevision = -1;
+      let applicationRevision = -1, wasConnected = true;
       scoped.subscribe(() => {
         if (attentionClient !== scoped) return;
         const state = scoped.getState();
-        if (!state.snapshot) return;
+        if (!state.snapshot || state.status !== "connected") { wasConnected = false; return; }
+        if (!wasConnected) { notifier.synchronize(state.snapshot.seq); wasConnected = true; }
         if (applicationRevision !== state.snapshot.profileCatalogRevision) {
           applicationRevision = state.snapshot.profileCatalogRevision ?? 0;
           void applyApplicationPreferences().catch((error: unknown) => soundError(profileId, error));
@@ -208,7 +207,7 @@ else {
           notification.on("close", () => banners.delete(banner.id));
           notification.on("failed", (_event, error) => { banners.delete(banner.id); console.error("Moguri OS notification failed:", error); });
           notification.show();
-        }, (tone) => { void requestSound(scoped, epoch, tone.kind, tone.soundId, tone.sessionId).catch((error: unknown) => soundError(profileId, error)); });
+        }, (tone) => { void requestSound(scoped, epoch, tone.kind, tone.soundId, tone).catch((error: unknown) => soundError(profileId, error)); });
       });
       await applyApplicationPreferences();
       return profileId;

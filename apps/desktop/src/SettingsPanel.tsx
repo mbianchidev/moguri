@@ -16,7 +16,7 @@ import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
 import { ProviderConnect } from "./ProviderConnect.tsx";
 import { SessionManagement } from "./SessionManagement.tsx";
 import { GitHubConnectionPanel, LinearConnectionPanel } from "./IntegrationConnections.tsx";
-import { useDictation } from "./useDictation.ts";
+import { useDictation, useDictationTranscript } from "./useDictation.ts";
 import { listMicrophones, type MicrophoneChoice } from "./browser-audio.ts";
 import { ShortcutEditor } from "./ShortcutEditor.tsx";
 import { NotificationSettings } from "./NotificationSettings.tsx";
@@ -228,7 +228,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const activeVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && job.kind.startsWith("voice.") && job.status === "running");
   const voiceDownload = snapshot.jobs.findLast((job) => job.kind === "voice.download" && job.status === "running");
   const lastVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
-  const completedVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind) && job.status === "completed");
+  const completedVoice = lastVoice?.status === "completed" ? lastVoice : undefined;
+  const voiceTranscript = useDictationTranscript(sdk, session?.id, tab === "voice" ? completedVoice?.id : undefined);
   const modelPromptChanged = draft.systemPrompt !== committed.systemPrompt;
   const projectServers = session ? snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId)?.values.mcpServers ?? [] : [];
   const configuredServers = [...snapshot.settings.values.mcpServers, ...projectServers].filter((server, index, all) => server.enabled &&
@@ -594,8 +595,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             {draft.voice.inputDeviceId && draft.voice.inputDeviceId !== "default" && !microphones.some((device) => device.id === draft.voice.inputDeviceId) && <option value={draft.voice.inputDeviceId}>Saved device; refresh to verify availability</option>}
             {microphones.filter((device) => device.id !== "default").map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}</select></label>
           <ShortcutEditor label="Voice shortcut" value={draft.voice.shortcut ?? "Control+Space"} change={(shortcut) => change("voice", { ...draft.voice, shortcut })} save={voiceShortcut} dirty={draft.voice.shortcut !== committed.voice.shortcut} disabled={saving} />
-          <label className="check-setting"><input type="checkbox" checked={draft.voice.pushToTalk ?? false} onChange={(event) => automatic("voice", { pushToTalk: event.target.checked })} />Hold the voice shortcut to talk; release to transcribe</label>
-          <p className="fine-print">Without push-to-talk, press once to record and again to transcribe. Release before startup, blur or sleep stops the original capture without a late microphone or automatic send. Native/TUI capture supports Default only and explicitly rejects a selected desktop device.</p>
+          <label className="check-setting"><input type="checkbox" checked={draft.voice.pushToTalk ?? false} onChange={(event) => automatic("voice", { pushToTalk: event.target.checked })} />Hold the voice shortcut or microphone button to talk; release to transcribe</label>
+          <p className="fine-print">Hold until Recording appears, speak, then release to transcribe. Without push-to-talk, click once to record and again to transcribe. Early release or interruption explains why the original capture was discarded, without a late microphone or automatic send. Native/TUI capture supports Default only and explicitly rejects a selected desktop device.</p>
           <label className="setting-field">Language<select aria-label="Dictation language" disabled={saving} value={draft.voice.language} onChange={(event) => automatic("voice", { language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>
           <label className="setting-field">Native speech backend<select aria-label="Native speech backend" disabled={saving} value={draft.voice.backend} onChange={(event) => automatic("voice", { backend: event.target.value === "cpu" ? "cpu" : event.target.value === "metal" ? "metal" : "auto" })}><option value="auto">Automatic</option><option value="cpu">CPU</option><option value="metal" disabled={navigator.platform !== "MacIntel"}>Metal (macOS)</option></select></label>
           <label className="check-setting"><input type="checkbox" checked={acceptLicense} onChange={(event) => setAcceptLicense(event.target.checked)} />I reviewed OpenMDW-1.1 and approve the {voice ? Math.ceil(voice.bytes / 1024 / 1024) : 708} MiB local model download.</label>
@@ -608,7 +609,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           {dictation.state.error && <p className="inline-error" role="alert">{dictation.state.error}</p>}
           {lastVoice?.status === "failed" && lastVoice.error !== dictation.state.error && <p className="inline-error" role="alert">{lastVoice.error}</p>}
           <label className="setting-field">Or use a local WAV path<input value={input} onChange={(event) => setInput(event.target.value)} placeholder="/path/to/recording.wav" /></label><button disabled={saving || !session || !input || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, input))}>Transcribe local WAV</button>
-          {completedVoice && <div className="button-row"><button onClick={() => void run(() => sdk.mcp.readResult(completedVoice.id))}>Review transcript</button><button disabled={!session} onClick={() => void run(() => sdk.voice.insert(session!.id, completedVoice.id, session!.draft.revision))}>Insert into saved draft, never send</button></div>}
+          {completedVoice && <>{voiceTranscript?.error ? <p className="inline-error" role="alert">{voiceTranscript.error}</p> : <p aria-label="Dictation transcript">{voiceTranscript?.text ?? "Loading the local transcript..."}</p>}
+            <div className="button-row"><button disabled={!session || !voiceTranscript?.text} onClick={() => void run(() => sdk.voice.insert(session!.id, completedVoice.id, session!.draft.revision))}>Insert into saved draft, never send</button></div></>}
           <p className="fine-print">Microphone access is user-initiated and may require OS permission. Recording is bounded to two minutes. A conflicting draft is preserved rather than overwritten.</p></>}
       </fieldset>
         {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}
