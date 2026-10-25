@@ -212,12 +212,19 @@ change either preference in **Settings / Sessions / Retention**. These preferenc
 do not grant permissions, enable automatic cleanup or bypass retained-artifact
 reviews. Deletion still stops owned work and preserves independent documents.
 
-Drag near a sibling row's top/bottom edge to reorder within its pinned/unpinned
-group. Drop in its center to attach, or on the owning project/Chats header to
-detach. Move up/down and Attach/Detach remain keyboard menu alternatives.
+Drag the right-hand grip to reorder siblings within their pinned/unpinned
+group; the target row's top/bottom halves insert before/after without nesting.
+Click that same grip for the session menu, or use Alt+Up/Down on its focused
+control/name. Whole-row top/bottom edges also reorder; its center still
+attaches, and the owning project/Chats header detaches. Move up/down and
+Attach/Detach remain keyboard menu alternatives.
 Only the current project's hierarchy changes: workspace, Env and read-only/model
-subagent boundaries do not move. Changed sibling revisions reject the whole
-reorder instead of publishing a partial arrangement.
+subagent boundaries do not move. Each service attempt checks every sibling
+revision atomically instead of publishing a partial arrangement.
+Ordinary live activity/read-state changes no longer cancel the drag. A known
+revision-only rejection can refresh once while the exact original structural
+intent still matches; changed order, membership, pin or hierarchy stays refused.
+Unpin uses a crossed-out pin; pinned-state markers and Pin retain a standard pin.
 
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and

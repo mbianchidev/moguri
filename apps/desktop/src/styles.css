@@ -571,11 +571,6 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .project-color { display: inline-flex; flex-shrink: 0; }
 .session-row.selected { background: var(--selected); border-radius: 5px; }
 .session-row.selected .session-link { color: var(--selection-text); }
-.session-row.drop-before::before, .session-row.drop-after::after { content: ""; position: absolute; inset-inline: 6px; height: 2px; background: var(--accent); pointer-events: none; z-index: 1; }
-.session-row.drop-before::before { top: 0; }
-.session-row.drop-after::after { bottom: 0; }
-.session-link[draggable="true"] { cursor: grab; }
-.session-link[draggable="true"]:active { cursor: grabbing; }
 .session-link > svg { width: 12px; height: 12px; color: var(--muted); }
 .workspace-menu { flex-shrink: 0; }
 .workspace-menu > summary { display: flex; align-items: center; justify-content: center; list-style: none; width: 28px; min-height: 32px; border-radius: 5px; }
@@ -585,7 +580,11 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .workspace-menu > div button, .session-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 9px; border-color: transparent; text-align: left; font-size: 12px; }
 .workspace-menu > div svg, .session-context-menu svg { width: 14px; height: 14px; }
 .session-row[draggable="true"] { cursor: grab; }
-.session-row.drop-before::before, .session-row.drop-after::after { content: ""; position: absolute; left: 4px; right: 4px; height: 2px; background: var(--accent); pointer-events: none; }
+.session-row[draggable="true"]:active { cursor: grabbing; }
+.session-reorder { cursor: grab; }
+.session-reorder:active { cursor: grabbing; }
+.session-reorder svg { width: 12px; height: 14px; }
+.session-row.drop-before::before, .session-row.drop-after::after { content: ""; position: absolute; inset-inline: 4px; height: 2px; background: var(--accent); pointer-events: none; z-index: 1; }
 .session-row.drop-before::before { top: -1px; }
 .session-row.drop-after::after { bottom: -1px; }
 .session-row.drop-attach { outline: 1px solid var(--accent); outline-offset: -1px; border-radius: 5px; }

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { compareSessions, defaultProjectConfiguration, sessionIndicator, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, compareSessions, defaultProjectConfiguration, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -10,6 +10,19 @@ import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "pr" | "work" | "relocate" | "remove-project";
 interface Edit { kind: EditKind; project?: Project; session?: Session }
 const SESSION_DRAG = SESSION_DRAG_TYPE;
+type SessionPosition = { id: string; scope: string; order: number };
+const position = (session: Session): SessionPosition => ({ id: session.id, scope: sessionOrderScope(session), order: session.order ?? 0 });
+function samePositions(expected: SessionPosition[], sessions: Session[]): boolean {
+  const actual = new Map(sessions.map((session) => [session.id, position(session)]));
+  return expected.length === actual.size && expected.every((entry) => {
+    const value = actual.get(entry.id);
+    return value?.scope === entry.scope && value.order === entry.order;
+  });
+}
+const dropEdge = (element: HTMLElement, y: number, reorder: boolean): "before" | "after" | "attach" => {
+  const bounds = element.getBoundingClientRect(), ratio = (y - bounds.top) / bounds.height;
+  return reorder ? ratio < 0.5 ? "before" : "after" : ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "attach";
+};
 export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, settings, terminal, modal, allow, prepareSession }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
@@ -20,7 +33,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [error, setError] = useState("");
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; anchor: HTMLElement } | null>(null);
   const [drop, setDrop] = useState<{ id: string; edge: "before" | "after" | "attach" } | null>(null);
-  const dragging = useRef<{ id: string; revision: number; profileId: string; projectId: string | null } | null>(null);
+  const dragging = useRef<{ source: SessionPosition; siblings: SessionPosition[]; profileId: string; reorder: boolean } | null>(null);
+  const [ordering, setOrdering] = useState(false), orderPending = useRef(false);
   const actions = useSessionActions(sdk, snapshot, { prepare: prepareSession });
   useEffect(() => { if (menu && !snapshot.sessions.some((session) => session.id === menu.id)) setMenu(null); }, [menu, snapshot.sessions]);
   useEffect(() => { modal(Boolean(edit || menu || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, menu, actions.reviewing, actions.busy, modal]);
@@ -34,11 +48,30 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const openMenu = (session: Session, anchor: HTMLElement, x: number, y: number) => {
     if (allow()) { anchor.focus(); setMenu({ id: session.id, x, y, anchor }); }
   };
-  const siblings = (session: Session) => snapshot.sessions.filter((entry) => entry.projectId === session.projectId &&
+  const siblings = (session: Session, sessions = snapshot.sessions) => sessions.filter((entry) => entry.projectId === session.projectId &&
     (entry.parentSessionId ?? null) === (session.parentSessionId ?? null) && (session.parentSessionId || entry.groupId === session.groupId) &&
     (entry.status === "archived") === archived).sort(compareSessions);
-  const saveOrder = (session: Session, ordered: Session[]) => sdk.sessions.reorder(session.projectId, session.parentSessionId ?? null,
-    session.parentSessionId ? null : session.groupId, archived, ordered.map((entry) => ({ sessionId: entry.id, revision: entry.revision })));
+  const saveOrder = async (session: Session, ordered: Session[]) => {
+    if (orderPending.current) throw new Error("Wait for the current session order to settle before moving another session.");
+    const expected = ordered.map(position), ids = ordered.map((entry) => entry.id);
+    orderPending.current = true; setOrdering(true);
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const state = sdk.getState(), current = state.snapshot?.sessions.find((entry) => entry.id === session.id);
+        if (state.status !== "connected" || !state.snapshot || !current) throw new Error("Connect to the original profile before reordering. No session was moved.");
+        const currentSiblings = siblings(current, state.snapshot.sessions);
+        if (!samePositions(expected, currentSiblings)) throw new Error("The session list changed its order, membership, pin or hierarchy. Start the move again; no newer arrangement was overwritten.");
+        const revisions = new Map(currentSiblings.map((entry) => [entry.id, entry.revision]));
+        try {
+          return await sdk.sessions.reorder(current.projectId, current.parentSessionId ?? null, current.parentSessionId ? null : current.groupId,
+            archived, ids.map((sessionId) => ({ sessionId, revision: revisions.get(sessionId)! })));
+        } catch (error) {
+          if (attempt > 0 || !(error instanceof ClientError) || error.code !== "revision_conflict") throw error;
+          await sdk.refresh();
+        }
+      }
+    } finally { orderPending.current = false; setOrdering(false); }
+  };
   const moveSession = (session: Session, delta: number) => run(async () => {
     const ordered = siblings(session), index = ordered.findIndex((entry) => entry.id === session.id), target = index + delta;
     if (target < 0 || target >= ordered.length || ordered[target]!.pinned !== session.pinned) throw new Error("This session is already at the edge of its pinned or unpinned siblings.");
@@ -48,8 +81,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const source = dragging.current;
     if (!source || !event.dataTransfer.types.includes(SESSION_DRAG)) return null;
     if (source.profileId !== sdk.profileId) throw new Error("The original drag belongs to another profile. No session was moved.");
-    const session = snapshot.sessions.find((entry) => entry.id === source.id);
-    if (!session || session.revision !== source.revision || session.projectId !== source.projectId || (session.status === "archived") !== archived) throw new Error("The dragged session changed. Start the drag again; no workspace or session was adopted.");
+    const state = sdk.getState().snapshot, session = state?.sessions.find((entry) => entry.id === source.source.id);
+    if (!state || !session || !samePositions(source.siblings, siblings(session, state.sessions))) throw new Error("The dragged session list changed its order, membership, pin or hierarchy. Start the drag again; no workspace or session was adopted.");
     return session;
   };
   const detach = (event: DragEvent, projectId: string | null, groupId: string | null = null) => {
@@ -62,22 +95,33 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       await sdk.sessions.organize(session.id, { parentSessionId: null, groupId }, session.revision);
     });
   };
+  const dragHeader = (event: DragEvent, projectId: string | null) => {
+    const drag = dragging.current;
+    if (!drag) return;
+    setDrop(null);
+    const source = snapshot.sessions.find((entry) => entry.id === drag.source.id);
+    if (!source || source.projectId !== projectId || source.turnId || source.kind === "subagent" || !samePositions(drag.siblings, siblings(source))) {
+      event.dataTransfer.dropEffect = "none"; return;
+    }
+    event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = "move";
+  };
   const dropSession = (event: DragEvent<HTMLDivElement>, target: Session) => {
     if (!dragging.current) return;
     event.preventDefault(); event.stopPropagation();
-    const bounds = event.currentTarget.getBoundingClientRect(), ratio = (event.clientY - bounds.top) / bounds.height;
-    const edge = ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "attach"; setDrop(null);
+    const edge = dropEdge(event.currentTarget, event.clientY, dragging.current.reorder); setDrop(null);
     void run(async () => {
       if (!allow()) return;
       const source = sourceFor(event); if (!source) return;
       if (source.id === target.id) throw new Error("Drop onto a different session, or onto its project header to detach.");
       if (source.projectId !== target.projectId) throw new Error("Sessions can only be attached or ordered within their existing project.");
       if (edge === "attach") { await sdk.sessions.organize(source.id, { parentSessionId: target.id }, source.revision); return; }
-      const ordered = siblings(target);
+      const state = sdk.getState().snapshot, currentTarget = state?.sessions.find((entry) => entry.id === target.id);
+      if (!state || !currentTarget || !samePositions([position(target)], [currentTarget])) throw new Error("The drop target changed its order or hierarchy. Start the drag again.");
+      const ordered = siblings(currentTarget, state.sessions);
       if (!ordered.some((entry) => entry.id === source.id)) throw new Error("Reorder sibling sessions. Drop on the project or Chats header first to detach this session.");
       if (source.pinned !== target.pinned) throw new Error("Pinned chats stay above unpinned chats. Change Pin in the context menu before moving between those groups.");
       const next = ordered.filter((entry) => entry.id !== source.id), index = next.findIndex((entry) => entry.id === target.id);
-      next.splice(index + (edge === "after" ? 1 : 0), 0, source); await saveOrder(target, next);
+      next.splice(index + (edge === "after" ? 1 : 0), 0, source); await saveOrder(currentTarget, next);
     });
   };
   const move = (project: Project, delta: number) => run(async () => {
@@ -93,16 +137,23 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const indicator = sessionIndicator(session, snapshot);
     const unread = unreadSession(session, snapshot);
     return <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
-    draggable={!busy && !actions.busy} onDragStart={(event) => {
-      if (!allow()) { event.preventDefault(); return; }
-      dragging.current = { id: session.id, revision: session.revision, profileId: sdk.profileId, projectId: session.projectId };
+    draggable={!actions.busy && !ordering} onDragStart={(event) => {
+      if (!allow() || orderPending.current) { event.preventDefault(); return; }
+      dragging.current = { source: position(session), siblings: siblings(session).map(position), profileId: sdk.profileId,
+        reorder: event.target instanceof Element && Boolean(event.target.closest(".session-reorder")) };
       event.dataTransfer.setData(SESSION_DRAG, JSON.stringify({ profileId: sdk.profileId, sessionId: session.id })); event.dataTransfer.effectAllowed = "copyMove"; setMenu(null);
     }} onDragEnd={() => { dragging.current = null; setDrop(null); }}
     onDragOver={(event) => {
       if (!dragging.current) return;
+      const source = snapshot.sessions.find((entry) => entry.id === dragging.current?.source.id);
+      const edge = dropEdge(event.currentTarget, event.clientY, dragging.current.reorder);
+      const valid = source && source.id !== session.id && source.projectId === session.projectId && samePositions(dragging.current.siblings, siblings(source)) &&
+        (edge === "attach" ? !source.turnId && source.kind !== "subagent" : dragging.current.siblings.some((entry) => entry.id === session.id) && source.pinned === session.pinned);
+      if (!valid) { event.dataTransfer.dropEffect = "none"; setDrop(null); return; }
       event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = "move";
-      const bounds = event.currentTarget.getBoundingClientRect(), ratio = (event.clientY - bounds.top) / bounds.height;
-      setDrop({ id: session.id, edge: ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "attach" });
+      setDrop({ id: session.id, edge });
+    }} onDragLeave={(event) => {
+      if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === session.id ? null : value);
     }} onDrop={(event) => dropSession(event, session)}
     onContextMenu={(event) => { event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu(session, anchor, event.clientX, event.clientY); }}>
     <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions; drag to order or attach.`}
@@ -116,8 +167,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       <span className="status-dot session-status-dot" data-session-state={indicator.kind} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
         {session.status === "waiting_input" && <small title="Needs attention">Needs attention</small>}</span><SessionIndicators indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>
-    <button className="icon-button session-actions" type="button" aria-label={`Actions for ${session.title}`} aria-haspopup="menu" aria-expanded={menu?.id === session.id}
-      onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top); }}><Icon name="More" /></button>
+    <button className="icon-button session-actions session-reorder" type="button" draggable={!actions.busy && !ordering} disabled={actions.busy || ordering}
+      aria-label={`Actions for ${session.title}`} aria-description="Drag to reorder. Alt+Arrow Up/Down moves a sibling; click for session actions."
+      aria-haspopup="menu" aria-expanded={menu?.id === session.id} title="Drag to reorder; click for session actions. Alt+Up/Down moves a sibling."
+      onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); openMenu(session, event.currentTarget, bounds.right, bounds.top); }}
+      onKeyDown={(event) => { if (event.altKey && ["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); void moveSession(session, event.key === "ArrowUp" ? -1 : 1); } }}><Icon name="Grip" /></button>
   </div>;
   };
   const renderProject = (project: Project) => {
@@ -127,7 +181,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const tree = (parent: string | null, group: string | null, depth = 0): ReactNode => sessions.filter((session) =>
       (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent && (parent !== null || session.groupId === group))
       .sort(compareSessions).map((session) => <div key={session.id}>{renderSession(session, depth)}{tree(session.id, group, depth + 1)}</div>);
-    return <section className="project-group" key={project.id} aria-label={`Project ${project.name}`}><header className="project-row" onDragOver={(event) => { if (dragging.current) event.preventDefault(); }} onDrop={(event) => detach(event, project.id)}>
+    return <section className="project-group" key={project.id} aria-label={`Project ${project.name}`}><header className="project-row" onDragOver={(event) => dragHeader(event, project.id)} onDrop={(event) => detach(event, project.id)}>
       <button className="project-name" title={`Project settings: ${project.path}`} onClick={() => settings(project.id)}><span className="project-color" style={{ color: configuration.color }}><Icon name="Files" /></span><span className="project-label">{project.name}</span></button>
       <WorkspaceMenu label={`Project actions for ${project.name}`}>
         <button onClick={() => void run(async () => { const result = await sdk.command({ type: "session.create", projectId: project.id }); await chooseSession(result.id!); })}><Icon name="Plus" />New chat</button>
@@ -145,7 +199,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         <button className="danger" onClick={() => open({ kind: "remove-project", project })}><Icon name="Trash" />Remove</button>
       </WorkspaceMenu></header>
       {tree(null, null)}
-      {snapshot.sessionGroups.filter((group) => group.projectId === project.id).sort((a, b) => a.order - b.order).map((group) => <div className="session-group" key={group.id}><h3 onDragOver={(event) => { if (dragging.current) event.preventDefault(); }} onDrop={(event) => detach(event, project.id, group.id)}>{group.name}</h3>{tree(null, group.id)}</div>)}
+      {snapshot.sessionGroups.filter((group) => group.projectId === project.id).sort((a, b) => a.order - b.order).map((group) => <div className="session-group" key={group.id}><h3 onDragOver={(event) => dragHeader(event, project.id)} onDrop={(event) => detach(event, project.id, group.id)}>{group.name}</h3>{tree(null, group.id)}</div>)}
     </section>;
   };
   const projects = [...snapshot.projects].sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
@@ -154,9 +208,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort(compareSessions).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
   const menuSession = snapshot.sessions.find((session) => session.id === menu?.id), menuProject = snapshot.projects.find((project) => project.id === menuSession?.projectId);
   const menuUnread = menuSession ? unreadSession(menuSession, snapshot) : false;
-  return <><div className="project-list" aria-busy={busy || actions.busy}>
+  return <><div className="project-list" aria-busy={busy || actions.busy || ordering}>
     {(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}
-    <section className="project-group general-chats" aria-label="Chats"><header className="project-row" onDragOver={(event) => { if (dragging.current) event.preventDefault(); }} onDrop={(event) => detach(event, null)}><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
+    <section className="project-group general-chats" aria-label="Chats"><header className="project-row" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).map((group) => <details className="project-folder" key={group.id} open><summary><Icon name="Files" />{group.name}</summary>{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
     {!projects.length && <p className="nav-empty">Use Start for a chat, a local folder or a repository.</p>}
@@ -164,7 +218,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   </div>
   {menu && menuSession && <SessionContextMenu label={`Actions for ${menuSession.title}`} point={menu} close={closeMenu}>
     <button role="menuitem" onClick={() => open({ kind: "rename", project: menuProject, session: menuSession })}><Icon name="Edit" />Rename</button>
-    <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name="Pin" />{menuSession.pinned ? "Unpin" : "Pin"}</button>
+    <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name={menuSession.pinned ? "PinOff" : "Pin"} />{menuSession.pinned ? "Unpin" : "Pin"}</button>
     <button role="menuitem" onClick={() => void run(async () => {
       const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];
       await sdk.sessions.organize(menuSession.id, { unread: !menuUnread });
