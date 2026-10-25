@@ -115,13 +115,27 @@ test("native browser primitives expose real Chromium accessibility and exact-pag
   } finally { await owned.close(); }
 });
 
-test("the session browser has a user-controlled agent access toggle", async () => {
+test("the session browser has a sliding agent access toggle with native button keyboard support", async () => {
   const owned = await browserFixture();
   try {
     const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
     await expect(toggle).toBeVisible();
+    await expect(toggle).toHaveJSProperty("tagName", "BUTTON");
+    await expect(toggle.locator("input")).toHaveCount(0);
+    const track = await toggle.locator(".browser-toggle-track").boundingBox();
+    const off = await toggle.locator(".browser-toggle-thumb").boundingBox();
+    const target = await toggle.boundingBox();
+    expect(track && track.width > track.height).toBe(true);
+    expect(target?.height).toBeGreaterThanOrEqual(44);
     await expect(toggle).not.toBeChecked();
     await toggle.click();
+    await expect(toggle).toBeChecked();
+    await expect.poll(async () => (await toggle.locator(".browser-toggle-thumb").boundingBox())?.x ?? 0).toBeGreaterThan((off?.x ?? 0) + 8);
+    await toggle.focus();
+    await owned.page.keyboard.press("Space");
+    await expect(toggle).not.toBeChecked();
+    await expect(toggle).toHaveCSS("outline-style", "solid");
+    await owned.page.keyboard.press("Enter");
     await expect(toggle).toBeChecked();
     await toggle.click();
     await expect(toggle).not.toBeChecked();

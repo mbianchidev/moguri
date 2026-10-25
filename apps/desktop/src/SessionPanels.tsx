@@ -193,8 +193,9 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   };
   const navigate = async () => { setError(""); try { await sdk.sessions.browser(session.id, url); urlDirty.current = false; } catch (error) { setError(error instanceof Error ? error.message : "Preview URL was not accepted."); } };
   const activeUrl = browser?.url && browser.url !== "about:blank" ? browser.url : session.browserUrl;
-  return <section className="browser-panel"><div className="browser-control"><label><input type="checkbox" role="switch" aria-label="Agent browser control" checked={enabled}
-    disabled={!enabled && (!browser?.available || session.mode !== "agent" || session.kind !== "agent")} onChange={(event) => void toggle(event.target.checked)} />Agent control</label>
+  return <section className="browser-panel"><div className="browser-control"><button className="browser-control-toggle" type="button" role="switch" aria-label="Agent browser control" aria-checked={enabled}
+    disabled={!enabled && (!browser?.available || session.mode !== "agent" || session.kind !== "agent")} onClick={() => void toggle(!enabled)}>
+    <span className="browser-toggle-track" aria-hidden="true"><span className="browser-toggle-thumb" /></span><span>Agent control</span></button>
     <span>{enabled ? "Agent can use this page" : "Agent access off"}</span></div>
     <form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => { urlDirty.current = true; setUrl(event.target.value); }} />
     <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!activeUrl} onClick={() => void window.moguri.openExternal(activeUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
