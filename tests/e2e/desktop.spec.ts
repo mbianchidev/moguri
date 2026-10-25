@@ -234,7 +234,9 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(page.getByLabel("Allow model-proposed skills, scripts and style knowledge for human review")).not.toBeChecked();
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Download model once", exact: true })).toBeDisabled();
-    await expect(page.getByText("NVIDIA documents 40 locales:", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "About supported dictation languages", exact: true }).focus();
+    await expect(page.getByRole("tooltip")).toContainText("NVIDIA documents 40 locales:");
+    await page.keyboard.press("Escape");
     await categories.getByRole("button", { name: "System prompt", exact: true }).click();
     await mkdir(artifacts, { recursive: true });
     await page.screenshot({ path: join(artifacts, "desktop-sdk-settings.png") });

@@ -31,7 +31,7 @@ function CopyField({ input, name, multiline = false, children }: {
     <span className="copy-field-action"><Tooltip content={copied ? "Copied" : "Copy value"}>
       <button type="button" className="icon-button" aria-label={`Copy ${label}`} onClick={(event) => { event.preventDefault(); void copy(); }}><Icon name={copied ? "Check" : "Copy"} /></button>
     </Tooltip></span>
-    <span className="sr-only" role="status">{copied ? `Copied ${label}` : ""}</span>
+    <span className="sr-only" aria-live="polite" aria-atomic="true">{copied ? `Copied ${label}` : ""}</span>
     {error && <span className="inline-error copy-field-error" role="alert">{error}</span>}
   </span>;
 }

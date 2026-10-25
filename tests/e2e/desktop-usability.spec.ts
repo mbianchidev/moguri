@@ -103,7 +103,7 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     await page.getByRole("button", { name: "ask Moguri", exact: true }).click();
     await expect(page.getByRole("heading", { name: "ask Moguri", exact: true })).toBeVisible();
     await openSettingsSection(page, "Candidates");
-    const warning = page.getByText("Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited. Retained proposals remain readable.", { exact: true });
+    const warning = page.getByRole("region", { name: "Reviewed repository candidates", exact: true }).locator(".settings-warning").filter({ hasText: /project session|Git-backed project/ }).first();
     await expect(warning).toBeVisible();
     const styles = await warning.evaluate((element) => {
       const warning = getComputedStyle(element), nearby = getComputedStyle(element.parentElement!.querySelector(".fine-print")!);

@@ -38,7 +38,7 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
       {operation && ["checking", "downloading"].includes(operation.status) && <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.application.updates.cancel(operation.id); })}>Cancel original update</button>}</div>
     {operation && <><p role="status">Update: {operation.status}{operation.release ? ` / ${operation.release.manifest.version}` : ""}. {operation.diagnostic}</p>
       {operation.stagedBundle && <p className="fine-print path">Retained verified stage: {operation.stagedBundle}</p>}
-      {operation.status === "ready" && !status?.installable && <SettingsHelp label="More about this setting">This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout. Installation needs the actual owned packaged app.</SettingsHelp>}
+      {operation.status === "ready" && !status?.installable && <><p className="fine-print">Installing updates requires Moguri's packaged app.</p><SettingsHelp label="About source-runtime update limits">This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout. Installation needs the actual owned packaged app.</SettingsHelp></>}
       {operation.status === "ready" && status?.installable && <button type="button" disabled={disabled || busy || Boolean(token)} onClick={() => void run(async () => {
         setReview((await sdk.application.updates.installPreview(operation.id)).review); setConfirmed(false);
       })}>Review install and restart</button>}</>}

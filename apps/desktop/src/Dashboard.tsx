@@ -98,8 +98,8 @@ export function Dashboard({ sdk, snapshot, openSession }: { sdk: MoguriSdk; snap
         <div className="dashboard-breakdowns"><Trend title="User interventions" values={data.days.map((value) => ({ date: value.date, value: value.interventions }))} /><Trend title="Median completion (seconds)" values={data.days.map((value) => ({ date: value.date, value: value.medianCompletionMs === null ? null : value.medianCompletionMs / 1000 }))} /></div>
         <p className="fine-print">Not a measured productivity increase.</p><p className="fine-print">{data.velocity.failedTurns} failed turns / {data.velocity.interruptedTurns} stopped/partial turns / {data.velocity.unmeasuredCompletions} completions without valid timing. Only retained agent turns are observed. Interventions count actual user approvals and answers, not inferred rework or wasted time.</p>
       </>}
-      {(page === "Usage" || page === "Cost") && <details className="dashboard-details"><summary>Detailed accounting and original records</summary><UsageDashboard key={JSON.stringify([sdk.profileId, range, projectId])} sdk={sdk} snapshot={snapshot} initialFilters={{ range, ...(projectId ? { projectId } : {}) }} /></details>}
     </section>}
+    {(page === "Usage" || page === "Cost") && <details className="dashboard-details"><summary>Detailed accounting and original records</summary><UsageDashboard key={JSON.stringify([sdk.profileId, range, projectId])} sdk={sdk} snapshot={snapshot} initialFilters={{ range, ...(projectId ? { projectId } : {}) }} /></details>}
   </section>;
 }
 
