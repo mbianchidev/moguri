@@ -122,6 +122,27 @@ failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
 app does not start another service or force-kill a guessed process. Other
 independent state roots are not scanned or stopped by name.
 
+## Protocol-58 integrated source qualification
+
+The final integration preserves main `2445dac` (candidate cleanup) and the lean
+tooling/coordination slice in merge `5994f83`. Both original schema-57 lineages
+upgrade through their actual retained provenance; neither feature replaces the
+other or weakens source/accounting ownership.
+
+| Check | Observed result |
+| --- | --- |
+| Clean locked install, audit, shared type checks and production build | PASS; zero vulnerabilities |
+| Complete Node/worker/CLI/native-TUI regression | 1,422 passed, 14 declared skips, zero failures; 1,177.61 s |
+| Complete hidden desktop regression | 178 passed, 3 declared skips, zero failures; 5.7 min |
+| Independently installed packed SDK, declarations and all four entrypoints | PASS; zero vulnerabilities |
+| Actual installed worker continuation/receipt/cancellation probes | 12 passed, zero failures |
+| Both schema-57 lineages, failed convergence, ambiguous/corrupt/missing markers | PASS; ciphertext, original grants and accounting preserved |
+| Candidate deletion blocked by an original partial watch | PASS; exact actual-user inspection/Resume/retry remains available, no new work admitted |
+
+The earlier warnings and unqualified gates below remain explicit. This is not
+qualification of a new physical native image, every DAP adapter, live
+task-quality/token-saving guarantees or the complete first milestone.
+
 ## Pre-integration lean-tooling qualification
 
 The 2026-10-25 pre-integration source qualification at `5434338` uses generated repositories, loopback
