@@ -3,8 +3,8 @@ import { activeCompound, COMPOUND_EVIDENCE_WARNING, type CompoundInput, type Com
 
 type Read = Extract<CompoundResponse, { type: "compound.read" }>;
 type Preview = Extract<CompoundResponse, { type: "compound.preview" }>["preview"];
-export function CompoundPanel({ sdk, snapshot, session, draftDirty, onDirty, onSelectCandidate }: {
-  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; draftDirty: boolean; onDirty: (dirty: boolean) => void; onSelectCandidate: (id: string) => void;
+export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDirty, onDirty, onSelectCandidate }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; repositoryReady: boolean; draftDirty: boolean; onDirty: (dirty: boolean) => void; onSelectCandidate: (id: string) => void;
 }) {
   const [task, setTask] = useState(""), [plan, setPlan] = useState(""), [architecture, setArchitecture] = useState("");
   const [paths, setPaths] = useState(""), [newPaths, setNewPaths] = useState(""), [draftId, setDraftId] = useState(""), [alternateId, setAlternateId] = useState(""), [scriptId, setScriptId] = useState("");
@@ -26,7 +26,7 @@ export function CompoundPanel({ sdk, snapshot, session, draftDirty, onDirty, onS
   const selected = workflows.find((workflow) => workflow.id === selectedId) ?? (!selectedId ? workflows.find((workflow) => workflow.sessionId === session?.id) : undefined);
   const value = read && selected && read.workflow.id === selected.id && read.workflow.revision === selected.revision ? read : null;
   const review = value?.pendingValidation;
-  const local = Boolean(session?.projectId && session.controls.env === "Local" && session.controls.modelId === "kupo" &&
+  const local = Boolean(repositoryReady && session?.projectId && session.controls.env === "Local" && session.controls.modelId === "kupo" &&
     snapshot.settings.values.kupo.enabled && snapshot.settings.values.kupo.workflow === "compound" && snapshot.policy.allowedEnvs.includes("Local"));
   const writable = local && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId && !draftDirty;
   const ownRunning = Boolean(selected && session && selected.sessionId === session.id && selected.id === session.turnId && activeCompound(selected));

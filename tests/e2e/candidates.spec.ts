@@ -1,11 +1,36 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { candidateApiFixture } from "../fixtures/candidate-api.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native candidate clients are qualified on macOS.");
+
+test("candidate creation stays disabled for plain folders and project-free chats after a Git project was selected", async () => {
+  const f = await candidateApiFixture(), folder = join(f.directory, "generated-folder");
+  await mkdir(folder); await writeFile(join(folder, "fixture.txt"), "Generated folder-only file.\n");
+  const project = await f.sdk.command({ type: "project.add", path: folder });
+  const plain = await f.sdk.sessions.create(project.id!, "Generated folder source"), free = await f.sdk.sessions.create(null, "Generated project-free source");
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
+    const source = page.getByLabel("Resource source chat", { exact: true }), panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
+    await source.selectOption(f.sessionId);
+    await expect(panel.getByLabel("Candidate summary", { exact: true })).toBeEnabled();
+    for (const sessionId of [plain.id!, free.id!]) {
+      await source.selectOption(sessionId);
+      await expect(panel.getByLabel("Candidate summary", { exact: true })).toBeDisabled();
+      await expect(panel.getByRole("button", { name: "Load source file", exact: true })).toBeDisabled();
+      await expect(panel.getByRole("button", { name: "Review compound input", exact: true })).toBeDisabled();
+      await expect(panel).toContainText(/Git-backed project|exact Git working tree|project session/);
+    }
+    expect(f.service.controller.snapshot().candidates).toHaveLength(0);
+    expect(f.requests).toHaveLength(0);
+  } finally { await app.close(); await f.close(); }
+});
 
 test("desktop stages source edits separately, applies only a fresh exact review and keeps candidate documents immutable", async () => {
   const f = await candidateApiFixture(), index = await readFile(join(f.project, ".git/index"));

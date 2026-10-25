@@ -8,7 +8,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
   const [selected, setSelected] = useState(""), [filter, setFilter] = useState<"all" | "active" | "archived">("all");
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const actions = useSessionActions(sdk, snapshot, { stored: true, modal: onDirty, done: () => {
-    setSelected(""); setNotice("Stored session deleted. Independent artifacts, worktrees and external PRs were preserved.");
+    setSelected(""); setNotice("Stored session and its originating candidates deleted. Ordinary artifacts, applied code, worktrees and external PRs were preserved.");
   } });
   const session = snapshot.sessions.find((session) => session.id === selected);
   const sessions = snapshot.sessions.filter((session) => filter === "all" || (session.status === "archived") === (filter === "archived"));
@@ -20,7 +20,10 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
     finally { setBusy(false); }
   };
   const pending = busy || actions.busy;
-  return <section aria-label="Stored session management"><h3>Manage stored sessions</h3><p>Use the shared service lifecycle, never unlink database files. Independent artifacts, worktrees, connected PRs and other profiles are not deleted with a conversation.</p>
+  return <section aria-label="Stored session management"><h3>Manage stored sessions</h3><p>Permanent session deletion also deletes its originating candidates and generation proposals. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are preserved.</p>
+    {snapshot.candidateCleanups.filter((cleanup) => cleanup.status !== "completed").map((cleanup) => <p key={cleanup.id} className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>
+      Candidate cleanup {cleanup.status}: {cleanup.diagnostic ?? "Owned work is settling; deletion is not complete."} {cleanup.reason.kind === "session-delete" ? "Reconcile owned resources, then retry this session's deletion." : "Verified-merge cleanup will retry automatically; no code or Git resources are removed."}
+    </p>)}
     <label className="setting-field">Show sessions<select aria-label="Stored session filter" value={filter} onChange={(event) => {
       const value = event.target.value; if (value === "all" || value === "active" || value === "archived") { setFilter(value); setSelected(""); }
     }}><option value="all">All sessions</option><option value="active">Not archived</option><option value="archived">Archived</option></select></label>

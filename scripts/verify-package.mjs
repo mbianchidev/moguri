@@ -454,7 +454,7 @@ try {
       const command = { type: "candidate.apply", candidateId: staged.candidate.id, sessionId: source.id, expectedRevision: staged.candidate.revision, expectedDigest: review.digest, confirm: true };
       await client.command(command, commandId); assert.equal((await client.candidates.wait(staged.candidate.id)).candidate.status, "applied");
       assert.deepEqual(await readFile(join(directory, ".git/index")), index); assert.equal(git(["rev-parse", "HEAD"]), head);
-      assert.equal(JSON.parse((await client.artifacts.export(staged.candidate.id)).export.text).schemaVersion, 2);
+      assert.equal(JSON.parse((await client.artifacts.export(staged.candidate.id)).export.text).schemaVersion, Array.isArray(client.getState().snapshot.candidateOwners) ? 10 : 2);
       client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready();
       const raw = new DatabaseSync(join(temporary, "state", "state.sqlite"));
       try { raw.prepare("DELETE FROM receipts WHERE profile_id=? AND id=?").run("default", commandId); } finally { raw.close(); }

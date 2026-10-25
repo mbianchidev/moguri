@@ -4,6 +4,16 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+Protocol 57 makes [candidate retention](architecture/candidate-cleanup.md)
+session-owned: permanent origin-session deletion, including archived expiry,
+deletes its candidates and fixed-model proposal reports after owned work settles.
+Archiving alone preserves them. Fresh authoritative verification of each exact
+associated repository/PR merge also deletes those proposals, without following
+session relinks or deleting newer work. Ordinary artifacts, required accounting,
+applied code and Git resources keep their existing lifecycle. Candidate creation
+requires an explicit project backed by the exact Git root in every client and
+the service; project-free chats and plain folders never inherit another root.
+
 It is built from zero: Moguri owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
 
 > [!WARNING]

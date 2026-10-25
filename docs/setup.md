@@ -1,8 +1,37 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **56**. Additive upgrades retain existing
-encrypted history, identities, keys, grants and budget holds. Restart matching
+Current service/SDK/desktop protocol is **57**. Upgrades preserve existing
+history, identities and budget holds, with exact provenance-based rekeying for
+candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+Protocol 57 implements [session-owned candidate cleanup](architecture/candidate-cleanup.md).
+Permanent session deletion, whether manual or archived-session expiry, deletes
+all candidates and fixed-model generation proposals originating from that exact
+session. Archiving alone preserves them. Session-delete confirmation and
+**Settings / Sessions / Retention** disclose this; no separate candidate
+confirmation is required. Ordinary artifacts, usage/budget records, applied
+code, worktrees, branches and PRs are preserved.
+
+Associated candidates are also deleted after a fresh authoritative read confirms
+their exact repository/PR merged. Automatic reads include archived sessions and
+honor the project's public/authenticated metadata setting and board automatic-PR
+refresh policy. Disabling automatic PR refresh stops new merge observations.
+There is no public/other-account fallback. Closed-without-merge, stale or failed
+observations cannot delete proposals. The first recorded association is fixed;
+relinking a session does not retarget its older candidates or cancel newer work.
+
+Candidate creation is available only for explicit Git-backed Local projects,
+not project-free chats or plain folders. Desktop disables creation until the
+shared `candidates.eligibility(sessionId)` service check succeeds. CLI/TUI use
+`candidate eligibility --session ID` or `/candidate eligibility`; direct
+stage/generate/compound requests still enforce the same gate before effects.
+The service persists cleanup intent before cancellation and resumes it after
+restart. Pending/failed cleanup remains visible in Candidates and stored-session
+management; it is not a successful deletion. Reconcile exact owned resources
+and retry deletion, or let verified-merge cleanup retry. Unknown model usage
+continues holding capacity. Legacy records with no canonical origin remain
+unassigned rather than adopting the current session.
 
 Protocol 53 converges the independent main-line schemas 44-52 and desktop
 schemas 44-46. The original desktop provenance marker identifies that lineage;
