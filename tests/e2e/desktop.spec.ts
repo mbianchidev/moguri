@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
+import { openSettingsSection } from "./navigation.ts";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -115,7 +116,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     page.on("pageerror", (error) => failures.push(error.message));
     await expect(page.getByRole("heading", { name: "New session", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Model:/ })).toContainText("Select model");
-    await page.getByRole("button", { name: /GitHub Copilot.*disconnected/ }).click();
+    await openSettingsSection(page, "Providers");
     await page.getByRole("button", { name: "Sign in with GitHub Copilot", exact: true }).click();
     await expect(page.getByLabel("GitHub device code")).toHaveText("TEST-0000");
     await expect(page.getByRole("button", { name: "Open GitHub", exact: true })).toBeVisible();

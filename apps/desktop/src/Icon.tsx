@@ -55,6 +55,7 @@ const paths: Record<string, string> = {
   Waiting: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 8v8m6-8v8",
   Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
 };
+const aliases: Record<string, string> = { Sandbox: "Box", "Code change": "PR", "Work item": "Issue" };
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name === "Sandbox" ? "Box" : name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : name === "Grip" ? "3" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : name === "Grip" ? "3" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

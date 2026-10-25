@@ -25,15 +25,15 @@ const SessionTerminal = lazy(() => import("./SessionTerminal.tsx").then((module)
 type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
-const panels: Panel[] = ["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"];
+const panels: Panel[] = ["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"];
 const globalPanels = ["Suggestions", "Dashboard", "Attention"] as const;
 const savedPanels: Panel[] = [...panels, ...globalPanels, "Artifacts", "Candidates", "Sandbox", "Global Terminal", "PR"];
-type GlobalView = typeof globalPanels[number] | "Global terminal" | "Automations" | "Code change" | "Work item";
+type GlobalView = typeof globalPanels[number] | "Global terminal" | "Automations";
 const isGlobalPanel = (value: Panel): value is typeof globalPanels[number] => globalPanels.some((panel) => panel === value);
 const resourceSettings = (panel: Panel): SettingsTab | null => panel === "Artifacts" ? "artifacts" : panel === "Candidates" ? "candidates" : panel === "Sandbox" ? "sendbox" : null;
 const globalNavigation: { view: GlobalView; icon: string; label?: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Suggestions", icon: "Suggestions" },
-  { view: "Automations", icon: "Clock" }, { view: "Code change", icon: "PR" }, { view: "Work item", icon: "Issue" },
+  { view: "Automations", icon: "Clock" },
   { view: "Global terminal", icon: "Terminal", label: "Global Terminal" },
 ];
 const number = (value: number) => new Intl.NumberFormat().format(value);
@@ -90,7 +90,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [archived, setArchived] = useState(false);
   const [layout] = useState(savedLayout);
-  const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) || resourceSettings(layout.panel) || layout.panel === "Global Terminal" ? "Insights" : layout.panel);
+  const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) || resourceSettings(layout.panel) || layout.panel === "Global Terminal" ? "Insights" : layout.panel === "PR" ? "Code change" : layout.panel);
   const [globalView, setGlobalView] = useState<GlobalView | null>(layout.panel === "Global Terminal" ? "Global terminal" : isGlobalPanel(layout.panel) ? layout.panel : null);
   const [globalSessionId, setGlobalSessionId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(layout.open);
@@ -154,7 +154,6 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
   const pendingQuestion = snapshot?.questions.find((question) => question.id === session?.pendingQuestionId && question.status === "open");
   const decisionReview = snapshot?.decisions.find((record) => record.sessionId === session?.id && record.turnId === session?.turnId && activeDecision(record));
-  const copilot = snapshot?.provider.connections?.find((connection) => connection.id === "github-copilot") ?? snapshot?.provider;
   const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
   const connectedPr = session && snapshot ? sessionPullRequestUrl(session, snapshot) : null;
@@ -315,6 +314,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     });
   };
   const showPanel = (next: Panel) => run(async () => {
+    if (next === "PR") next = "Code change";
     const settings = resourceSettings(next);
     if (settings) { openSettings(settings); return; }
     if (next === "Global Terminal") { openGlobal("Global terminal"); return; }
@@ -404,10 +404,6 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
         <Tooltip content="Settings"><button className="icon-button" aria-label="Settings" aria-pressed={settingsTab !== null} onClick={() => { if (settingsTab) leaveSettings(); else openSettings("general"); }}><Icon name="Settings" /></button></Tooltip>
         </div>
-        <button className="provider-button" onClick={() => { if (settingsTab === "providers") leaveSettings(); else openSettings("providers"); }}>
-          <span className={`status-dot ${copilot?.status === "connected" ? "completed" : "idle"}`} />
-          <span><strong>GitHub Copilot</strong><small>{copilot?.status ?? "Connecting to service"}</small></span><span>&gt;</span>
-        </button>
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : "failed"}`} />Local service {status}</div>
       </div>
     </nav>
@@ -425,7 +421,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             <option value="">All projects</option>{globalSessionId && !globalSession && <option value={globalSessionId} disabled>Source chat removed; choose a current scope</option>}{snapshot.sessions.filter((session) => session.status !== "archived" && session.kind !== "subagent").map((session) => <option key={session.id} value={session.id}>{title(session)}</option>)}
           </select></label>}
         </header>
-        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" || globalView === "Code change" || globalView === "Work item" ? <div className="panel-empty"><Icon name={globalView === "Automations" ? "Clock" : globalView === "Code change" ? "PR" : "Issue"} /><h2>{globalView === "Automations" ? "No automations yet" : `No ${globalView.toLowerCase()} links yet`}</h2><p>{globalView === "Automations" ? "This space is reserved for automations. Nothing is scheduled." : globalView === "Code change" ? "A code change will link to a GitHub pull request. No links are configured here yet." : "A work item will link to a GitHub or Linear issue. No links are configured here yet."}</p></div> : globalView === "Global terminal" ? <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={!palette && !nativeModal && !terminalDismiss && !commandOutput} consoleScope="global" visible autoStart={terminalIntent?.panel === "Global Terminal"} onAutoStartHandled={() => terminalOpeningHandled("Global Terminal", null)} /></Suspense> :
+        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <div className="panel-empty"><Icon name="Clock" /><h2>No automations yet</h2><p>This space is reserved for automations. Nothing is scheduled here.</p></div> : globalView === "Global terminal" ? <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={!palette && !nativeModal && !terminalDismiss && !commandOutput} consoleScope="global" visible autoStart={terminalIntent?.panel === "Global Terminal"} onAutoStartHandled={() => terminalOpeningHandled("Global Terminal", null)} /></Suspense> :
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
         </div>
       </section> : <>
@@ -644,7 +640,8 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} modal={modal} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty} />;
-  if (panel === "PR") return prUrl ? <section><h2>Connected PR</h2><p className="path">{prUrl}</p><button onClick={() => void run(() => window.moguri.openExternal(prUrl))}><Icon name="PR" />Open in GitHub</button><p className="fine-print">This binding does not change the checkout or grant merge/push permission. Local work-item PR states are observed read-only.</p></section> : <p>No PR is connected.</p>;
+  if (panel === "Code change" || panel === "PR") return <section aria-label="Session code change" data-session-id={session.id}><p className="fine-print">{title(session)}</p>{prUrl ? <><h2>Connected PR</h2><p className="path">{prUrl}</p><button onClick={() => void run(() => window.moguri.openExternal(prUrl))}><Icon name="PR" />Open in GitHub</button><p className="fine-print">This binding does not change the checkout or grant merge/push permission. Local work-item PR states are observed read-only.</p></> : <div className="panel-empty"><Icon name="PR" /><h2>No code change linked</h2><p>This session has no linked pull request.</p></div>}</section>;
+  if (panel === "Work item") return <section aria-label="Session work item" data-session-id={session.id}><p className="fine-print">{title(session)}</p><div className="panel-empty"><Icon name="Issue" /><h2>Work item links</h2><p>GitHub and Linear issue links will appear here for this session.</p></div></section>;
   return <p>Choose a supported panel.</p>;
 }
 function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel: () => void; confirm: () => void }) {

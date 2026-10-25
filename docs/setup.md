@@ -6,10 +6,14 @@ candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
-The left sidebar has **New**, Dashboard, Suggestions, Automations, Code change,
-Work item and Global Terminal. The last three are intentionally empty spaces:
+The left sidebar has **New**, Dashboard, Suggestions, Automations and Global
+Terminal. **Code change** and **Work item** belong to the right rail and follow
+the selected session. Code change shows an existing linked PR; Work item is
+currently an empty issue-link panel. Automations is also intentionally empty:
 no scheduler or new issue/PR linking workflow is implied. Profile, Ask Moguri
-and Settings share one compact footer row. Artifacts, Candidates and unified
+and Settings share one compact footer row. Copilot connection status appears
+only in Settings / Models / Providers, not in the left sidebar.
+Artifacts, Candidates and unified
 **Sandbox** management now live in Settings, with optional source-chat selection.
 Non-secret settings fields have hover/focus copy buttons; explanatory text uses
 keyboard-accessible information tooltips. Errors, status and safety reviews
@@ -656,9 +660,10 @@ Sandbox/Remote browser control and Stainless diagnostics remain unqualified.
 See the [browser contract](architecture/agent-browser.md).
 
 Protocol 44 introduced these interaction changes. Protocol 59 places Dashboard,
-Suggestions, Automations, Code change, Work item and Global Terminal in the left
-sidebar; Artifacts/Candidates/Sandbox are Settings sections. The right rail is reserved for Terminal, Browser, Insights,
-Changes, Files, Plan and Side chat. Global actions and existing slash commands
+Suggestions, Automations and Global Terminal in the left sidebar;
+Artifacts/Candidates/Sandbox are Settings sections. The right rail is reserved
+for Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change
+and Work item. Its two link panels are per session. Global actions and existing slash commands
 retain their independently scoped source selection. Attention remains in the top bar. The unified New
 chooser and project-free navigation remain available.
 

@@ -15,7 +15,8 @@ test("local model setup is independent of Copilot and startup controls are inher
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await expect(page.getByRole("button", { name: /GitHub Copilot.*disconnected/ })).toBeVisible();
+    expect(fixture.provider.state.status).toBe("disconnected");
+    await expect(page.locator(".nav-footer").getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const categories = page.getByRole("navigation", { name: "Settings categories" });
     await categories.getByRole("button", { name: "Local models", exact: true }).click();
@@ -32,7 +33,8 @@ test("local model setup is independent of Copilot and startup controls are inher
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.headers[0]).toBeUndefined();
     expect(fixture.session().usage[0]?.source).toBe("local");
-    await expect(page.getByRole("button", { name: /GitHub Copilot.*disconnected/ })).toBeVisible();
+    expect(fixture.provider.state.status).toBe("disconnected");
+    await expect(page.locator(".nav-footer").getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await categories.getByRole("button", { name: "Startup defaults", exact: true }).click();
     await page.getByRole("button", { name: "Use current controls for this profile", exact: true }).click();

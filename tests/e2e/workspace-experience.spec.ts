@@ -18,7 +18,8 @@ test("compact navigation, global suggestions and the four graphic dashboard page
     const page = await app.firstWindow(), nav = page.getByRole("navigation", { name: "Projects and sessions", exact: true });
     await expect(nav.getByRole("button", { name: "New", exact: true })).toBeVisible();
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations", "Code change", "Work item", "Global Terminal"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations", "Global Terminal"]);
+    await expect(nav.getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: "Settings", exact: true })).toHaveText("");
     await expect(nav.getByRole("button", { name: "ask Moguri", exact: true })).toHaveText("");
     const before = fixture.service.controller.snapshot().sessions.length;
@@ -26,9 +27,13 @@ test("compact navigation, global suggestions and the four graphic dashboard page
     await expect(page.getByRole("region", { name: "Moguri suggestions", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Usage gaps", exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().sessions.length).toBe(before);
-    for (const name of ["Automations", "Code change", "Work item"]) {
-      await resources.getByRole("button", { name, exact: true }).click();
-      await expect(page.getByRole("main").getByRole("heading", { name, exact: true })).toBeVisible();
+    await resources.getByRole("button", { name: "Automations", exact: true }).click();
+    await expect(page.getByRole("main").getByRole("heading", { name: "Automations", exact: true })).toBeVisible();
+    const rail = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
+    await expect(rail.getByRole("button")).toHaveCount(9);
+    for (const [name, region] of [["Code change", "Session code change"], ["Work item", "Session work item"]]) {
+      await rail.getByRole("button", { name, exact: true }).click();
+      await expect(page.getByRole("region", { name: region, exact: true })).toHaveAttribute("data-session-id", fixture.sessionId);
     }
     await resources.getByRole("button", { name: "Dashboard", exact: true }).click();
     const pages = page.getByRole("navigation", { name: "Dashboard pages", exact: true });
@@ -162,6 +167,41 @@ test("cancelling skill discovery stops its download and releases the settings na
     await expect(gateway.getByRole("alert")).toContainText("cancelled");
     await categories.getByRole("button", { name: "Appearance", exact: true }).click();
     await expect(page.getByLabel("Theme", { exact: true })).toBeVisible();
+    expect(fixture.requests.length).toBe(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("right-rail links follow the selected session and Copilot connection status appears only in settings", async () => {
+  const url = "https://github.com/generated/project/pull/7";
+  const fixture = await setupFixture({ platform: { integrations: { fetch: async () => Response.json({ number: 7, html_url: url, state: "open", draft: false, merged: false, merged_at: null }) } } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.sessions.organize(fixture.sessionId, { title: "Generated linked session", prUrl: url });
+  const second = await sdk.sessions.create(fixture.session().projectId, "Generated unlinked session");
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), nav = page.getByRole("navigation", { name: "Projects and sessions", exact: true });
+    const rail = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
+    await expect(nav.getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
+    await nav.getByRole("button", { name: "Generated linked session", exact: true }).click();
+    await rail.getByRole("button", { name: "Code change", exact: true }).click();
+    const code = page.getByRole("region", { name: "Session code change", exact: true });
+    await expect(code).toHaveAttribute("data-session-id", fixture.sessionId); await expect(code).toContainText(url);
+    await nav.getByRole("button", { name: "Generated unlinked session", exact: true }).click();
+    await expect(code).toHaveAttribute("data-session-id", second.id!);
+    await expect(code).toContainText("This session has no linked pull request."); await expect(code).not.toContainText(url);
+    await rail.getByRole("button", { name: "Work item", exact: true }).click();
+    const work = page.getByRole("region", { name: "Session work item", exact: true });
+    await expect(work).toHaveAttribute("data-session-id", second.id!);
+    await nav.getByRole("button", { name: "Generated linked session", exact: true }).click();
+    await expect(work).toHaveAttribute("data-session-id", fixture.sessionId);
+    await mkdir(".moguri/artifacts", { recursive: true });
+    await page.screenshot({ path: ".moguri/artifacts/workspace-session-links.png", animations: "disabled" });
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Providers", exact: true }).click();
+    await expect(page.getByText("Connected through your Copilot account.", { exact: true })).toBeVisible();
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
