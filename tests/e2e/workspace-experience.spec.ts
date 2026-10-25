@@ -89,7 +89,7 @@ test("small real cost estimates remain graphically visible and saved skill folde
   const settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, budgets: { ...settings.values.budgets, rates: [{ modelId: fixture.modelId, inputUsdPerMillion: 1, outputUsdPerMillion: 2, source: "user-estimate", effectiveAt: new Date().toISOString().slice(0, 10) }] } }, settings.revision);
   await fixture.send("Generated dashboard graph fixture."); await fixture.terminal();
-  const root = join(fixture.directory, "generated-desktop-skills");
+  const root = join(fixture.directory, "generated-desktop-skills ");
   await mkdir(root); await writeFile(join(root, "SKILL.md"), "---\nname: generated-desktop-review\ndescription: Review generated desktop changes\n---\nUse the original generated evidence.\n");
   const app = await electron.launch({
     executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -122,6 +122,7 @@ test("small real cost estimates remain graphically visible and saved skill folde
     await gateway.getByRole("button", { name: "Add source", exact: true }).click();
     await gateway.getByRole("button", { name: "Save skill sources", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.skillSources?.length).toBe(1);
+    expect(fixture.service.controller.snapshot().settings.values.skillSources![0]).toMatchObject({ kind: "local", path: root });
     await gateway.getByRole("button", { name: "Find skills", exact: true }).click();
     await expect(gateway).toContainText("generated-desktop-review");
     await gateway.getByRole("button", { name: "Read skill", exact: true }).click();
@@ -131,5 +132,36 @@ test("small real cost estimates remain graphically visible and saved skill folde
     await expect(gateway.getByRole("alert")).toContainText("changed");
     await expect(gateway.locator("pre")).toHaveCount(0);
     expect(fixture.requests.length).toBe(1);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("cancelling skill discovery stops its download and releases the settings navigation guard", async () => {
+  let stopped = false;
+  const started = Promise.withResolvers<void>();
+  const fixture = await setupFixture({ platform: { skillGateway: { fetch: async (_url, options) => new Promise<Response>((_resolve, reject) => {
+    started.resolve();
+    options!.signal!.throwIfAborted();
+    options!.signal!.addEventListener("abort", () => { stopped = true; reject(options!.signal!.reason); }, { once: true });
+  }) } } }), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const settings = sdk.settings.get()!;
+  await sdk.settings.update({ ...settings.values, skillSources: [{ id: "generated-cancel-source", name: "Generated cancellable source", kind: "remote", url: "https://generated.invalid/skills.zip", enabled: true }] }, settings.revision);
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
+    await categories.getByRole("button", { name: "Skill gateway", exact: true }).click();
+    const gateway = page.getByRole("region", { name: "Skill gateway settings", exact: true });
+    await gateway.getByRole("button", { name: "Find skills", exact: true }).click();
+    await started.promise;
+    await gateway.getByRole("button", { name: "Cancel lookup", exact: true }).click();
+    await expect.poll(() => stopped).toBe(true);
+    await expect(gateway.getByRole("alert")).toContainText("cancelled");
+    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await expect(page.getByLabel("Theme", { exact: true })).toBeVisible();
+    expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

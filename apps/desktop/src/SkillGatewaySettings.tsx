@@ -51,7 +51,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
         placeholder={kind === "local" ? "/absolute/path/to/skills" : "https://github.com/owner/skills"} onChange={(event) => setLocation(event.target.value)} /></label>
       <div className="button-row"><button type="button" disabled={disabled || busy || !name.trim() || !location.trim() || value.length >= 16} onClick={() => {
         change([...value, { id: crypto.randomUUID(), name: name.trim(), enabled: true,
-          ...(kind === "local" ? { kind: "local" as const, path: location.trim() } : { kind: "remote" as const, url: location.trim() }) }]);
+          ...(kind === "local" ? { kind: "local" as const, path: location } : { kind: "remote" as const, url: location }) }]);
         setName(""); setLocation("");
       }}>Add source</button><button type="button" className="primary" aria-label="Save skill sources" disabled={disabled || busy || !dirty} onClick={save}>Save sources</button>
       {draft && <button type="button" className="quiet" onClick={() => { setName(""); setLocation(""); }}>Cancel new source</button>}</div>
