@@ -22,6 +22,12 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
     await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmTerminalClose: false } }, settings.revision);
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote"); app = await launch(f.directory);
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
+    await app.evaluate(({ BrowserWindow }) => {
+      const window = BrowserWindow.getAllWindows()[0]!;
+      // Keep resize frames running in this hidden fixture.
+      window.webContents.setBackgroundThrottling(false);
+      window.setSize(840, 760);
+    });
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     const panel = page.getByRole("region", { name: "Embedded Ghostty terminal", exact: true });
     await expect.poll(() => f.controller.snapshot().terminals.length).toBe(1);
@@ -46,7 +52,9 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
     await panel.getByText("Shared Remote owner / running", { exact: true }).click();
     await expect(panel).toContainText("Captured SSH host"); await expect(panel).toContainText(`:${f.ssh.target.port}`);
     await mkdir(artifacts, { recursive: true });
+    const compactCols = (await sdk.terminal.read(terminal.id)).terminal.cols;
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1440, 900));
+    await expect.poll(async () => (await sdk.terminal.read(terminal.id)).terminal.cols).toBeGreaterThan(compactCols);
     const wideCols = (await sdk.terminal.read(terminal.id)).terminal.cols;
     await page.screenshot({ path: join(artifacts, "remote-console-desktop.png") });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 760));
