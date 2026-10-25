@@ -138,8 +138,9 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: longName, exact: true }).click({ button: "right" });
     await page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
     const deletion = page.getByRole("dialog", { name: "Delete session", exact: true });
-    await expect(deletion).toContainText("Independent artifacts");
-    await deletion.getByLabel("I confirm deletion of this session, including its unsent content.", { exact: true }).check();
+    await expect(deletion).toContainText("Ordinary independent artifacts");
+    await expect(deletion).toContainText("every candidate or generation proposal originating from it");
+    await deletion.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
     await deletion.getByRole("button", { name: "Delete session", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.some((session) => session.id === fixture.sessionId)).toBe(false);
     expect((await sdk.plans.artifact(artifactId)).text).toBe("Generated independent desktop plan.");

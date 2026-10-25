@@ -1,4 +1,4 @@
-import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
+import { _electron as electron, expect, test, type ElectronApplication, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -10,6 +10,15 @@ const require = createRequire(import.meta.url), artifacts = resolve(".moguri/art
 const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_REMOTE_GHOSTTY_READY\\n'+process.cwd()+'\\n');"] };
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
   env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+async function resizeHiddenWindow(app: ElectronApplication, page: Page, width: number, height: number) {
+  await app.evaluate(({ BrowserWindow }, size) => {
+    const window = BrowserWindow.getAllWindows()[0]!;
+    window.webContents.setBackgroundThrottling(false);
+    window.setContentSize(size.width, size.height);
+  }, { width, height });
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getContentSize())).toEqual([width, height]);
+  await page.setViewportSize({ width, height });
+}
 test.skip(process.platform !== "darwin", "Native Remote console UI is qualified on macOS.");
 
 test("Ghostty explicitly opens a no-model Remote console, shows its real boundary and discards detached queued input without replacement", async () => {
@@ -22,12 +31,7 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
     await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmTerminalClose: false } }, settings.revision);
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote"); app = await launch(f.directory);
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await app.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0]!;
-      // Keep resize frames running in this hidden fixture.
-      window.webContents.setBackgroundThrottling(false);
-      window.setSize(840, 760);
-    });
+    await resizeHiddenWindow(app, page, 840, 760);
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     const panel = page.getByRole("region", { name: "Embedded Ghostty terminal", exact: true });
     await expect.poll(() => f.controller.snapshot().terminals.length).toBe(1);
@@ -53,11 +57,11 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
     await expect(panel).toContainText("Captured SSH host"); await expect(panel).toContainText(`:${f.ssh.target.port}`);
     await mkdir(artifacts, { recursive: true });
     const compactCols = (await sdk.terminal.read(terminal.id)).terminal.cols;
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1440, 900));
+    await resizeHiddenWindow(app, page, 1440, 900);
     await expect.poll(async () => (await sdk.terminal.read(terminal.id)).terminal.cols).toBeGreaterThan(compactCols);
     const wideCols = (await sdk.terminal.read(terminal.id)).terminal.cols;
     await page.screenshot({ path: join(artifacts, "remote-console-desktop.png") });
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 760));
+    await resizeHiddenWindow(app, page, 840, 760);
     await expect.poll(async () => (await sdk.terminal.read(terminal.id)).terminal.cols).toBeLessThan(wideCols);
     await page.screenshot({ path: join(artifacts, "remote-console-compact.png") });
     expect(await panel.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);

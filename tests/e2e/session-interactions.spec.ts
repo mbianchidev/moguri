@@ -183,7 +183,7 @@ test("remembered delete confirmation applies only to explicit deletion and prese
     await page.getByRole("button", { name: title, exact: true }).click({ button: "right" });
     await page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Delete session", exact: true });
-    await dialog.getByLabel("I confirm deletion of this session, including its unsent content.", { exact: true }).check();
+    await dialog.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
     await dialog.getByLabel("Do not ask again when deleting sessions", { exact: true }).check();
     await dialog.getByRole("button", { name: "Delete session", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot?.sessions.some((session) => session.id === fixture.sessionId)).toBe(false);

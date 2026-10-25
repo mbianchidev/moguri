@@ -97,7 +97,7 @@ test("session management deletes only the confirmed actual session and preserves
     await page.getByRole("button", { name: "Review session deletion", exact: true }).click();
     const review = page.getByRole("dialog", { name: "Delete stored session", exact: true });
     await expect(review.getByRole("button", { name: "Delete stored session", exact: true })).toBeDisabled();
-    await review.getByLabel("I confirm deletion of this stored session, including its unsent content.", { exact: true }).check();
+    await review.getByLabel("I confirm deletion of this stored session, its unsent content and originating candidates.", { exact: true }).check();
     await review.getByRole("button", { name: "Delete stored session", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.length).toBe(0);
     expect((await sdk.artifacts.read(artifact.id!)).text).toBe("Generated retained settings content.");

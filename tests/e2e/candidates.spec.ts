@@ -1,11 +1,69 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { candidateApiFixture } from "../fixtures/candidate-api.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native candidate clients are qualified on macOS.");
+
+test("candidate creation stays disabled for plain folders and project-free chats after a Git project was selected", async () => {
+  const f = await candidateApiFixture(), folder = join(f.directory, "generated-folder");
+  await mkdir(folder); await writeFile(join(folder, "fixture.txt"), "Generated folder-only file.\n");
+  const project = await f.sdk.command({ type: "project.add", path: folder });
+  const plain = await f.sdk.sessions.create(project.id!, "Generated folder source"), free = await f.sdk.sessions.create(null, "Generated project-free source");
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
+    const source = page.getByLabel("Resource source chat", { exact: true }), panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
+    await source.selectOption(f.sessionId);
+    await expect(panel.getByLabel("Candidate summary", { exact: true })).toBeEnabled();
+    for (const sessionId of [plain.id!, free.id!]) {
+      await source.selectOption(sessionId);
+      await expect(panel.getByLabel("Candidate summary", { exact: true })).toBeDisabled();
+      await expect(panel.getByRole("button", { name: "Load source file", exact: true })).toBeDisabled();
+      await expect(panel.getByRole("button", { name: "Review compound input", exact: true })).toBeDisabled();
+      await expect(panel).toContainText(/Git-backed project|exact Git working tree|project session/);
+    }
+    expect(f.service.controller.snapshot().candidates).toHaveLength(0);
+    expect(f.requests).toHaveLength(0);
+  } finally { await app.close(); await f.close(); }
+});
+
+test("desktop retries a failed permanent cleanup after preserving an unsent edit without admitting another candidate", async () => {
+  const f = await candidateApiFixture(), candidate = await f.stage(), title = f.session().title;
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: title, exact: true }).click();
+    f.service.store.db.exec(`CREATE TRIGGER generated_desktop_cleanup_failure BEFORE INSERT ON events
+      WHEN json_extract(NEW.data,'$.event_type')='session.deleted'
+      BEGIN SELECT RAISE(ABORT,'Generated desktop cleanup failure'); END;`);
+    const deletion = page.getByRole("dialog", { name: "Delete session", exact: true });
+    const requestDeletion = async () => {
+      await page.getByRole("button", { name: title, exact: true }).click({ button: "right" });
+      await page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
+      await deletion.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
+      await deletion.getByRole("button", { name: "Delete session", exact: true }).click();
+    };
+    await requestDeletion();
+    await expect(deletion.getByRole("alert")).toContainText("Deletion is incomplete");
+    expect((await f.sdk.candidates.read(candidate.candidate.id)).candidate.status).toBe("staged");
+    await deletion.getByRole("button", { name: "Cancel deletion", exact: true }).click();
+    f.service.store.db.exec("DROP TRIGGER generated_desktop_cleanup_failure");
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated unsent cleanup retry edit.");
+    await expect.poll(() => f.session().draft.text).toBe("Generated unsent cleanup retry edit.");
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    await requestDeletion();
+    await expect(deletion).toHaveCount(0);
+    await expect.poll(() => f.service.controller.snapshot().sessions.some((session) => session.id === f.sessionId)).toBe(false);
+    expect(f.service.controller.snapshot().candidates).toHaveLength(0);
+    expect(f.requests).toHaveLength(0);
+  } finally { await app.close(); await f.close(); }
+});
 
 test("desktop stages source edits separately, applies only a fresh exact review and keeps candidate documents immutable", async () => {
   const f = await candidateApiFixture(), index = await readFile(join(f.project, ".git/index"));

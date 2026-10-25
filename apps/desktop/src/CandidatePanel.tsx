@@ -17,14 +17,18 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const [selectedId, setSelectedId] = useState(""), [document, setDocument] = useState<CandidateDocument | null>(null);
   const [application, setApplication] = useState<{ value: CandidateApplyPreview; scope: string } | null>(null);
   const [busy, setBusy] = useState(""), [stopping, setStopping] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [eligibility, setEligibility] = useState<{ scope: string; eligible: boolean; diagnostic: string | null } | null>(null);
   const selected = snapshot.candidates.find((candidate) => candidate.id === selectedId), selectedFile = files[fileIndex];
   const project = snapshot.projects.find((project) => project.id === session?.projectId), configuration = snapshot.projectConfigurations.find((value) => value.projectId === project?.id);
-  const scope = JSON.stringify([sdk.profileId, session?.id, session?.controls.env, session?.workspaceId, session?.mode, session?.pendingMode,
-    project?.path, configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision]);
+  const cleanup = snapshot.candidateCleanups.find((cleanup) => cleanup.status !== "completed" &&
+    (cleanup.targets.includes(selectedId) || cleanup.reason.kind === "session-delete" && cleanup.reason.sessionId === session?.id));
+  const scope = JSON.stringify([sdk.profileId, session?.id, session?.projectId, session?.controls.env, session?.workspaceId, session?.mode, session?.pendingMode,
+    project?.path, configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, cleanup?.id, cleanup?.status]);
   const actualScope = useRef(scope), generation = useRef(0), documentGeneration = useRef(0); actualScope.current = scope;
   const proposalEditor = useRef<HTMLTextAreaElement>(null);
   const changedScope = draftScope !== null && draftScope !== scope;
-  const local = Boolean(session?.projectId && session.controls.env === "Local" && snapshot.policy.allowedEnvs.includes("Local"));
+  const repositoryReady = eligibility?.scope === scope && eligibility.eligible;
+  const local = Boolean(repositoryReady && session?.projectId && session.controls.env === "Local" && snapshot.policy.allowedEnvs.includes("Local"));
   const writable = local && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId;
   const dirty = summary !== summaryDefault || files.some((file) => file.baseDigest === "absent" || file.text !== file.baseText);
   const stages = snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session.workspaceId && workspace.status === "ready");
@@ -32,6 +36,16 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const artifact = snapshot.artifacts.find((artifact) => artifact.id === selectedId);
   const active = selected && ["staging", "applying"].includes(selected.status);
   useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty || compoundDirty || winddownDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, compoundDirty, winddownDirty, onDirty]);
+  useEffect(() => {
+    let current = true;
+    setEligibility(null);
+    if (session) void sdk.candidates.eligibility(session.id).then((value) => {
+      if (current) setEligibility({ scope, eligible: value.eligible, diagnostic: value.diagnostic });
+    }).catch((error: unknown) => {
+      if (current) setEligibility({ scope, eligible: false, diagnostic: error instanceof Error ? error.message : "Repository eligibility could not be verified. Creation is disabled." });
+    });
+    return () => { current = false; };
+  }, [sdk, scope]);
   useEffect(() => { generation.current++; setPreview(null); setApplication(null); if (!files.length && summary === summaryDefault) { setDraftScope(null); setStageId(""); } }, [scope]);
   useEffect(() => { setApplication(null); }, [selectedId, selected?.revision]);
   useEffect(() => {
@@ -81,14 +95,16 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   return <section className="candidate-panel" aria-label="Reviewed repository candidates" aria-busy={Boolean(busy)}>
     <p className="fine-print">Stage in a separate owned worktree. Review exact bytes before publishing to the source. Manual staging/application use no model; optional generation is explicit and metered. No commit or push.</p>
     <p className="fine-print">Checks cover roots, bases and exact bytes. No project tests or code-quality validation is implied.</p>
+    <p className="fine-print">Candidates and generation proposals are permanently deleted with their originating session or after fresh verification that their exact linked PR merged. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees and PRs keep their own lifecycle.</p>
     <label className="setting-field">Retained proposal<select aria-label="Retained candidate" value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       <option value="">Choose a retained proposal</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / {candidate.status}</option>)}
     </select></label>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
-    {!local && <p className="settings-warning">Staging/applying needs an explicitly Local project session allowed by policy. Your current Env and model were not changed. Retained proposals remain readable.</p>}
+    {!local && <p className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited."} Retained proposals remain readable.</p>}
+    {cleanup && <p className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>Candidate cleanup {cleanup.status}. {cleanup.diagnostic ?? "Settling exact owned work before deletion."} Deletion is not complete; retained proposals remain inspectable.</p>}
     {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
     {changedScope && <p className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</p>}
-    <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
+    <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} repositoryReady={Boolean(repositoryReady)} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
     <WinddownPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWinddownDirty} />
     <CandidateGenerationPanel sdk={sdk} snapshot={snapshot} session={session} stageId={stageId} files={files.map(({ path, baseDigest }) => ({ path, baseDigest }))}
       scope={scope} sourceRoot={sourceRoot} writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty} loadedGenerationId={typeof modelOrigin === "string" ? modelOrigin : undefined} onDirty={setGenerationDirty} onLoad={loadGenerated} />
@@ -139,6 +155,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
         {active && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stop(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not confirmed.")).finally(() => setStopping(false)); }}>{stopping ? "Requesting stop..." : `Stop ${selected.status === "staging" ? "staging" : "application"}`}</button>}
       </header>
       <p className="fine-print path">Local source: {selected.source.branch} / base <code>{selected.source.head.slice(0, 12)}</code></p>
+      {selected.originSessionId === null && <p className="fine-print">Legacy origin ownership is unknown. This proposal is not assigned to the current session; its report can be deleted explicitly in Artifacts.</p>}
       <details open={selected.status === "partial"}><summary>Captured Local source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage branch: {selected.stage.branch}</p></details>
       <p className="fine-print">{selected.compoundOrigin ? "Derived from an actual public compound role. Inspect the separate retained workflow for actual tests and critic observations; provenance is not quality or source acceptance." : selected.roleOrigin ? "Derived from the exact final retained model role. Its independent origin is not quality or acceptance." : selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
       {selected.stopRequested && <p className="fine-print">Owned stop was requested; the actual outcome is {selected.status}.</p>}
