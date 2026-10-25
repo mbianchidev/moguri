@@ -176,15 +176,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     setDraft((current) => ({ ...current, [section]: replace ? value : { ...current[section], ...patch } }));
     void write({ ...committedValues.current, [section]: value }, () => {});
   };
-  const automaticDefaults = (patch: ControlDefaults, remove: (keyof ControlDefaults)[] = []) => {
+  const automaticDefaults = (patch: ControlDefaults, remove: (keyof ControlDefaults)[] = [], scope: "global" | "profile" = "profile") => {
     if (ownSave.current || raw.startup !== undefined) { setError("Save or reload the startup JSON before changing default controls. Your text is preserved."); return; }
     const merge = (profile: ControlDefaults) => {
       const value = { ...profile, ...patch, ...(patch.modelOptions ? { modelOptions: { ...profile.modelOptions, ...patch.modelOptions } } : {}) };
       for (const key of remove) delete value[key];
       return value;
     };
-    const startup = { ...committedValues.current.startup, profile: merge(committedValues.current.startup.profile) };
-    setDraft((current) => ({ ...current, startup: { ...current.startup, profile: merge(current.startup.profile) } }));
+    const startup = { ...committedValues.current.startup, [scope]: merge(committedValues.current.startup[scope]) };
+    setDraft((current) => ({ ...current, startup: { ...current.startup, [scope]: merge(current.startup[scope]) } }));
     void write({ ...committedValues.current, startup }, () => {});
   };
   const saveGuidance = (key: keyof Guidance) => {
@@ -237,9 +237,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
   const routingModels = snapshot.provider.models.filter((model) => !model.synthetic);
-  const defaultModelId = Object.hasOwn(draft.startup.profile, "modelId") ? draft.startup.profile.modelId : draft.startup.global.modelId;
+  const explicitDefaultModelId = Object.hasOwn(draft.startup.profile, "modelId") ? draft.startup.profile.modelId : draft.startup.global.modelId;
+  const defaultModelId = explicitDefaultModelId === undefined ? snapshot.lastModelSelection?.modelId : explicitDefaultModelId;
   const defaultModel = snapshot.provider.models.find((model) => model.id === defaultModelId);
-  const defaultEffort = (Object.hasOwn(draft.startup.profile, "modelOptions") ? draft.startup.profile.modelOptions : draft.startup.global.modelOptions)?.thinkingEffort;
+  const defaultOptions = Object.hasOwn(draft.startup.profile, "modelOptions") ? draft.startup.profile.modelOptions : draft.startup.global.modelOptions;
+  const defaultEffort = defaultOptions?.thinkingEffort ?? (explicitDefaultModelId === undefined && !Object.hasOwn(draft.startup.profile, "modelOptions") &&
+    !Object.hasOwn(draft.startup.global, "modelOptions") ? snapshot.lastModelSelection?.thinkingEffort : undefined);
+  const globalDefaultModel = snapshot.provider.models.find((model) => model.id === draft.startup.global.modelId);
+  const globalDefaultEffort = draft.startup.global.modelOptions?.thinkingEffort;
+  const rememberedModel = snapshot.provider.models.find((model) => model.id === snapshot.lastModelSelection?.modelId);
   const allowed = snapshot.policy.allowedEnvs, environmentChoice = allowed.length === 3 ? "all" : allowed.length === 2 && !allowed.includes("Local") ? "protected" :
     allowed.length === 1 && allowed[0] === "Sandbox" ? "sandbox" : allowed.length === 1 && allowed[0] === "Remote" ? "remote" : "custom";
   useEffect(() => { setTools([]); setSelectedTool(null); }, [snapshot.profileId, snapshot.settings.revision, snapshot.policy.revision, session?.id, session?.projectId,
@@ -390,8 +396,34 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             <button disabled={remoteInspection !== execution.id || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(async () => { await sdk.remote.acknowledge(execution.id, true); setRemoteInspection(""); })}>Record inspection</button></details>)}
           <p className="fine-print">Review Remote MCP resources and separate access-forwarding grants under MCP gateway. Selecting Remote never grants MCP access. Explicit user consoles use their own captured SSH owner/root, not a Local shell or SendBox isolation. Repository-memory retrieval and transferred Local scripts remain unavailable.</p></>}
         {tab === "startup" && <><h2>New-session defaults</h2><p>Session overrides win over project, current-profile, shared global and factory values. Global preferences intentionally apply to every profile. Preferences never widen hard policy, and saving does not rewrite existing sessions.</p>
+          <h3>Shared global model</h3>
+          <label className="setting-field">Global default model<select aria-label="Global default model" disabled={saving} value={!Object.hasOwn(draft.startup.global, "modelId") ? "last-used" : draft.startup.global.modelId ?? "none"} onChange={(event) => {
+            const value = event.target.value;
+            if (value === "last-used") automaticDefaults({}, ["modelId", "modelOptions"], "global");
+            else automaticDefaults({ modelId: value === "none" ? null : value }, ["modelOptions"], "global");
+          }}>
+            <option value="last-used">Last selected model and thinking effort</option><option value="none">No selected model</option>
+            {draft.startup.global.modelId && !globalDefaultModel && <option value={draft.startup.global.modelId}>Saved unavailable model: {draft.startup.global.modelId}</option>}
+            {snapshot.provider.models.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}
+          </select></label>
+          {draft.startup.global.modelId && <label className="setting-field">Global default thinking effort<select aria-label="Global default thinking effort" disabled={saving || !globalDefaultModel?.thinkingLevels?.length && !globalDefaultEffort} value={globalDefaultEffort ?? "default"} onChange={(event) => {
+            const value = event.target.value;
+            if (value === "default") automaticDefaults({ modelOptions: { thinkingEffort: undefined } }, [], "global");
+            else {
+              const thinkingEffort = globalDefaultModel?.thinkingLevels?.find((effort) => effort === value);
+              if (thinkingEffort) automaticDefaults({ modelOptions: { thinkingEffort } }, [], "global");
+              else setError("This global default model does not expose that thinking effort. No unsupported option was saved.");
+            }
+          }}><option value="default">Provider default</option>
+            {globalDefaultEffort && !globalDefaultModel?.thinkingLevels?.includes(globalDefaultEffort) && <option value={globalDefaultEffort} disabled>Saved unsupported effort: {globalDefaultEffort}</option>}
+            {globalDefaultModel?.thinkingLevels?.map((effort) => <option value={effort} key={effort}>{effort}</option>)}
+          </select></label>}
+          <p className="fine-print">A fixed global choice applies to new chats in every profile unless overridden below or by the project/session. Changing its model resets its model-specific window/effort defaults, not existing chats. Last selected remembers only explicit selections in each profile, never the last inference or a different profile.</p>
+          {snapshot.lastModelSelection ? <p className="fine-print" role="status">Last selected in this profile: {rememberedModel?.name ?? `Saved unavailable model: ${snapshot.lastModelSelection.modelId}`} / {snapshot.lastModelSelection.thinkingEffort ?? "provider default"} thinking.</p> :
+            <p className="fine-print" role="status">No model selection has been remembered in this profile yet. Choose a model explicitly; no model or provider will be guessed.</p>}
+          <h3>Current-profile overrides</h3>
           <label className="setting-field">Default model<select aria-label="Default model" value={!Object.hasOwn(draft.startup.profile, "modelId") ? "inherit" : draft.startup.profile.modelId ?? "none"} onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["modelId"]) : automaticDefaults({ modelId: event.target.value === "none" ? null : event.target.value })}>
-            <option value="inherit">Use shared global / factory model</option><option value="none">No selected model</option>
+            <option value="inherit">Use shared global / last selected model</option><option value="none">No selected model</option>
             {defaultModelId && !defaultModel && <option value={defaultModelId}>Saved unavailable model: {defaultModelId}</option>}
             {snapshot.provider.models.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}
           </select></label>

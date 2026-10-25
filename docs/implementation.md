@@ -392,6 +392,14 @@ Drafts persist their attachments and control values. Missing files, expired GitH
 
 **Startup defaults:** resolve explicit session values over repo/project defaults, then active-profile defaults, global defaults, and finally the factory values above. These are user-controlled settings, not permission grants from an untrusted repository file. Show each value's source and effective constraints. New defaults affect new sessions, not an already-running turn; changes to an existing session require an explicit, recorded action at a safe boundary. Policy limits always take precedence over preferences, and an invalid default prompts setup or correction rather than hidden fallback.
 
+The global model picker also offers the current profile's last explicitly
+selected model and thinking effort as the no-fixed-model fallback. It does not
+mean the last inference, navigation or sent prompt, and does not copy a working
+window/draft or cross profile boundaries. Explicit no-model/model-option
+overrides remain authoritative. Retain this preference independently of its
+source session/project, with atomic actual-user selection and restart/migration
+coverage; never infer it from a model role or substitute an unavailable provider.
+
 ### 2. Projects, work items, and worktrees
 
 A session can attach to an existing project worktree or request a new isolated worktree. Moguri records the relationship between the work item, branch, worktree, commits, and pull request without treating Git as the session database.

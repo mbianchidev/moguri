@@ -352,21 +352,21 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const revision = useRef(session.revision);
   const windows = current && !current.synthetic ? modelContextWindows(current) : null;
   const staleWindow = Boolean(window && !windows?.values.includes(Number(window)));
+  const staleEffort = Boolean(effort && !current?.thinkingLevels?.includes(effort));
   const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
   const select = async (model: ModelInfo) => {
     setSaving(true); onSaving(true); setError(""); onError("");
     try {
-      const { modelOptions: _, ...controls } = session.controls;
-      const result = await sdk.sessions.configure(session.id, { ...controls, modelId: model.id }, revision.current);
+      const result = await sdk.sessions.selectModel(session.id, model.id, revision.current);
       revision.current = result.revision!; setWindow(""); setEffort("");
     } catch (error) { const message = error instanceof Error ? error.message : "Model selection failed. No fallback was used."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
-  const save = async (options: ModelOptions) => {
+  const save = async (options: ModelOptions, rememberModelSelection = false) => {
     setSaving(true); onSaving(true); setError(""); onError("");
-    try { const result = await sdk.sessions.modelOptions(session.id, options, revision.current); revision.current = result.revision!; }
+    try { const result = await sdk.sessions.modelOptions(session.id, options, revision.current, rememberModelSelection || undefined); revision.current = result.revision!; }
     catch (error) { const message = error instanceof Error ? error.message : "Model settings were not saved."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
@@ -383,13 +383,16 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         {windows?.values.map((value) => <option key={value} value={value}>{count(value)} tokens{windows.source === "provider" ? " (provider supported)" : value === current?.contextWindow ? " (maximum)" : " (half maximum)"}</option>)}
         {staleWindow && <option value={window} disabled>Saved unsupported window ({count(Number(window))})</option>}
       </select></label>
-      <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length || saving || pending || Boolean(session.turnId)} onChange={(event) => {
+      <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length && !staleEffort || saving || pending || Boolean(session.turnId)} onChange={(event) => {
         const value = current?.thinkingLevels?.find((level) => level === event.target.value) ?? ""; setEffort(value);
-        void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) });
-      }}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>{current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
+        void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true);
+      }}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>
+        {staleEffort && <option value={effort} disabled>Saved unsupported effort: {effort}</option>}
+        {current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
       <p>{current?.synthetic ? snapshot.settings.values.kupo.workflow === "compound" ? "Reviewed Compound uses exact Local source/worktree/test review in Candidates. Each role keeps its actual working window/output bound. Finite Local turns need explicit reserved wind-down; use a fixed model for tuning." : "Single alpha is text-only. Finite Local turns need the explicit reserved wind-down policy; use a fixed model for context/thinking overrides. Actual roles and model accounting remain separate." : "Working context stays within the model maximum. Counts are estimated; overfull requests stop without truncating history."}</p>
       {session.turnId && <p>Stop the active turn before changing model settings.</p>}
       {staleWindow && <p className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</p>}
+      {staleEffort && <p className="inline-error" role="alert">The saved thinking effort is no longer supported. Choose an offered effort or provider default explicitly. The model and context were not substituted.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div className="button-row"><span className="fine-print" role="status">{saving ? "Saving..." : dirty ? "Settings were not saved. Reload before choosing again." : "Changes save automatically."}</span><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </div>

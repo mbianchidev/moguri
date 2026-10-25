@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **54**. Additive upgrades retain existing
+Current service/SDK/desktop protocol is **55**. Additive upgrades retain existing
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
 
@@ -20,8 +20,17 @@ check with a green open or gray draft PR, or purple merged-PR glyph.
 Reduced motion keeps those indicators static. Failure, partial, stopped and
 held states never become successful completion.
 See [session indicator authority](architecture/session-interactions.md#session-status-and-linked-pr-indicators).
-The current [protocol-54 qualification](architecture/session-interactions.md#protocol-54-qualification)
+The prior [protocol-54 qualification](architecture/session-interactions.md#protocol-54-qualification)
 covers complete Node/Electron suites, the packed SDK and actual development package.
+
+Protocol 55 adds independently retained, profile-private remembered model
+selections. **Settings / Sessions / Startup defaults / Global default model**
+offers a fixed shared model/effort, **Last selected model and thinking effort**,
+or no selected model. Last selected means the latest explicit selection, not
+the last inference, sent prompt or a different profile. Global defaults remain
+subject to explicit profile/project/session overrides; existing chats keep their
+controls. With no remembered choice, the factory still selects no model.
+See [new-session model defaults](architecture/model-controls.md#new-session-model-defaults).
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -293,7 +302,10 @@ modes. Custom element colors are saved together and validated against measured
 text, focus, control, selection and semantic contrast. Invalid combinations
 remain editable and never replace committed colors.
 
-**Sessions / Startup defaults** exposes model, supported thinking effort and
+**Sessions / Startup defaults** exposes a shared **Global default model** and
+supported global thinking effort, plus separate current-profile model/effort
+overrides. The default last-selected mode remembers explicit selections in that
+profile and does not copy the old session's working window or draft. The page also offers
 dry/minimal/balanced/detailed response verbosity, plus the existing explicit
 global/profile budget and advanced defaults. Existing sessions keep their saved
 controls. **Execution & permissions** owns default autonomy and tool
@@ -1301,6 +1313,12 @@ creating a session. Inspect **Insights / Startup control sources** or TUI
 `/defaults`. Changing preferences does not rewrite existing/running sessions or
 widen hard policy. Profile startup reset preserves global values. Restoring
 shared global preferences is a separate revision-bound action.
+Omitting a model default uses the current profile's last explicit model/effort
+selection; explicit `modelId: null` remains no model. A remembered choice
+survives deleting its source session/project and restarting, but never grants
+context or workspace access. Unsupported saved choices remain visible and
+blocked rather than selecting a different provider. Fixed defaults and explicit
+model-option overrides retain their normal precedence.
 
 ## Experimental kupo Single
 
