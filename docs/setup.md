@@ -43,6 +43,13 @@ upgrade preserves encrypted state and forces review of an older running
 service rather than silently reusing a process without the new tools.
 Browser control/leases never survive restart.
 See [browser ownership and qualification](architecture/agent-browser.md).
+The fresh protocol-56 run passes **1,330 Node cases with 14 skips**, **166
+hidden desktop cases with two skips**, the packed external SDK/all 12 installed
+workers and **28 cases against the actual rebuilt app**. The matching worker,
+ZIP/update consumer and DMG geometry/integrity pass separately. The sliding
+control is a real button switch, not a checkbox; it keeps keyboard support and
+immediate off/on revocation. Physical VM/containment and notarization remain
+separate unqualified release gates.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
