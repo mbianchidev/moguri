@@ -1929,10 +1929,14 @@ explicitly enabled. Selecting a banner opens its session. Startup and preference
 changes do not replay old banners. TUI shares state without requiring desktop;
 native-banner tests use a generated sink and never show a personal OS banner.
 
-Needs-input and completion sounds each start enabled with an original Moguri
-earcon; application audio starts background-only and is independent from banners.
-Needs-input audio requires the exact pending question/approval, not a heuristic
-badge. Completion audio excludes stopped, partial and failed work. Preview is
+Attention and completion sounds each start enabled with an original Moguri
+earcon, while focused as well as in the background, independently from banners.
+Saved explicit mute and focus choices are preserved; enable **Play application
+sounds while Moguri is focused** if this was previously disabled.
+Attention audio requires the exact pending question/approval or actual
+failed/partial work, not a heuristic badge. Completion audio excludes stopped,
+partial and failed work. Delivery rechecks the actual state after loading a
+custom sound; reconnect does not replay offline alerts. Preview is
 explicit; hidden generated checks suppress all speaker output. OS banners are
 silent to avoid duplicate audio. System volume/device controls still apply.
 
@@ -2289,10 +2293,19 @@ changed staging entries are retained and block capture with a diagnostic.
 **Ctrl+Space** starts/stops desktop capture while the main chat is focused,
 including its toolbar, but not the embedded terminal, side chat or dialogs.
 Voice/Accessibility settings share an editable shortcut. Optional push-to-talk
-owns press/release; releasing before admission never opens a late microphone.
+owns both shortcut and microphone-button press/release. Hold until Recording
+appears, speak, then release to flush the original clip and start transcription,
+including a pointer release outside the button. Space/Enter also hold/release
+the focused microphone button. Toggle mode keeps click/start and click/stop.
+Releasing before admission never opens a late microphone and explains why no
+audio was captured, instead of silently returning to idle.
 Repeated keydown and stop requests do not create additional clips or uploads.
-Blur, sleep, hidden/unmounted surfaces and profile changes discard owned audio.
-Stop finalizes and transcribes; Cancel discards. Insert remains explicit,
+Blur, sleep, hidden/unmounted capture surfaces and profile changes discard active
+microphone audio with a visible interruption reason. Hiding the window after
+Stop does not cancel recognition of the already-finalizing clip.
+Stop/release finalizes and transcribes; Cancel discards. The completed transcript
+is shown directly above the composer and in Voice settings for review.
+Insert remains explicit,
 revision-checked and never automatically sends. Desktop clips are at most two
 minutes, **3,840,044 WAV bytes**; excess/invalid input is rejected, not truncated.
 
