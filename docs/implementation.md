@@ -4,12 +4,22 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+Protocol 57 makes [candidate retention](architecture/candidate-cleanup.md)
+session-owned: permanent origin-session deletion, including archived expiry,
+deletes its candidates and fixed-model proposal reports after owned work settles.
+Archiving alone preserves them. Fresh authoritative verification of each exact
+associated repository/PR merge also deletes those proposals, without following
+session relinks or deleting newer work. Ordinary artifacts, required accounting,
+applied code and Git resources keep their existing lifecycle. Candidate creation
+requires an explicit project backed by the exact Git root in every client and
+the service; project-free chats and plain folders never inherit another root.
+
 It is built from zero: Moguri owns its domain model, event store, protocol, local service and clients, and borrows maintained libraries for providers, MCP, terminals, diffs and storage. The [architecture decisions](architecture/decisions.md) record the stack. Moguri is inspired by [OpenCode](https://github.com/anomalyco/opencode) and [Pi](https://pi.dev/), forks neither, and is not affiliated with either project.
 
 > [!WARNING]
 > Moguri is pre-alpha. An [initial executable macOS checkpoint](setup.md) now exists for Local/Manual Copilot sessions in TUI and desktop. Its [engagement slice](architecture/engagement.md) adds project-free chats, MCP OAuth, scoped suggestions, reviewed settings chats and attention indicators. This document still defines the wider product direction, architectural constraints, first milestone and working agreement; it does not claim completion of every described capability. [Phase 0 evidence](architecture/phase-zero.md) records passes and unresolved release blockers.
 
-> The [protocol-57 lean tooling slice](architecture/lean-tooling.md) adds lazy
+> The [protocol-58 lean tooling slice](architecture/lean-tooling.md) adds lazy
 > typed native discovery, deterministic compact/recoverable outputs, structured
 > documents and SQL, explicit watches/DAP and browser-free search. Scoped
 > parent/child messages, public context/progress and delegated work share the

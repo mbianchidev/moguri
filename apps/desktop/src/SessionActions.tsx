@@ -57,11 +57,11 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     <form onSubmit={(event) => { event.preventDefault(); if (!stale && (review.action !== "delete" || confirmed)) void perform(review, remember); }}>
       <h2>{title}: {review.session.title}</h2>
       <p>{review.action === "archive" ? "Stop this session's owned work and archive the conversation. Saved drafts, held prompts and independent artifacts remain; you can restore it from Archived." :
-        "Delete this conversation, its saved draft, queues and session content. The service stops owned resources first. Independent artifacts, worktrees and external PRs survive; linked children are detached, not deleted. Unconfirmed cleanup blocks deletion."}</p>
+        "Permanently delete this conversation, its saved draft, queues, session content and every candidate or generation proposal originating from it. The service settles owned work and removes proposal records and retention grants first. Ordinary independent artifacts, applied code, worktrees and external PRs survive; linked children are detached, not deleted. Failed or unconfirmed cleanup blocks deletion."}</p>
       {stale && <p className="inline-error" role="alert">This session changed after review. Close and review it again.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
       {review.action === "delete" && <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
-        {stored ? "I confirm deletion of this stored session, including its unsent content." : "I confirm deletion of this session, including its unsent content."}</label>}
+        {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}</label>}
       <label className="check-setting"><input type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
         {review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>
       <p className="fine-print">Change this preference in Settings / Sessions. It does not grant tool permissions or enable automatic cleanup.</p>

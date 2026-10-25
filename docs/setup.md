@@ -1,8 +1,37 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **57**. Additive upgrades retain existing
-encrypted history, identities, keys, grants and budget holds. Restart matching
+Current service/SDK/desktop protocol is **58**. Upgrades preserve existing
+history, identities and budget holds, with exact provenance-based rekeying for
+candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+Protocol 57 implements [session-owned candidate cleanup](architecture/candidate-cleanup.md).
+Permanent session deletion, whether manual or archived-session expiry, deletes
+all candidates and fixed-model generation proposals originating from that exact
+session. Archiving alone preserves them. Session-delete confirmation and
+**Settings / Sessions / Retention** disclose this; no separate candidate
+confirmation is required. Ordinary artifacts, usage/budget records, applied
+code, worktrees, branches and PRs are preserved.
+
+Associated candidates are also deleted after a fresh authoritative read confirms
+their exact repository/PR merged. Automatic reads include archived sessions and
+honor the project's public/authenticated metadata setting and board automatic-PR
+refresh policy. Disabling automatic PR refresh stops new merge observations.
+There is no public/other-account fallback. Closed-without-merge, stale or failed
+observations cannot delete proposals. The first recorded association is fixed;
+relinking a session does not retarget its older candidates or cancel newer work.
+
+Candidate creation is available only for explicit Git-backed Local projects,
+not project-free chats or plain folders. Desktop disables creation until the
+shared `candidates.eligibility(sessionId)` service check succeeds. CLI/TUI use
+`candidate eligibility --session ID` or `/candidate eligibility`; direct
+stage/generate/compound requests still enforce the same gate before effects.
+The service persists cleanup intent before cancellation and resumes it after
+restart. Pending/failed cleanup remains visible in Candidates and stored-session
+management; it is not a successful deletion. Reconcile exact owned resources
+and retry deletion, or let verified-merge cleanup retry. Unknown model usage
+continues holding capacity. Legacy records with no canonical origin remain
+unassigned rather than adopting the current session.
 
 Protocol 53 converges the independent main-line schemas 44-52 and desktop
 schemas 44-46. The original desktop provenance marker identifies that lineage;
@@ -54,7 +83,7 @@ The later [image-preview display checkpoint](#image-preview-display-qualificatio
 keeps those backend bundles unchanged and separately qualifies the larger
 images, fresh full desktop run and rebuilt installer.
 
-Protocol 57 adds [lean tools and scoped coordination](architecture/lean-tooling.md).
+Protocol 58 adds [lean tools and scoped coordination](architecture/lean-tooling.md).
 Its strict additive marker preserves ciphertext, drafts, receipts, grants and
 unknown budget holds. Normal fixed/kupo solver turns load typed native schemas
 on demand; discovering a schema grants nothing. Deterministic compact results
@@ -62,6 +91,10 @@ retain exact original-source paging. Structured documents/SQL, explicit
 watches/DAP, keyless search and original-parent/child messages use the same
 authority. This does not qualify an older native image, a language adapter or
 live task-quality/token-saving claims.
+The released candidate-retention 57 lineage and earlier development
+lean-tooling 57 lineage have distinct retained markers. The schema-58 upgrade
+recognizes exactly one valid original lineage, atomically converges both
+capabilities and refuses missing, corrupt or ambiguous provenance.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -89,9 +122,9 @@ failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
 app does not start another service or force-kill a guessed process. Other
 independent state roots are not scanned or stopped by name.
 
-## Protocol-57 lean-tooling qualification
+## Pre-integration lean-tooling qualification
 
-The 2026-10-25 source qualification uses generated repositories, loopback
+The 2026-10-25 pre-integration source qualification at `5434338` uses generated repositories, loopback
 providers/SSH, isolated test profiles and hidden Electron. No personal
 authorization, real microphone, personal console or paid model is used.
 
@@ -2085,7 +2118,7 @@ Side chat exposes its own **Model** selector. It inherits the current parent
 selection at creation, but an unset/unavailable/synthetic selection requires an
 explicit concrete model. Choosing it does not change the parent, Env or
 read-only scope, and no failed model is silently substituted.
-Protocol 57 adds explicit root-bound live messages/public inspection and
+Protocol 58 adds explicit root-bound live messages/public inspection and
 separate executable agent-child tasks without widening the side chat's mode.
 Captured parent context is retained independently and loaded on demand; missing
 live grants never become a snapshot-to-live fallback.

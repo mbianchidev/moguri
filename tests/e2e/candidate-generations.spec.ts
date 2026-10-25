@@ -23,7 +23,7 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     await panel.getByRole("button", { name: "Review model generation", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact model generation review", exact: true });
     await expect(review.getByRole("button", { name: "Generate reviewed proposal", exact: true })).toBeDisabled(); expect(f.requests).toHaveLength(0);
-    await review.getByLabel("Approve one generation call and independent retention", { exact: true }).check();
+    await review.getByLabel("Approve one generation call and proposal retention", { exact: true }).check();
     await review.getByRole("button", { name: "Generate reviewed proposal", exact: true }).click();
     await expect.poll(() => f.service.controller.snapshot().candidateGenerations[0]?.status).toBe("proposed");
     const generation = f.service.controller.snapshot().candidateGenerations[0]!;

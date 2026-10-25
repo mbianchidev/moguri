@@ -454,7 +454,7 @@ try {
       const command = { type: "candidate.apply", candidateId: staged.candidate.id, sessionId: source.id, expectedRevision: staged.candidate.revision, expectedDigest: review.digest, confirm: true };
       await client.command(command, commandId); assert.equal((await client.candidates.wait(staged.candidate.id)).candidate.status, "applied");
       assert.deepEqual(await readFile(join(directory, ".git/index")), index); assert.equal(git(["rev-parse", "HEAD"]), head);
-      assert.equal(JSON.parse((await client.artifacts.export(staged.candidate.id)).export.text).schemaVersion, 2);
+      assert.equal(JSON.parse((await client.artifacts.export(staged.candidate.id)).export.text).schemaVersion, Array.isArray(client.getState().snapshot.candidateOwners) ? 10 : 2);
       client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready();
       const raw = new DatabaseSync(join(temporary, "state", "state.sqlite"));
       try { raw.prepare("DELETE FROM receipts WHERE profile_id=? AND id=?").run("default", commandId); } finally { raw.close(); }
@@ -462,7 +462,7 @@ try {
       assert.equal((await client.command(command, commandId)).id, staged.candidate.id);
       assert.equal(await readFile(join(directory, "candidate.txt"), "utf8"), "Generated later actual-packaged user edit.\n");
       assert.equal(modelFixture.requests.length, beforeCalls);
-      console.log("Actual bundled Node/service/SDK and CLI candidate stage, separate user review/application, raw index/HEAD, version-2 history and lost-receipt restart replay qualification passed without a model.");
+      console.log("Actual bundled Node/service/SDK and CLI candidate stage, separate user review/application, raw index/HEAD, ownership-bearing history and lost-receipt restart replay qualification passed without a model.");
     } finally { client.disconnect(); }
   }
   if (PROTOCOL_VERSION >= 31) {
@@ -473,7 +473,7 @@ try {
       const proof = await qualifyCandidateGeneration({ sdk: client, node, cli: join(root, "bin", "moguri.mjs"), directory: join(temporary, "generated-packaged-generation"),
         stateDir: join(temporary, "state"), modelId: modelFixture.modelId, setReply: (value) => { modelOptions.replyText = value ?? originalReply; }, requests: modelFixture.requests });
       client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready(); await proof.verifyRecovery(client);
-      console.log("Actual bundled Node/service/SDK/CLI generation, one owned metered model draft, immutable provenance/version-3 export, separate reviewed stage/apply and missing-receipt restart replay passed without personal inference.");
+      console.log("Actual bundled Node/service/SDK/CLI generation, one owned metered model draft, immutable provenance and ownership-bearing export, separate reviewed stage/apply and missing-receipt restart replay passed without personal inference.");
     } finally { client.disconnect(); modelOptions.replyText = originalReply; }
   }
   if (PROTOCOL_VERSION >= 32) {
@@ -563,10 +563,12 @@ try {
           assert.equal(staged.candidate.status,"staged");assert.equal(staged.candidate.acceptance,null);assert.deepEqual(staged.candidate.roleOrigin,evidence.origin);
           assert.equal(await readFile(join(evidence.sourceRoot,"fixture.txt"),"utf8"),"generated original\\n");
           const report=(await sdk.artifacts.read(evidence.sequenceId)).artifact;await sdk.artifacts.delete(report.id,report.revision,true);
-          await sdk.refresh();await sdk.sessions.delete(evidence.sessionId,true,sdk.getState().snapshot.sessions.find(session=>session.id===evidence.sessionId).revision);
+          await sdk.refresh();const sessionOwned=Array.isArray(sdk.getState().snapshot.candidateOwners);
+          if(sessionOwned)await sdk.command({type:"session.archive",sessionId:evidence.sessionId});
+          else await sdk.sessions.delete(evidence.sessionId,true,sdk.getState().snapshot.sessions.find(session=>session.id===evidence.sessionId).revision);
           sdk.disconnect();await runtime.close();runtime=await createRuntime(options);sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
           assert.deepEqual((await sdk.candidates.read(staged.candidate.id)).candidate.roleOrigin,evidence.origin);
-          const copy=JSON.parse((await sdk.artifacts.export(staged.candidate.id)).export.text);assert.equal(copy.schemaVersion,5);
+          const copy=JSON.parse((await sdk.artifacts.export(staged.candidate.id)).export.text);assert.equal(copy.schemaVersion,sessionOwned?10:5);
           for(const digest of [evidence.origin.sequenceInputDigest,evidence.origin.roleInputDigest,evidence.origin.resultDigest])
             assert.ok(copy.documents[0].candidate.results.some(result=>result.digest===digest&&result.text.length));
           const user=await sdk.sessions.create(evidence.projectId,"Generated native role-copy reviewer",{env:"Local"});
@@ -575,13 +577,19 @@ try {
           assert.equal(applied.candidate.status,"applied");assert.equal(applied.candidate.acceptance.actor,"user");assert.deepEqual(applied.candidate.roleOrigin,evidence.origin);
           assert.equal(await readFile(join(evidence.sourceRoot,"fixture.txt"),"utf8"),evidence.patch.edits[0].text);
           assert.deepEqual(await readFile(join(evidence.sourceRoot,".git/index")),index);assert.equal(git(["rev-parse","HEAD"]),head);
+          if(sessionOwned){
+            await sdk.sessions.delete(evidence.sessionId,true);
+            await assert.rejects(()=>sdk.candidates.read(staged.candidate.id),{code:"candidate_missing"});
+            for(const digest of [evidence.origin.sequenceInputDigest,evidence.origin.roleInputDigest,evidence.origin.resultDigest])
+              assert.throws(()=>runtime.controller.store.blob(digest),/Missing or deleted/);
+          }
           assert.equal((await sdk.budgets.calls()).calls.length,evidence.expectedCalls);assert.equal((await sdk.budgets.dashboard()).totals.knownReportedTokens,evidence.expectedCalls*42);
           assert.throws(()=>runtime.controller.platform.roles.original(evidence.commandId,evidence.commandDigest),{code:"role_sequence_deleted"});
         }finally{sdk.disconnect();await runtime.close();}
       `;
       await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 30_000 });
       assert.equal(fixture.requests.length, evidence.expectedCalls);
-      console.log("Actual bundled Node/runtime/SDK/CLI final-role proposal resolution, exact origin-bound review, separate stage/application, source-role/session deletion, raw-copy/export5/reopen and real-user acceptance passed with model preparation forbidden.");
+      console.log("Actual bundled Node/runtime/SDK/CLI final-role proposal resolution, exact origin-bound review, separate stage/application, source-role deletion, ownership-bearing raw-copy exports/reopen, real-user acceptance and exact retention boundaries passed with model preparation forbidden.");
       if (PROTOCOL_VERSION >= 35) console.log("Actual bundled Node/runtime/SDK/CLI derives original version-2 role contracts and exact selected-context advice from retained actual role inputs/results, without model preparation or code-quality/approval claims.");
     } finally { await fixture.close(); }
   }
