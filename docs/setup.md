@@ -43,13 +43,16 @@ upgrade preserves encrypted state and forces review of an older running
 service rather than silently reusing a process without the new tools.
 Browser control/leases never survive restart.
 See [browser ownership and qualification](architecture/agent-browser.md).
-The fresh protocol-56 run passes **1,330 Node cases with 14 skips**, **166
+The browser-control checkpoint's protocol-56 run passes **1,330 Node cases with 14 skips**, **166
 hidden desktop cases with two skips**, the packed external SDK/all 12 installed
 workers and **28 cases against the actual rebuilt app**. The matching worker,
 ZIP/update consumer and DMG geometry/integrity pass separately. The sliding
 control is a real button switch, not a checkbox; it keeps keyboard support and
 immediate off/on revocation. Physical VM/containment and notarization remain
 separate unqualified release gates.
+The later [image-preview display checkpoint](#image-preview-display-qualification)
+keeps those backend bundles unchanged and separately qualifies the larger
+images, fresh full desktop run and rebuilt installer.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -539,6 +542,37 @@ attaches its content after source/destination review; it does not reparent,
 resume or otherwise control that session. **Do not ask me again** suppresses
 future session-attachment dialogs only. Source/digest, profile, destination and
 draft-revision checks remain enforced.
+
+### Image preview display qualification
+
+Image previews grew from 48x40-pixel composer thumbnails to 128-pixel-high
+tiles; sent-image cards use up to 440x320 pixels. The image-only dialog now
+occupies the available window, up to 1440x960 pixels, while preserving image
+aspect ratio and keeping Close/Remove visible at 840x620. Text/document chips,
+retained bytes, model context, permissions and source-file retention are
+unchanged. Ten service/runtime/worker/SDK/native-host bundles are SHA-256
+identical to the qualified backend checkpoint; no schema or dependency changed.
+
+The final complete hidden Electron run passes **168 cases, two skipped, zero
+failed** (170 total) in **5.3 minutes**. The actual rebuilt app passes **11
+image/browser cases in 29.7 seconds**. The fresh packed SDK/install/audit and
+all 12 installed-worker probes pass; audits find zero vulnerabilities.
+An existing hidden Remote resize fixture now keeps its own resize frames
+running and awaits the real SSH grid growth acknowledgement before checking
+shrinkage, without changing production behavior, sleeping or weakening the
+comparison. Combined image/Remote cases pass three repetitions: **12/12**.
+
+The matching native distribution remains protocol 56 / SendBox 0.2.4 with the
+same pinned worker image. Its check passes in **4,224.97 ms**; the actual
+**740,607,177-byte ZIP** passes the production update consumer in
+**103,047.20 ms**. The **754,273,639-byte DMG** passes native Finder geometry
+and unchanged-app integrity, SHA-256
+`92d8ac5389a3489a0713c3bd4b795800d5c06908b3af33693f0453c06f7c32a2`.
+This remains ad-hoc development signing, not notarization or physical
+SendBox/Linux release readiness. Existing minimal SDK-host/chunk/optional-icon
+notices remain disclosed. Screenshots and logs use only generated fixtures.
+
+### Session ordering and navigation
 
 Drag a session above or below a sibling to reorder it. Order is saved atomically
 in the service and shared with desktop, TUI and SDK clients. It cannot move a
