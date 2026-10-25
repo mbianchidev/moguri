@@ -125,6 +125,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Open parent session", exact: true }).click();
     await expect(page.getByRole("heading", { name: longName, exact: true })).toBeVisible();
+    expect(fixture.service.controller.snapshot().terminals.filter((entry) => entry.sessionId === child.id)).toHaveLength(1);
     await page.getByRole("button", { name: longName, exact: true }).click({ button: "right" });
     await page.getByRole("menu").getByRole("menuitem", { name: "Archive", exact: true }).click();
     await page.getByRole("dialog", { name: "Archive session", exact: true }).getByRole("button", { name: "Archive session", exact: true }).click();

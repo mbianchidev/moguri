@@ -25,7 +25,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     probes++;
     const config = controller.snapshot().settings.values.sandbox;
     const ready = { ready: true, configured: true, diagnostic: "Generated managed readiness without a VM.",
-      configDigest: frameDigest(config), release: "0.2.3", workerDigest: config.qualification!.workerDigest, image: config.image };
+      configDigest: frameDigest(config), release: config.qualification!.release, workerDigest: config.qualification!.workerDigest, image: config.image };
     controller.sandbox.readiness = ready; controller.provider.synchronize(); controller.emit("change", []); return ready;
   };
   const app = await launch(join(fixture.directory, "state"));
@@ -35,11 +35,16 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
+    await expect(panel).toContainText("0.2.4");
     await expect(page.getByLabel("SendBox configuration", { exact: true })).not.toBeVisible();
     await panel.getByRole("button", { name: "Review bundled setup", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
     const enable = review.getByRole("button", { name: "Enable Sandbox", exact: true });
     await expect(enable).toBeDisabled();
+    await expect(review).toContainText("GitHub Meta network delegation");
+    await expect(review).toContainText("shared-cloud");
+    await expect(review).toContainText("hourly");
+    expect(imports).toBe(0); expect(probes).toBe(0);
     await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
     await enable.click();
     await expect.poll(() => controller.snapshot().settings.values.sandboxManagement?.enabled).toBe(true);

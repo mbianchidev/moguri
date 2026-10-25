@@ -18,7 +18,7 @@ test("native document selection, format chips and bounded previews work for PDF,
       const name = `generated-ui.${format}`, path = join(fixture.directory, name); await writeFile(path, bytes);
       await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);
       await page.getByRole("button", { name: "Attach", exact: true }).click();
-      await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Document/ }).click();
+      await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Local file/ }).click();
       const chip = page.getByRole("button", { name: `Preview document ${name}`, exact: true });
       await expect(chip).toContainText(format.toUpperCase()); await chip.click();
       const preview = page.getByRole("dialog", { name: `Document preview ${name}`, exact: true });
@@ -60,7 +60,7 @@ test("malformed document errors preserve the whole composer and an earlier attac
     await prompt.fill("Generated preserved prompt.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, invalid);
     await page.getByRole("button", { name: "Attach", exact: true }).click();
-    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Document/ }).click();
+    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Local file/ }).click();
     await expect(page.getByRole("alert").filter({ hasText: "PDF" })).toBeVisible();
     await expect(prompt).toHaveValue("Generated preserved prompt.");
     await expect(page.getByRole("button", { name: "Preview document generated.docx", exact: true })).toBeVisible();
@@ -77,7 +77,7 @@ test("document capture status exposes exact cancellation and keeps the unsent pr
     await prompt.fill("Generated unsent cancellation prompt.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);
     await page.getByRole("button", { name: "Attach", exact: true }).click();
-    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Document/ }).click();
+    await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Local file/ }).click();
     await expect(page.getByRole("progressbar", { name: "Local document extraction" })).toBeVisible();
     await page.getByRole("button", { name: "Cancel extraction", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: /cancelled/ })).toBeVisible();

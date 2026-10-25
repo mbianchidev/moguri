@@ -19,7 +19,9 @@ test("panel controls maximize over chat without covering navigation, mode is a b
     await expect(page.getByRole("combobox", { name: "Session mode", exact: true })).toHaveCount(0);
     await expect(page.locator(".session-header").getByRole("button", { name: "Archive", exact: true })).toHaveCount(0);
     const mode = composer.getByRole("switch", { name: "Agent mode", exact: true });
-    await composer.getByRole("button", { name: "Attach", exact: true }).focus();
+    await expect(mode).toBeEnabled();
+    const attach = composer.getByRole("button", { name: "Attach", exact: true });
+    await attach.focus(); await expect(attach).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(mode).toBeFocused();
     const attachBounds = await composer.getByRole("button", { name: "Attach", exact: true }).boundingBox(), modeBounds = await mode.boundingBox();
@@ -41,7 +43,10 @@ test("panel controls maximize over chat without covering navigation, mode is a b
     await page.screenshot({ path: ".moguri/artifacts/desktop-session-panel-expanded.png" });
     await pane.getByRole("button", { name: "Restore session sidebar", exact: true }).click();
     await expect(composer).toBeVisible();
-    await pane.getByRole("button", { name: "Hide session sidebar", exact: true }).click(); await expect(pane).toBeHidden();
+    await pane.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
+    await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Hide terminal", exact: true }).click();
+    await expect(pane).toBeHidden();
+    expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("running");
     await page.getByLabel("Prompt", { exact: true }).focus(); await page.keyboard.press("Meta+k");
     await expect(page.getByRole("dialog").filter({ has: page.getByLabel("Commands", { exact: true }) })).toBeVisible();
     await page.keyboard.press("Escape");
@@ -57,7 +62,8 @@ test("closed Ghostty terminals disappear from the selector without erasing retai
     const page = await app.firstWindow();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     const pane = page.getByRole("region", { name: "Embedded Ghostty terminal", exact: true });
-    await expect(pane.getByRole("button", { name: "Open terminal", exact: true })).toBeDisabled();
+    await expect(pane.getByRole("button", { name: "Open terminal", exact: true })).toHaveCount(0);
+    await expect(pane.getByRole("button", { name: "New terminal", exact: true })).toBeDisabled();
     gate.resolve();
     await expect(page.getByRole("textbox", { name: "Ghostty terminal", exact: true })).toHaveAttribute("aria-disabled", "false");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
@@ -67,6 +73,46 @@ test("closed Ghostty terminals disappear from the selector without erasing retai
     expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
     expect(fixture.service.controller.snapshot().terminalOwners).toHaveLength(1);
   } finally { gate.resolve(); await app.close(); await fixture.close(); }
+});
+
+test("double-clicking project and project-free sessions opens rename without changing their workspace or draft", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const chat = await sdk.sessions.create(null, "Generated project-free rename");
+  const cases = [
+    { id: fixture.sessionId, renamed: "Generated renamed project session" },
+    { id: chat.id!, renamed: "Generated renamed project-free session" },
+  ];
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), navigation = page.getByRole("navigation", { name: "Projects and sessions" });
+    const dialog = page.getByRole("dialog", { name: "Rename", exact: true }), name = dialog.getByRole("textbox", { name: "Name", exact: true });
+    for (const entry of cases) {
+      const original = sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!;
+      const link = navigation.getByRole("button", { name: original.title, exact: true });
+      await link.click();
+      await expect(page.getByRole("heading", { name: original.title, exact: true })).toBeVisible();
+      await expect(dialog).toHaveCount(0);
+      await link.dblclick();
+      await expect(name).toHaveValue(original.title); await expect(name).toBeFocused();
+      await name.fill("Generated cancelled rename"); await name.press("Escape");
+      await expect(dialog).toHaveCount(0); await expect(link).toBeFocused();
+      expect(sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!.title).toBe(original.title);
+      await link.dblclick(); await expect(name).toBeFocused(); await page.keyboard.insertText(entry.renamed);
+      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      await expect.poll(() => sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)?.title).toBe(entry.renamed);
+      const renamed = sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!;
+      expect(renamed.projectId).toBe(original.projectId); expect(renamed.workspaceId).toBe(original.workspaceId);
+      expect(renamed.controls).toEqual(original.controls); expect(renamed.draft).toEqual(original.draft);
+    }
+    const link = navigation.getByRole("button", { name: cases[1]!.renamed, exact: true });
+    await link.press("Shift+F10");
+    await page.getByRole("menu").getByRole("menuitem", { name: "Rename", exact: true }).click();
+    await expect(name).toHaveValue(cases[1]!.renamed);
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await page.reload();
+    for (const entry of cases) await expect(navigation.getByRole("button", { name: entry.renamed, exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("session names open context actions, archive confirmations can be remembered and remain configurable", async () => {

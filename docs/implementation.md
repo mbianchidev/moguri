@@ -32,6 +32,7 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > held prompts, shared slash actions, enforced read-only/side sessions,
 > session/project organization, independent plan artifacts and explicit
 > retention/deletion. Desktop uses actual Ghostty WASM, an isolated web preview
+> with optional [user-toggled Local agent control](architecture/agent-browser.md)
 > and SDK-backed diff/plan panels. Stainless automation and
 > the rest of the first-release acceptance gates are not implied complete.
 
@@ -66,6 +67,17 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > late SSH metering and a shared aggregate dashboard. No exact billing claim,
 > automatic refund, routed kupo wind-down or authorized checkpoint commit is
 > inferred. A budget stop retains a diagnostic artifact without an extra model.
+
+> [Chat activity](architecture/chat-activity.md) adds compact operation rows,
+> session-scoped original arguments/results, observed timing/output quantities,
+> public-response copy and original turn information. The compact usage view
+> keeps all-role accounting and hard policy; it does not expose hidden reasoning,
+> invent AI credits or change execution/approval authority.
+
+> The [separate Agent terminal](architecture/agent-terminal.md) exposes actual
+> approved command requests/results and bounded original rereads through the
+> same SDK/worker. User and Global consoles stay private. Each command owns its
+> existing PTY; interactive stdin or persistent shared shell state is not added.
 
 > [Reviewed context compaction](architecture/context-compaction.md) now adds an
 > explicit preview/generate/review/apply/restore workflow through the same SDK,
@@ -137,10 +149,11 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > protocol versions are unchanged.
 
 > Protocol 52 adds [app-managed Sandbox](architecture/managed-sandbox.md):
-> bundled SendBox 0.2.3 plus compatible Linux worker/runtime dependencies,
+> bundled SendBox 0.2.4 plus compatible Linux worker/runtime dependencies,
 > exact in-app setup/update review, automatic private workspaces and scoped
-> selected-provider DNS aliases. Default GitHub reads stay distinct from blocked
-> unrelated sites. Legacy manual grants, actual tool approvals, original guest
+> selected-provider DNS aliases. The 0.2.4 default GitHub grant includes explicitly
+> disclosed GitHub Meta domains and shared-cloud CIDRs; exact-host-only egress
+> is not claimed. Legacy manual grants, actual tool approvals, original guest
 > ownership, source publication and budget accounting remain separate.
 > This is the supported macOS slice, not Linux or the completed roadmap.
 
@@ -333,14 +346,24 @@ capabilities, including generation previews and future-role admission.
 | Attachment | Trigger | Scope |
 | --- | --- | --- |
 | Single local file | `^` | An explicitly selected client-side file |
-| PDF, Word `.docx`, Excel `.xlsx` | Attach > Document or explicitly selected `^` file | Validated local extraction and encrypted original/extraction snapshots; bounded approved inspection, not whole-document model injection |
-| Local folder | `:` | An explicitly selected client-side folder with a bounded, reviewable file set |
+| PDF, Word `.docx`, Excel `.xlsx`, image | Attach > Local file or explicitly selected `^` file | Validated local extraction/normalization and encrypted snapshots; bounded approved document inspection, not whole-document model injection |
+| Local folder | `^/absolute/folder` | An explicitly selected client-side folder with a bounded, reviewable file set |
 | GitHub issue | `#` | An issue accessible through the active profile's authorized GitHub integration |
 | GitHub pull request | `#` | A PR accessible through the same integration; label issue and PR results distinctly |
-| Moguri session | `!` | Authorized session context, including permitted archived context |
-| Project file | `@` | A file in the selected project's actual local, sandbox, or remote workspace |
+| GitHub file | `@owner/repo/path` | Exact public or explicitly authenticated CLI-readable UTF-8 file snapshot |
+| Moguri session | `:session-name` | Same-profile public transcript; desktop lists non-archived sessions, while explicit SDK/CLI review can still select retained archived context |
+| Local project file or folder | `@project-name/path` | Explicit named Local source; the current session's bound Local worktree is used when applicable, never silently replaced by its base checkout |
 
-The desktop Attach menu offers these sources and a dedicated Document chooser. Users can paste clipboard images directly into the desktop composer. TUI image paste depends on terminal/clipboard capabilities; where unsupported, expose explicit file/path attachment instead of pretending pasted text is an image.
+The desktop Attach menu has five entries: Project file or folder, Issue or pull
+request, Session, Local file and Local folder. The local-file picker accepts
+source/text, documents and images without duplicate menu entries. Local project
+names contain only ASCII letters, digits, hyphens and underscores. `#137` uses
+the current project's GitHub upstream; project-free chats specify
+`owner/repo#137`. `!` remains a legacy session alias. Workspace reads on SSH or
+native execution retain their separate exact-root APIs and never become a Local
+fallback. Users can paste clipboard images directly into the desktop composer.
+TUI image paste depends on terminal/clipboard capabilities; where unsupported,
+expose explicit file/path attachment instead of pretending pasted text is an image.
 
 [Document attachments](architecture/document-attachments.md) preserve PDF page,
 DOCX body paragraph/heading/table and XLSX sheet/cell/cached-value/inert-formula
@@ -369,6 +392,14 @@ Show folder contents, exclusions, size, and transfer destination before admittin
 Drafts persist their attachments and control values. Missing files, expired GitHub access, incomplete uploads, unsupported models, or an unreachable remote leave an actionable state and preserve the draft; do not silently send without the selected context. Keyboard navigation, labels, and status announcements must work without relying on icons or pointer input.
 
 **Startup defaults:** resolve explicit session values over repo/project defaults, then active-profile defaults, global defaults, and finally the factory values above. These are user-controlled settings, not permission grants from an untrusted repository file. Show each value's source and effective constraints. New defaults affect new sessions, not an already-running turn; changes to an existing session require an explicit, recorded action at a safe boundary. Policy limits always take precedence over preferences, and an invalid default prompts setup or correction rather than hidden fallback.
+
+The global model picker also offers the current profile's last explicitly
+selected model and thinking effort as the no-fixed-model fallback. It does not
+mean the last inference, navigation or sent prompt, and does not copy a working
+window/draft or cross profile boundaries. Explicit no-model/model-option
+overrides remain authoritative. Retain this preference independently of its
+source session/project, with atomic actual-user selection and restart/migration
+coverage; never infer it from a model role or substitute an unavailable provider.
 
 ### 2. Projects, work items, and worktrees
 
@@ -414,7 +445,7 @@ The local control plane remains the authoritative event writer in all three envs
 - Global user-only **allowed envs** policy initially permits all three envs, subject to readiness. It can restrict new execution to Sandbox or Remote. Remote satisfies that policy without requiring SendBox on the target; display its actual SSH-host boundary rather than a SendBox badge. A stricter Sandbox-only policy remains possible. Agents, autonomy levels, and repo/project defaults cannot widen the allowed set.
 - Excluding Local blocks new Local turns, including queued messages, new child-agent turns, and recovery after a restart. Turns already running at the policy-change boundary may finish under their recorded prior policy. Persist that boundary atomically with turn admission, and show these turns as **Local finishing**, not sandboxed. Changing a default alone does not move a running turn between backends.
 - SendBox execution starts only after runtime, workload image, guest artifacts, policy, credentials, and workspace checks succeed. Missing or unsupported capabilities produce actionable diagnostics; never retry on the host or issue model requests while sandbox readiness is unconfirmed.
-- The macOS app distributes a compatible pinned worker image with Linux Node/native dependencies and a reviewed versioned SendBox installer. Managed setup prepares private project/worktree or root-less workspaces automatically; per-turn text previews are not a prerequisite. Resolve only actual admitted provider endpoints and their bounded public DNS aliases under the explicit managed policy. Default GitHub tool access does not authorize unrelated sites, provider substitution, private destinations or source writes. Automatic/manual public-release checks never activate an unreviewed version or overwrite an active installation.
+- The macOS app distributes a compatible pinned worker image with Linux Node/native dependencies and a reviewed versioned SendBox installer. Managed setup prepares private project/worktree or root-less workspaces automatically; per-turn text previews are not a prerequisite. Resolve only actual admitted provider endpoints and their bounded public DNS aliases under the explicit managed policy. The 0.2.4 default GitHub grant delegates Meta domains and shared-cloud CIDRs, explicitly disclosed before setup approval; do not claim exact-host-only network access. That delegation does not grant provider substitution, private destinations, tool permission or source writes. Automatic/manual public-release checks never activate an unreviewed version or overwrite an active installation.
 - Remote requires verified SSH host identity, usable credentials, a reachable machine, a compatible worker/toolchain, an approved workspace, and model connectivity from that machine. Never copy SSH private keys or the local secret store into the worker. A connection failure is not permission to run locally.
 - TUI, desktop, CLI, and the later VS Code extension expose the selected and effective env, target host, default/policy source, runtime health, and launch or cleanup failures through the same API. Terminals, subagents, MCP calls, and executable extensions cannot bypass the selected boundary.
 

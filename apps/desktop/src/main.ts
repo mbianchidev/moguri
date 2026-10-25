@@ -7,9 +7,10 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
-import { GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
+import { browserUrl, GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier } from "./notifications.ts";
+import { SessionBrowserHost } from "./agent-browser.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
@@ -32,17 +33,23 @@ const audioGranted = () => {
     state?.status === "connected" && (!grant.jobId || state.snapshot?.jobs.some((job) => job.id === grant.jobId && job.sessionId === grant.sessionId && job.kind === "voice.capture" && job.status === "running")));
 };
 const banners = new Map<string, Notification>();
-let preview: { view: WebContentsView; profileId: string; sessionId: string; url: string } | null = null;
-const previewUrl = (input: string) => {
-  const url = new URL(input);
-  if (url.username || url.password || (url.protocol !== "https:" && !(url.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)))) throw new Error("Only explicit HTTPS or loopback HTTP previews are supported.");
-  return url;
-};
+let preview: { view: WebContentsView; storage: Electron.Session; profileId: string; sessionId: string; url: string; host?: SessionBrowserHost; registration?: Promise<void> } | null = null;
+let previewGeneration = 0;
+let previewAdmission: { profileId: string; sessionId: string } | null = null;
+let previewCleanup: Promise<void> = Promise.resolve();
+const previewUrl = browserUrl;
+const blockPreviewDownload = (event: Electron.Event) => event.preventDefault();
 const hidePreview = () => {
+  previewGeneration++;
   if (!preview) return;
-  mainWindow?.contentView.removeChildView(preview.view);
-  void preview.view.webContents.session.clearStorageData().catch((error: unknown) => console.error("Preview storage cleanup failed:", error instanceof Error ? error.message : "Unknown preview cleanup error"));
-  preview.view.webContents.close(); preview = null;
+  const owned = preview; preview = null;
+  owned.storage.removeListener("will-download", blockPreviewDownload);
+  const detach = owned.host?.close() ?? owned.registration ?? Promise.resolve();
+  const clear = owned.storage.clearStorageData();
+  previewCleanup = Promise.all([previewCleanup, detach, clear]).then(() => {});
+  void previewCleanup.catch((error: unknown) => console.error("Native browser private cleanup was not acknowledged; replacement remains blocked:", error instanceof Error ? error.message : "unknown browser cleanup failure"));
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(owned.view);
+  if (!owned.view.webContents.isDestroyed()) owned.view.webContents.close();
 };
 const trusted = (event: Electron.IpcMainInvokeEvent) => {
   if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || !event.senderFrame.url.startsWith("moguri://app/")) {
@@ -285,7 +292,7 @@ else {
       trusted(event);
       if (profileId === undefined) return activeProfileId;
       if (typeof profileId !== "string") throw new Error("An explicit profile ID is required.");
-      const selected = await activateProfile(profileId); hidePreview(); return selected;
+      hidePreview(); return activateProfile(profileId);
     });
     ipcMain.handle("moguri:choose-project", async (event, purpose: unknown) => {
       trusted(event);
@@ -326,7 +333,7 @@ else {
     ipcMain.handle("moguri:choose-attachment", async (event, kind: unknown) => {
       trusted(event);
       if (!["file", "image", "folder", "document"].includes(String(kind))) throw new Error("Choose a supported explicit attachment type.");
-      const result = await dialog.showOpenDialog(mainWindow!, { title: kind === "folder" ? "Review a context folder" : "Attach explicit client context", properties: [kind === "folder" ? "openDirectory" : "openFile"], ...(kind === "image" ? { filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }] } : kind === "document" ? { filters: [{ name: "Documents", extensions: ["pdf", "xlsx", "docx"] }] } : {}) });
+      const result = await dialog.showOpenDialog(mainWindow!, { title: kind === "folder" ? "Review a context folder" : kind === "file" ? "Attach any file" : "Attach explicit client context", properties: [kind === "folder" ? "openDirectory" : "openFile"], ...(kind === "image" ? { filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp"] }] } : kind === "document" ? { filters: [{ name: "Documents", extensions: ["pdf", "xlsx", "docx"] }] } : {}) });
       return result.canceled ? null : result.filePaths[0] ?? null;
     });
     ipcMain.handle("moguri:open-external", async (event, input: unknown) => {
@@ -356,38 +363,74 @@ else {
       if (!path) throw new Error("No export destination was selected.");
       return saveArtifactExport(path, { filename: input.filename, mediaType: "application/json", text: input.text, digest: input.digest });
     });
-    ipcMain.handle("moguri:preview", async (event, input: unknown, profileId: unknown) => {
+    ipcMain.handle("moguri:preview", async (event, input: unknown, profileId: unknown, closingSessionId: unknown) => {
       trusted(event);
       if (typeof profileId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) throw new Error("A user profile is required for a native preview.");
-      if (input === null) { if (preview?.profileId === profileId) hidePreview(); return; }
+      if (input === null) {
+        if (preview?.profileId === profileId && preview.sessionId === closingSessionId) hidePreview();
+        else if (previewAdmission?.profileId === profileId && previewAdmission.sessionId === closingSessionId) { previewGeneration++; previewAdmission = null; }
+        return;
+      }
       if (profileId !== activeProfileId) throw new Error("The preview belongs to an inactive profile. No scope was rebound.");
-      if (!isRecord(input) || typeof input.sessionId !== "string" || !/^[A-Za-z0-9-]{1,128}$/.test(input.sessionId) || typeof input.url !== "string" || !isRecord(input.bounds)) throw new Error("A scoped preview URL and bounds are required.");
-      const url = previewUrl(input.url);
+      if (!isRecord(input) || typeof input.sessionId !== "string" || !/^[A-Za-z0-9-]{1,128}$/.test(input.sessionId) || input.url !== null && typeof input.url !== "string" || !isRecord(input.bounds)) throw new Error("A scoped preview URL and bounds are required.");
+      if (input.reload !== undefined && typeof input.reload !== "boolean") throw new Error("Choose an explicit preview reload.");
+      const url = input.url === null ? null : previewUrl(input.url);
       const fields = ["x", "y", "width", "height"] as const;
       for (const field of fields) if (typeof input.bounds[field] !== "number" || !Number.isFinite(input.bounds[field])) throw new Error("Preview bounds must be finite numbers.");
       if (!preview || preview.profileId !== profileId || preview.sessionId !== input.sessionId) {
         const scoped = attentionClient;
         if (!scoped || scoped.profileId !== profileId) throw new Error("The preview profile is not connected.");
+        const admission = { profileId, sessionId: input.sessionId }, originalGeneration = previewGeneration;
+        previewAdmission = admission;
         if (!scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId)) await scoped.refresh();
+        if (previewAdmission !== admission || previewGeneration !== originalGeneration) return;
         if (attentionClient !== scoped || activeProfileId !== profileId || !scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId)) throw new Error("This preview session is outside the active profile.");
         hidePreview();
+        const generation = previewGeneration;
+        await previewCleanup;
+        if (previewAdmission !== admission || previewGeneration !== generation || attentionClient !== scoped || activeProfileId !== profileId || !mainWindow || mainWindow.isDestroyed()) return;
         const isolated = electronSession.fromPartition(`moguri-preview-${profileId}-${input.sessionId}`, { cache: false });
         isolated.setPermissionRequestHandler((_view, _permission, done) => done(false));
         isolated.setPermissionCheckHandler(() => false);
-        isolated.on("will-download", (event) => event.preventDefault());
+        isolated.on("will-download", blockPreviewDownload);
         const view = new WebContentsView({ webPreferences: { session: isolated, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true } });
         view.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
         const navigation = (event: Electron.Event, target: string) => { try { previewUrl(target); } catch { event.preventDefault(); } };
         view.webContents.on("will-navigate", navigation);
         view.webContents.on("will-redirect", navigation);
-        preview = { view, profileId, sessionId: input.sessionId, url: "" };
+        const owned: NonNullable<typeof preview> = { view, storage: isolated, profileId, sessionId: input.sessionId, url: "" };
+        preview = owned;
+        previewAdmission = null;
         mainWindow!.contentView.addChildView(view);
+        await view.webContents.loadURL("about:blank");
+        if (preview !== owned || activeProfileId !== profileId) return;
       }
+      const owned = preview, scoped = attentionClient;
+      const ownerSession = scoped?.getState().snapshot?.sessions.find((session) => session.id === owned.sessionId);
+      if (!owned.host && !owned.registration && scoped && ownerSession?.controls.env === "Local" && scoped.getState().snapshot?.policy.allowedEnvs.includes("Local")) {
+        owned.registration = (async () => {
+          const host = await SessionBrowserHost.attach(scoped, owned.sessionId, owned.view.webContents,
+            () => preview === owned && activeProfileId === owned.profileId,
+            (message) => console.error(message));
+          if (preview !== owned || activeProfileId !== owned.profileId) { await host.close(); return; }
+          owned.host = host;
+        })();
+      }
+      await owned.registration;
+      if (preview !== owned) return;
       const available = mainWindow!.getContentBounds();
       const x = Math.max(0, Math.min(available.width - 1, Math.round(Number(input.bounds.x))));
       const y = Math.max(0, Math.min(available.height - 1, Math.round(Number(input.bounds.y))));
       preview.view.setBounds({ x, y, width: Math.max(1, Math.min(available.width - x, Math.round(Number(input.bounds.width)))), height: Math.max(1, Math.min(available.height - y, Math.round(Number(input.bounds.height)))) });
-      if (preview.url !== url.href) { preview.url = url.href; await preview.view.webContents.loadURL(url.href); }
+      if (url && (input.reload || preview.url !== url.href)) { preview.url = url.href; await preview.view.webContents.loadURL(url.href); }
+    });
+    ipcMain.handle("moguri:browser-control", async (event, sessionId: unknown, enabled: unknown, profileId: unknown) => {
+      trusted(event);
+      const owned = preview;
+      if (!owned || owned.profileId !== profileId || activeProfileId !== profileId || owned.sessionId !== sessionId || typeof enabled !== "boolean") throw new Error("Choose the actual active session Browser pane. No other browser was controlled.");
+      await owned.registration;
+      if (preview !== owned || !owned.host) throw new Error("The original browser closed before control changed.");
+      return owned.host.control(enabled);
     });
     ipcMain.handle("moguri:audio-permission", async (event, input: unknown) => {
       trusted(event);
@@ -449,7 +492,7 @@ else {
         });
         if (choice === 1) event.preventDefault();
       });
-      mainWindow.on("closed", () => { audioGrant = null; preview?.view.webContents.close(); preview = null; mainWindow = null; });
+      mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null; });
       await mainWindow.loadURL("moguri://app/");
     };
     await createWindow();

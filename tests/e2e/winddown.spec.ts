@@ -16,7 +16,7 @@ test("desktop exposes qualified finite kupo and separately reviews actual-user a
     const composer = page.getByRole("form", { name: "Message composer" });
     await composer.getByRole("button", { name: "Budget and usage", exact: true }).click();
     const budget = page.getByRole("dialog", { name: "Budget and usage", exact: true });
-    await budget.getByRole("button", { name: "Session budget limits", exact: true }).click();
+    await budget.getByRole("button", { name: "View usage and limits...", exact: true }).click();
     await expect(budget.getByLabel("session budget mode", { exact: true })).toBeEnabled();
     await page.keyboard.press("Escape");
     await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();

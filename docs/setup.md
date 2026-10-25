@@ -1,8 +1,58 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **52**. Additive upgrades retain existing
+Current service/SDK/desktop protocol is **56**. Additive upgrades retain existing
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
+
+Protocol 53 converges the independent main-line schemas 44-52 and desktop
+schemas 44-46. The original desktop provenance marker identifies that lineage;
+version numbers alone cannot distinguish the two histories. Required markers
+and the final version advance atomically, without rewriting encrypted events,
+keys, receipts or source grants. Missing main-line markers or invalid provenance
+fail explicitly and preserve state. See [retained-state upgrades](sdk.md#retained-state-upgrades).
+
+Protocol 54 adds exact-scoped, read-only session PR observations and explicit
+draft state. The additive indicator marker does not rewrite encrypted history
+or turn old missing draft information into a ready PR. Session dots and trailing
+icons show active work or required input before a merged PR, then completion:
+blue blinking dot/spinner, yellow question or approval pause, green completed
+check with a green open or gray draft PR, or purple merged-PR glyph.
+Reduced motion keeps those indicators static. Failure, partial, stopped and
+held states never become successful completion.
+See [session indicator authority](architecture/session-interactions.md#session-status-and-linked-pr-indicators).
+The prior [protocol-54 qualification](architecture/session-interactions.md#protocol-54-qualification)
+covers complete Node/Electron suites, the packed SDK and actual development package.
+
+Protocol 55 adds independently retained, profile-private remembered model
+selections. **Settings / Sessions / Startup defaults / Global default model**
+offers a fixed shared model/effort, **Last selected model and thinking effort**,
+or no selected model. Last selected means the latest explicit selection, not
+the last inference, sent prompt or a different profile. Global defaults remain
+subject to explicit profile/project/session overrides; existing chats keep their
+controls. With no remembered choice, the factory still selects no model.
+See [new-session model defaults](architecture/model-controls.md#new-session-model-defaults).
+The prior [protocol-55 qualification](architecture/model-controls.md#model-default-qualification)
+passes 1,315 Node/worker/CLI/TUI cases with 14 physical-native skips and 157
+hidden desktop cases with two physical-native skips. The packed external SDK,
+matching native worker image and actual development app/ZIP/DMG are qualified
+separately; installer integrity is not notarization or physical VM readiness.
+
+Protocol 56 adds user-toggled Local browser control through the existing
+session pane and exact MCP approvals. The metadata-only `browser_control_schema`
+upgrade preserves encrypted state and forces review of an older running
+service rather than silently reusing a process without the new tools.
+Browser control/leases never survive restart.
+See [browser ownership and qualification](architecture/agent-browser.md).
+The browser-control checkpoint's protocol-56 run passes **1,330 Node cases with 14 skips**, **166
+hidden desktop cases with two skips**, the packed external SDK/all 12 installed
+workers and **28 cases against the actual rebuilt app**. The matching worker,
+ZIP/update consumer and DMG geometry/integrity pass separately. The sliding
+control is a real button switch, not a checkbox; it keeps keyboard support and
+immediate off/on revocation. Physical VM/containment and notarization remain
+separate unqualified release gates.
+The later [image-preview display checkpoint](#image-preview-display-qualification)
+keeps those backend bundles unchanged and separately qualifies the larger
+images, fresh full desktop run and rebuilt installer.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -30,17 +80,73 @@ failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
 app does not start another service or force-kill a guessed process. Other
 independent state roots are not scanned or stopped by name.
 
+## Protocol-53 integrated source qualification
+
+The 2026-10-24 integration merges main `5d1f97e` through the two-parent merge
+`2f28e7f`, with final desktop preservation fixes in `f9f476b` and deterministic
+Electron revision coverage in `29d7b07`. It preserves main's unified Start and
+cloning, independent consoles, searchable settings/profiles/preferences,
+device-aware browser audio and sounds, native application/storage/update
+controls, connection upgrades and owned shutdown, task plans/Other answers,
+and managed SendBox setup/staging/bootstrap/network controls.
+
+The original requested attachment/navigation/terminal/voice changes, activity,
+compact usage and separate Agent terminal are all retained. Main's per-message
+copy controls and available chat width also remain; turn-level response/info
+actions supplement rather than replace them. Opening intent is consumed once,
+so returning from Settings or remounting User cannot relaunch a closed console.
+Enter consumes its native event; Shift+Enter, IME composition and explicit held
+prompts retain their distinct behavior.
+
+| Check | Observed result |
+| --- | --- |
+| Locked root install, type checks and production build | PASS; neither requested root deprecation warning |
+| Complete unit/integration/worker/CLI/native-TUI suite | 1,259 passed, 14 physical-native skips, zero failures; 1,269.69 s |
+| Complete hidden Electron suite | 119 passed, 2 physical-native skips, zero failures; 4.1 min |
+| Actual external packed SDK | All entrypoints, declarations and installed client/runtime paths pass; all 12 installed-worker probes pass |
+| Cross-client Linear revision synchronization | 3 repeated hidden runs pass without weakening stale-review rejection |
+| Final packaged Ghostty and generated browser dictation | 2 hidden Electron cases pass in 4.8 s |
+| Root, generated SDK host and no-cache image dependency audits | Zero vulnerabilities |
+| Actual macOS package and bundled native distribution | PASS; original no-script installer and protocol-53 worker digests verified |
+| Production update consumer and actual DMG layout | PASS; 740,331,550-byte ZIP/manifest verified in 100.00 s; read-only DMG mount verified |
+
+The full Node suite ran on `2f28e7f`. The subsequent fixes change only desktop
+presentation, Electron coverage and documentation. A Git comparison verifies
+the final service, SDK, CLI, TUI, build scripts, manifests and generated Node
+test inputs remain byte-identical to that full run. Final type checks and the
+complete Electron run cover the desktop follow-ups. Of 245 incoming-main paths,
+175 main-only paths remain byte-identical; deliberate main-only changes are the
+Confirmations catalogue entry, the sidebar contract and updated Electron
+expectations for the requested interaction behavior.
+
+The native image was built without cache in 40.11 s and verifies the exact
+locked Linux arm64 payload and generated PTY. Its immutable local identity is
+`docker.io/library/moguri-worker@sha256:62a19e9b4a87f18aa73a32b0d579199097518b1e7aa3bb5cd207b76db87c3a5f`.
+This is image/package qualification, not proof of actual SendBox VM containment
+or Linux release readiness. The 14 unit and 2 desktop skips retain their physical
+native prerequisites. Personal accounts, microphones, speech weights and paid
+inference were not used; actual ASR accuracy remains unqualified. The macOS
+bundle is ad-hoc signed, not notarized.
+
+Root and image installs no longer emit the requested deprecated-package notices.
+npm does not inherit a dependency's overrides, so a generated external SDK host
+without its own compatibility policy still reports those upstream notices;
+the scoped host configuration remains in [the SDK guide](sdk.md).
+Non-blocking build/package notices remain for large UI chunks and the optional
+Apple `.icon` companion format; the ordinary bundled `.icns` is retained.
+Historical source qualifications below are not relabeled as this integrated run.
+
 ## Managed SendBox
 
 On supported Apple-silicon macOS with Apple Containerization available, the app
-includes SendBox **0.2.3**, a versioned no-script installer, and a compatible
+includes SendBox **0.2.4**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
 
 Open **Settings > Execution & permissions > SendBox**, choose **Review bundled
 setup**, review the actual version, image, workspace/network policy and install
 location, then choose **Enable Sandbox**. An already configured exact root-owned
-0.2.3 installation can be reused. A fresh installation requests your administrator
+0.2.4 installation can be reused. A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
@@ -59,17 +165,26 @@ Provider networking uses the actual prepared HTTPS endpoint, not an assumed
 canonical Copilot host. Managed policy resolves and allows its bounded public
 CNAME chain automatically, capturing the effective hosts with the original
 execution. No permanent historical grant or hardcoded alias is inferred.
-`github.com` and `api.github.com` are default tool destinations; unrelated
-`google.com` remains denied. The native public-page tool works without a project,
+`github.com` and `api.github.com` are default tool grants. In SendBox 0.2.4,
+`github.com` also delegates GitHub Meta domains and IPv4/IPv6 CIDRs, including
+shared-cloud ranges, refreshed before readiness and hourly. This is broader than
+exact-host-only egress and can cover shared infrastructure; setup review states
+that explicitly before Enable Sandbox. The native public-page tool works without a project,
 uses the enforced guest proxy and requires ordinary tool permission. This is not
 an interactive browser or a general native MCP grant.
 
 Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
 tool rules. These permit subdomains at any depth, not the apex or lookalike
-suffixes. Exact entries remain exact, private-address protections remain in the
+suffixes. Except for the disclosed 0.2.4 GitHub Meta delegation, exact entries
+remain exact. Private-address protections remain in the
 guest, and selected-provider URLs/CNAMEs still require exact admission. No
-wildcard is added automatically. The bundled 0.2.3 runtime does not include the
-separately developing automatic GitHub Meta expansion.
+additional wildcard is added automatically by Moguri. Per the owner's explicit
+choice, 0.2.4's default GitHub grant includes the disclosed Meta delegation.
+Selected-provider credentials and tool approvals remain separate.
+
+New factory defaults select 0.2.4. An explicitly saved 0.2.3 selection and its
+release/approval records remain unchanged; using the new bundle still requires
+review. See [the release pins and upgrade boundary](architecture/managed-sandbox.md#default-sendbox-024).
 
 **Check public SendBox releases** checks at startup and every four hours when
 enabled. **Check SendBox updates now** uses the same fixed public repository with
@@ -98,13 +213,20 @@ integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
 
-The scrollable left sidebar owns Suggestions, Dashboard, independent Artifacts,
-Candidates, native Sandbox management and the Global terminal. The right rail
-contains only current-session tools. Attention is available through the single
+The scrollable left sidebar is ordered **Dashboard, Artifacts, Candidates,
+Sandbox, Suggestions, Global Terminal**. The right rail contains only
+**Terminal, Browser, Insights, Changes, Files, Plan, Side chat**, in that order.
+Global views are not duplicated there, and linking a PR does not add a rail tab;
+the existing `/pr` action still opens its auxiliary view. Attention uses the single
 top-bar icon. Where a global action needs a source, select an actual **Source
 chat** first. Viewing a global resource never creates a hidden chat or model
 request. Global and session consoles are separate entrypoints into the existing
 authenticated Ghostty owners, not a new terminal implementation.
+
+Unread sessions use slightly heavier title text instead of an extra dot.
+Mark read or selecting the session removes that emphasis; an older held read
+action cannot consume a newly arrived question. Actual yellow question/approval
+status and its icon remain until answered/decided, independently of read state.
 
 The shared preferences below include device-aware local speech, independent
 notification sounds, root-owned native updates and reviewed store relocation.
@@ -121,12 +243,24 @@ change either preference in **Settings / Sessions / Retention**. These preferenc
 do not grant permissions, enable automatic cleanup or bypass retained-artifact
 reviews. Deletion still stops owned work and preserves independent documents.
 
-Drag near a sibling row's top/bottom edge to reorder within its pinned/unpinned
-group. Drop in its center to attach, or on the owning project/Chats header to
-detach. Move up/down and Attach/Detach remain keyboard menu alternatives.
+Drag the right-hand grip to reorder siblings within their pinned/unpinned
+group; the target row's top/bottom halves insert before/after without nesting.
+Click that same grip for the session menu, or use Alt+Up/Down on its focused
+control/name. Whole-row top/bottom edges also reorder; its center still
+attaches, and the owning project/Chats header detaches. Move up/down and
+Attach/Detach remain keyboard menu alternatives.
 Only the current project's hierarchy changes: workspace, Env and read-only/model
-subagent boundaries do not move. Changed sibling revisions reject the whole
-reorder instead of publishing a partial arrangement.
+subagent boundaries do not move. Each service attempt checks every sibling
+revision atomically instead of publishing a partial arrangement.
+Ordinary live activity/read-state changes no longer cancel the drag. A known
+revision-only rejection can refresh once while the exact original structural
+intent still matches; changed order, membership, pin or hierarchy stays refused.
+Unpin uses a crossed-out pin; pinned-state markers and Pin retain a standard pin.
+
+The latest ordering build passes 153 hidden desktop cases with two
+physical-native skips; 21 ordering/icon/hierarchy/keyboard/narrow-row cases also
+pass in the actual packaged app. Exact original-intent/CAS rules and installer
+measurements are in [session ordering qualification](architecture/session-interactions.md#session-ordering-qualification).
 
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and
@@ -140,6 +274,20 @@ turn. The clock stays visible while acknowledgement is pending, even after
 releasing the modifier. **Resume queued work** sends one prompt per finished turn, not one combined
 prompt or parallel calls. Stop holds undispatched work; reopening the app does
 not drain it. Interrupt retains its separately requested next-turn behavior.
+
+When a session/worktree requires inspection, the composer's primary Send
+position becomes a **Resume** play icon instead of adding a header button.
+Inspect the retained effects first. Click Resume or press Enter to continue
+existing work without sending or clearing the current draft/attachments.
+Shift+Enter remains newline, Cmd/Ctrl+Enter remains Hold, and explicit slash
+commands remain available. Pending resumes disable the control; failures remain
+visible until an explicit retry. Neither automatically retries; active work still
+shows Stop.
+
+The prior composer-recovery build passed 144 hidden desktop cases with two
+physical-native skips; 14 recovery/composer/Start/Stop cases also passed in its
+actual packaged app. See [composer recovery qualification](architecture/session-interactions.md#composer-recovery-qualification)
+for the exact scope, installation and artifact evidence.
 
 The Plan tab stays empty until the owning model explicitly supplies at least two
 actionable steps. Model checkmarks and estimates live there only, never above
@@ -176,7 +324,10 @@ modes. Custom element colors are saved together and validated against measured
 text, focus, control, selection and semantic contrast. Invalid combinations
 remain editable and never replace committed colors.
 
-**Sessions / Startup defaults** exposes model, supported thinking effort and
+**Sessions / Startup defaults** exposes a shared **Global default model** and
+supported global thinking effort, plus separate current-profile model/effort
+overrides. The default last-selected mode remembers explicit selections in that
+profile and does not copy the old session's working window or draft. The page also offers
 dry/minimal/balanced/detailed response verbosity, plus the existing explicit
 global/profile budget and advanced defaults. Existing sessions keep their saved
 controls. **Execution & permissions** owns default autonomy and tool
@@ -211,15 +362,334 @@ Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
 host/guest artifacts, actual generated worker/tool/image frames and cancellation.
 Cold provider networking requires a separately reviewed exact DNS-alias scope;
 the endpoint-only probe fails. These primitives do not by themselves enable
-public Sandbox. The current protocol-40 service/SDK/client lifecycle below
+public Sandbox. The recorded protocol-40 service/SDK/client lifecycle below
 extends them without changing factory settings or broadening policy.
+
+## Separate Agent terminal
+
+Current source uses protocol/database **46**. The session's **Terminal** pane
+has separate **User** and **Agent** tabs. User remains your private, interactive
+console. Agent shows Moguri's actual command requests/results and live output;
+merely opening either Agent history or a retained result never starts a model
+or shell. Global Terminal remains private and user-only.
+
+Moguri runs commands through the existing approved `run_command` capability,
+then can list or reread exact original output with `read_agent_terminal`.
+Command approvals, exact-command grants, environment/root/folder policy,
+timeouts, cancellation and unknown cleanup retain their existing semantics.
+The Agent tab labels pending, denied, failed, partial and unconfirmed work
+without inventing success, and follows bounded UTF-8 output tails by default.
+Earlier pages and commands remain explicitly accessible.
+
+Each command uses a fresh owned PTY, not a persistent interactive shell.
+Shell variables and a changed directory do not implicitly carry to the next
+command. The Agent viewer has no keyboard-input route; use the User tab for
+personal typing and **Stop** in chat to cancel active agent work. Agent command
+output is part of its approved tool history; User/Global input/output is not.
+
+CLI `agent-terminal list --session ID` and
+`agent-terminal read COMMAND_ID [UTF8_OFFSET|tail] --session ID`, shared
+`/agent-terminal list/read`, and `sdk.agentTerminals.list/read` inspect the
+same exact session/profile records. Source deletion removes this access.
+The original desktop schema-46 view is included in protocol 53. Convergence
+changes no SQL layout, ciphertext, grants or receipts and never replays commands.
+Restart service and clients together.
+See [the ownership and capability contract](architecture/agent-terminal.md).
+
+### Protocol-46 source qualification
+
+On macOS arm64 / Node 26, type checks and the production build pass. The complete
+unit/integration/native-TUI suite passes **1,112 cases**, with **nine physical
+native-workload skips**, zero failures and a duration of **979.63 s**.
+Complete hidden Electron acceptance passes **84 cases**, with **one physical
+native-workload skip**, zero failures and a duration of **3.2 min**.
+
+Generated model flows execute and reread actual Local and pinned loopback-SSH
+command output. They prove private User console bytes stay out of model
+requests, explicit read denial and read-only mode remain enforced, held reads
+cannot outlive policy revocation/stop, and agent cancellation preserves the
+separate User console. Other checks cover exact source/session isolation,
+Unicode tail bounds, schema-45 ciphertext/receipt preservation, restart without
+command replay, native read-only Ghostty, keyboard escape, stale-view rejection
+and unavailable history without a false empty state.
+
+The packed external SDK passes browser-safe entrypoint/declaration checks and
+Agent SDK/React/CLI/TUI scope/source inspection. All **12 actual installed-worker
+acknowledgement/accounting/cancellation probes** pass. The audit reports
+**zero vulnerabilities**. Project-free models do not receive an unusable
+terminal tool; the unchanged context/headroom guard remains enforced.
+Read-only declaration tests inspect actual tool names, not strings appearing
+in descriptions, while preserving the existing no-write/no-execution checks.
+
+No personal console, account, microphone or paid inference was used. Physical
+SendBox workloads, Linux UI and signed/notarized release gates remain
+unqualified; source version numbers and generated SSH evidence do not close
+them. Earlier protocol qualification records below remain historical.
+
+## Chat activity and usage
+
+Protocol 45 introduced this activity slice. Chat operations appear as compact
+icon-led rows for file reads/creation/edits, file/skill/web search, skill loading,
+GitHub/Linear issue creation, commands/scripts, MCP calls and actual questions.
+Expand a row for its original arguments/result, local start date/time, observed
+duration and retained UTF-8 output size. Large results use explicit byte pages.
+Running operations have an elapsed wall timer; waiting, failed, stopped,
+partial and unconfirmed outcomes stay distinct.
+
+**Thought** opens only already-public provider-exposed reasoning. Its duration
+covers the whole model request, not separately measured thinking. Hidden model
+contexts, private role results and user-terminal input/output are not exposed.
+Explicit skill selection and reviewed GitHub/Linear actions without an owning
+turn appear under **Session actions**, not attributed to an adjacent response.
+
+Hover a response, or focus its actions with the keyboard, to **Copy response**
+or open **Turn information**. Copy excludes tools/reasoning. Info uses that
+turn's original model/context and complete owning-turn accounting, not the
+currently selected model or newly edited rates. Unknown quantities stay unknown.
+
+The composer budget button opens a compact view: **Est. USD**, plan, session
+calls, input/output/cache tokens and estimated context window. **View usage and
+limits...** opens detailed accounting and the existing warned budget controls.
+These are not provider billing, subscription-plan balances or AI credits.
+Hard policy and unknown held usage remain enforced.
+
+SDK `activity.list/read/turn/response`, CLI `activity list/turn/read --session ID`
+and shared `/activity` use the same retained service view. Results require the
+exact current-profile source session; its deletion cannot recover contents from
+the independent sanitized operation ledger. The additive schema-45 upgrade
+preserves existing ciphertext, keys and receipts. Restart clients/service
+together without deleting state. See [the contract](architecture/chat-activity.md).
+
+### Protocol-45 source qualification
+
+On macOS arm64 / Node 26, type checks and the production build pass. The complete
+unit/integration/native-TUI suite passes **1,097 cases**, with **nine physical
+native-workload skips**, zero failures and a duration of **1,097.37 s**.
+Complete hidden Electron acceptance passes **80 cases**, with **one physical
+native-workload skip**, zero failures and a duration of **3.4 min**.
+
+The actual packed external SDK passes all public entrypoint/declaration checks,
+including the browser-safe activity/React surface, original session-granted
+skill bytes, CLI/TUI reads and profile/deletion isolation without inference.
+All **12 actual installed-worker acknowledgement/accounting/cancellation
+probes** pass. The dependency audit reports **zero vulnerabilities**.
+
+Generated coverage includes exact file/command/MCP inputs/results, actual
+question answers versus stop, original model/context/captured rates, public-only
+reasoning, atomic skill/grant rollback, UTF-8 paging, reused call IDs, shared
+cancellation cursors, bounded live tails, late results, source restart and
+schema-44 ciphertext preservation. Hidden UI coverage exercises hover/keyboard
+copy/info, stale-session isolation, reduced-motion timers, compact layout and
+unchanged warned hard-budget controls.
+
+No real microphone, speech weights, personal authorization or paid inference
+was used. The skipped current SendBox workload, real ASR accuracy, Linux UI and
+signed/notarized release remain unqualified. Historical protocol-44 results
+below remain separate; current source does not relabel them as new acceptance.
+
+## Desktop interactions
+
+Open a Local session's **Browser** pane and turn on its top **Agent control**
+switch to let the agent use that existing isolated page. An empty pane is
+enough: the agent can navigate it after exact tool approval. Builtin MCP search
+for `browser` or `navigate` exposes status, navigation, bounded accessibility
+snapshots, clicks, text-field input and allowed keys. Normal approvals still
+apply. Turning the switch off immediately revokes access and cancels pending
+actions; turning it back on creates fresh authority, never replays an old call.
+Closing/reopening, profile switching and service restart all leave control off.
+No personal browser, account cookies, browser download or debug port is used.
+Password/file fields, uploads/downloads and popup windows are unavailable;
+agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
+Sandbox/Remote browser control and Stainless diagnostics remain unqualified.
+See the [browser contract](architecture/agent-browser.md).
+
+Protocol 44 introduced these interaction changes. Global resources live in
+the left sidebar: Dashboard, Artifacts, Candidates, Sandbox, Suggestions,
+Global Terminal. The right rail is reserved for Terminal, Browser, Insights,
+Changes, Files, Plan and Side chat. Global actions and existing slash commands
+retain their independently scoped source selection. Attention remains in the top bar. The unified Start
+chooser and project-free navigation remain available.
+
+| Attach menu | Shortcut | Selection |
+| --- | --- | --- |
+| Project file or folder | `@project-name/path` | Explicit named Local project; the selected Local session uses its bound worktree |
+| Issue or pull request | `#137`, `owner/repo#137` | Current project's GitHub upstream, or an explicitly named repository |
+| Session | `:session-name` | Dropdown of non-archived sessions in this profile |
+| Local file | `^/absolute/file.pdf` | Source/text, PDF, DOCX, XLSX or supported image through one picker |
+| Local folder | `^/absolute/folder` | Exact bounded file set and exclusions, reviewed before attachment |
+
+GitHub files use `@owner/repo/README.md` through the GitHub chooser. Automatic
+access tries the Local control plane's GitHub CLI account and, if unavailable,
+uses only the public API with that boundary disclosed in the preview. Switching
+access/source/destination after preview requires fresh review. Remote GitHub
+files currently support exact UTF-8 text up to 128 KiB, not binary conversion.
+Project-free chats must specify a repository for issues/PRs. Names of Local
+projects contain only letters, digits, `-` and `_`; existing display names are
+normalized deterministically, with collision suffixes, without changing IDs,
+folders or repository files.
+
+Click any attached chip to inspect the retained snapshot. Session context opens
+as JSON, images open enlarged, and documents keep their bounded page/section/
+cell previews. Image attachments stay compact in the composer and sent messages,
+with a small thumbnail and filename. Only clicking or keyboard-activating an
+attachment opens its image in the near-full-window viewer,
+preserves its aspect ratio without cropping, and keeps Close/Remove visible on
+smaller windows. Multiple attachments wrap as compact file-like chips;
+hovering never expands an image. These are display changes only, not extra
+image capture, model context or image processing.
+Remove works on draft context, never deletes the original file,
+and does not rewrite sent messages. Dropping a sidebar session onto the composer
+attaches its content after source/destination review; it does not reparent,
+resume or otherwise control that session. **Do not ask me again** suppresses
+future session-attachment dialogs only. Source/digest, profile, destination and
+draft-revision checks remain enforced.
+
+### Image preview display qualification
+
+Inline images use compact 36x28-pixel thumbnails rather than expanded cards.
+Only explicit activation opens the image-only dialog, which
+occupies the available window, up to 1440x960 pixels, while preserving image
+aspect ratio and keeping Close/Remove visible at 840x620. Text/document chips,
+retained bytes, model context, permissions and source-file retention are
+unchanged. Ten service/runtime/worker/SDK/native-host bundles are SHA-256
+identical to the qualified backend checkpoint; no schema or dependency changed.
+
+The preceding expanded-viewer checkpoint's complete hidden Electron run passed **168 cases, two skipped, zero
+failed** (170 total) in **5.3 minutes**. The actual rebuilt app passes **11
+image/browser cases in 29.7 seconds**. The fresh packed SDK/install/audit and
+all 12 installed-worker probes pass; audits find zero vulnerabilities.
+An existing hidden Remote resize fixture now keeps its own resize frames
+running and awaits the real SSH grid growth acknowledgement before checking
+shrinkage, without changing production behavior, sleeping or weakening the
+comparison. Combined image/Remote cases pass three repetitions: **12/12**.
+
+That checkpoint's native distribution remains protocol 56 / SendBox 0.2.4 with the
+same pinned worker image. Its check passes in **4,224.97 ms**; the actual
+**740,607,177-byte ZIP** passes the production update consumer in
+**103,047.20 ms**. The **754,273,639-byte DMG** passes native Finder geometry
+and unchanged-app integrity, SHA-256
+`92d8ac5389a3489a0713c3bd4b795800d5c06908b3af33693f0453c06f7c32a2`.
+This remains ad-hoc development signing, not notarization or physical
+SendBox/Linux release readiness. Existing minimal SDK-host/chunk/optional-icon
+notices remain disclosed. Screenshots and logs use only generated fixtures.
+
+#### Compact attachment refinement
+
+Attachments now stay as small file-like chips in both the composer and sent
+messages, with a 36x28 image thumbnail and filename. Hovering does not expand
+them; only click or keyboard activation opens the already approved large
+viewer. The former large inline cards and their scrolling layout are removed.
+Captured data, source files, model requests, removal ownership and all ten
+shared/native-host bundle hashes remain unchanged.
+
+The focused image/desktop interaction run passes **9 cases in 15.5 seconds**.
+The actual rebuilt app passes **11 image/browser cases in 30.3 seconds**.
+The fresh external SDK install, imports/declarations and all 12 installed
+workers pass; audits find zero vulnerabilities. The broader desktop run is
+**not clean**: 167 passed, two skipped and one timing-sensitive Remote console
+resize check failed while sampling its SSH grid after native window growth.
+This is retained in `compact-image-attachments-full-e2e.log`, not reported as
+a passing full suite. Production terminal behavior is unchanged by this
+image-only refinement.
+
+The current native distribution check passes in **4,214.34 ms**. The
+**740,607,115-byte ZIP** passes the production update consumer in
+**112,654.00 ms**. The **754,273,679-byte DMG** retains the verified native
+geometry and unchanged signed app, SHA-256
+`cea9944c7b5a6fc4f27bb3bc199c696bfb46e30ecf915a60aa5c6338a357de52`.
+Signing remains development-only; no personal browser, screen, credentials,
+microphone, administrator install or physical VM qualification was used.
+
+### Session ordering and navigation
+
+Drag a session above or below a sibling to reorder it. Order is saved atomically
+in the service and shared with desktop, TUI and SDK clients. It cannot move a
+session across projects, parents, groups, pinned sections or archive sections.
+Alt+Up/Down and the session action menu provide keyboard alternatives.
+Double-click a session to rename it; its current name is selected in the
+existing dialog. Single click still opens it, and Escape or Cancel leaves its
+name unchanged.
+`moguri session reorder ID...` and `/reorder-sessions ID...` require the complete
+current sibling set, not a partial list. Settings, Issues and Archived toggle
+back to the conversation when selected again in the left sidebar.
+
+**Global Terminal** is independent of every project/worktree/session and opens
+in the canonical Moguri data directory selected by the runtime, including
+`MOGURI_STATE_DIR` when configured. It is a Local user console, not agent context
+or SendBox isolation. Explicit independent-root console APIs remain supported;
+their captured root is shown, never relabeled as the data directory.
+Global allowed-env policy still applies. To work in a
+project, use its action menu's **Open project terminal**, the session's Terminal
+panel, or `/terminal`. Explicitly opening an eligible terminal pane starts the
+console without a Start button. Restoring a saved pane or reconnecting does not
+replay a launch; existing authenticated owners are reused.
+
+Closing a terminal pane asks for confirmation and detaches its view, leaving
+consoles running. Its **Do not ask me again** option is saved in this profile.
+The console's X button explicitly terminates that exact console without a
+dialog. It never immediately relaunches a replacement. Both confirmation
+preferences are available under **Settings > Confirmations**, including reset
+to the default of asking.
+
+Desktop dictation retains device-aware browser capture, local 16-kHz PCM,
+configurable shortcuts and push-to-talk. Completed capture stays visible as
+**Dictation ready** until explicit **Insert**, which preserves text typed during
+recognition and never sends a prompt. Native live recording separately shows
+Preparing, Recording and Finalizing: recording starts only after the pinned
+runtime reports readiness. Its Stop allows up to one minute to drain the final
+transcript instead of killing it after three seconds; cancellation still
+discards output and escalates a stuck process. Automatic language selection
+uses the runtime's native default. Stopping an existing native recording in
+the composer inserts only its exact completed result into the current draft. Errors
+are shown next to the active voice controls, not in a general Settings job log.
+Runtime/model setup and explicit model-license consent remain required. Tests
+use generated recognizers and Electron's generated audio device, not a personal
+microphone or real speech model, so they do not establish actual ASR accuracy.
+
+The additive schema-44 migration preserves ciphertext, receipts and existing
+attachment grants. Restart the service and clients together; keep the existing
+data directory and encryption backend. The root install uses maintained
+encoding-sniffer and Node-native fetch compatibility instead of deprecated
+whatwg-encoding/node-domexception chains; Electron and advisory fixes are also
+included. See the [context contract](architecture/context-inputs.md#desktop-interaction-revision)
+and [console ownership contract](architecture/terminal-reattachment.md#global-local-consoles-and-pane-confirmation).
+
+### Protocol-44 source qualification
+
+On macOS arm64 / Node 26, `npm ci`, type checks, the production build, the six
+available baseline primitives and the moderate-or-higher audit pass. The root install emits neither
+reported deprecation warning and the audit reports zero vulnerabilities.
+
+The complete unit/integration/native-TUI run passes **1,082 cases**, with **nine
+physical native-workload skips**, zero failures and a duration of **1,021.86 s**.
+Complete hidden Electron acceptance passes **77 cases**, with **one physical
+native-workload skip**, zero failures and a duration of **3.2 min**. This includes
+actual session dragging/reordering, source and GitHub-file shortcuts, retained
+previews/removal, saved confirmations, compact rail access, independent global
+consoles, existing Local/SSH owner recovery, uniform Settings fonts and generated
+slow-finalization dictation without draft loss or a generative-model request.
+
+The actual packed external SDK passes all public entrypoint/declaration checks,
+safe identifiers, shared sibling order, exact Local source resolution, profile
+isolation, and SDK/CLI/TUI global-console retention after session deletion. All
+**12 installed-worker acknowledgement/accounting/cancellation probes** also pass.
+Legacy fixture corrections preserve strict migration rollback, ciphertext, keys,
+receipts and unknown telemetry; no product assertion or admission gate was relaxed.
+
+Microphone permission is synthetic in tests, recognizers and model bytes are
+generated, and no real speech model, microphone, personal login or paid inference
+is used. These results do not qualify real ASR accuracy, the skipped current
+SendBox workload, Linux UI or a signed/notarized release. Existing OpenTUI FFI
+and lazy Ghostty bundle-size notices remain nonfatal. Minimal external SDK hosts
+can still see upstream npm warnings because dependency overrides are not inherited;
+the [scoped host override](sdk.md#shared-interaction-apis) is documented separately.
 
 ## Document attachments and task completion
 
-The 0.30.0-alpha.1 source uses protocol/database **43**. It extends the existing
+Protocol/database **43** introduced the 0.30.0-alpha.1 document slice. It extends the existing
 attachment pipeline with validated PDF, Word `.docx` and Excel `.xlsx` snapshots.
-Desktop **Attach > Document** shows local extraction, exact cancellation,
-ready/limited chips and bounded previews/search. **Local text file** still accepts
+Desktop **Attach > Local file** shows local extraction, exact cancellation,
+ready/limited chips and bounded previews/search. **Local file** also accepts
 source files such as `.java`; file/clipboard images keep their existing behavior.
 Use the picker for documents rather than pasting an Office clipboard file.
 
@@ -725,6 +1195,20 @@ or already-running work; use the visible stop control to stop a turn.
 a state directory already owned by another service. `npm start -- --help`
 prints the built terminal client's entry-point help.
 
+The TUI composer uses **Enter to send** and **Shift+Enter for a newline**.
+Cmd/Ctrl+Enter still holds without running; Shift+Cmd/Ctrl+Enter sends now.
+Settings/JSON editors keep their separate Ctrl+Enter save action. Shift requires
+a terminal that reports the modifier; OpenTUI negotiates its existing enhanced
+keyboard protocol, and Ctrl+J remains a newline fallback in legacy terminals.
+
+Moguri's effective model prompt includes first-party product/setup facts even
+in project-free chats and with a custom editable system prompt. It knows this
+repository, the source-build commands above, the TUI/desktop entrypoints and
+current alpha/platform limits without asking for Moguri's official guide.
+This does not inspect an installed version, account or current client, publish
+an npm package, enable repository memory, install anything or grant permission.
+Saved prompt settings are unchanged; running turns keep their captured prompt.
+
 ## Sign in with GitHub Copilot
 
 Desktop: open **GitHub Copilot**, choose **Sign in with GitHub Copilot**, then
@@ -794,6 +1278,14 @@ estimate; `/model-settings {"contextWindow":N}` selects an offered exact value.
 `/model-settings reset` restores the model default. An unsupported saved value
 stays visible and blocks inference until explicitly corrected. No history is
 silently truncated and context/output counts remain estimates.
+
+Each response can use the model's declared output maximum within the selected
+context window and its headroom; Moguri does not impose a separate 8,192-token
+response ceiling. Reasoning shares the response allowance. Session/profile/global
+token or USD caps can still reduce the actual forwarded limit. If the provider
+exhausts it, the turn stays partial and shows that exact limit; pending tools
+from the incomplete response do not run. No automatic retry, model fallback or
+budget increase occurs. See [response and reasoning bounds](architecture/model-controls.md#per-response-output-and-reasoning).
 
 Every tool needs a human approval bound to its exact arguments and policy/
 permission revisions, or an explicit bounded user delegation. Deny wins.
@@ -922,6 +1414,12 @@ creating a session. Inspect **Insights / Startup control sources** or TUI
 `/defaults`. Changing preferences does not rewrite existing/running sessions or
 widen hard policy. Profile startup reset preserves global values. Restoring
 shared global preferences is a separate revision-bound action.
+Omitting a model default uses the current profile's last explicit model/effort
+selection; explicit `modelId: null` remains no model. A remembered choice
+survives deleting its source session/project and restarting, but never grants
+context or workspace access. Unsupported saved choices remain visible and
+blocked rather than selecting a different provider. Fixed defaults and explicit
+model-option overrides retain their normal precedence.
 
 ## Experimental kupo Single
 
@@ -1032,7 +1530,10 @@ Drag either sidebar's inner edge to resize it, or focus its separator and use
 Left/Right arrows; Home/End select the available minimum/maximum. Widths survive
 desktop reloads and shrink as necessary to preserve chat space. The right
 sidebar's **<>** button hides it; any labeled icon in the remaining rail opens
-its panel. Those icons show tooltips on hover and keyboard focus. Unsaved panel
+its panel, and clicking that same active icon again collapses back to the rail.
+This also works from a maximized pane and with the keyboard. It follows the
+same unsaved-edit and terminal-hide confirmation/opt-out checks as the header
+hide button; hiding never terminates a running terminal. Those icons show tooltips on hover and keyboard focus. Unsaved panel
 edits still block navigation and collapse.
 
 The model-name popover contains model selection, optional working context and
@@ -1382,8 +1883,9 @@ selection at creation, but an unset/unavailable/synthetic selection requires an
 explicit concrete model. Choosing it does not change the parent, Env or
 read-only scope, and no failed model is silently substituted.
 
-The desktop rail exposes Terminal, Browser, Insights, a linked PR when present,
-Changes, Files, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
+The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
+Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
+`/terminal`, its requested `/termnial` alias and the
 terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model
 context or durable command hashes. Closing the panel leaves its shell running;
@@ -1406,13 +1908,29 @@ creates a console; `terminal input ID` accepts bounded piped UTF-8 stdin only.
 record actual user inspection, not proven cleanup.
 
 Terminal also opens without a session. **Global terminal** is one independent
-Local user console per profile, starting in the disclosed canonical home folder.
+Local user console per profile, starting in the disclosed canonical Moguri data folder.
 **This chat** selects session-owned consoles; a project-free chat explicitly
 opens the disclosed Local root without making it a model workspace. Existing
 project consoles still use their exact project/worktree. Changing chat does not
 rebind the global console, and deleting a chat/project does not delete it.
 Global input obeys Local allowed-env policy; a Remote chat never relabels that
 global host shell Remote.
+
+Opening Terminal explicitly starts or reuses the selected chat's qualified
+console. Selecting another chat/project or creating a chat while that pane is
+open carries fresh intent for its exact owner/root, not the previous chat.
+Unrelated pending read/metadata requests cannot disable terminal startup or +;
+only the console's own pending operation gates them. Actual failures remain
+visible, with explicit + retry rather than automatic launch replay. Settings/
+tab restoration and reselecting the same X-closed visible chat do not reopen it.
+Sandbox user consoles remain unqualified and are labelled as such; Agent
+command output stays separate, with no automatic Local fallback.
+
+The terminal-startup follow-up is included in the rebuilt development app/DMG:
+the final complete hidden Electron run passes 138 cases with two physical-native
+skips, and 14 startup/sidebar cases pass in the actual packaged app. Exact
+ownership, failure/retry, installation and artifact measurements are recorded
+in [session-terminal startup qualification](architecture/sdk-platform.md#session-terminal-startup-qualification).
 
 CLI `moguri terminal default-root` discloses the default without starting a
 process. `terminal open-global /absolute/root` explicitly opens the global
@@ -1693,7 +2211,7 @@ TUI **Ctrl+Space** starts/stops its native default microphone; **F4** inserts th
 completed local transcript. CLI/TUI native live recording does not pretend to
 select a saved desktop device: choose the native default or use explicit file
 transcription. Native file transcription accepts regular PCM WAV up to 64 MiB.
-Live native finalization has up to 30 seconds; cancel escalates an unresponsive
+Live native finalization has up to 60 seconds; cancel escalates an unresponsive
 process. Actual exit status/signal and bounded diagnostics remain visible.
 **Settings / Voice dictation / Native speech backend** saves an explicit
 Automatic/CPU/Metal choice. No failure silently switches backends or providers.
@@ -1793,6 +2311,15 @@ observations leave phase unchanged and show diagnostics. Automatic observation
 can be disabled. Public GitHub API is default; explicitly select your signed-in
 GitHub CLI account for private PRs. This never merges a PR or starts CI.
 
+Direct session and managed-workspace PR links share the same read-only
+observation preference. Up to four session reads can be in flight; fresh
+observations are retained for two minutes and a verified merge is stable.
+Matching work-item links reuse the board's current observation. Project-free
+links stay public-only with no root or inherited account. Private reads use the
+exact bound Local root and explicitly selected control-plane `gh` access,
+not a Remote SSH account. Missing access stays visibly unverified with its
+diagnostic; no account, provider or base checkout is substituted.
+
 TUI `/issues` shows the board; `/issue new` opens a full JSON editor and
 `/issue create feature|bug|misc TITLE` is a shortcut. `/issue edit ID`,
 `/issue move ID PHASE`, `/issue archive|restore ID`, `/board edit` and
@@ -1843,7 +2370,7 @@ After a service restart, drafts and unclaimed queues survive. Interrupted
 requests/tools become partial or unconfirmed, not successful, and are not
 re-executed. Saved queues require explicit resumption. A failed/unconfirmed
 workspace pauses automatic admission across its sessions. Inspect the workspace
-and processes, then choose **Resume after inspection** or `/resume`.
+and processes, then use the composer's **Resume** play control or `/resume`.
 That action authorizes continuation; it does not retroactively prove cleanup.
 
 Only one active agent writer may lease a filesystem root at once; separate
@@ -2206,8 +2733,24 @@ portable foundation, with macOS-only operational tests skipped.
 npm run package:mac
 ```
 
+DMG packaging also needs Python 3.10 or newer. The build creates a private
+`.native/dmgbuild-py<version>-<manifest-digest>/` environment and installs only
+the three SHA-256-locked wheels in `scripts/requirements-dmg.txt` from PyPI.
+System Python packages are never changed, and Python/build tools are not shipped
+in the app. Runtime/TUI installation requirements remain unchanged.
+
+The DMG opens in a native 540-by-380-point icon-view window: Moguri on the
+left, Applications on the right, with 80-point icons, 12-point native labels,
+and a light-gray/dashed-arrow background at both normal and Retina density.
+The title is `Moguri <version>-arm64`. Only the real app and Applications link
+are visible; toolbars, sidebars and status/path bars stay hidden. This matches
+the supplied Porto installer proportions without using Porto branding.
+Finder metadata is written offline, never through Finder/AppleScript automation.
+`npm run verify:update -- --dmg-only` checks the actual read-only mounted image,
+including the background alias, exact pixels/geometry and unchanged signed app.
+
 On macOS arm64 this produces
-`release/<package-version>/Moguri-darwin-arm64/Moguri.app`,
+`release/builds.noindex/<package-version>/Moguri-darwin-arm64/Moguri.app`,
 `release/Moguri-<package-version>-macos-arm64.dmg` and the corresponding ZIP. The app
 contains the pinned Node runtime, SDK/workers, mascot icon, native speech runtime
 and production dependencies, but no model weights. Development

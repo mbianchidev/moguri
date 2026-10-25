@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { DraftEditor, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
-import { AttachmentMenu, AttachmentReview, ContextImage, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
+import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
 import { ContextCompactionReview } from "./ContextCompaction.tsx";
 import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
 import { useDecisionStatus } from "./DecisionPanel.tsx";
-import { ContextDocument } from "./DocumentAttachment.tsx";
+import { estimatedCost } from "./ChatActivity.tsx";
 import { useDictation } from "./useDictation.ts";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
@@ -45,7 +45,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const [contextReview, setContextReview] = useState(false);
   const [heldPending, setHeldPending] = useState(false);
+  const [resuming, setResuming] = useState(false), resumePending = useRef(false);
   const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
+  const triggerRef = useRef(pendingTrigger);
+  const setTrigger = (value: typeof pendingTrigger) => { triggerRef.current = value; setPendingTrigger(value); };
+  const [previewOpen, setPreviewOpen] = useState(false), [dragging, setDragging] = useState(false);
+  const [sessionOption, setSessionOption] = useState(0), [dismissedTrigger, setDismissedTrigger] = useState<string | null>(null);
+  const [finishingVoice, setFinishingVoice] = useState(false);
   const [documentCapture, setDocumentCapture] = useState<{ id: string; name: string } | null>(null), [documentError, setDocumentError] = useState("");
   const heldModifier = useQueueModifier();
   const [configurationCount, setConfigurationCount] = useState(0), [configurationError, setConfigurationError] = useState("");
@@ -61,9 +67,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running");
   const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
   const transcript = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind) && job.status === "completed");
+  const voiceFinalizing = finishingVoice || Boolean(voiceJob?.progress?.startsWith("Finalizing"));
+  const voicePreparing = voiceJob?.kind === "voice.record" && Boolean(voiceJob.progress?.startsWith("Preparing"));
   const [insertedTranscript, setInsertedTranscript] = useState<string | null>(null);
   const isSlash = draft.text.startsWith("/");
-  const attachmentTrigger = isSlash ? null : parseAttachmentTrigger(draft.text);
+  const attachmentTrigger = isSlash || dismissedTrigger === draft.text ? null : parseAttachmentTrigger(draft.text);
+  const sessionOptions = attachmentTrigger && [":", "!"].includes(attachmentTrigger.prefix) ? matchingContextSessions(snapshot, session.id, attachmentTrigger.query) : [];
+  useEffect(() => { setSessionOption(0); }, [attachmentTrigger?.prefix, attachmentTrigger?.query]);
   const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
   const requiresDocuments = draft.attachments.some((attachment) => attachment.kind === "document") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "document"));
   const documentBlocked = requiresDocuments && (model?.toolInput === false || session.kind === "metachat" || session.kind === "subagent");
@@ -72,20 +82,26 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const hardBudget = Boolean(snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
   const answering = Boolean(question && delivery === "queue" && !isSlash);
-  const canQueue = connected && !busy && !configuring && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
+  const needsResume = !session.turnId && (snapshot.blockedSessions.includes(session.id) ||
+    Boolean(session.workspaceId && snapshot.blockedWorkspaces.includes(session.workspaceId)) ||
+    Boolean(session.projectId && !session.workspaceId && snapshot.blockedProjects.includes(session.projectId)));
+  const resumeAction = needsResume && !isSlash && !held && !heldPending;
+  const canResume = connected && !busy && !configuring && !resuming && session.status !== "archived";
+  const canQueue = connected && !busy && !configuring && !resuming && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
   const canSend = answering ? canQueue && Boolean(draft.text.trim()) && Boolean(question?.allowFreeform || question?.choices.includes(draft.text)) :
     canQueue && snapshot.provider.status === "connected" && eligibleModel && !needsNativeStage && (session.controls.autonomy !== "Autopilot Max" || decisions.ready) &&
     snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && !documentBlocked && (delivery === "queue" || Boolean(session.turnId));
   const suggestions = isSlash && !/\s/.test(draft.text) ? slashCommands.filter((command) => command.name.startsWith(draft.text.slice(1))).slice(0, 7) : [];
-  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || contextReview); return () => onMenuChange(false); }, [menu, attachmentReview, contextReview, onMenuChange]);
+  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || previewOpen || contextReview); return () => onMenuChange(false); }, [menu, attachmentReview, previewOpen, contextReview, onMenuChange]);
   const adopt = async (saved: Session["draft"]) => {
     const text = editor.getState().text;
     editor.receive(saved);
-    if (pendingTrigger && text.slice(pendingTrigger.start) === pendingTrigger.prefix + pendingTrigger.query) {
-      editor.edit(text.slice(0, pendingTrigger.start).trimEnd(), saved.attachments);
+    const pending = triggerRef.current, current = parseAttachmentTrigger(text);
+    if (pending && current?.start === pending.start && current.prefix === pending.prefix && current.query === pending.query) {
+      editor.edit(text.slice(0, pending.start).trimEnd(), saved.attachments);
       await editor.flush();
     }
-    setPendingTrigger(null);
+    setTrigger(null);
   };
   const capture: Run = (work) => run(async () => {
     const ids = new Set(editor.getState().attachments.map((attachment) => attachment.id));
@@ -93,19 +109,48 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     const saved = client.getState().snapshot?.sessions.find((session) => session.id === editor.sessionId)?.draft;
     if (saved) { if (saved.attachments.some((attachment) => !ids.has(attachment.id))) await adopt(saved); else editor.receive(saved); }
   });
-  const selectFile = (mode: "auto" | "image" | "document") => {
-    void capture(async () => {
-      const path = await window.moguri.chooseAttachment(mode === "auto" ? "file" : mode);
-      if (!path) return;
-      if (mode === "document" || mode === "auto" && /\.(pdf|xlsx|docx)$/i.test(path)) {
-        const id = crypto.randomUUID(); setDocumentCapture({ id, name: path.split(/[\\/]/).at(-1) ?? "Selected document" }); setDocumentError("");
-        try { await client.attachments.document(session.id, path, { captureId: id }); } finally { setDocumentCapture(null); }
-      } else await client.attachments.file(session.id, path, mode);
-    });
+  const attachFile = async (path: string) => {
+    if (/\.(pdf|xlsx|docx)$/i.test(path)) {
+      const id = crypto.randomUUID(); setDocumentCapture({ id, name: path.split(/[\\/]/).at(-1) ?? "Selected document" }); setDocumentError("");
+      try { await client.attachments.document(session.id, path, { captureId: id }); } finally { setDocumentCapture(null); }
+    } else await client.attachments.file(session.id, path);
   };
-  const send = (event?: FormEvent, hold = held) => {
+  const selectFile = () => { void capture(async () => { const path = await window.moguri.chooseAttachment("file"); if (path) await attachFile(path); }); };
+  const reviewAttachment = async (request: AttachmentReviewRequest) => {
+    if (request.kind === "session" && client.settings.get()?.values.interactions.confirmSessionAttachments === false) {
+      await editor.flush();
+      await client.attachments.session(session.id, request.sourceSessionId, request.preview.digest, true);
+      const saved = client.getState().snapshot?.sessions.find((value) => value.id === session.id)?.draft;
+      if (saved) await adopt(saved);
+    } else setAttachmentReview(request);
+    setMenu(null);
+  };
+  const attachPath = async (path: string) => {
+    const selected = await client.attachments.localPath(session.id, path);
+    if (selected.kind === "folder") await reviewAttachment({ kind: "folder", path: selected.path, preview: (await client.attachments.folderPreview(session.id, selected.path)).preview });
+    else await attachFile(selected.path);
+  };
+  const attachSession = (sourceId: string) => capture(async () => {
+    const state = client.getState().snapshot, source = state?.sessions.find((value) => value.id === sourceId);
+    if (!source || source.status === "archived" || source.id === session.id) throw new Error("Choose another active session in this profile. No content was attached.");
+    await reviewAttachment({ kind: "session", sourceSessionId: source.id, preview: (await client.attachments.sessionPreview(session.id, source.id)).preview });
+  });
+  const removeAttachment = async (id: string) => {
+    const current = editor.getState();
+    editor.edit(current.text, current.attachments.filter((value) => value.id !== id)); await editor.flush();
+  };
+  const submit = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
-    if (heldPending) return;
+    if (heldPending || resumePending.current) return;
+    if (needsResume && !isSlash && !hold) {
+      if (!canResume) return;
+      resumePending.current = true; setResuming(true);
+      void run(async () => {
+        try { await client.command({ type: "session.resume", sessionId: session.id }); }
+        finally { resumePending.current = false; setResuming(false); }
+      });
+      return;
+    }
     const pendingHold = hold && !isSlash;
     if (pendingHold) setHeldPending(true);
     void run(async () => {
@@ -116,22 +161,61 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       } finally { if (pendingHold) setHeldPending(false); }
     });
   };
+  const insertTranscript = async (jobId: string) => {
+    await editor.flush();
+    const current = client.getState().snapshot?.sessions.find((item) => item.id === session.id);
+    if (!current) throw new Error("The dictation destination was removed. The transcript was not inserted elsewhere.");
+    await client.voice.insert(session.id, jobId, current.draft.revision);
+    const saved = client.getState().snapshot?.sessions.find((item) => item.id === session.id)?.draft;
+    if (saved) editor.receive(saved);
+    setInsertedTranscript(jobId);
+  };
   const dictate = () => {
-    if (voiceJob?.kind === "voice.record") void run(() => client.voice.stop(voiceJob.id));
-    else if (dictation.state.phase === "starting" || dictation.state.phase === "recording") void dictation.finish();
+    if (voiceFinalizing) return;
+    if (voiceJob?.kind === "voice.record") return run(async () => {
+      await editor.flush();
+      if (voicePreparing) { await client.jobs.cancel(voiceJob.id); return; }
+      setFinishingVoice(true);
+      try {
+        await client.voice.stop(voiceJob.id);
+        const settled = await client.jobs.wait(voiceJob.id, { timeoutMs: 65_000 });
+        if (settled.status !== "completed") throw new Error(settled.error ?? `Local dictation ${settled.status}. Your draft was preserved.`);
+        await insertTranscript(voiceJob.id);
+      } finally { setFinishingVoice(false); }
+    });
+    if (dictation.state.phase === "starting" || dictation.state.phase === "recording") void dictation.finish();
     else if (dictation.state.phase === "idle" || dictation.state.phase === "failed") void dictation.start();
   };
   const configure = (controls: Controls) => run(async () => {
     await client.sessions.configure(session.id, controls, session.revision);
     setMenu(null);
   });
-  const toggle = (value: Menu) => { if (value === "attach") setPendingTrigger(null); setMenu((current) => current === value ? null : value); };
-  const chooseAttachmentTrigger = () => { if (attachmentTrigger) { setPendingTrigger(attachmentTrigger); setMenu("attach"); } };
+  const toggle = (value: Menu) => { if (value === "attach") setTrigger(null); setMenu((current) => current === value ? null : value); };
+  const chooseAttachmentTrigger = () => {
+    if (!attachmentTrigger) return;
+    setTrigger(attachmentTrigger);
+    if ([":", "!"].includes(attachmentTrigger.prefix) && sessionOptions[sessionOption]) { void attachSession(sessionOptions[sessionOption]!.id); return; }
+    if (attachmentTrigger.prefix === "^" && attachmentTrigger.query) { void capture(() => attachPath(attachmentTrigger.query)); return; }
+    setMenu("attach");
+  };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
-  const sendLabel = isSlash ? "Run command" : held || heldPending ? "Queue prompt without starting work" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
+  const sendLabel = isSlash ? "Run command" : held || heldPending ? "Queue prompt without starting work" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
-  return <form className="composer compact-composer" onSubmit={(event) => send(event)} onKeyDown={(event) => { if (event.key === "Escape") setPendingTrigger(null); }} aria-label="Message composer" aria-description={answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without starting work."}>
+  return <form className={`composer compact-composer ${dragging ? "session-drop-target" : ""}`} onSubmit={(event) => submit(event)} onKeyDown={(event) => { if (event.key === "Escape") { setTrigger(null); setDismissedTrigger(draft.text); } }}
+    onDragOver={(event) => { if (event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setDragging(true); } }}
+    onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
+    onDrop={(event) => {
+      if (!event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) return;
+      event.preventDefault(); event.stopPropagation(); setDragging(false); setTrigger(null);
+      const raw = event.dataTransfer.getData(SESSION_DRAG_TYPE);
+      void run(async () => {
+        const source: unknown = JSON.parse(raw);
+        if (!isRecord(source) || source.profileId !== client.profileId || typeof source.sessionId !== "string") throw new Error("Drop a session from this profile. No source content was read.");
+        await attachSession(source.sessionId);
+      });
+    }}
+    aria-label="Message composer" aria-description={resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without resuming." : answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without starting work."}>
     {documentCapture && <div className="document-capture"><p role="status">Extracting {documentCapture.name} locally. No model call; your draft is preserved.</p><progress aria-label="Local document extraction" /><button type="button" onClick={() => void client.attachments.cancelDocument(session.id, documentCapture.id).catch((error: unknown) => setDocumentError(error instanceof Error ? error.message : "Capture stop is unconfirmed. Inspect the saved draft."))}>Cancel extraction</button></div>}
     {documentError && <p className="inline-error" role="alert">{documentError}</p>}
     {configuring && <p className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</p>}
@@ -144,7 +228,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {session.localFinishing && <p className="local-finishing">Local finishing. New Local turns are blocked by policy.</p>}
     {needsNativeStage && <button type="button" className="setup-hint" onClick={onSandbox}>Review a private native workspace before starting a turn. Your draft and held queue are preserved.<Icon name="Box" /></button>}
     {session.controls.autonomy === "Autopilot Max" && !decisions.ready && <button type="button" className="setup-hint" onClick={onDecisions}>{decisions.reason}<Icon name="Rocket" /></button>}
-    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <span key={attachment.id} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>{attachment.kind === "document" ? <ContextDocument sdk={client} sessionId={session.id} attachment={attachment} /> : <>{attachment.kind === "image" ? <ContextImage sdk={client} sessionId={session.id} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "Files"} />}{attachment.path}</>}<button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => editor.edit(draft.text, draft.attachments.filter((item) => item.id !== attachment.id))}><Icon name="Close" /></button></span>)}</div>}
+    {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <AttachmentChip key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} remove={() => removeAttachment(attachment.id)} onOpenChange={setPreviewOpen} />)}</div>}
+    {dragging && <p className="session-drop-hint" role="status">Drop to attach this session's content</p>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>Prompt</label>
     <textarea id={`prompt-${session.id}`} placeholder={answering ? question?.allowFreeform ? "Type your answer..." : "Choose one of the offered answers above..." : session.kind === "metachat" ? "Ask about Moguri settings..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
       onPaste={(event) => {
@@ -163,24 +248,29 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       }}
       onKeyDown={(event) => {
         if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-        if (event.key === "Tab" && suggestions[0]) { event.preventDefault(); editor.edit(`/${suggestions[0].name} `); }
+        if (sessionOptions.length && ["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); setSessionOption((index) => (index + (event.key === "ArrowDown" ? 1 : -1) + sessionOptions.length) % sessionOptions.length); }
+        else if (sessionOptions.length && event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey) { event.preventDefault(); chooseAttachmentTrigger(); }
+        else if (event.key === "Tab" && suggestions[0]) { event.preventDefault(); editor.edit(`/${suggestions[0].name} `); }
         else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
         else {
           const action = chatSubmission(event);
-          if (action && (isSlash || action === "hold" ? canQueue : canSend)) send(undefined, action === "hold");
+          if (!action) return;
+          event.preventDefault();
+          if (isSlash || action === "hold" ? canQueue : needsResume ? canResume : canSend) submit(undefined, action === "hold");
         }
       }} />
     {suggestions.length > 0 && <div className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion) => <button type="button" role="option" aria-selected={false} key={suggestion.name} onClick={() => editor.edit(`/${suggestion.name} `)}><strong>/{suggestion.name}</strong><span>{suggestion.description}</span></button>)}</div>}
+    {sessionOptions.length > 0 && <div className="attachment-session-suggestions" role="listbox" aria-label="Active context sessions">{sessionOptions.map((source, index) => <button type="button" role="option" aria-selected={index === sessionOption} key={source.id} onClick={() => { setTrigger(attachmentTrigger); void attachSession(source.id); }}><Icon name="Side chat" /><span>{sessionTitle(source)}</span></button>)}</div>}
     {attachmentTrigger && <button className="attachment-trigger-hint quiet" type="button" onClick={chooseAttachmentTrigger}>{attachmentTrigger.prefix} {attachmentTriggers[attachmentTrigger.prefix]}<small>Tab to choose; text stays literal until selection</small></button>}
     {draft.error && <div className="draft-error" role="alert"><p>{draft.error}</p><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "recording" ? "Recording the selected local microphone. Nothing is sent." : dictation.state.phase === "transcribing" ? "Recognizing the captured local WAV. Nothing is sent." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
     {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <p className="composer-voice-status inline-error" role="alert">{dictation.state.error}</p>}
     {voiceOutcome?.status === "failed" && <p className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Your draft is unchanged."}</p>}
-    {transcript && transcript.id !== insertedTranscript && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(async () => { await editor.flush(); await client.voice.insert(session.id, transcript.id, client.getState().snapshot!.sessions.find((item) => item.id === session.id)!.draft.revision); setInsertedTranscript(transcript.id); })}>Insert</button></div>}
+    {transcript && transcript.id !== insertedTranscript && !finishingVoice && <div className="composer-transcript"><Icon name="Mic" /><span>Dictation ready</span><button type="button" onClick={() => void run(() => insertTranscript(transcript.id))}>Insert</button></div>}
     <div className="composer-toolbar">
       <div className="composer-leading">
-        {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} editor={editor} run={run} capture={capture} selectFile={selectFile} initial={pendingTrigger} close={() => setMenu(null)} review={(request) => { setAttachmentReview(request); setMenu(null); }} />)}
+        {item("attach", "Attach", "Plus", <AttachmentMenu sdk={client} session={session} project={project} snapshot={snapshot} run={run} capture={capture} selectFile={selectFile} attachPath={attachPath} initial={pendingTrigger} close={() => setMenu(null)} review={reviewAttachment} />)}
         <button className="composer-mode" type="button" role="switch" aria-label="Agent mode"
           aria-checked={(session.pendingMode ?? session.mode) === "agent"} disabled={busy || !connected || session.status === "archived" || session.kind === "side" || session.kind === "subagent"}
           title={session.pendingMode ? "Requested mode applies at the next safe boundary" : (session.mode === "agent" ? "Agent: switch to read-only" : "Read-only: switch to agent")}
@@ -200,14 +290,14 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} editor={editor} />)}
-        <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"} aria-pressed={dictation.state.phase === "recording"} disabled={dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"} title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`} onClick={dictate}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
+        <button className={`icon-button composer-mic ${voiceJob ? "recording" : ""}`} type="button" aria-label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"} aria-pressed={dictation.state.phase === "recording"} disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"} title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`} onClick={() => void dictate()}><Icon name={voiceJob ? "Stop" : "Mic"} /></button>
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
-            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} title={held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || (isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); send(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : "Send"} /></button>}
+            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || undefined} title={resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || (resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : resumeAction ? "Play" : "Send"} /></button>}
           <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
             <h2>Delivery</h2>{(["queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}
-            {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); send(undefined, held); }}>{sendLabel}</button>}
-            <p>Enter sends using this delivery mode. Cmd/Ctrl+Enter always holds the prompt instead.</p>
+            {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); submit(undefined, held); }}>{sendLabel}</button>}
+            <p>{resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first." : "Enter sends using this delivery mode."} Cmd/Ctrl+Enter always holds the prompt instead.</p>
           </ComposerPopover>
         </div>
       </div>
@@ -262,21 +352,21 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const revision = useRef(session.revision);
   const windows = current && !current.synthetic ? modelContextWindows(current) : null;
   const staleWindow = Boolean(window && !windows?.values.includes(Number(window)));
+  const staleEffort = Boolean(effort && !current?.thinkingLevels?.includes(effort));
   const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
   const select = async (model: ModelInfo) => {
     setSaving(true); onSaving(true); setError(""); onError("");
     try {
-      const { modelOptions: _, ...controls } = session.controls;
-      const result = await sdk.sessions.configure(session.id, { ...controls, modelId: model.id }, revision.current);
+      const result = await sdk.sessions.selectModel(session.id, model.id, revision.current);
       revision.current = result.revision!; setWindow(""); setEffort("");
     } catch (error) { const message = error instanceof Error ? error.message : "Model selection failed. No fallback was used."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
-  const save = async (options: ModelOptions) => {
+  const save = async (options: ModelOptions, rememberModelSelection = false) => {
     setSaving(true); onSaving(true); setError(""); onError("");
-    try { const result = await sdk.sessions.modelOptions(session.id, options, revision.current); revision.current = result.revision!; }
+    try { const result = await sdk.sessions.modelOptions(session.id, options, revision.current, rememberModelSelection || undefined); revision.current = result.revision!; }
     catch (error) { const message = error instanceof Error ? error.message : "Model settings were not saved."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
@@ -293,13 +383,16 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         {windows?.values.map((value) => <option key={value} value={value}>{count(value)} tokens{windows.source === "provider" ? " (provider supported)" : value === current?.contextWindow ? " (maximum)" : " (half maximum)"}</option>)}
         {staleWindow && <option value={window} disabled>Saved unsupported window ({count(Number(window))})</option>}
       </select></label>
-      <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length || saving || pending || Boolean(session.turnId)} onChange={(event) => {
+      <label>Thinking effort<select aria-label="Thinking effort" value={effort} disabled={!current?.thinkingLevels?.length && !staleEffort || saving || pending || Boolean(session.turnId)} onChange={(event) => {
         const value = current?.thinkingLevels?.find((level) => level === event.target.value) ?? ""; setEffort(value);
-        void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) });
-      }}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>{current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
+        void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true);
+      }}><option value="">{current?.thinkingLevels?.length ? "Model default" : "Provider controlled"}</option>
+        {staleEffort && <option value={effort} disabled>Saved unsupported effort: {effort}</option>}
+        {current?.thinkingLevels?.map((level) => <option value={level} key={level}>{level}</option>)}</select></label>
       <p>{current?.synthetic ? snapshot.settings.values.kupo.workflow === "compound" ? "Reviewed Compound uses exact Local source/worktree/test review in Candidates. Each role keeps its actual working window/output bound. Finite Local turns need explicit reserved wind-down; use a fixed model for tuning." : "Single alpha is text-only. Finite Local turns need the explicit reserved wind-down policy; use a fixed model for context/thinking overrides. Actual roles and model accounting remain separate." : "Working context stays within the model maximum. Counts are estimated; overfull requests stop without truncating history."}</p>
       {session.turnId && <p>Stop the active turn before changing model settings.</p>}
       {staleWindow && <p className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</p>}
+      {staleEffort && <p className="inline-error" role="alert">The saved thinking effort is no longer supported. Choose an offered effort or provider default explicitly. The model and context were not substituted.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
       <div className="button-row"><span className="fine-print" role="status">{saving ? "Saving..." : dirty ? "Settings were not saved. Reload before choosing again." : "Changes save automatically."}</span><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </div>
@@ -317,24 +410,35 @@ function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session
     void (async () => { await editor.flush(); const result = await sdk.sessions.context(session.id); if (current) { setContext(result.context); setError(""); } })().catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "Context usage is unavailable."); });
     return () => { current = false; };
   }, [session.draft.revision, session.revision, session.usage.length, session.usage.at(-1)?.outcome]);
-  const tokens = (field: "inputTokens" | "outputTokens" | "cacheReadTokens") => {
-    if (!session.usage.length) return "0";
-    const values = session.usage.map((usage) => usage[field]);
-    const known = values.filter((value): value is number => value !== null);
-    return known.length ? `${count(known.reduce((sum, value) => sum + value, 0))}${known.length < values.length ? " + unknown" : ""}` : "Not reported";
-  };
-  const dollars = (field: "estimatedUsd" | "providerReportedUsd" | "billedUsd") => {
-    const values = session.usage.map((usage) => usage[field]);
-    if (!values.length || values.every((value) => value === null)) return null;
-    return `${new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(values.reduce<number>((sum, value) => sum + (value ?? 0), 0))}${values.some((value) => value === null) ? " + unknown" : ""}`;
-  };
-  return <><header className="composer-usage-heading"><h2>Usage</h2><span>{session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit ? "Hard policy applies" : "Unlimited" : "Estimated cap"}</span></header>
-    <div className="button-row"><button type="button" aria-pressed={budgetView === "usage"} onClick={() => setBudgetView("usage")}>Current usage</button><button type="button" aria-pressed={budgetView === "limits"} onClick={() => setBudgetView("limits")}>Session budget limits</button></div>
-    <div hidden={budgetView !== "usage"}><dl className="composer-usage"><dt>Input tokens</dt><dd>{tokens("inputTokens")}</dd><dt>Output tokens</dt><dd>{tokens("outputTokens")}</dd><dt>Cached input</dt><dd>{tokens("cacheReadTokens")}</dd><dt>Context estimate</dt><dd>{context ? `~${count(context.estimatedTokens)}${context.contextWindow ? ` / ${count(context.contextWindow)}` : ""}` : error ? "Unavailable" : "Loading..."}</dd>
-    {(["estimatedUsd", "providerReportedUsd", "billedUsd"] as const).map((field) => { const value = dollars(field); return value ? <div className="usage-dollar-row" key={field}><dt>{field === "estimatedUsd" ? "Estimated USD" : field === "providerReportedUsd" ? "Provider-reported USD" : "Billed USD"}</dt><dd>{value}</dd></div> : null; })}
-  </dl>{!dollars("estimatedUsd") && !dollars("providerReportedUsd") && !dollars("billedUsd") && <p>USD not reported.</p>}<p>Context includes the saved draft and is estimated. Usage updates after each call; unreported values stay unknown.</p>
-    {accounting.status && <BudgetSummary status={accounting.status} />}
+  const totals = accounting.status?.totals;
+  const tokens = (value: number | null | undefined, known = 0) => value === undefined ? "Loading..." : value === null ? known > 0 ? `${count(known)} + unknown` : "Not reported" : count(value);
+  const plan = session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based limits";
+  const used = context?.estimatedTokens, window = context?.contextWindow;
+  const percent = used !== undefined && window ? used / window * 100 : null;
+  return <>
+    <div hidden={budgetView !== "usage"} className="compact-budget">
+      <dl className="compact-usage">
+        <div className="compact-cost-row"><dt>Est. USD</dt><dd title="Captured model-specific estimates, including owning-session roles; not a bill.">{totals ? estimatedCost(totals) : accounting.error ? "Unavailable" : "Loading..."}</dd></div>
+        <div><dt>Plan</dt><dd>{plan}</dd></div>
+        <div><dt>Session</dt><dd>{totals ? `${count(totals.calls)} model call${totals.calls === 1 ? "" : "s"}` : "Loading..."}{accounting.status && accounting.status.ownerSessionId !== session.id && <small>Charged to the owning session</small>}</dd></div>
+        <div><dt>Tokens</dt><dd className="compact-token-lines">
+          <span><Icon name="Up" /><span><span className="sr-only">Input tokens </span>{tokens(totals?.inputTokens, totals?.knownInputTokens)}<small> ({tokens(totals?.cacheReadTokens)} cached)</small></span></span>
+          <span><Icon name="Down" /><span><span className="sr-only">Output tokens </span>{tokens(totals?.outputTokens, totals?.knownOutputTokens)}</span></span>
+        </dd></div>
+        <div><dt>Context</dt><dd>
+          {percent !== null && used !== undefined && window ? <meter className="compact-context-meter" aria-label="Estimated context window" min={0} max={window} value={Math.min(used, window)}
+            aria-valuetext={`Estimated ${count(used)} tokens of ${count(window)}`} /> : <div className="compact-context-meter" aria-hidden="true" />}
+          <div className="compact-context-values"><span>{percent === null ? context ? `~${count(context.estimatedTokens)}` : error ? "Unavailable" : "Loading..." : `~${Math.round(percent)}%`}</span><span title="Selected working window">{window ? count(window) : "No model window"}</span></div>
+          {percent !== null && percent > 100 && <small className="inline-error">Over the working window; context is not truncated.</small>}
+        </dd></div>
+      </dl>
+      <p className="compact-usage-note">Context is estimated, including the saved draft.{totals?.estimatedUsd === null && totals.knownEstimatedUsd === 0 ? " USD not reported or priced." : ""}</p>
+      {totals && (totals.unknownTokenCalls > 0 || totals.heldTokens === null) && <p className="compact-usage-note">Unknown usage/holds remain charged. Open limits for details.</p>}
+      <button className="compact-usage-link" type="button" onClick={() => setBudgetView("limits")}>View usage and limits...</button>
     </div>
-    <div hidden={budgetView !== "limits"}><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} /></div>
+    <div hidden={budgetView !== "limits"}><header className="composer-usage-heading"><button className="icon-button" type="button" aria-label="Back to compact usage" onClick={() => setBudgetView("usage")}><Icon name="Back" /></button><h2>Usage and limits</h2></header>
+      <details><summary>Detailed session accounting</summary>{accounting.status && <BudgetSummary status={accounting.status} />}</details>
+      <h3>Session budget limits</h3><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} />
+    </div>
     {(error || accounting.error) && <p className="inline-error" role="alert">{error || accounting.error}</p>}</>;
 }

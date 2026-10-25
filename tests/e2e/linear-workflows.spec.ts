@@ -68,6 +68,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     const local = (await f.sdk.issues.board(f.projectId)).issues.find((entry) => entry.id === linked.id)!;
     await form.getByLabel("Operation", { exact: true }).selectOption("ticket.sync");
     await form.getByLabel("Local ticket", { exact: true }).selectOption(local.id);
+    await expect(form.getByLabel("Local ticket", { exact: true }).locator("option:checked")).toContainText(`revision ${local.revision}`);
     await form.getByLabel("Direction", { exact: true }).selectOption("pull");
     const mapping = form.getByRole("group", { name: "Explicit phase to Linear state mapping", exact: true });
     await mapping.getByLabel("Backlog", { exact: true }).fill(ids.state);

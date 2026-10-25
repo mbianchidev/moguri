@@ -176,15 +176,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     setDraft((current) => ({ ...current, [section]: replace ? value : { ...current[section], ...patch } }));
     void write({ ...committedValues.current, [section]: value }, () => {});
   };
-  const automaticDefaults = (patch: ControlDefaults, remove: (keyof ControlDefaults)[] = []) => {
+  const automaticDefaults = (patch: ControlDefaults, remove: (keyof ControlDefaults)[] = [], scope: "global" | "profile" = "profile") => {
     if (ownSave.current || raw.startup !== undefined) { setError("Save or reload the startup JSON before changing default controls. Your text is preserved."); return; }
     const merge = (profile: ControlDefaults) => {
       const value = { ...profile, ...patch, ...(patch.modelOptions ? { modelOptions: { ...profile.modelOptions, ...patch.modelOptions } } : {}) };
       for (const key of remove) delete value[key];
       return value;
     };
-    const startup = { ...committedValues.current.startup, profile: merge(committedValues.current.startup.profile) };
-    setDraft((current) => ({ ...current, startup: { ...current.startup, profile: merge(current.startup.profile) } }));
+    const startup = { ...committedValues.current.startup, [scope]: merge(committedValues.current.startup[scope]) };
+    setDraft((current) => ({ ...current, startup: { ...current.startup, [scope]: merge(current.startup[scope]) } }));
     void write({ ...committedValues.current, startup }, () => {});
   };
   const saveGuidance = (key: keyof Guidance) => {
@@ -226,6 +226,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
   const pending = snapshot.proposals.filter((proposal) => proposal.projectId === project?.id && proposal.status === "pending");
   const activeVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && job.kind.startsWith("voice.") && job.status === "running");
+  const voiceDownload = snapshot.jobs.findLast((job) => job.kind === "voice.download" && job.status === "running");
+  const lastVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
   const completedVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind) && job.status === "completed");
   const modelPromptChanged = draft.systemPrompt !== committed.systemPrompt;
   const projectServers = session ? snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId)?.values.mcpServers ?? [] : [];
@@ -235,9 +237,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
   const routingModels = snapshot.provider.models.filter((model) => !model.synthetic);
-  const defaultModelId = Object.hasOwn(draft.startup.profile, "modelId") ? draft.startup.profile.modelId : draft.startup.global.modelId;
+  const explicitDefaultModelId = Object.hasOwn(draft.startup.profile, "modelId") ? draft.startup.profile.modelId : draft.startup.global.modelId;
+  const defaultModelId = explicitDefaultModelId === undefined ? snapshot.lastModelSelection?.modelId : explicitDefaultModelId;
   const defaultModel = snapshot.provider.models.find((model) => model.id === defaultModelId);
-  const defaultEffort = (Object.hasOwn(draft.startup.profile, "modelOptions") ? draft.startup.profile.modelOptions : draft.startup.global.modelOptions)?.thinkingEffort;
+  const defaultOptions = Object.hasOwn(draft.startup.profile, "modelOptions") ? draft.startup.profile.modelOptions : draft.startup.global.modelOptions;
+  const defaultEffort = defaultOptions?.thinkingEffort ?? (explicitDefaultModelId === undefined && !Object.hasOwn(draft.startup.profile, "modelOptions") &&
+    !Object.hasOwn(draft.startup.global, "modelOptions") ? snapshot.lastModelSelection?.thinkingEffort : undefined);
+  const globalDefaultModel = snapshot.provider.models.find((model) => model.id === draft.startup.global.modelId);
+  const globalDefaultEffort = draft.startup.global.modelOptions?.thinkingEffort;
+  const rememberedModel = snapshot.provider.models.find((model) => model.id === snapshot.lastModelSelection?.modelId);
   const allowed = snapshot.policy.allowedEnvs, environmentChoice = allowed.length === 3 ? "all" : allowed.length === 2 && !allowed.includes("Local") ? "protected" :
     allowed.length === 1 && allowed[0] === "Sandbox" ? "sandbox" : allowed.length === 1 && allowed[0] === "Remote" ? "remote" : "custom";
   useEffect(() => { setTools([]); setSelectedTool(null); }, [snapshot.profileId, snapshot.settings.revision, snapshot.policy.revision, session?.id, session?.projectId,
@@ -388,8 +396,34 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             <button disabled={remoteInspection !== execution.id || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(async () => { await sdk.remote.acknowledge(execution.id, true); setRemoteInspection(""); })}>Record inspection</button></details>)}
           <p className="fine-print">Review Remote MCP resources and separate access-forwarding grants under MCP gateway. Selecting Remote never grants MCP access. Explicit user consoles use their own captured SSH owner/root, not a Local shell or SendBox isolation. Repository-memory retrieval and transferred Local scripts remain unavailable.</p></>}
         {tab === "startup" && <><h2>New-session defaults</h2><p>Session overrides win over project, current-profile, shared global and factory values. Global preferences intentionally apply to every profile. Preferences never widen hard policy, and saving does not rewrite existing sessions.</p>
+          <h3>Shared global model</h3>
+          <label className="setting-field">Global default model<select aria-label="Global default model" disabled={saving} value={!Object.hasOwn(draft.startup.global, "modelId") ? "last-used" : draft.startup.global.modelId ?? "none"} onChange={(event) => {
+            const value = event.target.value;
+            if (value === "last-used") automaticDefaults({}, ["modelId", "modelOptions"], "global");
+            else automaticDefaults({ modelId: value === "none" ? null : value }, ["modelOptions"], "global");
+          }}>
+            <option value="last-used">Last selected model and thinking effort</option><option value="none">No selected model</option>
+            {draft.startup.global.modelId && !globalDefaultModel && <option value={draft.startup.global.modelId}>Saved unavailable model: {draft.startup.global.modelId}</option>}
+            {snapshot.provider.models.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}
+          </select></label>
+          {draft.startup.global.modelId && <label className="setting-field">Global default thinking effort<select aria-label="Global default thinking effort" disabled={saving || !globalDefaultModel?.thinkingLevels?.length && !globalDefaultEffort} value={globalDefaultEffort ?? "default"} onChange={(event) => {
+            const value = event.target.value;
+            if (value === "default") automaticDefaults({ modelOptions: { thinkingEffort: undefined } }, [], "global");
+            else {
+              const thinkingEffort = globalDefaultModel?.thinkingLevels?.find((effort) => effort === value);
+              if (thinkingEffort) automaticDefaults({ modelOptions: { thinkingEffort } }, [], "global");
+              else setError("This global default model does not expose that thinking effort. No unsupported option was saved.");
+            }
+          }}><option value="default">Provider default</option>
+            {globalDefaultEffort && !globalDefaultModel?.thinkingLevels?.includes(globalDefaultEffort) && <option value={globalDefaultEffort} disabled>Saved unsupported effort: {globalDefaultEffort}</option>}
+            {globalDefaultModel?.thinkingLevels?.map((effort) => <option value={effort} key={effort}>{effort}</option>)}
+          </select></label>}
+          <p className="fine-print">A fixed global choice applies to new chats in every profile unless overridden below or by the project/session. Changing its model resets its model-specific window/effort defaults, not existing chats. Last selected remembers only explicit selections in each profile, never the last inference or a different profile.</p>
+          {snapshot.lastModelSelection ? <p className="fine-print" role="status">Last selected in this profile: {rememberedModel?.name ?? `Saved unavailable model: ${snapshot.lastModelSelection.modelId}`} / {snapshot.lastModelSelection.thinkingEffort ?? "provider default"} thinking.</p> :
+            <p className="fine-print" role="status">No model is remembered in this profile. Choose a model explicitly; no model or provider will be guessed.</p>}
+          <h3>Current-profile overrides</h3>
           <label className="setting-field">Default model<select aria-label="Default model" value={!Object.hasOwn(draft.startup.profile, "modelId") ? "inherit" : draft.startup.profile.modelId ?? "none"} onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["modelId"]) : automaticDefaults({ modelId: event.target.value === "none" ? null : event.target.value })}>
-            <option value="inherit">Use shared global / factory model</option><option value="none">No selected model</option>
+            <option value="inherit">Use shared global / last selected model</option><option value="none">No selected model</option>
             {defaultModelId && !defaultModel && <option value={defaultModelId}>Saved unavailable model: {defaultModelId}</option>}
             {snapshot.provider.models.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}
           </select></label>
@@ -466,6 +500,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             {saveButton("appearance", "Save custom theme colors")}
           </details>
           <button onClick={() => void reset("appearance")}>Restore appearance defaults</button></>}
+        {tab === "interactions" && <><h2>Confirmations</h2>
+          <label className="check-setting"><input type="checkbox" checked={draft.interactions.confirmSessionAttachments} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
+          <label className="check-setting"><input type="checkbox" checked={draft.interactions.confirmTerminalClose} onChange={(event) => change("interactions", { ...draft.interactions, confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
+          <p>Saved in this profile. Hiding a terminal pane leaves its consoles running; the console's X button terminates it without confirmation. Snapshot and ownership checks always apply.</p>
+          <button type="button" onClick={() => void reset("interactions")}>Restore confirmation defaults</button></>}
         {tab === "systemPrompt" && <><h2>System prompt</h2><p>These are Moguri's actual model instructions, not a desktop-only copy. Edits apply to new turns; running turns keep their recorded instruction snapshot.</p>
           <p className="settings-warning">{SYSTEM_PROMPT_WARNING}</p>
           <label className="setting-field">Editable system prompt<textarea aria-label="Editable system prompt" className="prompt-editor" value={draft.systemPrompt} onChange={(event) => change("systemPrompt", event.target.value)} disabled={saving} spellCheck={false} /></label>
@@ -560,17 +599,18 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <label className="setting-field">Language<select aria-label="Dictation language" disabled={saving} value={draft.voice.language} onChange={(event) => automatic("voice", { language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>
           <label className="setting-field">Native speech backend<select aria-label="Native speech backend" disabled={saving} value={draft.voice.backend} onChange={(event) => automatic("voice", { backend: event.target.value === "cpu" ? "cpu" : event.target.value === "metal" ? "metal" : "auto" })}><option value="auto">Automatic</option><option value="cpu">CPU</option><option value="metal" disabled={navigator.platform !== "MacIntel"}>Metal (macOS)</option></select></label>
           <label className="check-setting"><input type="checkbox" checked={acceptLicense} onChange={(event) => setAcceptLicense(event.target.checked)} />I reviewed OpenMDW-1.1 and approve the {voice ? Math.ceil(voice.bytes / 1024 / 1024) : 708} MiB local model download.</label>
-          <div className="button-row"><button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"))}>Model card and license</button><button disabled={!acceptLicense || voice?.modelReady} onClick={() => void run(() => sdk.voice.download(true))}>Download model once</button></div>
+          <div className="button-row"><button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"))}>Model card and license</button><button disabled={!acceptLicense || voice?.modelReady || Boolean(voiceDownload)} onClick={() => void run(() => sdk.voice.download(true))}>Download model once</button></div>
+          {voiceDownload && <div className="button-row"><p role="status">{voiceDownload.progress}</p><button type="button" onClick={() => void run(() => sdk.jobs.cancel(voiceDownload.id))}>Cancel model download</button></div>}
           <h3>Dictate into this session</h3><div className="button-row"><button disabled={saving || !session || !voice?.modelReady || !voice.runtimeReady || Boolean(activeVoice) || dictation.state.phase === "starting" || dictation.state.cleanupPending} onClick={() => void dictation.start()}>Start local microphone</button>
             <button disabled={dictation.state.phase !== "starting" && dictation.state.phase !== "recording" && activeVoice?.kind !== "voice.record"} onClick={() => { if (activeVoice?.kind === "voice.record") void run(() => sdk.voice.stop(activeVoice.id)); else void dictation.finish(); }}>Stop and transcribe</button>
             {(activeVoice || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <button onClick={() => { if (activeVoice && activeVoice.id !== dictation.state.id) void run(() => sdk.jobs.cancel(activeVoice.id)); else void dictation.cancel(); }}>Cancel and discard</button>}</div>
           <p role="status" aria-label="Local microphone status">Microphone: {dictation.state.phase}. {activeVoice?.progress}</p>
           {dictation.state.error && <p className="inline-error" role="alert">{dictation.state.error}</p>}
+          {lastVoice?.status === "failed" && lastVoice.error !== dictation.state.error && <p className="inline-error" role="alert">{lastVoice.error}</p>}
           <label className="setting-field">Or use a local WAV path<input value={input} onChange={(event) => setInput(event.target.value)} placeholder="/path/to/recording.wav" /></label><button disabled={saving || !session || !input || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, input))}>Transcribe local WAV</button>
           {completedVoice && <div className="button-row"><button onClick={() => void run(() => sdk.mcp.readResult(completedVoice.id))}>Review transcript</button><button disabled={!session} onClick={() => void run(() => sdk.voice.insert(session!.id, completedVoice.id, session!.draft.revision))}>Insert into saved draft, never send</button></div>}
           <p className="fine-print">Microphone access is user-initiated and may require OS permission. Recording is bounded to two minutes. A conflicting draft is preserved rather than overwritten.</p></>}
       </fieldset>
-        {snapshot.jobs.length > 0 && <details className="settings-jobs"><summary>Capability jobs and retained results</summary>{snapshot.jobs.slice(-12).reverse().map((job) => <div className="job-row" key={job.id}><div><strong>{job.kind}</strong><small>{job.status}: {job.error ?? job.progress}</small></div>{["running", "waiting_input"].includes(job.status) && <button onClick={() => void run(() => sdk.jobs.cancel(job.id))}>Cancel</button>}{job.resultDigest && <button onClick={() => void run(() => sdk.mcp.readResult(job.id))}>Read result</button>}</div>)}</details>}
         {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}
       </div></div>
   </section>;

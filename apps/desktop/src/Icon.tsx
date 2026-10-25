@@ -1,6 +1,19 @@
 const paths: Record<string, string> = {
   Changes: "M8 3v18m8-18v18M4 7h8m0 10h8", Terminal: "m4 6 6 6-6 6m9 0h7",
   Files: "M3 6h7l2 3h9v11H3Z", Browser: "M3 5h18v15H3Zm0 4h18",
+  File: "M6 3h9l4 4v14H6Zm8 0v5h5",
+  ReadFile: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
+  CreateFile: "M6 3h9l4 4v14H6Zm8 0v5h5m-3 4v6m-3-3h6",
+  EditFile: "M5 3h9l4 4v3M5 3v18h6M13 3v5h5m-7 11 2-5 6-6 3 3-6 6-5 2",
+  Search: "M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.5 13 5 5",
+  Skill: "M3 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-3H3Zm18 0h-6a3 3 0 0 0-3 3v14a4 4 0 0 1 4-3h5Z",
+  Issue: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
+  Mcp: "M5 8h5v8H5ZM3 12h2m5 0h4m0-4h5v8h-5Zm5 4h2M8 5V3m0 18v-2m8-14V3m0 18v-2",
+  Thought: "M8 18H6a4 4 0 0 1-1-8 6 6 0 0 1 11-3 5 5 0 0 1 2 10h-6l-4 4Z",
+  Tool: "m14 6 4 4 3-3a6 6 0 0 1-7 8L7 22l-5-5 7-7a6 6 0 0 1 8-7Z",
+  Info: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10h.01",
+  Progress: "M20 12a8 8 0 1 1-8-8",
+  "Global Terminal": "m4 6 6 6-6 6m9 0h7",
   Image: "M3 4h18v16H3Zm0 12 5-5 5 5 3-3 5 5M8 8h.01",
   "Side chat": "M4 4h16v12H9l-5 4Z", Insights: "M5 20v-6m7 6V4m7 16V9",
   Dashboard: "M3 3h18v18H3Zm4 14v-4m5 4V7m5 10v-7",
@@ -9,10 +22,13 @@ const paths: Record<string, string> = {
   Back: "m14 5-7 7 7 7M7 12h14", Copy: "M8 8h12v12H8Zm-4 8V4h12", Edit: "m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z",
   Trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
   Pin: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8", More: "M5 12h.01M12 12h.01M19 12h.01",
+  PinOff: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8M3 3l18 18",
+  Grip: "M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01",
   Plus: "M12 4v16M4 12h16", Close: "m5 5 14 14M19 5 5 19", Up: "m5 15 7-7 7 7", Down: "m5 9 7 7 7-7",
   Play: "m7 4 14 8-14 8Z", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
   Agent: "m5 5 14 14M5 19 19 5M8 3v4m-5 4h4m13 2h-4m-4 8v-4",
   PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
+  PRMerged: "M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12-7a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6 7v10m0-9a4 4 0 0 0 4 4h6",
   Plan: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
   Artifacts: "M4 3h16v5H4Zm2 5v13h12V8m-8 4h4",
   Candidates: "M5 3h10l4 4v14H5Zm9 0v5h5M8 14l3 3 5-6",
@@ -30,7 +46,6 @@ const paths: Record<string, string> = {
   Car: "m5 9 2-5h10l2 5M3 10h18v9H3Zm3 9v2m12-2v2M6 14h2m8 0h2",
   Rocket: "M9 15C9 7 14 3 21 3c0 7-4 12-12 12ZM9 9H5l-3 6 7 1m6-1v4l-6 3-1-7m-1 4-3 3m11-13a2 2 0 1 0 4 0 2 2 0 0 0-4 0",
   Check: "m4 12 5 5L20 6",
-  Info: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10h.01",
   BookOpen: "M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1Z",
   PanelRight: "M3 4h18v16H3Zm11 0v16",
   Maximize: "M14 3h7v7M21 3l-7 7M10 21H3v-7m0 7 7-7",
@@ -41,5 +56,5 @@ const paths: Record<string, string> = {
   Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
 };
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name === "Sandbox" ? "Box" : name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[name === "Sandbox" ? "Box" : name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : name === "Grip" ? "3" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

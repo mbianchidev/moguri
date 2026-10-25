@@ -39,7 +39,6 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     const profile = await waitFor(() => fixture.service.profiles.catalog().profiles.find((profile) => profile.name === "Generated desktop Beta" && profile.status === "ready"));
     await expect(active).toBeEnabled(); await expect(active).toHaveValue("default");
 
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Budgets", exact: true }).click();
     const policy = page.getByRole("region", { name: "Profile budget policy", exact: true }), global = page.getByRole("region", { name: "Global budget policy", exact: true });
     for (const [region, scope, tokens] of [[policy, "profile", "100000"], [global, "global", "200000"]] as const) {

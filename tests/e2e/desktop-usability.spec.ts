@@ -42,6 +42,7 @@ test("Enter sends, Shift+Enter inserts a line, composition never submits, and mo
     expect(fixture.requests.length).toBe(0);
     await prompt.press("Enter");
     await expect.poll(() => fixture.session().status).toBe("completed");
+    await expect(prompt).toHaveValue("");
     expect(fixture.session().messages.find((message) => message.role === "user")?.text).toBe("Generated first line\nGenerated second line");
     const message = page.locator(".message.assistant").last(), copy = message.getByRole("button", { name: /^Copy message/ });
     await prompt.hover(); await expect(copy).toHaveCSS("opacity", "0");
@@ -52,6 +53,8 @@ test("Enter sends, Shift+Enter inserts a line, composition never submits, and mo
     expect(text!.width).toBeGreaterThan(main!.width * 0.85);
     await prompt.fill("Generated held prompt"); await prompt.press("Control+Enter");
     await expect.poll(() => fixture.session().queue.at(-1)?.held).toBe(true);
+    expect(fixture.session().queue.at(-1)?.text).toBe("Generated held prompt");
+    await expect(prompt).toHaveValue("");
     expect(fixture.requests.length).toBe(1);
 
     const side = await sdk.sessions.spawn(fixture.sessionId, "side");

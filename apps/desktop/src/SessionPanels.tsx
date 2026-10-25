@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { DraftEditor, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { chatSubmission, useQueueModifier } from "./ChatComposer.tsx";
 import { TaskPlanPanel } from "./TaskProgress.tsx";
@@ -118,32 +118,91 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
 export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [url, setUrl] = useState(session.browserUrl ?? "");
   const [error, setError] = useState("");
+  const [browser, setBrowser] = useState<BrowserState | null>(null);
+  const [enabled, setEnabled] = useState(false);
+  const latest = useRef(session); latest.current = session;
+  const updateHost = useRef<() => void>(() => {});
+  const reload = useRef(false);
+  const urlDirty = useRef(false);
+  const controlIntent = useRef(0);
+  const controlPending = useRef(false);
   const host = useRef<HTMLDivElement>(null);
-  useEffect(() => { setUrl(session.browserUrl ?? ""); }, [session.id, session.browserUrl]);
+  useEffect(() => { setUrl(session.browserUrl ?? ""); urlDirty.current = false; }, [session.id, session.browserUrl]);
   useEffect(() => {
     let disposed = false;
     let running = false;
+    let again = false;
+    let polling = false;
     const update = async () => {
-      if (disposed || running || !host.current || !session.browserUrl) return;
+      again = true;
+      if (disposed || running || !host.current) return;
       running = true;
       try {
-        const bounds = host.current.getBoundingClientRect();
-        if (bounds.width > 1 && bounds.height > 1) await window.moguri.preview({ sessionId: session.id, url: session.browserUrl, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } }, sdk.profileId);
+        while (again && !disposed && host.current) {
+          again = false;
+          const bounds = host.current.getBoundingClientRect();
+          if (bounds.width > 1 && bounds.height > 1) {
+            const force = reload.current; reload.current = false;
+            const current = sdk.getState().snapshot?.sessions.find((value) => value.id === session.id) ?? latest.current;
+            await window.moguri.preview({ sessionId: session.id, url: current.browserUrl, reload: force, bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } }, sdk.profileId);
+          }
+        }
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : "Preview could not load. No page content was sent to the agent."); }
       finally { running = false; }
     };
+    const status = async () => {
+      if (disposed || polling) return;
+      polling = true;
+      try {
+        const { browser } = await sdk.browser.state(session.id);
+        if (!disposed) {
+          setBrowser(browser);
+          if (!controlPending.current) setEnabled(Boolean(browser.controlId));
+          if (!urlDirty.current && browser.url && browser.url !== "about:blank") setUrl(browser.url);
+        }
+      } catch (error) { if (!disposed) { setEnabled(false); setError(error instanceof Error ? error.message : "Browser authority could not be read."); } }
+      finally { polling = false; }
+    };
+    updateHost.current = () => void update();
+    let browserSequence = sdk.getState().events.findLast((event) => event.event_type === "session.browser_changed" && event.session_id === session.id)?.seq ?? 0;
+    const unsubscribe = sdk.subscribe(() => {
+      const changed = sdk.getState().events.findLast((event) => event.event_type === "session.browser_changed" && event.session_id === session.id);
+      if (changed && changed.seq > browserSequence) { browserSequence = changed.seq; reload.current = true; void update(); }
+    });
     const observer = new ResizeObserver(() => void update());
     if (host.current) observer.observe(host.current);
     window.addEventListener("scroll", update, true);
     void update();
-    return () => { disposed = true; observer.disconnect(); window.removeEventListener("scroll", update, true); void window.moguri.preview(null, sdk.profileId).catch(() => console.error("Native preview cleanup was not acknowledged.")); };
-  }, [session.id, session.browserUrl]);
-  const navigate = async () => { setError(""); try { await sdk.sessions.browser(session.id, url); } catch (error) { setError(error instanceof Error ? error.message : "Preview URL was not accepted."); } };
-  return <section className="browser-panel"><form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => setUrl(event.target.value)} />
-    <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!session.browserUrl} onClick={() => void window.moguri.openExternal(session.browserUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
+    void status();
+    const timer = setInterval(() => void status(), 500);
+    return () => {
+      disposed = true; clearInterval(timer); unsubscribe(); observer.disconnect(); window.removeEventListener("scroll", update, true);
+      controlIntent.current++; controlPending.current = false;
+      void window.moguri.preview(null, sdk.profileId, session.id).catch(() => console.error("Native preview cleanup was not acknowledged."));
+    };
+  }, [sdk, session.id]);
+  useEffect(() => updateHost.current(), [session.browserUrl, session.controls.env]);
+  const toggle = async (checked: boolean) => {
+    const intent = ++controlIntent.current;
+    controlPending.current = true; setEnabled(checked); setError("");
+    try {
+      const browser = await window.moguri.browserControl(session.id, checked, sdk.profileId);
+      if (controlIntent.current === intent) { setBrowser(browser); setEnabled(Boolean(browser.controlId)); }
+    } catch (error) { if (controlIntent.current === intent) { setEnabled(false); setError(error instanceof Error ? error.message : "Browser control was not changed."); } }
+    finally { if (controlIntent.current === intent) controlPending.current = false; }
+  };
+  const navigate = async () => { setError(""); try { await sdk.sessions.browser(session.id, url); urlDirty.current = false; } catch (error) { setError(error instanceof Error ? error.message : "Preview URL was not accepted."); } };
+  const activeUrl = browser?.url && browser.url !== "about:blank" ? browser.url : session.browserUrl;
+  return <section className="browser-panel"><div className="browser-control"><button className="browser-control-toggle" type="button" role="switch" aria-label="Agent browser control" aria-checked={enabled}
+    disabled={!enabled && (!browser?.available || session.mode !== "agent" || session.kind !== "agent")} onClick={() => void toggle(!enabled)}>
+    <span className="browser-toggle-track" aria-hidden="true"><span className="browser-toggle-thumb" /></span><span>Agent control</span></button>
+    <span>{enabled ? "Agent can use this page" : "Agent access off"}</span></div>
+    <form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => { urlDirty.current = true; setUrl(event.target.value); }} />
+    <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!activeUrl} onClick={() => void window.moguri.openExternal(activeUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
     {error && <p className="inline-error" role="alert">{error}</p>}
     <div ref={host} className="browser-host">{!session.browserUrl && <p>Enter a preview URL. This isolated view has no Moguri bridge, account cookies, filesystem access or automatic model context.</p>}</div>
-    <p className="terminal-boundary">Isolated web preview. Page data is not sent to the agent.</p>
+    <p className="terminal-boundary">{enabled ? "Approved browser tools can read and control this page. Turn off Agent control to revoke access immediately." :
+      session.controls.env === "Local" ? "Isolated web preview. Agent access is off until you enable it; tool approvals still apply." : "Local preview only. Agent browser control is unavailable in Sandbox and Remote; no Local fallback."}</p>
   </section>;
 }
 export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, editorFor, onDirty }: {

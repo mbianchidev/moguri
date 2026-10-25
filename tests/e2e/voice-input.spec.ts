@@ -83,6 +83,7 @@ test("device selection and push-to-talk use real qualified bindings, while relea
     await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.up("D"); await page.keyboard.up("Shift"); await page.keyboard.up("Control");
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
+    await expect(page.getByRole("button", { name: "Start local dictation", exact: true })).toBeEnabled();
 
     await page.evaluate(() => {
       const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -90,7 +91,9 @@ test("device selection and push-to-talk use real qualified bindings, while relea
       navigator.mediaDevices.getUserMedia = (constraints) => { Reflect.set(window, "generatedMediaCalls", Number(Reflect.get(window, "generatedMediaCalls")) + 1); return original(constraints); };
     });
     fixture.service.controller.platform.voice.status = async () => { entered = true; await gate.promise; return original(); };
-    await page.keyboard.press("Control+Shift+D"); await expect.poll(() => entered).toBe(true);
+    await page.keyboard.down("Control"); await page.keyboard.down("Shift"); await page.keyboard.down("D");
+    await expect.poll(() => entered).toBe(true);
+    await page.keyboard.up("D"); await page.keyboard.up("Shift"); await page.keyboard.up("Control");
     gate.resolve();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("cancelled");
     expect(await page.evaluate(() => Reflect.get(window, "generatedMediaCalls"))).toBe(0);

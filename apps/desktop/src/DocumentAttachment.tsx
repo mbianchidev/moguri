@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { attachmentStatus, type DocumentAttachment, type DocumentPage, type DocumentReadOptions, type DocumentSearch, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 
-export function ContextDocument({ sdk, sessionId, attachment }: { sdk: MoguriSdk; sessionId: string; attachment: DocumentAttachment }) {
+export function ContextDocument({ sdk, sessionId, attachment, remove, onOpenChange }: { sdk: MoguriSdk; sessionId: string; attachment: DocumentAttachment; remove?: () => Promise<void>; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (open) onOpenChange?.(true); return () => { if (open) onOpenChange?.(false); }; }, [open, onOpenChange]);
   return <><button className="document-chip quiet" type="button" aria-label={`Preview document ${attachment.path}`} title={attachmentStatus(attachment)} onClick={() => setOpen(true)}><Icon name="Files" />{attachment.path}<small>{attachmentStatus(attachment)}</small></button>
-    {open && <DocumentPreview sdk={sdk} sessionId={sessionId} attachment={attachment} close={() => setOpen(false)} />}</>;
+    {open && <DocumentPreview sdk={sdk} sessionId={sessionId} attachment={attachment} remove={remove} close={() => setOpen(false)} />}</>;
 }
-function DocumentPreview({ sdk, sessionId, attachment, close }: { sdk: MoguriSdk; sessionId: string; attachment: DocumentAttachment; close: () => void }) {
+function DocumentPreview({ sdk, sessionId, attachment, remove, close }: { sdk: MoguriSdk; sessionId: string; attachment: DocumentAttachment; remove?: () => Promise<void>; close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null), generation = useRef(0);
   const [pageNumber, setPageNumber] = useState("1"), [section, setSection] = useState("1");
   const [sheet, setSheet] = useState(attachment.summary.sheets[0]?.name ?? ""), [range, setRange] = useState("A1:D20");
@@ -54,6 +55,6 @@ function DocumentPreview({ sdk, sessionId, attachment, close }: { sdk: MoguriSdk
     {busy && <p role="status">Reading bounded snapshot...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
     {page && <><pre aria-label="Document extracted content">{page.text || "No cells or text in this selection."}</pre><p className="fine-print">UTF-8 bytes {page.offset}..{page.offset + new TextEncoder().encode(page.text).length} of {page.bytes}. Provenance: {JSON.stringify(page.firstLocation)}.</p>{page.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void read(page.nextOffset!)}>Next content page</button>}</>}
     {matches && <><pre aria-label="Document search results">{matches.matches.length ? JSON.stringify(matches.matches, null, 2) : "No literal matches."}</pre>{matches.nextCursor !== null && <button type="button" disabled={busy} onClick={() => void search(matches.nextCursor!)}>Next search results</button>}</>}
-    <footer><button type="button" onClick={close}>Close preview</button></footer>
+    <footer>{remove && <button className="danger" type="button" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The document could not be removed.")).finally(() => setBusy(false)); }}>Remove attachment</button>}<button type="button" onClick={close}>Close preview</button></footer>
   </dialog>;
 }

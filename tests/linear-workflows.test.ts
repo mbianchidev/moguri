@@ -629,6 +629,12 @@ test("Linear SDK and real local HTTP/event transport share reviewed state and re
     const admitted = await f.sdk.linear.accept(preview, true), result = await f.sdk.linear.wait(admitted.id!, { timeoutMs: 5000 });
     assert.equal(result.operation.status, "completed");
     assert.equal(result.operation.sessionId, f.sessionId); assert.equal(result.job?.sessionId, f.sessionId);
+    const activity = (await f.sdk.activity.list(f.sessionId)).activity.entries.find((entry) => entry.source === "linear")!;
+    assert.equal(activity.kind, "create-issue"); assert.equal(activity.label, "Create Linear issue");
+    assert.equal(activity.turnId, null); assert.equal(activity.actor, "user"); assert.equal(activity.status, "completed");
+    assert.equal(JSON.parse((await f.sdk.activity.read(f.sessionId, activity.id, "arguments")).content!.text).fields.title, "Generated SDK remote issue");
+    const activityResult = (await f.sdk.activity.read(f.sessionId, activity.id, "output")).content!;
+    assert.equal(activityResult.bytes, activity.outputBytes); assert.equal(activityResult.text.includes(generatedToken), false);
     await f.other.refresh();
     assert.equal((await f.other.linear.read(admitted.id!)).operation.id, result.operation.id);
     assert.equal(f.other.getState().snapshot?.linearOperations[0]?.status, "completed");

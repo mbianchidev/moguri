@@ -45,7 +45,8 @@ const bridge: DesktopBridge = {
   },
   copyText: (text) => ipcRenderer.invoke("moguri:copy-text", text),
   saveDocument: (document) => ipcRenderer.invoke("moguri:save-document", document),
-  preview: (input, profileId) => ipcRenderer.invoke("moguri:preview", input, profileId),
+  preview: (input, profileId, closingSessionId) => ipcRenderer.invoke("moguri:preview", input, profileId, closingSessionId),
+  browserControl: (sessionId, enabled, profileId) => ipcRenderer.invoke("moguri:browser-control", sessionId, enabled, profileId),
   onNavigateSession: (listener) => {
     const receive = (_event: Electron.IpcRendererEvent, id: unknown, profileId: unknown) => {
       if (typeof id === "string" && /^[A-Za-z0-9-]{1,128}$/.test(id) && typeof profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) listener(id, profileId);
