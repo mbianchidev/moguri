@@ -126,6 +126,7 @@ test("allowed-env policy still blocks startup and plus without substituting anot
     await expect(panel.getByRole("button", { name: "New terminal", exact: true })).toBeDisabled();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated blocked draft cannot trigger execution.");
     await waitFor(() => fixture.session().draft.text === "Generated blocked draft cannot trigger execution.");
+    await expect(page.getByRole("status").filter({ hasText: /^Draft saved$/ })).toHaveCount(1);
     expect(fixture.session().controls.env).toBe("Local");
     expect(sdk.getState().snapshot!.terminals).toHaveLength(0); expect(fixture.requests).toHaveLength(0);
   } finally { await app?.close(); sdk.disconnect(); await fixture.close(); }
