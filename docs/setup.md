@@ -1738,8 +1738,9 @@ selection at creation, but an unset/unavailable/synthetic selection requires an
 explicit concrete model. Choosing it does not change the parent, Env or
 read-only scope, and no failed model is silently substituted.
 
-The desktop rail exposes Terminal, Browser, Insights, a linked PR when present,
-Changes, Files, Plan and Side chat. `/terminal`, its requested `/termnial` alias and the
+The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
+Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
+`/terminal`, its requested `/termnial` alias and the
 terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model
 context or durable command hashes. Closing the panel leaves its shell running;
@@ -1762,13 +1763,23 @@ creates a console; `terminal input ID` accepts bounded piped UTF-8 stdin only.
 record actual user inspection, not proven cleanup.
 
 Terminal also opens without a session. **Global terminal** is one independent
-Local user console per profile, starting in the disclosed canonical home folder.
+Local user console per profile, starting in the disclosed canonical Moguri data folder.
 **This chat** selects session-owned consoles; a project-free chat explicitly
 opens the disclosed Local root without making it a model workspace. Existing
 project consoles still use their exact project/worktree. Changing chat does not
 rebind the global console, and deleting a chat/project does not delete it.
 Global input obeys Local allowed-env policy; a Remote chat never relabels that
 global host shell Remote.
+
+Opening Terminal explicitly starts or reuses the selected chat's qualified
+console. Selecting another chat/project or creating a chat while that pane is
+open carries fresh intent for its exact owner/root, not the previous chat.
+Unrelated pending read/metadata requests cannot disable terminal startup or +;
+only the console's own pending operation gates them. Actual failures remain
+visible, with explicit + retry rather than automatic launch replay. Settings/
+tab restoration and reselecting the same X-closed visible chat do not reopen it.
+Sandbox user consoles remain unqualified and are labelled as such; Agent
+command output stays separate, with no automatic Local fallback.
 
 CLI `moguri terminal default-root` discloses the default without starting a
 process. `terminal open-global /absolute/root` explicitly opens the global
