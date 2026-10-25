@@ -241,6 +241,11 @@ commands remain available. Pending resumes disable the control; failures remain
 visible until an explicit retry. Neither automatically retries; active work still
 shows Stop.
 
+The final development build passes 144 hidden desktop cases with two
+physical-native skips; 14 recovery/composer/Start/Stop cases also pass in the
+actual packaged app. See [composer recovery qualification](architecture/session-interactions.md#composer-recovery-qualification)
+for the exact scope, installation and artifact evidence.
+
 The Plan tab stays empty until the owning model explicitly supplies at least two
 actionable steps. Model checkmarks and estimates live there only, never above
 the textbox, and never prove acceptance or successful completion. An existing
