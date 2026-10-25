@@ -1780,6 +1780,8 @@ Existing files, directories and symlinks at the destination are never
 overwritten. **Refresh command status** shows collisions and changed commands.
 Inspect an existing command yourself rather than replacing it blindly. Shell
 aliases or commands elsewhere on PATH can still take precedence.
+The `.local` and `bin` parent directories must be user-owned, not
+group/world-writable and not symlinks; no alternate destination is substituted.
 
 **Remove `moguri` command** removes only an unchanged, reviewed Moguri-managed
 launcher. It does not remove the app, its data, the bin directory or the PATH
@@ -1787,7 +1789,7 @@ line. The launcher binds the exact app location, not an app-name search or a
 system Node fallback. If you move or rename the app, open that actual copy,
 remove the old managed command and install again. A missing app/runtime/CLI
 exits with code 127 and recovery instructions. If you deleted the app, reinstall
-it before using the native removal action. A copy on a mounted DMG, a
+it before using the native removal action. A copy under `/Volumes`, a
 translocated app or an unpackaged development client cannot install the command.
 
 ### Manual zsh workaround for older builds
