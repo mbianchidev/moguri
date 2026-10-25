@@ -1745,6 +1745,93 @@ installs a skill disabled; enabling is separate. Repo instructions are written
 locally, never committed or pushed by this flow. A write followed by a storage
 failure is explicitly partial and requires inspection/fresh review.
 
+## macOS command-line installation
+
+`Moguri.app` bundles the CLI, TUI, OpenTUI dependencies and shared pinned Node
+runtime, even for desktop-only users. Dragging the app from the DMG into
+Applications installs those files. It **does not launch the TUI or automatically
+add `moguri` to your shell's PATH**.
+
+Open the installed app yourself, then choose **Settings > General > Command line
+> Install `moguri` command**. This explicitly creates an executable at
+`~/.local/bin/moguri` for your macOS user, across Moguri profiles. It needs no
+administrator access or system Node. Both it and the app's shipped
+`Contents/Resources/app/dist/moguri` launcher `exec` the bundled Node runtime and
+CLI, preserving arguments, working directory, standard streams, signals and exit
+codes. Neither launcher opens Electron.
+
+The action does not edit shell startup files. For macOS zsh with the default
+`~/.zshrc`, run this once in your terminal:
+
+```sh
+{
+  grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null ||
+    printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.zshrc"
+} &&
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Then run `moguri` to start the TUI, or `moguri --help` for CLI commands.
+`command -v moguri` shows which command your current shell resolves. Adapt the
+startup file if you use a custom zsh `ZDOTDIR`, Bash or another shell; Electron's
+PATH is not proof of your terminal's PATH.
+
+Existing files, directories and symlinks at the destination are never
+overwritten. **Refresh command status** shows collisions and changed commands.
+Inspect an existing command yourself rather than replacing it blindly. Shell
+aliases or commands elsewhere on PATH can still take precedence.
+
+**Remove `moguri` command** removes only an unchanged, reviewed Moguri-managed
+launcher. It does not remove the app, its data, the bin directory or the PATH
+line. The launcher binds the exact app location, not an app-name search or a
+system Node fallback. If you move or rename the app, open that actual copy,
+remove the old managed command and install again. A missing app/runtime/CLI
+exits with code 127 and recovery instructions. If you deleted the app, reinstall
+it before using the native removal action. A copy on a mounted DMG, a
+translocated app or an unpackaged development client cannot install the command.
+
+### Manual zsh workaround for older builds
+
+For an older build without the native installer, this is a **manual workaround,
+not the managed installation mechanism**. It assumes the trusted app is at
+`/Applications/Moguri.app`, uses its bundled Node and refuses to overwrite an
+existing launcher:
+
+```sh
+mkdir -p "$HOME/.local/bin" &&
+(
+  set -C
+  cat > "$HOME/.local/bin/moguri" <<'EOF'
+#!/bin/sh
+exec "/Applications/Moguri.app/Contents/Resources/app/node_modules/node/bin/node" \
+  "/Applications/Moguri.app/Contents/Resources/app/dist/cli.mjs" "$@"
+EOF
+) &&
+chmod +x "$HOME/.local/bin/moguri" &&
+{
+  grep -qxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zshrc" 2>/dev/null ||
+    printf '\nexport PATH="$HOME/.local/bin:$PATH"\n' >> "$HOME/.zshrc"
+} &&
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Then run:
+
+```sh
+moguri
+```
+
+This workaround stays pinned to `/Applications/Moguri.app`. It has no managed
+ownership record, moved-app diagnostics or native removal support, and an
+interrupted write may leave an incomplete file. To switch to the native
+installer, first inspect `~/.local/bin/moguri`. **Only if it is the manual
+workaround you created**, remove it yourself with
+`rm "$HOME/.local/bin/moguri"`, then use the native install action. The app will
+not silently adopt or overwrite it.
+
+The [launcher contract](architecture/cli-launcher.md) records publication,
+ownership, recovery and qualification boundaries.
+
 ## Application and storage settings
 
 **Settings / General / Application** controls the actual menu-bar icon across

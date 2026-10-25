@@ -1,4 +1,5 @@
 import type { ArtifactExport, BrowserState, Connection } from "../../../packages/protocol/src/index.ts";
+import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 
 export interface DesktopBridge {
   connection(): Promise<Connection>;
@@ -15,6 +16,7 @@ export interface DesktopBridge {
   onNotificationAudio(listener: (profileId: string, audio: string) => void): () => void;
   onNativeError(listener: (profileId: string, message: string) => void): () => void;
   applyApplicationPreferences(): Promise<{ menuBar: boolean; suppressed: boolean }>;
+  cliInstallation(input: CliInstallationRequest): Promise<CliInstallationStatus>;
   onOpenSettings(listener: () => void): () => void;
   chooseStorageDirectory(): Promise<string | null>;
   relocateStorage(path: string, expectedDigest: string): Promise<{ id: string; directory: string; restarted: boolean }>;

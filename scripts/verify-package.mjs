@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import { mkdtemp, rm, mkdir, readFile, writeFile, access, readdir, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,6 +27,8 @@ const { PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist", "sdk"
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
+await access(join(root, "dist", "moguri"), constants.X_OK);
+assert.match(execFileSync(join(root, "dist", "moguri"), ["--help"], { encoding: "utf8", env: { ...process.env, PATH: "/usr/bin:/bin" } }), /Moguri CLI \+ SDK/);
 await access(join(root, "dist", "remote-bridge.mjs"));
 if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(root, "dist", path));
 if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));

@@ -11,6 +11,7 @@ import { browserUrl, GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../pa
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
+import { CliInstallation } from "./cli-installation.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
@@ -238,6 +239,28 @@ else {
     });
     ipcMain.handle("moguri:connection", async (event) => { trusted(event); return connect(); });
     ipcMain.handle("moguri:application-preferences", async (event) => { trusted(event); return applyApplicationPreferences(); });
+    const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
+    const cliInstallation = new CliInstallation(
+      hidden && process.env.MOGURI_TEST_CLI_APP_ROOT ? process.env.MOGURI_TEST_CLI_APP_ROOT : process.platform === "darwin" && app.isPackaged ? app.getAppPath() : null,
+      hidden ? process.env.MOGURI_TEST_CLI_HOME ?? join(stateDirectory(), "generated-cli-home") : app.getPath("home"),
+    );
+    let cliChangePending = false;
+    ipcMain.handle("moguri:cli-installation", async (event, input: unknown) => {
+      trusted(event);
+      if (!isRecord(input) || typeof input.action !== "string" || !["status", "install", "remove"].includes(input.action) ||
+        Object.keys(input).some((key) => key !== "action" && !(input.action === "remove" && key === "expectedDigest")) ||
+        input.action === "remove" && (typeof input.expectedDigest !== "string" || !/^[a-f0-9]{64}$/.test(input.expectedDigest))) throw new Error("Choose one explicit command installation action with its original removal review. Unsupported paths or fields are not accepted.");
+      if (cliChangePending) throw new Error("Another command installation change is still pending. Refresh after it finishes.");
+      cliChangePending = true;
+      try {
+        if (input.action === "status") return await cliInstallation.status();
+        if (input.action === "install") return await cliInstallation.install();
+        return await cliInstallation.remove(String(input.expectedDigest));
+      } catch (error) {
+        console.error("Moguri command installation:", error instanceof Error ? error.message : String(error));
+        throw error;
+      } finally { cliChangePending = false; }
+    });
     ipcMain.handle("moguri:choose-storage-directory", async (event) => {
       trusted(event);
       if (process.env.MOGURI_TEST_WINDOW === "hidden") {

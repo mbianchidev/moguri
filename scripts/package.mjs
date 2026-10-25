@@ -1,5 +1,6 @@
 import { packager } from "@electron/packager";
 import { execFileSync } from "node:child_process";
+import { constants } from "node:fs";
 import { access, chmod, copyFile, lstat, mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
@@ -12,6 +13,7 @@ const native = await prepareSandboxDistribution();
 const electronVersion = require("electron/package.json").version;
 const version = require("../package.json").version;
 await access("dist/desktop/renderer/index.html");
+await access("dist/moguri", constants.X_OK);
 await mkdir("release", { recursive: true });
 const paths = await packager({
   dir: ".", out: `release/builds.noindex/${version}`, name: "Moguri", executableName: "Moguri", appBundleId: "dev.moguri.app",
@@ -22,6 +24,7 @@ const paths = await packager({
   ignore: [/^\/(?:\.git|\.moguri|\.native|\.impeccable|\.copilot|release|tests|test-results|playwright-report|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS)\.md$/],
 });
 const app = resolve(paths[0], "Moguri.app");
+await access(join(app, "Contents", "Resources", "app", "dist", "moguri"), constants.X_OK);
 const nativeRoot = join(app, "Contents", "Resources", "moguri-native"); await mkdir(nativeRoot);
 for (const path of ["manifest.json", native.distribution.vendor.installer.path, native.distribution.worker.archive.path, "SendBox.LICENSE"]) {
   await copyFile(join(native.root, path), join(nativeRoot, path));

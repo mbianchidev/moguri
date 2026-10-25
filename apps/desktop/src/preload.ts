@@ -28,6 +28,7 @@ const bridge: DesktopBridge = {
     return () => ipcRenderer.removeListener("moguri:native-error", receive);
   },
   applyApplicationPreferences: () => ipcRenderer.invoke("moguri:application-preferences"),
+  cliInstallation: (input) => ipcRenderer.invoke("moguri:cli-installation", input),
   chooseStorageDirectory: () => ipcRenderer.invoke("moguri:choose-storage-directory"),
   relocateStorage: (path, expectedDigest) => ipcRenderer.invoke("moguri:relocate-storage", path, expectedDigest),
   installUpdate: (id, expectedDigest) => ipcRenderer.invoke("moguri:install-update", id, expectedDigest),
