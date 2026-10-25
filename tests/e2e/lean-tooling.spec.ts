@@ -31,6 +31,9 @@ test("main and side sessions inspect public context and send truthful advisory m
     await expect(child.getByRole("region", { name: "Coordinated public context" })).toContainText(f.sessionId);
     await child.getByLabel("Coordination message", { exact: true }).fill("Generated user side advisory.");
     await child.getByRole("button", { name: "Send advisory", exact: true }).click();
+    await expect(child.getByLabel("Coordination message", { exact: true })).toHaveValue("");
+    await expect(child.getByLabel("Coordination target", { exact: true })).toBeEnabled();
+    await expect(page.getByLabel("Question-only side session", { exact: true })).toBeEnabled();
     await expect.poll(() => f.service.controller.snapshot().coordinationMessages.length).toBe(2);
     expect(f.service.controller.snapshot().coordinationMessages.every((message) => message.origin.actor === "user")).toBe(true);
     expect(f.service.controller.snapshot().sessions.find((session) => session.id === side.id)?.mode).toBe("read-only");
