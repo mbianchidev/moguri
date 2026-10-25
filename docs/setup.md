@@ -89,6 +89,44 @@ failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
 app does not start another service or force-kill a guessed process. Other
 independent state roots are not scanned or stopped by name.
 
+## Protocol-57 lean-tooling qualification
+
+The 2026-10-25 source qualification uses generated repositories, loopback
+providers/SSH, isolated test profiles and hidden Electron. No personal
+authorization, real microphone, personal console or paid model is used.
+
+| Check | Observed result |
+| --- | --- |
+| Clean locked install and root audit | PASS; 454 packages audited, zero vulnerabilities |
+| Shared SDK/CLI/TUI/desktop type checks and production build | PASS |
+| Complete Node/worker/CLI/native-TUI regression | 1,380 passed, 14 declared skips, zero failures; 1,095.38 s |
+| Complete hidden desktop regression | 176 passed, 3 declared skips, zero failures; 5.5 min |
+| Independently installed packed SDK, declarations and all four entrypoints | PASS; 397 consumer packages, zero vulnerabilities |
+| Actual installed worker continuation/receipt/cancellation probes | 12 passed, zero failures |
+| Typed schema comparison and public keyless search | [Measured schema bytes/estimates](architecture/lean-tooling.md#phase-0-evidence-2026-10-25); three observed HTTPS search results |
+
+The full sweep caught and fixed an actual private-broker import regression and
+obsolete eager-schema/output-byte expectations. A genuinely pre-tooling
+encrypted command fixture now tests the old desktop migration instead of
+relabeling future raw-result grants as old data. Hidden teardown waits for the
+renderer acknowledgement, not merely a backend message count, before closing
+an unsaved-state-protected window.
+
+The packed consumer also caught a dependency portability error that a root-only
+audit missed: npm root overrides do not propagate to dependent installations.
+The spreadsheet writer was replaced rather than waiving the advisory or
+modifying the consumer's policy. Both actual dependency graphs now pass.
+The external consumer still reports the existing `whatwg-encoding` and
+`node-domexception` deprecations; the Vite build retains its greater-than-500-kB
+chunk warning and OpenTUI's experimental FFI warning remains expected.
+
+Declared skipped gates remain unqualified. These checks do not qualify a
+matching new physical native image, every language DAP adapter, live provider
+task/cache/quality non-regression, exact token/billing savings, notarization or
+the complete first milestone. Current native live coordination and Local-only
+issue/watch boundaries are explicit in the
+[protocol contract](architecture/lean-tooling.md), never transport fallbacks.
+
 ## Protocol-53 integrated source qualification
 
 The 2026-10-24 integration merges main `5d1f97e` through the two-parent merge
