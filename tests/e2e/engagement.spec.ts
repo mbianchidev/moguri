@@ -26,8 +26,8 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     const created = fixture.service.controller.snapshot().sessions.at(-1)!;
     expect(created.projectId).toBeNull();
     const prompt = page.getByLabel("Prompt", { exact: true });
@@ -39,7 +39,7 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await page.keyboard.press("Escape");
     await prompt.fill("/rename Generated project-free chat"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
     await expect(page.getByRole("heading", { name: "Generated project-free chat", exact: true })).toBeVisible();
-    await prompt.fill("/suggestions"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
+    await prompt.fill("/suggestions session"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
     const suggestions = page.getByRole("region", { name: "Moguri suggestions", exact: true });
     await expect(suggestions).toContainText("Project-free chats only");
     await expect(suggestions.getByRole("button", { name: "Generate suggestions", exact: true })).toBeDisabled();
@@ -54,7 +54,7 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await review.getByLabel("I reviewed this exact scope and change, and approve the configuration risk.").check();
     await review.getByRole("button", { name: "Apply", exact: true }).click();
     await expect.poll(() => sdk.settings.get()!.values.instructions).toContain("generated headless checks");
-    await suggestions.getByLabel("I approve sending these scoped excerpts to the selected model for suggestions.").check();
+    await suggestions.getByLabel("I approve sending these usage gaps and scoped excerpts to the selected model for suggestions.").check();
     await suggestions.getByRole("button", { name: "Generate suggestions", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Moguri suggestions", exact: true })).toBeVisible();
     const meta = fixture.service.controller.snapshot().sessions.at(-1)!;

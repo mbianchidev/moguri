@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile } from "node:fs/promises";
@@ -17,8 +18,8 @@ test("desktop retains real model provenance, persists exports and keeps artifact
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
+    await openSettingsSection(page, "Artifacts");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Retained artifacts" });
     await panel.getByRole("button", { name: "New artifact", exact: true }).click();
     await panel.getByLabel("Artifact kind", { exact: true }).selectOption("decision");
@@ -104,8 +105,8 @@ test("desktop organizes actual documents and verifies a reviewed local repositor
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
+    await openSettingsSection(page, "Artifacts");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Retained artifacts" });
     await panel.getByRole("button", { name: "New artifact", exact: true }).click();
     await panel.getByLabel("Artifact name", { exact: true }).fill("Generated organized research");

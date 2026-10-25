@@ -12,8 +12,8 @@ const tokens = (totals: BudgetTotals) => totals.reportedTokens === null ? `${tot
 const detail = (value: number | null | undefined) => value === null || value === undefined ? "Not reported" : value.toLocaleString();
 const dayPresets = [7, 30, 60, 90, 365] as const;
 const buckets: BudgetBucket[] = ["day", "week", "month", "all"];
-export function UsageDashboard({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Snapshot }) {
-  const [filters, setFilters] = useState<Filters>({}), [queryResult, setResult] = useState<Result | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false);
+export function UsageDashboard({ sdk, snapshot, initialFilters = {} }: { sdk: MoguriSdk; snapshot: Snapshot; initialFilters?: Filters }) {
+  const [filters, setFilters] = useState<Filters>(initialFilters), [queryResult, setResult] = useState<Result | null>(null), [error, setError] = useState(""), [loading, setLoading] = useState(false);
   const [resultOwner, setResultOwner] = useState<{ sdk: MoguriSdk; key: string } | null>(null);
   const today = new Date().toISOString().slice(0, 10), currentYear = new Date().getUTCFullYear();
   const [custom, setCustom] = useState({ from: today, to: today }), [showCalls, setShowCalls] = useState(false), [showPlans, setShowPlans] = useState(false);

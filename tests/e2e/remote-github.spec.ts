@@ -1,3 +1,4 @@
+import { openUsageDetails } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { access, mkdir } from "node:fs/promises";
@@ -13,7 +14,7 @@ test("desktop reviews the exact SSH account before a no-model private lookup and
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Repository attribution", { exact: true }).click();
     const repository = dashboard.getByRole("region", { name: "Repository attribution", exact: true });
@@ -44,7 +45,7 @@ test("a held SSH lookup cannot publish a stale desktop observation after the ses
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     await page.getByText("Repository attribution", { exact: true }).click();
     const repository = page.getByRole("region", { name: "Repository attribution", exact: true });
     await repository.getByLabel("Repository scope session", { exact: true }).selectOption(f.sessionId);

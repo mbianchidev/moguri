@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -60,11 +61,11 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
         "Permanently delete this conversation, its saved draft, queues, session content and every candidate or generation proposal originating from it. The service settles owned work and removes proposal records and retention grants first. Ordinary independent artifacts, applied code, worktrees and external PRs survive; linked children are detached, not deleted. Failed or unconfirmed cleanup blocks deletion."}</p>
       {stale && <p className="inline-error" role="alert">This session changed after review. Close and review it again.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
-      {review.action === "delete" && <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
+      {review.action === "delete" && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
         {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}</label>}
-      <label className="check-setting"><input type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
+      <label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
         {review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>
-      <p className="fine-print">Change this preference in Settings / Sessions. It does not grant tool permissions or enable automatic cleanup.</p>
+      <SettingsHelp label="More about this setting">Change this preference in Settings / Sessions. It does not grant tool permissions or enable automatic cleanup.</SettingsHelp>
       <div className="button-row"><button type="button" disabled={busy} onClick={close}>{review.action === "delete" ? "Cancel deletion" : "Cancel"}</button>
         <button type="submit" className={review.action === "delete" ? "danger" : "primary"} disabled={busy || stale || review.action === "delete" && !confirmed}>{title}</button></div>
     </form>

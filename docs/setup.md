@@ -1,9 +1,60 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **58**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **59**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
+The left sidebar has **New**, Dashboard, Suggestions, Automations, Code change,
+Work item and Global Terminal. The last three are intentionally empty spaces:
+no scheduler or new issue/PR linking workflow is implied. Profile, Ask Moguri
+and Settings share one compact footer row. Artifacts, Candidates and unified
+**Sandbox** management now live in Settings, with optional source-chat selection.
+Non-secret settings fields have hover/focus copy buttons; explanatory text uses
+keyboard-accessible information tooltips. Errors, status and safety reviews
+remain visible. The menu-bar mascot has a dedicated transparent template icon.
+
+New Local User/Global consoles start in the configured **HOME**, not Moguri's
+application-state directory. Project User consoles use their actual bound
+Moguri worktree. Existing consoles retain their original root; missing or
+invalid HOME fails rather than selecting another directory.
+
+**Settings / Instructions / Skill gateway** accepts a local folder, a public
+GitHub repository root such as `https://github.com/owner/skills`, or a direct
+HTTPS `.zip` URL. Add a named source, save it, then **Find skills**. Nested
+`SKILL.md` files use standard YAML front matter. Every search/read rechecks
+fresh bytes; changed content requires a fresh digest. No extraction, installer,
+script execution, automatic authentication or stale offline fallback occurs.
+The current limits are 16 sources, 512 combined skills, 64 KiB per skill,
+8 MiB compressed and 32 MiB expanded per archive. Links, traversal, duplicate
+archive paths, unsupported encryption and invalid text fail explicitly.
+Sources are profile-private Local control-plane capabilities, not an SSH or
+Sandbox filesystem transport.
+
+The same discovery is available through `/skills find QUERY`, `/skills read ID
+SHA`, `moguri skills find QUERY`, `moguri skills read ID --digest SHA` and outward
+MCP tools `moguri_find_skills` / `moguri_read_skill`. The existing `moguri mcp
+--session ID` gateway cannot configure sources or approve tools. Model-side
+`use_skill` discovers configured sources on qualified Local turns; loading
+guidance never installs or enables a capability.
+
+**Suggestions** starts with profile-wide local usage-gap checks and bounded
+prior prompts, without creating a hidden chat or calling a model. Optionally
+select a chat to narrow the scope. Review the exact usage gaps, excerpts and
+selected model before generation; configuration proposals still need a separate
+actual-user decision. `/suggestions session` preserves explicit scoped access.
+
+**Dashboard** has My work, Usage, Cost and Velocity pages with charts first,
+project/model breakdowns and detailed accounting behind a disclosure. The
+initial window is seven UTC days, with 30/60/90-day presets and custom inclusive
+dates initialized to the trailing year. My work includes current open sessions
+even when older than the selected range. Velocity reports observed completed
+agent turns, timing and user interventions against the previous equal window,
+not invented time savings or a proven productivity increase. Unknown tokens,
+unpriced calls and invoices stay distinct. CLI/TUI share
+`/dashboard work|usage|cost|velocity` and `moguri dashboard` projections; F7
+includes the shared overview.
 
 Protocol 57 implements [session-owned candidate cleanup](architecture/candidate-cleanup.md).
 Permanent session deletion, whether manual or archived-session expiry, deletes
@@ -604,11 +655,11 @@ agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
 Sandbox/Remote browser control and Stainless diagnostics remain unqualified.
 See the [browser contract](architecture/agent-browser.md).
 
-Protocol 44 introduced these interaction changes. Global resources live in
-the left sidebar: Dashboard, Artifacts, Candidates, Sandbox, Suggestions,
-Global Terminal. The right rail is reserved for Terminal, Browser, Insights,
+Protocol 44 introduced these interaction changes. Protocol 59 places Dashboard,
+Suggestions, Automations, Code change, Work item and Global Terminal in the left
+sidebar; Artifacts/Candidates/Sandbox are Settings sections. The right rail is reserved for Terminal, Browser, Insights,
 Changes, Files, Plan and Side chat. Global actions and existing slash commands
-retain their independently scoped source selection. Attention remains in the top bar. The unified Start
+retain their independently scoped source selection. Attention remains in the top bar. The unified New
 chooser and project-free navigation remain available.
 
 | Attach menu | Shortcut | Selection |
@@ -715,10 +766,10 @@ current sibling set, not a partial list. Settings, Issues and Archived toggle
 back to the conversation when selected again in the left sidebar.
 
 **Global Terminal** is independent of every project/worktree/session and opens
-in the canonical Moguri data directory selected by the runtime, including
-`MOGURI_STATE_DIR` when configured. It is a Local user console, not agent context
+in the user's configured HOME, never the Moguri state directory or
+`MOGURI_STATE_DIR`. It is a Local user console, not agent context
 or SendBox isolation. Explicit independent-root console APIs remain supported;
-their captured root is shown, never relabeled as the data directory.
+their captured root is shown, never relabeled as HOME.
 Global allowed-env policy still applies. To work in a
 project, use its action menu's **Open project terminal**, the session's Terminal
 panel, or `/terminal`. Explicitly opening an eligible terminal pane starts the
@@ -1850,7 +1901,7 @@ actual Remote boundary/frame provenance.
 
 ## Project-free chats, suggestions and ask Moguri
 
-Desktop uses one **Start** button. Choose **New chat** for a project-free
+Desktop uses one **New** button. Choose **New chat** for a project-free
 conversation, an existing project for a new session there, **Import local
 folder** to attach an explicitly chosen directory, or **Clone repository** to
 clone an HTTPS/SSH URL into a new folder before starting a project chat.

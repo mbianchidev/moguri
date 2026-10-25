@@ -1,3 +1,4 @@
+import { openUsageDetails } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
@@ -37,7 +38,7 @@ test("desktop applies warned estimate-based caps, preserves hard policy through 
     await composer.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests[0]?.max_tokens ?? fixture.requests[0]?.max_completion_tokens).toBe(16);
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await expect(dashboard).toContainText("42");
     await expect(dashboard).toContainText("solver");
@@ -57,7 +58,7 @@ test("desktop applies warned estimate-based caps, preserves hard policy through 
     await expect.poll(() => fixture.session().status).toBe("partial");
     expect(fixture.requests.length).toBe(1);
     expect(fixture.service.controller.snapshot().artifacts.some((artifact) => artifact.origin === "checkpoint")).toBe(true);
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     await expect(dashboard).toContainText("Profile hard policy");
     await dashboard.getByText("Filters", { exact: true }).click();
     await dashboard.getByLabel("Usage role filter", { exact: true }).selectOption("solver");

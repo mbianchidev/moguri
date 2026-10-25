@@ -1,3 +1,4 @@
+import { openUsageDetails } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
@@ -26,7 +27,7 @@ test("desktop UTC windows, captured prices, stream observations and retained cal
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests.length).toBe(1);
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Date range and buckets", { exact: true }).click();
     await dashboard.getByLabel("Usage date range", { exact: true }).selectOption("7");
@@ -90,7 +91,7 @@ test("desktop tool/MCP outcomes and retained storage use sanitized authoritative
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await fixture.approve(); await fixture.terminal();
     await fixture.send("generated failing command"); await fixture.approve(); await fixture.terminal();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Tool and MCP outcomes", { exact: true }).click();
     const operations = dashboard.getByRole("region", { name: "Tool and MCP outcomes", exact: true });
@@ -146,7 +147,7 @@ test("desktop explicitly reviews repository lookup and filters immutable owner/v
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Repository attribution", { exact: true }).click();
     const repository = dashboard.getByRole("region", { name: "Repository attribution", exact: true });
@@ -162,7 +163,7 @@ test("desktop explicitly reviews repository lookup and filters immutable owner/v
     await page.getByLabel("Prompt", { exact: true }).fill("Generated repository-attributed desktop response.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await fixture.terminal();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     await dashboard.getByText("Repository attribution", { exact: true }).click();
     await repository.getByLabel("Repository scope session", { exact: true }).selectOption(fixture.sessionId);
     await repository.getByRole("button", { name: "Review repository binding", exact: true }).click();
@@ -181,7 +182,7 @@ test("desktop explicitly reviews repository lookup and filters immutable owner/v
     await expect.poll(() => fixture.requests.length).toBe(2); await fixture.terminal();
     expect((await sdk.budgets.dashboard()).totals.calls).toBe(2); expect((await sdk.budgets.dashboard({ visibility: "open-source" })).totals.calls).toBe(1);
     expect((await sdk.budgets.dashboard({ visibility: "public" })).totals.calls).toBe(2);
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     await dashboard.getByText("Repository attribution", { exact: true }).click();
     await repository.getByLabel("Repository scope session", { exact: true }).selectOption(fixture.sessionId);
     await repository.getByRole("button", { name: "Review repository binding", exact: true }).click();

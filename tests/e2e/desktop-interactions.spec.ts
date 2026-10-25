@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
+import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
@@ -27,7 +28,7 @@ test("attachment menu matches the five-source layout, previews retained files/im
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
     await expect(rail.getByRole("button")).toHaveCount(7);
     expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"]);
-    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal"]);
+    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations", "Code change", "Work item", "Global Terminal"]);
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated complete unsent prompt.");
     const path = join(fixture.directory, "generated-preview.txt"); await writeFile(path, "Generated immutable attached file.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);
@@ -158,7 +159,7 @@ test("global terminals auto-start only on explicit opening, confirm pane hides, 
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(input).toHaveAttribute("aria-disabled", "false");
     const terminal = fixture.service.controller.snapshot().terminals[0]!;
-    expect(terminal.sessionId).toBeNull(); expect(terminal.projectId).toBeNull(); expect(terminal.binding?.root).toBe(await realpath(join(fixture.directory, "state")));
+    expect(terminal.sessionId).toBeNull(); expect(terminal.projectId).toBeNull(); expect(terminal.binding?.root).toBe(await realpath(homedir()));
     await expect(page.getByRole("button", { name: "Open terminal", exact: true })).toHaveCount(0);
     await rail.getByRole("button", { name: "Global Terminal", exact: true }).click();
     await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Keep open", exact: true }).click();

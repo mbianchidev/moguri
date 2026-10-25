@@ -23,14 +23,14 @@ test("left global resources and the seven right session panels remain separate w
     expect(await rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
       .toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"]);
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations", "Code change", "Work item", "Global Terminal"]);
     await expect(rail.getByRole("button", { name: "Attention", exact: true })).toHaveCount(0);
     const navigation = page.getByRole("navigation", { name: "Projects and sessions" });
     await expect(navigation.getByRole("button", { name: "Manage profiles", exact: true })).toHaveCount(0);
     await expect(navigation.getByLabel("Active profile", { exact: true })).toHaveCount(0);
     const count = fixture.service.controller.snapshot().sessions.length;
     await navigation.getByRole("button", { name: "Suggestions", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Choose a source chat", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Usage gaps", exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().sessions.length).toBe(count);
     await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
     await expect(page.getByRole("region", { name: "Moguri suggestions", exact: true })).toBeVisible();

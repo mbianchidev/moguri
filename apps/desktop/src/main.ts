@@ -139,7 +139,7 @@ else {
       const suppressed = process.env.MOGURI_TEST_WINDOW === "hidden";
       if (!configuration.values.menuBar && tray) { tray.destroy(); tray = null; }
       if (configuration.values.menuBar && !tray && !suppressed) {
-        const image = nativeImage.createFromPath(join(app.getAppPath(), "dist", "branding", "moguri.png")).resize({ width: 18, height: 18 });
+        const image = nativeImage.createFromPath(join(app.getAppPath(), "dist", "branding", "moguri-tray.png"));
         if (image.isEmpty()) throw new Error("Moguri's menu-bar image is missing. The configured flag is retained; no empty icon was reported as visible.");
         image.setTemplateImage(true);
         tray = new Tray(image); tray.setToolTip("Moguri");

@@ -3,6 +3,7 @@ import { FitAddon, Ghostty, Terminal } from "ghostty-web";
 import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
 import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Tooltip } from "./Tooltip.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
 export function GhosttyOutput({ text, active, scope }: { text: string; active: boolean; scope: string }) {
@@ -184,10 +185,10 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
   return <section className="ghostty-panel" aria-label="Embedded Ghostty terminal">
     {contextSession && !consoleScope && <label className="terminal-scope">Console<select aria-label="Terminal scope" value={global ? "global" : "session"} onChange={(event) => { setScope(event.target.value === "global" ? "global" : "session"); setSelected(null); setError(""); }}><option value="global">Global terminal</option><option value="session">This chat</option></select></label>}
     <header className="terminal-tabs"><select aria-label="Selected terminal" value={terminal?.id ?? ""} onChange={(event) => setSelected(event.target.value)}>{terminals.map((terminal, index) => <option key={terminal.id} value={terminal.id}>{terminal.title} {index + 1} / {terminal.status}</option>)}{!terminals.length && <option value="">No terminal</option>}</select>
-      <button className="icon-button" aria-label={global ? "New global terminal" : "New terminal"} title={global ? "One global terminal per profile" : "New terminal in this chat"} disabled={busy || !canOpen} onClick={() => void openTerminal()}><Icon name="Plus" /></button>
-      <button className="icon-button" aria-label="Copy terminal selection" title="Copy selection" disabled={busy || !terminal} onClick={() => void run(() => window.moguri.copyText(emulator.current?.getSelection() ?? ""))}><Icon name="Copy" /></button>
-      <button className="icon-button" aria-label="Reconnect existing terminal" title="Inspect and reconnect existing owner; never launch a shell or replay input" disabled={busy || !canControl} onClick={() => void run(async () => { await sdk.terminal.reconcile(terminal!.id); setViewEpoch((epoch) => epoch + 1); })}><Icon name="Link" /></button>
-      <button className="icon-button" aria-label="Close terminal" title="Stop this exact owned terminal" disabled={busy || !canControl} onClick={() => void run(() => sdk.terminal.close(terminal!.id))}><Icon name="Close" /></button>
+      <Tooltip content={global ? "New global terminal (one per profile)" : "New terminal in this chat"}><button className="icon-button" aria-label={global ? "New global terminal" : "New terminal"} disabled={busy || !canOpen} onClick={() => void openTerminal()}><Icon name="Plus" /></button></Tooltip>
+      <Tooltip content="Copy terminal selection"><button className="icon-button" aria-label="Copy terminal selection" disabled={busy || !terminal} onClick={() => void run(() => window.moguri.copyText(emulator.current?.getSelection() ?? ""))}><Icon name="Copy" /></button></Tooltip>
+      <Tooltip content="Reconnect the existing owner; no shell or input replay"><button className="icon-button" aria-label="Reconnect existing terminal" disabled={busy || !canControl} onClick={() => void run(async () => { await sdk.terminal.reconcile(terminal!.id); setViewEpoch((epoch) => epoch + 1); })}><Icon name="Link" /></button></Tooltip>
+      <Tooltip content="Stop this terminal"><button className="icon-button" aria-label="Close terminal" disabled={busy || !canControl} onClick={() => void run(() => sdk.terminal.close(terminal!.id))}><Icon name="Close" /></button></Tooltip>
     </header>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {!session && terminal?.binding && <p className="terminal-host-boundary"><strong>Global Local console</strong><br /><code>{terminal.binding.root}</code><br />Captured Local root, independent of projects and sessions.</p>}
