@@ -1,0 +1,39 @@
+import { useEffect, useRef, useState } from "react";
+import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
+
+export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void }) {
+  const [status, setStatus] = useState<CliInstallationStatus | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const generation = useRef(0);
+  useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
+  useEffect(() => {
+    const request = ++generation.current;
+    void window.moguri.cliInstallation({ action: "status" }).then((value) => { if (request === generation.current) setStatus(value); })
+      .catch((error: unknown) => { if (request === generation.current) setError(error instanceof Error ? error.message : "The command installation could not be inspected."); });
+    return () => { generation.current++; };
+  }, []);
+  const run = async (input: CliInstallationRequest) => {
+    if (busy) return;
+    const request = ++generation.current;
+    setBusy(true); setError("");
+    try {
+      const value = await window.moguri.cliInstallation(input);
+      if (request === generation.current) setStatus(value);
+    } catch (error) {
+      if (request === generation.current) setError(error instanceof Error ? error.message : "The command installation did not complete. Refresh its actual status before retrying.");
+    } finally { if (request === generation.current) setBusy(false); }
+  };
+  return <section aria-label="Command line installation"><h3>Command line</h3>
+    <p className="fine-print">Install the bundled CLI and TUI launcher for this macOS user, across profiles. It uses the app's Node runtime, needs no administrator access and does not edit shell startup files. The app must stay at its installed location.</p>
+    {status && <p className="fine-print">Command: <code>{status.path}</code></p>}
+    <p role="status">{status?.detail ?? "Reading command installation..."}</p>
+    <div className="button-row">
+      <button type="button" disabled={busy || !status?.available || status.state !== "absent"} onClick={() => void run({ action: "install" })}>Install <code>moguri</code> command</button>
+      <button type="button" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }}>Remove <code>moguri</code> command</button>
+      <button type="button" disabled={busy} onClick={() => void run({ action: "status" })}>Refresh command status</button>
+    </div>
+    <p className="fine-print">After installation, run this in your terminal to add the command to your current shell's PATH:</p>
+    <pre><code>{'export PATH="$HOME/.local/bin:$PATH"'}</code></pre>
+    <p className="fine-print">For future zsh shells, add that line once to <code>~/.zshrc</code>. Run <code>moguri</code> to start the TUI. If you move the app, remove this managed command and install again from the new location. Existing commands, including manual workarounds, are never replaced.</p>
+    {error && <p className="inline-error" role="alert">{error}</p>}
+  </section>;
+}
