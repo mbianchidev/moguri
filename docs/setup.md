@@ -226,6 +226,11 @@ revision-only rejection can refresh once while the exact original structural
 intent still matches; changed order, membership, pin or hierarchy stays refused.
 Unpin uses a crossed-out pin; pinned-state markers and Pin retain a standard pin.
 
+The latest ordering build passes 153 hidden desktop cases with two
+physical-native skips; 21 ordering/icon/hierarchy/keyboard/narrow-row cases also
+pass in the actual packaged app. Exact original-intent/CAS rules and installer
+measurements are in [session ordering qualification](architecture/session-interactions.md#session-ordering-qualification).
+
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and
 read-only are a pen/book toggle immediately after the composer's **+** attachment
@@ -248,8 +253,8 @@ commands remain available. Pending resumes disable the control; failures remain
 visible until an explicit retry. Neither automatically retries; active work still
 shows Stop.
 
-The final development build passes 144 hidden desktop cases with two
-physical-native skips; 14 recovery/composer/Start/Stop cases also pass in the
+The prior composer-recovery build passed 144 hidden desktop cases with two
+physical-native skips; 14 recovery/composer/Start/Stop cases also passed in its
 actual packaged app. See [composer recovery qualification](architecture/session-interactions.md#composer-recovery-qualification)
 for the exact scope, installation and artifact evidence.
 
