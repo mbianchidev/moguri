@@ -232,6 +232,15 @@ releasing the modifier. **Resume queued work** sends one prompt per finished tur
 prompt or parallel calls. Stop holds undispatched work; reopening the app does
 not drain it. Interrupt retains its separately requested next-turn behavior.
 
+When a session/worktree requires inspection, the composer's primary Send
+position becomes a **Resume** play icon instead of adding a header button.
+Inspect the retained effects first. Click Resume or press Enter to continue
+existing work without sending or clearing the current draft/attachments.
+Shift+Enter remains newline, Cmd/Ctrl+Enter remains Hold, and explicit slash
+commands remain available. Pending resumes disable the control; failures remain
+visible until an explicit retry. Neither automatically retries; active work still
+shows Stop.
+
 The Plan tab stays empty until the owning model explicitly supplies at least two
 actionable steps. Model checkmarks and estimates live there only, never above
 the textbox, and never prove acceptance or successful completion. An existing
@@ -2225,7 +2234,7 @@ After a service restart, drafts and unclaimed queues survive. Interrupted
 requests/tools become partial or unconfirmed, not successful, and are not
 re-executed. Saved queues require explicit resumption. A failed/unconfirmed
 workspace pauses automatic admission across its sessions. Inspect the workspace
-and processes, then choose **Resume after inspection** or `/resume`.
+and processes, then use the composer's **Resume** play control or `/resume`.
 That action authorizes continuation; it does not retroactively prove cleanup.
 
 Only one active agent writer may lease a filesystem root at once; separate
