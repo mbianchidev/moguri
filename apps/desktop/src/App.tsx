@@ -459,10 +459,10 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     </aside>
     <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.map((item) => {
       const pressed = panelVisible && panel === item;
-      return <button key={item} data-sidebar-panel={item} className={pressed ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={pressed}
+      return <button key={item} data-sidebar-panel={item} className={pressed ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={pressed} aria-expanded={pressed} aria-controls="session-sidebar"
       onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
       onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })} onBlur={() => setPanelTooltip(null)}
-      onClick={() => void showPanel(item)}><Icon name={item} /></button>;
+      onClick={() => { if (pressed) hidePanel(); else void showPanel(item); }}><Icon name={item} /></button>;
     })}</nav>
     {panelTooltip && <div id="sidebar-panel-tooltip" className="sidebar-tooltip" role="tooltip" style={{ top: Math.min(panelTooltip.top, window.innerHeight - 42) }}>{panelTooltip.panel}</div>}
     {terminalDismiss && <TerminalCloseReview sdk={client} cancel={() => { terminalDismiss.cancel?.(); setTerminalDismiss(null); }} confirm={() => { const { action } = terminalDismiss; setTerminalDismiss(null); action(); }} />}
@@ -641,6 +641,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
 }
 function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel: () => void; confirm: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const confirmed = useRef(false);
   const [remember, setRemember] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState("");
   useEffect(() => { ref.current?.showModal(); }, []);
   const hide = async () => {
@@ -651,16 +652,18 @@ function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel:
         if (!settings) throw new Error("Reconnect before saving the terminal-close preference.");
         await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmTerminalClose: false } }, settings.revision);
       }
+      confirmed.current = true;
+      ref.current?.close();
       confirm();
     } catch (error) { setError(error instanceof Error ? error.message : "The preference could not be saved. The terminal pane remains open."); }
     finally { setBusy(false); }
   };
-  return <dialog ref={ref} className="workspace-dialog terminal-close-review" aria-label="Close terminal pane" onClose={cancel} onCancel={(event) => { if (busy) event.preventDefault(); }}>
-    <header><h2>Hide terminal pane?</h2><button className="icon-button" type="button" aria-label="Cancel closing terminal pane" disabled={busy} onClick={cancel}><Icon name="Close" /></button></header>
+  return <dialog ref={ref} className="workspace-dialog terminal-close-review" aria-label="Close terminal pane" onClose={() => { if (!confirmed.current) cancel(); }} onCancel={(event) => { if (busy) event.preventDefault(); }}>
+    <header><h2>Hide terminal pane?</h2><button className="icon-button" type="button" aria-label="Cancel closing terminal pane" disabled={busy} onClick={() => ref.current?.close()}><Icon name="Close" /></button></header>
     <p>Your consoles keep running. Use the terminal's X button to terminate a console without this confirmation.</p>
     <label className="check-setting"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />Do not ask me again when closing terminal</label>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    <footer><button type="button" disabled={busy} onClick={cancel}>Keep open</button><button className="primary" type="button" disabled={busy} onClick={() => void hide()}>Hide terminal</button></footer>
+    <footer><button type="button" disabled={busy} onClick={() => ref.current?.close()}>Keep open</button><button className="primary" type="button" disabled={busy} onClick={() => void hide()}>Hide terminal</button></footer>
   </dialog>;
 }
 function CommandOutput({ text, close }: { text: string; close: () => void }) {

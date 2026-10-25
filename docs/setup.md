@@ -1385,7 +1385,10 @@ Drag either sidebar's inner edge to resize it, or focus its separator and use
 Left/Right arrows; Home/End select the available minimum/maximum. Widths survive
 desktop reloads and shrink as necessary to preserve chat space. The right
 sidebar's **<>** button hides it; any labeled icon in the remaining rail opens
-its panel. Those icons show tooltips on hover and keyboard focus. Unsaved panel
+its panel, and clicking that same active icon again collapses back to the rail.
+This also works from a maximized pane and with the keyboard. It follows the
+same unsaved-edit and terminal-hide confirmation/opt-out checks as the header
+hide button; hiding never terminates a running terminal. Those icons show tooltips on hover and keyboard focus. Unsaved panel
 edits still block navigation and collapse.
 
 The model-name popover contains model selection, optional working context and
