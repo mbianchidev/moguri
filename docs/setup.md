@@ -527,7 +527,13 @@ folders or repository files.
 
 Click any attached chip to inspect the retained snapshot. Session context opens
 as JSON, images open enlarged, and documents keep their bounded page/section/
-cell previews. Remove works on draft context, never deletes the original file,
+cell previews. Image attachments use larger thumbnails in the composer and
+large cards in sent messages. Opening an image uses a near-full-window viewer,
+preserves its aspect ratio without cropping, and keeps Close/Remove visible on
+smaller windows. Multiple draft images wrap inside a bounded scrolling area;
+text/document chips stay compact. These are display changes only, not extra
+image capture, model context or image processing.
+Remove works on draft context, never deletes the original file,
 and does not rewrite sent messages. Dropping a sidebar session onto the composer
 attaches its content after source/destination review; it does not reparent,
 resume or otherwise control that session. **Do not ask me again** suppresses

@@ -93,7 +93,7 @@ export function AttachmentChip({ sdk, sessionId, attachment, remove, onOpenChang
 }) {
   const [open, setOpen] = useState(false), [error, setError] = useState("");
   useEffect(() => { if (open) onOpenChange?.(true); return () => { if (open) onOpenChange?.(false); }; }, [open, onOpenChange]);
-  return <span className="attachment-chip" title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>
+  return <span className={`attachment-chip${attachment.kind === "image" ? " attachment-chip-image" : ""}`} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>
     {attachment.kind === "document" ? <ContextDocument sdk={sdk} sessionId={sessionId} attachment={attachment} remove={remove} onOpenChange={onOpenChange} /> :
       <button className="attachment-preview-button" type="button" aria-label={`Preview attachment ${attachment.path}`} onClick={() => setOpen(true)}>
         {attachment.kind === "image" ? <ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "File"} />}<span>{attachment.path}</span>
@@ -117,11 +117,11 @@ function AttachmentPreview({ sdk, sessionId, attachment, remove, close }: { sdk:
       .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The retained attachment could not be read."); });
     return () => { current = false; };
   }, [sdk, sessionId, attachment.id]);
-  return <dialog ref={dialog} className="workspace-dialog attachment-preview" aria-label={`Attachment preview ${attachment.path}`} onClose={close} onCancel={(event) => { if (busy) event.preventDefault(); }}>
+  return <dialog ref={dialog} className={`workspace-dialog attachment-preview${attachment.kind === "image" ? " attachment-preview-image" : ""}`} aria-label={`Attachment preview ${attachment.path}`} onClose={close} onCancel={(event) => { if (busy) event.preventDefault(); }}>
     <header><h2>{attachment.path}</h2><button className="icon-button" type="button" aria-label="Close attachment preview" disabled={busy} onClick={close}><Icon name="Close" /></button></header>
     <p className="fine-print">Retained snapshot / {attachment.bytes} bytes. Viewing this content does not send a prompt.</p>
     {"source" in attachment && <p className="fine-print path">{attachment.source.location}</p>}
-    {attachment.kind === "image" ? <ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} /> : text === null && !error ? <p role="status">Loading retained content...</p> : <pre aria-label="Attached content">{text}</pre>}
+    {attachment.kind === "image" ? <div className="attachment-image-stage"><ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} /></div> : text === null && !error ? <p role="status">Loading retained content...</p> : <pre aria-label="Attached content">{text}</pre>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     <footer>{remove && <button className="danger" type="button" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The attachment could not be removed.")).finally(() => setBusy(false)); }}>Remove attachment</button>}<button type="button" disabled={busy} onClick={close}>Close preview</button></footer>
   </dialog>;
