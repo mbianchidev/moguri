@@ -1781,6 +1781,12 @@ tab restoration and reselecting the same X-closed visible chat do not reopen it.
 Sandbox user consoles remain unqualified and are labelled as such; Agent
 command output stays separate, with no automatic Local fallback.
 
+The terminal-startup follow-up is included in the rebuilt development app/DMG:
+the final complete hidden Electron run passes 138 cases with two physical-native
+skips, and 14 startup/sidebar cases pass in the actual packaged app. Exact
+ownership, failure/retry, installation and artifact measurements are recorded
+in [session-terminal startup qualification](architecture/sdk-platform.md#session-terminal-startup-qualification).
+
 CLI `moguri terminal default-root` discloses the default without starting a
 process. `terminal open-global /absolute/root` explicitly opens the global
 console. `terminal open --session ID --root /absolute/root` opens a separate
