@@ -9,6 +9,16 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > [!WARNING]
 > Moguri is pre-alpha. An [initial executable macOS checkpoint](setup.md) now exists for Local/Manual Copilot sessions in TUI and desktop. Its [engagement slice](architecture/engagement.md) adds project-free chats, MCP OAuth, scoped suggestions, reviewed settings chats and attention indicators. This document still defines the wider product direction, architectural constraints, first milestone and working agreement; it does not claim completion of every described capability. [Phase 0 evidence](architecture/phase-zero.md) records passes and unresolved release blockers.
 
+> The [protocol-57 lean tooling slice](architecture/lean-tooling.md) adds lazy
+> typed native discovery, deterministic compact/recoverable outputs, structured
+> documents and SQL, explicit watches/DAP and browser-free search. Scoped
+> parent/child messages, public context/progress and delegated work share the
+> existing policy, writer and all-role ledger. Side chats stay read-only.
+> Lowercase review/security/performance/debug workflows use the selected
+> session's existing controls. No universal token-saving/quality claim,
+> automatic summarization, new agent framework or wider milestone completion
+> follows from this slice.
+
 > The user-requested [SDK platform slice](architecture/sdk-platform.md) adds
 > default-dark branding, shared prompt/permission settings, opt-in local memory,
 > approved extension proposals, optional read-only subagents, a native MCP

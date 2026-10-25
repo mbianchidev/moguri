@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **56**. Additive upgrades retain existing
+Current service/SDK/desktop protocol is **57**. Additive upgrades retain existing
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
 
@@ -53,6 +53,15 @@ separate unqualified release gates.
 The later [image-preview display checkpoint](#image-preview-display-qualification)
 keeps those backend bundles unchanged and separately qualifies the larger
 images, fresh full desktop run and rebuilt installer.
+
+Protocol 57 adds [lean tools and scoped coordination](architecture/lean-tooling.md).
+Its strict additive marker preserves ciphertext, drafts, receipts, grants and
+unknown budget holds. Normal fixed/kupo solver turns load typed native schemas
+on demand; discovering a schema grants nothing. Deterministic compact results
+retain exact original-source paging. Structured documents/SQL, explicit
+watches/DAP, keyless search and original-parent/child messages use the same
+authority. This does not qualify an older native image, a language adapter or
+live task-quality/token-saving claims.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -1252,6 +1261,65 @@ not proof of independent weights, quality, permission or user approval.
 Opening the menu, normal login and ordinary model discovery add no such read.
 See [the current checkpoint](#development-028-explicit-model-declarations).
 
+## Lean tools and coordinated work
+
+Moguri starts normal solver turns with a small typed catalogue. The model uses
+`discover_tools` to load relevant file, search, data, document, web, process or
+coordination schemas. Empty-query pages and exact tool names remain available.
+Complete required role evidence and repository instructions are not silently
+summarized. Enabled skill bodies load through `use_skill`, not all at once.
+
+`read_file` returns a whole-source digest and compact structural/line/byte views;
+`edit_file` applies exact unique replacements. `find_files`/`search_files` honor
+nested ignore files and protected/denied paths. `query_data` uses core YAML/JSON
+plus a disclosed stdin-only jq subset. Local search/query require `rg`/`jq` on
+the actual host (for example an explicit `brew install ripgrep jq`); tools never
+install them or fall back to another environment.
+
+`write_document`, `inspect_document` and `edit_document` create/read/edit actual
+bounded PDF/DOCX/XLSX files with exact source digests. Unsupported structures,
+PDF characters/layout editing and OCR fail explicitly; formulas never execute.
+Project SQLite reads and approved transactions are separate from service-backed
+todo/memory SQL. Model state writes can update an explicit task plan and
+current-session Sky notes, never raw state storage, memory promotion or opt-in.
+
+Browser-free `web_search` uses public keyless search; `web_fetch` retrieves a
+selected page. Provider challenges are errors, not empty success or a hidden
+switch. Optional Firecrawl/self-hosted/API search stays behind an explicitly
+configured, approved MCP server. `create_issue` previews then separately creates
+an exact GitHub/Linear issue through the configured Local account/team pipeline.
+Its actor stays model, not user acceptance.
+
+`/review [PROMPT]`, `/security [PROMPT]`, `/performance [PROMPT]` and
+`/debug [PROMPT]` investigate and fix within the session's existing controls.
+Defaults cover current changes/relevant code, or the project when clean.
+Debug can inspect the session-owned app/Agent logs and an explicitly configured
+approved DAP adapter. Other targets need explicit selection. None of these
+commands changes Env, model, autonomy, permissions or budget.
+
+In **Side chat / Main and child sessions**, inspect public transcript/progress,
+send advisory messages, review/revoke exact root grants, or explicitly dispatch
+an agent child's task. A side chat can read/message its actual main but stays
+read-only. Separate agent children start Manual. Questions and approvals are
+answered through their original owning controls, never by sending a message.
+Advisories do not start a paid reply or consume the target draft. Queued work/
+messages whose original grant/root changed stay retained, not fresh execution
+or model context. Sidebar reparenting grants no authority.
+
+**Terminal / Agent / Owned command and watch jobs** shows explicit Local watches,
+original logs, observed wall time/output and actual stop/partial outcomes.
+Inspect a partial job's captured root/processes, acknowledge its exact digest,
+then Resume separately. Neither acknowledgement nor a saved PID proves cleanup.
+Ordinary `run_command` never becomes an implicit successful background watch.
+
+The same SDK powers `/tools [OFFSET] [QUERY]`, `/tool NAME SCHEMA_SHA JSON`,
+`/tool-result STEP CALL [OFFSET]`, `/state SELECT_SQL`, `/watch` and
+`/coordinate`; CLI accepts the same names without `/` and with `--session ID`.
+Use `/help` for exact review/inspection arguments. User tool jobs are
+Local-only; model-turn-only capabilities cannot be promoted into standalone jobs.
+See [SDK examples](sdk.md#lean-tools-and-session-coordination) and
+[boundaries/evidence](architecture/lean-tooling.md).
+
 ## Work and approvals
 
 The composer exposes **Env**, **Model**, **Autonomy level**, **Budget** through
@@ -1292,13 +1360,17 @@ permission revisions, or an explicit bounded user delegation. Deny wins.
 Blanket shell/wildcard allow grants are rejected; shell grants name the exact
 command string. File tools list/read/write approved project content; writes require
 the digest returned by a read, or `absent` for a new file. Protected credential
-paths and symlink escapes are rejected. Text files are limited to 128 KiB;
+paths and symlink escapes are rejected. Full text reads/`write_file` are limited
+to 128 KiB; selective reads and exact `edit_file` support sources up to 1 MiB.
+Structured binary documents have their separate 8-MiB parser/authoring boundary;
 at most 16 snapshots and 512 KiB of attached text are accepted.
 
 **An approved shell command runs on the host without isolation.** The project
 directory is its working directory, not an OS containment boundary. Review the
 full command. Commands have bounded output/deadlines, cannot be left running as
-implicitly successful background work, and are owned by the current turn.
+implicitly successful background work, and ordinary `run_command` is owned by
+the current turn. Explicit `command_job` watches have their separate captured
+session/root/timeout owner and truthful inspection lifecycle described above.
 The worker does not receive the local API token or refresh credential.
 An MCP call always requires an exact nested-tool approval and fresh schema/
 server fingerprint. Tool annotations are not permissions. An external MCP
@@ -1975,6 +2047,10 @@ Side chat exposes its own **Model** selector. It inherits the current parent
 selection at creation, but an unset/unavailable/synthetic selection requires an
 explicit concrete model. Choosing it does not change the parent, Env or
 read-only scope, and no failed model is silently substituted.
+Protocol 57 adds explicit root-bound live messages/public inspection and
+separate executable agent-child tasks without widening the side chat's mode.
+Captured parent context is retained independently and loaded on demand; missing
+live grants never become a snapshot-to-live fallback.
 
 The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
 Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
@@ -2076,7 +2152,9 @@ Unconfirmed owned effects block deletion until explicit inspection.
 exact user scripts, preview port, optional read-only `porto list` inventory,
 read-only/denied folders, instructions, MCP and plan paths. Saving never runs a
 script. Host agent command/MCP tools are blocked when they cannot enforce folder
-restrictions. Repo instructions default to AGENTS.md (Agents.md is recognized);
+restrictions. Repo instructions default to AGENTS.md (Agents.md is recognized).
+Nested `AGENTS.md` and supplementary `moguri.md` inherit root to target; nearer
+textual rules and same-directory `moguri.md` take precedence, never over hard policy.
 MCP defaults to mcp.json. Missing files are shown, not silently created/pushed.
 The explicit publishing action creates only missing defaults and pushes a
 selected non-protected branch using an independent index, preserving current
