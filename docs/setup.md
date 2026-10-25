@@ -573,6 +573,33 @@ This remains ad-hoc development signing, not notarization or physical
 SendBox/Linux release readiness. Existing minimal SDK-host/chunk/optional-icon
 notices remain disclosed. Screenshots and logs use only generated fixtures.
 
+#### Compact attachment refinement
+
+Attachments now stay as small file-like chips in both the composer and sent
+messages, with a 36x28 image thumbnail and filename. Hovering does not expand
+them; only click or keyboard activation opens the already approved large
+viewer. The former large inline cards and their scrolling layout are removed.
+Captured data, source files, model requests, removal ownership and all ten
+shared/native-host bundle hashes remain unchanged.
+
+The focused image/desktop interaction run passes **9 cases in 15.5 seconds**.
+The actual rebuilt app passes **11 image/browser cases in 30.3 seconds**.
+The fresh external SDK install, imports/declarations and all 12 installed
+workers pass; audits find zero vulnerabilities. The broader desktop run is
+**not clean**: 167 passed, two skipped and one timing-sensitive Remote console
+resize check failed while sampling its SSH grid after native window growth.
+This is retained in `compact-image-attachments-full-e2e.log`, not reported as
+a passing full suite. Production terminal behavior is unchanged by this
+image-only refinement.
+
+The current native distribution check passes in **4,214.34 ms**. The
+**740,607,115-byte ZIP** passes the production update consumer in
+**112,654.00 ms**. The **754,273,679-byte DMG** retains the verified native
+geometry and unchanged signed app, SHA-256
+`cea9944c7b5a6fc4f27bb3bc199c696bfb46e30ecf915a60aa5c6338a357de52`.
+Signing remains development-only; no personal browser, screen, credentials,
+microphone, administrator install or physical VM qualification was used.
+
 ### Session ordering and navigation
 
 Drag a session above or below a sibling to reorder it. Order is saved atomically
