@@ -31,6 +31,11 @@ the last inference, sent prompt or a different profile. Global defaults remain
 subject to explicit profile/project/session overrides; existing chats keep their
 controls. With no remembered choice, the factory still selects no model.
 See [new-session model defaults](architecture/model-controls.md#new-session-model-defaults).
+The fresh [protocol-55 qualification](architecture/model-controls.md#model-default-qualification)
+passes 1,315 Node/worker/CLI/TUI cases with 14 physical-native skips and 157
+hidden desktop cases with two physical-native skips. The packed external SDK,
+matching native worker image and actual development app/ZIP/DMG are qualified
+separately; installer integrity is not notarization or physical VM readiness.
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
