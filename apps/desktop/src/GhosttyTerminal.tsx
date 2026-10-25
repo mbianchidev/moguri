@@ -6,6 +6,18 @@ import { Icon } from "./Icon.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
+function observeTerminalFit(terminal: Terminal, container: HTMLElement): () => void {
+  const fit = new FitAddon(); terminal.loadAddon(fit);
+  let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
+  // Ghostty drops observer notifications during its 50 ms fit guard.
+  const schedule = () => {
+    if (disposed) return;
+    clearTimeout(timer); timer = setTimeout(() => { if (!disposed) fit.fit(); }, 100);
+  };
+  const observer = new ResizeObserver(schedule);
+  observer.observe(container); schedule();
+  return () => { disposed = true; clearTimeout(timer); observer.disconnect(); };
+}
 export function GhosttyOutput({ text, active, scope }: { text: string; active: boolean; scope: string }) {
   const host = useRef<HTMLDivElement>(null), emulator = useRef<Terminal | null>(null), latest = useRef(text);
   const [error, setError] = useState("");
@@ -16,7 +28,7 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
     // Leave Tab to browser focus navigation, not Ghostty's keyboard capture.
     const tab = (event: KeyboardEvent) => { if (event.key === "Tab") event.stopImmediatePropagation(); };
     container.addEventListener("keydown", tab, true);
-    let disposed = false, current: Terminal | undefined;
+    let disposed = false, current: Terminal | undefined, stopFit = () => {};
     setError("");
     void (async () => {
       try {
@@ -32,11 +44,11 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
         current.textarea?.setAttribute("aria-label", "Read-only Agent output");
         current.textarea?.setAttribute("readonly", "");
         current.attachCustomKeyEventHandler(() => true);
-        const fit = new FitAddon(); current.loadAddon(fit); fit.fit(); fit.observeResize();
+        stopFit = observeTerminalFit(current, host.current);
         if (latest.current) current.write(latest.current);
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : "Ghostty could not render the retained Agent output."); }
     })();
-    return () => { disposed = true; container.removeEventListener("keydown", tab, true); current?.dispose(); emulator.current = null; };
+    return () => { disposed = true; stopFit(); container.removeEventListener("keydown", tab, true); current?.dispose(); emulator.current = null; };
   }, [active, scope]);
   useEffect(() => {
     const current = emulator.current;
@@ -132,7 +144,7 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
     if (!terminal || !host.current || !connected || !active) return;
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let current: Terminal | undefined;
+    let current: Terminal | undefined, stopFit = () => {};
     let cursor = 0;
     let input = Promise.resolve();
     const inputAbort = new AbortController();
@@ -163,7 +175,6 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
         current.open(host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Ghostty terminal");
         current.textarea?.setAttribute("aria-label", "Terminal input");
-        const fit = new FitAddon(); current.loadAddon(fit);
         current.onData((data) => {
           input = input.then(() => sdk.terminal.input(terminal.id, data, inputAbort.signal)).catch((error: unknown) => {
             stopInput();
@@ -177,10 +188,10 @@ export function GhosttyTerminal({ sdk, session: contextSession, snapshot, active
           if (shortcutMatches(event, copyShortcut.current) && current?.hasSelection()) { void run(() => window.moguri.copyText(current!.getSelection())); return true; }
           return false;
         });
-        fit.fit(); fit.observeResize(); void read();
+        stopFit = observeTerminalFit(current, host.current); void read();
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : "Ghostty could not initialize. Rebuild its bundled WASM asset."); }
     })();
-    return () => { stopInput(); disposed = true; clearTimeout(timer); current?.dispose(); emulator.current = null; };
+    return () => { stopInput(); disposed = true; stopFit(); clearTimeout(timer); current?.dispose(); emulator.current = null; };
   }, [terminal?.id, terminal?.attachmentId, terminal?.status, connected, canInput, viewEpoch, active, sdk]);
   return <section className="ghostty-panel" aria-label="Embedded Ghostty terminal">
     {contextSession && !consoleScope && <label className="terminal-scope">Console<select aria-label="Terminal scope" value={global ? "global" : "session"} onChange={(event) => { setScope(event.target.value === "global" ? "global" : "session"); setSelected(null); setError(""); }}><option value="global">Global terminal</option><option value="session">This chat</option></select></label>}
