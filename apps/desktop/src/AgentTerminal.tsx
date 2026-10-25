@@ -4,6 +4,7 @@ import type { ActivityResponse, MoguriSdk, Session, Snapshot } from "../../../pa
 import { activityBytes, activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { Icon } from "./Icon.tsx";
+import { CommandJobs } from "./CommandJobs.tsx";
 
 type Read = Extract<ActivityResponse, { type: "activity.read" }>;
 export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
@@ -39,6 +40,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
     catch (error) { setCopyError(error instanceof Error ? error.message : "Agent output could not be copied."); }
   };
   return <section className="agent-terminal" aria-label="Agent terminal">
+    <CommandJobs sdk={sdk} session={session} snapshot={snapshot} active={active} />
     <header className="terminal-tabs">
       <select aria-label="Selected agent command" value={selected?.id ?? ""} onChange={(event) => setSelection({ scope, id: event.target.value })}>
         {commands.map((command, index) => <option value={command.id} key={command.id}>{index + 1}. {command.subject?.slice(0, 65) ?? "Recorded command"} / {command.status}</option>)}

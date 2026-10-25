@@ -4,6 +4,7 @@ import { Icon } from "./Icon.tsx";
 import { chatSubmission, useQueueModifier } from "./ChatComposer.tsx";
 import { TaskPlanPanel } from "./TaskProgress.tsx";
 import { QuestionCard } from "./QuestionCard.tsx";
+import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
 
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
@@ -215,11 +216,13 @@ export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, e
   const side = sides.find((session) => session.id === selectedId) ?? sides.at(-1);
   const [error, setError] = useState("");
   const [answerDirty, setAnswerDirty] = useState(false);
-  const dirtyChanged = useCallback((dirty: boolean) => { setAnswerDirty(dirty); onDirty?.(dirty); }, [onDirty]);
-  return <section className="side-chat-panel"><header className="panel-toolbar"><select aria-label="Question-only side session" value={side?.id ?? ""} disabled={answerDirty} onChange={(event) => select(event.target.value)}>{sides.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}{!side && <option value="">Question-only context</option>}</select>
-    <button className="icon-button" aria-label="New side chat" title="New question-only side chat" disabled={answerDirty} onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Side chat could not be created."))}><Icon name="Plus" /></button></header>
+  const [coordinationDirty, setCoordinationDirty] = useState(false), dirty = answerDirty || coordinationDirty;
+  useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
+  return <section className="side-chat-panel"><SessionCoordinationPanel key={`${sdk.profileId}:${parent.id}`} sdk={sdk} session={parent} snapshot={snapshot} onDirty={setCoordinationDirty} />
+    <header className="panel-toolbar"><select aria-label="Question-only side session" value={side?.id ?? ""} disabled={dirty} onChange={(event) => select(event.target.value)}>{sides.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}{!side && <option value="">Question-only context</option>}</select>
+    <button className="icon-button" aria-label="New side chat" title="New question-only side chat" disabled={dirty} onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Side chat could not be created."))}><Icon name="Plus" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} onDirty={dirtyChanged} /> : <p className="fine-print">Open a parallel question-only session with a snapshot of this conversation's approved context. It cannot edit code or promote itself.</p>}
+    {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} onDirty={setAnswerDirty} /> : <p className="fine-print">Open a parallel question-only session with a snapshot of this conversation's approved context. It cannot edit code or promote itself.</p>}
   </section>;
 }
 function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; editorFor: (session: Session) => DraftEditor; onDirty?: (dirty: boolean) => void }) {
@@ -227,6 +230,8 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty 
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [error, setError] = useState("");
   const [configuring, setConfiguring] = useState(false);
+  const [questionDirty, setQuestionDirty] = useState(false), [coordinationDirty, setCoordinationDirty] = useState(false);
+  useEffect(() => { onDirty?.(questionDirty || coordinationDirty); return () => onDirty?.(false); }, [questionDirty, coordinationDirty, onDirty]);
   const configurationPending = useRef(false);
   const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") ||
     session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
@@ -254,12 +259,13 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty 
     } catch (error) { setError(error instanceof Error ? error.message : "Side-chat model selection was not saved. Your draft is preserved."); }
     finally { configurationPending.current = false; setConfiguring(false); }
   };
-  return <><label className="side-model">Model<select aria-label="Side chat model" value={session.controls.modelId ?? ""} disabled={configuring || Boolean(session.turnId)} onChange={(event) => void chooseModel(event.target.value)}>
+  return <><SessionCoordinationPanel key={`${sdk.profileId}:${session.id}`} sdk={sdk} session={session} snapshot={snapshot} onDirty={setCoordinationDirty} />
+    <label className="side-model">Model<select aria-label="Side chat model" value={session.controls.modelId ?? ""} disabled={configuring || Boolean(session.turnId)} onChange={(event) => void chooseModel(event.target.value)}>
     <option value="">Select model</option>{session.controls.modelId && !model && <option value={session.controls.modelId} disabled>Unavailable: {session.controls.modelId}</option>}
     {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
     {!model && <p className="fine-print" role="status">{models.length ? "Choose a model for this side chat. Its read-only scope and your draft are preserved." : "No concrete model is available in this environment. Configure or reconnect one in Settings; no provider was substituted."}</p>}
     <div className="side-transcript" role="log" aria-label="Side chat transcript">{session.messages.slice(-40).map((message) => <article key={message.id}><strong>{message.role === "user" ? "You" : "Moguri"}</strong><p>{message.text}</p></article>)}</div>
-    {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={onDirty} />}
+    {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}
     {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre><div className="button-row">
       {[false, true].map((allow) => <button key={String(allow)} className={allow ? "primary" : ""} onClick={() => void sdk.command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Read approval was not acknowledged."))}>{allow ? "Approve read" : "Deny"}</button>)}</div></section>}
     {error && <p className="inline-error" role="alert">{error}</p>}

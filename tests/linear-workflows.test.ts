@@ -133,6 +133,25 @@ async function fixture() {
 
 const phaseMapping = [{ phaseId: "backlog", stateId: ids.state }, { phaseId: "done", stateId: ids.done }];
 
+test("model Linear creation keeps the original model and tool grant, not a forged user acceptance", async () => {
+  const f = await fixture();
+  try {
+    const sessionId = "generated-linear-model-owner";
+    f.commit([{ event_type: "session.created", profile_id: "default", project_id: "project", session_id: sessionId, payload: { title: "Generated model owner", controls: factoryControls() } }]);
+    const input = { action: "issue.create" as const, fields: { title: "Generated model issue" } }, source = { actor: "model" as const, modelId: "generated-model", providerId: null, stepId: "generated-step", callId: "generated-call" };
+    const review = await f.runtime().query({ type: "linear.workflow.preview", projectId: "project", sessionId, input });
+    if (review.type !== "linear.workflow.preview") assert.fail("Missing exact model issue preview.");
+    f.host.rootBusy = () => true;
+    const command: LinearCommand = { type: "linear.workflow.execute", projectId: "project", sessionId, input, expectedDigest: review.preview.digest, confirm: true };
+    await assert.rejects(() => f.runtime().execute(command, f.finish(command)), { code: "linear_busy" });
+    const created = await f.runtime().execute(command, f.finish(command), source), result = await f.wait(created.id!);
+    assert.equal(result.operation.status, "completed"); assert.deepEqual(result.operation.modelSource, source);
+    assert.equal(result.operation.acceptance.actor, "tool-grant"); assert.equal(f.mutations().length, 1);
+    const forbidden: LinearCommand = { ...command, input: { action: "issue.update", issueId: ids.issue, fields: { title: "Forbidden" } } };
+    await assert.rejects(() => f.runtime().execute(forbidden, f.finish(forbidden), source), { code: "linear_model_scope" });
+  } finally { await f.close(); }
+});
+
 test("Linear typed read requests cannot carry mutations or arbitrary GraphQL", () => {
   assert.equal(isLinearQuery({ type: "linear.workflow.issue", projectId: "project", issueId: ids.issue }), true);
   assert.equal(isLinearQuery({ type: "linear.workflow.issue", projectId: "project", issueId: ids.issue, query: "mutation { issueDelete }" }), false);
