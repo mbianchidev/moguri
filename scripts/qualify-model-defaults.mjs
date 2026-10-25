@@ -32,6 +32,9 @@ export async function qualifyModelDefaults({ packageRoot, directory }) {
     assert.equal(current(inherited.id).controls.modelId, modelId);
     assert.deepEqual(current(inherited.id).controls.modelOptions, { thinkingEffort: "high" });
     assert.equal(current(inherited.id).defaults.sources.modelId, "last-used");
+    const unselected = await sdk.sessions.create(null, "Generated installed no-model reset", { modelId: null });
+    await sdk.slash(unselected.id, "/model-settings reset", "tui");
+    assert.deepEqual(sdk.getState().snapshot.lastModelSelection, { modelId, thinkingEffort: "high" });
     const cli = join(root, "bin/moguri.mjs"), modelFile = join(directory, "generated-model-options.json");
     const run = (args) => promisify(execFile)(process.execPath, [cli, ...args], { env: { ...process.env, MOGURI_STATE_DIR: stateDir }, timeout: 15_000 });
     await writeFile(modelFile, JSON.stringify({ thinkingEffort: "low" }));

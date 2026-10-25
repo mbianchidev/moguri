@@ -420,7 +420,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           </select></label>}
           <p className="fine-print">A fixed global choice applies to new chats in every profile unless overridden below or by the project/session. Changing its model resets its model-specific window/effort defaults, not existing chats. Last selected remembers only explicit selections in each profile, never the last inference or a different profile.</p>
           {snapshot.lastModelSelection ? <p className="fine-print" role="status">Last selected in this profile: {rememberedModel?.name ?? `Saved unavailable model: ${snapshot.lastModelSelection.modelId}`} / {snapshot.lastModelSelection.thinkingEffort ?? "provider default"} thinking.</p> :
-            <p className="fine-print" role="status">No model selection has been remembered in this profile yet. Choose a model explicitly; no model or provider will be guessed.</p>}
+            <p className="fine-print" role="status">No model is remembered in this profile. Choose a model explicitly; no model or provider will be guessed.</p>}
           <h3>Current-profile overrides</h3>
           <label className="setting-field">Default model<select aria-label="Default model" value={!Object.hasOwn(draft.startup.profile, "modelId") ? "inherit" : draft.startup.profile.modelId ?? "none"} onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["modelId"]) : automaticDefaults({ modelId: event.target.value === "none" ? null : event.target.value })}>
             <option value="inherit">Use shared global / last selected model</option><option value="none">No selected model</option>
