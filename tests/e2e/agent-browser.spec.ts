@@ -2,6 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { join } from "node:path";
+import sharp from "sharp";
 import { MoguriSdk, isRecord } from "../../packages/sdk/src/index.ts";
 import { setupFixture, type GeneratedProviderOptions } from "../fixture.ts";
 
@@ -73,6 +74,23 @@ function snapshotData(text: string) {
   return { snapshotId: value.snapshotId, element, nodes };
 }
 
+async function captureBrowserPane(owned: Awaited<ReturnType<typeof browserFixture>>, path: string) {
+  const captured = await owned.app.evaluate(async ({ BrowserWindow, WebContentsView }) => {
+    const window = BrowserWindow.getAllWindows()[0]!;
+    const view = window.contentView.children.find((child) => child instanceof WebContentsView);
+    if (!(view instanceof WebContentsView)) throw new Error("The generated native browser view is missing.");
+    const chrome = await window.webContents.capturePage(), page = await view.webContents.capturePage();
+    return { chrome: chrome.toPNG().toString("base64"), page: page.toPNG().toString("base64"), bounds: view.getBounds(), width: window.getContentBounds().width };
+  });
+  const chrome = Buffer.from(captured.chrome, "base64"), page = Buffer.from(captured.page, "base64");
+  const metadata = await sharp(chrome).metadata();
+  if (!metadata.width) throw new Error("The generated app capture has no pixel width.");
+  const scale = metadata.width / captured.width;
+  const native = await sharp(page).resize(Math.round(captured.bounds.width * scale), Math.round(captured.bounds.height * scale)).png().toBuffer();
+  expect((await sharp(native).stats()).channels.some((channel) => channel.stdev > 1)).toBe(true);
+  await sharp(chrome).composite([{ input: native, left: Math.round(captured.bounds.x * scale), top: Math.round(captured.bounds.y * scale) }]).png().toFile(path);
+}
+
 test("native browser primitives expose real Chromium accessibility and exact-page interaction", async () => {
   const owned = await browserFixture();
   try {
@@ -140,7 +158,7 @@ test("approved browser tools navigate, inspect, fill, click and press keys in th
     await owned.page.getByRole("button", { name: "Load preview", exact: true }).click();
     await expect.poll(() => owned.app.evaluate(({ webContents }, url) => webContents.getAllWebContents().some((contents) => contents.getURL() === url), owned.url)).toBe(true);
     expect(owned.fixture.requests.length).toBe(0);
-    await owned.page.screenshot({ path: ".moguri/artifacts/agent-browser-control.png" });
+    await captureBrowserPane(owned, ".moguri/artifacts/agent-browser-control.png");
   } finally { sdk.disconnect(); await owned.close(); }
 });
 
