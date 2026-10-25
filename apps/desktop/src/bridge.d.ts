@@ -1,4 +1,4 @@
-import type { ArtifactExport, Connection } from "../../../packages/protocol/src/index.ts";
+import type { ArtifactExport, BrowserState, Connection } from "../../../packages/protocol/src/index.ts";
 
 export interface DesktopBridge {
   connection(): Promise<Connection>;
@@ -22,7 +22,8 @@ export interface DesktopBridge {
   onUpdateAvailable(listener: (id: string, version: string) => void): () => void;
   copyText(text: string): Promise<void>;
   saveDocument(document: ArtifactExport): Promise<{ path: string; digest: string } | null>;
-  preview(input: { sessionId: string; url: string; bounds: { x: number; y: number; width: number; height: number } } | null, profileId: string): Promise<void>;
+  preview(input: { sessionId: string; url: string | null; reload?: boolean; bounds: { x: number; y: number; width: number; height: number } } | null, profileId: string, closingSessionId?: string): Promise<void>;
+  browserControl(sessionId: string, enabled: boolean, profileId: string): Promise<BrowserState>;
   onNavigateSession(listener: (sessionId: string, profileId: string) => void): () => void;
 }
 declare global { interface Window { moguri: DesktopBridge } }

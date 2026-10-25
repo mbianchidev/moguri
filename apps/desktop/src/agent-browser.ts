@@ -1,0 +1,255 @@
+import type { WebContents } from "electron";
+import { randomBytes, randomUUID } from "node:crypto";
+import { browserUrl, isRecord, validateBrowserArguments, type BrowserRequest, type BrowserResult, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+
+const pointFunction = `function() {
+  if (!(this instanceof HTMLElement) || !this.isConnected || this.closest('[inert]') || this.disabled) throw Error('The exact browser element is unavailable or disabled. Take a fresh snapshot.');
+  if (this instanceof HTMLInputElement && this.type==='file') throw Error('Agent file selection and uploads are unavailable. No file chooser was opened.');
+  this.scrollIntoView({block:'center',inline:'center'});
+  const r=this.getBoundingClientRect(), x=r.x+r.width/2, y=r.y+r.height/2;
+  if (!r.width || !r.height || getComputedStyle(this).visibility!=='visible' || !this.contains(document.elementFromPoint(x,y))) throw Error('The exact browser element is hidden or covered. Inspect the page.');
+  return {x,y};
+}`;
+const fillFunction = `function(text) {
+  if (!(this instanceof HTMLInputElement || this instanceof HTMLTextAreaElement) || !this.isConnected || this.disabled || this.readOnly ||
+      this instanceof HTMLInputElement && !['text','search','email','url','tel','number'].includes(this.type) ||
+      !this.getClientRects().length || getComputedStyle(this).visibility!=='visible') throw Error('Only an exact visible editable text field is allowed. Password, file and hidden fields are refused.');
+  const prototype=this instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype,'value').set.call(this,text);
+  this.dispatchEvent(new Event('input',{bubbles:true})); this.dispatchEvent(new Event('change',{bubbles:true}));
+  if (this.value!==text) throw Error('The browser did not accept the complete text. Inspect the partial field value.');
+  return true;
+}`;
+
+export class SessionBrowserHost {
+  private readonly owner;
+  private sequence = 0;
+  private controlId: string | null = null;
+  private stopped = false;
+  private connected = true;
+  private debuggerOwned = false;
+  private snapshotId: string | null = null;
+  private refs = new Map<string, number>();
+  private pageEpoch = 0;
+  private lastPoll = Date.now();
+  private active?: { id: string; abort: AbortController };
+  private seenRequests = new Set<string>();
+  private mouseDown = false;
+  private keyDown: string | null = null;
+  private watchdog?: ReturnType<typeof setInterval>;
+  private readonly navigated = () => { this.pageEpoch++; this.clearRefs(); };
+  private readonly debugMessage = (_event: Electron.Event, method: string) => {
+    if (method !== "Page.javascriptDialogOpening" || !this.debuggerOwned || this.contents.isDestroyed()) return;
+    void this.contents.debugger.sendCommand("Page.handleJavaScriptDialog", { accept: false })
+      .catch((error: unknown) => this.report(`Browser page dialog dismissal was not acknowledged: ${error instanceof Error ? error.message : "unknown dialog failure"}`));
+  };
+  private constructor(private sdk: MoguriSdk, sessionId: string, private contents: WebContents, private validOwner: () => boolean, private report: (message: string) => void) {
+    this.owner = { sessionId, hostId: randomUUID(), lease: randomBytes(32).toString("hex") };
+    contents.on("did-start-navigation", this.navigated);
+    contents.debugger.on("message", this.debugMessage);
+  }
+  static async attach(sdk: MoguriSdk, sessionId: string, contents: WebContents, validOwner: () => boolean, report: (message: string) => void): Promise<SessionBrowserHost> {
+    const host = new SessionBrowserHost(sdk, sessionId, contents, validOwner, report);
+    try { await sdk.browser.host.attach(host.owner); }
+    catch (error) { contents.removeListener("did-start-navigation", host.navigated); contents.debugger.removeListener("message", host.debugMessage); throw error; }
+    host.watchdog = setInterval(() => { if (Date.now() - host.lastPoll > 8000) host.revoke(); }, 1000);
+    void host.poll();
+    return host;
+  }
+  private clearRefs(): void { this.snapshotId = null; this.refs.clear(); }
+  private revoke(): void {
+    this.controlId = null; this.clearRefs(); this.active?.abort.abort();
+    if (!this.contents.isDestroyed()) {
+      this.releaseInput();
+      if (this.debuggerOwned && this.contents.debugger.isAttached()) this.contents.debugger.detach();
+    }
+    this.debuggerOwned = false;
+  }
+  async control(enabled: boolean) {
+    if (enabled && !this.connected) throw new Error("The original browser host disconnected. Close and reopen the pane; no replacement or retry was inferred.");
+    const sequence = ++this.sequence;
+    this.revoke();
+    try {
+      await this.sdk.browser.host.control(this.owner, sequence, enabled);
+      const { browser } = await this.sdk.browser.state(this.owner.sessionId);
+      if (sequence === this.sequence && !this.stopped && this.validOwner()) this.controlId = enabled ? browser.controlId : null;
+      return browser;
+    } catch (error) {
+      if (sequence === this.sequence) {
+        this.revoke();
+        const latest = ++this.sequence;
+        await this.sdk.browser.host.control(this.owner, latest, false).catch((failure: unknown) => this.report(`Browser failure revocation was not acknowledged: ${failure instanceof Error ? failure.message : "unknown revocation failure"}`));
+      }
+      throw error;
+    }
+  }
+  async close(): Promise<void> {
+    if (this.stopped) return;
+    this.stopped = true; clearInterval(this.watchdog); this.revoke();
+    this.contents.removeListener("did-start-navigation", this.navigated);
+    this.contents.debugger.removeListener("message", this.debugMessage);
+    await this.sdk.browser.host.detach(this.owner);
+  }
+  private async poll(): Promise<void> {
+    try {
+      while (!this.stopped && !this.contents.isDestroyed() && this.validOwner()) {
+        const sequence = this.sequence;
+        const response = await this.sdk.browser.host.poll(this.owner, this.contents.getURL().slice(0, 4096), this.contents.getTitle().slice(0, 512));
+        this.lastPoll = Date.now();
+        if (this.stopped || !this.validOwner()) break;
+        if (sequence === this.sequence && response.controlId !== this.controlId) this.revoke();
+        if (sequence === this.sequence && this.active && response.request?.id !== this.active.id) this.active.abort.abort();
+        const request = response.request;
+        if (request && request.controlId === this.controlId && !this.active && !this.seenRequests.has(request.id)) {
+          this.seenRequests.add(request.id);
+          if (this.seenRequests.size > 256) this.seenRequests.delete(this.seenRequests.values().next().value!);
+          const active = { id: request.id, abort: new AbortController() };
+          this.active = active;
+          void this.execute(request, active.abort.signal).then((result) => this.sdk.browser.host.reply(this.owner, request.id, result))
+            .catch((error: unknown) => this.report(`Browser result was not acknowledged; no replay: ${error instanceof Error ? error.message : "unknown result failure"}`))
+            .finally(() => { if (this.active === active) this.active = undefined; });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    } catch (error) {
+      if (!this.stopped) this.report(`Browser host disconnected; agent control is off: ${error instanceof Error ? error.message : "unknown host failure"}`);
+    } finally { this.connected = false; this.revoke(); }
+  }
+  private guard(request: BrowserRequest, signal: AbortSignal): void {
+    signal.throwIfAborted();
+    if (this.stopped || !this.validOwner() || this.contents.isDestroyed() || !this.controlId || request.controlId !== this.controlId ||
+      Date.now() - this.lastPoll > 8000) throw new Error("Browser control was revoked or its exact native owner changed.");
+  }
+  private async cdp(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
+    if (this.stopped || !this.controlId || !this.validOwner() || this.contents.isDestroyed()) throw new Error("Browser control is off. No debug command was dispatched.");
+    if (!this.debuggerOwned) {
+      if (this.contents.debugger.isAttached()) throw new Error("This browser has another debugger owner. No existing debug session was adopted.");
+      this.contents.debugger.attach("1.3"); this.debuggerOwned = true;
+    }
+    const value: unknown = await this.contents.debugger.sendCommand(method, params);
+    return value;
+  }
+  private releaseInput(): void {
+    if (this.contents.isDestroyed()) return;
+    if (this.mouseDown) { this.mouseDown = false; this.contents.sendInputEvent({ type: "mouseUp", x: -1, y: -1, button: "left", clickCount: 1 }); }
+    if (this.keyDown) { const keyCode = this.keyDown; this.keyDown = null; this.contents.sendInputEvent({ type: "keyUp", keyCode }); }
+  }
+  private async snapshot(request: BrowserRequest, signal: AbortSignal): Promise<string> {
+    this.clearRefs();
+    const epoch = this.pageEpoch;
+    const tree = await this.cdp("Accessibility.getFullAXTree", { depth: 12 });
+    this.guard(request, signal);
+    if (epoch !== this.pageEpoch || !isRecord(tree) || !Array.isArray(tree.nodes)) throw new Error("The browser document changed during inspection. Take a fresh snapshot.");
+    this.snapshotId = randomUUID();
+    const nodes: { ref?: string; role: string; name: string }[] = [];
+    for (const raw of tree.nodes) {
+      if (!isRecord(raw) || raw.ignored || !isRecord(raw.role) || typeof raw.role.value !== "string") continue;
+      const ref = `r${nodes.length}`;
+      const backend = raw.backendDOMNodeId;
+      if (typeof backend === "number" && Number.isSafeInteger(backend) && backend > 0) this.refs.set(ref, backend);
+      nodes.push({ ...(this.refs.has(ref) ? { ref } : {}), role: raw.role.value.slice(0, 100),
+        name: isRecord(raw.name) && typeof raw.name.value === "string" ? raw.name.value.slice(0, 512) : "" });
+      if (nodes.length >= 1000) break;
+    }
+    const offset = Number(request.arguments.offset ?? 0);
+    const page = nodes.slice(offset, offset + 80);
+    const result = () => JSON.stringify({ source: "untrusted-browser-accessibility", snapshotId: this.snapshotId,
+      url: this.contents.getURL(), title: this.contents.getTitle().slice(0, 512), nodes: page,
+      nextOffset: offset + page.length < nodes.length ? offset + page.length : null, boundedAt: 1000 });
+    while (Buffer.byteLength(result()) > 16384 && page.length) page.pop();
+    if (Buffer.byteLength(result()) > 16384) throw new Error("The browser metadata exceeded the bounded snapshot.");
+    return result();
+  }
+  private async element(request: BrowserRequest, signal: AbortSignal): Promise<string> {
+    if (!this.snapshotId || request.arguments.snapshotId !== this.snapshotId) throw new Error("This browser snapshot is stale. Inspect the current document again.");
+    const backendNodeId = this.refs.get(String(request.arguments.ref));
+    if (!backendNodeId) throw new Error("This exact element reference is missing. Take a fresh browser snapshot.");
+    const epoch = this.pageEpoch;
+    const resolved = await this.cdp("DOM.resolveNode", { backendNodeId });
+    this.guard(request, signal);
+    if (epoch !== this.pageEpoch || !this.snapshotId || request.arguments.snapshotId !== this.snapshotId ||
+      !isRecord(resolved) || !isRecord(resolved.object) || typeof resolved.object.objectId !== "string") throw new Error("The browser element changed during resolution. Nothing was selected by position or text.");
+    return resolved.object.objectId;
+  }
+  private async invoke(objectId: string, functionDeclaration: string, args: unknown[] = []): Promise<unknown> {
+    const result = await this.cdp("Runtime.callFunctionOn", { objectId, functionDeclaration, arguments: args.map((value) => ({ value })), returnByValue: true });
+    if (isRecord(result) && isRecord(result.exceptionDetails)) {
+      const exception = result.exceptionDetails.exception;
+      const reason = isRecord(exception) && typeof exception.description === "string" ? exception.description.slice(0, 1000) : "The browser rejected this exact element operation.";
+      throw new Error(`Untrusted browser operation failure: ${reason}`);
+    }
+    if (!isRecord(result) || !isRecord(result.result)) throw new Error("The exact browser element operation had no acknowledged result. Inspect the current page.");
+    return result.result.value;
+  }
+  private async execute(request: BrowserRequest, signal: AbortSignal): Promise<BrowserResult> {
+    let effects = false;
+    const cancel = () => {
+      this.releaseInput();
+      if (!this.contents.isDestroyed() && this.debuggerOwned && this.contents.debugger.isAttached()) {
+        this.debuggerOwned = false; this.contents.debugger.detach();
+      }
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+    try {
+      this.guard(request, signal);
+      validateBrowserArguments(request.tool, request.arguments);
+      await this.cdp("Page.enable");
+      this.guard(request, signal);
+      await this.cdp("Page.setInterceptFileChooserDialog", { enabled: true });
+      this.guard(request, signal);
+      if (request.tool === "browser_snapshot") return { text: await this.snapshot(request, signal), outcome: "completed" };
+      if (request.tool === "browser_navigate") {
+        const url = browserUrl(String(request.arguments.url));
+        this.guard(request, signal); effects = true; this.clearRefs();
+        const cancel = () => { if (!this.contents.isDestroyed()) this.contents.stop(); };
+        signal.addEventListener("abort", cancel, { once: true });
+        try { await this.contents.loadURL(url.href); }
+        finally { signal.removeEventListener("abort", cancel); }
+      } else {
+        const objectId = await this.element(request, signal);
+        try {
+          this.guard(request, signal);
+          if (request.tool === "browser_fill") {
+            effects = true;
+            await this.invoke(objectId, fillFunction, [request.arguments.text]);
+          } else if (request.tool === "browser_click") {
+            const point = await this.invoke(objectId, pointFunction);
+            this.guard(request, signal);
+            if (!isRecord(point) || typeof point.x !== "number" || typeof point.y !== "number") throw new Error("The browser element has no current visible point.");
+            effects = true;
+            this.mouseDown = true;
+            await this.cdp("Input.dispatchMouseEvent", { type: "mousePressed", button: "left", clickCount: 1, x: point.x, y: point.y });
+            this.guard(request, signal);
+            await this.cdp("Input.dispatchMouseEvent", { type: "mouseReleased", button: "left", clickCount: 1, x: point.x, y: point.y });
+            this.mouseDown = false;
+          } else if (request.tool === "browser_press_key") {
+            effects = true;
+            await this.invoke(objectId, "function(){if(!(this instanceof HTMLElement)||!this.isConnected)throw Error('Stale element');this.focus()}");
+            this.guard(request, signal);
+            const key = String(request.arguments.key);
+            const codes: Record<string, number> = { Enter: 13, Tab: 9, Escape: 27, ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39, Backspace: 8, " ": 32 };
+            this.keyDown = key;
+            await this.cdp("Input.dispatchKeyEvent", { type: "keyDown", key, windowsVirtualKeyCode: codes[key], ...(key === "Enter" ? { text: "\r" } : key === " " ? { text: " " } : {}) });
+            this.guard(request, signal);
+            await this.cdp("Input.dispatchKeyEvent", { type: "keyUp", key, windowsVirtualKeyCode: codes[key] });
+            this.keyDown = null;
+          } else throw new Error("This browser action is unsupported. No fallback was executed.");
+        } finally {
+          if (this.debuggerOwned && !this.contents.isDestroyed() && this.contents.debugger.isAttached()) {
+            await this.contents.debugger.sendCommand("Runtime.releaseObject", { objectId })
+              .catch((error: unknown) => this.report(`Browser element handle release was not acknowledged: ${error instanceof Error ? error.message : "unknown handle cleanup failure"}`));
+          }
+        }
+        this.clearRefs();
+      }
+      this.guard(request, signal);
+      return { text: JSON.stringify({ source: "untrusted-browser-result", url: this.contents.getURL(), title: this.contents.getTitle().slice(0, 512), action: request.tool,
+        basis: request.tool === "browser_navigate" ? "main-frame-load-finished" : "native-input-acknowledged; inspect the page for website effects", outcome: "completed" }), outcome: "completed" };
+    } catch (error) {
+      const text = error instanceof Error ? error.message : "The browser action failed.";
+      this.report(`Browser action ${request.tool} ${effects ? "may be partial" : "did not complete"}; its original error is retained in the scoped tool result.`);
+      return { text: `${text}${effects ? " Website effects may already exist. Inspect before retrying; no automatic replay." : ""}`,
+        outcome: effects ? "partial" : signal.aborted ? "cancelled" : "failed" };
+    } finally { signal.removeEventListener("abort", cancel); this.releaseInput(); if (effects) this.clearRefs(); }
+  }
+}

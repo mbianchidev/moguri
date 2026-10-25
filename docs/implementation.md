@@ -32,6 +32,7 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > held prompts, shared slash actions, enforced read-only/side sessions,
 > session/project organization, independent plan artifacts and explicit
 > retention/deletion. Desktop uses actual Ghostty WASM, an isolated web preview
+> with optional [user-toggled Local agent control](architecture/agent-browser.md)
 > and SDK-backed diff/plan panels. Stainless automation and
 > the rest of the first-release acceptance gates are not implied complete.
 

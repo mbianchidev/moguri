@@ -669,6 +669,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .terminal-owner p { margin: 8px 0; }
 .terminal-owner button { font-size: 11px; margin-inline-end: 5px; }
 .browser-host { flex: 1; min-height: 80px; min-width: 0; background: var(--canvas); }
+.browser-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; }
+.browser-control label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.browser-control input { accent-color: var(--accent); margin: 0; }
+.browser-control > span { color: var(--muted); font-size: 10px; text-align: right; }
 .browser-host > p { font-size: 12px; color: var(--muted); padding: 12px; line-height: 1.8; }
 .plan-panel textarea { flex: 1; min-height: 100px; width: 100%; resize: none; padding: 12px; font: 12px/1.8 ui-monospace, monospace; }
 .plan-panel > p { margin: 0; }

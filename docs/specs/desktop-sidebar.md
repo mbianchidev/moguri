@@ -113,8 +113,13 @@ Remote files resolve through the authenticated worker and remote workspace ident
 ### Browser
 
 Browser hosts private development previews through the optional [`stainless`](https://github.com/mbianchidev/stainless) integration. It can associate a preview, page, console output, network diagnostics, screenshots, and Playwright activity with the main session.
-The alpha's basic native isolated preview does not claim Stainless diagnostics,
-automation or model-controlled browser tools.
+The alpha's native isolated preview supports optional
+[Local agent browser control](../architecture/agent-browser.md), independent of
+Stainless. A top **Agent control** switch starts off and permits immediate
+revocation/re-enabling. Approved builtin MCP tools navigate, inspect accessible
+content and interact with this same pane. They never adopt a personal browser
+or bypass normal approvals. Stainless diagnostics, console/network capture and
+Playwright integration remain deferred.
 
 Stainless connection, permission, and health state must be visible. Browser data enters model context only through an explicit user action, tool call, or configured policy. If Stainless is absent or unavailable, the panel shows the missing capability and setup path instead of a broken browser surface.
 

@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **55**. Additive upgrades retain existing
+Current service/SDK/desktop protocol is **56**. Additive upgrades retain existing
 encrypted history, identities, keys, grants and budget holds. Restart matching
 clients and service; never delete state to upgrade.
 
@@ -31,11 +31,18 @@ the last inference, sent prompt or a different profile. Global defaults remain
 subject to explicit profile/project/session overrides; existing chats keep their
 controls. With no remembered choice, the factory still selects no model.
 See [new-session model defaults](architecture/model-controls.md#new-session-model-defaults).
-The fresh [protocol-55 qualification](architecture/model-controls.md#model-default-qualification)
+The prior [protocol-55 qualification](architecture/model-controls.md#model-default-qualification)
 passes 1,315 Node/worker/CLI/TUI cases with 14 physical-native skips and 157
 hidden desktop cases with two physical-native skips. The packed external SDK,
 matching native worker image and actual development app/ZIP/DMG are qualified
 separately; installer integrity is not notarization or physical VM readiness.
+
+Protocol 56 adds user-toggled Local browser control through the existing
+session pane and exact MCP approvals. The metadata-only `browser_control_schema`
+upgrade preserves encrypted state and forces review of an older running
+service rather than silently reusing a process without the new tools.
+Browser control/leases never survive restart.
+See [browser ownership and qualification](architecture/agent-browser.md).
 
 An older `connection.json` is not necessarily corrupt. A stale unreachable
 connection can start the current service through its normal writer-lock/recovery
@@ -471,6 +478,20 @@ signed/notarized release remain unqualified. Historical protocol-44 results
 below remain separate; current source does not relabel them as new acceptance.
 
 ## Desktop interactions
+
+Open a Local session's **Browser** pane and turn on its top **Agent control**
+switch to let the agent use that existing isolated page. An empty pane is
+enough: the agent can navigate it after exact tool approval. Builtin MCP search
+for `browser` or `navigate` exposes status, navigation, bounded accessibility
+snapshots, clicks, text-field input and allowed keys. Normal approvals still
+apply. Turning the switch off immediately revokes access and cancels pending
+actions; turning it back on creates fresh authority, never replays an old call.
+Closing/reopening, profile switching and service restart all leave control off.
+No personal browser, account cookies, browser download or debug port is used.
+Password/file fields, uploads/downloads and popup windows are unavailable;
+agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
+Sandbox/Remote browser control and Stainless diagnostics remain unqualified.
+See the [browser contract](architecture/agent-browser.md).
 
 Protocol 44 introduced these interaction changes. Global resources live in
 the left sidebar: Dashboard, Artifacts, Candidates, Sandbox, Suggestions,
