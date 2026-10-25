@@ -295,7 +295,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .composer-mic.recording { color: var(--danger); background: var(--error-bg); }
 .composer-voice-status { margin: 0; padding: 8px 12px; border-top: 1px solid var(--soft-line); overflow-wrap: anywhere; }
 .composer-transcript { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--soft-line); }
-.composer-transcript > span { flex: 1; }
+.composer-transcript-text { flex: 1; min-width: 0; }
+.composer-transcript-text p { max-height: 160px; margin: 4px 0 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); }
 .composer-transcript button { min-height: 26px; font-size: 11px; padding: 3px 8px; }
 .composer-popover { position: fixed; inset: auto; margin: 0; color: var(--text); background: var(--surface); border: 1px solid var(--control-line); border-radius: 8px; padding: 14px; overflow: auto; box-shadow: 0 6px 24px #0004; }
 .composer-popover::backdrop { background: transparent; }

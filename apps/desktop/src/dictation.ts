@@ -63,7 +63,7 @@ export class SpeechCaptureController {
   async finish(): Promise<void> {
     const owner = this.owner;
     if (!owner) return;
-    if (this.state.phase === "starting") return this.cancel();
+    if (this.state.phase === "starting") return this.cancel("Recording stopped before the microphone was ready. No audio was captured. Hold until Recording appears, then release to transcribe.");
     if (owner.finalizing) return owner.finalizing;
     const recorder = owner.recorder, lease = owner.lease;
     if (!recorder || !lease) return;
@@ -80,7 +80,7 @@ export class SpeechCaptureController {
     })();
     return owner.finalizing;
   }
-  async cancel(): Promise<void> {
+  async cancel(reason: string | null = null): Promise<void> {
     const owners = [...new Set([...(this.owner ? [this.owner] : []), ...this.cleanupOwners])];
     if (!owners.length) return;
     this.owner = undefined; clearTimeout(this.deadline);
@@ -90,13 +90,13 @@ export class SpeechCaptureController {
       const message = errors.map((error) => error instanceof Error ? error.message : "Original capture cancellation is unconfirmed.").join(" ");
       console.error("Original capture cancellation was not confirmed:", message);
       if (!this.owner && !this.disposed) this.publish("failed", message, owners.find((owner) => this.cleanupOwners.has(owner))?.lease?.id ?? null);
-    } else if (!this.owner) this.publish("idle");
+    } else if (!this.owner) this.publish("idle", reason);
   }
   observe(id: string, status: string, error: string | null): void {
     const owner = this.owner;
     if (!owner || owner.lease?.id !== id || ["running", "waiting_input"].includes(status)) return;
     this.owner = undefined; clearTimeout(this.deadline);
-    this.publish(["failed", "partial"].includes(status) ? "failed" : "idle", ["failed", "partial"].includes(status) ? error ?? "Local recognition did not complete." : null);
+    this.publish(["failed", "partial"].includes(status) ? "failed" : "idle", status === "cancelled" ? error ?? "Local dictation was cancelled before a transcript was ready. Your draft is unchanged." : ["failed", "partial"].includes(status) ? error ?? "Local recognition did not complete." : null);
     void this.cleanup(owner, false).catch((error: unknown) => {
       console.error("Settled microphone cleanup was not confirmed:", error instanceof Error ? error.message : "original capture cleanup");
       if (!this.owner && !this.disposed) this.publish("failed", error instanceof Error ? error.message : "Original microphone cleanup is unconfirmed.", owner.lease?.id ?? null);
