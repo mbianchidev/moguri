@@ -118,6 +118,17 @@ ID or account-name field. If needed, sign in yourself with
 background linked-PR observations retain their existing per-project access
 choice, separate from these interactive reads.
 
+On macOS, Finder/Dock launches often omit Homebrew from `PATH`. Moguri preserves
+the inherited lookup order and adds missing `/usr/local/bin` and
+`/opt/homebrew/bin` locations for its Local background service and owned
+programs. It does not run shell startup files, scan other applications' private
+tool caches, install a CLI or copy credentials. An explicitly supplied program
+`PATH` or absolute executable stays authoritative; Linux/Remote Linux lookup is
+unchanged. Git and GitHub CLI must still be installed by the user, and GitHub
+authentication remains explicit. After installing a build containing this fix,
+quit and reopen Moguri so its original background service restarts with the
+corrected environment; existing healthy services are not silently replaced.
+
 **Settings / General / Private GitHub updates / Create a token with the right
 permissions** supplies a prefilled fine-grained-token link and exact steps:
 resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
