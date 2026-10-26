@@ -16,9 +16,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [boardDirty, setBoardDirty] = useState(false);
   const [repositories, setRepositories] = useState<ProjectRepositoryLayout | null>(null);
-  const [color, setColor] = useState<string | null>(null);
   const presentation = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id);
-  const colorDirty = color !== null && color !== presentation.color;
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(values) !== JSON.stringify(committed);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
@@ -46,7 +44,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "The actual repository layout could not be verified. No upstream control was enabled."); } });
     return () => { current = false; };
   }, [sdk, project.id, project.path, JSON.stringify(presentation.values.deniedFolders)]);
-  useEffect(() => { onDirty(dirty || busy || boardDirty || colorDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, colorDirty, onDirty]);
+  useEffect(() => { onDirty(dirty || busy || boardDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, onDirty]);
   const committedRevision = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id)?.revision ?? 0;
   useEffect(() => {
     if (loaded && !ownSave.current && committedRevision !== revision) {
@@ -104,24 +102,11 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     });
   };
   const canRun = session?.projectId === project.id && !dirty && !busy;
-  const saveColor = (color: string) => {
-    if (ownSave.current || busy) { setError("Wait for the current project save. Your icon-color edit is preserved."); return; }
-    setColor(color);
-    void run(async () => {
-      ownSave.current = true;
-      try {
-        const result = await sdk.projects.organize(project.id, { folderId: presentation.folderId, order: presentation.order, color }, revision);
-        setRevision(result.revision!); setColor(null);
-      } finally { ownSave.current = false; }
-    });
-  };
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
     <button className="primary" aria-label="Save project settings" disabled={!loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
     {error && <div className="notice error" role="alert"><span>{error}</span><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
     {!loaded && <p role="status">Loading committed project settings...</p>}
     <fieldset className="project-settings-fields" disabled={!loaded || busy}>
-    <label className="setting-field">Project icon color<SettingsInput type="color" aria-label={`Icon color for ${project.name}`} value={color ?? presentation.color} onChange={(event) => saveColor(event.target.value)} /></label>
-    {colorDirty && <button type="button" onClick={() => { if (color !== null) saveColor(color); }}>Retry icon color</button>}
     <BoardSettings sdk={sdk} project={project} snapshot={snapshot} onDirty={setBoardDirty} />
     <h3>Project instruction overrides</h3><SettingsHelp label="More about this setting">Unselected fields inherit this profile's global guidance. An empty explicit override disables that inherited field. Saving a field preserves other pending text and grants no tools.</SettingsHelp>
     {WORKFLOW_GUIDANCE_FIELDS.map(({ key, label }) => <div className="setting-editor" key={key}>

@@ -360,7 +360,13 @@ Keep the prompt and attached context together, with session controls in this ord
 | **Autonomy level** | Manual, Guided, Autopilot, Autopilot Max | Manual |
 | **Budget** | Unlimited, token cap, USD cap, or both when supported | Unlimited |
 
-The Model control shows setup guidance while unavailable. A configured decision-only provider such as Jev does not unlock a generative model. Discover eligible models before offering kupo, and distinguish configured, available, loading, expired-auth, incompatible, and unreachable states. List only models accessible through the active profile and selected env; discovery does not scan arbitrary hosts or start paid inference. Recheck availability at dispatch, and never silently replace an unavailable saved model.
+The Model control always lists **Kupo**, with setup guidance and an unavailable
+reason when no configured generative model is eligible. A configured
+decision-only provider such as Jev does not unlock inference. Distinguish
+configured, available, loading, expired-auth, incompatible, and unreachable
+states. Concrete models stay scoped to the active profile and selected env;
+discovery never scans arbitrary hosts or starts paid inference. Recheck
+availability at dispatch, and never replace an unavailable saved model silently.
 
 Working-context choices use the exact model maximum and its integer-floored
 half, excluding values below the shared 8,192-token working minimum. Genuine
@@ -636,6 +642,14 @@ For local models, the first milestone discovers installed runtimes and reports c
 
 Users can always pin a single provider/model or select **kupo**, Moguri's synthetic auto model. A fixed selection is not silently replaced by a router. kupo combines a classifier with a versioned execution policy to select an eligible model/workflow for each request or safe model-step boundary, using a user-configured mix of local and third-party hosted models.
 
+The factory automatic policy uses all eligible configured models unless the
+user narrows its explicit subset or privacy policy. With none it cannot run;
+with exactly one it always uses that model in Single without a classifier call.
+With multiple models it chooses an eligible pattern for task complexity. Pools
+of three through twenty retain per-model declared capability categories rather
+than silently dropping entries. Categories are routing hints, not measured
+quality or independent-family proof.
+
 Discover the active profile's authenticated provider catalog and configured local endpoints before constructing the pool, and validate reachability/capabilities from the selected env. In Remote, inference calls originate on the SSH machine; a local-model endpoint there refers to that machine unless an explicit, approved tunnel is configured. Do not silently execute inference on the user's local machine or enumerate unconfigured networks.
 
 | kupo pattern | Behavior |
@@ -646,7 +660,14 @@ Discover the active profile's authenticated provider catalog and configured loca
 
 These are HydraFusion-inspired execution patterns, not a dependency on a private HydraFusion implementation or an assumed public API. The router may use a configured local or hosted classifier, including an optional System One backend. Deterministic policy filters models and data destinations before classification and rechecks every dispatch. Context size, tools, output format, provider availability, privacy restrictions, budgets, and cancellation support constrain the plan. No model may invent an eligible endpoint or send local-only data to a hosted classifier or critic.
 
-Every leg has explicit ownership, limits, cancellation, context provenance, and cost accounting. Compound solvers stage candidate changes in owned workspaces; rejected, failed, or cancelled candidates are not applied to the user's worktree. Applying an accepted patch checks its base and preserves unrelated user edits. Retries or escalation do not replay external side effects. Already-performed effects and incomplete cleanup remain visible as partial outcomes.
+Every leg has explicit ownership, limits, cancellation, context provenance, and
+cost accounting. Automatic normal-composer orchestration first selects an
+original response/tool intent; only then can normal permissions authorize its
+tools. Unselected drafts and reviews never become executable actions or
+ordinary history. The separate reviewed worktree workflow stages actual patch
+candidates in owned workspaces and applies only separately accepted, validated
+bytes against their recorded bases. Neither path replays external side effects
+on escalation or hides already-performed effects and incomplete cleanup.
 
 Fallback models and workflow limits are user-configured and policy-constrained, not silent provider substitutions. Insufficient eligible models, classifier failure, invalid plans, low confidence, and exhausted budgets produce a visible fallback decision or a blocked request. See [D11](architecture/decisions.md#d11-kupo-synthetic-model-and-routing).
 
