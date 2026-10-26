@@ -142,7 +142,7 @@ test("session names open context actions, archive confirmations can be remembere
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("native dragging reorders siblings, attaches and detaches without changing roots, with keyboard menu alternatives", async () => {
+test("native rows reorder siblings, explicit menus attach, and reviewed drags detach without changing roots", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const second = await sdk.sessions.create(fixture.session().projectId, "Generated drag second");
   const third = await sdk.sessions.create(fixture.session().projectId, "Generated drag third"), app = await launch(fixture.directory);
@@ -152,16 +152,25 @@ test("native dragging reorders siblings, attaches and detaches without changing 
     const order = () => sdk.getState().snapshot!.sessions.filter((session) => session.projectId === projectId && !session.parentSessionId).sort(compareSessions).map((session) => session.title);
     await row("Generated drag third").dragTo(row(fixture.session().title), { targetPosition: { x: 30, y: 2 } });
     await expect.poll(order).toEqual(["Generated drag third", fixture.session().title, "Generated drag second"]);
-    await row("Generated drag third").dragTo(row("Generated drag second"));
+    const link = page.getByRole("button", { name: "Generated drag third", exact: true });
+    await link.focus(); await link.press("Shift+F10");
+    await page.getByRole("menu").getByRole("menuitem", { name: "Attach to session", exact: true }).click();
+    const attach = page.getByRole("dialog", { name: "Attach session", exact: true });
+    await attach.getByLabel("Destination", { exact: true }).selectOption(second.id!);
+    await attach.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === third.id)?.parentSessionId).toBe(second.id);
     const attached = sdk.getState().snapshot!.sessions.find((session) => session.id === third.id)!;
     expect(attached.projectId).toBe(projectId); expect(attached.workspaceId).toBeNull(); expect(attached.controls.env).toBe("Local");
-    await row("Generated drag second").dragTo(row("Generated drag third"));
-    await expect(page.getByRole("alert")).toContainText("acyclic");
+    await page.getByRole("button", { name: "Generated drag second", exact: true }).click({ button: "right" });
+    await page.getByRole("menu").getByRole("menuitem", { name: "Attach to session", exact: true }).click();
+    await attach.getByLabel("Destination", { exact: true }).selectOption(third.id!);
+    await attach.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(attach.getByRole("alert")).toContainText("acyclic");
+    await attach.getByRole("button", { name: "Cancel", exact: true }).click();
     const project = sdk.getState().snapshot!.projects.find((project) => project.id === projectId)!;
     await row("Generated drag third").dragTo(page.getByRole("region", { name: `Project ${project.name}`, exact: true }).locator(":scope > header"));
+    await page.getByRole("dialog", { name: "Detach session", exact: true }).getByRole("button", { name: "Detach session", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === third.id)?.parentSessionId ?? null).toBeNull();
-    const link = page.getByRole("button", { name: "Generated drag third", exact: true });
     await link.focus(); await page.keyboard.press("Shift+F10");
     const menu = page.getByRole("menu", { name: "Actions for Generated drag third", exact: true });
     await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();

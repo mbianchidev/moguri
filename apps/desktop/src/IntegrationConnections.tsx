@@ -2,7 +2,7 @@ import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../packages/sdk/src/index.ts";
 
-export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal: () => void }) {
+export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal?: () => void }) {
   const [connection, setConnection] = useState<GitHubConnection | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   return <section aria-label="GitHub integration connection"><h2>GitHub integration</h2><SettingsHelp label="More about this setting">This integration uses your existing GitHub CLI account on the control-plane host. It is separate from Copilot model login and the update PAT. Remote operations keep their explicitly captured SSH account.</SettingsHelp>
     <button type="button" disabled={busy} onClick={() => {
@@ -11,8 +11,9 @@ export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; o
     }}>{busy ? "Checking account..." : "Check existing GitHub CLI account"}</button>
     {connection && <p role="status">Verified CLI account: {connection.login} / {connection.id}. This does not grant repository access or approve an operation.</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}
-    <p className="fine-print">To sign in or change that CLI account yourself, open the global terminal and run <code>gh auth login --hostname github.com</code>. Moguri never completes personal authorization for you. Select authenticated read access per project and review the exact account for writes.</p>
-    <button type="button" disabled={busy} onClick={openTerminal}>Open global terminal</button>
+    <SettingsHelp label="About GitHub CLI sign-in">To sign in or change that CLI account yourself, use a Local session terminal or your own terminal on the control-plane host and run <code>gh auth login --hostname github.com</code>. Moguri never completes personal authorization for you. Select authenticated read access per project and review the exact account for writes.</SettingsHelp>
+    {!openTerminal && <p className="fine-print">Select a Local session to open its terminal. No global console or hidden chat will be created.</p>}
+    <button type="button" disabled={busy || !openTerminal} onClick={openTerminal}>Open session terminal</button>
   </section>;
 }
 

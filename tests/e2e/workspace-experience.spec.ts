@@ -18,7 +18,7 @@ test("compact navigation, global suggestions and the four graphic dashboard page
     const page = await app.firstWindow(), nav = page.getByRole("navigation", { name: "Projects and sessions", exact: true });
     await expect(nav.getByRole("button", { name: "New", exact: true })).toBeVisible();
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations", "Global Terminal"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations"]);
     await expect(nav.getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: "Settings", exact: true })).toHaveText("");
     await expect(nav.getByRole("button", { name: "ask Moguri", exact: true })).toHaveText("");

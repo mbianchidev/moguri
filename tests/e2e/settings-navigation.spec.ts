@@ -23,7 +23,7 @@ test("left global resources and the nine right session panels remain separate wh
     expect(await rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
       .toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"]);
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations", "Global Terminal"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations"]);
     await expect(rail.getByRole("button", { name: "Attention", exact: true })).toHaveCount(0);
     const navigation = page.getByRole("navigation", { name: "Projects and sessions" });
     await expect(navigation.getByRole("button", { name: "Manage profiles", exact: true })).toHaveCount(0);

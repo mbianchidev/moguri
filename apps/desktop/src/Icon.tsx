@@ -13,7 +13,6 @@ const paths: Record<string, string> = {
   Tool: "m14 6 4 4 3-3a6 6 0 0 1-7 8L7 22l-5-5 7-7a6 6 0 0 1 8-7Z",
   Info: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10h.01",
   Progress: "M20 12a8 8 0 1 1-8-8",
-  "Global Terminal": "m4 6 6 6-6 6m9 0h7",
   Image: "M3 4h18v16H3Zm0 12 5-5 5 5 3-3 5 5M8 8h.01",
   "Side chat": "M4 4h16v12H9l-5 4Z", Insights: "M5 20v-6m7 6V4m7 16V9",
   Dashboard: "M3 3h18v18H3Zm4 14v-4m5 4V7m5 10v-7",
@@ -23,7 +22,6 @@ const paths: Record<string, string> = {
   Trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
   Pin: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8", More: "M5 12h.01M12 12h.01M19 12h.01",
   PinOff: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8M3 3l18 18",
-  Grip: "M9 5h.01M15 5h.01M9 12h.01M15 12h.01M9 19h.01M15 19h.01",
   Plus: "M12 4v16M4 12h16", Close: "m5 5 14 14M19 5 5 19", Up: "m5 15 7-7 7 7", Down: "m5 9 7 7 7-7",
   Play: "m7 4 14 8-14 8Z", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
   Agent: "m5 5 14 14M5 19 19 5M8 3v4m-5 4h4m13 2h-4m-4 8v-4",
@@ -57,5 +55,5 @@ const paths: Record<string, string> = {
 };
 const aliases: Record<string, string> = { Sandbox: "Box", "Code change": "PR", "Work item": "Issue" };
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : name === "Grip" ? "3" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

@@ -20,21 +20,19 @@ const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => 
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
-const GhosttyTerminal = lazy(() => import("./GhosttyTerminal.tsx").then((module) => ({ default: module.GhosttyTerminal })));
 const SessionTerminal = lazy(() => import("./SessionTerminal.tsx").then((module) => ({ default: module.SessionTerminal })));
 type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
 const panels: Panel[] = ["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"];
 const globalPanels = ["Suggestions", "Dashboard", "Attention"] as const;
-const savedPanels: Panel[] = [...panels, ...globalPanels, "Artifacts", "Candidates", "Sandbox", "Global Terminal", "PR"];
-type GlobalView = typeof globalPanels[number] | "Global terminal" | "Automations";
+const savedPanels: Panel[] = [...panels, ...globalPanels, "Artifacts", "Candidates", "Sandbox", "PR"];
+type GlobalView = typeof globalPanels[number] | "Automations";
 const isGlobalPanel = (value: Panel): value is typeof globalPanels[number] => globalPanels.some((panel) => panel === value);
 const resourceSettings = (panel: Panel): SettingsTab | null => panel === "Artifacts" ? "artifacts" : panel === "Candidates" ? "candidates" : panel === "Sandbox" ? "sendbox" : null;
-const globalNavigation: { view: GlobalView; icon: string; label?: string }[] = [
+const globalNavigation: { view: GlobalView; icon: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Suggestions", icon: "Suggestions" },
   { view: "Automations", icon: "Clock" },
-  { view: "Global terminal", icon: "Terminal", label: "Global Terminal" },
 ];
 const number = (value: number) => new Intl.NumberFormat().format(value);
 interface SidebarLayout { panel: Panel; open: boolean; maximized: boolean; leftWidth: number; rightWidth: number }
@@ -44,7 +42,7 @@ function savedLayout(): SidebarLayout {
     const raw = localStorage.getItem("moguri.sidebar");
     if (!raw) return defaults;
     const value: unknown = JSON.parse(raw);
-    const panel = isRecord(value) ? savedPanels.find((panel) => panel === value.panel) : undefined;
+    const panel = isRecord(value) ? value.panel === "Global Terminal" ? "Terminal" : savedPanels.find((panel) => panel === value.panel) : undefined;
     if (isRecord(value) && panel && typeof value.open === "boolean") {
       const width = (input: unknown, min: number, max: number, fallback: number) =>
         typeof input === "number" && Number.isFinite(input) ? Math.max(min, Math.min(max, Math.round(input))) : fallback;
@@ -90,8 +88,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [archived, setArchived] = useState(false);
   const [layout] = useState(savedLayout);
-  const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) || resourceSettings(layout.panel) || layout.panel === "Global Terminal" ? "Insights" : layout.panel === "PR" ? "Code change" : layout.panel);
-  const [globalView, setGlobalView] = useState<GlobalView | null>(layout.panel === "Global Terminal" ? "Global terminal" : isGlobalPanel(layout.panel) ? layout.panel : null);
+  const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) || resourceSettings(layout.panel) ? "Insights" : layout.panel === "PR" ? "Code change" : layout.panel);
+  const [globalView, setGlobalView] = useState<GlobalView | null>(isGlobalPanel(layout.panel) ? layout.panel : null);
   const [globalSessionId, setGlobalSessionId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(layout.open);
   const [panelMaximized, setPanelMaximized] = useState(layout.maximized);
@@ -215,9 +213,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); setGlobalView(null); return true; };
   const beforeHidingTerminal = (action: () => void, cancel?: () => void) => {
     if (terminalDismiss) { cancel?.(); return; }
-    const globalTerminal = globalView === "Global terminal";
-    const visible = !settingsTab && !boardOpen && (globalTerminal || !globalView && panelOpen && panel === "Terminal");
-    const running = snapshot?.terminals.some((terminal) => terminal.sessionId === (globalTerminal ? null : session?.id) && !["closed", "failed", "acknowledged"].includes(terminal.status));
+    const visible = !settingsTab && !boardOpen && !globalView && panelOpen && panel === "Terminal";
+    const running = snapshot?.terminals.some((terminal) => terminal.sessionId === session?.id && !["closed", "failed", "acknowledged"].includes(terminal.status));
     if (visible && running && snapshot?.settings.values.interactions.confirmTerminalClose !== false) { setTerminalDismiss({ action, cancel }); return; }
     action();
   };
@@ -235,7 +232,6 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     beforeHidingTerminal(() => {
       if (toggle && globalView === view) { setGlobalView(null); return; }
       setSettingsTab(null); setBoardOpen(false); setGlobalSessionId(sourceId); setGlobalView(view); setNavOpen(false);
-      if (view === "Global terminal") setTerminalIntent({ panel: "Global Terminal", sessionId: null });
     });
   };
   const selectMainSession = (id: string, projectId: string | null) => {
@@ -299,11 +295,13 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (!canNavigate()) return;
     beforeHidingTerminal(() => void run(async () => {
       await editor?.flush();
-      const target = client.getState().snapshot?.projects.find((project) => project.id === id);
-      if (!target) throw new Error("This project was removed. No terminal or hidden chat was created.");
-      await client.terminal.openGlobal(target.path);
+      const state = client.getState().snapshot;
+      if (!state?.projects.some((project) => project.id === id)) throw new Error("This project was removed. No terminal or hidden chat was created.");
+      const target = state.sessions.find((value) => value.id === selectedId && value.projectId === id && value.status !== "archived" && value.kind !== "subagent") ??
+        state.sessions.find((value) => value.projectId === id && value.status !== "archived" && value.kind !== "subagent");
+      if (!target) throw new Error("Create or select a session in this project first. No global terminal or hidden chat was created.");
       if (!leaveSurface()) return;
-      setGlobalSessionId(null); setGlobalView("Global terminal"); setTerminalIntent(null);
+      selectMainSession(target.id, target.projectId); setPanel("Terminal"); setPanelOpen(true); setTerminalIntent({ panel: "Terminal", sessionId: target.id });
     }));
   };
   const hidePanel = () => {
@@ -317,7 +315,6 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (next === "PR") next = "Code change";
     const settings = resourceSettings(next);
     if (settings) { openSettings(settings); return; }
-    if (next === "Global Terminal") { openGlobal("Global terminal"); return; }
     if (isGlobalPanel(next)) { openGlobal(next, session?.id ?? null); return; }
     if (!canNavigate() || panelVisible && panel === next) return;
     beforeHidingTerminal(() => {
@@ -394,7 +391,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <div className="nav-heading"><span>Workspace</span></div>
       <button className="new-session start-trigger" aria-label="New" onClick={openStart} disabled={busy || !snapshot}><Icon name="Plus" />New</button>
       <div className="nav-scroll">
-      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon, label = view }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{label}</button>)}</nav>
+      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{view}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }} />}
       </div>
@@ -410,7 +407,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} /></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} openGlobalTerminal={() => openGlobal("Global terminal")} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -421,7 +418,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             <option value="">All projects</option>{globalSessionId && !globalSession && <option value={globalSessionId} disabled>Source chat removed; choose a current scope</option>}{snapshot.sessions.filter((session) => session.status !== "archived" && session.kind !== "subagent").map((session) => <option key={session.id} value={session.id}>{title(session)}</option>)}
           </select></label>}
         </header>
-        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <div className="panel-empty"><Icon name="Clock" /><h2>No automations yet</h2><p>This space is reserved for automations. Nothing is scheduled here.</p></div> : globalView === "Global terminal" ? <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={!palette && !nativeModal && !terminalDismiss && !commandOutput} consoleScope="global" visible autoStart={terminalIntent?.panel === "Global Terminal"} onAutoStartHandled={() => terminalOpeningHandled("Global Terminal", null)} /></Suspense> :
+        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <div className="panel-empty"><Icon name="Clock" /><h2>No automations yet</h2><p>This space is reserved for automations. Nothing is scheduled here.</p></div> :
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
         </div>
       </section> : <>
@@ -598,7 +595,6 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Dashboard" && snapshot) return <Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} />;
   if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} onAutoStartHandled={onTerminalOpeningHandled} /></Suspense>;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
-  if (panel === "Global Terminal" && snapshot) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><GhosttyTerminal sdk={client} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} onAutoStartHandled={onTerminalOpeningHandled} /></Suspense>;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path,

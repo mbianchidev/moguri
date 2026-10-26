@@ -35,10 +35,9 @@ import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement";
-export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openGlobalTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
+export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
-  openGlobalTerminal: () => void;
   prepareMaintenance: () => Promise<void>;
   artifactRequest?: ArtifactEditorRequest | null; onArtifactRequestHandled?: () => void;
 }) {
@@ -295,7 +294,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             <dt>Move through popover choices</dt><dd><kbd>Up / Down</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move between controls</dt><dd><kbd>Tab / Shift+Tab</kbd></dd><dt>Activate a focused control</dt><dd><kbd>Enter / Space</kbd></dd>
           </dl></>}
-        {tab === "github" && <><GitHubConnectionPanel sdk={sdk} openTerminal={openGlobalTerminal} /><h3>Reviewed project operations</h3><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></>}
+        {tab === "github" && <><GitHubConnectionPanel sdk={sdk} openTerminal={session?.controls.env === "Local" && session.status !== "archived" && snapshot.policy.allowedEnvs.includes("Local") ? openTerminal : undefined} /><h3>Reviewed project operations</h3><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></>}
         {tab === "linear" && <><LinearConnectionPanel sdk={sdk} onDirty={setIntegrationDirty} />{project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <SettingsHelp label="More about this setting">Choose an actual project folder to configure its Linear team and reviewed workflows. No project or account is inherited.</SettingsHelp>}</>}
         {tab === "sql" && <><h2>sql-not-so-lite</h2><SettingsHelp label="More about this setting">Connect to a daemon you already run. Moguri never starts it, triggers its Home scan, sends a database path, or exposes its private store. This is a control-plane host connection, not the selected agent's Remote endpoint.</SettingsHelp>
           <label className="setting-field">Existing daemon endpoint<SettingsInput aria-label="SQL daemon endpoint" type="url" value={draft.integrations?.sql.endpoint ?? "http://127.0.0.1:9147"} onChange={(event) => change("integrations", { sql: { enabled: draft.integrations?.sql.enabled ?? false, endpoint: event.target.value } })} /></label>
@@ -522,6 +521,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
         {tab === "interactions" && <><h2>Confirmations</h2>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} onChange={(event) => change("interactions", { ...draft.interactions, confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionDetach !== false} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionDetach: event.target.checked })} />Confirm before detaching a child session</label>
           <SettingsHelp label="More about this setting">Saved in this profile. Hiding a terminal pane leaves its consoles running; the console's X button terminates it without confirmation. Snapshot and ownership checks always apply.</SettingsHelp>
           <button type="button" onClick={() => void reset("interactions")}>Restore confirmation defaults</button></>}
         {tab === "systemPrompt" && <><h2>System prompt</h2><SettingsHelp label="More about this setting">These are Moguri's actual model instructions, not a desktop-only copy. Edits apply to new turns; running turns keep their recorded instruction snapshot.</SettingsHelp>

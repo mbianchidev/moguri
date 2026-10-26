@@ -20,7 +20,7 @@ export function SessionTerminal({ sdk, session, snapshot, active, visible, autoS
       <Tooltip content="Approved agent commands; read-only output"><button ref={agent} id={`${id}-agent`} type="button" role="tab" aria-selected={selected === "agent"} aria-controls={`${id}-panel`} tabIndex={selected === "agent" ? 0 : -1} onClick={() => setSelected("agent")}>Agent</button></Tooltip>
     </div>
     <div className="terminal-owned-panel" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${selected}`}>
-      {selected === "user" ? <GhosttyTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} visible={visible} autoStart={autoStart} onAutoStartHandled={onAutoStartHandled} consoleScope="session" /> :
+      {selected === "user" ? <GhosttyTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} visible={visible} autoStart={autoStart} onAutoStartHandled={onAutoStartHandled} /> :
         <AgentTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} />}
     </div>
   </section>;
