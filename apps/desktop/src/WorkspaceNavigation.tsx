@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ClientError, compareSessions, defaultProjectConfiguration, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type Project, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
@@ -6,6 +6,8 @@ import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
 import { useSessionActions } from "./SessionActions.tsx";
 import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
+import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
+const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "pr" | "work" | "relocate" | "remove-project";
 interface Edit { kind: EditKind; project?: Project; session?: Session }
@@ -301,6 +303,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [github, setGithub] = useState<GithubSelection | null>(null);
   const [artifactPreview, setArtifactPreview] = useState<ProjectArtifactPreview | null>(null), [artifactAction, setArtifactAction] = useState<ProjectArtifactChoice["action"] | "">(""), [exportedDigest, setExportedDigest] = useState("");
   const [materialized, setMaterialized] = useState<ArtifactMaterialization | null>(null);
   const [previewLoading, setPreviewLoading] = useState(edit.kind === "remove-project");
@@ -339,8 +342,12 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
           const choice = artifactPreview.artifacts.length && artifactAction ? { action: artifactAction, expectedDigest: artifactPreview.digest, ...(exportedDigest ? { exportedDigest } : {}), ...(materialized ? { materializationId: materialized.jobId } : {}) } : undefined;
           await sdk.projects.remove(requiredProject().id, true, configuration.revision, choice); break;
         }
-        case "pr": { const result = await sdk.sessions.fromWork(requiredProject().id, { prUrl: value }); await chooseSession(result.id!); break; }
-        case "work": { const result = await sdk.sessions.fromWork(requiredProject().id, { issueId: value }); await chooseSession(result.id!); break; }
+        case "pr": case "work": {
+          const scope = { env: "Local" as const, projectId: requiredProject().id };
+          const result = github ? await sdk.github.startSession(scope, github.source, github.digest) :
+            await sdk.sessions.fromWork(scope.projectId, edit.kind === "pr" ? { prUrl: value } : { issueId: value });
+          await chooseSession(result.id!); break;
+        }
       }
       close();
     } catch (error) { setError(error instanceof Error ? error.message : "The action failed; no success was recorded."); }
@@ -351,6 +358,13 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
     edit.kind === "folder" ? snapshot.projectFolders :
     edit.kind === "work" ? snapshot.issues.filter((issue) => issue.projectId === edit.project?.id && !issue.archived).map((issue) => ({ id: issue.id, name: `#${issue.number} ${issue.title}` })) : null;
   return <dialog ref={ref} className="workspace-dialog" onClose={close} aria-label={titles[edit.kind]}><form onSubmit={(event) => { event.preventDefault(); void submit(); }}><header><h2>{titles[edit.kind]}</h2><button className="icon-button" type="button" aria-label="Cancel dialog" disabled={busy} onClick={close}><Icon name="Close" /></button></header>
+    {(edit.kind === "pr" || edit.kind === "work") && edit.project && <>
+      <GitHubItemPicker sdk={sdk} scope={{ env: "Local", projectId: edit.project.id }} kind={edit.kind === "pr" ? "pull" : "issue"} disabled={busy}
+        select={(selection) => { setGithub(selection); if (selection) setValue(""); }} />
+      {github && <section className="github-item" aria-label="Reviewed session source"><h3>#{github.item.number} {github.item.title}</h3>
+        <p className="fine-print path">Source workspace: {github.binding.root.root}</p>
+        <Suspense fallback={<p>{github.item.body}</p>}><RichMessage text={github.item.body || "No description."} openLink={(url) => { void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened.")); }} /></Suspense></section>}
+    </>}
     {destructive ? <><p>Stops this project's owned work and removes its Moguri records and indexes. Choose what happens to independent artifacts. Repository files, external PRs, shared package/model stores and diagnostic audit logs are not deleted. Retained worktrees must be removed separately.</p>
       {edit.kind === "remove-project" && <section aria-label="Artifact removal impact">{previewLoading ? <p role="status">Loading artifact impact...</p> : artifactPreview && <><p>{artifactPreview.artifacts.length} independent document{artifactPreview.artifacts.length === 1 ? "" : "s"}, including archived copies.</p>
         {artifactPreview.artifacts.length > 0 && <><ul>{artifactPreview.artifacts.map((artifact) => <li key={artifact.id}>{artifact.name} / {artifact.kind} / revision {artifact.revision}</li>)}</ul>
@@ -371,9 +385,9 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession }: { edit:
         {staleArtifacts && <p className="settings-warning">The artifact set changed. Reload its impact before choosing.</p>}
       </>}<button type="button" disabled={busy || previewLoading} onClick={() => void loadArtifacts()}>Reload artifact preview</button></section>}
       <label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I understand and confirm this removal.</label></> :
-      choices ? <label className="setting-field">Destination<select aria-label="Destination" value={value} onChange={(event) => setValue(event.target.value)}><option value="">{edit.kind === "work" ? "Choose work item" : "None"}</option>{choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> :
-        <label className="setting-field">{edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"}<input ref={nameInput} aria-label={edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"} autoFocus value={value} onChange={(event) => setValue(event.target.value)} required /></label>}
+      choices ? <label className="setting-field">{edit.kind === "work" ? "Or choose a local work item" : "Destination"}<select aria-label="Destination" value={value} onChange={(event) => { setValue(event.target.value); setGithub(null); }}><option value="">{edit.kind === "work" ? "Choose local work item" : "None"}</option>{choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> :
+        <label className="setting-field">{edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"}<input ref={nameInput} aria-label={edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"} autoFocus value={value} onChange={(event) => { setValue(event.target.value); setGithub(null); }} required={!github} /></label>}
     {edit.kind === "pr" && <p className="fine-print">Binds PR context without changing this folder's checkout or starting work.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className={destructive ? "danger" : "primary"} disabled={busy || previewLoading || staleArtifacts || artifactChoiceMissing || destructive && !confirmed || !destructive && !["attach", "group", "folder"].includes(edit.kind) && !value.trim()} type="submit">{busy ? "Working..." : destructive ? "Delete" : "Save"}</button></footer>
+    {error && <p className="inline-error" role="alert">{error}</p>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className={destructive ? "danger" : "primary"} disabled={busy || previewLoading || staleArtifacts || artifactChoiceMissing || destructive && !confirmed || !destructive && !["attach", "group", "folder"].includes(edit.kind) && !value.trim() && !github} type="submit">{busy ? "Working..." : destructive ? "Delete" : edit.kind === "pr" || edit.kind === "work" ? "Start session" : "Save"}</button></footer>
   </form></dialog>;
 }

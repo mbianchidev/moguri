@@ -1,9 +1,75 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **58**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **59**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Session approvals and GitHub workflows
+
+Manual and Guided approval cards offer **Only this action**, **Approve for this
+session**, **Approve for this project**, and **Always approve across projects in
+this profile**. Commands can match exact text or a displayed simple command
+family. Compound shell expressions still need their own approval. MCP grants
+bind the exact server configuration, tool and discovered schema, not just a
+tool name. **Settings / Guardrails / Remembered approvals** lists and revokes
+grants. They survive restart but never cross profiles or execution environments.
+
+Selecting **Autopilot** automatically approves declared tools and commands in
+every subsequent turn. **Autopilot Max** uses the same unattended permissions
+plus the configured bounded System One-compatible layer for qualified technical
+choices and steering. Hard denials, read-only mode, allowed-env policy, actual
+capability readiness, secret boundaries and budgets remain final. Missing
+workspaces are not invented. Max still requires an explicitly configured,
+qualified provider; the dedicated Jev wire and Remote/native Max remain
+unqualified. Upgrades preserve older bounded Autopilot selections: select the
+mode again to opt into automatic approvals. Manual remains the factory default.
+
+**Start / Clone repository** loads repositories from the existing GitHub CLI
+account, with user-owned and organization-member repositories first on each
+page. Public repository search is separate and explicit. Pick a repository to
+populate its SSH URL and folder name, then choose a new destination. A direct
+HTTPS/SSH URL remains available. Moguri never authenticates, switches accounts,
+overwrites an existing folder, or forwards Copilot/updater credentials.
+
+**Changes** now includes project PR selection, full descriptions and reviewed
+PR creation; **Work item** provides the equivalent GitHub issue flow and shows
+an attached local ticket when present. PR base defaults to GitHub's actual
+default branch and head to the current local branch. The head must already be
+pushed. Review the exact title/body and confirmations before publication.
+Results are linked only after the original durable operation completes.
+Cancellation or uncertain effects remain partial, never retried as a new write.
+Existing advanced Git/review/release operations remain in the collapsed
+**Settings / GitHub workflows / Advanced** section.
+
+Project menus offer **From PR** and **From work item** dropdowns for that
+repository. Review the full body, then start an idle session with an unsent
+draft. Its canonical URL, original numeric account identity and exact source
+digest are retained. Changed source/account/root bindings require a fresh
+review. No checkout, branch, model call or prompt execution starts implicitly.
+
+TUI uses `/github repos`, `/github repos public QUERY`, `/github issues` and
+`/github pulls` for native pickers. Enter reviews an item; Ctrl+N creates its
+idle session, Ctrl+L links it, and Ctrl+B opens its canonical GitHub URL.
+Ctrl+Shift+Y opens remembered approval choices. `/approve project family`,
+`/approve session`, `/approvals`, and `/approvals revoke ID` use the same SDK.
+`/github source issue|pull NUMBER` and `/github start issue|pull NUMBER SHA`
+also support explicit source review from SDK/CLI slash consumers.
+
+GitHub settings detect the CLI account when opened, without a separate client
+ID or account-name field. If needed, sign in yourself with
+`gh auth login --hostname github.com --web --git-protocol ssh`. Explicit
+background linked-PR observations retain their existing per-project access
+choice, separate from these interactive reads.
+
+**Settings / General / Private GitHub updates / Create a token with the right
+permissions** supplies a prefilled fine-grained-token link and exact steps:
+resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
+Read-only**, included Metadata read access, and a short expiration. You must
+select the repository and finish authorization yourself. The updater needs no
+write, Workflows, Actions or administration permissions. Paste the token only
+into **Private release PAT**, never chat. `/updates token-help` exposes the same
+guidance in TUI/CLI. See the [workflow contract](architecture/session-github-workflows.md).
 
 Protocol 57 implements [session-owned candidate cleanup](architecture/candidate-cleanup.md).
 Permanent session deletion, whether manual or archived-session expiry, deletes

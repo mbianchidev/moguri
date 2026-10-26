@@ -17,6 +17,8 @@ import { SessionBudgetSummary } from "./BudgetControls.tsx";
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 import { NotificationAudio } from "./notification-audio.ts";
+import { ApprovalActions } from "./ApprovalActions.tsx";
+import { SessionGitHub } from "./SessionGitHub.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -26,7 +28,7 @@ const SessionTerminal = lazy(() => import("./SessionTerminal.tsx").then((module)
 type MoguriClient = MoguriSdk;
 
 type Panel = SessionPanel;
-const panels: Panel[] = ["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"];
+const panels: Panel[] = ["Terminal", "Browser", "Insights", "Changes", "Work item", "Files", "Plan", "Side chat"];
 const globalPanels = ["Suggestions", "Dashboard", "Artifacts", "Candidates", "Sandbox", "Attention"] as const;
 const savedPanels: Panel[] = [...panels, ...globalPanels, "Global Terminal", "PR"];
 type GlobalView = typeof globalPanels[number] | "Global terminal";
@@ -450,7 +452,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             {session.pendingApproval.recommendation && session.pendingApproval.recommendationSource?.stepId === session.pendingApproval.stepId && session.pendingApproval.recommendationSource.callId === session.pendingApproval.call.id ?
               <ModelAdvice text={session.pendingApproval.recommendation} source={session.pendingApproval.recommendationSource} /> :
               session.controls.autonomy === "Guided" && <p className="fine-print">The current solver supplied no explicit recommendation. Review the exact arguments; only your decision or an existing deterministic grant can authorize this action.</p>}
-            <div className="approval-actions"><button disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: false })}>Deny</button><button className="primary" disabled={busy} onClick={() => void command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow: true })}>Approve this action</button></div>
+            <ApprovalActions key={session.pendingApproval.id} sdk={client} session={session} busy={busy} run={run} />
           </section>}
           {session.queue.length > 0 && <Queue session={session} command={command} client={client} modal={setNativeModal} />}
           {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openGlobal("Sandbox", session.id)} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
@@ -526,7 +528,7 @@ function Timeline({ session, snapshot, run, client, modal }: { session: Session;
       </article>;
   };
   return <div ref={scroll} className="timeline" role="log" aria-label="Session transcript" onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content}>
-    {session.messages.length === 0 && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId ? <>Ask a question, explore this project, or make a change.<br />You review every tool action before it runs.</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId ? `${session.controls.env} execution` : "No workspace access"}</span><span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
+    {session.messages.length === 0 && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId ? <>Ask a question, explore this project, or make a change.<br />{session.controls.automaticApprovals && ["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId ? `${session.controls.env} execution` : "No workspace access"}</span><span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {session.messages.length > limit && <button className="load-history" onClick={() => setLimit((value) => value + 150)}>Show earlier messages ({session.messages.length - limit})</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
     {activity.error && <p className="inline-error activity-read-error" role="alert">{activity.error}</p>}
@@ -587,6 +589,16 @@ function Queue({ session, command, client, modal }: { session: Session; command:
         <button className="icon-button" aria-label={`Remove queued message ${index + 1}`} title="Delete" onClick={() => void command({ type: "queue.remove", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}><Icon name="Trash" /></button></>}</div>)}
   </section>;
 }
+function ChangesContext({ sdk, session, snapshot, workspaceScope, prUrl, onDirty, chooseSession, setupSandbox }: {
+  sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; prUrl: string | null;
+  onDirty: (dirty: boolean) => void; chooseSession: (id: string) => Promise<void>; setupSandbox: () => void;
+}) {
+  const [workspaceDirty, setWorkspaceDirty] = useState(false), [githubDirty, setGithubDirty] = useState(false);
+  useEffect(() => { onDirty(workspaceDirty || githubDirty); return () => onDirty(false); }, [workspaceDirty, githubDirty, onDirty]);
+  return <>{session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={sdk} session={session} /> :
+    <SandboxPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWorkspaceDirty} setup={setupSandbox} sessionOnly />}
+    {session.projectId && <SessionGitHub sdk={sdk} session={session} snapshot={snapshot} kind="pull" selectedUrl={prUrl} onDirty={setGithubDirty} chooseSession={chooseSession} />}</>;
+}
 function ContextPanel({ panel, session, project, events, client, run, snapshot, prUrl, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, artifactRequest, clearArtifactRequest, setupSandbox }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
@@ -641,11 +653,12 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
     </>;
   }
   if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
-  if (panel === "Changes") return session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : snapshot ? <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} sessionOnly /> : null;
+  if (panel === "Changes" && snapshot) return <ChangesContext sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} prUrl={prUrl} onDirty={onDirty} chooseSession={chooseSession} setupSandbox={setupSandbox} />;
+  if (panel === "Work item" && snapshot) return <SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="issue" onDirty={onDirty} chooseSession={chooseSession} />;
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} modal={modal} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty} />;
-  if (panel === "PR") return prUrl ? <section><h2>Connected PR</h2><p className="path">{prUrl}</p><button onClick={() => void run(() => window.moguri.openExternal(prUrl))}><Icon name="PR" />Open in GitHub</button><p className="fine-print">This binding does not change the checkout or grant merge/push permission. Local work-item PR states are observed read-only.</p></section> : <p>No PR is connected.</p>;
+  if (panel === "PR" && snapshot) return <section><h2>{prUrl ? "Connected PR" : "Pull requests"}</h2><SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="pull" selectedUrl={prUrl} onDirty={onDirty} chooseSession={chooseSession} /></section>;
   return <p>Choose a supported panel.</p>;
 }
 function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel: () => void; confirm: () => void }) {

@@ -8,6 +8,7 @@ const paths: Record<string, string> = {
   Search: "M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.5 13 5 5",
   Skill: "M3 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-3H3Zm18 0h-6a3 3 0 0 0-3 3v14a4 4 0 0 1 4-3h5Z",
   Issue: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
+  "Work item": "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
   Mcp: "M5 8h5v8H5ZM3 12h2m5 0h4m0-4h5v8h-5Zm5 4h2M8 5V3m0 18v-2m8-14V3m0 18v-2",
   Thought: "M8 18H6a4 4 0 0 1-1-8 6 6 0 0 1 11-3 5 5 0 0 1 2 10h-6l-4 4Z",
   Tool: "m14 6 4 4 3-3a6 6 0 0 1-7 8L7 22l-5-5 7-7a6 6 0 0 1 8-7Z",

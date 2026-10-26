@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { GitHubRepositoryPicker } from "./GitHubPickers.tsx";
 
 export function StartDialog({ sdk, snapshot, start, close, modal }: {
   sdk: MoguriSdk; snapshot: Snapshot; start: (projectId: string | null) => Promise<void>; close: () => void; modal: (open: boolean) => void;
@@ -56,6 +57,7 @@ export function StartDialog({ sdk, snapshot, start, close, modal }: {
       });
     }}>
       <p className="fine-print">Clone into a new Local folder, then start a chat. No hooks, filters, submodules, model calls or automatic login. SSH uses your existing keys and known-hosts verification.</p>
+      <GitHubRepositoryPicker sdk={sdk} selected={repository} disabled={busy || Boolean(jobId)} choose={(value) => { setRepository(value.sshUrl); if (!folder) setFolder(value.fullName.split("/")[1]!); }} />
       <label className="setting-field">Repository URL<input aria-label="Repository URL" placeholder="https://github.com/owner/repository.git" value={repository} disabled={busy || Boolean(jobId)} onChange={(event) => setRepository(event.target.value)} /></label>
       <label className="setting-field">Parent folder<input aria-label="Clone parent folder" value={parent} readOnly /></label>
       <button type="button" disabled={busy || Boolean(jobId)} onClick={() => void run(async () => { const path = await window.moguri.chooseProject("clone"); if (path) setParent(path); })}>Choose clone folder</button>

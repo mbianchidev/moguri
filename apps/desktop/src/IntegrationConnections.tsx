@@ -3,14 +3,22 @@ import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../pac
 
 export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal: () => void }) {
   const [connection, setConnection] = useState<GitHubConnection | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
-  return <section aria-label="GitHub integration connection"><h2>GitHub integration</h2><p>This integration uses your existing GitHub CLI account on the control-plane host. It is separate from Copilot model login and the update PAT. Remote operations keep their explicitly captured SSH account.</p>
+  useEffect(() => {
+    let current = true; setBusy(true);
+    void sdk.integrations.githubConnection().then((value) => { if (current) { setConnection(value.connection); setError(""); } })
+      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The GitHub CLI account is unavailable. No other credential was used."); })
+      .finally(() => { if (current) setBusy(false); });
+    return () => { current = false; };
+  }, [sdk]);
+  return <section aria-label="GitHub integration connection"><h2>GitHub integration</h2><p>One existing GitHub CLI account for repository discovery, issues and pull requests on this Mac. No client ID, copied token or account name to configure. Copilot model login and the private updater PAT stay separate.</p>
     <button type="button" disabled={busy} onClick={() => {
       setBusy(true); setError(""); setConnection(null);
       void sdk.integrations.githubConnection().then((value) => setConnection(value.connection)).catch((error: unknown) => setError(error instanceof Error ? error.message : "The CLI account was not verified. No alternative credential was used.")).finally(() => setBusy(false));
     }}>{busy ? "Checking account..." : "Check existing GitHub CLI account"}</button>
     {connection && <p role="status">Verified CLI account: {connection.login} / {connection.id}. This does not grant repository access or approve an operation.</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}
-    <p className="fine-print">To sign in or change that CLI account yourself, open the global terminal and run <code>gh auth login --hostname github.com</code>. Moguri never completes personal authorization for you. Select authenticated read access per project and review the exact account for writes.</p>
+    <details><summary>Sign in or fix repository access</summary><p>In the global terminal, run <code>gh auth login --hostname github.com --web --git-protocol ssh</code>, then return and check the account. You complete authorization yourself. Private repositories need access through this account; organizations may also require SSO authorization.</p>
+      <p className="fine-print">For background linked-PR observations, choose your signed-in GitHub CLI account under Project settings. Remote metadata retains its separately selected SSH account. No account switching or authentication is automatic.</p></details>
     <button type="button" disabled={busy} onClick={openTerminal}>Open global terminal</button>
   </section>;
 }

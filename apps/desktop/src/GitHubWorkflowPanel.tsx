@@ -41,13 +41,24 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const scope: GithubScope | null = project ? { env: "Local", projectId: project.id, ...(session?.workspaceId ? { workspaceId: session.workspaceId } : {}), ...(session ? { sessionId: session.id } : {}) } : null;
   const requiredScope = (): GithubScope => { if (!scope) throw new Error("Choose an explicit Local project for new Git/GitHub work. Retained inspection needs no source root."); return scope; };
   const scopeKey = JSON.stringify([sdk.profileId, project?.id, project?.path, scope, session?.controls.env, session?.kind, session?.mode, session?.pendingMode, session?.status,
-    configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision,
+    configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, snapshot.settings.values.permissions,
     kind, repository, account, remote, branch, force, onto, rebaseMode, tag, target, annotated, message, deleteLocation, number, title, body, editTitle, editBody,
     state, base, head, headRepository, draft, prerelease, reviewEvent, commentId, commentChannel, threadId, resolveThread, mergeMethod, releaseId, headSha, seconds, runId, resource]);
   const current = useRef(scopeKey); current.current = scopeKey;
   const allowed = Boolean(project && snapshot.policy.allowedEnvs.includes("Local") && (!session || session.projectId === project.id && session.controls.env === "Local" && session.status !== "archived"));
   const canWrite = allowed && (!session || session.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only");
   const records = [...snapshot.githubOperations].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  useEffect(() => {
+    if (!allowed || !scope) return;
+    let current = true;
+    void api.project(scope).then((value) => {
+      if (!current) return;
+      setRepository((previous) => previous || value.repository); setAccount((previous) => previous || value.account);
+      setBase((previous) => previous || value.defaultBranch); setHead((previous) => previous || (value.branch === "(detached)" ? "" : value.branch));
+      setBranch((previous) => previous || (value.branch === "(detached)" ? "" : value.branch));
+    }).catch((error: unknown) => { if (current) setNotice(`GitHub defaults unavailable: ${error instanceof Error ? error.message : "check the exact upstream and CLI account"}. Explicit Git-only inputs remain available.`); });
+    return () => { current = false; };
+  }, [api, allowed, project?.id, session?.id, session?.workspaceId]);
   const selected = records.find((value) => value.id === selectedId), value = read?.operation.id === selected?.id && read?.operation.revision === selected?.revision ? read : null;
   const numbered = ["github.issue.update", "github.issue.comment", "github.pr.update", "github.pr.comment", "github.pr.merge",
     "github.review.submit", "github.review.reply", "github.review.resolve", "github.comment.update", "github.comment.delete"].includes(kind);

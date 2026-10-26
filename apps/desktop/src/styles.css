@@ -47,6 +47,27 @@ svg { flex-shrink: 0; }
 .quiet { color: var(--muted); }
 .icon-button { padding: 6px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .button-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.github-picker, .session-github, .github-create, .github-write-review { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.session-github { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
+.github-picker .setting-field, .github-create .setting-field { margin: 0; min-width: 0; }
+.github-picker select, .github-picker input, .github-create input:not([type="checkbox"]), .github-create textarea { width: 100%; }
+.github-search { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.github-search .setting-field { flex: 1; min-width: 140px; }
+.github-binding { display: flex; flex-direction: column; gap: 4px; border-left: 2px solid var(--accent); padding: 6px 10px; overflow-wrap: anywhere; }
+.github-binding small, .remembered-approval small { display: block; color: var(--muted); font-size: 12px; }
+.github-item, .github-item-body, .github-write-review { overflow-wrap: anywhere; min-width: 0; }
+.github-item h3 { margin: 10px 0; font-size: 14px; }
+.github-item-body { max-height: 360px; overflow: auto; line-height: 1.6; }
+.github-item-body pre, .github-write-review pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
+.github-create textarea { min-height: 140px; padding: 8px; line-height: 1.5; }
+.github-write-review { border: 1px solid var(--control-line); border-radius: 6px; padding: 10px; }
+.github-write-review .check-setting { align-items: start; }
+.workspace-dialog .github-item { max-height: 240px; overflow: auto; }
+.approval-options { display: flex; flex-wrap: wrap; gap: 10px; }
+.approval-options .setting-field { flex: 1; min-width: 180px; margin: 0; }
+.approval-options select { width: 100%; }
+.remembered-approval { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; border-bottom: 1px solid var(--line); }
+.remembered-approval > div { min-width: 0; overflow-wrap: anywhere; }
 .artifact-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .artifact-panel .panel-toolbar { align-items: end; }
 .artifact-panel .panel-toolbar .setting-field { flex: 1; }

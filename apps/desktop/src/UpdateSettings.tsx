@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { MoguriSdk, UpdateInstallReview, UpdateStatus } from "../../../packages/sdk/src/index.ts";
+import { UPDATE_TOKEN_CREATION_URL, UPDATE_TOKEN_GUIDANCE, type MoguriSdk, type UpdateInstallReview, type UpdateStatus } from "../../../packages/sdk/src/index.ts";
 
 export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMaintenance }: {
   sdk: MoguriSdk; revision: number; disabled: boolean; onBusy: (busy: boolean) => void; prepareMaintenance: () => Promise<void>;
@@ -21,6 +21,9 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
   const operation = status?.operation, owned = Boolean(operation && ["checking", "downloading", "cancelling", "installing"].includes(operation.status));
   return <section aria-label="Private application updates"><h3>Private GitHub updates</h3>
     <p>Fixed source: mbianchidev/moguri. The updater uses its own secure, whole-store-owned GitHub PAT, not Copilot sign-in or the GitHub CLI account. Prefer a fine-grained token limited to this repository with Contents read access.</p>
+    <details className="update-token-help"><summary>Create a token with the right permissions</summary><ol>{UPDATE_TOKEN_GUIDANCE.map((step) => <li key={step}>{step}</li>)}</ol>
+      <button type="button" disabled={busy} onClick={() => void run(async () => { await window.moguri.openExternal(UPDATE_TOKEN_CREATION_URL); })}>Create read-only update token</button>
+      <p className="fine-print">Opens GitHub only when you click. You review repository access and complete authorization yourself. Never grant access to all repositories for updates.</p></details>
     <p className="fine-print">Running build: {status?.currentVersion ?? "unobserved"}. Separate credential: {status?.credential ?? "unobserved"}. No credential read is inferred from a provider login.</p>
     <label className="setting-field">Private release PAT<input type="password" aria-label="Private release PAT" autoComplete="off" value={token} disabled={disabled || busy || owned} onChange={(event) => setToken(event.target.value)} /></label>
     <div className="button-row"><button type="button" disabled={disabled || busy || owned || !token} onClick={() => void run(async () => {
