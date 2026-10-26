@@ -69,7 +69,9 @@ for (const scope of ["Chats", "project"] as const) {
       const page = await app.firstWindow(), source = row(page, "Generated row third"), sourceLink = link(page, "Generated row third");
       await expect(source).toHaveAttribute("draggable", "true");
       await expect(page.getByRole("button", { name: "Actions for Generated row third", exact: true })).toHaveCount(0);
-      await source.dragTo(row(page, "Generated row first"));
+      const target = row(page, "Generated row first"), targetBounds = await target.boundingBox();
+      if (!targetBounds) throw new Error("Generated first row has no native drop bounds.");
+      await source.dragTo(target, { targetPosition: { x: 35, y: targetBounds.height - 3 } });
       await expect.poll(order).toEqual([first.id, third.id, second.id]);
       expect(sdk.getState().snapshot!.sessions.find((entry) => entry.id === third.id)?.parentSessionId).toBeUndefined();
       await source.dragTo(row(page, "Generated row first"), { targetPosition: { x: 35, y: 3 } });

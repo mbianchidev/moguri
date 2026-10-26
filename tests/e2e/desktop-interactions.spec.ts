@@ -145,7 +145,7 @@ test("native session dragging reorders only at drop, and keyboard reordering use
     await firstRow.press("Alt+ArrowDown");
     await expect.poll(() => fixture.service.controller.snapshot().sessions.slice().sort(compareSessionOrder).map((session) => session.id)).toEqual([third, second, fixture.sessionId]);
     await page.reload();
-    await expect(page.locator(".session-link")).toHaveText(["Generated third", "Generated second", "Generated first"]);
+    await expect(page.locator(".session-row .session-link")).toHaveText(["Generated third", "Generated second", "Generated first"]);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
