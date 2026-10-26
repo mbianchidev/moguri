@@ -664,6 +664,14 @@ Fallback models and workflow limits are user-configured and policy-constrained, 
 
 An optional typed decision-provider interface serves kupo classification and delegated decisions with fixed models alike. **Jev by TypeSafe AI** is an initial hosted adapter target; compatible local or hosted decision providers can implement the same contract. Text-generation providers remain behind the existing Moguri provider interface; a decision-only API is not presented as a chat model.
 
+[Laya is an evaluated optional System 1 candidate](architecture/decisions.md#laya-optional-provider-evaluation),
+not an implemented adapter or a replacement for Jev. The user would choose
+Jev or a separately installed Laya service, on the same laptop or at an
+explicitly approved endpoint. Moguri must not install it or fetch its weights.
+Its short input/head windows, different confidence semantics, exact checkpoint
+provenance and non-generative accounting require qualification before exposure.
+Existing Jev restrictions and disabled decision-provider defaults are unchanged.
+
 System One calls return structured predicates, choices, or scores, with probabilities and confidence where supported. Validate the response schema and permitted alternatives; absence of confidence is not certainty, a high score is not authorization, and vendor speed/calibration claims are not Moguri guarantees. Measure thresholds on generated task fixtures before relying on them.
 
 Hosted decision calls need their own approved data destination, scoped secret reference, budget, and network path from the selected env. Treat task content and tool arguments as data, not instructions that can rewrite the decision policy. Persist the question, alternatives, provider/model version, values, confidence semantics, actor, delegation, and applied or rejected outcome. Autopilot Max requires a compatible configured decision provider; it never silently falls back to self-approval by the generative model. See [D12](architecture/decisions.md#d12-system-one-decisions-and-autonomy-levels).
