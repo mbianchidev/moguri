@@ -132,7 +132,7 @@ test("an empty workspace creates no console, while explicitly created chats keep
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(0);
     expect(fixture.service.controller.snapshot().sessions).toHaveLength(0);
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.getByRole("button", { name: "Open project terminal", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Create or select a session in this project first");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(0);
     expect(fixture.service.controller.snapshot().sessions).toHaveLength(0);

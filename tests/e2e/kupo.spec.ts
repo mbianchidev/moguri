@@ -1,0 +1,72 @@
+import { _electron as electron, expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { setupFixture } from "../fixture.ts";
+import { routedFixture } from "../fixtures/single-routing.ts";
+
+const require = createRequire(import.meta.url);
+const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
+  args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+test.skip(process.platform !== "darwin", "Kupo desktop coverage uses generated hidden macOS fixtures.");
+
+test("the disconnected model dropdown always shows unavailable Kupo and its reason", async () => {
+  const fixture = await setupFixture();
+  await fixture.provider.logout();
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    const models = page.getByRole("dialog", { name: "Model", exact: true });
+    const kupo = models.getByRole("button", { name: /^Kupo Unavailable/ });
+    await expect(kupo).toBeVisible();
+    await expect(kupo).toBeDisabled();
+    await expect(models).toContainText("No configured model");
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("Kupo defaults to automatic configured-model routing and runs Single from the ordinary composer", async () => {
+  const fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128 }), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await composer.getByRole("button", { name: /^Model:/ }).click();
+    const models = page.getByRole("dialog", { name: "Model", exact: true });
+    await models.getByRole("button", { name: /^Kupo Automatic/ }).click();
+    await expect.poll(() => fixture.session().controls.modelId).toBe("kupo");
+    await models.getByRole("button", { name: "Kupo settings", exact: true }).click();
+    await expect(page.getByLabel("kupo workflow", { exact: true })).toHaveValue("auto");
+    await expect(page.getByLabel("Enable automatic Kupo", { exact: true })).toBeChecked();
+    await expect(page.getByRole("table", { name: "Kupo model capabilities" })).toContainText("Generated Copilot model");
+    expect(fixture.requests).toHaveLength(0);
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated desktop Kupo sole-model task.");
+    await composer.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.session().status).toBe("completed");
+    expect(fixture.requests).toHaveLength(1);
+    expect(fixture.session().usage.map((entry) => entry.role)).toEqual(["solver"]);
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("ordinary desktop Kupo selects Cascade and still waits for the exact human tool approval", async () => {
+  const fixture = await routedFixture({ configured: false });
+  fixture.options.respond = (_request, index) => ({ text: JSON.stringify(index === 1 ?
+    { pattern: "cascade", modelId: fixture.solverId, escalationId: fixture.modelId, complexity: "moderate", confidence: 0.95, reason: "Generated desktop automatic route." } :
+    { verdict: "pass", reason: "Generated desktop gate, not permission." }) });
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await composer.getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /^Kupo Automatic/ }).click();
+    await expect.poll(() => fixture.session().controls.modelId).toBe("kupo");
+    await page.keyboard.press("Escape");
+    await page.getByLabel("Prompt", { exact: true }).fill("generated tool through desktop automatic Kupo");
+    await composer.getByRole("button", { name: "Send", exact: true }).click();
+    await expect.poll(() => fixture.session().pendingApproval?.call.name).toBe("read_file");
+    expect(fixture.service.controller.events(0).some((event) => event.event_type === "tool.started")).toBe(false);
+    await page.getByRole("button", { name: "Approve this action", exact: true }).click();
+    await expect.poll(() => fixture.session().status).toBe("completed");
+    expect(fixture.session().usage.map((entry) => entry.role)).toEqual(["router", "draft", "critic", "draft", "critic"]);
+    await expect(page.getByText("Generated routed solver answer.", { exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(3); expect(fixture.solver.requests).toHaveLength(2);
+  } finally { await app.close(); await fixture.close(); }
+});

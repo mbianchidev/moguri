@@ -1,9 +1,15 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **59**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **61**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+Protocol 61 adds [automatic Kupo](architecture/automatic-kupo.md) to the ordinary
+composer. It always appears in the model list, with an unavailable reason when
+there is no eligible configured model. New/reset routing policies use automatic
+selection; existing explicit Single/Compound settings are preserved. Upgrading
+does not select Kupo, authenticate, make a model call or change autonomy.
 
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
 The left sidebar has **New**, Dashboard, Suggestions, Automations and Global
@@ -1645,44 +1651,81 @@ context or workspace access. Unsupported saved choices remain visible and
 blocked rather than selecting a different provider. Fixed defaults and explicit
 model-option overrides retain their normal precedence.
 
-## Experimental kupo Single
+## Kupo automatic model
 
-In **Settings / kupo routing**, choose **Single**, explicitly enable the profile policy, choose one
+Connect a generative provider or configure a local model, then choose **Kupo**
+in the Model dropdown. No separate classifier or approved-pool setup is needed
+for the factory automatic policy. CLI/TUI use `/model kupo`; `/kupo status`
+shows the exact policy, available models and service-owned capability inventory.
+
+| Eligible configured models | Automatic behavior |
+| --- | --- |
+| 0 | Kupo remains visible but unavailable; no inference or fallback. |
+| 1 | That exact model runs Single, without a classifier request. |
+| 2+ | A bounded router selects Single, gated Cascade or an eligible Critique plan for the task. |
+| 3-20 | All models retain their declared capability categories; the pool is not silently truncated. |
+
+Kupo uses all eligible configured models by default, including later additions.
+**Settings / Kupo routing** can disable automatic routing, disallow hosted/network
+task-data transfer, or narrow the advanced policy to a nonempty explicit
+`approvedModelIds` subset. Loopback describes the execution host, not a promise
+that a configured proxy never forwards data. Remote inference stays on the
+pinned SSH host and retains its separate credential grant.
+
+Cascade gates each proposed response before its tools can run and permits one
+bound escalation. Critique requires a current, exact, user-reviewed distinct
+lineage pair and permits one same-model revision. Without that evidence the
+router can select only another eligible pattern. Capability categories and
+model verdicts are fallible routing advice, not measured quality, executed
+tests or permission.
+
+Only the selected response reaches existing Manual/Guided/Autopilot checks.
+All actual router, draft, gate/critic, revision and escalation calls count.
+Unknown accounting, invalid advice, stop or failed persistence blocks continuation.
+Restart never replays paid calls or tools. **Insights / Kupo routing provenance**
+shows the plan and actual per-call models.
+
+Finite automatic budgets, images, per-model context/thinking overrides and
+Sandbox response orchestration remain unavailable. A fixed model or the
+separately reviewed worktree workflow retains its own qualified capabilities.
+Restoring Kupo defaults enables the automatic configured-model policy without
+selecting a model or starting work.
+
+## Explicit Single routing policy
+
+In **Settings / Kupo routing**, choose **Explicit Single policy**, enable the profile policy, choose one
 discovered classifier, approve up to eight exact solver models and separately
 allow hosted/network task-data transfer if any selected role uses Copilot, a
 non-loopback URL or an unknown endpoint boundary. The configured provider's
 local label is not sufficient. Known loopback-only pools can leave consent off;
 this does not attest what a user-configured proxy does behind that URL.
 Configured-model discovery and inference reject redirects. Saving performs no
-inference and does not select a model. Then explicitly choose **kupo Single
-(alpha)** in the composer. The default remains disabled and no fallback is
-chosen for an invalid plan or unavailable pool.
+inference and does not select a model. Then explicitly choose **Kupo** in the
+composer. This retained advanced policy is not the factory automatic policy;
+no fallback is chosen for an invalid plan or unavailable pool.
 
 TUI/CLI share `/kupo status`, `/kupo set POLICY_JSON`, `/kupo history` and
 `/model EXACT_ID` through the SDK; for example, pass the literal reviewed command
 to `moguri slash '/kupo status' --session ID`. Obtain actual canonical IDs from
 `/models`, not invented endpoint names. A policy has `enabled`, `workflow:
 "single"`, `classifierModelId`, `approvedModelIds`, `allowHosted` and
-`minimumConfidence`; the [routing contract](architecture/routing.md) documents
-defaults and every boundary. `/model kupo` explicitly clears prior per-model
-options without starting work. Desktop **Restore kupo defaults**, TUI
-`/settings reset kupo` or `sdk.settings.reset("kupo", revision)` restores the
-disabled policy while preserving history and charges.
+`minimumConfidence`; the [Single routing contract](architecture/routing.md)
+documents its boundaries. `/model kupo` clears prior per-model options without
+starting work. Restoring Kupo defaults switches back to the automatic policy
+while preserving history and charges.
 
 The tool-less classifier and selected solver use the same owned worker,
 approvals, env and cumulative ledger. Both calls count, including rejected
-advice; unknown telemetry stays held. **Insights / kupo Single provenance** and
+advice; unknown telemetry stays held. **Insights / Kupo routing provenance** and
 TUI `/kupo history` expose the actual plan/models; per-call accounting shows
 actual roles. Confidence is model-supplied advice, not a calibrated probability,
 user answer or authority. Stop/restart never replay routing or effects.
 
-The Single policy is text-only and requires Unlimited with no finite session,
-owner, profile or global cap. Context/thinking tuning, images, calibrated
-quality and reserved wind-down/authorized checkpoint commits are not qualified.
-Use the separately reviewed Compound path above for current Local
-Cascade/Critique development, not an ordinary Single prompt. Hard policy can
-still stop new routed calls; it is never removed to enable kupo. Single's
-native Sandbox transport remains unqualified.
+The explicit Single policy is text-only. Finite Local caps require the separate
+qualified [reserved wind-down policy](architecture/budget-winddown.md).
+Context/thinking tuning, images, calibrated quality and native Sandbox remain
+unqualified. This policy never turns an ordinary prompt into the separately
+reviewed worktree workflow or lifts a hard cap.
 
 ## Isolated profiles
 
@@ -2173,6 +2216,13 @@ it; missing audio never becomes a default silently. Each profile retains up to
 TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 ## Session workspace and project settings
+
+Right-click a project header, press **Shift+F10** while it is focused, or open
+its **Project actions** button to choose an icon color. The same context menu
+offers named red, orange, yellow, green, blue, indigo and violet presets plus
+**Default color**. **Custom color...** opens a preview that changes the project
+only after **Save**; Cancel leaves its saved color unchanged. Color picking is
+no longer part of the project settings form.
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit

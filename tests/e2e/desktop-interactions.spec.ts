@@ -187,7 +187,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await page.reload(); await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(2);
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.getByRole("button", { name: "Open project terminal", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
     const projectConsole = fixture.service.controller.snapshot().terminals.find((terminal) => terminal.sessionId === fixture.sessionId && terminal.status === "running");
     expect(projectConsole?.projectId).toBe(fixture.session().projectId);

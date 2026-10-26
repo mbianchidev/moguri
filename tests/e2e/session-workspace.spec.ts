@@ -112,7 +112,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().terminals.find((entry) => entry.id === terminal.id)?.status).toBe("closed");
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("region", { name: "Per-project settings" })).toBeVisible();
     await page.getByLabel("Preview port", { exact: true }).fill("4321");
     await page.getByLabel("Denied folders", { exact: true }).fill("private");
