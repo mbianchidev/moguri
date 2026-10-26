@@ -204,7 +204,7 @@ test("project dropdowns and toggles save only their changed fields, while nearby
   try {
     const page = await app.firstWindow(), configuration = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === fixture.session().projectId)?.values;
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Settings", exact: true }).click();
     const instructions = page.getByLabel("Project instruction override", { exact: true });
     await instructions.fill("Generated uncommitted project guidance.");
     const upstream = page.getByLabel("Upstream", { exact: true }), originalUpstream = await upstream.inputValue();

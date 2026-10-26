@@ -52,7 +52,7 @@ test("desktop retains real model provenance, persists exports and keeps artifact
     await expect.poll(() => sdk.getState().snapshot!.artifacts.length).toBe(3);
     expect(sdk.getState().snapshot!.sessions.length).toBe(0);
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Remove", exact: true }).click();
+    await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Remove", exact: true }).click();
     const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
     await expect(removal).toContainText("2 independent documents");
     await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("retain");
@@ -78,7 +78,7 @@ test("desktop project export must be saved before its reviewed copies can be del
   try {
     const page = await app.firstWindow();
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Remove", exact: true }).click();
+    await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Remove", exact: true }).click();
     const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
     await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("export");
     await removal.getByText("I understand and confirm this removal.", { exact: true }).click();
@@ -130,7 +130,7 @@ test("desktop organizes actual documents and verifies a reviewed local repositor
     expect(await readFile(join(fixture.project, ".git/index"))).toEqual(index);
     expect(git(["branch", "--list", "generated/ui-artifact-copy"])).toContain("generated/ui-artifact-copy");
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.locator(".workspace-menu[open]").getByRole("button", { name: "Remove", exact: true }).click();
+    await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Remove", exact: true }).click();
     const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
     await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("materialize");
     await removal.getByText("I understand and confirm this removal.", { exact: true }).click();

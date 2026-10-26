@@ -52,7 +52,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await expect.poll(async () => readFile(join(workspace.path, "docs/plan.md"), "utf8").catch(() => "")).toBe("Generated isolated desktop plan.");
     await expect(readFile(join(fixture.project, "docs/plan.md"))).rejects.toThrow(/ENOENT/);
     await page.getByLabel("Project actions for project", { exact: true }).click();
-    await page.getByRole("button", { name: "Open project terminal", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)?.workspaceId).toBe(workspace.id);
     const terminal = sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)!;
     await expect.poll(async () => (await sdk.terminal.read(terminal.id)).data).toContain(workspace.path);

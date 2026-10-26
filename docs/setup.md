@@ -2217,6 +2217,13 @@ TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 ## Session workspace and project settings
 
+Right-click a project header, press **Shift+F10** while it is focused, or open
+its **Project actions** button to choose an icon color. The same context menu
+offers named red, orange, yellow, green, blue, indigo and violet presets plus
+**Default color**. **Custom color...** opens a preview that changes the project
+only after **Save**; Cancel leaves its saved color unchanged. Color picking is
+no longer part of the project settings form.
+
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
