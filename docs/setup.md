@@ -120,8 +120,10 @@ choice, separate from these interactive reads.
 
 On macOS, Finder/Dock launches often omit Homebrew from `PATH`. Moguri preserves
 the inherited lookup order and adds missing `/usr/local/bin` and
-`/opt/homebrew/bin` locations for its Local background service and owned
-programs. It does not run shell startup files, scan other applications' private
+`/opt/homebrew/bin` locations when starting its Local background service; its
+owned programs inherit that environment. Direct in-process SDK runtimes and
+Remote peers keep their caller/host environment unchanged. Moguri does not run
+shell startup files, scan other applications' private
 tool caches, install a CLI or copy credentials. An explicitly supplied program
 `PATH` or absolute executable stays authoritative; Linux/Remote Linux lookup is
 unchanged. Git and GitHub CLI must still be installed by the user, and GitHub
