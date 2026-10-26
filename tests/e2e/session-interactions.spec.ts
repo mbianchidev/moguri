@@ -176,7 +176,8 @@ test("native rows reorder siblings, explicit menus attach, and reviewed drags de
     await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowDown"); await expect(menu.getByRole("menuitem", { name: "Pin", exact: true })).toBeFocused();
     await page.keyboard.press("Escape"); await expect(link).toBeFocused();
-    await link.press("Shift+F10"); await menu.getByRole("menuitem", { name: "Move down", exact: true }).click();
+    await link.press("Shift+F10"); await expect(menu.getByRole("menuitem", { name: "Move down", exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape"); await link.press("Alt+ArrowDown");
     await expect.poll(order).toEqual([fixture.session().title, "Generated drag third", "Generated drag second"]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

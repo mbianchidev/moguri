@@ -41,7 +41,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     const page = await app.firstWindow();
     const failures: string[] = []; page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Issues", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Project issues", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Kanban", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "New issue", exact: true }).click();
     await page.getByLabel("Issue title", { exact: true }).fill("Generated cache feature");
     await page.getByLabel("Issue description", { exact: true }).fill("Generated end-to-end ticket.");

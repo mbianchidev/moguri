@@ -29,7 +29,7 @@ export const SETTINGS_GROUPS = [
     { id: "startup", label: "Startup defaults", keywords: "default model thinking effort budget autonomy verbosity" },
     { id: "interactions", label: "Confirmations", keywords: "attach session content drag drop terminal close do not ask again" },
     { id: "retention", label: "Retention", keywords: "archive complete delete archived seven days storage sessions resume sleep keep alive confirmation ask again" },
-    { id: "budgets", label: "Budgets", keywords: "default tokens USD limits spend cost estimates policy" },
+    { id: "budgets", label: "Budgets", keywords: "default tokens USD limits spend cost billing estimates provider API pricing Anthropic OpenAI Google xAI Copilot rates policy" },
     { id: "artifacts", label: "Artifacts", keywords: "retained documents answers reports plans export" },
     { id: "candidates", label: "Candidates", keywords: "review staging generation patches application" },
   ] },
@@ -41,7 +41,7 @@ export const SETTINGS_GROUPS = [
     { id: "memory", label: "Repository memory", keywords: "index vectors context snippets symbols" },
   ] },
   { label: "Per-project configuration", items: [
-    { id: "project", label: "Project", keywords: "folder upstream remote repository documentation merge conflicts CI planning debugging overrides" },
+    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides" },
   ] },
   { label: "Appearance", items: [
     { id: "appearance", label: "Appearance", keywords: "theme light dark mode system palettes custom colors contrast" },

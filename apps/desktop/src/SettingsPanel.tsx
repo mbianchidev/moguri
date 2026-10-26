@@ -31,10 +31,11 @@ import { ArtifactPanel } from "./ArtifactPanel.tsx";
 import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
+import { ProviderPricing } from "./ProviderPricing.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
-type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement";
+type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets";
 export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
@@ -372,11 +373,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <button type="button" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("kupo")}>Restore kupo defaults</button>
         </>}
         {tab === "budgets" && <><h2>Budgets and model estimates</h2><SettingsHelp label="More about this setting">Session caps and profile policy share one cumulative all-role ledger. Unknown usage is not zero. Exact provider-billing caps are not qualified; finite controls require explicit estimate-based accounting.</SettingsHelp>
+          <ProviderPricing sdk={sdk} snapshot={snapshot} />
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.budgets.providerEstimates !== false} disabled={saving || raw.budgets !== undefined} onChange={(event) => automatic("budgets", { providerEstimates: event.target.checked })} />Estimate model costs using originating-provider API prices</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.budgets.useProviderRatesForLimits === true} disabled={saving || raw.budgets !== undefined || draft.budgets.providerEstimates === false} onChange={(event) => automatic("budgets", { useProviderRatesForLimits: event.target.checked })} />I accept fresh API-equivalent estimates for finite USD limits, not exact billing caps</label>
+          <SettingsHelp label="More about this setting">USD limits otherwise need your explicit dated model rate. Existing hard policy and unknown historical charges still apply. Cached input uses reported subsets; unspecified cache-write TTL uses the highest listed write rate. Reservations include that conservative headroom.</SettingsHelp>
           <h3>Explicit Local wind-down policy</h3>
           <SettingsHelp label="More about this setting">Off by default. Select an exact available model ID, separate hosted metadata consent and complete output/deadline bounds. A reserved metadata-only finishing role uses the existing all-role ledger; it receives no raw task, code or chat history. Unknown work or a newly stricter cap can still block it.</SettingsHelp>
           {jsonEditor("winddown", "Budget wind-down policy")}
           <SettingsHelp label="More about this setting">Saving never selects a model or approves Git. Use Candidates / Budget wind-down checkpoints for a separate actual-user accepted-work/new-branch review. Source index/HEAD stay intact; no automatic push, merge or branch deletion. Remote/native wind-down remains unqualified.</SettingsHelp>
-          <h3>Model-specific USD estimates</h3><SettingsHelp label="More about this setting">Use canonical model IDs and approved input/output USD per million tokens. The input rate applies conservatively to every input category, including cache. A missing/stale rate disables USD admission, not a free request. Save these settings before applying policy.</SettingsHelp>
+          <h3>Model-specific USD overrides</h3><SettingsHelp label="More about this setting">Your canonical-model dated input/output rates take precedence over provider references. The override input rate applies to every input category, including cache. An expired override is not silently replaced. Missing/stale rates disable USD admission, not a free request.</SettingsHelp>
           {jsonEditor("budgets", "Budget model estimates")}
           <details><summary>Illustrative estimate configuration, not Copilot pricing</summary><pre>{JSON.stringify({ rates: [{ modelId: session?.controls.modelId ?? "replace-with-canonical-model-id", inputUsdPerMillion: 1, outputUsdPerMillion: 2, effectiveAt: new Date().toISOString().slice(0, 10), source: "user-estimate" }], maxPriceAgeDays: 30 }, null, 2)}</pre><SettingsHelp label="More about this setting">Replace illustrative rates with your own approved estimate. An explicit zero rate is allowed; unknown metadata never supplies zero automatically.</SettingsHelp></details>
           <button type="button" disabled={saving} onClick={() => void reset("budgets")}>Restore price-estimate defaults</button>

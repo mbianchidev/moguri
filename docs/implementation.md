@@ -48,6 +48,15 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > without real SendBox qualification. These features share the SDK and event
 > authority; they do not create a second hosted issue system.
 
+> The owner-requested [project Kanban/pricing follow-up](architecture/project-kanban.md)
+> adds one project board chat, shared visibility/source preferences, same-panel
+> GitHub/Linear work, card binding and one actual-user delegated Local task through
+> its draft PR. Project context menus and drag ordering share SDK authority.
+> Named models can use originating-provider API-equivalent estimates through
+> Copilot/resellers, with captured sources and separate finite-limit consent.
+> This is not an invoice, a backlog scheduler, a merge grant, qualified fork-head
+> publication or Remote/Sandbox continuation.
+
 > The [session workspace slice](architecture/session-workspace.md) implements
 > held prompts, shared slash actions, enforced read-only/side sessions,
 > session/project organization, independent plan artifacts and explicit

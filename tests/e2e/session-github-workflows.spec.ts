@@ -32,7 +32,7 @@ test("repository and project-item dropdowns show the actual account, full source
     await expect(start).toContainText("Signed in as generated-owner");
     await start.getByRole("button", { name: "Close New", exact: true }).click();
     await page.getByLabel("Project actions for checkout", { exact: true }).click();
-    await page.getByRole("button", { name: "From PR", exact: true }).click();
+    await page.getByRole("menuitem", { name: "From PR", exact: true }).click();
     const fromPr = page.getByRole("dialog", { name: "Session from PR", exact: true });
     await expect(fromPr.getByLabel("Pull request", { exact: true })).toBeEnabled();
     await fromPr.getByLabel("Pull request", { exact: true }).selectOption("11");
@@ -44,7 +44,7 @@ test("repository and project-item dropdowns show the actual account, full source
     expect(fixture.service.controller.snapshot().sessions.at(-1)?.turnId).toBeNull();
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     await page.getByLabel("Project actions for checkout", { exact: true }).click();
-    await page.getByRole("button", { name: "From work item", exact: true }).click();
+    await page.getByRole("menuitem", { name: "From work item", exact: true }).click();
     const fromIssue = page.getByRole("dialog", { name: "Session from work item", exact: true });
     await expect(fromIssue.getByLabel("GitHub issue", { exact: true })).toBeEnabled();
     await fromIssue.getByLabel("GitHub issue", { exact: true }).selectOption("7");

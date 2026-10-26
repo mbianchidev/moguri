@@ -1,9 +1,65 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **61**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **62**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Project Kanban, continuation and provider prices
+
+Each project has a **Kanban** row and special board chat. Opening it does not run
+a model. Board shows local cards and imported Linear cards; **GitHub issues**
+and **GitHub PRs** load that repository's source picker in the same view. **Chat**
+uses the normal saved composer, model controls, approvals and transcript.
+**Work item / Kanban card** can attach a card from the selected session's own
+project without running it.
+
+Secondary-click a project, use the macOS two-finger click, or press Shift+F10 on
+its name for the same actions menu. **Show/Hide Kanban** is also in
+**Project settings / Project Kanban**. Hiding keeps its cards, chat and owned
+tasks. Drag project headers to reorder inside their folder; Alt+Up/Down remains
+the keyboard alternative. Project/session menus no longer contain Move up/down.
+
+**Continue work**, an exact new `continue work` prompt, or `/continue-work`
+selects **one** eligible item, creates a visible delegated task on a new isolated
+Local worktree, and stops at its draft PR. The original chat's model and budget
+are captured; the task uses Autopilot automatic approvals, or its already
+selected qualified Max layer. The original chat and global defaults are not
+changed. Select a model first. This explicit workflow delegates its branch push
+and draft PR, never a merge, force push, rebase or branch deletion.
+Ordinary safety/context limits, hard policy and budget caps still apply.
+
+Project settings select Kanban, open GitHub issues or open GitHub PRs.
+In-progress cards precede backlog by default; eligible non-final phases are
+configurable. Existing PR work updates that exact same-repository head rather
+than creating another PR. Fork-head updates and Remote/Sandbox continuation
+remain unqualified, with no Local/account fallback. GitHub uses the captured
+controller CLI account; no automatic login or credential forwarding occurs.
+Held/recovered prompts never create an autonomous task.
+
+Only a verified publication links the PR and moves a default card to Review.
+The existing verified merge observer alone moves it to the merged phase.
+Competing requests cannot claim the same source. Stop/cancellation and restart
+retain partial work and unknown model charges; they never replay the task.
+Inspect an interrupted task's actual branch, jobs and results before **I
+inspected this task; release card**. Inspection neither resumes nor deletes it.
+
+**Settings / Budgets / Provider API-equivalent prices** supplies current
+originating-provider reference rates, including name-matched Copilot/reseller
+models. For example, Opus 5.5 uses Anthropic's API rate, not a claimed GitHub
+invoice. Public reference refresh is explicit, credential-free and bounded;
+ordinary Copilot login/inference gains no metadata requests. Missing,
+ambiguous, stale and expired prices remain unknown. Each call captures its
+rate/source; later refresh never reprices history. Explicit user overrides win.
+Finite USD admission additionally needs the explicit API-equivalent consent
+checkbox or a fresh dated user rate, plus existing estimate-based cap consent.
+Provider-reported and billed amounts stay separate.
+
+TUI/CLI share `/kanban`, `/kanban show|hide`, `/kanban source SOURCE`,
+`/continue-work [CARD_ID]`, `/work-item [CARD_ID|clear]` and `/prices`.
+CLI also has `moguri kanban open|items|continue|work|stop|inspect` and
+`moguri prices [refresh PROVIDER]`. See the
+[contract and qualification](architecture/project-kanban.md).
 
 ## Session approvals and GitHub workflows
 
@@ -468,8 +524,8 @@ reviews. Deletion still stops owned work and preserves independent documents.
 
 Drag any part of a session row to reorder siblings, including children, within
 their pinned/unpinned group. The target's top/bottom halves insert before/after
-without nesting. There is no grip button. Alt+Up/Down on the focused name and
-Move up/down are keyboard alternatives; use **Attach to session** in the menu
+without nesting. There is no grip button. Alt+Up/Down on the focused name is
+the keyboard alternative; use **Attach to session** in the menu
 to choose a parent. Drag a child to a root row or its project/Chats/group
 header/background to detach into that root list. This asks for confirmation by
 default. **Do not ask again when detaching sessions** is saved per profile and
@@ -832,7 +888,7 @@ microphone, administrator install or physical VM qualification was used.
 Drag a session above or below a sibling to reorder it. Order is saved atomically
 in the service and shared with desktop, TUI and SDK clients. It cannot move a
 session across projects, parents, groups, pinned sections or archive sections.
-Alt+Up/Down and the session action menu provide keyboard alternatives.
+Alt+Up/Down provides keyboard reordering; the session menu retains the other organization actions.
 Double-click a session to rename it; its current name is selected in the
 existing dialog. Single click still opens it, and Escape or Cancel leaves its
 name unchanged.
@@ -2688,7 +2744,8 @@ protection to force a retry.
 
 ## Local project Kanban and optional Linear
 
-Desktop **Issues** opens this project's local board. **New** creates a
+Desktop's per-project **Kanban** row, or **Issues**, opens the special board
+chat. **New** creates a
 feature, bug or misc ticket with title, description, phase and optional
 connected GitHub PR. There is no assignee and no hosted issue upload. Use
 phase selectors to move, title to edit, and Archive/Restore to retain history.
@@ -2885,12 +2942,15 @@ Model-created subagents charge their real owner. Changing models/envs,
 resuming, deleting sources and restarting never resets cumulative accounting.
 
 USD choices require fresh model-specific estimates in **Settings / Budgets**.
-Configure canonical model IDs, input/output USD per million, a UTC effective
-date and `source: "user-estimate"`. No Copilot price is guessed; adapter default
-zero is not a bill. An explicit approved zero estimate is allowed. Historical
-unpriced/unbounded calls keep affected finite choices unavailable. Cache
-categories are included once in total input using the conservative configured
-rate, not an invented discount.
+Use an explicit canonical-model override with input/output USD per million, UTC
+date and `source: "user-estimate"`, or explicitly accept published API-equivalent
+references for finite limits. Automatic references are on for estimates, not
+finite-limit consent. They assume the named originating model's API price even
+through Copilot, never its subscription bill. An explicit approved zero
+override remains allowed. Historical unpriced/unbounded calls still block
+affected finite choices. Provider rates use reported cache subsets once;
+unknown write TTL reserves the maximum listed write price. Manual overrides
+retain their conservative flat-input behavior.
 
 The separate **Current-profile hard policy** applies across sessions, including
 Unlimited preferences. Factory/settings reset does not clear it. Removing or

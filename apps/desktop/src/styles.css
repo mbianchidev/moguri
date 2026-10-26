@@ -621,7 +621,30 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .cache-plan { margin-top: 24px; }
 .cache-plan code { overflow-wrap: anywhere; }
 .cache-plan pre { max-height: 280px; overflow: auto; }
-.project-board-page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+.project-board-page { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+.kanban-board-content { min-height: 0; flex: 1; overflow: auto; }
+.kanban-chat { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.continuation-status { display: flex; flex-wrap: wrap; align-items: center; flex-shrink: 0; gap: 10px; margin: 10px 20px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--subtle); font-size: 12px; }
+.continuation-status > div { flex: 1; min-width: 180px; }
+.continuation-status p { margin: 4px 0 0; color: var(--muted); overflow-wrap: anywhere; line-height: 1.6; }
+.board-view-switch { display: flex; align-items: center; flex-wrap: wrap; flex-shrink: 0; gap: 8px; padding: 10px 24px; border-bottom: 1px solid var(--line); }
+.board-view-switch > span { color: var(--muted); font-size: 11px; margin-inline-start: 8px; }
+.board-view-switch button[aria-pressed="true"] { background: var(--selected); color: var(--selection-text); border-color: var(--control-line); }
+.board-guidance { margin: 12px 24px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.kanban-work, .kanban-github { margin: 12px 24px; padding: 14px; border: 1px solid var(--line); border-radius: 6px; }
+.kanban-work h2 { font-size: 13px; margin: 0 0 10px; }
+.kanban-work small { display: block; overflow-wrap: anywhere; color: var(--muted); line-height: 1.6; }
+.kanban-source-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 220px; overflow: auto; }
+.kanban-eligible { display: flex; flex-wrap: wrap; gap: 10px; border: 0; padding: 0; }
+.kanban-eligible legend { font-size: 12px; margin-bottom: 8px; }
+.kanban-work-item { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.kanban-link { gap: 8px; }
+.kanban-link.selected { background: var(--selected); color: var(--selection-text); }
+.project-row[draggable="true"] { cursor: grab; }
+.project-row[draggable="true"]:active { cursor: grabbing; }
+.project-row.drop-before::before, .project-row.drop-after::after { content: ""; position: absolute; inset-inline: 4px; height: 2px; background: var(--accent); pointer-events: none; z-index: 1; }
+.project-row.drop-before::before { top: 0; }
+.project-row.drop-after::after { bottom: 0; }
 .board-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .board-toolbar > div { flex: 1; min-width: 180px; }
 .board-toolbar h1 { margin: 0 0 5px; font-size: 19px; font-weight: 600; }
@@ -670,13 +693,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .session-row.selected { background: var(--selected); border-radius: 5px; }
 .session-row.selected .session-link { color: var(--selection-text); }
 .session-link > svg { width: 12px; height: 12px; color: var(--muted); }
-.workspace-menu { flex-shrink: 0; }
-.workspace-menu > summary { display: flex; align-items: center; justify-content: center; list-style: none; width: 28px; min-height: 32px; border-radius: 5px; }
-.workspace-menu > summary::-webkit-details-marker { display: none; }
-.workspace-menu > summary:hover { background: var(--hover); }
-.workspace-menu > div, .session-context-menu { position: fixed; z-index: 60; width: 222px; max-height: calc(100dvh - 64px); overflow: auto; padding: 5px; border: 1px solid var(--control-line); border-radius: 7px; background: var(--surface); box-shadow: 0 6px 24px #0004; }
-.workspace-menu > div button, .session-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 9px; border-color: transparent; text-align: left; font-size: 12px; }
-.workspace-menu > div svg, .session-context-menu svg { width: 14px; height: 14px; }
+.session-context-menu { position: fixed; z-index: 60; width: 222px; max-height: calc(100dvh - 64px); overflow: auto; padding: 5px; border: 1px solid var(--control-line); border-radius: 7px; background: var(--surface); box-shadow: 0 6px 24px #0004; }
+.session-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 9px; border-color: transparent; text-align: left; font-size: 12px; }
+.session-context-menu svg { width: 14px; height: 14px; }
 .session-row[draggable="true"] { cursor: grab; }
 .session-row[draggable="true"]:active { cursor: grabbing; }
 .session-row.drop-before::before, .session-row.drop-after::after { content: ""; position: absolute; inset-inline: 4px; height: 2px; background: var(--accent); pointer-events: none; z-index: 1; }

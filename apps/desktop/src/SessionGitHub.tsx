@@ -46,7 +46,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     await sdk.refresh();
     const actual = sdk.getState().snapshot?.sessions.find((entry) => entry.id === session.id);
     if (!actual) throw new Error("The destination session was removed. The GitHub item was not deleted.");
-    await sdk.sessions.organize(session.id, kind === "pull" ? { prUrl: url } : { workItemUrl: url }, actual.revision);
+    await sdk.sessions.organize(session.id, kind === "pull" ? { prUrl: url } : { workItemUrl: url, workItemId: null }, actual.revision);
   };
   const operation = (): GithubAction => {
     if (!context) throw new Error("Load this project's GitHub repository and account first.");
@@ -60,7 +60,9 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     void sdk.github.cancel(retainedOperation.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Original GitHub cancellation was not confirmed. Inspect its retained result.")).finally(() => setStopping(false));
   };
   const discard = () => { setCreating(false); setTitle(""); setBody(""); setReview(null); };
+  const kanban = kind === "issue" && session.projectId ? <KanbanWorkItem sdk={sdk} session={session} snapshot={snapshot} /> : null;
   if (!scope) return <section className="session-github"><p className="fine-print">GitHub {label} workflows need an explicit Local project. Remote and Sandbox do not borrow this Mac's account or checkout.</p>
+    {kanban}
     {creating && <><p className="settings-warning">Your publication form is preserved. Restore its Local destination or copy/discard the edit explicitly.</p>
       <label className="setting-field">Preserved title<input readOnly value={title} /></label><label className="setting-field">Preserved body<textarea readOnly value={body} /></label>
       <button type="button" disabled={busy} onClick={discard}>Discard preserved form</button></>}
@@ -68,10 +70,9 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     {retainedOperation?.status === "running" && <button type="button" disabled={stopping} onClick={cancelOriginal}>Cancel original GitHub operation</button>}
     {error && <p className="inline-error" role="alert">{error}</p>}
   </section>;
-  const local = kind === "issue" ? snapshot.issues.find((entry) => entry.id === session.workItemId && entry.projectId === session.projectId) : undefined;
   return <section className="session-github" aria-label={kind === "pull" ? "Project pull requests" : "Project work items"} aria-busy={busy}>
+    {kanban}
     {bound && <p className="fine-print path">Linked {label}: <button type="button" className="quiet" disabled={busy} onClick={() => void run(async () => { await window.moguri.openExternal(bound); })}>{bound}</button></p>}
-    {local && <article className="github-item"><h3>Local work item #{local.number}: {local.title}</h3><Suspense fallback={<p>{local.body}</p>}><RichMessage text={local.body} openLink={(url) => void run(async () => { await window.moguri.openExternal(url); })} /></Suspense></article>}
     <header className="panel-toolbar"><strong>{kind === "pull" ? "Pull requests" : "GitHub issues"}</strong>
       <button type="button" disabled={busy || !writeAllowed || !context || contextScope !== scopeKey || creating} onClick={() => { setCreating(true); setCreationScope(scopeKey); setTitle(""); setBody(""); setBase(context?.defaultBranch ?? ""); setHead(context?.branch === "(detached)" ? "" : context?.branch ?? ""); setAttempted(false); setOperationId(""); setNotice(""); }}>New {label}</button></header>
     {!creating && <GitHubItemPicker key={scopeKey} sdk={sdk} scope={scope} kind={kind} selectedUrl={bound} select={setSelection} contextChanged={(value) => { setContext(value); setContextScope(scopeKey); }} disabled={busy} />}
@@ -124,5 +125,23 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     {operationId && <p className="fine-print">Original GitHub operation: <code>{operationId}</code> / {retainedOperation?.status ?? "unobserved"}. Its result remains in GitHub workflow history.</p>}
     {retainedOperation?.status === "running" && <button type="button" disabled={stopping} onClick={cancelOriginal}>Cancel original GitHub operation</button>}
     {notice && <p className="fine-print" role="status">{notice}</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+  </section>;
+}
+function KanbanWorkItem({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const selected = snapshot.issues.find((issue) => issue.id === session.workItemId && issue.projectId === session.projectId);
+  const cards = snapshot.issues.filter((issue) => issue.projectId === session.projectId && (!issue.archived || issue.id === selected?.id)).sort((a, b) => a.number - b.number);
+  return <section className="kanban-work-item" aria-label="Kanban work item">
+    <label className="setting-field">Kanban card<select aria-label="Kanban work item" disabled={busy} value={selected?.id ?? ""} onChange={(event) => {
+      const workItemId = event.target.value || null; setBusy(true); setError("");
+      void sdk.sessions.organize(session.id, { workItemId, ...(workItemId ? { workItemUrl: null } : {}) }).catch((error: unknown) => {
+        setError(error instanceof Error ? error.message : "The card was not linked. Reload the actual project.");
+      }).finally(() => setBusy(false));
+    }}><option value="">No Kanban card</option>{cards.map((issue) => <option key={issue.id} value={issue.id}>#{issue.number} {issue.title}{issue.linear ? ` / ${issue.linear.identifier}` : ""}{issue.archived ? " (archived)" : ""}</option>)}</select></label>
+    {selected && <article className="github-item"><h3>Local work item #{selected.number}: {selected.title}</h3>
+      {selected.linear && <p className="fine-print">Imported Linear item {selected.linear.identifier}; no remote write.</p>}
+      <Suspense fallback={<p>{selected.body}</p>}><RichMessage text={selected.body} openLink={(url) => void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened."))} /></Suspense>
+    </article>}
+    {error && <p className="inline-error" role="alert">{error}</p>}
   </section>;
 }

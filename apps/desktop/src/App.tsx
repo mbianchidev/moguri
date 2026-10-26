@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { activeDecision, appearanceColors, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, activeProjectWork, appearanceColors, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -157,6 +157,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
   const connectedPr = session && snapshot ? sessionPullRequestUrl(session, snapshot) : null;
+  const continuedWork = snapshot?.projectWorkRuns.findLast((work) => work.originSessionId === session?.id);
   const editorFor = useCallback((target: Session) => {
     let value = editors.current.get(target.id);
     if (!value) { value = new DraftEditor(client, target.id, target.draft); editors.current.set(target.id, value); }
@@ -227,7 +228,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const settingsMenu = useRef(openSettings); settingsMenu.current = openSettings;
   useEffect(() => window.moguri.onOpenSettings(() => settingsMenu.current("general")), [client]);
   useEffect(() => window.moguri.onUpdateAvailable((_id, version) => setNotice(`Moguri ${version} is verified and staged. Open Settings / General to review installation and restart. Nothing has been replaced.`, true)), [setNotice]);
-  const openBoard = () => { if (!canNavigate()) return; if (boardOpen) { setBoardOpen(false); return; } beforeHidingTerminal(() => { setSettingsTab(null); setGlobalView(null); setBoardOpen(true); }); };
+  const openBoard = () => { if (!canNavigate()) return; if (boardOpen) { setBoardOpen(false); return; } if (project) void openKanban(project.id); };
   const openGlobal = (view: GlobalView, sourceId: string | null = null, toggle = false) => {
     if (!canNavigate()) return;
     if (!toggle && globalView === view && globalSessionId === sourceId) return;
@@ -248,10 +249,18 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     await editor?.flush();
     const target = client.getState().snapshot?.sessions.find((session) => session.id === id);
     if (!target) throw new Error("This session was removed.");
-    selectMainSession(id, target.projectId); setNavOpen(false); setSideSessionId(null);
+    selectMainSession(id, target.projectId); setBoardOpen(target.purpose === "kanban"); setNavOpen(false); setSideSessionId(null);
     if (target.unread) await client.sessions.organize(id, { unread: false });
     const attention = client.getState().snapshot?.attention.filter((entry) => entry.sessionId === id && !entry.acknowledged).map((entry) => entry.id) ?? [];
     if (attention.length) await client.attention.acknowledge(attention.slice(-100));
+  });
+  const openKanban = (id: string) => run(async () => {
+    if (!canNavigate() || !await confirmTerminalNavigation()) return;
+    await editor?.flush();
+    const opened = await client.kanban.open(id);
+    if (!opened.id) throw new Error("The project's Kanban chat was not acknowledged.");
+    if (!leaveSurface()) return;
+    selectMainSession(opened.id, id); setBoardOpen(true); setArchived(false); setNavOpen(false); setSideSessionId(null);
   });
   const openSessionList = (toggleArchived: boolean) => {
     if (!canNavigate()) return;
@@ -382,6 +391,31 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
   }, [nativeModal, terminalDismiss, composerMenuOpen, snapshot?.settings.values.shortcuts?.commands]);
+  const chatContent = session && snapshot ? <>
+    {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
+      <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
+        {continuedWork.diagnostic && <p>{continuedWork.diagnostic}</p>}</div>
+      {continuedWork.sessionId && snapshot.sessions.some((session) => session.id === continuedWork.sessionId) && <button type="button" onClick={() => void chooseSession(continuedWork.sessionId!)}>Open task</button>}
+      {activeProjectWork(continuedWork) && <button type="button" onClick={() => void run(() => client.kanban.cancel(continuedWork.id))}>Stop task</button>}
+      {continuedWork.prUrl && <button type="button" onClick={() => void run(async () => { await window.moguri.openExternal(continuedWork.prUrl!); })}>Open published PR</button>}
+    </section>}
+    <Timeline session={session} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
+    {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
+    {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
+    {session.pendingApproval && <section className="approval" aria-label="Tool approval">
+      <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
+      {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
+        <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
+      <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will access this project's files."}</p>
+      <pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
+      {session.pendingApproval.recommendation && session.pendingApproval.recommendationSource?.stepId === session.pendingApproval.stepId && session.pendingApproval.recommendationSource.callId === session.pendingApproval.call.id ?
+        <ModelAdvice text={session.pendingApproval.recommendation} source={session.pendingApproval.recommendationSource} /> :
+        session.controls.autonomy === "Guided" && <p className="fine-print">The current solver supplied no explicit recommendation. Review the exact arguments; only your decision or an existing deterministic grant can authorize this action.</p>}
+      <ApprovalActions key={session.pendingApproval.id} sdk={client} session={session} busy={busy} run={run} />
+    </section>}
+    {session.queue.length > 0 && <Queue session={session} command={command} client={client} modal={setNativeModal} />}
+    {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
+  </> : null;
   return <><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelVisible && panelMaximized ? "context-maximized" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
@@ -395,7 +429,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <div className="nav-scroll">
       <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{view}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
-      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }} />}
+      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }} />}
       </div>
       <div className="nav-footer">
         <div className="profile-actions">
@@ -408,7 +442,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     </nav>
     <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
-      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading local project issues...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} /></Suspense> :
+      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} session={session} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
       settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
@@ -435,24 +469,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
           <p className="welcome-start-hint">Choose New to open a chat or a project.</p>
           <button onClick={() => openSettings("providers")}>Configure model providers</button>
         </div> :
-        <>
-          <Timeline session={session} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
-          {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
-          {session.kind === "metachat" && snapshot && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
-          {session.pendingApproval && <section className="approval" aria-label="Tool approval">
-            <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
-            {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
-              <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
-            <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will access this project's files."}</p>
-            <pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
-            {session.pendingApproval.recommendation && session.pendingApproval.recommendationSource?.stepId === session.pendingApproval.stepId && session.pendingApproval.recommendationSource.callId === session.pendingApproval.call.id ?
-              <ModelAdvice text={session.pendingApproval.recommendation} source={session.pendingApproval.recommendationSource} /> :
-              session.controls.autonomy === "Guided" && <p className="fine-print">The current solver supplied no explicit recommendation. Review the exact arguments; only your decision or an existing deterministic grant can authorize this action.</p>}
-            <ApprovalActions key={session.pendingApproval.id} sdk={client} session={session} busy={busy} run={run} />
-          </section>}
-          {session.queue.length > 0 && <Queue session={session} command={command} client={client} modal={setNativeModal} />}
-          {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
-        </>}
+        chatContent}
       </>}
     </main>
     <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar">
