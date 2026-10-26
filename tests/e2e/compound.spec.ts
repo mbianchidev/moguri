@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -14,8 +15,8 @@ test("desktop reviews public task/plan/architecture/source and model cost, separ
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const compound = page.getByRole("region", { name: "Public compound workflows", exact: true });
     await compound.getByLabel("Compound task", { exact: true }).fill(f.input.input.task);
     await compound.getByLabel("Compound request plan", { exact: true }).fill(f.input.requestPlan);

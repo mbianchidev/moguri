@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -97,12 +98,12 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     const insights = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true });
     await insights.hover(); await expect(page.getByRole("tooltip")).toHaveText("Insights");
     await insights.click(); await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeVisible();
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await page.getByRole("button", { name: "ask Moguri", exact: true }).click();
     await expect(page.getByRole("heading", { name: "ask Moguri", exact: true })).toBeVisible();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    const warning = page.getByText("Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited. Retained proposals remain readable.", { exact: true });
+    await openSettingsSection(page, "Candidates");
+    const warning = page.getByRole("region", { name: "Reviewed repository candidates", exact: true }).locator(".settings-warning").filter({ hasText: /project session|Git-backed project/ }).first();
     await expect(warning).toBeVisible();
     const styles = await warning.evaluate((element) => {
       const warning = getComputedStyle(element), nearby = getComputedStyle(element.parentElement!.querySelector(".fine-print")!);

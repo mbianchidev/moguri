@@ -34,7 +34,9 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await page.getByRole("button", { name: "Probe SSH target", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Ready: Verified SSH host" })).toBeVisible();
-    await expect(page.getByText("Review Remote MCP resources and separate access-forwarding grants under MCP gateway.", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "About Remote MCP access", exact: true }).focus();
+    await expect(page.getByRole("tooltip")).toContainText("Review Remote MCP resources and separate access-forwarding grants under MCP gateway.");
+    await page.keyboard.press("Escape");
     await expect(page.getByText(/executable MCP transports are not qualified/)).toHaveCount(0);
     expect(fixture.requests.length).toBe(0);
     await categories.getByRole("button", { name: "Project", exact: true }).click();

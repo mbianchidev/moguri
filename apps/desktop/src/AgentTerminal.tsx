@@ -5,6 +5,7 @@ import { activityBytes, activityDuration, activityStarted, CurrentActivity } fro
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { Icon } from "./Icon.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";
+import { Tooltip } from "./Tooltip.tsx";
 
 type Read = Extract<ActivityResponse, { type: "activity.read" }>;
 export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
@@ -47,7 +48,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
         {!commands.length && <option value="">{activity.error ? "History unavailable" : activity.loading ? "Loading commands..." : "No approved command"}</option>}
       </select>
       <label className="agent-follow"><input type="checkbox" checked={follow} onChange={(event) => { setFollow(event.target.checked); setOffset(0); }} />Follow latest output</label>
-      <button className="icon-button" type="button" title="Copy displayed Agent output" aria-label="Copy agent output" disabled={!content} onClick={() => void copy()}><Icon name="Copy" /></button>
+      <Tooltip content="Copy displayed agent output"><button className="icon-button" type="button" aria-label="Copy agent output" disabled={!content} onClick={() => void copy()}><Icon name="Copy" /></button></Tooltip>
       {activity.activity?.nextBefore && <button className="quiet" type="button" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Earlier commands</button>}
     </header>
     {error && <p className="inline-error" role="alert">{error}</p>}

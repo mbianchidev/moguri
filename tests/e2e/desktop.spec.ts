@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
+import { openSettingsSection } from "./navigation.ts";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -115,7 +116,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     page.on("pageerror", (error) => failures.push(error.message));
     await expect(page.getByRole("heading", { name: "New session", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Model:/ })).toContainText("Select model");
-    await page.getByRole("button", { name: /GitHub Copilot.*disconnected/ }).click();
+    await openSettingsSection(page, "Providers");
     await page.getByRole("button", { name: "Sign in with GitHub Copilot", exact: true }).click();
     await expect(page.getByLabel("GitHub device code")).toHaveText("TEST-0000");
     await expect(page.getByRole("button", { name: "Open GitHub", exact: true })).toBeVisible();
@@ -229,11 +230,13 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(page.getByRole("button", { name: /^grep_logs/ })).toBeVisible();
     await categories.getByRole("button", { name: "Subagents", exact: true }).click();
     await expect(page.getByLabel("Enable optional read-only subagents")).not.toBeChecked();
-    await categories.getByRole("button", { name: "Skills", exact: true }).click();
+    await categories.getByRole("button", { name: "Skill gateway", exact: true }).click();
     await expect(page.getByLabel("Allow model-proposed skills, scripts and style knowledge for human review")).not.toBeChecked();
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Download model once", exact: true })).toBeDisabled();
-    await expect(page.getByText("NVIDIA documents 40 locales:", { exact: false })).toBeVisible();
+    await page.getByRole("button", { name: "About supported dictation languages", exact: true }).focus();
+    await expect(page.getByRole("tooltip")).toContainText("NVIDIA documents 40 locales:");
+    await page.keyboard.press("Escape");
     await categories.getByRole("button", { name: "System prompt", exact: true }).click();
     await mkdir(artifacts, { recursive: true });
     await page.screenshot({ path: join(artifacts, "desktop-sdk-settings.png") });

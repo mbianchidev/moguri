@@ -69,8 +69,8 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     await expect(page.getByText("Generated Default-only document", { exact: true })).toHaveCount(0);
     expect(fixture.session(fixture.sdk, first.id!).draft.text).toBe("Generated private Default desktop draft.");
     expect(fixture.session(fixture.sdk, background.id!).turnId).toBeTruthy();
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated private Beta desktop draft.");
     const beta = await fixture.service.profiles.control(profile.id);
     await expect.poll(() => beta.snapshot().sessions.length).toBe(1);

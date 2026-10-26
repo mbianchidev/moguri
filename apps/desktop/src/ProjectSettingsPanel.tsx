@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, WORKFLOW_GUIDANCE_FIELDS, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
@@ -56,7 +57,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const change = <K extends keyof ProjectSettings>(key: K, value: ProjectSettings[K]) => setValues((current) => ({ ...current, [key]: value }));
   const sectionDirty = (key: keyof ProjectSettings) => raw[key] !== undefined || JSON.stringify(values[key]) !== JSON.stringify(committed[key]);
   const saveButton = (key: keyof ProjectSettings, label: string) => <button type="button" className="primary" aria-label={label} disabled={!loaded || busy || !sectionDirty(key)} onClick={() => void save(key)}>Save</button>;
-  const json = (key: "scripts" | "sandbox" | "mcpServers" | "defaults", label: string) => <div className="setting-editor"><label className="setting-field">{label}<textarea aria-label={label} className="json-editor short" spellCheck={false} value={raw[key] ?? JSON.stringify(values[key], null, 2)} onChange={(event) => setRaw((current) => ({ ...current, [key]: event.target.value }))} /></label>{saveButton(key, `Save ${label}`)}</div>;
+  const json = (key: "scripts" | "sandbox" | "mcpServers" | "defaults", label: string) => <div className="setting-editor"><label className="setting-field">{label}<SettingsTextarea aria-label={label} className="json-editor short" spellCheck={false} value={raw[key] ?? JSON.stringify(values[key], null, 2)} onChange={(event) => setRaw((current) => ({ ...current, [key]: event.target.value }))} /></label>{saveButton(key, `Save ${label}`)}</div>;
   const save = (section?: keyof ProjectSettings) => run(async () => {
     if (ownSave.current) throw new Error("Wait for the current project settings save to finish.");
     const input = section ? { ...committedValues.current, [section]: values[section] } : { ...values };
@@ -119,68 +120,68 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     {error && <div className="notice error" role="alert"><span>{error}</span><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
     {!loaded && <p role="status">Loading committed project settings...</p>}
     <fieldset className="project-settings-fields" disabled={!loaded || busy}>
-    <label className="setting-field">Project icon color<input type="color" aria-label={`Icon color for ${project.name}`} value={color ?? presentation.color} onChange={(event) => saveColor(event.target.value)} /></label>
+    <label className="setting-field">Project icon color<SettingsInput type="color" aria-label={`Icon color for ${project.name}`} value={color ?? presentation.color} onChange={(event) => saveColor(event.target.value)} /></label>
     {colorDirty && <button type="button" onClick={() => { if (color !== null) saveColor(color); }}>Retry icon color</button>}
     <BoardSettings sdk={sdk} project={project} snapshot={snapshot} onDirty={setBoardDirty} />
-    <h3>Project instruction overrides</h3><p className="fine-print">Unselected fields inherit this profile's global guidance. An empty explicit override disables that inherited field. Saving a field preserves other pending text and grants no tools.</p>
+    <h3>Project instruction overrides</h3><SettingsHelp label="More about this setting">Unselected fields inherit this profile's global guidance. An empty explicit override disables that inherited field. Saving a field preserves other pending text and grants no tools.</SettingsHelp>
     {WORKFLOW_GUIDANCE_FIELDS.map(({ key, label }) => <div className="setting-editor" key={key}>
-      <label className="check-setting"><input type="checkbox" aria-label={`Override ${label}`} checked={Object.hasOwn(values.guidance ?? {}, key)} onChange={(event) => void workflow(key, event.target.checked ? "override" : "inherit")} />Override {label.toLowerCase()}</label>
-      <label className="setting-field">{label}<textarea aria-label={`Project ${label}`} maxLength={65536} readOnly={!Object.hasOwn(values.guidance ?? {}, key)} value={values.guidance?.[key] ?? snapshot.settings.values.guidance?.[key] ?? ""} onChange={(event) => change("guidance", { ...values.guidance, [key]: event.target.value })} /></label>
+      <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Override ${label}`} checked={Object.hasOwn(values.guidance ?? {}, key)} onChange={(event) => void workflow(key, event.target.checked ? "override" : "inherit")} />Override {label.toLowerCase()}</label>
+      <label className="setting-field">{label}<SettingsTextarea aria-label={`Project ${label}`} maxLength={65536} readOnly={!Object.hasOwn(values.guidance ?? {}, key)} value={values.guidance?.[key] ?? snapshot.settings.values.guidance?.[key] ?? ""} onChange={(event) => change("guidance", { ...values.guidance, [key]: event.target.value })} /></label>
       <button type="button" className="primary" aria-label={`Save project ${label}`} disabled={!Object.hasOwn(values.guidance ?? {}, key) || values.guidance?.[key] === committed.guidance?.[key]} onClick={() => void workflow(key, "save")}>Save</button>
     </div>)}
     <h3>Repository</h3><div className="project-settings-grid">
-      {repositories?.complete && repositories.roots.length === 1 && <label className="setting-field">Upstream<input value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>}
-      <label className="setting-field">Main branch<input value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
+      {repositories?.complete && repositories.roots.length === 1 && <label className="setting-field">Upstream<SettingsInput value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>}
+      <label className="setting-field">Main branch<SettingsInput value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
     <p className="fine-print">{repositories?.diagnostic ?? "Verifying the bounded Local repository layout before exposing an upstream control."}{repositories?.complete && repositories.roots.length === 1 ? ` Actual repository: ${repositories.roots[0]}. This preference never rebinds the session's root.` : " An upstream control requires exactly one verified repository, including nested roots."}</p>
-    <label className="setting-field">Branch name pattern<input value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
+    <label className="setting-field">Branch name pattern<SettingsInput value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     {saveButton("repo", "Save repository settings")}
     <p className="fine-print">Placeholders: {"{slug}"} and {"{id}"}. Binding a PR or creating a session does not silently change this folder's checkout.</p>
     <label className="setting-field">GitHub read access<select aria-label="GitHub read access" value={values.repo.githubAccess} onChange={(event) => automatic("repo", { githubAccess: event.target.value === "gh-cli" ? "gh-cli" : "public" })}><option value="public">Public API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
-    <p className="fine-print">Repository attribution uses the selected session's Local or pinned SSH account. Its review shows the actual host before lookup. Linked-PR observation and client attachments remain control-plane reads.</p>
+    <SettingsHelp label="More about this setting">Repository attribution uses the selected session's Local or pinned SSH account. Its review shows the actual host before lookup. Linked-PR observation and client attachments remain control-plane reads.</SettingsHelp>
     <h3>New-session defaults</h3>{json("defaults", "Project startup control overrides")}
-    <p className="fine-print">Overrides profile/global preferences for new sessions only. Existing sessions keep their saved controls and source snapshot; policy still wins.</p>
+    <SettingsHelp label="More about this setting">Overrides profile/global preferences for new sessions only. Existing sessions keep their saved controls and source snapshot; policy still wins.</SettingsHelp>
     {loaded && <ManagedWorkspacePanel sdk={sdk} project={project} settings={values} snapshot={snapshot} disabled={dirty || busy} openSession={openSession} />}
     <h3>Agent folder policy</h3>
-    <label className="setting-field">Read-only folders, one per line<textarea aria-label="Read-only folders" value={values.readOnlyFolders.join("\n")} onChange={(event) => change("readOnlyFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
+    <label className="setting-field">Read-only folders, one per line<SettingsTextarea aria-label="Read-only folders" value={values.readOnlyFolders.join("\n")} onChange={(event) => change("readOnlyFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
     {saveButton("readOnlyFolders", "Save read-only folders")}
-    <label className="setting-field">Denied folders, one per line<textarea aria-label="Denied folders" value={values.deniedFolders.join("\n")} onChange={(event) => change("deniedFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
+    <label className="setting-field">Denied folders, one per line<SettingsTextarea aria-label="Denied folders" value={values.deniedFolders.join("\n")} onChange={(event) => change("deniedFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
     {saveButton("deniedFolders", "Save denied folders")}
     <p className="settings-warning">These are deterministic agent rules, not OS containment. Host command/MCP tools are disabled when they cannot enforce these restrictions. A manually opened user console still runs host code.</p>
     <h3>Sandbox</h3>{json("sandbox", "Project SendBox configuration (null inherits global)")}
     <p className="fine-print">Configuration does not make an unqualified SendBox backend ready. No Local fallback.</p>
-    <h3>Remote SSH workspace</h3><label className="setting-field">Canonical remote path<input aria-label="Remote workspace path" value={values.remotePath ?? ""} placeholder="/absolute/path/on/ssh/host" onChange={(event) => change("remotePath", event.target.value || null)} /></label>
+    <h3>Remote SSH workspace</h3><label className="setting-field">Canonical remote path<SettingsInput aria-label="Remote workspace path" value={values.remotePath ?? ""} placeholder="/absolute/path/on/ssh/host" onChange={(event) => change("remotePath", event.target.value || null)} /></label>
     {saveButton("remotePath", "Save remote workspace path")}
-    <p className="fine-print">An explicit path on the configured SSH host. It is not this local folder, a synchronization setting or a home-directory mount. Remote project chats cannot run until it is approved and canonical.</p>
+    <SettingsHelp label="More about this setting">An explicit path on the configured SSH host. It is not this local folder, a synchronization setting or a home-directory mount. Remote project chats cannot run until it is approved and canonical.</SettingsHelp>
     <h3>Scripts</h3>{json("scripts", "Project scripts")}
-    <p className="fine-print">Use entries with id, name and exact command. Typical names: start, stop, dev, config. Nothing runs when settings are saved.</p>
+    <SettingsHelp label="More about this setting">Use entries with id, name and exact command. Typical names: start, stop, dev, config. Nothing runs when settings are saved.</SettingsHelp>
     <div className="button-row">{values.scripts.map((script) => <button key={script.id} disabled={!canRun} onClick={() => void run(async () => { await sdk.terminal.open(session!.id, 80, 24, script.id); openTerminal(); })}><Icon name="Play" />{script.name}</button>)}</div>
     {values.scripts.length > 0 && !session && <p className="fine-print">Open a session in this project to run its user scripts.</p>}
     <h3>Preview port and Porto</h3>
-    <label className="setting-field">Preview port<input type="number" min={1} max={65535} value={values.port ?? ""} onChange={(event) => change("port", event.target.value ? Number(event.target.value) : null)} /></label>
+    <label className="setting-field">Preview port<SettingsInput type="number" min={1} max={65535} value={values.port ?? ""} onChange={(event) => change("port", event.target.value ? Number(event.target.value) : null)} /></label>
     {saveButton("port", "Save preview port")}
-    <label className="check-setting"><input type="checkbox" checked={values.porto.enabled} onChange={(event) => automatic("porto", { enabled: event.target.checked })} />Enable optional Porto inventory access</label>
-    <div className="project-settings-grid"><label className="setting-field">Porto project<input value={values.porto.project} onChange={(event) => change("porto", { ...values.porto, project: event.target.value })} /></label>
-      <label className="setting-field">Porto executable<input value={values.porto.executable} onChange={(event) => change("porto", { ...values.porto, executable: event.target.value })} /></label></div>
+    <label className="check-setting"><SettingsInput type="checkbox" checked={values.porto.enabled} onChange={(event) => automatic("porto", { enabled: event.target.checked })} />Enable optional Porto inventory access</label>
+    <div className="project-settings-grid"><label className="setting-field">Porto project<SettingsInput value={values.porto.project} onChange={(event) => change("porto", { ...values.porto, project: event.target.value })} /></label>
+      <label className="setting-field">Porto executable<SettingsInput value={values.porto.executable} onChange={(event) => change("porto", { ...values.porto, executable: event.target.value })} /></label></div>
     {saveButton("porto", "Save Porto settings")}
     <button disabled={dirty || busy || !values.porto.enabled} onClick={() => void run(async () => (await sdk.projects.porto(project.id)).output)}>Read Porto inventory</button>
-    <p className="fine-print">Reads the installed Porto CLI's inventory without starting/stopping daemons or killing processes. Save the intended port explicitly; Porto-owned services stay Porto-owned.</p>
+    <SettingsHelp label="More about this setting">Reads the installed Porto CLI's inventory without starting/stopping daemons or killing processes. Save the intended port explicitly; Porto-owned services stay Porto-owned.</SettingsHelp>
     <h3>Repository instructions and MCP</h3>
-    <div className="project-settings-grid"><div><label className="setting-field">Instructions file<input value={values.instructionsPath} onChange={(event) => change("instructionsPath", event.target.value)} /></label>{saveButton("instructionsPath", "Save instructions path")}</div>
-      <div><label className="setting-field">MCP file<input value={values.mcpPath} onChange={(event) => change("mcpPath", event.target.value)} /></label>{saveButton("mcpPath", "Save MCP path")}</div></div>
-    <label className="setting-field">Instruction override (empty uses repo file)<textarea aria-label="Project instruction override" value={values.instructions} onChange={(event) => change("instructions", event.target.value)} /></label>
+    <div className="project-settings-grid"><div><label className="setting-field">Instructions file<SettingsInput value={values.instructionsPath} onChange={(event) => change("instructionsPath", event.target.value)} /></label>{saveButton("instructionsPath", "Save instructions path")}</div>
+      <div><label className="setting-field">MCP file<SettingsInput value={values.mcpPath} onChange={(event) => change("mcpPath", event.target.value)} /></label>{saveButton("mcpPath", "Save MCP path")}</div></div>
+    <label className="setting-field">Instruction override (empty uses repo file)<SettingsTextarea aria-label="Project instruction override" value={values.instructions} onChange={(event) => change("instructions", event.target.value)} /></label>
     {saveButton("instructions", "Save project instructions")}
     <p className="settings-warning">Repository instructions are untrusted guidance. They cannot grant permissions or override read-only mode. Do not put secrets in instructions or scripts.</p>
     <button disabled={dirty || busy} onClick={() => void run(async () => { const result = await sdk.projects.sources(project.id); setSources(result); setReviewed(false); return undefined; })}>Review repo files</button>
     {sources && <><details open><summary>{values.instructionsPath}: {sources.instructions === null ? "missing" : "present"}</summary><pre>{sources.instructions ?? "No instructions file exists."}</pre></details>
       <details><summary>{values.mcpPath}: {sources.mcp === null ? "missing" : "present"}</summary><pre>{sources.mcp ?? "No MCP file exists."}</pre>{sources.mcpDigest && <code>SHA-256 {sources.mcpDigest}</code>}</details>
-      <label className="check-setting"><input type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed the MCP source. Import only supported entries, disabled.</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed the MCP source. Import only supported entries, disabled.</label>
       <button disabled={!reviewed || !sources.mcpDigest || busy || dirty} onClick={() => void run(async () => { ownSave.current = true; try { await sdk.projects.importMcp(project.id, revision, true, sources.mcpDigest!); await reload(); } finally { ownSave.current = false; } })}>Import reviewed MCP config</button>
-      {(sources.instructions === null || sources.mcp === null) && <div className="repo-bootstrap"><label className="setting-field">Publish defaults branch<input value={branch} onChange={(event) => setBranch(event.target.value)} /></label>
-        <label className="check-setting"><input type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} />I approve creating only missing defaults and pushing this non-protected branch. My current branch/index and unrelated changes are preserved.</label>
+      {(sources.instructions === null || sources.mcp === null) && <div className="repo-bootstrap"><label className="setting-field">Publish defaults branch<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>
+        <label className="check-setting"><SettingsInput type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} />I approve creating only missing defaults and pushing this non-protected branch. My current branch/index and unrelated changes are preserved.</label>
         <button disabled={!publish || dirty || busy} onClick={() => void run(() => sdk.projects.initialize(project.id, branch, revision, true))}>Create and push missing defaults</button></div>}
     </>}
     {json("mcpServers", "Reviewed project MCP servers")}
-    <label className="setting-field">Plan file<input value={values.planPath} onChange={(event) => change("planPath", event.target.value)} /></label>
+    <label className="setting-field">Plan file<SettingsInput value={values.planPath} onChange={(event) => change("planPath", event.target.value)} /></label>
     {saveButton("planPath", "Save plan path")}
     <footer className="button-row"><button disabled={busy} onClick={() => { setValues(defaultProjectSettings()); setRaw({}); }}>Restore project defaults</button><button disabled={busy} onClick={() => void run(reload)}>Reload committed values</button></footer>
     {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}

@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, CandidateStagePreview, CandidateGenerationResponse, CandidateRoleReference, CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { CandidateGenerationPanel } from "./CandidateGenerationPanel.tsx";
@@ -93,16 +94,16 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     setNotice("Canonical final-role bytes loaded locally. Review staging and source application separately. No model or file write was started.");
   };
   return <section className="candidate-panel" aria-label="Reviewed repository candidates" aria-busy={Boolean(busy)}>
-    <p className="fine-print">Stage in a separate owned worktree. Review exact bytes before publishing to the source. Manual staging/application use no model; optional generation is explicit and metered. No commit or push.</p>
+    <SettingsHelp label="More about this setting">Stage in a separate owned worktree. Review exact bytes before publishing to the source. Manual staging/application use no model; optional generation is explicit and metered. No commit or push.</SettingsHelp>
     <p className="fine-print">Checks cover roots, bases and exact bytes. No project tests or code-quality validation is implied.</p>
-    <p className="fine-print">Candidates and generation proposals are permanently deleted with their originating session or after fresh verification that their exact linked PR merged. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees and PRs keep their own lifecycle.</p>
+    <SettingsHelp label="More about this setting">Candidates and generation proposals are permanently deleted with their originating session or after fresh verification that their exact linked PR merged. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees and PRs keep their own lifecycle.</SettingsHelp>
     <label className="setting-field">Retained proposal<select aria-label="Retained candidate" value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       <option value="">Choose a retained proposal</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / {candidate.status}</option>)}
     </select></label>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {!local && <p className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited."} Retained proposals remain readable.</p>}
     {cleanup && <p className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>Candidate cleanup {cleanup.status}. {cleanup.diagnostic ?? "Settling exact owned work before deletion."} Deletion is not complete; retained proposals remain inspectable.</p>}
-    {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
+    {local && !writable && <SettingsHelp label="More about this setting">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</SettingsHelp>}
     {changedScope && <p className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</p>}
     <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} repositoryReady={Boolean(repositoryReady)} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
     <WinddownPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWinddownDirty} />
@@ -113,18 +114,18 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
       loadedSequenceId={typeof modelOrigin === "object" ? modelOrigin.roleSequenceId : undefined} onLoad={loadRole} />
     <details className="candidate-section" open={!selectedId}>
       <summary>Draft a proposal</summary>
-      <label className="setting-field">Summary<input aria-label="Candidate summary" value={summary} maxLength={1200} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setSummary(event.target.value); if (draftScope === null) setDraftScope(scope); setPreview(null); setModelOrigin(undefined); }} /></label>
-      {modelOrigin && <p className="fine-print">Canonical model proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</p>}
+      <label className="setting-field">Summary<SettingsInput aria-label="Candidate summary" value={summary} maxLength={1200} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setSummary(event.target.value); if (draftScope === null) setDraftScope(scope); setPreview(null); setModelOrigin(undefined); }} /></label>
+      {modelOrigin && <SettingsHelp label="More about this setting">Canonical model proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</SettingsHelp>}
       <label className="setting-field">Staging worktree<select aria-label="Candidate staging worktree" value={stageId} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setStageId(event.target.value); setPreview(null); setModelOrigin(undefined); }}>
         <option value="">Choose a separate owned worktree</option>{stages.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.branch}</option>)}
       </select></label>
       <p className="fine-print">The service checks clean state and the exact source HEAD on preview. Create/select a new worktree explicitly with Project settings or <code>/workspace create BRANCH</code>; no branch is created here.</p>
-      <label className="setting-field">File path<input aria-label="Candidate file path" value={path} disabled={Boolean(busy) || changedScope || !writable} placeholder="src/example.ts" onChange={(event) => setPath(event.target.value)} /></label>
+      <label className="setting-field">File path<SettingsInput aria-label="Candidate file path" value={path} disabled={Boolean(busy) || changedScope || !writable} placeholder="src/example.ts" onChange={(event) => setPath(event.target.value)} /></label>
       <div className="button-row"><button disabled={Boolean(busy) || changedScope || !writable || !path.trim() || files.length >= 20} onClick={() => load(false)}>Load source file</button>
         <button disabled={Boolean(busy) || changedScope || !writable || !path.trim() || files.length >= 20} onClick={() => load(true)}>Add new file</button></div>
       {files.length > 0 && <><label className="setting-field">Proposed file<select aria-label="Proposed candidate file" value={String(fileIndex)} disabled={Boolean(busy)} onChange={(event) => setFileIndex(Number(event.target.value))}>{files.map((file, index) => <option key={file.path} value={String(index)}>{file.path} / {file.baseDigest === "absent" ? "new" : "replace"}</option>)}</select></label>
         {selectedFile && <><p className="fine-print path">Recorded base: <code>{selectedFile.baseDigest}</code></p>
-          <label className="setting-field">Proposed bytes<textarea ref={proposalEditor} aria-label="Proposed file text" spellCheck={false} value={selectedFile.text} readOnly={changedScope || !writable} disabled={Boolean(busy)} onChange={(event) => {
+          <label className="setting-field">Proposed bytes<SettingsTextarea ref={proposalEditor} aria-label="Proposed file text" spellCheck={false} value={selectedFile.text} readOnly={changedScope || !writable} disabled={Boolean(busy)} onChange={(event) => {
             setFiles(files.map((file, index) => index === fileIndex ? { ...file, text: event.target.value } : file)); setPreview(null); setModelOrigin(undefined);
           }} /></label>
           <button disabled={Boolean(busy)} onClick={() => { const next = files.filter((_, index) => index !== fileIndex); setFiles(next); setFileIndex(0); setPreview(null); setModelOrigin(undefined); if (!next.length) setDraftScope(null); }}>Remove file from proposal</button></>}
@@ -155,7 +156,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
         {active && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stop(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not confirmed.")).finally(() => setStopping(false)); }}>{stopping ? "Requesting stop..." : `Stop ${selected.status === "staging" ? "staging" : "application"}`}</button>}
       </header>
       <p className="fine-print path">Local source: {selected.source.branch} / base <code>{selected.source.head.slice(0, 12)}</code></p>
-      {selected.originSessionId === null && <p className="fine-print">Legacy origin ownership is unknown. This proposal is not assigned to the current session; its report can be deleted explicitly in Artifacts.</p>}
+      {selected.originSessionId === null && <SettingsHelp label="More about this setting">Legacy origin ownership is unknown. This proposal is not assigned to the current session; its report can be deleted explicitly in Artifacts.</SettingsHelp>}
       <details open={selected.status === "partial"}><summary>Captured Local source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage branch: {selected.stage.branch}</p></details>
       <p className="fine-print">{selected.compoundOrigin ? "Derived from an actual public compound role. Inspect the separate retained workflow for actual tests and critic observations; provenance is not quality or source acceptance." : selected.roleOrigin ? "Derived from the exact final retained model role. Its independent origin is not quality or acceptance." : selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
       {selected.stopRequested && <p className="fine-print">Owned stop was requested; the actual outcome is {selected.status}.</p>}

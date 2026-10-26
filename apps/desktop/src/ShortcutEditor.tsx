@@ -1,3 +1,4 @@
+import { SettingsInput } from "./SettingsFields.tsx";
 import { useRef, useState } from "react";
 import { shortcutFromEvent } from "../../../packages/sdk/src/index.ts";
 
@@ -6,7 +7,7 @@ export function ShortcutEditor({ label, value, change, save, dirty, disabled }: 
 }) {
   const [recording, setRecording] = useState(false), [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
-  return <div className="setting-editor shortcut-field"><label className="setting-field">{label}<input ref={input} aria-label={label} value={value} disabled={disabled} readOnly={recording}
+  return <div className="setting-editor shortcut-field"><label className="setting-field">{label}<SettingsInput ref={input} aria-label={label} value={value} disabled={disabled} readOnly={recording}
     aria-description={recording ? "Press a modifier chord. Escape or Tab cancels recording." : "Use a modifier chord such as Control+Space, or none."}
     onBlur={() => setRecording(false)} onChange={(event) => { change(event.target.value); setError(""); }} onKeyDown={(event) => {
       if (!recording) return;
