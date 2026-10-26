@@ -1462,6 +1462,11 @@ compound staging/tests/source/Git still need their separate actual-user gates.
 The additive schema-39-to-40 migration preserves original encrypted
 wind-down data, receipts and charges without a state reset.
 
+[Laya is evaluated as an optional separately installed decision service](architecture/decisions.md#laya-optional-provider-evaluation),
+on the same laptop or at a user-managed endpoint. It is not yet supported by
+the policy settings or local chat-model configuration. Moguri does not install
+Laya, download its weights or silently use it instead of Jev.
+
 The earlier focused source/SDK/CLI/TUI checkpoint passes **34/34 checks in 8.55 s**.
 Six hidden desktop checks, including the existing composer regressions, pass
 in **8.3 s**. These generated mechanics are not live Jev/Copilot quality,
