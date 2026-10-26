@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **63**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **64**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -14,13 +14,21 @@ uses the normal saved composer, model controls, approvals and transcript.
 **Work item / Kanban card** can attach a card from the selected session's own
 project without running it.
 
+Create an item directly in its column with **Add item**. Drag cards between
+columns or reorder them inside a column; Alt+Left/Right changes column and
+Alt+Up/Down reorders with the keyboard. Moves use the shared service and survive
+restart. A stale drag cannot overwrite another client's arrangement.
+
 Secondary-click a project, use the macOS two-finger click, or press Shift+F10 on
 its name for the same actions menu. **Show/Hide Kanban** is also in
 **Project settings / Project Kanban**. Hiding keeps its cards, chat and owned
 tasks. Drag project headers to reorder inside their folder; Alt+Up/Down remains
 the keyboard alternative. Project/session menus no longer contain Move up/down.
 
-**Continue work**, an exact new `continue work` prompt, or `/continue-work`
+Send an exact new `continue work` prompt or `/continue-work [CARD_ID]` in Chat.
+Each request asks **Work from Kanban** or **Send to model**; the choice is never
+remembered. Cancel keeps the exact draft. Sending to the model submits the
+unchanged prompt normally, without a Kanban delegation. The Kanban choice
 selects **one** eligible item, creates a visible delegated task on a new isolated
 Local worktree, and stops at its draft PR. The original chat's model and budget
 are captured; the task uses Autopilot automatic approvals, or its already
@@ -37,8 +45,27 @@ remain unqualified, with no Local/account fallback. GitHub uses the captured
 controller CLI account; no automatic login or credential forwarding occurs.
 Held/recovered prompts never create an autonomous task.
 
-Only a verified publication links the PR and moves a default card to Review.
-The existing verified merge observer alone moves it to the merged phase.
+**Sync with GitHub** continuously reads linked status into Kanban, never the
+other direction. **Import open GitHub issues** optionally brings the repository's
+open issues onto the board and keeps imported links updated, including later
+closure/reopening. The source binds this Mac's actual CLI account, canonical
+project root, upstream and repository identity. Account/root changes fail
+explicitly rather than retargeting the import.
+
+Open issues without an active linked PR are **Backlog**; an attached draft PR
+means **In progress**; a ready open PR means **Review**; a closed issue means
+**Done**, for both completed and won't-do reasons. Explicitly linked PR-only
+cards follow their verified draft/open/closed state too. Project settings map
+these meanings to existing columns. GitHub-managed cards can be
+reordered within a column but cannot be moved to a conflicting column while
+sync is on. Turn sync off for a local-only phase override; no drag writes GitHub.
+Imported source text updates only fields that have not been edited locally.
+
+Linked statuses are checked periodically while Moguri runs; repository import
+pages are refreshed at most every five minutes automatically. The 500-card
+alpha bound is explicit. Partial/error responses keep existing cards and show
+a sync diagnostic; no prefix is falsely reported as a complete import.
+Draft PR publication places a synchronized card in In progress, not Review.
 Competing requests cannot claim the same source. Stop/cancellation and restart
 retain partial work and unknown model charges; they never replay the task.
 Inspect an interrupted task's actual branch, jobs and results before **I
@@ -60,6 +87,9 @@ TUI/CLI share `/kanban`, `/kanban show|hide`, `/kanban source SOURCE`,
 CLI also has `moguri kanban open|items|continue|work|stop|inspect` and
 `moguri prices [refresh PROVIDER]`. See the
 [contract and qualification](architecture/project-kanban.md).
+An interactive CLI slash request asks the same route question. JSON/non-TTY
+consumers receive a typed review with its exact profile/session/draft revision
+and must explicitly choose a route; no default dispatch is inferred.
 
 ## Session approvals and GitHub workflows
 

@@ -1,9 +1,10 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultBoard, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
 const values = (board: BoardConfig): BoardConfig => ({ columns: structuredClone(board.columns), mergedColumnId: board.mergedColumnId,
-  autoRefreshPrs: board.autoRefreshPrs, githubAccess: board.githubAccess, linear: { ...board.linear }, kanban: structuredClone(kanbanPreferences(board)) });
+  autoRefreshPrs: board.autoRefreshPrs, githubAccess: board.githubAccess, linear: { ...board.linear }, kanban: structuredClone(kanbanPreferences(board)),
+  githubSync: structuredClone(githubSyncSettings(board)) });
 export function BoardSettings({ sdk, project, snapshot, onDirty }: {
   sdk: MoguriSdk; project: Project; snapshot: Snapshot; onDirty: (dirty: boolean) => void;
 }) {
@@ -28,7 +29,12 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
     } catch (error) { setError(error instanceof Error ? error.message : "Board settings were not saved. Your edit is preserved."); }
     finally { pending.current = false; setBusy(false); }
   };
-  const automatic = <K extends "mergedColumnId" | "autoRefreshPrs" | "githubAccess" | "kanban">(key: K, value: BoardConfig[K]) => {
+  const automatic = <K extends "mergedColumnId" | "autoRefreshPrs" | "githubAccess" | "kanban" | "githubSync">(key: K, value: BoardConfig[K]) => {
+    if (key === "mergedColumnId" && typeof value === "string") {
+      const githubSync = { ...githubSyncSettings(actual.current), phases: { ...githubSyncSettings(actual.current).phases, done: value } };
+      setDraft((current) => ({ ...current, mergedColumnId: value, githubSync }));
+      void write({ ...actual.current, mergedColumnId: value, githubSync }); return;
+    }
     setDraft((current) => ({ ...current, [key]: value }));
     void write({ ...actual.current, [key]: value });
   };
@@ -55,7 +61,19 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
           setDraft((current) => ({ ...current, kanban })); void write({ ...actual.current, columns: draft.columns, kanban });
         }}>Save phases</button></div>
       <label className="setting-field">Move merged PR tickets to<select aria-label="Merged PR destination" value={draft.mergedColumnId} onChange={(event) => automatic("mergedColumnId", event.target.value)}>{committed.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>
-      <label className="check-setting"><SettingsInput type="checkbox" checked={draft.autoRefreshPrs} onChange={(event) => automatic("autoRefreshPrs", event.target.checked)} />Observe explicitly linked PRs automatically, without merge or CI actions</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={draft.autoRefreshPrs} onChange={(event) => automatic("autoRefreshPrs", event.target.checked)} />Sync with GitHub, read-only into Kanban</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={githubSyncSettings(draft).importIssues} onChange={(event) => {
+        const importIssues = event.target.checked, githubSync = { ...githubSyncSettings(actual.current), importIssues };
+        setDraft((current) => ({ ...current, githubSync, githubAccess: importIssues ? "gh-cli" : current.githubAccess }));
+        void write({ ...actual.current, githubSync, githubAccess: importIssues ? "gh-cli" : actual.current.githubAccess });
+      }} />Import open issues from this repository and keep existing links updated</label>
+      {(["backlog", "inProgress", "review", "done"] as const).map((state) => <label className="setting-field" key={state}>GitHub {state === "inProgress" ? "draft PR" : state === "review" ? "open PR" : state === "done" ? "closed issue" : "open issue"} column
+        <select aria-label={`GitHub ${state} column`} value={githubSyncSettings(draft).phases[state]} onChange={(event) => {
+          const value = event.target.value;
+          setDraft((current) => ({ ...current, githubSync: { ...githubSyncSettings(current), phases: { ...githubSyncSettings(current).phases, [state]: value } } }));
+        }}>{committed.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>)}
+      <button type="button" disabled={JSON.stringify(githubSyncSettings(draft).phases) === JSON.stringify(githubSyncSettings(committed).phases)}
+        onClick={() => void write({ ...actual.current, githubSync: { ...githubSyncSettings(actual.current), phases: githubSyncSettings(draft).phases } })}>Save GitHub mapping</button>
       <label className="setting-field">Linked-PR GitHub read access<select aria-label="Linked-PR GitHub read access" value={draft.githubAccess} onChange={(event) => automatic("githubAccess", event.target.value === "gh-cli" ? "gh-cli" : "public")}><option value="public">Public GitHub API, no account</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
       <h3>Optional Linear team</h3><SettingsHelp label="More about this setting">Authentication lives in Integrations / Linear. Save the exact team UUID before enabling import. Importing is explicit and read-only; enabling a team never exports local tickets or starts a scan.</SettingsHelp>
       <label className="check-setting"><SettingsInput type="checkbox" checked={draft.linear.enabled} disabled={!draft.linear.enabled && !/^[A-Za-z0-9-]{1,128}$/.test(committed.linear.teamId)} onChange={(event) => {

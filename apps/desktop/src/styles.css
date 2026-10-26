@@ -649,6 +649,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .board-toolbar > div { flex: 1; min-width: 180px; }
 .board-toolbar h1 { margin: 0 0 5px; font-size: 19px; font-weight: 600; }
 .board-toolbar p { margin: 0; color: var(--muted); font-size: 12px; }
+.kanban-sync-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 24px; border-bottom: 1px solid var(--line); }
+.kanban-sync-controls > p { flex-basis: 100%; margin: 0; }
 .board-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px 24px; }
 .board-options span { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .board-configuration, .issue-editor { padding: 24px; border-bottom: 1px solid var(--line); background: var(--subtle); }
@@ -671,6 +673,14 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .kanban-column h2 { margin: 0; font-size: 13px; font-weight: 600; }
 .kanban-column > header span { color: var(--muted); font-size: 12px; }
 .kanban-empty { color: var(--muted); font-size: 12px; line-height: 1.7; padding: 8px 0; }
+.kanban-add-trigger { width: 100%; justify-content: flex-start; min-height: 36px; gap: 6px; }
+.kanban-add-item { display: grid; gap: 8px; padding: 8px 0; }
+.kanban-add-item > input { width: 100%; min-width: 0; }
+.kanban-drop-column { outline: 2px dashed var(--accent); outline-offset: 5px; }
+.issue-ticket[draggable="true"] { cursor: grab; }
+.issue-ticket.kanban-dragging { opacity: .55; }
+.issue-ticket.kanban-drop-before { box-shadow: 0 -3px 0 var(--accent); }
+.issue-ticket.kanban-drop-after { box-shadow: 0 3px 0 var(--accent); }
 .issue-ticket { padding: 14px 12px; border: 1px solid var(--line); background: var(--subtle); border-radius: 6px; margin-bottom: 12px; overflow-wrap: anywhere; }
 .ticket-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
 .issue-kind { color: var(--muted); text-transform: capitalize; }

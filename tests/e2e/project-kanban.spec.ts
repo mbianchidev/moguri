@@ -97,6 +97,7 @@ test("typing continue work in the composer creates one visible autonomous task a
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill("continue work");
     await page.getByRole("button", { name: "Send", exact: true }).click();
+    await page.getByRole("dialog", { name: "Continue work", exact: true }).getByRole("button", { name: "Work from Kanban", exact: true }).click();
     const status = page.getByRole("status", { name: "Project work status", exact: true });
     await expect(status).toContainText("Generated desktop continuation");
     await expect(status).toContainText("completed", { timeout: 30000 });
