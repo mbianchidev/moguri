@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { MoguriSdk, StorageMoveReview, StorageStatus } from "../../../packages/sdk/src/index.ts";
 
@@ -20,8 +21,8 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
   };
   const change = (value: string) => { setPath(value); setReview(null); setConfirmed(false); setOutput(""); };
   return <section aria-label="Whole-store location"><h3>Change storage location</h3>
-    <p>The entire encrypted store moves together: all profiles, sessions, independent artifacts, credentials references and budget holds. Project files, managed worktrees, model/cache files and terminal owners remain at their captured resource roots.</p>
-    <label className="setting-field">Session storage location<input aria-label="Session storage location" value={path} disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onChange={(event) => change(event.target.value)} /></label>
+    <SettingsHelp label="More about this setting">The entire encrypted store moves together: all profiles, sessions, independent artifacts, credentials references and budget holds. Project files, managed worktrees, model/cache files and terminal owners remain at their captured resource roots.</SettingsHelp>
+    <label className="setting-field">Session storage location<SettingsInput aria-label="Session storage location" value={path} disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onChange={(event) => change(event.target.value)} /></label>
     <div className="button-row"><button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onClick={() => void run(async () => { const path = await window.moguri.chooseStorageDirectory(); if (path) change(path); })}>Choose storage parent</button>
       <button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride || path === storage.directory} onClick={() => void run(async () => { setReview((await sdk.application.storage.preview(path)).review); setConfirmed(false); })}>Review storage relocation</button>
       <button type="button" disabled={busy} onClick={() => { if (storage) change(storage.directory); }}>Discard storage edit</button></div>
@@ -30,7 +31,7 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
     {review && <><dl className="facts"><dt>Encrypted source</dt><dd className="path">{review.source}</dd><dt>New data directory</dt><dd className="path">{review.destination}</dd>
       <dt>Original resources retained</dt><dd className="path">{review.resourceBase}</dd><dt>Profiles / actual owners</dt><dd>{review.profiles.length} / {review.activeOwners.length}</dd></dl>
       <p className="settings-warning">Confirmation stops owned model/tool work and closes every SQLite writer before copying. Unknown accounting remains held. Authenticated user terminals survive this explicit restart without input replay. The old encrypted database remains a retired backup, not a second writer. Neither source nor partial destination is automatically deleted.</p>
-      <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the exact source, destination, retained resources and restart impact</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the exact source, destination, retained resources and restart impact</label>
       <button type="button" className="primary" disabled={disabled || busy || !confirmed} onClick={() => void run(async () => {
         await prepareMaintenance();
         const result = await window.moguri.relocateStorage(review.destination, review.digest);

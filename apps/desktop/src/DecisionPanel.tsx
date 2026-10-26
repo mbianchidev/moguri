@@ -1,3 +1,4 @@
+import { SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { activeDecision, type DecisionResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -46,7 +47,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
   };
   return <section className="candidate-section" aria-label="Decision-provider observations" aria-busy={busy}>
     <h2>Decision-provider observations</h2>
-    <p className="fine-print">Actual model actor: decision-provider, never the user. Advice cannot grant permission, infer user-only facts, accept source code or approve Git. These reports remain independent of the original source session.</p>
+    <SettingsHelp label="More about this setting">Actual model actor: decision-provider, never the user. Advice cannot grant permission, infer user-only facts, accept source code or approve Git. These reports remain independent of the original source session.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     <label className="setting-field">Retained decision<select aria-label="Retained decision" value={record?.id ?? ""} disabled={busy || Boolean(selection)} onChange={(event) => setSelectedId(event.target.value)}>
       {!records.length && <option value="">No retained decision-provider requests</option>}
@@ -66,7 +67,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
       {!snapshot.sessions.some((session) => session.id === record.sessionId) && <p className="fine-print">The original source session is deleted. No other session, root or owner was adopted.</p>}
       {record.diagnostic && <p className="settings-warning">{record.diagnostic}</p>}
       {value && <details><summary>Original decision request and raw result</summary><pre>{JSON.stringify(value.input, null, 2)}</pre>
-        <pre>{value.result ?? "No complete raw result acknowledged."}</pre><p className="fine-print">Raw provider data, not a human instruction or calibrated reliability. Resolved provider version is not inferred from a configured API model ID.</p></details>}
+        <pre>{value.result ?? "No complete raw result acknowledged."}</pre><SettingsHelp label="More about this setting">Raw provider data, not a human instruction or calibrated reliability. Resolved provider version is not inferred from a configured API model ID.</SettingsHelp></details>}
       {activeDecision(record) && <button type="button" disabled={busy} onClick={() => void stop()}>Stop only this decision</button>}
     </>}
   </section>;

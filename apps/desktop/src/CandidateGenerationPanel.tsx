@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { KUPO_MODEL_ID, type CandidateGenerationInput, type CandidateGenerationPreview, type CandidateGenerationResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -36,9 +37,9 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
   };
   return <details className="candidate-section" open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
     <summary>Generate a separate model proposal</summary>
-    <p className="fine-print">Choose source files and a separate staging worktree below. This sends original reviewed source, not unsaved proposed edits. Generation never stages, applies or executes its output.</p>
+    <SettingsHelp label="More about this setting">Choose source files and a separate staging worktree below. This sends original reviewed source, not unsaved proposed edits. Generation never stages, applies or executes its output.</SettingsHelp>
     <p className="fine-print">Selected fixed model: {fixed ? model?.name : "None / choose an available fixed model in the composer"}. No provider or Env fallback.</p>
-    <label className="setting-field">Generation task<textarea className="generation-task" aria-label="Candidate generation task" maxLength={4096} value={task} disabled={Boolean(busy)} readOnly={!writable || changed}
+    <label className="setting-field">Generation task<SettingsTextarea className="generation-task" aria-label="Candidate generation task" maxLength={4096} value={task} disabled={Boolean(busy)} readOnly={!writable || changed}
       onChange={(event) => { setTask(event.target.value); if (taskScope === null) setTaskScope(scope); }} placeholder="Describe the change for the selected files" /></label>
     {changed && <p className="settings-warning">The task belongs to an older source scope. Copy it or explicitly discard before reviewing another root.</p>}
     <div className="button-row"><button disabled={Boolean(busy) || !writable || !fixed || changed || !task.trim() || !files.length || !stageId} onClick={() => void run("Reviewing generation", async (current) => {
@@ -50,7 +51,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
       <p className="fine-print">{preview.input.files.length} selected files / {preview.value.estimatedInputTokens.toLocaleString()} estimated input tokens / at most {preview.value.maxOutputTokens.toLocaleString()} output tokens.</p>
       <p className="settings-warning">{preview.value.warning}</p>
       <details><summary>Exact generation system prompt</summary><pre>{preview.value.systemPrompt}</pre></details>
-      <label className="check-setting"><input type="checkbox" aria-label="Approve one generation call and proposal retention" checked={approved} disabled={Boolean(busy)} onChange={(event) => setApproved(event.target.checked)} />I approve one model call and proposal retention until explicit report deletion, originating-session deletion or verified exact linked-PR merge. No file write is approved here.</label>
+      <label className="check-setting"><SettingsInput type="checkbox" aria-label="Approve one generation call and proposal retention" checked={approved} disabled={Boolean(busy)} onChange={(event) => setApproved(event.target.checked)} />I approve one model call and proposal retention until explicit report deletion, originating-session deletion or verified exact linked-PR merge. No file write is approved here.</label>
       <button className="primary" disabled={Boolean(busy) || !approved || !writable || preview.key !== key} onClick={() => void run("Starting owned generation", async (current) => {
         const captured = preview, created = await sdk.candidates.generate(captured.sessionId, captured.stageId, captured.input, captured.value.digest, true);
         if (current()) { setSelectedId(created.id!); setTask(""); setTaskScope(null); setPreview(null); setApproved(false); setNotice("Owned generation started. Its report survives this panel; source and staging remain unchanged."); }
@@ -69,13 +70,13 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
       {loaded && <><details><summary>Captured generation input and roots</summary><p className="fine-print path">Local source: {loaded.input.source.root}<br />Owned stage: {loaded.input.stage.root}</p><p>{loaded.input.task}</p><p className="fine-print">{loaded.input.files.map((file) => file.path).join(", ")}</p></details>
         {loaded.proposal && <><details><summary>Exact generated files ({loaded.proposal.patch.edits.length})</summary>{loaded.proposal.patch.edits.map((edit) => <div className="candidate-file-review" key={edit.path}><strong className="path">{edit.path}</strong><pre>{edit.text || "(Empty proposed file)"}</pre></div>)}</details>
           <button disabled={Boolean(busy) || !writable || draftDirty || !compatible || selected.status !== "proposed"} onClick={() => { try { onLoad(loaded); setNotice("Loaded locally for a separate exact staging review. Nothing was written or accepted."); setExpanded(false); } catch (error) { setError(error instanceof Error ? error.message : "Proposal was not loaded into this scope."); } }}>{loadedGenerationId === selected.id ? "Loaded for staging review" : "Load generated proposal for staging review"}</button>
-          {loadedGenerationId === selected.id ? <p className="fine-print">Generated bytes are in the draft below. Review staging, then source application separately. Editing the bytes clears verified model attribution.</p> : draftDirty && <p className="fine-print">Copy or discard your unsaved draft before loading generated bytes; they are never silently replaced.</p>}
-          {!compatible && <p className="fine-print">Select the original compatible Local source and ready captured staging worktree to load this proposal. The service rechecks current bases before staging.</p>}
+          {loadedGenerationId === selected.id ? <SettingsHelp label="More about this setting">Generated bytes are in the draft below. Review staging, then source application separately. Editing the bytes clears verified model attribution.</SettingsHelp> : draftDirty && <p className="fine-print">Copy or discard your unsaved draft before loading generated bytes; they are never silently replaced.</p>}
+          {!compatible && <SettingsHelp label="More about this setting">Select the original compatible Local source and ready captured staging worktree to load this proposal. The service rechecks current bases before staging.</SettingsHelp>}
         </>}
         {loaded.text !== null && <details><summary>Raw model output (untrusted)</summary><pre>{loaded.text}</pre></details>}
       </>}
     </section>}
-    {!reports.length && <p className="fine-print">No retained generations yet. Review selected source/model data first; saving settings or selecting a report never calls a model.</p>}
+    {!reports.length && <SettingsHelp label="More about this setting">No retained generations yet. Review selected source/model data first; saving settings or selecting a report never calls a model.</SettingsHelp>}
     {busy && <p className="fine-print" role="status">{busy}...</p>}
   </details>;
 }

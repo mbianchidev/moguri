@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -42,7 +43,7 @@ test("desktop saves a reviewed SSH plan without a selected model, preserves the 
     await page.screenshot({ path: resolve(".moguri/artifacts/remote-plan-save-compact.png") });
     expect(await plan.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
     const save = f.controller.snapshot().planSaves.at(-1)!;
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await openSettingsSection(page, "Artifacts");
     await page.getByLabel("Retained artifact", { exact: true }).selectOption(save.artifactId!);
     await expect(page.getByText("User-requested Remote file snapshot, not a chat answer or permission.", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Artifact text", { exact: true })).toHaveValue(text);

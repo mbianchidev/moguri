@@ -18,7 +18,7 @@ export const SETTINGS_GROUPS = [
   ] },
   { label: "Execution & permissions", items: [
     { id: "permissions", label: "Guardrails", keywords: "default tool permission allow deny ask autonomy execution environment policy" },
-    { id: "sendbox", label: "SendBox", keywords: "sandbox native isolation managed VM image network bundled runtime automatic workspace DNS alias provider version update installer" },
+    { id: "sendbox", label: "Sandbox", keywords: "sendbox native isolation managed VM image network bundled runtime automatic workspace DNS alias provider version update installer results publication" },
     { id: "remote", label: "Remote SSH", keywords: "host target identity credentials recovery" },
     { id: "subagents", label: "Subagents", keywords: "parallel children read only" },
     { id: "scripts", label: "Scripts", keywords: "execution capabilities approved host code" },
@@ -30,11 +30,13 @@ export const SETTINGS_GROUPS = [
     { id: "interactions", label: "Confirmations", keywords: "attach session content drag drop terminal close do not ask again" },
     { id: "retention", label: "Retention", keywords: "archive complete delete archived seven days storage sessions resume sleep keep alive confirmation ask again" },
     { id: "budgets", label: "Budgets", keywords: "default tokens USD limits spend cost estimates policy" },
+    { id: "artifacts", label: "Artifacts", keywords: "retained documents answers reports plans export" },
+    { id: "candidates", label: "Candidates", keywords: "review staging generation patches application" },
   ] },
   { label: "Instructions", items: [
     { id: "instructions", label: "User guidance", keywords: "global guidelines templates readme readiness issue PR tech stack bootstrap writing style contacts license AI policy documentation merge conflicts fixing CI planning feature debugging" },
     { id: "systemPrompt", label: "System prompt", keywords: "advanced protected model instructions" },
-    { id: "skills", label: "Skills", keywords: "SKILL.md import guidelines" },
+    { id: "skills", label: "Skill gateway", keywords: "skills SKILL.md import guidelines folder remote repository archive MCP discovery" },
     { id: "knowledge", label: "Knowledge tiers", keywords: "Sky Terra Glacier instructions" },
     { id: "memory", label: "Repository memory", keywords: "index vectors context snippets symbols" },
   ] },

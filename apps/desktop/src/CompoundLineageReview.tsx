@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { COMPOUND_EVIDENCE_WARNING, type CompoundLineageInput, type CompoundLineageReview, type ModelInfo, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 
@@ -20,23 +21,23 @@ export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDir
   const reset = () => { setDraftModel(""); setCriticModel(""); setDraftLineage(""); setCriticLineage(""); setSourceUrl(""); setSourceText(""); setLimitations(""); setReviewed(false); };
   return <section className="candidate-section" aria-label="Source-backed lineage review" aria-busy={busy}>
     <h3>Actual-user source claim</h3><p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
-    <p className="fine-print">This prepares a local policy draft only. No source URL is fetched, provider metadata inspected, policy saved or model called. Save settings separately after reviewing the complete policy.</p>
+    <SettingsHelp label="More about this setting">This prepares a local policy draft only. No source URL is fetched, provider metadata inspected, policy saved or model called. Save settings separately after reviewing the complete policy.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     <label className="setting-field">Exact draft model<select aria-label="Lineage draft model" value={draftModelId} disabled={disabled || busy} onChange={(event) => setDraftModel(event.target.value)}>
       <option value="">Choose actual draft binding</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name} / {model.id}</option>)}</select></label>
     <label className="setting-field">Exact critic model<select aria-label="Lineage critic model" value={criticModelId} disabled={disabled || busy} onChange={(event) => setCriticModel(event.target.value)}>
       <option value="">Choose actual critic binding</option>{models.map((model) => <option key={model.id} value={model.id} disabled={model.id === draftModelId}>{model.name} / {model.id}</option>)}</select></label>
-    <label className="setting-field">Source-backed draft lineage identifier<input aria-label="Reviewed draft lineage" value={draftLineage} maxLength={256} disabled={disabled || busy} onChange={(event) => setDraftLineage(event.target.value)} /></label>
-    <label className="setting-field">Source-backed critic lineage identifier<input aria-label="Reviewed critic lineage" value={criticLineage} maxLength={256} disabled={disabled || busy} onChange={(event) => setCriticLineage(event.target.value)} /></label>
+    <label className="setting-field">Source-backed draft lineage identifier<SettingsInput aria-label="Reviewed draft lineage" value={draftLineage} maxLength={256} disabled={disabled || busy} onChange={(event) => setDraftLineage(event.target.value)} /></label>
+    <label className="setting-field">Source-backed critic lineage identifier<SettingsInput aria-label="Reviewed critic lineage" value={criticLineage} maxLength={256} disabled={disabled || busy} onChange={(event) => setCriticLineage(event.target.value)} /></label>
     <label className="setting-field">Reviewed source kind<select aria-label="Lineage source kind" value={sourceKind} disabled={disabled || busy} onChange={(event) => {
       const value = event.target.value;
       if (value === "reviewed-model-card" || value === "reviewed-training-report" || value === "reviewed-independent-audit") setSourceKind(value);
     }}><option value="reviewed-training-report">Reviewed training report</option><option value="reviewed-model-card">Reviewed model card</option><option value="reviewed-independent-audit">Reviewed independent audit</option></select></label>
-    <label className="setting-field">HTTPS source URL<input aria-label="Lineage source URL" value={sourceUrl} disabled={disabled || busy} onChange={(event) => setSourceUrl(event.target.value)} /></label>
-    <label className="setting-field">Exact reviewed source text<textarea aria-label="Lineage source text" value={sourceText} maxLength={16384} disabled={disabled || busy} onChange={(event) => setSourceText(event.target.value)} /></label>
-    <label className="setting-field">Explicit review expiry, UTC ISO timestamp<input aria-label="Lineage review expiry" value={validUntil} disabled={disabled || busy} onChange={(event) => setValidUntil(event.target.value)} /></label>
-    <label className="setting-field">Evidence limitations<textarea aria-label="Lineage review limitations" value={limitations} maxLength={1200} disabled={disabled || busy} onChange={(event) => setLimitations(event.target.value)} /></label>
-    <label className="check-setting"><input aria-label="Reviewed exact lineage source" type="checkbox" checked={reviewed} disabled={disabled || busy} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this exact source and model pair. I am making a limited eligibility claim, not proving independent training or code quality.</label>
+    <label className="setting-field">HTTPS source URL<SettingsInput aria-label="Lineage source URL" value={sourceUrl} disabled={disabled || busy} onChange={(event) => setSourceUrl(event.target.value)} /></label>
+    <label className="setting-field">Exact reviewed source text<SettingsTextarea aria-label="Lineage source text" value={sourceText} maxLength={16384} disabled={disabled || busy} onChange={(event) => setSourceText(event.target.value)} /></label>
+    <label className="setting-field">Explicit review expiry, UTC ISO timestamp<SettingsInput aria-label="Lineage review expiry" value={validUntil} disabled={disabled || busy} onChange={(event) => setValidUntil(event.target.value)} /></label>
+    <label className="setting-field">Evidence limitations<SettingsTextarea aria-label="Lineage review limitations" value={limitations} maxLength={1200} disabled={disabled || busy} onChange={(event) => setLimitations(event.target.value)} /></label>
+    <label className="check-setting"><SettingsInput aria-label="Reviewed exact lineage source" type="checkbox" checked={reviewed} disabled={disabled || busy} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this exact source and model pair. I am making a limited eligibility claim, not proving independent training or code quality.</label>
     <div className="button-row"><button disabled={disabled || busy || !reviewed || !draftModelId || !criticModelId || !draftLineage.trim() || !criticLineage.trim() || !sourceUrl || !sourceText.trim() || !limitations.trim()}
       onClick={() => { setBusy(true); setError(""); setNotice(""); void sdk.compound.lineageDraft({ draftModelId, criticModelId, draftLineage, criticLineage, sourceKind, sourceUrl, sourceText, validUntil, limitations })
         .then((value) => { onPrepared(value.review, draftModelId, criticModelId); reset(); setNotice("Exact model/source claim added only to the local policy draft and matching Critique routes. Review and Save settings separately; no model or source acceptance."); })

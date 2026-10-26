@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, SandboxWorkspacePreview, SandboxResult, SandboxPublicationPreview } from "../../../packages/sdk/src/index.ts";
 
@@ -53,14 +54,14 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
     {automatic && <p className="fine-print" role="status">Private workspaces are prepared automatically when you send. {session?.projectId ? "The bound project is copied under its folder/ignore policy; your source checkout is never mounted." : "This chat keeps an empty, root-less private workspace."} Retained work is preserved across turns.</p>}
-    {!automatic && <p className="fine-print">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</p>}
+    {!automatic && <SettingsHelp label="More about this setting">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</SettingsHelp>}
     <details className="candidate-section">
       <summary>Advanced exact-file workspace preparation</summary>
       <p className="fine-print">Only selected text snapshots enter the VM. Model root is {session?.projectId ? <code>/workspace</code> : "null in a project-free chat"}; the Local source is never mounted or written by native tools.</p>
       {!session ? <p>Choose an existing session before preparing its private workspace.</p> : <>
         {session.controls.env !== "Sandbox" && <button type="button" disabled={Boolean(busy) || !available || Boolean(session.turnId)} onClick={() => void run("Selecting Sandbox", async () => { await sdk.sessions.env(session.id, "Sandbox", session.revision); })}>Use Sandbox for this session</button>}
         {workspace && <p className="fine-print path">Prepared record: {workspace.id} / {workspace.status}. Actual root ownership is rechecked before every admission.{workspace.diagnostic && ` ${workspace.diagnostic}`}</p>}
-        <label className="setting-field">Exact source file paths, one per line<textarea aria-label="Native source paths" value={paths} readOnly={!session.projectId} disabled={Boolean(busy)} spellCheck={false}
+        <label className="setting-field">Exact source file paths, one per line<SettingsTextarea aria-label="Native source paths" value={paths} readOnly={!session.projectId} disabled={Boolean(busy)} spellCheck={false}
           placeholder={session.projectId ? "src/example.ts\npackage.json" : "Empty private workspace. No host root is inherited."} onChange={(event) => setPaths(event.target.value)} /></label>
         <button type="button" disabled={Boolean(busy) || !prepared} onClick={() => void run("Reviewing selected source", async (current) => {
           const revision = session.revision, selected = session.projectId ? paths.split(/\r?\n/).filter((path) => path.length > 0) : [];
@@ -71,7 +72,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
           <p className="fine-print path">Local source: {source.value.sourceRoot ?? "None"} / {source.value.bytes} bytes / HEAD {source.value.sourceHead ?? "not a Git root"}.</p>
           <p className="fine-print">{source.value.diagnostic}</p>
           {source.value.files.map((file) => <details key={file.path}><summary className="path">{file.path} / {file.bytes} bytes</summary><p className="fine-print path">SHA-256 {file.digest}</p><pre className="workspace-file-content">{file.text}</pre></details>)}
-          <label className="check-setting"><input type="checkbox" checked={sourceReviewed} onChange={(event) => setSourceReviewed(event.target.checked)} />I reviewed this exact file set and its contents.</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={sourceReviewed} onChange={(event) => setSourceReviewed(event.target.checked)} />I reviewed this exact file set and its contents.</label>
           <button type="button" className="primary" disabled={Boolean(busy) || !prepared || !sourceReviewed} onClick={() => void run("Preparing reviewed private stage", async () => {
             await sdk.sandbox.prepare(session.id, source.value.paths, source.value.digest, source.revision);
             setNotice("Reviewed private stage prepared. Source unchanged; no model turn was started.");
@@ -95,7 +96,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
           if (current()) setResult({ id: execution.id, digest: execution.resultDigest!, value });
         })}>Inspect retained result</button>
       </div>
-      <label className="check-setting"><input type="checkbox" checked={inspectionReviewed} disabled={Boolean(busy) || active} onChange={(event) => setInspectionReviewed(event.target.checked)} />Inspect/stop only this original signed guest; never launch or replay work.</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={inspectionReviewed} disabled={Boolean(busy) || active} onChange={(event) => setInspectionReviewed(event.target.checked)} />Inspect/stop only this original signed guest; never launch or replay work.</label>
       <button type="button" disabled={Boolean(busy) || active || !inspectionReviewed} onClick={() => void run("Reconciling original native owner", async () => {
         await sdk.sandbox.reconcile(execution.id);
         const value = (await sdk.sandbox.execution(execution.id)).execution;
@@ -107,7 +108,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       {retained.journal.diagnostic && <p className="settings-warning">{retained.journal.diagnostic}</p>}
       {retained.files.map((file) => <details key={file.path}><summary className="path">{file.path} / {file.bytes} bytes</summary>
         <p className="fine-print path">SHA-256 {file.digest}</p><pre className="workspace-file-content">{file.text}</pre>
-        <label className="check-setting"><input type="checkbox" aria-label={`Select native output ${file.path}`} checked={selectedPaths.includes(file.path)} disabled={Boolean(busy) || !execution.sourceRoot}
+        <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Select native output ${file.path}`} checked={selectedPaths.includes(file.path)} disabled={Boolean(busy) || !execution.sourceRoot}
           onChange={(event) => setSelectedPaths((paths) => event.target.checked ? [...paths, file.path] : paths.filter((path) => path !== file.path))} />Include these exact bytes in source-publication review</label>
       </details>)}
       {retained.deletedPaths.length > 0 && <p className="settings-warning">Deleted native paths are not automatically published: {retained.deletedPaths.join(", ")}.</p>}
@@ -124,7 +125,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       <p className="fine-print">At most {review.value.limits.files} files, {review.value.limits.patchBytes} patch bytes and {review.value.limits.documentBytes} complete review-document bytes.</p>
       <p className="fine-print">{review.value.diagnostic}</p>
       {review.value.document.patch.edits.map((edit) => <details key={edit.path}><summary className="path">{edit.path} / base {edit.baseDigest}</summary><pre className="workspace-file-content">{edit.text}</pre></details>)}
-      <label className="check-setting"><input type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I reviewed these exact source bases and output bytes. This authorizes only this copy, not code quality, execution or a Git commit.</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I reviewed these exact source bases and output bytes. This authorizes only this copy, not code quality, execution or a Git commit.</label>
       <button type="button" className="primary" disabled={Boolean(busy) || !accepted} onClick={() => void run("Admitting reviewed source publication", async () => {
         const value = await sdk.sandbox.publish(execution.id, review.value.document.patch.edits.map((edit) => edit.path), review.value.digest, review.revision);
         focusOutcome.current = true; setPublicationId(value.id!); setReview(null); setAccepted(false); setSelectedPaths([]);
@@ -139,7 +140,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       <p className="fine-print path">Original source: {publication.root}. Attempted: {publication.attemptedPaths.join(", ") || "none"}; verified copied: {publication.publishedPaths.join(", ") || "none"}.</p>
       {publication.diagnostic && <p className="inline-error" role="alert">{publication.diagnostic}</p>}
       {job && ["running", "waiting_input"].includes(job.status) && <button type="button" disabled={Boolean(busy)} onClick={() => void run("Stopping original publication job", async () => { await sdk.jobs.cancel(job.id); })}>Stop original publication</button>}
-      <p className="fine-print">Retained independently of the source session/execution. Partial work is never silently retried; source index/HEAD and unrelated edits are not reset.</p>
+      <SettingsHelp label="More about this setting">Retained independently of the source session/execution. Partial work is never silently retried; source index/HEAD and unrelated edits are not reset.</SettingsHelp>
     </section>}
   </section>;
 }

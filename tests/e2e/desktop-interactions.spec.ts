@@ -1,4 +1,5 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
+import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
@@ -25,9 +26,9 @@ test("attachment menu matches the five-source layout, previews retained files/im
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
-    await expect(rail.getByRole("button")).toHaveCount(7);
-    expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat"]);
-    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Artifacts", "Candidates", "Sandbox", "Suggestions", "Global Terminal"]);
+    await expect(rail.getByRole("button")).toHaveCount(9);
+    expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"]);
+    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations"]);
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated complete unsent prompt.");
     const path = join(fixture.directory, "generated-preview.txt"); await writeFile(path, "Generated immutable attached file.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);
@@ -149,53 +150,55 @@ test("native session dragging reorders only at drop, and keyboard reordering use
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("global terminals auto-start only on explicit opening, confirm pane hides, preserve owners and never auto-replay X termination", async () => {
+test("retired global layouts restore a session pane without opening, adopting or terminating retained consoles", async () => {
   const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GLOBAL_READY\\n'+process.cwd()+'\\n');"], brokerPath: resolve("dist/terminal-broker.mjs") };
-  const fixture = await setupFixture({ platform: { terminal: program } }), app = await launch(fixture.directory);
+  const fixture = await setupFixture({ platform: { terminal: program } }), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const legacy = await sdk.terminal.openGlobal(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), rail = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await rail.getByRole("button", { name: "Global Terminal", exact: true }).click();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
+    await expect(rail.getByRole("button", { name: "Global Terminal", exact: true })).toHaveCount(0);
+    await page.evaluate(() => localStorage.setItem("moguri.sidebar", JSON.stringify({ panel: "Global Terminal", open: true, maximized: false, leftWidth: 232, rightWidth: 288 })));
+    await page.reload();
+    await expect(page.getByRole("button", { name: "New terminal", exact: true })).toBeEnabled();
+    expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
+    expect((await sdk.terminal.read(legacy.id!)).terminal.binding?.root).toBe(await realpath(homedir()));
+    await page.getByRole("button", { name: "New terminal", exact: true }).click();
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(input).toHaveAttribute("aria-disabled", "false");
-    const terminal = fixture.service.controller.snapshot().terminals[0]!;
-    expect(terminal.sessionId).toBeNull(); expect(terminal.projectId).toBeNull(); expect(terminal.binding?.root).toBe(await realpath(join(fixture.directory, "state")));
-    await expect(page.getByRole("button", { name: "Open terminal", exact: true })).toHaveCount(0);
-    await rail.getByRole("button", { name: "Global Terminal", exact: true }).click();
-    await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Keep open", exact: true }).click();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Sessions", exact: true }).click();
-    await page.getByRole("dialog", { name: "Close terminal pane", exact: true }).getByRole("button", { name: "Keep open", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Global terminal workspace", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
+    const own = fixture.service.controller.snapshot().terminals.find((terminal) => terminal.sessionId === fixture.sessionId)!;
+    expect(own.projectId).toBe(fixture.session().projectId); expect(own.binding?.root).toBe(await realpath(fixture.project));
+    expect(own.id).not.toBe(legacy.id);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     const confirm = page.getByRole("dialog", { name: "Close terminal pane", exact: true });
     await expect(confirm).toContainText("keep running"); await confirm.getByRole("button", { name: "Keep open", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
-    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await confirm.getByLabel("Do not ask me again when closing terminal").check();
     await confirm.getByRole("button", { name: "Hide terminal", exact: true }).click();
-    await expect(input).not.toBeVisible(); expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("running");
-    await rail.getByRole("button", { name: "Global Terminal", exact: true }).click(); await expect(input).toHaveAttribute("aria-disabled", "false");
-    expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
-    await page.getByRole("button", { name: "Back to chat", exact: true }).click();
-    await expect(confirm).toHaveCount(0);
-    await rail.getByRole("button", { name: "Global Terminal", exact: true }).click(); await expect(input).toHaveAttribute("aria-disabled", "false");
+    await expect(input).not.toBeVisible();
+    expect((await sdk.terminal.read(legacy.id!)).terminal.status).toBe("running");
+    expect((await sdk.terminal.read(own.id)).terminal.status).toBe("running");
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await expect(input).toHaveAttribute("aria-disabled", "false");
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
-    await expect.poll(() => fixture.service.controller.snapshot().terminals[0]?.status).toBe("closed");
+    await expect.poll(() => fixture.service.controller.snapshot().terminals.find((terminal) => terminal.id === own.id)?.status).toBe("closed");
     await expect(confirm).toHaveCount(0);
     await page.reload(); await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
-    expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
-    await rail.getByRole("button", { name: "Global Terminal", exact: true }).click();
-    await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(2);
-    expect(fixture.service.controller.snapshot().settings.values.interactions.confirmTerminalClose).toBe(false);
-    await page.getByRole("button", { name: "Close terminal", exact: true }).click();
+    expect(fixture.service.controller.snapshot().terminals).toHaveLength(2);
     await page.getByLabel("Project actions for project", { exact: true }).click();
     await page.getByRole("button", { name: "Open project terminal", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
-    const projectConsole = fixture.service.controller.snapshot().terminals.find((terminal) => terminal.sessionId === null && terminal.status === "running");
-    expect(projectConsole?.projectId).toBeNull();
+    const projectConsole = fixture.service.controller.snapshot().terminals.find((terminal) => terminal.sessionId === fixture.sessionId && terminal.status === "running");
+    expect(projectConsole?.projectId).toBe(fixture.session().projectId);
     expect(projectConsole?.binding?.root).toBe(await realpath(fixture.project));
+    expect(fixture.service.controller.snapshot().terminals.filter((terminal) => terminal.sessionId === null).map((terminal) => terminal.id)).toEqual([legacy.id]);
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
+    expect((await sdk.terminal.read(legacy.id!)).terminal.status).toBe("running");
+    expect(fixture.service.controller.snapshot().settings.values.interactions.confirmTerminalClose).toBe(false);
+    await sdk.terminal.close(legacy.id!);
     expect(fixture.requests).toHaveLength(0);
-  } finally { await app.close(); await fixture.close(); }
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("settings use one font family, omit capability-job history and left navigation toggles back to the conversation", async () => {

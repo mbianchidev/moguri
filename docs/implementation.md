@@ -558,7 +558,20 @@ Capture enough data to answer:
 - whether a provider-reported or billed amount is available;
 - how much budget remains.
 
-Initial dashboard views:
+The graphic dashboard has four pages:
+
+- **My work:** current open, in-progress and completed sessions, grouped by project with observed activity and session statistics.
+- **Usage:** token/call graphs with per-project and per-model breakdowns, retaining unknown reports and all model roles.
+- **Cost:** USD estimate graphs by project/model, keeping captured estimates, holds, provider reports and bills distinct.
+- **Velocity:** experimental observed completions, timing and actual user interventions, with comparisons to a previous equal window, never invented productivity gains.
+
+Graphs default to seven UTC days, with 30/60/90-day presets and inclusive custom
+dates initialized to the trailing year. Original detailed accounting remains
+available behind disclosure controls. The executable slice is documented in
+[workspace experience](architecture/workspace-experience.md); the broader
+detail inventory below does not claim every metric is qualified.
+
+Detailed dashboard inventory:
 
 - current session detail;
 - sessions over 7, 30, 60, 90, and 365 days;

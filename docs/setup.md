@@ -1,15 +1,70 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **59**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **61**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
-Protocol 59 adds [automatic Kupo](architecture/automatic-kupo.md) to the ordinary
+Protocol 61 adds [automatic Kupo](architecture/automatic-kupo.md) to the ordinary
 composer. It always appears in the model list, with an unavailable reason when
 there is no eligible configured model. New/reset routing policies use automatic
 selection; existing explicit Single/Compound settings are preserved. Upgrading
 does not select Kupo, authenticate, make a model call or change autonomy.
+
+Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
+The left sidebar has **New**, Dashboard, Suggestions, Automations and Global
+Terminal. **Code change** and **Work item** belong to the right rail and follow
+the selected session. Code change shows an existing linked PR; Work item is
+currently an empty issue-link panel. Automations is also intentionally empty:
+no scheduler or new issue/PR linking workflow is implied. Profile, Ask Moguri
+and Settings share one compact footer row. Copilot connection status appears
+only in Settings / Models / Providers, not in the left sidebar.
+Artifacts, Candidates and unified
+**Sandbox** management now live in Settings, with optional source-chat selection.
+Non-secret settings fields have hover/focus copy buttons; explanatory text uses
+keyboard-accessible information tooltips. Errors, status and safety reviews
+remain visible. The menu-bar mascot has a dedicated transparent template icon.
+
+New Local User/Global consoles start in the configured **HOME**, not Moguri's
+application-state directory. Project User consoles use their actual bound
+Moguri worktree. Existing consoles retain their original root; missing or
+invalid HOME fails rather than selecting another directory.
+
+**Settings / Instructions / Skill gateway** accepts a local folder, a public
+GitHub repository root such as `https://github.com/owner/skills`, or a direct
+HTTPS `.zip` URL. Add a named source, save it, then **Find skills**. Nested
+`SKILL.md` files use standard YAML front matter. Every search/read rechecks
+fresh bytes; changed content requires a fresh digest. No extraction, installer,
+script execution, automatic authentication or stale offline fallback occurs.
+The current limits are 16 sources, 512 combined skills, 64 KiB per skill,
+8 MiB compressed and 32 MiB expanded per archive. Links, traversal, duplicate
+archive paths, unsupported encryption and invalid text fail explicitly.
+Sources are profile-private Local control-plane capabilities, not an SSH or
+Sandbox filesystem transport.
+
+The same discovery is available through `/skills find QUERY`, `/skills read ID
+SHA`, `moguri skills find QUERY`, `moguri skills read ID --digest SHA` and outward
+MCP tools `moguri_find_skills` / `moguri_read_skill`. The existing `moguri mcp
+--session ID` gateway cannot configure sources or approve tools. Model-side
+`use_skill` discovers configured sources on qualified Local turns; loading
+guidance never installs or enables a capability.
+
+**Suggestions** starts with profile-wide local usage-gap checks and bounded
+prior prompts, without creating a hidden chat or calling a model. Optionally
+select a chat to narrow the scope. Review the exact usage gaps, excerpts and
+selected model before generation; configuration proposals still need a separate
+actual-user decision. `/suggestions session` preserves explicit scoped access.
+
+**Dashboard** has My work, Usage, Cost and Velocity pages with charts first,
+project/model breakdowns and detailed accounting behind a disclosure. The
+initial window is seven UTC days, with 30/60/90-day presets and custom inclusive
+dates initialized to the trailing year. My work includes current open sessions
+even when older than the selected range. Velocity reports observed completed
+agent turns, timing and user interventions against the previous equal window,
+not invented time savings or a proven productivity increase. Unknown tokens,
+unpriced calls and invoices stay distinct. CLI/TUI share
+`/dashboard work|usage|cost|velocity` and `moguri dashboard` projections; F7
+includes the shared overview.
 
 Protocol 57 implements [session-owned candidate cleanup](architecture/candidate-cleanup.md).
 Permanent session deletion, whether manual or archived-session expiry, deletes
@@ -320,15 +375,15 @@ integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
 
-The scrollable left sidebar is ordered **Dashboard, Artifacts, Candidates,
-Sandbox, Suggestions, Global Terminal**. The right rail contains only
-**Terminal, Browser, Insights, Changes, Files, Plan, Side chat**, in that order.
-Global views are not duplicated there, and linking a PR does not add a rail tab;
-the existing `/pr` action still opens its auxiliary view. Attention uses the single
+The scrollable left resources are **Dashboard, Suggestions, Automations**.
+Artifacts, Candidates and Sandbox live in Settings. The right rail contains
+**Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change,
+Work item**, in that order. Global views are not duplicated there;
+`/pr` opens the selected session's Code change panel. Attention uses the single
 top-bar icon. Where a global action needs a source, select an actual **Source
 chat** first. Viewing a global resource never creates a hidden chat or model
-request. Global and session consoles are separate entrypoints into the existing
-authenticated Ghostty owners, not a new terminal implementation.
+request. Terminal uses the selected session's authenticated Ghostty owner;
+Global Terminal is no longer a navigation or creation entrypoint.
 
 Unread sessions use slightly heavier title text instead of an extra dot.
 Mark read or selecting the session removes that emphasis; an older held read
@@ -350,12 +405,15 @@ change either preference in **Settings / Sessions / Retention**. These preferenc
 do not grant permissions, enable automatic cleanup or bypass retained-artifact
 reviews. Deletion still stops owned work and preserves independent documents.
 
-Drag the right-hand grip to reorder siblings within their pinned/unpinned
-group; the target row's top/bottom halves insert before/after without nesting.
-Click that same grip for the session menu, or use Alt+Up/Down on its focused
-control/name. Whole-row top/bottom edges also reorder; its center still
-attaches, and the owning project/Chats header detaches. Move up/down and
-Attach/Detach remain keyboard menu alternatives.
+Drag any part of a session row to reorder siblings, including children, within
+their pinned/unpinned group. The target's top/bottom halves insert before/after
+without nesting. There is no grip button. Alt+Up/Down on the focused name and
+Move up/down are keyboard alternatives; use **Attach to session** in the menu
+to choose a parent. Drag a child to a root row or its project/Chats/group
+header/background to detach into that root list. This asks for confirmation by
+default. **Do not ask again when detaching sessions** is saved per profile and
+can be restored in **Settings / Confirmations**. Cancel keeps hierarchy/order
+unchanged; changes during review require a fresh review.
 Only the current project's hierarchy changes: workspace, Env and read-only/model
 subagent boundaries do not move. Each service attempt checks every sibling
 revision atomically instead of publishing a partial arrangement.
@@ -474,11 +532,11 @@ extends them without changing factory settings or broadening policy.
 
 ## Separate Agent terminal
 
-Current source uses protocol/database **46**. The session's **Terminal** pane
+Current source uses protocol/database **60**. The session's **Terminal** pane
 has separate **User** and **Agent** tabs. User remains your private, interactive
 console. Agent shows Moguri's actual command requests/results and live output;
 merely opening either Agent history or a retained result never starts a model
-or shell. Global Terminal remains private and user-only.
+or shell. Retained legacy independent consoles remain user-only and inspectable.
 
 Moguri runs commands through the existing approved `run_command` capability,
 then can list or reread exact original output with `read_agent_terminal`.
@@ -610,11 +668,12 @@ agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
 Sandbox/Remote browser control and Stainless diagnostics remain unqualified.
 See the [browser contract](architecture/agent-browser.md).
 
-Protocol 44 introduced these interaction changes. Global resources live in
-the left sidebar: Dashboard, Artifacts, Candidates, Sandbox, Suggestions,
-Global Terminal. The right rail is reserved for Terminal, Browser, Insights,
-Changes, Files, Plan and Side chat. Global actions and existing slash commands
-retain their independently scoped source selection. Attention remains in the top bar. The unified Start
+Protocol 44 introduced these interaction changes. Protocol 60 leaves Dashboard,
+Suggestions and Automations in the left sidebar, removing Global Terminal;
+Artifacts/Candidates/Sandbox are Settings sections. The right rail is reserved
+for Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change
+and Work item. Its two link panels are per session. Global actions and existing slash commands
+retain their independently scoped source selection. Attention remains in the top bar. The unified New
 chooser and project-free navigation remain available.
 
 | Attach menu | Shortcut | Selection |
@@ -720,14 +779,15 @@ name unchanged.
 current sibling set, not a partial list. Settings, Issues and Archived toggle
 back to the conversation when selected again in the left sidebar.
 
-**Global Terminal** is independent of every project/worktree/session and opens
-in the canonical Moguri data directory selected by the runtime, including
-`MOGURI_STATE_DIR` when configured. It is a Local user console, not agent context
-or SendBox isolation. Explicit independent-root console APIs remain supported;
-their captured root is shown, never relabeled as the data directory.
-Global allowed-env policy still applies. To work in a
-project, use its action menu's **Open project terminal**, the session's Terminal
-panel, or `/terminal`. Explicitly opening an eligible terminal pane starts the
+**Terminal** is session-owned. Project-free Local consoles start in configured
+HOME, never the Moguri state directory or `MOGURI_STATE_DIR`; project consoles
+use their actual bound worktree. The project menu's **Open project terminal**
+selects an existing session rather than creating a global console or hidden
+chat. With no project session, create/select one first. Global Terminal and its
+scope picker are removed. Existing independent consoles retain their captured
+roots and remain inspectable/closable through SDK/CLI, without input replay.
+Allowed-env policy still applies. Use the session's Terminal panel or `/terminal`.
+Explicitly opening an eligible terminal pane starts the
 console without a Start button. Restoring a saved pane or reconnecting does not
 replay a launch; existing authenticated owners are reused.
 
@@ -1893,7 +1953,7 @@ actual Remote boundary/frame provenance.
 
 ## Project-free chats, suggestions and ask Moguri
 
-Desktop uses one **Start** button. Choose **New chat** for a project-free
+Desktop uses one **New** button. Choose **New chat** for a project-free
 conversation, an existing project for a new session there, **Import local
 folder** to attach an explicitly chosen directory, or **Clone repository** to
 clone an HTTPS/SSH URL into a new folder before starting a project chat.
@@ -2211,14 +2271,11 @@ creates a console; `terminal input ID` accepts bounded piped UTF-8 stdin only.
 `acknowledge ID --confirm-review` and `owner-acknowledge OWNER_ID --confirm-review`
 record actual user inspection, not proven cleanup.
 
-Terminal also opens without a session. **Global terminal** is one independent
-Local user console per profile, starting in the disclosed canonical Moguri data folder.
-**This chat** selects session-owned consoles; a project-free chat explicitly
-opens the disclosed Local root without making it a model workspace. Existing
-project consoles still use their exact project/worktree. Changing chat does not
-rebind the global console, and deleting a chat/project does not delete it.
-Global input obeys Local allowed-env policy; a Remote chat never relabels that
-global host shell Remote.
+Terminal requires a selected session. A project-free chat opens the disclosed
+HOME root without making it a model workspace; project consoles use their exact
+project/worktree. Legacy null-session owners are never adopted by a new chat,
+relabelled Remote or silently terminated when navigation is upgraded. Inspect
+and close them explicitly with `moguri terminal list|read|reconcile|close`.
 
 Opening Terminal explicitly starts or reuses the selected chat's qualified
 console. Selecting another chat/project or creating a chat while that pane is
@@ -2237,12 +2294,12 @@ ownership, failure/retry, installation and artifact measurements are recorded
 in [session-terminal startup qualification](architecture/sdk-platform.md#session-terminal-startup-qualification).
 
 CLI `moguri terminal default-root` discloses the default without starting a
-process. `terminal open-global /absolute/root` explicitly opens the global
-console. `terminal open --session ID --root /absolute/root` opens a separate
-project-free Local console. TUI `/terminals global` discloses the root;
-`/terminals global /absolute/root` opens it. `/terminals open /absolute/root`
-opens a project-free session console, and `/terminals` includes the profile's
-global console for explicit inspection/read/close.
+process. `terminal open --session ID --root /absolute/root` opens a
+project-free Local console. TUI `/terminals open /absolute/root` does the same
+for its selected session. Global creation commands are retired with an explicit
+error; `/terminals` still includes retained legacy independent consoles for
+inspection/read/close. The low-level SDK compatibility overload remains, not a
+desktop or CLI creation surface.
 
 Ghostty's reconnect control inspects the existing owner, never opens another
 shell. Hiding the panel or losing a connection discards queued unsent input;

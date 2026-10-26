@@ -33,7 +33,10 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     await expect(page.getByLabel("Private release PAT", { exact: true })).toHaveValue("");
     await page.getByRole("button", { name: "Check for updates now", exact: true }).click();
     await expect.poll(async () => (await sdk.application.updates.status()).update.operation?.status).toBe("ready");
-    await expect(page.getByText("This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout. Installation needs the actual owned packaged app.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Installing updates requires Moguri's packaged app.", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "About source-runtime update limits", exact: true }).focus();
+    await expect(page.getByRole("tooltip")).toContainText("This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout.");
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Install verified update and restart", exact: true })).toHaveCount(0);
     expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await service.close(); await fixture.close(); }

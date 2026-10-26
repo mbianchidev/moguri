@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useState } from "react";
 import { type MoguriSdk, type Project, type ProjectSettings, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
@@ -15,10 +16,10 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
     catch (error) { setError(error instanceof Error ? error.message : "Workspace work failed. Existing files/branches were preserved; inspect before retrying."); }
     finally { setBusy(false); }
   };
-  return <section aria-label="Managed worktrees"><h3>Isolated worktrees</h3><p>Local checkouts with service-owned identity and independent writer leases. The base folder, index, unrelated edits and branches stay untouched. Session deletion never removes a worktree.</p>
+  return <section aria-label="Managed worktrees"><h3>Isolated worktrees</h3><SettingsHelp label="More about this setting">Local checkouts with service-owned identity and independent writer leases. The base folder, index, unrelated edits and branches stay untouched. Session deletion never removes a worktree.</SettingsHelp>
     <div className="project-settings-grid">
-      <label className="setting-field">New branch<input aria-label="Managed worktree branch" value={branch} disabled={disabled || busy} onChange={(event) => setBranch(event.target.value)} /></label>
-      <label className="setting-field">Base ref<input aria-label="Managed worktree base" value={baseRef} disabled={disabled || busy} onChange={(event) => setBaseRef(event.target.value)} /></label>
+      <label className="setting-field">New branch<SettingsInput aria-label="Managed worktree branch" value={branch} disabled={disabled || busy} onChange={(event) => setBranch(event.target.value)} /></label>
+      <label className="setting-field">Base ref<SettingsInput aria-label="Managed worktree base" value={baseRef} disabled={disabled || busy} onChange={(event) => setBaseRef(event.target.value)} /></label>
     </div>
     <button disabled={disabled || busy || !branch || !baseRef} onClick={() => void run(async () => {
       const created = await sdk.workspaces.create(project.id, branch, { baseRef }); const workspace = await sdk.workspaces.wait(created.id!);
@@ -26,7 +27,7 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
       return undefined;
     })}>{busy ? "Working..." : "Create worktree"}</button>
     <button disabled={disabled || busy} onClick={() => void run(() => sdk.workspaces.discover(project.id))}>Discover Git worktrees</button>
-    <p className="fine-print">Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</p>
+    <SettingsHelp label="More about this setting">Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {!workspaces.length && <p className="fine-print">No managed checkouts yet. Ordinary project chats keep using the attached base folder.</p>}
     {workspaces.slice().reverse().map((workspace) => {
@@ -37,7 +38,7 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
           <button disabled={disabled || busy || workspace.status === "removed"} onClick={() => void run(() => sdk.workspaces.inspect(workspace.id))}>Inspect</button>
           <button disabled={disabled || busy || workspace.status !== "partial"} onClick={() => void run(() => sdk.workspaces.reconcile(workspace.id, workspace.revision))}>Reconcile</button>
           {["creating", "removing"].includes(workspace.status) && workspace.jobId && <button onClick={() => { void sdk.jobs.cancel(workspace.jobId!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Cancellation was not acknowledged.")); }}><Icon name="Stop" />Stop</button>}</div>
-        {workspace.status === "ready" && <><label className="check-setting"><input type="checkbox" checked={removeId === workspace.id} disabled={disabled || busy || bound > 0} onChange={(event) => setRemoveId(event.target.checked ? workspace.id : "")} />Remove only this clean, idle, unbound checkout. Keep its branch.</label>
+        {workspace.status === "ready" && <><label className="check-setting"><SettingsInput type="checkbox" checked={removeId === workspace.id} disabled={disabled || busy || bound > 0} onChange={(event) => setRemoveId(event.target.checked ? workspace.id : "")} />Remove only this clean, idle, unbound checkout. Keep its branch.</label>
           <button disabled={disabled || busy || bound > 0 || removeId !== workspace.id} onClick={() => void run(async () => { await sdk.workspaces.remove(workspace.id, workspace.revision, true); await sdk.workspaces.wait(workspace.id); setRemoveId(""); })}><Icon name="Trash" />Remove</button></>}
       </details>;
     })}

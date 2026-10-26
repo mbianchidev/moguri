@@ -1,3 +1,4 @@
+import { openUsageDetails } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
@@ -13,7 +14,7 @@ test("desktop distinguishes planned capacity from real calls and observes automa
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await expect(dashboard.locator("dt").filter({ hasText: /^Model calls$/ }).locator("+ dd")).toHaveText("0");
     await expect(dashboard.locator("dt").filter({ hasText: /^Undispatched model holds$/ }).locator("+ dd")).toHaveText("1 / 30 tokens");
@@ -47,7 +48,7 @@ test("a held planned-budget response cannot populate another selected session sc
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Dashboard", exact: true }).click();
+    await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });
     await dashboard.getByText("Filters", { exact: true }).click();
     await dashboard.getByLabel("Usage session filter", { exact: true }).selectOption(f.sessionId);

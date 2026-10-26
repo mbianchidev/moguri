@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, RemoteMcpPreview, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -25,7 +26,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
   };
   return <section className="mcp-remote-panel" aria-label="Remote MCP access">
     <h3>Remote MCP access</h3>
-    <p>Execution is on the pinned SSH host, not inside SendBox. A saved Local MCP account is not permission to send it there. Tool calls still need their own exact approval.</p>
+    <SettingsHelp label="More about this setting">Execution is on the pinned SSH host, not inside SendBox. A saved Local MCP account is not permission to send it there. Tool calls still need their own exact approval.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}
     <div className="button-row">
@@ -43,7 +44,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         setMessage("Remote grant revoked. Existing received access and external effects cannot be rolled back; retained results remain readable.");
       })}>Revoke Remote grant</button>
     </div>
-    {!ready && <p className="fine-print">Probe the configured SSH target before a new review. Revocation and retained-result inspection do not need a ready host.</p>}
+    {!ready && <SettingsHelp label="More about this setting">Probe the configured SSH target before a new review. Revocation and retained-result inspection do not need a ready host.</SettingsHelp>}
     {review && !preview && <p className="settings-warning">This review is stale. Review the current host, root and resource again; no permission was inferred.</p>}
     {preview && <>
       <dl className="mcp-remote-scope">
@@ -56,9 +57,9 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         <div><dt>Review digest</dt><dd className="path">{preview.digest}</dd></div>
       </dl>
       <p className="settings-warning">{preview.warning}</p>
-      {preview.server.auth !== "none" && <label className="check-setting"><input type="checkbox" aria-label="Allow Remote MCP access forwarding" checked={forwardAccess} disabled={disabled || busy}
+      {preview.server.auth !== "none" && <label className="check-setting"><SettingsInput type="checkbox" aria-label="Allow Remote MCP access forwarding" checked={forwardAccess} disabled={disabled || busy}
         onChange={(event) => setForwardAccess(event.target.checked)} />Allow this profile's access credential to reach this exact SSH peer and MCP resource. It may be a long-lived bearer key; the host can retain it. Refresh credentials stay local.</label>}
-      <label className="check-setting"><input type="checkbox" aria-label="Confirm exact Remote MCP review" checked={reviewed} disabled={disabled || busy}
+      <label className="check-setting"><SettingsInput type="checkbox" aria-label="Confirm exact Remote MCP review" checked={reviewed} disabled={disabled || busy}
         onChange={(event) => setReviewed(event.target.checked)} />I reviewed this exact host, root and MCP resource. This grants no tool approval or broader policy.</label>
       <button className="primary" disabled={disabled || busy || !ready || !reviewed} onClick={() => void run(async () => {
         await sdk.mcp.grantRemote(session.id, serverId, preview.digest, preview.settingsRevision, forwardAccess, true);

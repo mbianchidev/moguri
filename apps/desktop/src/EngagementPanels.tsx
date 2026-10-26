@@ -3,7 +3,7 @@ import { type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } f
 import { Icon } from "./Icon.tsx";
 
 export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialAll, chooseSession, modal }: {
-  sdk: MoguriSdk; session: Session; snapshot: Snapshot; allProjects: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void;
+  sdk: MoguriSdk; session?: Session; snapshot: Snapshot; allProjects: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void;
 }) {
   const [allProjects, setAllProjects] = useState(initialAll);
   const [preview, setPreview] = useState<SuggestionPreview | null>(null);
@@ -14,35 +14,41 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
   const load = async () => {
     const request = ++generation.current;
     setPreview(null); setError(""); setConfirmed(false); setBusy(true);
-    try { const result = await sdk.suggestions.preview(session.id, allProjects); if (request === generation.current) setPreview(result.preview); }
+    try { const result = await sdk.suggestions.preview(session?.id ?? null, allProjects); if (request === generation.current) setPreview(result.preview); }
     catch (error) { if (request === generation.current) setError(error instanceof Error ? error.message : "Source preview is unavailable."); }
     finally { if (request === generation.current) setBusy(false); }
   };
-  useEffect(() => { void load(); return () => { generation.current++; }; }, [session.id, allProjects]);
+  useEffect(() => { void load(); return () => { generation.current++; }; }, [sdk, session?.id, allProjects, snapshot.settings.revision, snapshot.sessions.map((value) => `${value.id}:${value.updatedAt}`).join(",")]);
   const generate = async () => {
     if (!preview || !confirmed) return;
     setBusy(true); setError("");
-    try { const result = await sdk.suggestions.generate(session.id, preview.digest, allProjects, true); await chooseSession(result.id!); }
+    try {
+      const result = await sdk.suggestions.generate(session?.id ?? null, preview.digest, allProjects, true);
+      if (!result.id) throw new Error("The settings chat was not acknowledged. No result session was guessed.");
+      await chooseSession(result.id);
+    }
     catch (error) { setError(error instanceof Error ? error.message : "Suggestions were not generated. Source review is preserved."); }
     finally { setBusy(false); }
   };
   return <section className="suggestions-panel" aria-label="Moguri suggestions"><header className="panel-toolbar"><strong>Improve your Moguri workflow</strong><button className="icon-button" aria-label="Refresh suggestion sources" title="Refresh sources" disabled={busy} onClick={() => void load()}><Icon name="Down" /></button></header>
-    <p className="fine-print">Scope: {session.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name : allProjects ? "All projects, explicit opt-in" : "Project-free chats only"}.</p>
-    {session.projectId === null && <label className="check-setting"><input type="checkbox" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
+    <p className="fine-print">Scope: {session?.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name : allProjects ? "All projects in this profile" : "Project-free chats only"}. Preview is local; nothing is sent automatically.</p>
+    {session?.projectId === null && <label className="check-setting"><input type="checkbox" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     {preview && <><p className="fine-print">{preview.diagnostic}</p>
-      {preview.repeated.length > 0 && <><h2>Repeated guidance</h2>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects} onClick={() => {
+      <h2>Usage gaps</h2>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
+      {preview.repeated.length > 0 && <><h2>Repeated guidance</h2>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
         setBusy(true); setError("");
         void (async () => {
+          if (!session) throw new Error("Choose an owning source chat before proposing scoped instructions.");
           const source = session.projectId ? await sdk.projects.sources(session.projectId) : null;
           const before = source?.instructions ?? snapshot.settings.values.instructions;
           await sdk.configuration.propose(session.id, { target: session.projectId ? "repo-instructions" : "global", section: session.projectId ? "AGENTS.md" : "instructions", value: `${before.trim()}\n\n${hint.text}\n`.trim() + "\n", reason: `Repeated user guidance across ${hint.count} previous sessions. Review before applying.`, evidence: hint.messageIds });
         })().catch((error: unknown) => setError(error instanceof Error ? error.message : "Instruction proposal was not created.")).finally(() => setBusy(false));
       }}>Propose instruction</button></article>)}</>}
       <details className="suggestion-sources"><summary>Review {preview.sources.length} bounded source prompts</summary>{preview.sources.map((source) => <article key={`${source.sessionId}-${source.messageId}`}><strong>{source.title}</strong><small>{source.projectId ? snapshot.projects.find((project) => project.id === source.projectId)?.name ?? "Project" : "No project"}</small><pre>{source.text}</pre></article>)}</details>
-      {preview.sources.length ? <><label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I approve sending these scoped excerpts to the selected model for suggestions.</label><button className="primary" disabled={busy || !confirmed || !session.controls.modelId} onClick={() => void generate()}>Generate suggestions</button>{!session.controls.modelId && <p className="fine-print">Select a model first. Preview and local phrase matching make no model call.</p>}</> : <p className="fine-print">No earlier prompts in this scope yet. Start another conversation first.</p>}
+      {preview.sources.length || preview.gaps.length ? <><label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I approve sending these usage gaps and scoped excerpts to the selected model for suggestions.</label><button className="primary" disabled={busy || !confirmed || !preview.modelId} onClick={() => void generate()}>Generate suggestions</button>{!preview.modelId && <p className="fine-print">Choose a chat with a model, or configure a profile startup model first. Preview and local checks make no model call.</p>}</> : <p className="fine-print">No earlier prompts or usage gaps in this scope yet.</p>}
     </>}
-    <ConfigurationProposals sdk={sdk} session={session} snapshot={snapshot} modal={modal} scope />
+    {session && <ConfigurationProposals sdk={sdk} session={session} snapshot={snapshot} modal={modal} scope />}
   </section>;
 }
 export function ConfigurationProposals({ sdk, session, snapshot, modal, scope = false }: {
