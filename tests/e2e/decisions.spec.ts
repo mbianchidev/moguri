@@ -6,8 +6,12 @@ import { generatedAdvice, setupDecisions } from "../fixtures/decisions-api.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual bounded Local decision worker is qualified on macOS.");
-test("desktop explicitly saves a compatible decision policy, enables Local Max independently of the selected model, and inspects real provider-attributed results", async () => {
-  const f = await setupDecisions(), policy = structuredClone(f.sdk.settings.get()!.values.decisions);
+test("desktop enables unattended Local Max and inspects its actual provider-attributed technical answer independently of the solver", async () => {
+  const f = await setupDecisions({ delegated: false, advice: { replyText: JSON.stringify({ answers: { action: {
+    type: "choice", choice: "option1", confidence: 0.98, probabilities: { option0: 0.01, option1: 0.98, askUser: 0.01 },
+  } } }) } }), policy = structuredClone(f.sdk.settings.get()!.values.decisions);
+  policy.technicalQuestions.push({ id: "generated-desktop-technical-choice", kind: "technical-choice",
+    question: "Choose a generated fixture approach?", choices: ["Generated first choice", "Generated second choice"] });
   const disabled = structuredClone(f.sdk.settings.get()!.values); disabled.decisions.enabled = false;
   await f.sdk.settings.update(disabled, f.sdk.settings.get()!.revision);
   await f.sdk.sessions.configure(f.sessionId, { ...f.session().controls, autonomy: "Manual" });
@@ -30,7 +34,8 @@ test("desktop explicitly saves a compatible decision policy, enables Local Max i
     await expect(page.getByRole("button", { name: /^Autopilot Max/ })).toBeEnabled();
     await page.getByRole("button", { name: /^Autopilot Max/ }).click();
     await expect.poll(() => f.session().controls.autonomy).toBe("Autopilot Max");
-    await composer.getByRole("textbox", { name: "Prompt", exact: true }).fill("generated tool reviewed desktop decision");
+    await expect.poll(() => f.session().controls.automaticApprovals).toBe(true);
+    await composer.getByRole("textbox", { name: "Prompt", exact: true }).fill("generated structured question choices only");
     await composer.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => f.service.controller.snapshot().decisions[0]?.status).toBe("applied");
     await expect.poll(() => f.session().status).toBe("completed");
@@ -39,11 +44,12 @@ test("desktop explicitly saves a compatible decision policy, enables Local Max i
     await expect(decisions).toContainText("Decision applied"); await expect(decisions).toContainText(f.decisionModelId);
     await expect(decisions).toContainText("42"); await expect(decisions).toContainText("decision-provider");
     expect(f.session().controls.modelId).toBe(f.modelId); expect(f.session().controls.env).toBe("Local");
+    expect(f.service.controller.snapshot().questions[0]?.answer?.actor).toBe("decision-provider");
     expect(f.requests).toHaveLength(2); expect(f.advice.requests).toHaveLength(1); expect(errors).toEqual([]);
   } finally { await app.close(); await f.close(); }
 });
 
-test("desktop human denial overrides an actual in-flight decision and preserves its unknown held cost without fake user attribution", async () => {
+test("legacy bounded-Max human denial overrides an in-flight tool decision and preserves unknown held cost without fake user attribution", async () => {
   const f = await setupDecisions({ advice: { stream: { chunks: [generatedAdvice()], delayMs: 1500 } } });
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
