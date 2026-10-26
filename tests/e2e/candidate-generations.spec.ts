@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile } from "node:fs/promises";
@@ -13,8 +14,8 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt"); await panel.getByRole("button", { name: "Load source file", exact: true }).click();
@@ -46,7 +47,7 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     expect(await readFile(join(f.project, ".git/index"))).toEqual(index); expect(f.requests).toHaveLength(1);
     expect(f.service.controller.snapshot().candidates[0]?.acceptance?.actor).toBe("user");
     await expect(panel.getByRole("button", { name: "Export candidate history", exact: true })).toBeEnabled();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await openSettingsSection(page, "Artifacts");
     const artifacts = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await artifacts.getByLabel("Retained artifact", { exact: true }).selectOption(generation.id);
     await expect(artifacts.getByLabel("Artifact text", { exact: true })).toHaveAttribute("readonly", "");
@@ -64,8 +65,8 @@ test("a held generation review cannot spend in a changed read-only scope or disc
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt"); await panel.getByRole("button", { name: "Load source file", exact: true }).click();

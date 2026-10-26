@@ -22,15 +22,15 @@ test("repository and project-item dropdowns show the actual account, full source
   const fixture = await githubApplicationFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    const start = page.getByRole("dialog", { name: "Start", exact: true });
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    const start = page.getByRole("dialog", { name: "New", exact: true });
     await start.getByRole("button", { name: "Clone repository", exact: true }).click();
     const repositories = start.getByLabel("GitHub repository", { exact: true });
     await expect(repositories).toBeEnabled(); await repositories.selectOption("41");
     await expect(start.getByLabel("Repository URL", { exact: true })).toHaveValue(fixture.repository.ssh_url);
     await expect(start.getByLabel("New clone folder name", { exact: true })).toHaveValue("fixture");
     await expect(start).toContainText("Signed in as generated-owner");
-    await start.getByRole("button", { name: "Close Start", exact: true }).click();
+    await start.getByRole("button", { name: "Close New", exact: true }).click();
     await page.getByLabel("Project actions for checkout", { exact: true }).click();
     await page.getByRole("button", { name: "From PR", exact: true }).click();
     const fromPr = page.getByRole("dialog", { name: "Session from PR", exact: true });
@@ -88,12 +88,12 @@ test("a concurrent project-policy change preserves publication text and requires
   } finally { await close(app); await fixture.close(); }
 });
 
-test("Changes and Work item publish reviewed PRs/issues once, retain full bodies and link the real results", async () => {
+test("Code change and Work item publish reviewed PRs/issues once, retain full bodies and link the real results", async () => {
   const fixture = await githubApplicationFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
-    await rail.getByRole("button", { name: "Changes", exact: true }).click();
+    await rail.getByRole("button", { name: "Code change", exact: true }).click();
     const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
     await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();
     await pulls.getByLabel("Pull request", { exact: true }).selectOption("11");

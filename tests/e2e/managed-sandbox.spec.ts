@@ -33,7 +33,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
     await expect(panel).toContainText("0.2.4");
     await expect(page.getByLabel("SendBox configuration", { exact: true })).not.toBeVisible();
@@ -81,7 +81,7 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
     await panel.getByRole("button", { name: "Review bundled setup", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true });

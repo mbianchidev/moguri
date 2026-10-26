@@ -22,8 +22,8 @@ test("global fixed model/effort and last explicit selection drive new Start chat
     app = await launch(fixture.directory);
     const page = await app.firstWindow(), create = async () => {
       const before = new Set(fixture.service.controller.snapshot().sessions.map((entry) => entry.id));
-      await page.getByRole("button", { name: "Start", exact: true }).click();
-      await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
+      await page.getByRole("button", { name: "New", exact: true }).click();
+      await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
       await expect.poll(() => fixture.service.controller.snapshot().sessions.length).toBe(before.size + 1);
       return fixture.service.controller.snapshot().sessions.find((entry) => !before.has(entry.id))!;
     };
@@ -96,8 +96,8 @@ test("profile overrides remain explicit and can inherit the shared global model 
     await expect(profile).toHaveValue("none"); await profile.selectOption("inherit"); await saved(page);
     expect(fixture.session().controls.modelId).toBeNull();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
-    await page.getByRole("button", { name: "Start", exact: true }).click();
-    await page.getByRole("dialog", { name: "Start", exact: true }).getByRole("button", { name: /^New chat/ }).click();
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.at(-1)?.controls.modelId).toBe(fixture.modelId);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app?.close(); sdk.disconnect(); await fixture.close(); }

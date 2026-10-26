@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -19,8 +20,8 @@ test("desktop exposes qualified finite kupo and separately reviews actual-user a
     await budget.getByRole("button", { name: "View usage and limits...", exact: true }).click();
     await expect(budget.getByLabel("session budget mode", { exact: true })).toBeEnabled();
     await page.keyboard.press("Escape");
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Budget wind-down checkpoints", exact: true });
     await panel.getByLabel("Retained budget checkpoint", { exact: true }).selectOption(checkpoint.winddown.id);
     await panel.getByLabel(`Include accepted checkpoint candidate ${accepted.candidate.id}`, { exact: true }).check();

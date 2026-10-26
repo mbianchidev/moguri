@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ArtifactMaterialization, ArtifactMaterializationPreview, MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -40,13 +41,13 @@ export function ArtifactRepositoryCopy({ sdk, snapshot, projectId, expectedSetDi
     setSaved(result); onSaved?.(result);
   };
   return <section aria-label="Repository artifact copy" onKeyDown={(event) => { if (event.key === "Enter" && (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)) event.preventDefault(); }}>
-    <p className="fine-print">Copy all retained project revisions, including archived documents, into a new private JSON file under artifacts/. Review sensitive content before an optional local Git commit. No overwrite, checkout, push or automatic instruction loading.</p>
+    <SettingsHelp label="More about this setting">Copy all retained project revisions, including archived documents, into a new private JSON file under artifacts/. Review sensitive content before an optional local Git commit. No overwrite, checkout, push or automatic instruction loading.</SettingsHelp>
     {allowWorkspaces && <label className="setting-field">Destination root<select aria-label="Artifact destination root" disabled={busy} value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)}>
       <option value="">Attached base folder: {project?.path ?? "unavailable"}</option>
       {snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === projectId && workspace.status === "ready").map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.branch} / {workspace.path}</option>)}
     </select></label>}
-    <label className="check-setting"><input type="checkbox" checked={commit} disabled={busy} onChange={(event) => setCommit(event.target.checked)} />Also commit to a new local branch</label>
-    {commit && <label className="setting-field">New local branch<input aria-label="Artifact commit branch" value={branch} maxLength={200} disabled={busy} onChange={(event) => setBranch(event.target.value)} placeholder="docs/retained-artifacts" /></label>}
+    <label className="check-setting"><SettingsInput type="checkbox" checked={commit} disabled={busy} onChange={(event) => setCommit(event.target.checked)} />Also commit to a new local branch</label>
+    {commit && <label className="setting-field">New local branch<SettingsInput aria-label="Artifact commit branch" value={branch} maxLength={200} disabled={busy} onChange={(event) => setBranch(event.target.value)} placeholder="docs/retained-artifacts" /></label>}
     <button type="button" disabled={busy || !project || commit && !branch.trim()} onClick={() => void run(review)}>Review repository copy</button>
     {preview && <><p className="fine-print">{preview.count} document{preview.count === 1 ? "" : "s"} / {preview.bytes.toLocaleString()} bytes. Exact destination:</p><pre aria-label="Reviewed artifact destination">{`${preview.root}/${preview.path}`}</pre>
       {preview.commit && <p className="fine-print">New local branch {preview.commit.branch}, parent {preview.commit.base}. Current checkout and index remain unchanged.</p>}

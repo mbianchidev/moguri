@@ -16,9 +16,11 @@ RPC responses. Protocol 21 adds sanitized tool/MCP outcomes and key-backed
 retained sizes; protocol 22 adds explicit actual-root GitHub metadata review,
 exact refresh/stop, immutable repository/owner/visibility filtering and
 unassigned-history coverage. None of these grant tools or dispatch a model.
-Its current rail starts with Dashboard, Artifacts, Candidates, Sandbox,
-Suggestions and Global Terminal, followed by Terminal, Browser, Insights,
-PR when linked, Changes, Files, Plan and Side chat. Attention is in the top bar.
+Current left resources are Dashboard, Suggestions and Automations; Artifacts,
+Candidates and Sandbox are in Settings. The right rail is Terminal, Browser,
+Insights, Changes, Files, Plan, Side chat, Code change and Work item. Attention
+is in the top bar. Protocol 60 removes Global Terminal navigation and its scope
+picker while preserving authenticated inspection/close for retained owners.
 Profile-resource shortcuts open the same independent workspace as the left
 navigation; source-chat selection never creates a hidden session.
 Suggestions use explicit scoped source
@@ -46,7 +48,7 @@ This sidebar is desktop-only. The TUI keeps its own navigation and split-panel p
 
 - The session in the primary pane is the **main session** for the sidebar.
 - Switching the main session rebinds session-scoped panels to that session, its project, and its worktree.
-- Terminal has separate private User and read-only Agent tabs. Global Terminal opens the independent profile-owned Local console; changing chats never rebinds that console.
+- Terminal has separate private User and read-only Agent tabs. Each user console belongs to its exact session; no global console is opened or adopted by navigation.
 - Sidebar content comes from the local control plane. Panels must not keep authoritative copies of session, terminal, file, extension, or usage state.
 - Desktop-only layout preferences such as width, collapsed state, active panel, and inline-metric visibility may remain local UI preferences.
 - Actions that affect Git, processes, files, sessions, extensions, or remote systems use the same policy checks, autonomy level, and human or delegated approval attribution as every other client. Opening a panel grants no new delegation.
@@ -54,9 +56,10 @@ This sidebar is desktop-only. The TUI keeps its own navigation and split-panel p
 
 ## Navigation and layout
 
-The first six rail entries are Dashboard, Artifacts, Candidates, Sandbox,
-Suggestions and Global Terminal, in that order. Session tools then appear as
-Terminal, Browser, Insights, PR when linked, Changes, Files, Plan and Side chat.
+The left resources are Dashboard, Suggestions and Automations. Session tools
+appear in the right rail as Terminal, Browser, Insights, Changes, Files, Plan,
+Side chat, Code change and Work item. The two link panels are per session;
+Automations and Work item remain intentionally empty placeholders.
 Extensions remains a roadmap panel, not an implemented additional entry.
 
 Only one panel needs to be open at a time. The sidebar can collapse, resize, show status badges, and preserve its presentation state. Opening an item may create a split panel without changing the main-session binding.
@@ -90,10 +93,12 @@ In Remote, query and mutate the selected SSH workspace through its worker. A sam
 ### Terminal
 
 Terminal shows terminals and process trees associated with the main session and worktree. Users can open a terminal, inspect output, send input, and request cancellation.
-The **Global terminal** scope is also available without any session, limited to
-one Local console per profile. **This chat** keeps its own consoles; a
-project-free chat explicitly opens the disclosed Local home root, never inherits
-a project root. Opening either is a user action, not model workspace authority.
+The pane requires an actual session. A project-free chat opens the disclosed
+configured HOME root, never a previous project or Moguri state directory.
+The project action selects an existing session's bound console and cannot
+create a hidden chat. Opening a user console is not model workspace authority.
+Retained independent owners keep their original identities and remain
+inspectable/closable through SDK/CLI compatibility paths.
 Use Ghostty through its maintained web/WASM integration rather than writing a
 terminal emulator. The current Local user console is separate from model tool
 permissions. Input/output are ephemeral and never become implicit agent context.

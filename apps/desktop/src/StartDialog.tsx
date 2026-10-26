@@ -31,8 +31,8 @@ export function StartDialog({ sdk, snapshot, start, close, modal }: {
     opening.current = job.id;
     void run(() => start(project.id));
   }, [job?.status, job?.id, snapshot.projects]);
-  return <dialog ref={dialog} className="workspace-dialog start-dialog" aria-label="Start" onClose={close} onCancel={(event) => { if (busy || cloning) event.preventDefault(); }}>
-    <header><h2>{mode === "clone" ? "Clone repository" : "Start"}</h2><button type="button" className="icon-button" aria-label="Close Start" disabled={busy || cloning} onClick={close}><Icon name="Close" /></button></header>
+  return <dialog ref={dialog} className="workspace-dialog start-dialog" aria-label="New" onClose={close} onCancel={(event) => { if (busy || cloning) event.preventDefault(); }}>
+    <header><h2>{mode === "clone" ? "Clone repository" : "New"}</h2><button type="button" className="icon-button" aria-label="Close New" disabled={busy || cloning} onClick={close}><Icon name="Close" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {mode === "choose" ? <>
       <button type="button" className="start-option" disabled={busy} onClick={() => void run(() => start(null))}><Icon name="Side chat" /><span><strong>New chat</strong><small>No project or workspace access</small></span></button>

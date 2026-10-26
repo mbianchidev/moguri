@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
@@ -14,7 +15,7 @@ test("desktop reads exact retained role data, preserves immutable input and edit
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await openSettingsSection(page, "Artifacts");
     const panel = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await panel.getByLabel("Retained artifact", { exact: true }).selectOption(f.initial.id);
     await expect(panel.getByLabel("Artifact text", { exact: true })).toHaveAttribute("readonly", "");
@@ -39,7 +40,7 @@ test("desktop cannot archive/delete an active retained role and observes partial
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    await openSettingsSection(page, "Artifacts");
     const panel = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await panel.getByLabel("Retained artifact", { exact: true }).selectOption(f.initial.id);
     await expect(panel.getByRole("button", { name: "Archive artifact", exact: true })).toBeDisabled();

@@ -1,3 +1,4 @@
+import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type BudgetTotals, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot, type WinddownResponse } from "../../../packages/sdk/src/index.ts";
 
@@ -31,8 +32,8 @@ export function BudgetSummary({ status }: { status: BudgetStatus }) {
     {status.ownerSessionId !== status.sessionId && <p className="fine-print">Charged to owning session {status.ownerSessionId}, including its other model-created legs.</p>}
     {status.limits.map((limit) => <p className="fine-print" key={limit.scope}>{limit.scope === "global" ? "Global hard cap" : limit.scope === "profile" ? "Profile hard cap" : "Session cap"}: {limit.tokens === null ? "no token cap" : `${count(limit.tokens)} tokens`}; {limit.usd === null ? "no USD cap" : `${dollars(limit.usd)} estimated`}.</p>)}
     {status.diagnostics.map((diagnostic) => <p className="settings-warning" key={diagnostic}>{diagnostic}</p>)}
-    <p className="fine-print">Estimates are not a billing guarantee. Missing completion keeps reservations held. Resume, deletion and model changes do not reset this ledger.</p>
-    {totals.plannedHolds > 0 && <p className="fine-print">Planned capacity is not a model call or provider report. Only provably undispatched holds can be released automatically after their owner stops. Dispatched or uncertain usage stays held.</p>}
+    <SettingsHelp label="More about this setting">Estimates are not a billing guarantee. Missing completion keeps reservations held. Resume, deletion and model changes do not reset this ledger.</SettingsHelp>
+    {totals.plannedHolds > 0 && <SettingsHelp label="More about this setting">Planned capacity is not a model call or provider report. Only provably undispatched holds can be released automatically after their owner stops. Dispatched or uncertain usage stays held.</SettingsHelp>}
   </section>;
 }
 export function SessionBudgetSummary({ sdk, snapshot, session }: { sdk: MoguriSdk; snapshot: Snapshot; session: Session }) {
@@ -83,14 +84,14 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
     {routed && <p className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Reading exact reserved finishing readiness..."} Profile/global caps still apply; no policy is removed here.</p>}
     <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
-    {limited && <><label className="setting-field">Token cap<input aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
-      <label className="setting-field">Estimated USD cap<input aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>
-      {usdUnavailable && <><p className="fine-print">USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free.</p>{usd && <button type="button" disabled={locked} onClick={() => { setUsd(""); change(); }}>Remove session USD limit</button>}</>}</>}
+    {limited && <><label className="setting-field">Token cap<SettingsInput aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
+      <label className="setting-field">Estimated USD cap<SettingsInput aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>
+      {usdUnavailable && <><SettingsHelp label="More about this setting">USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free.</SettingsHelp>{usd && <button type="button" disabled={locked} onClick={() => { setUsd(""); change(); }}>Remove session USD limit</button>}</>}</>}
     <p className="settings-warning">{BUDGET_WARNING}</p>
-    <p className="fine-print">Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</p>
-    <label className="check-setting"><input type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>
+    <SettingsHelp label="More about this setting">Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</SettingsHelp>
+    <label className="check-setting"><SettingsInput type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>
     <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} onClick={() => void save()}>{scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"}</button><button type="button" disabled={saving || revision < base.current} onClick={load}>Reload budget</button></div>
-    {scope === "session" && session?.turnId && <p className="fine-print">Finish or stop this turn before changing its session preference. A profile policy can still block further calls.</p>}
+    {scope === "session" && session?.turnId && <SettingsHelp label="More about this setting">Finish or stop this turn before changing its session preference. A profile policy can still block further calls.</SettingsHelp>}
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
   </section>;
 }

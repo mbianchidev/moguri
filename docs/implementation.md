@@ -484,7 +484,7 @@ Model selection (**fixed model** or **kupo**), **Env**, **Autonomy level**, and 
 | **Autopilot** | Explicit selection delegates automatic approval of all declared, qualified tools and commands for subsequent session turns. The solver still asks for genuinely missing user-only facts rather than fabricating answers. |
 | **Autopilot Max** | The same automatic tool approvals, plus a configured qualified System One-compatible decision provider for explicitly delegated technical choices and bounded steering. It also works with a fixed solver and does not require kupo. |
 
-Use the shared global/profile/repo/project/session defaults. Selecting an Autopilot mode explicitly delegates tool approvals, not additional capabilities, authentication, roots or budget. Hard denials, read-only mode, user-only settings, secret boundaries, Git policies and allowed-env policy remain authoritative. Protocol 59 records explicit `automaticApprovals` consent; old bounded selections are preserved until the user selects the mode again.
+Use the shared global/profile/repo/project/session defaults. Selecting an Autopilot mode explicitly delegates tool approvals, not additional capabilities, authentication, roots or budget. Hard denials, read-only mode, user-only settings, secret boundaries, Git policies and allowed-env policy remain authoritative. Protocol 61 records explicit `automaticApprovals` consent; old bounded selections are preserved until the user selects the mode again.
 
 The current Max decision layer handles delegated technical questions with explicit alternatives and typed steering choices. It does not introduce another permission gate for automatically approved tools. Legacy bounded-Max tool review remains only for retained configurations without the new consent marker. No layer may invent user-only facts or turn an open-ended question into a fabricated user answer. Unclear questions, insufficient confidence, unavailable providers and decisions outside delegation go to the user or leave the operation visibly blocked. Actual automatic approvals have an autonomy actor, never a fabricated human or model approval.
 
@@ -554,7 +554,20 @@ Capture enough data to answer:
 - whether a provider-reported or billed amount is available;
 - how much budget remains.
 
-Initial dashboard views:
+The graphic dashboard has four pages:
+
+- **My work:** current open, in-progress and completed sessions, grouped by project with observed activity and session statistics.
+- **Usage:** token/call graphs with per-project and per-model breakdowns, retaining unknown reports and all model roles.
+- **Cost:** USD estimate graphs by project/model, keeping captured estimates, holds, provider reports and bills distinct.
+- **Velocity:** experimental observed completions, timing and actual user interventions, with comparisons to a previous equal window, never invented productivity gains.
+
+Graphs default to seven UTC days, with 30/60/90-day presets and inclusive custom
+dates initialized to the trailing year. Original detailed accounting remains
+available behind disclosure controls. The executable slice is documented in
+[workspace experience](architecture/workspace-experience.md); the broader
+detail inventory below does not claim every metric is qualified.
+
+Detailed dashboard inventory:
 
 - current session detail;
 - sessions over 7, 30, 60, 90, and 365 days;

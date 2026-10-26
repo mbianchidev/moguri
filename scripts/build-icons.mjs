@@ -9,6 +9,11 @@ export async function buildIcons() {
   await mkdir("dist/branding", { recursive: true });
   await writeFile("dist/branding/moguri.svg", source);
   await writeFile("dist/branding/moguri.png", new Resvg(icon, { fitTo: { mode: "width", value: 1024 } }).render().asPng());
+  const tray = await readFile("assets/moguri-tray.svg", "utf8");
+  for (const scale of [1, 2]) {
+    await writeFile(`dist/branding/moguri-tray${scale === 2 ? "@2x" : ""}.png`,
+      new Resvg(tray, { fitTo: { mode: "height", value: 18 * scale } }).render().asPng());
+  }
   if (process.platform === "darwin") {
     const directory = "dist/branding/moguri.iconset";
     await mkdir(directory);

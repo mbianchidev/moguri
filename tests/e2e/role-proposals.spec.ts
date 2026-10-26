@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile } from "node:fs/promises";
@@ -13,8 +14,8 @@ test("desktop loads exact final-role provenance without overwriting a summary an
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByText("Load a retained role proposal", { exact: true }).click();
     await panel.getByLabel("Retained role proposal", { exact: true }).selectOption(f.sequence.id);
@@ -63,8 +64,8 @@ test("a held final-role read cannot populate a changed read-only scope or overwr
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Candidates", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(f.sessionId);
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByText("Load a retained role proposal", { exact: true }).click();
     await panel.getByLabel("Retained role proposal", { exact: true }).selectOption(f.sequence.id); await expect.poll(() => held).toBe(true);

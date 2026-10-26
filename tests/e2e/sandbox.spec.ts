@@ -1,3 +1,4 @@
+import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile } from "node:fs/promises";
@@ -16,8 +17,8 @@ test("retained native data is not readiness; desktop source publication needs ex
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Sandbox", exact: true }).click();
-    await page.getByLabel("Resource source chat", { exact: true }).selectOption(fixture.sessionId);
+    await openSettingsSection(page, "Sandbox");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "Use Sandbox for this session", exact: true })).toBeDisabled();
@@ -59,7 +60,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "SendBox", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
     await page.getByText("Advanced manual configuration", { exact: true }).click();
     await page.getByLabel("SendBox configuration", { exact: true }).fill(JSON.stringify(fixture.reviewedConfiguration));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
@@ -96,7 +97,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await expect.poll(() => session().status).toBe("completed");
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     expect(session().usage.map((usage) => usage.totalTokens)).toEqual([42, 42, 42]);
-    await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Sandbox", exact: true }).click();
+    await openSettingsSection(page, "Sandbox");
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${Buffer.byteLength("generated native replacement\n")} bytes`, { exact: true }).click();
     await panel.getByLabel("Select native output fixture.txt", { exact: true }).check();

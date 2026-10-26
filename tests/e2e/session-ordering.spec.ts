@@ -42,8 +42,8 @@ test("Unpin has a barred pin icon, while Pin and the pinned-state marker remain 
   await sdk.sessions.organize(fixture.sessionId, { title: "Generated pinned session", pinned: true });
   const app = await launch(fixture.directory);
   try {
-    const page = await app.firstWindow(), actions = page.getByRole("button", { name: "Actions for Generated pinned session", exact: true });
-    await actions.click();
+    const page = await app.firstWindow(), actions = link(page, "Generated pinned session");
+    await actions.click({ button: "right" });
     const menu = page.getByRole("menu", { name: "Actions for Generated pinned session", exact: true });
     await expect(menu.getByRole("menuitem", { name: "Unpin", exact: true }).locator("svg")).toHaveAttribute("data-icon", "PinOff");
     await mkdir(".moguri/artifacts", { recursive: true });
@@ -51,36 +51,37 @@ test("Unpin has a barred pin icon, while Pin and the pinned-state marker remain 
     await expect(link(page, "Generated pinned session").locator('[data-icon="Pin"]')).toHaveCount(1);
     await menu.getByRole("menuitem", { name: "Unpin", exact: true }).click();
     await expect.poll(() => fixture.session().pinned).toBe(false);
-    await actions.click();
+    await actions.click({ button: "right" });
     await expect(menu.getByRole("menuitem", { name: "Pin", exact: true }).locator("svg")).toHaveAttribute("data-icon", "Pin");
     await page.keyboard.press("Escape"); expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 for (const scope of ["Chats", "project"] as const) {
-  test(`the ${scope} session grip reorders on row halves, never nests, and preserves pin partitions`, async () => {
+  test(`the ${scope} session row reorders on halves, never nests, and preserves pin partitions`, async () => {
     const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
     const projectId = scope === "Chats" ? null : fixture.session().projectId;
-    const first = await sdk.sessions.create(projectId, "Generated grip first"), second = await sdk.sessions.create(projectId, "Generated grip second");
-    const third = await sdk.sessions.create(projectId, "Generated grip third"), app = await launch(fixture.directory);
+    const first = await sdk.sessions.create(projectId, "Generated row first"), second = await sdk.sessions.create(projectId, "Generated row second");
+    const third = await sdk.sessions.create(projectId, "Generated row third"), app = await launch(fixture.directory);
     const ids = [first.id, second.id, third.id];
     const order = () => sdk.getState().snapshot!.sessions.filter((entry) => ids.includes(entry.id)).sort(compareSessions).map((entry) => entry.id);
     try {
-      const page = await app.firstWindow(), grip = page.getByRole("button", { name: "Actions for Generated grip third", exact: true });
-      await expect(grip.locator("svg")).toHaveAttribute("data-icon", "Grip");
-      await grip.dragTo(row(page, "Generated grip first"));
+      const page = await app.firstWindow(), source = row(page, "Generated row third"), sourceLink = link(page, "Generated row third");
+      await expect(source).toHaveAttribute("draggable", "true");
+      await expect(page.getByRole("button", { name: "Actions for Generated row third", exact: true })).toHaveCount(0);
+      await source.dragTo(row(page, "Generated row first"));
       await expect.poll(order).toEqual([first.id, third.id, second.id]);
       expect(sdk.getState().snapshot!.sessions.find((entry) => entry.id === third.id)?.parentSessionId).toBeUndefined();
-      await grip.dragTo(row(page, "Generated grip first"), { targetPosition: { x: 35, y: 3 } });
+      await source.dragTo(row(page, "Generated row first"), { targetPosition: { x: 35, y: 3 } });
       await expect.poll(order).toEqual([third.id, first.id, second.id]);
-      await expect(grip).toBeEnabled(); await grip.focus(); await grip.press("Alt+ArrowDown");
+      await expect(sourceLink).toBeEnabled(); await sourceLink.focus(); await sourceLink.press("Alt+ArrowDown");
       await expect.poll(order).toEqual([first.id, third.id, second.id]);
       await sdk.sessions.organize(second.id!, { pinned: true });
       await expect.poll(order).toEqual([second.id, first.id, third.id]);
-      await expect(grip).toBeEnabled(); await grip.dragTo(row(page, "Generated grip second"), { targetPosition: { x: 35, y: 3 } });
+      await expect(sourceLink).toBeEnabled(); await source.dragTo(row(page, "Generated row second"), { targetPosition: { x: 35, y: 3 } });
       expect(order()).toEqual([second.id, first.id, third.id]);
       await mkdir(".moguri/artifacts", { recursive: true });
-      if (scope === "Chats") await page.getByRole("navigation", { name: "Projects and sessions" }).screenshot({ path: ".moguri/artifacts/session-reorder-grip.png" });
+      if (scope === "Chats") await page.getByRole("navigation", { name: "Projects and sessions" }).screenshot({ path: ".moguri/artifacts/session-reorder-row.png" });
       expect(fixture.requests).toHaveLength(0);
     } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
   });
@@ -101,9 +102,9 @@ test("unrelated pending UI metadata cannot disable native session reordering", a
   try {
     const page = await app.firstWindow();
     await link(page, fixture.session().title).click(); await waitFor(() => entered);
-    const grip = page.getByRole("button", { name: "Actions for Generated busy third", exact: true });
-    await expect(grip).toBeEnabled(); await expect(grip).toHaveAttribute("draggable", "true");
-    await grip.dragTo(row(page, "Generated busy first"), { targetPosition: { x: 35, y: 3 } });
+    const source = row(page, "Generated busy third");
+    await expect(source).toHaveAttribute("draggable", "true");
+    await source.dragTo(row(page, "Generated busy first"), { targetPosition: { x: 35, y: 3 } });
     await expect.poll(() => sdk.getState().snapshot!.sessions.filter((entry) => entry.projectId === null).sort(compareSessions).map((entry) => entry.id)).toEqual([third.id, first.id, second.id]);
     gate.resolve(); expect(fixture.requests).toHaveLength(0);
   } finally { gate.resolve(); fixture.service.controller.dispatch = dispatch; await app.close(); sdk.disconnect(); await fixture.close(); }
@@ -141,16 +142,16 @@ test("leaving a native reorder target clears its old insertion cue", async () =>
   let cleanupPage: Page | undefined;
   try {
     const page = await app.firstWindow(); cleanupPage = page;
-    const grip = page.getByRole("button", { name: "Actions for Generated cue third", exact: true });
-    await expect(grip).toBeVisible();
-    const source = await grip.boundingBox(), target = await row(page, "Generated cue first").boundingBox();
+    const sourceRow = row(page, "Generated cue third");
+    await expect(sourceRow).toBeVisible();
+    const source = await sourceRow.boundingBox(), target = await row(page, "Generated cue first").boundingBox();
     const outside = await page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Dashboard", exact: true }).boundingBox();
     if (!source || !target || !outside) throw new Error("Generated drag targets have no native geometry.");
     await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2); await page.mouse.down();
     await page.mouse.move(target.x + 35, target.y + 3, { steps: 12 });
     await expect(row(page, "Generated cue first")).toHaveClass(/drop-before/);
     await page.mouse.move(outside.x + 20, outside.y + outside.height / 2, { steps: 12 });
-    await expect(page.locator(".drop-before, .drop-after, .drop-attach")).toHaveCount(0);
+    await expect(page.locator(".drop-before, .drop-after, .drop-detach")).toHaveCount(0);
     await page.keyboard.press("Escape"); await page.mouse.up();
     expect(sdk.getState().snapshot!.sessions.filter((entry) => entry.projectId === null).sort(compareSessions).map((entry) => entry.id)).toEqual(before);
     expect(fixture.requests).toHaveLength(0);
