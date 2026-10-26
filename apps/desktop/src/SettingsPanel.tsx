@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, VerbositySchema, SettingsSchema, CompoundSettingsSchema, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, appearanceColors, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, VerbositySchema, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -310,15 +310,37 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <p className="fine-print">After saving, explicitly select Autopilot Max in the composer. Inspect actual model actor, original request, raw output, charges and cancellation under Artifacts / Decision-provider observations. User answers and approvals always win races.</p>
           <button type="button" disabled={saving} onClick={() => void reset("decisions")}>Restore decision-provider defaults</button>
         </>}
-        {tab === "kupo" && <><h2>kupo {draft.kupo.workflow === "compound" ? "Compound (reviewed alpha)" : "Single (alpha)"}</h2>
+        {tab === "kupo" && <><h2>Kupo</h2>
           <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy} onChange={(event) => {
             if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
             const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
             const pool = { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence };
-            automatic("kupo", event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
+            if (event.target.value !== "auto" && approvedModelIds.length > 8) { setError("Legacy Single and reviewed Compound accept at most eight explicit models. Narrow the advanced pool first; no IDs were silently dropped."); return; }
+            automatic("kupo", event.target.value === "auto" ? { ...defaultKupoSettings(), ...pool,
+              lineageReviews: draft.kupo.workflow === "single" ? [] : draft.kupo.lineageReviews } : event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
               limits: { routerTokens: 512, proposalTokens: 2048, criticTokens: 1024, timeoutMs: 300000 } } : { ...pool, workflow: "single" }, true);
-          }}><option value="single">Single</option><option value="compound">Reviewed Cascade / Critique</option></select></label>
-          {draft.kupo.workflow === "compound" ? <>
+          }}><option value="auto">Automatic (configured models)</option><option value="single">Explicit Single policy</option><option value="compound">Reviewed worktree Cascade / Critique</option></select></label>
+          {draft.kupo.workflow === "auto" ? <>
+            <p>Kupo uses your configured models automatically. No eligible model means no inference. One eligible model always runs directly in Single. With multiple models, Kupo chooses Single, gated Cascade or an eligible independent Critique with at most one revision.</p>
+            <label className="check-setting"><input type="checkbox" aria-label="Enable automatic Kupo" checked={draft.kupo.enabled} disabled={saving} onChange={(event) => automatic("kupo", { enabled: event.target.checked })} />Enable automatic Kupo for this profile</label>
+            <label className="check-setting"><input type="checkbox" aria-label="Allow hosted or network routing data" checked={draft.kupo.allowHosted} disabled={saving} onChange={(event) => automatic("kupo", { allowHosted: event.target.checked })} />Allow task history to configured hosted or network models</label>
+            <p className="fine-print">Selecting Kupo uses all eligible configured models by default, including models configured later. Turn off network routing to restrict it to execution-host loopback. An optional nonempty approvedModelIds list in the advanced policy narrows the pool. Disable Kupo to allow none. Configuration never starts inference or changes autonomy.</p>
+            <h3>Declared capability inventory</h3>
+            <p className="fine-print">Categories describe supported inputs, reasoning controls and context, not measured coding quality or latency. Unknown tool support stays unknown. No paid benchmark or extra provider inspection runs during discovery.</p>
+            <table aria-label="Kupo model capabilities"><thead><tr><th>Model</th><th>Capabilities</th><th>Tools</th></tr></thead><tbody>
+              {sdk.routing.capabilities().map((profile) => <tr key={profile.modelId}><td>{routingModels.find((model) => model.id === profile.modelId)?.name ?? profile.modelId}</td><td>{profile.categories.join(", ")}</td><td>{profile.toolInput === null ? "Unknown" : profile.toolInput ? "Declared" : "Disabled"}</td></tr>)}
+            </tbody></table>
+            {!sdk.routing.capabilities().length && <p>No eligible configured models. Inspect provider, privacy and environment diagnostics below.</p>}
+            <p className="settings-warning">Draft and review tool requests never execute before response selection and ordinary permissions. Critique needs a current source-reviewed distinct lineage pair; otherwise only eligible Single/Cascade plans are offered. Finite automatic budgets, images, synthetic tuning and Sandbox routing remain unavailable, without fallback.</p>
+            <details><summary>Advanced model pool and lineage policy</summary>
+              {jsonEditor("kupo", "Advanced automatic routing policy", saving || lineageBusy)}
+              <CompoundLineageReview sdk={sdk} models={routingModels} disabled={saving} onDirty={setLineageDirty} onBusy={setLineageBusy}
+                onPrepared={(review) => {
+                  const policy = parse(AutomaticKupoSettingsSchema, raw.kupo === undefined ? draft.kupo : JSON.parse(raw.kupo));
+                  setRaw((raw) => ({ ...raw, kupo: JSON.stringify({ ...policy, lineageReviews: [...policy.lineageReviews, review] }, null, 2) }));
+                }} />
+            </details>
+          </> : draft.kupo.workflow === "compound" ? <>
             <p>Declare exact Cascade/Critique routes, approved concrete models, hosted-data consent and complete role bounds. The classifier chooses only an eligible declared route. Configuration never selects a model, spends budget, stages code or runs tests.</p>
             {jsonEditor("kupo", "Complete compound routing policy", saving || lineageBusy)}
             <p className="fine-print">Each Cascade route needs id, pattern: cascade, draftId and escalationId. Each Critique route needs id, pattern: critique, draftId, criticId and lineageReviewId. Use canonical model IDs below, not names or provider family strings. Up to four routes and eight approved role models.</p>
