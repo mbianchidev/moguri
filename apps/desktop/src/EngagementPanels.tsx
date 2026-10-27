@@ -32,7 +32,7 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
   };
   return <section className="suggestions-panel" aria-label="Moguri suggestions"><header className="panel-toolbar"><strong>Improve your Moguri workflow</strong><button className="icon-button" aria-label="Refresh suggestion sources" title="Refresh sources" disabled={busy} onClick={() => void load()}><Icon name="Down" /></button></header>
     <p className="fine-print">Scope: {session?.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name : allProjects ? "All projects in this profile" : "Project-free chats only"}. Preview is local; nothing is sent automatically.</p>
-    {session?.projectId === null && <label className="check-setting"><input type="checkbox" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
+    {session?.projectId === null && <label className="check-setting"><input type="checkbox" role="switch" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
     {error && <p className="inline-error" role="alert">{error}</p>}
     {preview && <><p className="fine-print">{preview.diagnostic}</p>
       <h2>Usage gaps</h2>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}

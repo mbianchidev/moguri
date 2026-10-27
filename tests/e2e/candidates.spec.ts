@@ -80,6 +80,11 @@ test("desktop stages source edits separately, applies only a fresh exact review 
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt");
     await panel.getByRole("button", { name: "Load source file", exact: true }).click();
+    const remove = panel.getByRole("button", { name: "Remove file from proposal", exact: true });
+    await expect(remove).toHaveText(""); await expect(remove.locator("svg[data-icon='Trash']")).toBeVisible();
+    await remove.click(); await expect(panel.getByLabel("Proposed file text", { exact: true })).toHaveCount(0);
+    await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt");
+    await panel.getByRole("button", { name: "Load source file", exact: true }).click();
     await panel.getByLabel("Proposed file text", { exact: true }).fill("Generated desktop candidate bytes.\n");
     await panel.getByRole("button", { name: "Review staging", exact: true }).click();
     await expect(panel.getByRole("button", { name: "Stage reviewed proposal", exact: true })).toBeEnabled();

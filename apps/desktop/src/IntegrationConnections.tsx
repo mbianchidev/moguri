@@ -1,4 +1,4 @@
-import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../packages/sdk/src/index.ts";
 
@@ -47,7 +47,7 @@ export function LinearConnectionPanel({ sdk, onDirty }: { sdk: MoguriSdk; onDirt
       await sdk.linear.setToken(token); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("Credential stored only in this profile's secure backend. Verify the actual account explicitly.");
     })}>Store Linear key in keychain</button>
       <button type="button" disabled={busy || Boolean(token)} onClick={() => void run(async () => { setConnection((await sdk.linear.connection(true)).connection); })}>Verify Linear account</button>
-      <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("Profile credential removed. Existing requests and reviews were invalidated."); })}>Remove Linear key</button></div>
+      <SettingsAction label="Remove Linear key" icon="Close" disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("Profile credential removed. Existing requests and reviews were invalidated."); })} /></div>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
   </section>;
 }

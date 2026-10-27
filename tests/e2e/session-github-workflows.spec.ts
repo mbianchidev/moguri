@@ -101,10 +101,13 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
     await pulls.getByRole("button", { name: "New pull request", exact: true }).click();
     await expect(pulls.getByLabel("Base branch", { exact: true })).toHaveValue("main");
     await expect(pulls.getByLabel("Head branch", { exact: true })).toHaveValue("generated-feature");
+    const draft = pulls.getByRole("switch", { name: "Create as draft", exact: true });
+    await expect(draft).toBeChecked(); await draft.uncheck(); await expect(draft).not.toBeChecked(); await draft.check();
     await pulls.getByLabel("Pull request title", { exact: true }).fill("Generated reviewed PR");
     await pulls.getByLabel("Pull request body", { exact: true }).fill("Generated complete PR description.");
     await pulls.getByRole("button", { name: "Review pull request", exact: true }).click();
     const prReview = pulls.getByRole("region", { name: "Exact pull request review", exact: true });
+    await expect(prReview.getByRole("switch")).toHaveCount(0);
     await expect(prReview).toBeVisible(); await expect(prReview.getByRole("button", { name: "Create and link pull request", exact: true })).toBeDisabled();
     for (const check of await prReview.getByRole("checkbox").all()) await check.check();
     await prReview.getByRole("button", { name: "Create and link pull request", exact: true }).click();

@@ -106,7 +106,7 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange, 
           catch (error) { setSyncValue(null); throw error; }
         }); }} />Sync with GitHub</label></header>
     <div className="kanban-sync-controls">
-      {board.autoRefreshPrs && <label className="check-setting"><input type="checkbox" aria-label="Import open GitHub issues" checked={importValue ?? syncSettings.importIssues}
+      {board.autoRefreshPrs && <label className="check-setting"><input type="checkbox" role="switch" aria-label="Import open GitHub issues" checked={importValue ?? syncSettings.importIssues}
         disabled={busy || dirty} onChange={(event) => {
           const enabled = event.currentTarget.checked; setImportValue(enabled);
           void run(async () => {

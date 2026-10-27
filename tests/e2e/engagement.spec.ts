@@ -42,6 +42,9 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await prompt.fill("/suggestions session"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
     const suggestions = page.getByRole("region", { name: "Moguri suggestions", exact: true });
     await expect(suggestions).toContainText("Project-free chats only");
+    const allProjects = suggestions.getByRole("switch", { name: "Include conversations from all projects", exact: true });
+    await allProjects.check(); await expect(suggestions).toContainText("All projects in this profile");
+    await allProjects.uncheck(); await expect(suggestions).toContainText("Project-free chats only");
     await expect(suggestions.getByRole("button", { name: "Generate suggestions", exact: true })).toBeDisabled();
     await suggestions.getByRole("button", { name: "Propose instruction", exact: true }).click();
     await suggestions.getByRole("button", { name: "Review", exact: true }).click();

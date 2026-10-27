@@ -1,4 +1,4 @@
-import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, CandidateStagePreview, CandidateGenerationResponse, CandidateRoleReference, CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { CandidateGenerationPanel } from "./CandidateGenerationPanel.tsx";
@@ -128,7 +128,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
           <label className="setting-field">Proposed bytes<SettingsTextarea ref={proposalEditor} aria-label="Proposed file text" spellCheck={false} value={selectedFile.text} readOnly={changedScope || !writable} disabled={Boolean(busy)} onChange={(event) => {
             setFiles(files.map((file, index) => index === fileIndex ? { ...file, text: event.target.value } : file)); setPreview(null); setModelOrigin(undefined);
           }} /></label>
-          <button disabled={Boolean(busy)} onClick={() => { const next = files.filter((_, index) => index !== fileIndex); setFiles(next); setFileIndex(0); setPreview(null); setModelOrigin(undefined); if (!next.length) setDraftScope(null); }}>Remove file from proposal</button></>}
+          <SettingsAction label="Remove file from proposal" icon="Trash" disabled={Boolean(busy)} onClick={() => { const next = files.filter((_, index) => index !== fileIndex); setFiles(next); setFileIndex(0); setPreview(null); setModelOrigin(undefined); if (!next.length) setDraftScope(null); }} /></>}
       </>}
       <div className="button-row"><button disabled={Boolean(busy) || !writable || changedScope || !dirty || !files.length || !stageId || !summary.trim()} onClick={() => void run("Reviewing staging", async (current) => {
         if (!session) return;

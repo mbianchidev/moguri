@@ -42,6 +42,8 @@ test("attachment menu matches the five-source layout, previews retained files/im
     await page.getByRole("button", { name: "Preview attachment generated-preview.txt", exact: true }).click();
     const preview = page.getByRole("dialog", { name: "Attachment preview generated-preview.txt", exact: true });
     await expect(preview.getByLabel("Attached content")).toHaveText("Generated immutable attached file.");
+    await expect(preview.getByRole("button", { name: "Remove attachment", exact: true })).toHaveText("");
+    await expect(preview.getByRole("button", { name: "Remove attachment", exact: true }).locator("svg[data-icon='Trash']")).toBeVisible();
     await preview.getByRole("button", { name: "Remove attachment", exact: true }).click();
     await expect.poll(() => fixture.session().draft.attachments.length).toBe(0);
     await expect(prompt).toHaveValue("Generated complete unsent prompt.");
@@ -83,7 +85,7 @@ test("dragging sessions attaches reviewed JSON, remembers opt-out and the colon 
     await expect(review).toContainText("Generated source session JSON content.");
     await expect(review.getByRole("button", { name: "Attach", exact: true })).toBeDisabled();
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
-    await review.getByLabel("Do not ask me again when attaching content from a session").check();
+    await review.getByRole("checkbox", { name: "Do not ask me again when attaching content from a session", exact: true }).check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
     await expect.poll(() => fixture.session().draft.attachments.length).toBe(1);
     expect(fixture.service.controller.snapshot().settings.values.interactions.confirmSessionAttachments).toBe(false);
@@ -174,7 +176,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await expect(confirm).toContainText("keep running"); await confirm.getByRole("button", { name: "Keep open", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await confirm.getByLabel("Do not ask me again when closing terminal").check();
+    await confirm.getByRole("checkbox", { name: "Do not ask me again when closing terminal", exact: true }).check();
     await confirm.getByRole("button", { name: "Hide terminal", exact: true }).click();
     await expect(input).not.toBeVisible();
     expect((await sdk.terminal.read(legacy.id!)).terminal.status).toBe("running");

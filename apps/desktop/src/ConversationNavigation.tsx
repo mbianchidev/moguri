@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { ConversationNavigationEntry } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Tooltip } from "./Tooltip.tsx";
 
 const preview = (text: string) => {
   const value = text.replace(/\s+/g, " ").trim();
@@ -11,16 +12,17 @@ export function ConversationNavigation({ entries, viewport, renderedFrom, label,
   entries: ConversationNavigationEntry[]; viewport: RefObject<HTMLDivElement | null>; renderedFrom: number; label: string;
   onNavigate: (entry: ConversationNavigationEntry) => void;
 }) {
-  const [compact, setCompact] = useState(true), [previews, setPreviews] = useState<boolean | null>(null);
+  const [compact, setCompact] = useState(true), [expanded, setExpanded] = useState(false), [selected, setSelected] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null), [pending, setPending] = useState<string | null>(null), [error, setError] = useState("");
   const list = useRef<HTMLOListElement>(null), toggle = useRef<HTMLButtonElement>(null);
-  const expanded = previews ?? !compact, key = JSON.stringify(entries.map((entry) => entry.id));
+  const listId = useId(), key = JSON.stringify(entries.map((entry) => entry.id));
   useLayoutEffect(() => {
     if (!pending) return;
     const view = viewport.current, target = view && [...view.querySelectorAll<HTMLElement>("[data-conversation-anchor]")].find((element) => element.dataset.conversationAnchor === pending);
     if (!view || !target) { setError("This conversation point is no longer available. Choose an original turn in this chat."); setPending(null); return; }
-    target.focus({ preventScroll: true });
     view.scrollTo({ top: Math.max(0, view.scrollTop + target.getBoundingClientRect().top - view.getBoundingClientRect().top - 12), behavior: "instant" });
+    const item = [...list.current?.querySelectorAll<HTMLButtonElement>("button") ?? []].find((button) => button.dataset.turnEntry === pending);
+    item?.focus({ preventScroll: true });
     setActive(pending); setPending(null);
   }, [pending, renderedFrom, viewport]);
   useEffect(() => {
@@ -48,22 +50,26 @@ export function ConversationNavigation({ entries, viewport, renderedFrom, label,
     const view = list.current, target = view?.querySelector<HTMLButtonElement>('button[aria-current="location"]');
     if (!view || !target) return;
     const bounds = view.getBoundingClientRect(), item = target.getBoundingClientRect();
-    if (item.top < bounds.top) view.scrollTop += item.top - bounds.top;
+    if (item.top < bounds.top || item.height > bounds.height) view.scrollTop += item.top - bounds.top;
     else if (item.bottom > bounds.bottom) view.scrollTop += item.bottom - bounds.bottom;
   }, [active, expanded]);
   return <nav className={`turn-navigation${expanded ? " expanded" : ""}`} aria-label={label} data-compact={compact} onKeyDown={(event) => {
-    if (event.key === "Escape" && compact && expanded) { event.preventDefault(); setPreviews(false); toggle.current?.focus(); }
+    if (event.key === "Escape" && expanded) { event.preventDefault(); setExpanded(false); toggle.current?.focus(); }
   }}>
-    <header><strong>Turns</strong><button ref={toggle} type="button" className="icon-button" aria-label="Show turn previews" aria-pressed={expanded}
-      title={expanded ? "Collapse turn previews" : "Expand turn previews"} onClick={() => setPreviews(!expanded)}><Icon name="PanelRight" /></button></header>
-    <ol ref={list}>{entries.map((entry, index) => {
+    <header><strong>Turns</strong><button ref={toggle} type="button" className="icon-button" aria-label="Show turn previews" aria-expanded={expanded} aria-controls={listId}
+      title={expanded ? "Collapse turn previews" : "Expand turn previews"} onClick={() => setExpanded(!expanded)}><Icon name={expanded ? "ChevronRight" : "ChevronLeft"} /></button></header>
+    <ol ref={list} id={listId}>{entries.map((entry, index) => {
       const text = preview(entry.text), answer = entry.kind === "answer" ? preview(entry.answer) : null;
-      return <li key={entry.id}><button type="button" aria-label={`${entry.kind === "prompt" ? "Prompt" : "Answer"} ${index + 1}: ${text}${answer === null ? "" : ` Your answer: ${answer}`}`}
-        title={`${text}${answer === null ? "" : `\nYour answer: ${answer}`}`} aria-current={active === entry.id ? "location" : undefined} onClick={() => {
-          setError(""); onNavigate(entry); setPending(entry.id); if (compact) setPreviews(false);
-        }}><span className="turn-navigation-marker" aria-hidden="true">{entry.kind === "answer" ? <Icon name="Question" /> : index + 1}</span>
-        <span className="turn-navigation-preview"><span>{text}</span>{answer !== null && <small>{answer}</small>}</span>
-      </button></li>;
+      return <li key={entry.id}><Tooltip disabled={expanded} content={<>{text}{answer !== null && <><br /><span>Your answer: {answer}</span></>}</>}>
+        <button type="button" data-turn-entry={entry.id} aria-label={`${entry.kind === "prompt" ? "Prompt" : "Answer"} ${index + 1}: ${text}${answer === null ? "" : ` Your answer: ${answer}`}`}
+          aria-current={active === entry.id ? "location" : undefined} onClick={() => {
+            setError(""); setSelected(entry.id);
+            if (expanded && selected === entry.id) { setExpanded(false); return; }
+            setExpanded(true); onNavigate(entry); setPending(entry.id);
+          }}><span className="turn-navigation-marker" aria-hidden="true">{expanded ? entry.kind === "answer" ? <Icon name="Question" /> : index + 1 : null}</span>
+          {expanded && <span className="turn-navigation-preview"><span>{entry.text}</span>{entry.kind === "answer" && <small>Your answer: {entry.answer}</small>}</span>}
+        </button>
+      </Tooltip></li>;
     })}</ol>
     {error && <p className="turn-navigation-error inline-error" role="alert">{error}</p>}
   </nav>;

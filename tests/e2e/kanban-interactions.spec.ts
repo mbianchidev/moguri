@@ -110,7 +110,7 @@ test("the read-only sync toggle imports linked issues, displays real PR state an
     await expect(board).toBeVisible();
     await board.getByRole("switch", { name: "Sync with GitHub", exact: true }).check();
     await expect(board.getByRole("button", { name: "Project settings", exact: true })).toBeEnabled();
-    await board.getByRole("checkbox", { name: "Import open GitHub issues", exact: true }).check();
+    await board.getByRole("switch", { name: "Import open GitHub issues", exact: true }).check();
     const card = board.getByRole("article", { name: "Card #1: Generated GitHub issue", exact: true });
     await expect(board.getByRole("region", { name: "In progress issues", exact: true }).getByRole("button", { name: "Generated GitHub issue", exact: true })).toBeVisible();
     await expect(card).toContainText("Draft PR #1007");

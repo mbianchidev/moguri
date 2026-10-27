@@ -1,4 +1,4 @@
-import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type BudgetTotals, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot, type WinddownResponse } from "../../../packages/sdk/src/index.ts";
 
@@ -78,7 +78,7 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
     <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
     {limited && <><label className="setting-field">Token cap<SettingsInput aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
       <label className="setting-field">Estimated USD cap<SettingsInput aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>
-      {usdUnavailable && <><SettingsHelp label="More about this setting">USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free.</SettingsHelp>{usd && <button type="button" disabled={locked} onClick={() => { setUsd(""); change(); }}>Remove session USD limit</button>}</>}</>}
+      {usdUnavailable && <><SettingsHelp label="More about this setting">USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free.</SettingsHelp>{usd && <SettingsAction label="Remove session USD limit" icon="Close" disabled={locked} onClick={() => { setUsd(""); change(); }} />}</>}</>}
     <p className="settings-warning">{BUDGET_WARNING}</p>
     <SettingsHelp label="More about this setting">Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</SettingsHelp>
     <label className="check-setting"><SettingsInput type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>

@@ -98,7 +98,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
       <label className="setting-field">{kind === "pull" ? "Pull request body" : "GitHub issue body"}<textarea aria-label={kind === "pull" ? "Pull request body" : "GitHub issue body"} maxLength={64 * 1024} value={body} disabled={busy || attempted} onChange={(event) => setBody(event.target.value)} /></label>
       {kind === "pull" && <><label className="setting-field">Base branch<input required value={base} disabled={busy || attempted} onChange={(event) => setBase(event.target.value)} /></label>
         <label className="setting-field">Head branch<input required value={head} disabled={busy || attempted} onChange={(event) => setHead(event.target.value)} /></label>
-        <label className="check-setting"><input type="checkbox" checked={draft} disabled={busy || attempted} onChange={(event) => setDraft(event.target.checked)} />Create as draft</label>
+        <label className="check-setting"><input type="checkbox" role="switch" checked={draft} disabled={busy || attempted} onChange={(event) => setDraft(event.target.checked)} />Create as draft</label>
         <p className="fine-print">The head must already be pushed. Creating a PR never pushes a branch for you.</p></>}
       <div className="button-row"><button className="primary" type="submit" disabled={busy || attempted || !canWrite || !context || !title.trim()}>Review {label}</button>
         <button type="button" disabled={busy} onClick={discard}>Cancel</button></div>

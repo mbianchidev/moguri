@@ -10,9 +10,13 @@ clients and service; never delete state to upgrade.
 The small **Turns** index beside the conversation jumps to sent prompts and
 questions you actually answered, showing the original question and your choice.
 Tool permission decisions, queued drafts and automated answers do not appear.
-Use **Show turn previews** to expand/collapse labels; narrow and side-chat panes
-start compact. Enter activates a focused point, and Escape closes expanded
-compact previews. Older points reveal retained history automatically without
+The rail starts collapsed as plain blocks without numbers. Hover or focus a
+block for its prompt/question preview. The little **<** arrow expands full
+details and becomes **>** to collapse. Clicking a block expands and focuses
+that item; clicking the same item again collapses it. Both long histories and
+long individual prompt/answer details scroll inside the list. Enter/Space
+activates a focused point and Escape collapses expanded details.
+Older points reveal retained history automatically without
 discarding your draft or following new output away from the point you chose.
 The [navigation qualification](architecture/chat-activity.md#turn-navigation-qualification)
 records coverage and the latest turn-navigation development installer.
@@ -63,6 +67,11 @@ ownership. Search sessions by fuzzy, case-insensitive name. Settings use the
 same matching, switches for booleans, dropdowns for exclusive choices and
 grips for reorderable lists; Alt+Up/Down is the keyboard alternative.
 Icon actions retain accessible names and tooltips.
+MCP/Linear credentials and an unavailable session USD limit use **X** actions;
+candidate-file and attachment-preview removal use bin icons. PR draft creation,
+GitHub issue import, Agent output following and all-project suggestion scope
+use toggles. "Do not ask again" flags remain checkboxes, as do multiple-choice
+lists and explicit source/risk acknowledgements.
 
 Opening **Side chat** immediately opens its original read-only conversation.
 It captures the parent's history and inherits model, thinking, window,

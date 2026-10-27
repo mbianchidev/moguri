@@ -47,7 +47,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
         {commands.map((command, index) => <option value={command.id} key={command.id}>{index + 1}. {command.subject?.slice(0, 65) ?? "Recorded command"} / {command.status}</option>)}
         {!commands.length && <option value="">{activity.error ? "History unavailable" : activity.loading ? "Loading commands..." : "No approved command"}</option>}
       </select>
-      <label className="agent-follow"><input type="checkbox" checked={follow} onChange={(event) => { setFollow(event.target.checked); setOffset(0); }} />Follow latest output</label>
+      <label className="agent-follow"><input type="checkbox" role="switch" checked={follow} onChange={(event) => { setFollow(event.target.checked); setOffset(0); }} />Follow latest output</label>
       <Tooltip content="Copy displayed agent output"><button className="icon-button" type="button" aria-label="Copy agent output" disabled={!content} onClick={() => void copy()}><Icon name="Copy" /></button></Tooltip>
       {activity.activity?.nextBefore && <button className="quiet" type="button" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Earlier commands</button>}
     </header>
