@@ -185,6 +185,7 @@ test("settings use switches and phase grips instead of text Up/Remove controls, 
     await expect(phases.getByRole("listitem").first()).toContainText("done");
     await board.getByRole("button", { name: "Save board configuration", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().boards.find((board) => board.projectId === fixture.session().projectId)?.columns[0]?.id).toBe("done");
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     await expect(board.getByRole("button", { name: "Up", exact: true })).toHaveCount(0);
     await expect(board.getByRole("button", { name: "Remove Backlog phase", exact: true }).locator("svg[data-icon='Trash']")).toBeVisible();
     expect(fixture.requests).toHaveLength(0);
