@@ -50,8 +50,8 @@ test("Enter sends, Shift+Enter inserts a line, composition never submits, and mo
     await message.hover(); await expect(copy).toHaveCSS("opacity", "1");
     await prompt.hover(); await copy.focus(); await expect(copy).toHaveCSS("opacity", "1");
     await prompt.focus(); await expect(copy).toHaveCSS("opacity", "0");
-    const main = await page.getByRole("main").boundingBox(), text = await message.boundingBox();
-    expect(text!.width).toBeGreaterThan(main!.width * 0.85);
+    const transcript = await page.getByRole("log", { name: "Session transcript", exact: true }).boundingBox(), text = await message.boundingBox();
+    expect(text!.width).toBeGreaterThan(transcript!.width * 0.85);
     await prompt.fill("Generated held prompt"); await prompt.press("Control+Enter");
     await expect.poll(() => fixture.session().queue.at(-1)?.held).toBe(true);
     expect(fixture.session().queue.at(-1)?.text).toBe("Generated held prompt");
