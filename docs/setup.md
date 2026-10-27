@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **64**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **65**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -2739,31 +2739,33 @@ auto-download. Audio never goes to hosted ASR or the Copilot provider.
 Desktop dictation requests audio-only OS permission only on explicit activation.
 **Voice input device** lists microphones after a separate explicit request;
 non-default selection is exact, never silently substituted. Browser capture
-downmixes/resamples locally to bounded mono 16-kHz PCM16 WAV and sends that
-transient clip to the existing local file recognizer. This avoids relying on a
-native live-microphone process to finalize on SIGINT. Audio, upload credentials
+downmixes/resamples locally to bounded mono 16-kHz PCM16 frames. A private,
+authenticated loopback connection streams those frames into the pinned native
+recognizer, which loads the already verified local model once. Audio, upload credentials
 and audio fingerprints do not enter durable events, command receipts or model
 context. Private crash staging is removed before another capture; unknown or
 changed staging entries are retained and block capture with a diagnostic.
 
-**Ctrl+Space** starts/stops desktop capture while the main chat is focused,
-including its toolbar, but not the embedded terminal, side chat or dialogs.
-Voice/Accessibility settings share an editable shortcut. Optional push-to-talk
-owns both shortcut and microphone-button press/release. Hold until Recording
-appears, speak, then release to flush the original clip and start transcription,
-including a pointer release outside the button. Space/Enter also hold/release
-the focused microphone button. Toggle mode keeps click/start and click/stop.
+**Hold Ctrl+Space, speak, release.** Recognized words appear directly in the
+owning main or side-chat textbox while speaking. Release flushes the original
+buffer and replaces its provisional text once; it never sends a chat message.
+The shortcut is always hold-to-talk and ignores terminals, dialogs and other
+composers. Voice/Accessibility settings share an editable shortcut. Optional
+microphone-button push-to-talk also supports pointer release outside the button
+and Space/Enter on the focused button. Otherwise that button keeps click/start
+and click/stop.
 Releasing before admission never opens a late microphone and explains why no
 audio was captured, instead of silently returning to idle.
-Repeated keydown and stop requests do not create additional clips or uploads.
+Repeated keydown and stop requests do not duplicate frames or finalization.
 Blur, sleep, hidden/unmounted capture surfaces and profile changes discard active
-microphone audio with a visible interruption reason. Hiding the window after
-Stop does not cancel recognition of the already-finalizing clip.
-Stop/release finalizes and transcribes; Cancel discards. The completed transcript
-is shown directly above the composer and in Voice settings for review.
-Insert remains explicit,
-revision-checked and never automatically sends. Desktop clips are at most two
-minutes, **3,840,044 WAV bytes**; excess/invalid input is rejected, not truncated.
+microphone audio with a visible interruption reason; recognized words already
+inserted remain in the draft. Hiding after release does not cancel the original
+flush. Editing the dictated span or receiving a different client's draft stops
+insertion instead of overwriting newer text. Typing before/after that span is
+preserved. The native host stops its exact recognizer on controller-pipe loss;
+restart never resumes a recording. Desktop captures are at most two minutes;
+excess/invalid input is rejected, not truncated. The older SDK batch-WAV and
+explicit transcript-insertion APIs remain available for integrations.
 
 TUI **Ctrl+Space** starts/stops its native default microphone; **F4** inserts the
 completed local transcript. CLI/TUI native live recording does not pretend to

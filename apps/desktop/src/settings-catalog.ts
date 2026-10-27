@@ -1,3 +1,5 @@
+import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
+
 export const SETTINGS_GROUPS = [
   { label: "General", items: [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart" },
@@ -60,9 +62,7 @@ export const SETTINGS_GROUPS = [
 export type SettingsTab = typeof SETTINGS_GROUPS[number]["items"][number]["id"];
 
 export function searchSettings(query: string) {
-  const words = query.toLowerCase().trim().split(/[\s_-]+/).filter(Boolean);
   return SETTINGS_GROUPS.map((group) => ({ label: group.label, items: group.items.filter((item) => {
-    const text = `${group.label} ${item.label} ${item.keywords}`.toLowerCase();
-    return words.every((word) => text.includes(word));
+    return fuzzyMatch(query.replace(/[_-]/g, " "), `${group.label} ${item.label} ${item.keywords}`);
   }) })).filter((group) => group.items.length > 0);
 }

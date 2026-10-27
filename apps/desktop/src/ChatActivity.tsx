@@ -1,15 +1,16 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ActivityEntry, ActivityResponse, BudgetTotals, MoguriSdk, TurnInfo } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { dollars } from "./BudgetControls.tsx";
+const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 const icons: Record<ActivityEntry["kind"], string> = {
   "read-file": "ReadFile", "create-file": "CreateFile", "edit-file": "EditFile", "search-files": "Search", "search-skills": "Search",
   "search-web": "Search", "load-skill": "Skill", "create-issue": "Issue", command: "Terminal", mcp: "Mcp", "ask-user": "Question",
   thought: "Thought", model: "Thought", tool: "Tool",
 };
-export const activityDuration = (value: number | null): string => value === null ? "Unavailable" : value < 1000 ? `${Math.round(value)}ms` :
-  value < 60_000 ? `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}s` :
+export const activityDuration = (value: number | null): string => value === null ? "Unavailable" :
+  value < 60_000 ? `${Math.floor(Math.max(0, value) / 1000)}s` :
     value < 3_600_000 ? `${Math.floor(value / 60_000)}m ${Math.floor(value / 1000) % 60}s` : `${Math.floor(value / 3_600_000)}h ${Math.floor(value / 60_000) % 60}m`;
 export const activityBytes = (value: number | null): string => value === null ? "Not observed" : value < 1000 ? `${value} B` :
   value < 1_000_000 ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value / 1000)} KB` : `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value / 1_000_000)} MB`;
@@ -58,8 +59,12 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
     if (!part?.content) return null;
     const content = part.content, offset = kind === "arguments" ? setArgumentOffset : setOutputOffset;
     return <section className={`activity-part ${entry.kind === "thought" ? "activity-thought" : ""}`} aria-label={kind === "arguments" ? "Operation arguments" : "Operation result"}>
-      <header><strong>{kind === "arguments" ? "Arguments" : entry.kind === "thought" ? "Provider-exposed reasoning" : "Result"}</strong><small>{content.offset.toLocaleString()}..{(content.offset + new TextEncoder().encode(content.text).length).toLocaleString()} / {content.bytes.toLocaleString()} UTF-8 bytes</small></header>
-      <pre>{content.text || "Empty captured response."}</pre>
+      <header><strong>{kind === "arguments" ? "Arguments" : entry.kind === "thought" ? "Provider-exposed reasoning" : "Result"}</strong></header>
+      {entry.kind === "thought" ? <div className="markdown"><Suspense fallback={<p>{content.text}</p>}><RichMessage text={content.text} openLink={(href) => {
+        void window.moguri.openExternal(href).catch((error: unknown) => {
+          if (owner.current.sdk === sdk && owner.current.key === key) setState((value) => ({ ...value, error: error instanceof Error ? error.message : "The selected link could not be opened." }));
+        });
+      }} /></Suspense></div> : <pre>{content.text || "Empty captured response."}</pre>}
       {(content.offset > 0 || content.nextOffset !== null) && <div className="button-row">
         {content.offset > 0 && <button type="button" onClick={() => offset(0)}>First {kind === "arguments" ? "arguments" : "result"} page</button>}
         {content.nextOffset !== null && <button type="button" onClick={() => offset(content.nextOffset!)}>Next {kind === "arguments" ? "arguments" : "result"} page</button>}
@@ -81,7 +86,7 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
       <footer className="activity-metrics">
         <span title={observed.startedAt ?? undefined}>Started <strong>{activityStarted(observed.startedAt)}</strong></span>
         <span title={observed.durationBasis === "model-request" ? "Observed complete model request, not separate thought time." : observed.durationBasis === "source-load" ? "Observed source loading time." : "Observed lifecycle wall time, including waiting; not CPU active time."}>{running ? "Elapsed" : "Duration"} <strong>{activityDuration(running ? live : observed.durationMs)}</strong></span>
-        <span title={observed.outputBytes === null ? "No output quantity observed." : `${observed.outputBytes.toLocaleString()} ${observed.outputBasis === "retained-tail" ? "bounded tail" : "retained"} UTF-8 bytes; not total process/network output.`}>Output <strong>{activityBytes(observed.outputBytes)}</strong></span>
+        <span title={observed.outputBytes === null ? "No output quantity observed." : `${observed.outputBasis === "retained-tail" ? "Bounded captured tail" : "Retained output"}; not total process/network output.`}>Output <strong>{activityBytes(observed.outputBytes)}</strong></span>
       </footer>
     </div>}
   </details>;

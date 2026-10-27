@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ClientError, compareSessions, defaultBoard, defaultProjectConfiguration, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, compareSessions, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -44,6 +44,18 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [edit, setEdit] = useState<Edit | null>(null);
   const editFocus = useRef<HTMLElement | null>(null);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const matches = useMemo(() => {
+    if (!search.trim()) return null;
+    const values = new Map(snapshot.sessions.map((session) => [session.id, session]));
+    const selected = new Set(snapshot.sessions.filter((session) => (session.status === "archived") === archived &&
+      fuzzyMatch(search, sessionTitle(session, 160, "New chat"))).map((session) => session.id));
+    for (const id of [...selected]) {
+      let parent = values.get(id)?.parentSessionId;
+      while (parent && !selected.has(parent)) { selected.add(parent); parent = values.get(parent)?.parentSessionId; }
+    }
+    return selected;
+  }, [search, snapshot.sessions, archived]);
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
   const colorPending = useRef(false);
   const [savingColor, setSavingColor] = useState(false);
@@ -256,9 +268,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   };
   const renderProject = (project: Project) => {
     const configuration = folder(project);
-    const sessions = snapshot.sessions.filter((session) => session.projectId === project.id && (session.status === "archived") === archived);
+    const sessions = snapshot.sessions.filter((session) => session.projectId === project.id && (session.status === "archived") === archived && (!matches || matches.has(session.id)));
     const board = snapshot.boards.find((entry) => entry.projectId === project.id) ?? defaultBoard(project.id);
-    const boardVisible = !archived && kanbanPreferences(board).visible;
+    const boardVisible = !archived && kanbanPreferences(board).visible && (!matches || sessions.some((session) => session.purpose === "kanban"));
     const visible = new Set(sessions.filter((session) => session.purpose !== "kanban" || boardVisible).map((session) => session.id));
     const tree = (parent: string | null, group: string | null, depth = 0): ReactNode => sessions.filter((session) =>
       session.purpose !== "kanban" && (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent && (parent !== null || session.groupId === group))
@@ -301,8 +313,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       {snapshot.sessionGroups.filter((group) => group.projectId === project.id).sort((a, b) => a.order - b.order).map((group) => <div className="session-group" key={group.id} onDragOver={(event) => dragHeader(event, project.id)} onDrop={(event) => detach(event, project.id, group.id)}><h3>{group.name}</h3>{tree(null, group.id)}</div>)}
     </section>;
   };
-  const projects = [...snapshot.projects].sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
-  const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived);
+  const projects = [...snapshot.projects].filter((project) => !matches || snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id)))
+    .sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
+  const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived && (!matches || matches.has(session.id)));
   const generalIds = new Set(general.map((session) => session.id));
   const generalTree = (parent: string | null, depth = 0): ReactNode => general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent).sort(compareSessions).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, depth + 1)}</div>);
   const menuSession = menu?.kind === "session" ? snapshot.sessions.find((session) => session.id === menu.id) : undefined;
@@ -310,6 +323,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const menuProject = snapshot.projects.find((project) => project.id === menuSession?.projectId);
   const menuUnread = menuSession ? unreadSession(menuSession, snapshot) : false;
   return <><div className="project-list" aria-busy={busy || actions.busy || ordering}>
+    <label className="workspace-session-search"><Icon name="Search" /><input type="search" aria-label="Search sessions" placeholder="Search sessions" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
     {(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}
     <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
@@ -325,13 +339,12 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           <span className="project-color-swatch" style={{ backgroundColor: color }} aria-hidden="true" />
           {folder(projectMenu).color.toLowerCase() === color && <span className="project-color-check"><Icon name="Check" /></span>}
         </button>)}
+        <button type="button" role="menuitemradio" aria-label="Custom project color" title="Custom project color"
+          aria-checked={!projectColors.some(({ color }) => color === folder(projectMenu).color.toLowerCase())}
+          disabled={savingColor} onClick={() => open({ kind: "color", project: projectMenu, anchor: menu.anchor })}>
+          <span className="project-color-swatch custom" aria-hidden="true"><Icon name="Edit" /></span>
+        </button>
       </div>
-      <button role="menuitemradio" aria-checked={folder(projectMenu).color.toLowerCase() === defaultProjectConfiguration(projectMenu.id).color}
-        disabled={savingColor} onClick={() => saveColor(projectMenu, defaultProjectConfiguration(projectMenu.id).color)}>
-        <span className="project-color-swatch" style={{ backgroundColor: defaultProjectConfiguration(projectMenu.id).color }} aria-hidden="true" />
-        Default color{folder(projectMenu).color.toLowerCase() === defaultProjectConfiguration(projectMenu.id).color && <Icon name="Check" />}
-      </button>
-      <button role="menuitem" disabled={savingColor} onClick={() => open({ kind: "color", project: projectMenu, anchor: menu.anchor })}><Icon name="Edit" />Custom color...</button>
     </div>
     <button role="menuitem" onClick={() => void run(async () => { const result = await sdk.command({ type: "session.create", projectId: projectMenu.id }); await chooseSession(result.id!); })}><Icon name="Plus" />New chat</button>
     <button role="menuitem" onClick={() => open({ kind: "work", project: projectMenu })}><Icon name="Plan" />From work item</button>

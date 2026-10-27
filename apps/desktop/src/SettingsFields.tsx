@@ -40,7 +40,7 @@ export const SettingsInput = forwardRef<HTMLInputElement, ComponentPropsWithoutR
   const active = useContext(SettingsContext);
   const input = useRef<HTMLInputElement>(null);
   useImperativeHandle(ref, () => input.current!, []);
-  const field = <input {...props} type={type} ref={input} />;
+  const field = <input {...props} type={type} role={props.role ?? (active && type === "checkbox" ? "switch" : undefined)} ref={input} />;
   return active && ["text", "search", "url", "email", "tel", "number", "date", "time", "datetime-local"].includes(type) ?
     <CopyField input={input} name={props["aria-label"] ?? props.name}>{field}</CopyField> : field;
 });

@@ -139,6 +139,8 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .global-navigation { padding-bottom: 14px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
 .global-navigation button[aria-pressed="true"] { background: var(--selected); color: var(--selection-text); }
 .project-list { min-height: 0; }
+.workspace-session-search { display: flex; align-items: center; gap: 7px; padding: 8px 6px 12px; color: var(--muted); }
+.workspace-session-search input { width: 100%; font-size: 12px; }
 .project-group { padding-bottom: 18px; }
 .project-name { border: 0; background: transparent; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 650; padding: 7px 9px; width: 100%; text-align: left; }
 .project-name svg { width: 15px; }
@@ -245,6 +247,7 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .activity-part > .button-row { padding: 0 13px 10px; }
 .activity-part button { font-size: 11px; }
 .activity-thought pre { border-left: 1px solid var(--line); font-family: inherit; font-style: italic; color: var(--muted); line-height: 1.8; }
+.activity-thought .markdown { border-left: 1px solid var(--line); padding-left: 12px; color: var(--muted); line-height: 1.8; }
 .activity-metrics { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
 .activity-metrics strong { color: var(--text); font-weight: 400; }
 .current-activity { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--muted); font-size: 12px; padding: 10px 0 3px; }
@@ -596,6 +599,11 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .settings-page :is(pre, code, .json-editor) { font-family: inherit; }
 .check-setting { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.7; margin: 16px 0; max-width: 76ch; }
 .check-setting input { width: 15px; height: 15px; margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+.check-setting input[role="switch"] { appearance: none; position: relative; width: 30px; min-width: 30px; height: 18px; padding: 0; margin-top: 2px; border-radius: 12px; background: var(--hover); cursor: pointer; }
+.check-setting input[role="switch"]::before { content: ""; display: block; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--muted); transition: transform 120ms ease-out; }
+.check-setting input[role="switch"]:checked { background: var(--accent); border-color: var(--accent); }
+.check-setting input[role="switch"]:checked::before { transform: translateX(12px); background: var(--on-accent); }
+.check-setting input[role="switch"]:disabled { cursor: not-allowed; opacity: .5; }
 .settings-warning { color: var(--warning-text); background: var(--warning-bg); padding: 12px 14px; border: 1px solid var(--warning-line); border-radius: 5px; font-family: inherit; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .settings-content .settings-warning { color: var(--warning-text); font-size: 12px; line-height: 1.65; }
 .capability-row, .proposal-row, .job-row { padding: 14px 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-size: 12px; }
@@ -710,6 +718,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .project-color-palette { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 5px 2px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
 .project-color-palette button { position: relative; justify-content: center; padding: 4px 0; }
 .project-color-swatch { display: inline-block; width: 18px; height: 18px; border: 1px solid var(--control-line); border-radius: 50%; flex-shrink: 0; }
+.project-color-swatch.custom { display: grid; place-items: center; background-image: linear-gradient(135deg, #fff 50%, #111 50%); }
+.project-color-swatch.custom svg { width: 12px; height: 12px; color: #111; filter: drop-shadow(0 0 1px #fff); }
 .project-color-palette button[aria-checked="true"] { border-color: var(--accent); }
 .project-color-check { position: absolute; right: -2px; bottom: 1px; width: 12px; height: 12px; display: grid; place-items: center; border-radius: 50%; background: var(--surface); color: var(--text); }
 .project-color-check svg { width: 10px; height: 10px; }
@@ -820,15 +830,13 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .changes-panel { min-width: 0; }
 .changes-panel .unified-diff { white-space: pre; max-width: 100%; font-size: 11px; }
 .git-status { font-size: 10px; }
-.side-transcript { flex: 1; min-height: 60px; overflow: auto; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
-.side-transcript article { padding-bottom: 16px; }
-.side-transcript p { margin: 5px 0; white-space: pre-wrap; }
-.side-chat-panel > textarea { flex-shrink: 0; min-height: 70px; width: 100%; max-height: 140px; padding: 10px; font-size: 12px; }
-.side-controls { display: flex; align-items: center; gap: 8px; font-size: 11px; }
-.side-controls > span { display: flex; align-items: center; gap: 5px; color: var(--muted); flex: 1; }
-.side-controls svg { width: 13px; }
-.side-model { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-.side-model select { flex: 1; min-width: 0; }
+.side-chat-panel .timeline { min-height: 60px; padding: 10px 0; font-size: 12px; }
+.side-chat-panel .session-empty { padding: 10px 4px; }
+.side-chat-panel .session-empty .welcome-mascot { display: none; }
+.side-chat-panel .session-empty h2 { font-size: 15px; }
+.side-chat-panel .compact-composer { margin: 0; }
+.side-read-only { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; color: var(--muted); }
+.side-read-only svg { width: 14px; }
 .coordination-panel { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--subtle); flex-shrink: 0; max-height: 65vh; overflow: auto; }
 .coordination-panel label { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin: 8px 0; }
 .coordination-panel textarea { min-height: 70px; padding: 8px; width: 100%; }

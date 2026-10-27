@@ -46,7 +46,7 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
         <option value="kanban">Open Kanban cards, including imported Linear cards</option><option value="github-issues">Open GitHub issues</option><option value="github-prs">Open GitHub pull requests</option>
       </select></label>
       <fieldset className="kanban-eligible"><legend>Eligible Kanban phases</legend>{committed.columns.filter((column) => column.id !== committed.mergedColumnId).map((column) =>
-        <label className="check-setting" key={column.id}><SettingsInput type="checkbox" checked={kanban.phaseIds.includes(column.id)} onChange={(event) => automatic("kanban", {
+        <label className="check-setting" key={column.id}><SettingsInput type="checkbox" role="checkbox" checked={kanban.phaseIds.includes(column.id)} onChange={(event) => automatic("kanban", {
           ...kanban, phaseIds: event.target.checked ? [...kanban.phaseIds, column.id] : kanban.phaseIds.filter((id) => id !== column.id),
         })} />{column.name}</label>)}</fieldset>
       <SettingsHelp label="More about this setting">Selected phases are tried in their saved order. In progress precedes Backlog by default. Hiding Kanban preserves its cards, chat and ongoing tasks.</SettingsHelp>

@@ -75,7 +75,7 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
           })}>{allow ? "Approve child operation" : "Deny child operation"}</button>)}</div></section>}
       </section>}
       {data && (data.action === "transcript" || data.action === "snapshot") && <section aria-label="Coordinated public context"><pre tabIndex={0}>{data.text}</pre>
-        <p className="fine-print">{data.offset}..{data.offset + new TextEncoder().encode(data.text).length} / {data.bytes} UTF-8 bytes. Public data only; no private consoles or hidden reasoning.</p>
+        <p className="fine-print">Public session data only; no private consoles or hidden reasoning.</p>
         {data.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: data.action, targetSessionId: target.id, offset: data.nextOffset!, expectedDigest: data.digest }))}>Next context page</button>}</section>}
       {data?.action === "inbox" && <section aria-label="Session coordination inbox">{data.messages.map((message) => <article key={message.id}><strong>{message.kind} / {message.origin.actor} / {message.fromSessionId}</strong><p>{message.text}</p>{message.deliveryDiagnostic && <p className="inline-error" role="alert">{message.deliveryDiagnostic}</p>}</article>)}
         {data.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: "inbox", offset: data.nextOffset! }))}>Earlier inbox page</button>}</section>}

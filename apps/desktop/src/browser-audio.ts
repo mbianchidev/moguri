@@ -16,7 +16,8 @@ export async function listMicrophones(profileId: string, signal: AbortSignal): P
   } finally { stopTracks(stream); if (permission) await window.moguri.releaseAudioPermission(permission); }
 }
 
-export async function captureBrowserAudio(profileId: string, sessionId: string, lease: CaptureLease, deviceId: string, signal: AbortSignal, failed: (error: Error) => void): Promise<CaptureRecorder> {
+export async function captureBrowserAudio(profileId: string, sessionId: string, lease: CaptureLease, deviceId: string, signal: AbortSignal, failed: (error: Error) => void,
+  received?: (samples: Float32Array) => void): Promise<CaptureRecorder> {
   let permission: string | undefined, stream: MediaStream | undefined, context: AudioContext | undefined;
   let source: MediaStreamAudioSourceNode | undefined, node: AudioWorkletNode | undefined, mute: GainNode | undefined;
   let error: Error | null = null, ready = false, finished = false, stopped = false, contextClose: Promise<void> | undefined, finalizing: Promise<Float32Array> | undefined;
@@ -67,7 +68,8 @@ export async function captureBrowserAudio(profileId: string, sessionId: string, 
         if (!(event.data.samples instanceof ArrayBuffer) || event.data.samples.byteLength % 4) { fail(new Error("The local PCM capture returned an invalid sample frame.")); return; }
         const chunk = new Float32Array(event.data.samples);
         if (samples + chunk.length > MAX_SPEECH_SAMPLES) { fail(new Error("Capture exceeded its two-minute bound. No partial audio was silently truncated.")); return; }
-        samples += chunk.length; chunks.push(chunk);
+        samples += chunk.length;
+        if (received) received(chunk); else chunks.push(chunk);
       }
     };
     source = context.createMediaStreamSource(stream); mute = context.createGain(); mute.gain.value = 0;
@@ -80,7 +82,7 @@ export async function captureBrowserAudio(profileId: string, sessionId: string, 
         if (!finished) { node!.port.postMessage({ type: "finish" }); finalization = setTimeout(() => fail(new Error("The local audio processor did not acknowledge its original flush.")), 2000); }
         await ended.promise; active(signal);
         if (error) throw error;
-        const result = new Float32Array(samples);
+        const result = new Float32Array(received ? 0 : samples);
         let offset = 0; for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.length; }
         await close(); clearAudio(); return result;
       })(),

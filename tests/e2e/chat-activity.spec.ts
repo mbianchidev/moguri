@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native chat activity is qualified on macOS.");
 
 test("desktop expands original operations and public reasoning, copies only the response, and keeps original turn info and usage compact", async () => {
-  const fixture = await setupFixture({ reasoning: true, reasoningText: "Generated public provider reasoning.", contextWindow: 32768,
+  const fixture = await setupFixture({ reasoning: true, reasoningText: "**Considering testing strategies**\n\nGenerated public provider reasoning.", contextWindow: 32768,
     toolAdvice: "Generated plan before reading.", usage: { prompt_tokens: 30, completion_tokens: 12, total_tokens: 42, prompt_tokens_details: { cached_tokens: 10 } } });
   const sdk = await new MoguriSdk(fixture.service.connection).ready(), settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, budgets: { ...settings.values.budgets, rates: [
@@ -37,6 +37,8 @@ test("desktop expands original operations and public reasoning, copies only the 
     await read.locator("summary").click();
     await expect(read.getByRole("region", { name: "Operation arguments", exact: true })).toContainText('"path": "fixture.txt"');
     await expect(read.getByRole("region", { name: "Operation result", exact: true })).toContainText("generated original");
+    await expect(read.getByRole("region", { name: "Operation arguments", exact: true }).locator("header")).not.toContainText("UTF-8 bytes");
+    await expect(read.getByRole("region", { name: "Operation result", exact: true }).locator("header")).not.toContainText("UTF-8 bytes");
     await expect(read.locator(".activity-metrics")).toContainText(/Started .+ - .+/);
     await expect(read.locator(".activity-metrics")).toContainText(/Duration \d/);
     await expect(read.locator(".activity-metrics")).toContainText(/Output \d/);
@@ -45,6 +47,7 @@ test("desktop expands original operations and public reasoning, copies only the 
     await thought.locator("summary").click();
     await expect(thought).toHaveClass(/activity-status-completed/);
     await expect(thought).toContainText("Generated public provider reasoning.");
+    await expect(thought.locator("strong").filter({ hasText: "Considering testing strategies" })).toBeVisible();
     await expect(thought).toContainText("separate thought time is not reported");
     const response = transcript.getByRole("region", { name: "Assistant response", exact: true });
     await response.hover();

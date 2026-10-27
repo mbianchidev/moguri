@@ -38,7 +38,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
     <h2>Skill gateway</h2><SettingsHelp label="About the skill gateway">Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {value.map((source) => <article className="skill-source" key={source.id}>
-      <label className="check-setting"><input type="checkbox" aria-label={`Enable skill source ${source.name}`} checked={source.enabled} disabled={disabled || busy}
+      <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill source ${source.name}`} checked={source.enabled} disabled={disabled || busy}
         onChange={(event) => change(value.map((entry) => entry.id === source.id ? { ...entry, enabled: event.target.checked } : entry))} /><strong>{source.name}</strong></label>
       <code>{source.kind === "local" ? source.path : source.url}</code>
       <button type="button" className="icon-button" aria-label={`Remove skill source ${source.name}`} disabled={disabled || busy}
