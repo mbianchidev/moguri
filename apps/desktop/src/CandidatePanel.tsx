@@ -102,7 +102,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {!local && <p className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited."} Retained proposals remain readable.</p>}
     {cleanup && <p className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>Candidate cleanup {cleanup.status}. {cleanup.diagnostic ?? "Settling exact owned work before deletion."} Deletion is not complete; retained proposals remain inspectable.</p>}
-    {local && !writable && <p className="fine-print" role="status">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
+    {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
     {changedScope && <p className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</p>}
     <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} repositoryReady={Boolean(repositoryReady)} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
     <WinddownPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWinddownDirty} />
@@ -114,7 +114,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     <details className="candidate-section" open={!selectedId}>
       <summary>Draft a proposal</summary>
       <label className="setting-field">Summary<SettingsInput aria-label="Candidate summary" value={summary} maxLength={1200} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setSummary(event.target.value); if (draftScope === null) setDraftScope(scope); setPreview(null); setModelOrigin(undefined); }} /></label>
-      {modelOrigin && <p className="fine-print" role="status">Canonical model proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</p>}
+      {modelOrigin && <p className="fine-print">Canonical model proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</p>}
       <label className="setting-field">Staging worktree<select aria-label="Candidate staging worktree" value={stageId} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setStageId(event.target.value); setPreview(null); setModelOrigin(undefined); }}>
         <option value="">Choose a separate owned worktree</option>{stages.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.branch}</option>)}
       </select></label>
@@ -155,7 +155,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
         {active && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stop(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not confirmed.")).finally(() => setStopping(false)); }}>{stopping ? "Requesting stop..." : `Stop ${selected.status === "staging" ? "staging" : "application"}`}</button>}
       </header>
       <p className="fine-print path">Local source: {selected.source.branch} / base <code>{selected.source.head.slice(0, 12)}</code></p>
-      {selected.originSessionId === null && <p className="fine-print" role="status">Legacy origin ownership is unknown. This proposal is not assigned to the current session; its report can be deleted explicitly in Artifacts.</p>}
+      {selected.originSessionId === null && <p className="fine-print">Legacy origin ownership is unknown. This proposal is not assigned to the current session; its report can be deleted explicitly in Artifacts.</p>}
       <details open={selected.status === "partial"}><summary>Captured Local source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage branch: {selected.stage.branch}</p></details>
       <p className="fine-print">{selected.compoundOrigin ? "Derived from an actual public compound role. Inspect the separate retained workflow for actual tests and critic observations; provenance is not quality or source acceptance." : selected.roleOrigin ? "Derived from the exact final retained model role. Its independent origin is not quality or acceptance." : selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
       {selected.stopRequested && <p className="fine-print">Owned stop was requested; the actual outcome is {selected.status}.</p>}

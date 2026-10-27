@@ -191,7 +191,7 @@ test("one delayed startup owns the gate, a definite refusal stays visible withou
     expect(calls).toBe(1); expect(sdk.getState().snapshot!.terminals).toHaveLength(0);
     await plus.click();
     await expect(page.getByRole("textbox", { name: "Ghostty terminal", exact: true })).toHaveAttribute("aria-disabled", "false");
-    expect(calls).toBe(2); expect(sdk.getState().snapshot!.terminals).toHaveLength(1);
+    expect(calls).toBe(2); await expect.poll(() => sdk.getState().snapshot!.terminals.length).toBe(1);
     expect(fixture.requests).toHaveLength(0);
   } finally { gate.resolve(); fixture.service.controller.dispatch = dispatch; await app.close(); sdk.disconnect(); await fixture.close(); }
 });

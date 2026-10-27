@@ -54,7 +54,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
     {automatic && <p className="fine-print" role="status">Private workspaces are prepared automatically when you send. {session?.projectId ? "The bound project is copied under its folder/ignore policy; your source checkout is never mounted." : "This chat keeps an empty, root-less private workspace."} Retained work is preserved across turns.</p>}
-    {!automatic && <p className="fine-print" role="status">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</p>}
+    {!automatic && <p className="fine-print">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</p>}
     <details className="candidate-section">
       <summary>Advanced exact-file workspace preparation</summary>
       <p className="fine-print">Only selected text snapshots enter the VM. Model root is {session?.projectId ? <code>/workspace</code> : "null in a project-free chat"}; the Local source is never mounted or written by native tools.</p>

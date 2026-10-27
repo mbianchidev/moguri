@@ -46,7 +46,7 @@ export function CandidateRoleProposalPanel({ sdk, snapshot, session, scope, sour
         catch (error) { setError(error instanceof Error ? error.message : "The proposal was not loaded into this source scope."); }
       }}>{loadedSequenceId === selectedId ? "Loaded for staging review" : "Load role proposal for staging review"}</button>
       {draftDirty && <p className="fine-print">Copy or discard your unsaved draft/task first. Retained model bytes never replace it silently.</p>}
-      {!compatible && <p className="fine-print" role="status">Select a compatible original Local source and ready captured staging worktree. Retained data stays readable; the service rechecks current policy and exact bases before staging.</p>}
+      {!compatible && <p className="fine-print">Select a compatible original Local source and ready captured staging worktree. Retained data stays readable; the service rechecks current policy and exact bases before staging.</p>}
     </>}
   </details>;
 }
