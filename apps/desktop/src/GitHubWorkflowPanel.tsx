@@ -187,7 +187,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       <pre>{JSON.stringify(preview.value.document.action, null, 2)}</pre>
       {preview.value.document.warnings.map((text) => <p className="settings-warning" key={text}>{text}</p>)}
       {preview.value.document.resource && <details><summary>Exact untrusted remote resource revision</summary><pre>{preview.value.document.resource.content}</pre></details>}
-      {preview.value.document.confirmations.map((text) => <label className="check-setting" key={text}><SettingsInput type="checkbox" checked={confirmations.includes(text)} disabled={Boolean(busy)}
+      {preview.value.document.confirmations.map((text) => <label className="check-setting" key={text}><SettingsInput type="checkbox" role={preview.value.document.confirmations.length > 1 ? "checkbox" : "switch"} checked={confirmations.includes(text)} disabled={Boolean(busy)}
         onChange={(event) => setConfirmations(event.target.checked ? [...confirmations, text] : confirmations.filter((value) => value !== text))} />{text}</label>)}
       <button className="primary" disabled={Boolean(busy) || !(kind === "github.ci.watch" ? allowed : canWrite) || preview.value.document.confirmations.some((text) => !confirmations.includes(text))}
         onClick={() => void run("Admitting original reviewed Git/GitHub operation", async (isCurrent) => {

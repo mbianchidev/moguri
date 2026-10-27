@@ -222,7 +222,7 @@ test("settings use one font family, omit capability-job history and left navigat
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("generated browser dictation preserves typing until the user inserts the completed local transcript", async () => {
+test("generated streamed dictation preserves typing during finalization and inserts the exact final text without an Insert action", async () => {
   const weights = Buffer.from("Generated desktop recognizer model.");
   const fixture = await setupFixture({ platform: { speech: {
     executable: process.execPath, prefixArgs: [resolve("tests/fixtures/fake-speech.mjs"), "--transcribe-delay", "3400"],
@@ -239,10 +239,9 @@ test("generated browser dictation preserves typing until the user inserts the co
     await page.getByRole("button", { name: "Stop local dictation", exact: true }).click();
     await prompt.fill("Generated typing during finalization.");
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
-    await expect(prompt).toHaveValue("Generated typing during finalization.");
-    await page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true }).click();
-    await expect(prompt).toHaveValue("Generated typing during finalization.\nGenerated local dictation.");
-    await expect.poll(() => fixture.session().draft.text).toBe("Generated typing during finalization.\nGenerated local dictation.");
+    await expect(prompt).toHaveValue("Generated typing during finalization. Generated local dictation.");
+    await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
+    await expect.poll(() => fixture.session().draft.text).toBe("Generated typing during finalization. Generated local dictation.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
     expect(fixture.requests).toHaveLength(0);

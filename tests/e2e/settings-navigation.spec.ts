@@ -48,7 +48,7 @@ test("left global resources and the nine right session panels remain separate wh
     await page.getByLabel("Theme", { exact: true }).selectOption("light");
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.appearance.theme).toBe("light");
     expect(fixture.service.controller.snapshot().settings.values.instructions).toBe("");
-    await search.fill("no-matching-generated-setting");
+    await search.fill("zzzzzzzz-no-matching-setting");
     await expect(categories).toContainText("No matching settings. Your edits are preserved.");
     await search.fill("readme");
     await categories.getByRole("button", { name: "User guidance", exact: true }).click();

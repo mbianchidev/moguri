@@ -42,7 +42,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     const send = review.getByRole("button", { name: "Send reviewed operation to Linear", exact: true });
     await expect(send).toBeDisabled();
     expect(mutations()).toHaveLength(0);
-    await review.getByRole("checkbox").check();
+    await review.getByRole("switch").check();
     await expect(send).toBeEnabled();
     await send.click();
     await expect.poll(() => f.service.controller.snapshot().linearOperations.find((entry) => entry.action === "issue.create")?.status).toBe("completed");
@@ -84,7 +84,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     await expect(pull).toBeDisabled();
     expect(f.service.controller.snapshot().issues.find((entry) => entry.id === local.id)?.title).toBe("Generated local title before pull");
     expect(mutations()).toHaveLength(1);
-    await review.getByRole("checkbox").check();
+    await review.getByRole("switch").check();
     await pull.click();
     await expect.poll(() => f.service.controller.snapshot().linearOperations.find((entry) => entry.action === "ticket.sync")?.status).toBe("completed");
     const pulled = f.service.controller.snapshot().issues.find((entry) => entry.id === local.id)!;

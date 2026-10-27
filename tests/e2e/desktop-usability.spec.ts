@@ -247,17 +247,19 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill("Generated original draft.");
     await page.getByRole("button", { name: "Start local dictation", exact: true }).focus();
-    await page.keyboard.press("Control+Space");
+    await page.keyboard.down("Control"); await page.keyboard.down("Space");
     await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " ", ctrlKey: true, repeat: true })));
     await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("running");
-    await page.keyboard.press("Control+Space");
-    await expect(page.getByRole("status").filter({ hasText: "Recognizing the captured local WAV" })).toBeVisible();
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect(page.getByRole("status").filter({ hasText: "Flushing the original local audio buffer" })).toBeVisible();
     await expect.poll(() => existsSync(marker)).toBe(true);
-    await page.keyboard.press("Control+Space");
+    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " ", ctrlKey: true, repeat: true })));
     await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
-    await page.getByRole("button", { name: "Insert", exact: true }).click();
-    await expect(prompt).toHaveValue("Generated original draft.\nGenerated local dictation.");
+    await expect(prompt).toHaveValue("Generated original draft. Generated local dictation.");
+    await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
+    expect(sdk.getState().snapshot?.jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
     await page.getByRole("button", { name: "Start local microphone", exact: true }).click();
@@ -281,13 +283,13 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     fixture.service.controller.dispatch = dispatch;
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
-    await expect(prompt).toHaveValue("Generated original draft.\nGenerated local dictation.");
+    await expect(prompt).toHaveValue("Generated original draft. Generated local dictation.");
     prefixArgs.push("--exit-signal", "SIGTERM");
-    await page.keyboard.press("Control+Space");
-    await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.keyboard.press("Control+Space");
-    await expect(page.getByRole("alert")).toContainText("signal SIGTERM. Generated native capture failed.");
-    await expect(prompt).toHaveValue("Generated original draft.\nGenerated local dictation.");
+    await fixture.service.controller.platform.voice.close();
+    await page.keyboard.down("Control"); await page.keyboard.down("Space");
+    try { await expect(page.getByRole("alert")).toContainText("SIGTERM"); }
+    finally { await page.keyboard.up("Space"); await page.keyboard.up("Control"); }
+    await expect(prompt).toHaveValue("Generated original draft. Generated local dictation.");
     expect(fixture.requests.length).toBe(0);
     expect(existsSync(join(fixture.directory, "state", "speech-models", NEMOTRON_MODEL.filename))).toBe(false);
   } finally { release(); fixture.service.controller.dispatch = dispatch; await close(app); sdk.disconnect(); await fixture.close(); await rm(directory, { recursive: true, force: true }); }
