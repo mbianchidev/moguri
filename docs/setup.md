@@ -14,6 +14,8 @@ Use **Show turn previews** to expand/collapse labels; narrow and side-chat panes
 start compact. Enter activates a focused point, and Escape closes expanded
 compact previews. Older points reveal retained history automatically without
 discarding your draft or following new output away from the point you chose.
+The [navigation qualification](architecture/chat-activity.md#turn-navigation-qualification)
+records coverage and the latest turn-navigation development installer.
 
 Turn information and **Budget and usage** open from the chat's saved snapshot,
 without fetching details on click. Tokens, context and captured-rate USD estimates
