@@ -1,4 +1,4 @@
-import { SettingsHelp } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp } from "./SettingsFields.tsx";
 import { useState } from "react";
 import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { useSessionActions } from "./SessionActions.tsx";
@@ -32,10 +32,10 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
       <option value="">Choose an actual session</option>{sessions.map((session) => <option key={session.id} value={session.id}>{session.title} / {session.status}</option>)}
     </select></label>
     {session && <><p className="fine-print">{session.status} / {session.messages.length} messages / {session.queue.length} queued. {session.completedAt ? `Last completed ${new Date(session.completedAt).toLocaleString()}.` : "No actual completion recorded."}</p>
-      <div className="button-row"><button type="button" disabled={pending} onClick={() => openSession(session.id)}>Open this session</button>
+      <div className="button-row"><SettingsAction label="Open this session" icon="Back" disabled={pending} onClick={() => openSession(session.id)} />
         {session.status === "archived" && <button type="button" disabled={pending} onClick={() => void run(async () => { await sdk.command({ type: "session.restore", sessionId: session.id }); setNotice("Session restored by its owning service."); })}>Restore session</button>}
         {session.status !== "archived" && !session.turnId && (blocked || session.queue.length > 0) && <button type="button" disabled={pending} onClick={() => openSession(session.id)}>Inspect and resume this session</button>}
-        <button type="button" className="danger" disabled={pending || Boolean(session.turnId)} onClick={() => actions.request(session, "delete")}>{snapshot.settings.values.retention.confirmDelete === false ? "Delete stored session" : "Review session deletion"}</button>
+        <SettingsAction label={snapshot.settings.values.retention.confirmDelete === false ? "Delete stored session" : "Review session deletion"} icon="Trash" className="danger" disabled={pending || Boolean(session.turnId)} onClick={() => actions.request(session, "delete")} />
       </div>{session.turnId && <SettingsHelp label="More about this setting">Open and stop this owned turn before deleting it from storage. No work is replayed after sleep or reconnection.</SettingsHelp>}</>}
     {!sessions.length && <p className="fine-print">No stored sessions in this filter.</p>}
     {notice && <p className="fine-print" role="status">{notice}</p>}{(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}

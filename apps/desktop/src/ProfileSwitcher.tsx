@@ -1,4 +1,4 @@
-import { SettingsInput } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { MoguriSdk, Profile, ProfileCatalog, Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -43,13 +43,15 @@ export function ProfileSwitcher({ sdk, snapshot, disabled, expanded, setExpanded
     </select></label>
     <button type="button" className="quiet" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} disabled={busy || dirty}>Manage profiles</button>
     {expanded && <div className="profile-management"><p className="fine-print">Accounts, projects and memory stay separate. Running work stays in its profile.</p>
-      {!mode && <div className="button-row"><button type="button" disabled={disabled || busy} onClick={() => edit("new")}>New profile</button><button type="button" disabled={disabled || busy || !catalog} onClick={() => edit("edit")}>Rename / color</button></div>}
+      {!mode && <div className="button-row"><SettingsAction label="New profile" icon="Plus" disabled={disabled || busy} onClick={() => edit("new")} /><SettingsAction label="Rename / color" icon="Edit" disabled={disabled || busy || !catalog} onClick={() => edit("edit")} /></div>}
       {mode && <><label className="setting-field">Profile name<SettingsInput aria-label="Profile name" value={name} maxLength={80} disabled={busy} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void run(save); } }} /></label>
         <label className="setting-field">Accent (optional)<SettingsInput aria-label="Profile accent" value={color} placeholder="#557799" maxLength={7} disabled={busy} onChange={(event) => setColor(event.target.value)} /></label>
         <div className="button-row"><button type="button" className="primary" disabled={busy || !dirty || !name.trim()} onClick={() => void run(save)}>{mode === "new" ? "Create profile" : "Save profile metadata"}</button><button type="button" disabled={busy} onClick={() => { setMode(null); setBase(null); }}>Discard profile edit</button></div></>}
+      {catalog?.profiles.some((profile) => profile.status !== "ready" && profile.status !== "creating") && <label className="setting-field">Inspected profile directory
+        <select aria-label="Inspected profile directory" value={inspected} disabled={busy} onChange={(event) => setInspected(event.target.value)}><option value="">No directory inspection confirmed</option>
+          {catalog.profiles.filter((profile) => profile.status !== "ready" && profile.status !== "creating").map((profile) => <option key={profile.id} value={profile.id}>I inspected {profile.name}'s owned directory</option>)}</select></label>}
       {catalog?.profiles.filter((profile) => profile.status !== "ready").map((profile) => <div key={profile.id}><strong>{profile.name} / {profile.status}</strong><p className="fine-print">{profile.diagnostic ?? "Preparing owned resources; no provider login or data copy."}</p>
         {profile.status === "creating" ? <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.profiles.stop(profile.id); await reload(); })}>Stop profile setup</button> : <>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={inspected === profile.id} onChange={(event) => setInspected(event.target.checked ? profile.id : "")} />I inspected this profile's owned resource directory.</label>
           <button type="button" disabled={busy || inspected !== profile.id} onClick={() => void run(async () => { await sdk.profiles.retry(profile.id, profile.revision, true); await sdk.profiles.wait(profile.id); setInspected(""); await reload(); })}>Retry profile setup</button></>}
       </div>)}
     </div>}

@@ -101,13 +101,15 @@ test("project-free Autopilot stays permissionless and a side chat can explicitly
     await expect.poll(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === parentId)?.controls.autonomy).toBe("Autopilot");
     expect(fixture.service.controller.snapshot().settings.values.permissions).toEqual({ defaultDecision: "ask", tools: [], commands: [] });
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Side chat", exact: true }).click();
-    await page.getByRole("button", { name: "New side chat", exact: true }).click();
+    const sidePanel = page.locator(".side-chat-panel");
+    await expect(sidePanel.getByLabel("Side question", { exact: true })).toBeVisible();
     const side = fixture.service.controller.snapshot().sessions.at(-1)!;
     expect(side.projectId).toBeNull(); expect(side.controls.modelId).toBeNull(); expect(side.mode).toBe("read-only");
     await page.getByLabel("Side question", { exact: true }).fill("Generated independent side question.");
-    await expect(page.getByRole("button", { name: "Ask", exact: true })).toBeDisabled();
-    await page.getByLabel("Side chat model", { exact: true }).selectOption(fixture.modelId);
-    await expect(page.getByRole("button", { name: "Ask", exact: true })).toBeEnabled();
+    await expect(sidePanel.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await sidePanel.locator("[data-composer-control='model']").click();
+    await sidePanel.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await expect(sidePanel.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     await page.getByLabel("Side question", { exact: true }).press("Enter");
     await expect(page.getByRole("log", { name: "Side chat transcript" })).toContainText("Generated Copilot response.");
     await page.screenshot({ path: resolve(".moguri/artifacts/project-free-side-chat.png") });
@@ -115,6 +117,7 @@ test("project-free Autopilot stays permissionless and a side chat can explicitly
     expect(snapshot.sessions.find((session) => session.id === parentId)?.controls.modelId).toBeNull();
     expect(snapshot.sessions.find((session) => session.id === side.id)?.controls.modelId).toBe(fixture.modelId);
     expect(/read_file|write_file|run_command/.test(JSON.stringify(fixture.requests[0]?.tools))).toBe(false);
+    await expect(sidePanel.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
   } finally { await close(app); await fixture.close(); }
 });
 

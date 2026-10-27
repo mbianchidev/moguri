@@ -9,6 +9,9 @@ export function SettingsFieldsProvider({ children }: { children: ReactNode }) {
 export function SettingsHelp({ label, children }: { label: string; children: ReactNode }) {
   return useContext(SettingsContext) ? <InfoTip label={label}>{children}</InfoTip> : <p className="fine-print">{children}</p>;
 }
+export function SettingsAction({ label, icon, className = "", ...props }: Omit<ComponentPropsWithoutRef<"button">, "children" | "aria-label"> & { label: string; icon: string }) {
+  return <Tooltip content={label}><button {...props} type={props.type ?? "button"} className={`icon-button ${className}`} aria-label={label}><Icon name={icon} /></button></Tooltip>;
+}
 
 function CopyField({ input, name, multiline = false, children }: {
   input: RefObject<HTMLInputElement | HTMLTextAreaElement | null>; name?: string; multiline?: boolean; children: ReactNode;

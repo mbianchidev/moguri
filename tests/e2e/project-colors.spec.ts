@@ -73,6 +73,8 @@ test("project colors work from keyboard context menus and the actions trigger to
     await expect.poll(() => fixture.service.controller.snapshot().projectConfigurations[0]?.color).toBe("#3b82f6");
     await expect(trigger).toBeFocused();
     await trigger.click(); await page.keyboard.press("Home"); await page.keyboard.press("ArrowLeft");
+    await expect(menu.getByRole("menuitemradio", { name: "Custom project color", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
     await expect(menu.getByRole("menuitemradio", { name: "Violet", exact: true })).toBeFocused();
     await page.keyboard.press("Space");
     await expect.poll(() => fixture.service.controller.snapshot().projectConfigurations[0]?.color).toBe("#a855f7");
@@ -80,30 +82,34 @@ test("project colors work from keyboard context menus and the actions trigger to
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("custom project colors save only on confirmation, can reset, and no longer live in project settings", async () => {
+test("custom project colors save only on confirmation, can return to a preset, and have no extra reset or settings controls", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   const projectId = fixture.session().projectId, defaultColor = defaultProjectConfiguration(projectId).color;
   const currentColor = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === projectId)?.color ?? defaultColor;
   try {
     const page = await app.firstWindow(), trigger = page.getByRole("button", { name: "Project actions for project", exact: true });
     const menu = page.getByRole("menu", { name: "Project actions for project", exact: true });
-    await trigger.click(); await menu.getByRole("menuitem", { name: "Custom color...", exact: true }).click();
+    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Custom project color", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Project color", exact: true });
     await dialog.getByLabel("Custom project color", { exact: true }).fill("#7860a3");
     expect(currentColor()).toBe(defaultColor);
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(currentColor()).toBe(defaultColor);
-    await trigger.click(); await menu.getByRole("menuitem", { name: "Custom color...", exact: true }).click();
+    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Custom project color", exact: true }).click();
     await dialog.getByLabel("Custom project color", { exact: true }).fill("#7860a3");
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(currentColor).toBe("#7860a3");
     await expect(trigger).toBeFocused();
-    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Default color", exact: true }).click();
-    await expect.poll(currentColor).toBe(defaultColor);
-    await trigger.click(); await expect(menu.getByRole("menuitemradio", { name: "Default color", exact: true })).toHaveAttribute("aria-checked", "true");
+    await trigger.click();
+    await expect(menu.getByRole("menuitemradio", { name: "Custom project color", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(menu.getByText("Default color", { exact: true })).toHaveCount(0);
+    await menu.getByRole("menuitemradio", { name: "Green", exact: true }).click();
+    await expect.poll(currentColor).toBe("#2f9e44");
+    await trigger.click(); await expect(menu.getByRole("menuitemradio", { name: "Green", exact: true })).toHaveAttribute("aria-checked", "true");
     await menu.getByRole("menuitem", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("region", { name: "Per-project settings" })).toBeVisible();
     await expect(page.getByLabel("Icon color for project", { exact: true })).toHaveCount(0);
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
 });

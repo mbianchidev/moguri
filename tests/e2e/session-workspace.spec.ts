@@ -51,7 +51,9 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByLabel("Edit queued message", { exact: true }).fill("Generated edited held prompt");
     await page.getByRole("region", { name: "Message queue" }).getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => fixture.session().queue[0]?.text).toBe("Generated edited held prompt");
-    await page.getByRole("button", { name: "Move queued message 2 up", exact: true }).click();
+    const reorder = page.getByRole("button", { name: "Reorder queued message 2", exact: true });
+    await expect(reorder).toBeEnabled();
+    await reorder.press("Alt+ArrowUp");
     await expect.poll(() => fixture.session().queue[0]?.text).toBe("Generated second held prompt");
     await page.getByRole("button", { name: "Copy queued message 1", exact: true }).click();
     await page.getByRole("button", { name: "Remove queued message 2", exact: true }).click();
@@ -91,9 +93,10 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await slash("/side");
     const sideQuestion = page.getByLabel("Side question", { exact: true });
     await sideQuestion.fill("generated tool question");
-    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    const sidePanel = page.locator(".side-chat-panel");
+    await sidePanel.getByRole("button", { name: "Send", exact: true }).click();
     await expect(page.getByRole("region", { name: "Side read approval" })).toContainText("fixture.txt");
-    await page.getByRole("button", { name: "Approve read", exact: true }).click();
+    await sidePanel.getByRole("button", { name: "Approve this action", exact: true }).click();
     await expect(page.getByRole("log", { name: "Side chat transcript" })).toContainText("The requested fixture operation is complete.");
     const side = fixture.service.controller.snapshot().sessions.find((session) => session.kind === "side")!;
     expect(side.parentSessionId).toBe(child.id); expect(side.mode).toBe("read-only");

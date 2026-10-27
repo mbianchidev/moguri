@@ -1,4 +1,4 @@
-import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { audioFromBase64, type MoguriSdk, type NotificationToneKind, type Snapshot, type UserSettings } from "../../../packages/sdk/src/index.ts";
 
@@ -47,14 +47,17 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
       await sdk.notifications.importSound(selection.name, audioFromBase64(selection.audio));
       onOutput("Sound imported. Choose it separately for attention or completion alerts.");
     })}>Import notification sound</button>
+    {snapshot.notificationSounds.some((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)) && <label className="setting-field">Sound reviewed for removal
+      <select aria-label="Sound reviewed for removal" value={remove ?? ""} disabled={busy} onChange={(event) => setRemove(event.target.value || null)}>
+        <option value="">No removal confirmed</option>{snapshot.notificationSounds.filter((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)).map((sound) => <option key={sound.id} value={sound.id}>Remove {sound.name}</option>)}
+      </select></label>}
     {snapshot.notificationSounds.map((sound) => {
       const selected = sounds.some(({ key }) => values[key]?.id === sound.id);
       return <section key={sound.id} aria-label={`Retained sound ${sound.name}`}>
         <p>{sound.name} <span className="fine-print">({sound.durationMs / 1000} seconds)</span></p>
-        {selected ? <p className="fine-print">Choose another sound before removal.</p> : <><label className="check-setting"><SettingsInput type="checkbox" checked={remove === sound.id} disabled={busy} onChange={(event) => setRemove(event.target.checked ? sound.id : null)} />Confirm removal of {sound.name}</label>
-          <button type="button" disabled={disabled || busy || remove !== sound.id} onClick={() => void run(async () => {
+        {selected ? <p className="fine-print">Choose another sound before removal.</p> : <SettingsAction label={`Remove ${sound.name}`} icon="Trash" disabled={disabled || busy || remove !== sound.id} onClick={() => void run(async () => {
             await sdk.notifications.removeSound(sound.id, sound.contentDigest, true); setRemove(null); onOutput("Unused sound removed from this profile's encrypted retention.");
-          })}>Remove {sound.name}</button></>}
+          })} />}
       </section>;
     })}
   </>;

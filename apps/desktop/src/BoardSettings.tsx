@@ -1,6 +1,8 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { ReorderList } from "./ReorderList.tsx";
+import { Icon } from "./Icon.tsx";
 
 const values = (board: BoardConfig): BoardConfig => ({ columns: structuredClone(board.columns), mergedColumnId: board.mergedColumnId,
   autoRefreshPrs: board.autoRefreshPrs, githubAccess: board.githubAccess, linear: { ...board.linear }, kanban: structuredClone(kanbanPreferences(board)),
@@ -51,10 +53,10 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
         })} />{column.name}</label>)}</fieldset>
       <SettingsHelp label="More about this setting">Selected phases are tried in their saved order. In progress precedes Backlog by default. Hiding Kanban preserves its cards, chat and ongoing tasks.</SettingsHelp>
       <h3>Ticket workflow</h3>
-      {draft.columns.map((column, index) => <div className="board-phase-edit" key={column.id}><code>{column.id}</code><SettingsInput aria-label={`Phase name ${column.id}`} value={column.name} onChange={(event) => setDraft((current) => ({ ...current, columns: current.columns.map((entry) => entry.id === column.id ? { ...entry, name: event.target.value } : entry) }))} />
-        <button type="button" aria-label={`Move ${column.name} earlier`} disabled={index === 0} onClick={() => { const columns = [...draft.columns]; [columns[index - 1], columns[index]] = [columns[index]!, columns[index - 1]!]; setDraft((current) => ({ ...current, columns })); }}>Up</button>
-        <button type="button" aria-label={`Remove ${column.name} phase`} disabled={draft.columns.length <= 2 || draft.mergedColumnId === column.id || snapshot.issues.some((issue) => issue.projectId === project.id && issue.phaseId === column.id)} onClick={() => setDraft((current) => ({ ...current, columns: current.columns.filter((entry) => entry.id !== column.id) }))}>Remove</button>
-      </div>)}
+      <ReorderList items={draft.columns} scope={`${sdk.profileId}:board:${project.id}`} label="Board phases" name={(column) => column.name} disabled={busy}
+        change={(columns) => setDraft((current) => ({ ...current, columns }))}>{(column) => <div className="board-phase-edit"><code>{column.id}</code><SettingsInput aria-label={`Phase name ${column.id}`} value={column.name} onChange={(event) => setDraft((current) => ({ ...current, columns: current.columns.map((entry) => entry.id === column.id ? { ...entry, name: event.target.value } : entry) }))} />
+        <button type="button" className="icon-button" aria-label={`Remove ${column.name} phase`} title={`Remove ${column.name} phase`} disabled={draft.columns.length <= 2 || draft.mergedColumnId === column.id || snapshot.issues.some((issue) => issue.projectId === project.id && issue.phaseId === column.id)} onClick={() => setDraft((current) => ({ ...current, columns: current.columns.filter((entry) => entry.id !== column.id) }))}><Icon name="Trash" /></button>
+      </div>}</ReorderList>
       <div className="button-row"><button type="button" disabled={draft.columns.length >= 12} onClick={() => setDraft((current) => ({ ...current, columns: [...current.columns, { id: `phase-${crypto.randomUUID().slice(0, 8)}`, name: "New phase" }] }))}>Add phase</button>
         <button type="button" className="primary" aria-label="Save board configuration" disabled={JSON.stringify(draft.columns) === JSON.stringify(committed.columns)} onClick={() => {
           const kanban = { ...kanbanPreferences(actual.current), phaseIds: kanbanPreferences(actual.current).phaseIds.filter((id) => draft.columns.some((column) => column.id === id)) };

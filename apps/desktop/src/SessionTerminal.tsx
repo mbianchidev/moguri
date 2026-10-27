@@ -3,11 +3,14 @@ import type { MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/ind
 import { AgentTerminal } from "./AgentTerminal.tsx";
 import { GhosttyTerminal } from "./GhosttyTerminal.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { RepositoryPicker } from "./RepositoryPicker.tsx";
 
 export function SessionTerminal({ sdk, session, snapshot, active, visible, autoStart, onAutoStartHandled }: {
   sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean; visible: boolean; autoStart: boolean; onAutoStartHandled?: () => void;
 }) {
   const [selected, setSelected] = useState<"user" | "agent">("user"), id = useId();
+  const [repository, setRepository] = useState("");
+  const root = session.repositories?.find((value) => value.projectId === repository)?.root.root;
   const user = useRef<HTMLButtonElement>(null), agent = useRef<HTMLButtonElement>(null);
   return <section className="session-terminal">
     <div className="terminal-ownership" role="tablist" aria-label="Terminal ownership" onKeyDown={(event) => {
@@ -19,8 +22,10 @@ export function SessionTerminal({ sdk, session, snapshot, active, visible, autoS
       <Tooltip content="Your private interactive console"><button ref={user} id={`${id}-user`} type="button" role="tab" aria-selected={selected === "user"} aria-controls={`${id}-panel`} tabIndex={selected === "user" ? 0 : -1} onClick={() => setSelected("user")}>User</button></Tooltip>
       <Tooltip content="Approved agent commands; read-only output"><button ref={agent} id={`${id}-agent`} type="button" role="tab" aria-selected={selected === "agent"} aria-controls={`${id}-panel`} tabIndex={selected === "agent" ? 0 : -1} onClick={() => setSelected("agent")}>Agent</button></Tooltip>
     </div>
+    {selected === "user" && <RepositoryPicker session={session} value={repository} change={setRepository} label="Terminal" />}
     <div className="terminal-owned-panel" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${selected}`}>
-      {selected === "user" ? <GhosttyTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} visible={visible} autoStart={autoStart} onAutoStartHandled={onAutoStartHandled} /> :
+      {selected === "user" ? session.repositories && !root ? <p className="fine-print">Select the exact repository for this private console. No HOME or common-parent shell is opened.</p> :
+        <GhosttyTerminal key={`${session.id}:${root ?? ""}`} sdk={sdk} session={session} snapshot={snapshot} active={active} visible={visible} autoStart={autoStart} requestedRoot={root} onAutoStartHandled={onAutoStartHandled} /> :
         <AgentTerminal sdk={sdk} session={session} snapshot={snapshot} active={active} />}
     </div>
   </section>;

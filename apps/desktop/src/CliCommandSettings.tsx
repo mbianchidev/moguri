@@ -1,4 +1,4 @@
-import { SettingsHelp } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 
@@ -29,8 +29,8 @@ export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void
     <p role="status">{status?.detail ?? "Reading command installation..."}</p>
     <div className="button-row">
       <button type="button" disabled={busy || !status?.available || status.state !== "absent"} onClick={() => void run({ action: "install" })}>Install <code>moguri</code> command</button>
-      <button type="button" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }}>Remove <code>moguri</code> command</button>
-      <button type="button" disabled={busy} onClick={() => void run({ action: "status" })}>Refresh command status</button>
+      <SettingsAction label="Remove moguri command" icon="Trash" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }} />
+      <SettingsAction label="Refresh command status" icon="Refresh" disabled={busy} onClick={() => void run({ action: "status" })} />
     </div>
     <p className="fine-print">After installation, run this in your terminal to add the command to your current shell's PATH:</p>
     <pre><code>{'export PATH="$HOME/.local/bin:$PATH"'}</code></pre>

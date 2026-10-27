@@ -1,4 +1,4 @@
-import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { UPDATE_TOKEN_CREATION_URL, UPDATE_TOKEN_GUIDANCE, type MoguriSdk, type UpdateInstallReview, type UpdateStatus } from "../../../packages/sdk/src/index.ts";
 
@@ -31,7 +31,7 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
       await sdk.application.updates.setToken(token); setToken(""); setStatus((await sdk.application.updates.status()).update);
     })}>Save private release PAT</button>
       <button type="button" disabled={disabled || busy || owned || Boolean(token)} onClick={() => void run(async () => { setStatus((await sdk.application.updates.credential()).update); })}>Inspect updater credential</button>
-      <button type="button" disabled={disabled || busy || owned} onClick={() => void run(async () => { await sdk.application.updates.setToken(null); setToken(""); setStatus((await sdk.application.updates.status()).update); })}>Remove updater credential</button>
+      <SettingsAction label="Remove updater credential" icon="Trash" disabled={disabled || busy || owned} onClick={() => void run(async () => { await sdk.application.updates.setToken(null); setToken(""); setStatus((await sdk.application.updates.status()).update); })} />
       <button type="button" disabled={busy || !token} onClick={() => setToken("")}>Discard token edit</button></div>
     {status?.diagnostic && <p className="settings-warning">{status.diagnostic}</p>}
     <p className="settings-warning">Updates do not require Apple signing. Integrity/repository checks are not notarization or an independent signing trust root. Moguri retains quarantine and never bypasses Gatekeeper or other OS warnings. Downloading/staging does not execute new code.</p>

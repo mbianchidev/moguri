@@ -5,6 +5,38 @@ history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
+## Folder sessions and shared controls
+
+Drop a project onto the center of another project and name the new folder.
+The files are not moved. Its **+** starts a Local chat with every current member
+repository captured explicitly; each nested project's **+** still starts a
+single-repository chat. Click the folder header to expand/collapse it, or use
+**Projects menu / Expand all groups / Collapse all groups**.
+Edge drops continue to reorder projects.
+
+Folder tools explicitly select a captured repository by ID or original name.
+Files, Changes and Terminal have repository pickers; no first member,
+common-parent directory or HOME console is substituted. Folder sessions are
+currently Local-only. PR, Work item and workspace-plan panels remain
+single-repository surfaces: open them from an individual member project's chat.
+Per-repository MCP, memory indexing, hooks, background jobs and publication are
+not implicitly combined or enabled by grouping.
+
+Drop a session onto another to attach its navigation, including project-free
+chats; edge drops reorder. This does not change original context/coordination
+ownership. Search sessions by fuzzy, case-insensitive name. Settings use the
+same matching, switches for booleans, dropdowns for exclusive choices and
+grips for reorderable lists; Alt+Up/Down is the keyboard alternative.
+Icon actions retain accessible names and tooltips.
+
+Opening **Side chat** immediately opens its original read-only conversation.
+It captures the parent's history and inherits model, thinking, window,
+autonomy and budget controls, with the same composer, voice, Markdown
+transcript and held queue. Later changes are independent. Retained
+conversations have no arbitrary total text-byte ceiling; actual model windows,
+image bounds and finite budgets still apply. Use reviewed compaction inside
+the same session when its effective context no longer fits.
+
 ## Project Kanban, continuation and provider prices
 
 Each project has a **Kanban** row and special board chat. Opening it does not run
@@ -972,10 +1004,12 @@ dialog. It never immediately relaunches a replacement. Both confirmation
 preferences are available under **Settings > Confirmations**, including reset
 to the default of asking.
 
-Desktop dictation retains device-aware browser capture, local 16-kHz PCM,
-configurable shortcuts and push-to-talk. Completed capture stays visible as
-**Dictation ready** until explicit **Insert**, which preserves text typed during
-recognition and never sends a prompt. Native live recording separately shows
+Desktop **Ctrl+Space** is hold-to-talk: words stream into the current draft and
+release flushes the final buffer without an Insert step or prompt submission.
+Device-aware browser capture stays local, using 16-kHz PCM. Surrounding typing
+is preserved; overlapping edits stop insertion instead of overwriting text.
+Reviewed file/native transcripts retain their separate explicit Insert flow.
+Native recording separately shows
 Preparing, Recording and Finalizing: recording starts only after the pinned
 runtime reports readiness. Its Stop allows up to one minute to drain the final
 transcript instead of killing it after three seconds; cancellation still
@@ -2398,10 +2432,11 @@ TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 Right-click a project header, press **Shift+F10** while it is focused, or open
 its **Project actions** button to choose an icon color. The same context menu
-offers named red, orange, yellow, green, blue, indigo and violet presets plus
-**Default color**. **Custom color...** opens a preview that changes the project
-only after **Save**; Cancel leaves its saved color unchanged. Color picking is
-no longer part of the project settings form.
+offers named red, orange, yellow, green, blue, indigo and violet presets, plus
+a half-white/half-black pencil swatch for a custom color. It opens a preview
+that changes the project only after **Save**; Cancel leaves the saved color
+unchanged. There are no separate Default color or Custom color buttons.
+Color picking is no longer part of the project settings form.
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit

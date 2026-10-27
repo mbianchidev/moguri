@@ -287,10 +287,8 @@ test("question-only side chats expose the same explicit Other answer without cha
     await page.getByLabel("Prompt", { exact: true }).fill("Generated parent draft stays separate");
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Side chat", exact: true }).click();
     const side = page.locator(".side-chat-panel");
-    await side.getByRole("button", { name: "New side chat", exact: true }).click();
-    await side.getByRole("combobox", { name: "Side chat model", exact: true }).selectOption(fixture.modelId);
     await side.getByRole("textbox", { name: "Side question", exact: true }).fill("generated structured question choices only");
-    await side.getByRole("button", { name: "Ask", exact: true }).click();
+    await side.getByRole("button", { name: "Send", exact: true }).click();
     const question = side.getByRole("region", { name: "User question", exact: true });
     await question.getByRole("button", { name: "Other, please specify", exact: true }).click();
     await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated explicit side alternative");
@@ -301,5 +299,6 @@ test("question-only side chats expose the same explicit Other answer without cha
     expect(answered.answer?.other).toBe(true); expect(answered.answer?.actor).toBe("user");
     expect(child.mode).toBe("read-only");
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated parent draft stays separate");
+    await expect(side.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
   } finally { await app.close(); await fixture.close(); }
 });

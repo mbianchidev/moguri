@@ -7,41 +7,48 @@ import { QuestionCard } from "./QuestionCard.tsx";
 import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
 import { ApprovalActions } from "./ApprovalActions.tsx";
 import type { SettingsTab } from "./settings-catalog.ts";
+import { RepositoryPicker } from "./RepositoryPicker.tsx";
 
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
+  const [repository, setRepository] = useState(""), generation = useRef(0);
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
   const [error, setError] = useState("");
   const load = async () => {
     setError("");
-    if (!session.projectId) { setError("Select a project to inspect file changes."); return; }
-    try { setData(await sdk.workspaces.git(session.id)); }
-    catch (error) { setError(error instanceof Error ? error.message : "Git status could not be read."); }
+    const current = ++generation.current; setData(null);
+    if (session.repositories && !repository) return;
+    if (!session.projectId && !session.repositories) { setError("Select a project to inspect file changes."); return; }
+    try { const data = await sdk.workspaces.git(session.id, true, repository || undefined); if (generation.current === current) setData(data); }
+    catch (error) { if (generation.current === current) setError(error instanceof Error ? error.message : "Git status could not be read."); }
   };
-  useEffect(() => { void load(); }, [session.id, session.workspaceId, session.turnId]);
-  return <section className="changes-panel"><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" onClick={() => void load()}><Icon name="Down" /></button></header>
+  useEffect(() => { void load(); return () => { generation.current++; }; }, [session.id, session.workspaceId, session.turnId, repository]);
+  return <section className="changes-panel"><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Down" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;
 }
 export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
+  const [repository, setRepository] = useState("");
   const [path, setPath] = useState("."), [entries, setEntries] = useState<string[]>([]), [file, setFile] = useState<{ path: string; text: string } | null>(null);
   const [loading, setLoading] = useState(false), [error, setError] = useState(""), generation = useRef(0);
   useEffect(() => {
     const current = ++generation.current; setLoading(true); setError(""); setFile(null);
-    void sdk.workspaces.files(session.id, path).then((result) => { if (generation.current === current) setEntries(result.entries); })
+    if (session.repositories && !repository) { setEntries([]); setLoading(false); return; }
+    void sdk.workspaces.files(session.id, path, repository || undefined).then((result) => { if (generation.current === current) setEntries(result.entries); })
       .catch((error: unknown) => { if (generation.current === current) { setEntries([]); setError(error instanceof Error ? error.message : "Directory could not be read from the bound root."); } })
       .finally(() => { if (generation.current === current) setLoading(false); });
     return () => { generation.current++; };
-  }, [session.id, session.workspaceId, session.sandboxWorkspaceId, session.controls.env, path]);
+  }, [session.id, session.workspaceId, session.sandboxWorkspaceId, session.controls.env, path, repository]);
   const open = (entry: string) => {
     if (entry.endsWith("/")) { setPath(entry.slice(0, -1)); return; }
     const current = ++generation.current; setLoading(true); setError("");
-    void sdk.workspaces.file(session.id, entry).then((result) => { if (generation.current === current) setFile(result); })
+    void sdk.workspaces.file(session.id, entry, repository || undefined).then((result) => { if (generation.current === current) setFile(result); })
       .catch((error: unknown) => { if (generation.current === current) setError(error instanceof Error ? error.message : "File could not be read."); })
       .finally(() => { if (generation.current === current) setLoading(false); });
   };
-  return <section className="files-panel" aria-label="Bound workspace files"><header className="panel-toolbar">
+  return <section className="files-panel" aria-label="Bound workspace files"><RepositoryPicker session={session} value={repository}
+    change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
