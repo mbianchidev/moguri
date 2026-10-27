@@ -7,6 +7,14 @@ clients and service; never delete state to upgrade.
 
 ## Saved turn and usage information
 
+The small **Turns** index beside the conversation jumps to sent prompts and
+questions you actually answered, showing the original question and your choice.
+Tool permission decisions, queued drafts and automated answers do not appear.
+Use **Show turn previews** to expand/collapse labels; narrow and side-chat panes
+start compact. Enter activates a focused point, and Escape closes expanded
+compact previews. Older points reveal retained history automatically without
+discarding your draft or following new output away from the point you chose.
+
 Turn information and **Budget and usage** open from the chat's saved snapshot,
 without fetching details on click. Tokens, context and captured-rate USD estimates
 update during a turn and remain available after reopening the chat or restarting

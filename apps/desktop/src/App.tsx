@@ -1,5 +1,5 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { activeDecision, activeProjectWork, appearanceColors, continueWorkInput, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { activeDecision, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -20,6 +20,7 @@ import { SessionGitHub } from "./SessionGitHub.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 import { ContinueWorkDialog } from "./ContinueWorkDialog.tsx";
 import { ReorderList } from "./ReorderList.tsx";
+import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -411,7 +412,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       {activeProjectWork(continuedWork) && <button type="button" onClick={() => void run(() => client.kanban.cancel(continuedWork.id))}>Stop task</button>}
       {continuedWork.prUrl && <button type="button" onClick={() => void run(async () => { await window.moguri.openExternal(continuedWork.prUrl!); })}>Open published PR</button>}
     </section>}
-    <Timeline session={session} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
+    <Timeline key={JSON.stringify([client.profileId, session.id])} session={session} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
     {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
     {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
     {session.pendingApproval && <section className="approval" aria-label="Tool approval">
@@ -520,11 +521,20 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</>;
 }
 
-function Timeline({ session, snapshot, run, client, modal, label = "Session transcript" }: { session: Session; snapshot: Snapshot; run: Run; client: MoguriClient; modal: (open: boolean) => void; label?: string }) {
+function Timeline({ session, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns" }: {
+  session: Session; snapshot: Snapshot; run: Run; client: MoguriClient; modal: (open: boolean) => void; label?: string; navigationLabel?: string;
+}) {
   const activity = useSessionActivity(client, session, snapshot);
   const scroll = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
-  const [limit, setLimit] = useState(150);
+  const [historyStart, setHistoryStart] = useState<number | null>(null);
+  const start = historyStart ?? Math.max(0, session.messages.length - 150);
+  const navigation = useMemo(() => conversationNavigation(snapshot, session.id), [snapshot.profileId, session.id, session.messages, snapshot.questions]);
+  const promptAnchors = new Map(navigation.filter((entry) => entry.kind === "prompt").map((entry) => [entry.messageId, entry.id]));
+  const answers = new Map<string, Array<Extract<ConversationNavigationEntry, { kind: "answer" }>>>();
+  for (const entry of navigation) if (entry.kind === "answer") {
+    const values = answers.get(entry.messageId) ?? []; values.push(entry); answers.set(entry.messageId, values);
+  }
   const follow = useRef(true);
   useEffect(() => { follow.current = true; }, [session.id]);
   useEffect(() => {
@@ -537,24 +547,26 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
   useEffect(() => { if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; }, [session.messages.length, session.messages.at(-1)?.text, session.id]);
   const entries = activity.activity?.entries ?? [], positions = new Map(activity.activity?.messageOrder.map((entry) => [entry.id, entry.sequence]) ?? []);
   const groups = new Map<string, PublicMessage[]>();
-  for (const message of session.messages.slice(-limit)) {
+  for (const message of session.messages.slice(start)) {
     const key = message.turnId || `notice-${message.id}`, group = groups.get(key) ?? [];
     group.push(message); groups.set(key, group);
   }
   const renderMessage = (message: PublicMessage) => {
-    if (message.role === "tool" || message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome)) return null;
-    return <article key={`message-${message.id}`} className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}>
+    if (message.role === "tool") return null;
+    const hidden = message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome);
+    return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
+      aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
           {message.role !== "notice" && <button className="icon-button message-copy" title="Copy message" aria-label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} onClick={() => void run(() => window.moguri.copyText(message.text))}><Icon name="Copy" /></button>}</header>
         <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><div className="reasoning markdown"><Suspense fallback={<p>{message.reasoning}</p>}><RichMessage text={message.reasoning} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
         {message.attachments?.some((attachment) => attachment.kind !== "image") && <div className="message-documents attachment-list">{message.attachments.filter((attachment) => attachment.kind !== "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
-      </article>;
+      </article>}{answers.get(message.id)?.map((entry) => <AnsweredQuestion key={entry.id} entry={entry} />)}</Fragment>;
   };
-  return <div ref={scroll} className="timeline" role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content}>
+  return <div className="conversation-history"><div ref={scroll} className="timeline" role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content}>
     {session.messages.length === 0 && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{session.controls.automaticApprovals && ["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
-    {session.messages.length > limit && <button className="load-history" onClick={() => setLimit((value) => value + 150)}>Show earlier messages ({session.messages.length - limit})</button>}
+    {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
     {activity.error && <p className="inline-error activity-read-error" role="alert">{activity.error}</p>}
     {[...groups].map(([turnId, messages]) => {
@@ -581,7 +593,9 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
       {!activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === null)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
     </section>}
   </div>
-  </div>;
+  </div>{navigation.length > 0 && <ConversationNavigation entries={navigation} viewport={scroll} renderedFrom={start} label={navigationLabel} onNavigate={(entry) => {
+    follow.current = false; setHistoryStart(Math.min(start, entry.messageIndex));
+  }} />}</div>;
 }
 function Queue({ session, command, client, modal }: { session: Session; command: (command: Command) => Promise<void>; client: MoguriClient; modal: (open: boolean) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
@@ -669,7 +683,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} modal={modal} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty}
-    openSettings={openSettings} modal={modal} renderTranscript={(side) => <Timeline session={side} snapshot={snapshot} run={run} client={client} modal={modal} label="Side chat transcript" />}
+    openSettings={openSettings} modal={modal} renderTranscript={(side) => <Timeline key={JSON.stringify([client.profileId, side.id])} session={side} snapshot={snapshot} run={run} client={client} modal={modal} label="Side chat transcript" navigationLabel="Side chat turns" />}
     renderQueue={(side) => <Queue session={side} command={(command) => run(() => client.command(command))} client={client} modal={modal} />} />;
   if ((panel === "Code change" || panel === "PR") && snapshot) return <section aria-label="Session code change" data-session-id={session.id}><p className="fine-print">{title(session)}</p><h2>{prUrl ? "Connected PR" : "Pull requests"}</h2>{!prUrl && <p className="fine-print">This session has no linked pull request. Choose an existing PR or review a new one below.</p>}<SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="pull" selectedUrl={prUrl} onDirty={onDirty} chooseSession={chooseSession} /></section>;
   if (panel === "Work item" && snapshot) return <section aria-label="Session work item" data-session-id={session.id}><p className="fine-print">{title(session)}</p><SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="issue" onDirty={onDirty} chooseSession={chooseSession} /></section>;
