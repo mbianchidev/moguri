@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **68**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **69**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -12,6 +12,11 @@ side menus. Kupo is in the model list; its adjacent information button explains
 unavailability without enabling it or substituting another model. Only the
 selected model's qualified options are offered, and changes save through the
 shared session controls. Escape/Left returns from a submenu; Right opens it.
+`/thinking high` and `/effort low` set a supported effort; either accepts
+`default` to clear only that override. `/context-window 24577` sets that exact
+whole-token ceiling. `min`, `half` and `max` select the minimum, floored half
+and maximum supported ceiling. Each shortcut preserves the other setting
+and does not run a model.
 
 Type `/` for the complete scrollable command list: built-ins first, enabled
 skills last. Configured skill sources refresh explicitly when this chooser is
@@ -22,7 +27,7 @@ granting tools. A failed source stays an explicit error, not a stale catalog.
 the original read-only side chat and opens its panel. It preserves any existing
 side draft and never runs the main chat's model. `/side` alone only opens it.
 The [protocol-68 qualification](architecture/chat-activity.md#protocol-68-composer-and-compact-control-qualification)
-records the current composer/turn-control development installer and its exact
+records the earlier composer/turn-control development installer and its exact
 checksum, complete coverage and remaining release exclusions.
 
 The small **Turns** index beside the conversation jumps to sent prompts and
@@ -1772,13 +1777,25 @@ Unready choices explain the limitation
 or fail with a typed error; no fallback to Local or another model is possible.
 
 **Model / Working context** offers the model maximum and its integer-floored
-half, omitting windows below 8,192 tokens. Actual provider-declared working
-windows replace these derived choices when available. `/model-settings` in
-desktop, TUI or `moguri slash` shows the same service choices and current
-estimate; `/model-settings {"contextWindow":N}` selects an offered exact value.
+half as presets, omitting windows below 8,192 tokens. Without discrete provider
+restrictions, `/context-window N` or `/model-settings {"contextWindow":N}`
+accepts any exact integer from 8,192 through the model maximum. The menu also
+shows a valid exact selected value. Actual provider-declared working windows
+remain an exact allowed set rather than a range. `/context-window min|max`
+selects the actual allowed endpoints; `half` floors half the supported maximum
+and fails if that result is too small or not provider-declared, never clamping
+or substituting it. `/model-settings` in desktop, TUI or `moguri slash` shows
+the current service settings and estimate.
 `/model-settings reset` restores the model default. An unsupported saved value
 stays visible and blocks inference until explicitly corrected. No history is
 silently truncated and context/output counts remain estimates.
+
+`/thinking LEVEL` and `/effort LEVEL` are equivalent. They accept only the
+selected model's actual effort levels; `default` clears effort without clearing
+the working window. Context-only changes preserve effort and do not change the
+remembered model selection. Kupo does not accept fixed-role tuning overrides.
+Protocol 69 only advances service/state metadata for these shared validation
+rules; encrypted history, receipts, budgets and source grants are unchanged.
 
 Each response can use the model's declared output maximum within the selected
 context window and its headroom; Moguri does not impose a separate 8,192-token

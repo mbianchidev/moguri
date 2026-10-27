@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -427,8 +427,11 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const [submenu, setSubmenu] = useState<"models" | "effort" | "context" | null>(null);
   const revision = useRef(session.revision);
   const windows = current && !current.synthetic ? modelContextWindows(current) : null;
-  const staleWindow = Boolean(window && !windows?.values.includes(Number(window)));
+  const staleWindow = Boolean(window && (!current || current.synthetic || !supportsModelContextWindow(current, Number(window))));
   const staleEffort = Boolean(effort && !current?.thinkingLevels?.includes(effort));
+  const contextChoices = windows?.values.slice() ?? [];
+  if (window && !staleWindow && !contextChoices.includes(Number(window))) contextChoices.push(Number(window));
+  contextChoices.sort((a, b) => b - a);
   const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
@@ -474,7 +477,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     </ModelSubmenu>
     <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
-      {[null, ...windows?.values ?? []].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
+      {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
         onClick={() => { setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) }); }}>
         <span>{value === null ? "Model default" : `${count(value)} tokens`}</span>{window === (value?.toString() ?? "") && <Icon name="Check" />}</button>)}
     </ModelSubmenu>

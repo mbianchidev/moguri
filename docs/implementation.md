@@ -368,9 +368,14 @@ states. Concrete models stay scoped to the active profile and selected env;
 discovery never scans arbitrary hosts or starts paid inference. Recheck
 availability at dispatch, and never replace an unavailable saved model silently.
 
-Working-context choices use the exact model maximum and its integer-floored
-half, excluding values below the shared 8,192-token working minimum. Genuine
-provider-declared supported windows replace those derived choices. SDK, CLI,
+Working-context presets use the exact model maximum and its integer-floored
+half, excluding values below the shared 8,192-token working minimum. Without
+provider-declared restrictions, exact integer ceilings within that range are
+also valid. Genuine provider-declared supported windows remain an exact allowed
+set. `/context-window TOKENS|min|half|max` preserves effort; min/max use actual
+allowed endpoints and an unsupported floored half fails without substitution.
+`/thinking LEVEL` and `/effort LEVEL` preserve context; `default` clears only
+effort, using the same actual supported levels as the model control. SDK, CLI,
 TUI and desktop share the contract; model changes and stale/default overrides
 cannot silently clamp a window or discard history. Request sizing and output
 headroom remain explicitly estimated and are rechecked against actual prepared

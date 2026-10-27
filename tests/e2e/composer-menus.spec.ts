@@ -53,6 +53,44 @@ test("the model control opens cascading model, effort and context menus with exa
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("model tuning slash shortcuts share the real controls and keep an exact non-preset window selectable", async () => {
+  const fixture = await setupFixture({ reasoning: true, contextWindow: 32769 });
+  await fixture.configure();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    for (const [command, effort] of [["/thinking high", "high"], ["/effort low", "low"]] as const) {
+      await prompt.fill(command); await page.getByRole("button", { name: "Run command", exact: true }).click();
+      await expect.poll(() => fixture.session().controls.modelOptions?.thinkingEffort).toBe(effort);
+      await expect(prompt).toHaveValue("");
+    }
+    await prompt.fill("/context-window 24577"); await page.getByRole("button", { name: "Run command", exact: true }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions?.contextWindow).toBe(24577);
+    await expect(page.getByText(/^Context window set to 24,577 tokens\./)).toBeVisible();
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    const root = page.getByRole("dialog", { name: "Model", exact: true });
+    await expect(root.getByRole("alert")).toHaveCount(0);
+    await root.getByRole("button", { name: "Working context window", exact: true }).click();
+    await expect(page.getByRole("menu", { name: "Working context window", exact: true }).getByRole("menuitemradio", { name: "24,577 tokens", exact: true })).toHaveAttribute("aria-checked", "true");
+    await page.keyboard.press("ArrowLeft");
+    await root.getByRole("button", { name: "Thinking effort", exact: true }).click();
+    await page.getByRole("menu", { name: "Thinking effort", exact: true }).getByRole("menuitemradio", { name: "Medium", exact: true }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 24577, thinkingEffort: "medium" });
+    await expect(root.getByRole("status")).toHaveText("Changes save automatically.");
+    await page.keyboard.press("Escape");
+    await prompt.fill("/context-window 1"); await page.getByRole("button", { name: "Run command", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Allowed whole-token ceilings");
+    await expect(prompt).toHaveValue("/context-window 1");
+    expect(fixture.session().controls.modelOptions).toEqual({ contextWindow: 24577, thinkingEffort: "medium" });
+    await prompt.fill("/context-window half"); await page.getByRole("button", { name: "Run command", exact: true }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 16384, thinkingEffort: "medium" });
+    await expect(page.getByText(/^Context window set to 16,384 tokens\./)).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
+
 test("the scrollable slash list contains all builtins before skills, loads the exact chosen skill and routes /side text without touching an existing side draft", async () => {
   const fixture = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure();
