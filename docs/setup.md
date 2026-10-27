@@ -30,7 +30,9 @@ The [protocol-68 qualification](architecture/chat-activity.md#protocol-68-compos
 records the earlier composer/turn-control development installer and its exact
 checksum, complete coverage and remaining release exclusions.
 The [tuning-shortcut qualification](architecture/model-controls.md#tuning-shortcut-qualification)
-records the current protocol-69 installer and its exact identity.
+records the preceding protocol-69 shortcut installer.
+The [settings help qualification](architecture/settings-platform.md#settings-help-alignment-qualification)
+records the current aligned-settings installer and its exact identity.
 
 The small **Turns** index beside the conversation jumps to sent prompts and
 questions you actually answered, showing the original question and your choice.
