@@ -28,7 +28,7 @@ export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void
     {status && <p className="fine-print">Command: <code>{status.path}</code></p>}
     <p role="status">{status?.detail ?? "Reading command installation..."}</p>
     <div className="button-row">
-      <button type="button" disabled={busy || !status?.available || status.state !== "absent"} onClick={() => void run({ action: "install" })}>Install <code>moguri</code> command</button>
+      <button type="button" disabled={busy || !status?.available || status.state !== "absent"} aria-label="Install moguri command" onClick={() => void run({ action: "install" })}>Install</button>
       <SettingsAction label="Remove moguri command" icon="Trash" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }} />
       <SettingsAction label="Refresh command status" icon="Refresh" disabled={busy} onClick={() => void run({ action: "status" })} />
     </div>

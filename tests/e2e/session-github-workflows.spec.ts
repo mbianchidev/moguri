@@ -154,7 +154,7 @@ test("approval scopes persist across turns, Autopilot explicitly enables unatten
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByText("Create a token with the right permissions", { exact: true }).click();
     await expect(page.getByRole("region", { name: "Private application updates", exact: true })).toContainText("Contents, Read-only");
-    await expect(page.getByRole("button", { name: "Create read-only update token", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create token for read-only updates", exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().settings.values.permissions.tools).toEqual([]);
   } finally { await close(app); await fixture.close(); }
 });

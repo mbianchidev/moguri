@@ -21,7 +21,7 @@ test("desktop reads exact retained role data, preserves immutable input and edit
     await expect(panel.getByLabel("Artifact text", { exact: true })).toHaveAttribute("readonly", "");
     const roles = panel.getByRole("region", { name: "Retained role sequence", exact: true });
     await roles.getByLabel("Retained role index", { exact: true }).selectOption("1");
-    await roles.getByRole("button", { name: "Inspect recorded role", exact: true }).click();
+    await roles.getByRole("button", { name: "View role from original record", exact: true }).click();
     await expect(roles.getByLabel("Recorded role data", { exact: true })).toContainText("GENERATED_RETAINED_CRITIC_RESULT_NOT_CONTEXT");
     await expect(roles.getByLabel("Recorded role data", { exact: true })).toBeFocused();
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });

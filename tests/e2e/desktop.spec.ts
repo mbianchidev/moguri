@@ -204,9 +204,9 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByLabel("I understand this can break functionality. Hard permissions cannot be overridden.").check();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.systemPrompt).toBe("Generated user-edited instructions. Never invent results.");
-    await page.getByRole("button", { name: "View effective committed prompt" }).click();
+    await page.getByRole("button", { name: "Preview effective committed prompt" }).click();
     await expect(page.locator(".settings-content pre").last()).toContainText("moguri-execution-contract");
-    await page.getByRole("button", { name: "Restore default system prompt" }).click();
+    await page.getByRole("button", { name: "Restore defaults for system prompt" }).click();
     await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);
     await expect(page.getByText("Generated user-edited instructions. Never invent results.", { exact: true })).toHaveCount(0);
     const categories = page.getByRole("navigation", { name: "Settings categories" });

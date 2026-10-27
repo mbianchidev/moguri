@@ -28,7 +28,7 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
       setOutput(`Created ${workspace.branch}. Open a new session below; no model was started.`);
       return undefined;
     })}>{busy ? "Working..." : "Create worktree"}</button>
-    <SettingsHelp label="More about this setting" target={<button disabled={disabled || busy} onClick={() => void run(() => sdk.workspaces.discover(project.id))}>Discover Git worktrees</button>}>Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<button disabled={disabled || busy} onClick={() => void run(() => sdk.workspaces.discover(project.id))} aria-label="Discover Git worktrees">Discover</button>}>Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</SettingsHelp>
 
     {error && <p className="inline-error" role="alert">{error}</p>}
     {!workspaces.length && <p className="fine-print">No managed checkouts yet. Ordinary project chats keep using the attached base folder.</p>}

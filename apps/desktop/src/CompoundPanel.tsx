@@ -92,8 +92,8 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
             requestPlan: plan || null, requestArchitecture: architecture || null, validationScriptId: scriptId, validationTimeoutMs: Number(timeout) };
           const result = await sdk.compound.preview(input);
           if (current()) setPreview({ input, value: result.preview, scope: inputScope });
-        })}>Review compound input</button>
-        <button disabled={Boolean(busy) || !dirty && !changedOwner} onClick={reset}>Discard compound input</button></div>
+        })} aria-label="Review compound input">Review</button>
+        <button disabled={Boolean(busy) || !dirty && !changedOwner} onClick={reset} aria-label="Discard compound input">Discard</button></div>
       {preview && preview.scope === inputScope && <section className="candidate-binding" aria-label="Exact compound input review">
         <p className="fine-print path">Source: {preview.value.document.source.root}<br />Draft: {preview.value.document.draft.root.root}<br />Alternate: {preview.value.document.alternate.root.root}<br />HEAD: {preview.value.document.source.head}</p>
 
@@ -105,7 +105,7 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
           const created = await sdk.compound.start(captured.input, captured.value.digest, true);
           if (!created.id) throw new Error("No original public workflow identity was acknowledged. Inspect retained history before another review.");
           setSelectedId(created.id); setBaseline(fields);
-        })}>Start reviewed compound</button>
+        })} aria-label="Start reviewed compound">Start</button>
       </section>}
     </details>}>At most 20 paths. Selected bases must match the committed clean stages. Original composer drafts, attachments and held prompts are not consumed or implicitly included. Create worktrees and configure scripts explicitly in Project settings.</SettingsHelp>
     <label className="setting-field">Retained compound workflow<select aria-label="Retained compound workflow" value={selected?.id ?? ""} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
@@ -114,7 +114,7 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
       <h3 ref={outcomeHeading} tabIndex={-1}>Compound {value.workflow.status}</h3>
       <p className="fine-print">Phase: {value.workflow.phase}. {value.workflow.route ? `Classifier selected ${value.workflow.route.pattern}.` : "No route accepted."} No source acceptance or Git operation is implied.</p>
       {value.workflow.diagnostic && <p className="settings-warning" role="alert">{value.workflow.diagnostic}</p>}
-      {ownRunning && <button disabled={Boolean(busy)} onClick={() => void run("Requesting owned workflow stop", async () => { await sdk.compound.stop(value.workflow.id); })}>Stop this compound workflow</button>}
+      {ownRunning && <button disabled={Boolean(busy)} onClick={() => void run("Requesting owned workflow stop", async () => { await sdk.compound.stop(value.workflow.id); })} aria-label="Stop this compound workflow">Stop</button>}
       {value.roles.map(({ step, input, result }) => <details key={step.planId}><summary>{step.role} / {step.modelId} / {step.state}</summary>
         <p className="fine-print">Untrusted role data, never a user answer, permission or quality proof.</p>{input && <details><summary>Exact model input</summary><pre>{input}</pre></details>}{result && <pre>{result}</pre>}</details>)}
       {value.validations.map(({ validation, document, result }) => <details key={validation.id} open={Boolean(result)}><summary>Project tests / {validation.status}</summary>
@@ -131,13 +131,13 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
         <div className="button-row"><button className="primary" disabled={Boolean(busy) || !ownRunning || !testReviewed} onClick={() => void run("Approving exact staging and project tests", async () => {
           setTestReviewed(false); focusNext.current = true;
           await sdk.compound.review(value.workflow.id, review.validationId, value.workflow.revision, review.digest, true);
-        })}>Stage and run reviewed project tests</button>
+        })} aria-label="Stage and test using reviewed project script">Stage and test</button>
           <button disabled={Boolean(busy) || !ownRunning} onClick={() => void run("Declining exact staging and tests", async () => {
             setTestReviewed(false); focusNext.current = true;
             await sdk.compound.review(value.workflow.id, review.validationId, value.workflow.revision, review.digest, false);
-          })}>Decline staging and tests</button></div>
+          })} aria-label="Decline staging and tests">Decline</button></div>
       </section>}
-      {value.workflow.status === "proposed" && value.workflow.selectedCandidateId && <button onClick={() => onSelectCandidate(value.workflow.selectedCandidateId!)}>Inspect recommended candidate</button>}
+      {value.workflow.status === "proposed" && value.workflow.selectedCandidateId && <button onClick={() => onSelectCandidate(value.workflow.selectedCandidateId!)} aria-label="View candidate recommended by workflow">View candidate</button>}
     </div>}
   </section>;
 }

@@ -45,7 +45,7 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
       if (!selection) return;
       await sdk.notifications.importSound(selection.name, audioFromBase64(selection.audio));
       onOutput("Sound imported. Choose it separately for attention or completion alerts.");
-    })}>Import notification sound</button>
+    })} aria-label="Import notification sound">Import</button>
     {snapshot.notificationSounds.some((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)) && <label className="setting-field">Sound reviewed for removal
       <select aria-label="Sound reviewed for removal" value={remove ?? ""} disabled={busy} onChange={(event) => setRemove(event.target.value || null)}>
         <option value="">No removal confirmed</option>{snapshot.notificationSounds.filter((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)).map((sound) => <option key={sound.id} value={sound.id}>Remove {sound.name}</option>)}

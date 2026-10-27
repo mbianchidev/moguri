@@ -26,7 +26,7 @@ test("root menu preference and reviewed whole-store move use real generated stor
     await page.getByRole("button", { name: "Choose storage parent", exact: true }).click();
     await expect(page.getByLabel("Session storage location", { exact: true })).toHaveValue(destination);
     await page.getByRole("button", { name: "Review storage relocation", exact: true }).click();
-    const move = page.getByRole("button", { name: "Move store and restart Moguri", exact: true });
+    const move = page.getByRole("button", { name: "Move and restart Moguri with relocated storage", exact: true });
     await expect(move).toBeDisabled();
     await page.getByLabel("I reviewed the exact source, destination, retained resources and restart impact", { exact: true }).check();
     await move.click();

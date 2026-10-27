@@ -28,7 +28,7 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     await expect.poll(async () => (await sdk.application.status()).configuration.values.automaticUpdates).toBe(false);
     expect(values.size).toBe(0); expect(feed.requests.length).toBe(0);
     await expect(page.getByLabel("Private release PAT", { exact: true })).toHaveValue(token);
-    await page.getByRole("button", { name: "Save private release PAT", exact: true }).click();
+    await page.getByRole("button", { name: "Store private release PAT", exact: true }).click();
     await expect.poll(() => values.get("private-github-release")).toBe(token);
     await expect(page.getByLabel("Private release PAT", { exact: true })).toHaveValue("");
     await page.getByRole("button", { name: "Check for updates now", exact: true }).click();
@@ -37,7 +37,7 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     await page.getByRole("button", { name: "About source-runtime update limits", exact: true }).focus();
     await expect(page.getByRole("tooltip")).toContainText("This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout.");
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("button", { name: "Install verified update and restart", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Install and restart with verified update", exact: true })).toHaveCount(0);
     expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await service.close(); await fixture.close(); }
 });

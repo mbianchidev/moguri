@@ -108,9 +108,9 @@ test("MCP OAuth UI uses generated explicit consent and clears the connection wit
     expect(await page.locator("body").innerText()).not.toContain("generated-oauth-access");
     await mkdir(artifacts, { recursive: true });
     await page.screenshot({ path: join(artifacts, "engagement-mcp-oauth.png") });
-    await panel.getByRole("button", { name: "Clear OAuth connection", exact: true }).click();
+    await panel.getByRole("button", { name: "Remove OAuth connection", exact: true }).click();
     await expect(panel.getByRole("status")).toContainText("cleared");
-    await page.getByRole("button", { name: "Check credential status", exact: true }).click();
+    await page.getByRole("button", { name: "Verify credential status", exact: true }).click();
     await expect(page.locator(".settings-result pre")).toContainText('"state": "required"');
     expect(secrets.size).toBe(0); expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); await oauth.close(); }

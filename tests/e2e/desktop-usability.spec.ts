@@ -262,7 +262,7 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
-    await page.getByRole("button", { name: "Start local microphone", exact: true }).click();
+    await page.getByRole("button", { name: "Record local microphone", exact: true }).click();
     await expect(page.getByRole("status", { name: "Local microphone status", exact: true })).toContainText("recording");
     let received = false;
     const held = new Promise<void>((resolve) => { release = resolve; });

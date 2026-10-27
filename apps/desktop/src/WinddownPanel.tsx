@@ -55,7 +55,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
       <p className="fine-print">Actual finishing model: {value.winddown.step.modelId}. Observation: {value.winddown.step.state}. Original turn: {value.winddown.turnId}.</p>
       {value.winddown.diagnostic && <p className="settings-warning" role="alert">{value.winddown.diagnostic}</p>}
       <details><summary>Original metadata-only model input/result</summary>{value.roleInput && <pre>{value.roleInput}</pre>}{value.result && <pre>{value.result}</pre>}<p className="fine-print">Untrusted model data, not a user answer, validation proof or Git authority.</p></details>
-      {["held", "running", "committing"].includes(value.winddown.status) && <button disabled={Boolean(busy)} onClick={() => void run("Stopping the original checkpoint owner", async () => { await sdk.winddown.stop(value.winddown.id); })}>Stop this checkpoint owner</button>}
+      {["held", "running", "committing"].includes(value.winddown.status) && <button disabled={Boolean(busy)} onClick={() => void run("Stopping the original checkpoint owner", async () => { await sdk.winddown.stop(value.winddown.id); })} aria-label="Stop this checkpoint owner">Stop</button>}
       {value.winddown.commit && <><p className="fine-print path">Actual user Git intent: {value.winddown.commit.branch} / base {value.winddown.commit.base}<br />Prepared: {value.winddown.commit.preparedCommit ?? "not recorded"}<br />Published: {value.winddown.commit.publishedCommit ?? "not acknowledged"}</p>
         <p className="fine-print">Publication attempted: {String(value.winddown.commit.publicationAttempted)}. Cancel requested: {String(value.winddown.commit.cancelRequested)}. A partial job is never replayed or rolled back.</p></>}
       {value.winddown.status === "ready" && <>
@@ -69,8 +69,8 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
           if (!session) throw new Error("Choose the actual original source session.");
           const result = await sdk.winddown.commitPreview({ winddownId: value.winddown.id, sessionId: session.id, candidateIds, branch, message });
           if (current()) setPreview({ value: result.preview, scope });
-        })}>Review accepted-work Git checkpoint</button>
-          <button disabled={Boolean(busy) || !ownSource} onClick={() => void run("Declining checkpoint Git publication", async () => { await sdk.winddown.decline(value.winddown.id, value.winddown.revision, true); })}>Decline checkpoint Git publication</button></div>
+        })} aria-label="Review accepted-work Git checkpoint">Review</button>
+          <button disabled={Boolean(busy) || !ownSource} onClick={() => void run("Declining checkpoint Git publication", async () => { await sdk.winddown.decline(value.winddown.id, value.winddown.revision, true); })} aria-label="Decline checkpoint Git publication">Decline</button></div>
         {preview && preview.scope === scope && <section className="candidate-binding" aria-label="Exact accepted-work checkpoint Git review">
           <p className="fine-print path">Root: {preview.value.document.source.root}<br />New branch: {preview.value.document.branch}<br />Base: {preview.value.document.base}</p>
           <p className="settings-warning">{preview.value.warning}</p><pre>{preview.value.document.message}</pre>
@@ -82,10 +82,10 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
               candidateIds: captured.document.candidates.map((candidate) => candidate.id), branch: captured.document.branch, message: captured.document.message },
             captured.revision, captured.digest, true);
             setBaseline(fields); setNotice("Original actual-user Git intent admitted. Inspect its verified result or partial publication; no second model was called.");
-          })}>Create reviewed local checkpoint branch</button>
+          })} aria-label="Commit on new branch from reviewed checkpoint">Commit on new branch</button>
         </section>}
       </>}
-      {dirty && <button disabled={Boolean(busy)} onClick={() => { setCandidates([]); setBranch(""); setMessage("chore: checkpoint explicitly accepted work"); setBaseline(""); setPreview(null); }}>Discard local checkpoint input</button>}
+      {dirty && <button disabled={Boolean(busy)} onClick={() => { setCandidates([]); setBranch(""); setMessage("chore: checkpoint explicitly accepted work"); setBaseline(""); setPreview(null); }} aria-label="Discard local checkpoint input">Discard</button>}
     </>}
   </section>;
 }

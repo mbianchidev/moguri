@@ -69,22 +69,22 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
     {status?.operation && <p className="fine-print" role="status">Setup {status.operation.status}. {status.operation.diagnostic}</p>}
     {status?.operation && active.has(status.operation.status) && <button type="button" onClick={() => {
       void sdk.sandbox.setup.cancel(status.operation!.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Original setup cancellation was not confirmed."));
-    }}>Cancel original setup</button>}
+    }} aria-label="Cancel original setup">Cancel</button>}
     <div className="setting-editor">
       <label className="setting-field">SendBox version to review<SettingsInput aria-label="SendBox version to review" value={version} disabled={disabled || busy}
         onChange={(event) => { editedVersion.current = true; setVersion(event.target.value); setReview(null); setAccepted(false); }} /></label>
-      <button type="button" className="primary" disabled={disabled || busy || !status?.supported || !version.trim()} onClick={() => void run(reviewVersion)}>
-        {version.trim() === status?.bundledVersion ? "Review bundled setup" : "Prepare version for review"}
+      <button type="button" className="primary" disabled={disabled || busy || !status?.supported || !version.trim()} onClick={() => void run(reviewVersion)} aria-label={version.trim() === status?.bundledVersion ? "Review bundled setup" : "Prepare version for review"}>
+        {version.trim() === status?.bundledVersion ? "Review" : "Prepare"}
       </button>
       {version !== selectedVersion && <button type="button" disabled={busy} onClick={() => {
         editedVersion.current = false; setVersion(selectedVersion); setReview(null); setAccepted(false);
-      }}>Keep configured version</button>}
+      }} aria-label="Keep current configured version">Keep current</button>}
     </div>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticUpdates} disabled={disabled || busy}
       onChange={(event) => update({ automaticUpdates: event.target.checked })} />Check public SendBox releases at startup and every four hours</label>
-    <button type="button" disabled={disabled || busy || !status?.supported} onClick={() => void run(async () => { await wait((await sdk.sandbox.setup.check()).id!); })}>Check SendBox updates now</button>
+    <button type="button" disabled={disabled || busy || !status?.supported} onClick={() => void run(async () => { await wait((await sdk.sandbox.setup.check()).id!); })} aria-label="Check for updates to SendBox">Check for updates</button>
     {status?.availableRelease && <p className="fine-print">SendBox {status.availableRelease.version} is available. Your configured version has not changed.
-      <button type="button" disabled={disabled || busy} onClick={() => { editedVersion.current = true; setVersion(status.availableRelease!.version); setReview(null); setAccepted(false); }}>Review available version</button></p>}
+      <button type="button" disabled={disabled || busy} onClick={() => { editedVersion.current = true; setVersion(status.availableRelease!.version); setReview(null); setAccepted(false); }} aria-label="Review available version">Review</button></p>}
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticWorkspaces} disabled={disabled || busy}
       onChange={(event) => update({ automaticWorkspaces: event.target.checked })} />Prepare private session workspaces automatically</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticProviderNetwork} disabled={disabled || busy}
@@ -109,7 +109,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
         const admitted = await sdk.sandbox.setup.apply(review); await wait(admitted.id!);
         if (!owned()) return;
         editedVersion.current = false; setVersion(review.version); setReview(null); setAccepted(false);
-      })}>{management.enabled ? "Apply reviewed Sandbox setup" : "Enable Sandbox"}</button>
+      })} aria-label={management.enabled ? "Apply setup for reviewed Sandbox" : "Enable Sandbox"}>{management.enabled ? "Apply setup" : "Enable"}</button>
     </section>}
   </section>;
 }

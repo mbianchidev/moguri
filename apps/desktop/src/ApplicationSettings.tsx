@@ -33,6 +33,6 @@ export function ApplicationSettings({ sdk, revision, onBusy }: { sdk: MoguriSdk;
     {error && <><p className="inline-error" role="alert">{error}</p><button type="button" disabled={busy} onClick={() => {
       setBusy(true); void sdk.application.status().then(async (value) => { setConfiguration(value.configuration); await window.moguri.applyApplicationPreferences(); setPending({}); setError(""); })
         .catch((error: unknown) => setError(error instanceof Error ? error.message : "The actual saved native preference could not be applied.")).finally(() => setBusy(false));
-    }}>Reload and apply saved application preference</button></>}
+    }} aria-label="Reload and apply saved application preference">Reload and apply</button></>}
   </section><CliCommandSettings onBusy={setCliBusy} /></>;
 }

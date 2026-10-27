@@ -176,7 +176,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       {kind === "github.ci.watch" && <label className="setting-field">Bounded CI deadline (seconds, at most 1800)<SettingsInput type="number" min={1} max={1800} value={seconds} onChange={(event) => setSeconds(event.target.value)} /></label>}
       <button disabled={!(kind === "github.ci.watch" ? allowed : canWrite)} onClick={() => void run("Reviewing exact Git/GitHub intent", async (isCurrent) => {
         const result = await api.preview(requiredScope(), action()); if (isCurrent()) { setPreview({ value: result.preview, scope: scopeKey }); setConfirmations([]); }
-      })}>Review exact operation</button>
+      })} aria-label="Review exact operation">Review</button>
     </fieldset>
     {preview?.scope === scopeKey && <section className="candidate-section candidate-binding" aria-label="Exact Git/GitHub operation review">
       <h3>Review exact scope and effects</h3>
@@ -193,7 +193,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
           const captured = preview.value; setPreview(null); setConfirmations([]);
           const result = await api.execute(captured, captured.document.confirmations.filter((text) => confirmations.includes(text)), true);
           if (isCurrent() && result.id) { setSelectedId(result.id); focusResult.current = true; setNotice("Original reviewed intent admitted. Inspect its retained result; no retry or branch cleanup is automatic."); }
-        })}>Execute only this reviewed operation</button>
+        })} aria-label="Execute only this reviewed operation">Execute</button>
     </section>}
     <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs and releases</summary>
       <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
@@ -225,10 +225,10 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         <button disabled={Boolean(busy) || !inspectionReviewed} onClick={() => void run("Recording actual-user inspection without source authority", async (isCurrent) => {
           await api.acknowledge(value.operation.id, value.operation.revision, value.operation.inputDigest, true);
           if (isCurrent()) { setInspectionReviewed(false); setNotice("Inspection recorded only. The original operation remains partial; no cleanup, execution, signal or replay was performed."); }
-        })}>Acknowledge only this inspected partial Git operation</button>
+        })} aria-label="Confirm inspection of partial Git operation">Confirm inspection</button>
       </section>}
       {value.operation.inspection && <p className="fine-print" role="status">Inspected by actual user at {value.operation.inspection.at}, observed revision {value.operation.inspection.observedRevision}. This acknowledgement is not cleanup proof, success or permission to replay; status remains {value.operation.status}.</p>}
-      {value.operation.status === "running" && <button disabled={Boolean(busy)} onClick={() => void run("Requesting cancellation of original operation", async () => { await api.cancel(value.operation.id); })}>Cancel this owned operation</button>}
+      {value.operation.status === "running" && <button disabled={Boolean(busy)} onClick={() => void run("Requesting cancellation of original operation", async () => { await api.cancel(value.operation.id); })} aria-label="Cancel this owned operation">Cancel</button>}
     </section>}
   </section>;
 }

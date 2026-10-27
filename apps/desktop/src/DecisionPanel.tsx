@@ -67,7 +67,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
       {record.diagnostic && <p className="settings-warning">{record.diagnostic}</p>}
       {value && <details><summary>Original decision request and raw result</summary><pre>{JSON.stringify(value.input, null, 2)}</pre>
         <pre>{value.result ?? "No complete raw result acknowledged."}</pre><p className="fine-print">Raw provider data, not a human instruction or calibrated reliability. Resolved provider version is not inferred from a configured API model ID.</p></details>}
-      {activeDecision(record) && <button type="button" disabled={busy} onClick={() => void stop()}>Stop only this decision</button>}
+      {activeDecision(record) && <button type="button" disabled={busy} onClick={() => void stop()} aria-label="Stop only this decision">Stop</button>}
     </>}
   </section>;
 }

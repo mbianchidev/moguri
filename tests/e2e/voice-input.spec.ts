@@ -133,7 +133,7 @@ test("device selection and push-to-talk use real qualified bindings, while relea
     const page = await app.firstWindow(), categories = page.getByRole("navigation", { name: "Settings categories" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
-    await page.getByRole("button", { name: "List microphones with explicit audio access", exact: true }).click();
+    await page.getByRole("button", { name: "Find microphones with explicit audio access", exact: true }).click();
     const device = page.getByLabel("Voice input device", { exact: true });
     await expect.poll(() => device.evaluate((element) => {
       if (!(element instanceof HTMLSelectElement)) throw new Error("Generated microphone selector missing.");

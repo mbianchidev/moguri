@@ -42,7 +42,7 @@ export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDir
       onClick={() => { setBusy(true); setError(""); setNotice(""); void sdk.compound.lineageDraft({ draftModelId, criticModelId, draftLineage, criticLineage, sourceKind, sourceUrl, sourceText, validUntil, limitations })
         .then((value) => { onPrepared(value.review, draftModelId, criticModelId); reset(); setNotice("Exact model/source claim added only to the local policy draft and matching Critique routes. Review and Save settings separately; no model or source acceptance."); })
         .catch((error: unknown) => setError(error instanceof Error ? error.message : "Lineage draft could not be prepared. Your source and review fields were preserved."))
-        .finally(() => setBusy(false)); }}>Add reviewed lineage claim to draft</button>
-      <button disabled={disabled || busy || !dirty} onClick={reset}>Discard unsaved lineage form</button></div>
+        .finally(() => setBusy(false)); }} aria-label="Add to draft: reviewed lineage claim">Add to draft</button>
+      <button disabled={disabled || busy || !dirty} onClick={reset} aria-label="Discard unsaved lineage form">Discard</button></div>
   </section>;
 }

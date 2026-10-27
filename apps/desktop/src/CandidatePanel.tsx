@@ -142,8 +142,8 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
           if (!current()) return;
           if (result.candidate.status === "staged") { reset(); setSelectedId(result.candidate.id); setNotice("Staged separately. Source files are unchanged; review application before publishing."); }
           else setError(`Candidate ${result.candidate.status}. ${result.candidate.diagnostic ?? "Inspect the retained roots and original job; no success or rollback was inferred."}`);
-        })}>Stage reviewed proposal</button>
-        <button disabled={Boolean(busy) || !files.length && !changedScope && !dirty} onClick={reset}>Discard local proposal</button></div>
+        })} aria-label="Stage reviewed proposal">Stage</button>
+        <button disabled={Boolean(busy) || !files.length && !changedScope && !dirty} onClick={reset} aria-label="Discard local proposal">Discard</button></div>
       {preview && preview.scope === scope && <div className="candidate-binding" aria-label="Exact staging preview">
         <p className="fine-print path">Local source: {preview.value.document.source.root}<br />Owned stage: {preview.value.document.stage.root}</p>
         {preview.value.warning && <p className="settings-warning">{preview.value.warning}</p>}
@@ -169,7 +169,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
         if (!session) return;
         const preview = (await sdk.candidates.applyPreview(selected.id, session.id)).preview;
         if (current()) setApplication({ value: preview, scope });
-      })}>Review source application</button>
+      })} aria-label="Review application to original source">Review application</button>
         <button className="primary" disabled={Boolean(busy) || !writable || selected.status !== "staged" || !application || application.scope !== scope || application.value.candidateId !== selected.id || application.value.revision !== selected.revision} onClick={() => void run("Applying reviewed files", async (current) => {
           if (!application) return;
           const captured = application.value;
@@ -183,7 +183,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
       <button disabled={Boolean(busy) || Boolean(active)} onClick={() => void run("Exporting retained history", async () => {
         const document = (await sdk.artifacts.export(selected.id)).export, saved = await window.moguri.saveDocument(document);
         setNotice(saved ? "Exact candidate/history export saved. Stored copies and source files are unchanged." : "Export cancelled. Stored copies are unchanged.");
-      })}>Export candidate history</button>
+      })} aria-label="Export candidate history">Export</button>
     </div>}
     {!candidates.length && <p className="fine-print">No retained proposals yet. A successful stage remains separate from your source until an exact apply review.</p>}
     {busy && <p className="fine-print" role="status">{busy}...</p>}

@@ -9,7 +9,7 @@ const launch = (directory: string) => electron.launch({ executablePath: process.
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Compact controls use generated hidden macOS windows.");
 
-test("MCP and Linear credentials use accessible X actions and clear only their original generated secret backends", async () => {
+test("MCP retains its accessible X and Linear uses a concise Remove action, each clearing only its original generated backend", async () => {
   const mcp = new Map<string, string>(), linear = new Map<string, string>();
   const vault = (values: Map<string, string>) => ({ read: async (id: string) => values.get(id) ?? null,
     write: async (id: string, value: string) => { values.set(id, value); }, remove: async (id: string) => { values.delete(id); } });
@@ -34,7 +34,7 @@ test("MCP and Linear credentials use accessible X actions and clear only their o
     await categories.getByRole("button", { name: "Linear workflows", exact: true }).click();
     const connection = page.getByRole("region", { name: "Linear integration connection", exact: true });
     const removeLinear = connection.getByRole("button", { name: "Remove Linear key", exact: true });
-    await expect(removeLinear).toHaveText(""); await expect(removeLinear.locator("svg[data-icon='Close']")).toBeVisible();
+    await expect(removeLinear).toHaveText("Remove");
     await removeLinear.focus(); await page.keyboard.press("Enter");
     await expect.poll(() => linear.size).toBe(0);
     await expect(connection).toContainText("Profile credential removed.");

@@ -34,7 +34,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
     {session && <><p className="fine-print">{session.status} / {session.messages.length} messages / {session.queue.length} queued. {session.completedAt ? `Last completed ${new Date(session.completedAt).toLocaleString()}.` : "No actual completion recorded."}</p>
       <div className="button-row"><SettingsAction label="Open this session" icon="Back" disabled={pending} onClick={() => openSession(session.id)} />
         {session.status === "archived" && <button type="button" disabled={pending} onClick={() => void run(async () => { await sdk.command({ type: "session.restore", sessionId: session.id }); setNotice("Session restored by its owning service."); })}>Restore session</button>}
-        {session.status !== "archived" && !session.turnId && (blocked || session.queue.length > 0) && <button type="button" disabled={pending} onClick={() => openSession(session.id)}>Inspect and resume this session</button>}
+        {session.status !== "archived" && !session.turnId && (blocked || session.queue.length > 0) && <button type="button" disabled={pending} onClick={() => openSession(session.id)} aria-label="Open selected session">Open</button>}
         <SettingsAction label={snapshot.settings.values.retention.confirmDelete === false ? "Delete stored session" : "Review session deletion"} icon="Trash" className="danger" disabled={pending || Boolean(session.turnId)} onClick={() => actions.request(session, "delete")} />
       </div>{session.turnId && <p className="fine-print">Open and stop this owned turn before deleting it from storage. No work is replayed after sleep or reconnection.</p>}</>}
     {!sessions.length && <p className="fine-print">No stored sessions in this filter.</p>}

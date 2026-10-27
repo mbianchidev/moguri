@@ -64,7 +64,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         await sdk.mcp.grantRemote(session.id, serverId, preview.digest, preview.settingsRevision, forwardAccess, true);
         setReview(null); setReviewed(false); setForwardAccess(false);
         setMessage("Grant saved. Probe SSH again, then discover tools under the new scope. No tool call started.");
-      })}>Save exact Remote grant</button>
+      })} aria-label="Save exact Remote grant">Save</button>
     </>}
     <details className="mcp-remote-history"><summary>Recorded Remote calls ({calls.length})</summary>
       {!calls.length && <p>No Remote call has been admitted for this resource. A grant or catalog is not a tool effect.</p>}
@@ -78,7 +78,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         })}>Inspect</button>
         {call.executionId && session.turnId !== call.turnId && <button disabled={busy} onClick={() => void run(async () => {
           await sdk.remote.reconcile(call.executionId!); setMessage("Existing SSH receipts reconciled. No tool or credential was replayed; an original partial turn stays partial.");
-        })}>Reconcile receipts</button>}
+        })} aria-label="Reconcile receipts">Reconcile</button>}
       </div>)}
       {inspection && <pre className="mcp-remote-result" aria-label="Remote MCP operation result">{inspection}</pre>}
     </details>

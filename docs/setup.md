@@ -98,7 +98,13 @@ Information icons share the row of the title, toggle, field or disclosure they
 explain; wrapped labels keep the icon aligned with the first control line.
 Help remains keyboard-focusable and Escape dismisses it without changing the
 setting or toggling the disclosure.
-MCP/Linear credentials and an unavailable session USD limit use **X** actions;
+Settings action captions use their surrounding field or section for context.
+Linear keys use **Store**, **Verify**, and **Remove**; shortcut fields use
+**Record** and **Save** in both Keyboard shortcuts and Voice dictation.
+Other settings follow the same concise pattern, with precise accessible names
+and explicit scope/restart consequences where necessary. Warnings, verification
+status and review acknowledgements remain visible.
+MCP credentials and an unavailable session USD limit retain **X** actions;
 candidate-file and attachment-preview removal use bin icons. PR draft creation,
 GitHub issue import, Agent output following and all-project suggestion scope
 use toggles. "Do not ask again" flags remain checkboxes, as do multiple-choice
@@ -1666,7 +1672,8 @@ Saved prompt settings are unchanged; running turns keep their captured prompt.
 
 ## Sign in with GitHub Copilot
 
-Desktop: open **GitHub Copilot**, choose **Sign in with GitHub Copilot**, then
+Desktop: open **Settings / Models / Providers**, choose **Sign in** under
+**GitHub Copilot**, then
 open GitHub and enter the displayed one-time code. TUI: press **Ctrl+L**, then
 open the displayed URL yourself. Authorization is a user action, not a test or
 an automated browser operation.

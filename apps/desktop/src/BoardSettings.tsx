@@ -61,7 +61,7 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
         <button type="button" className="primary" aria-label="Save board configuration" disabled={JSON.stringify(draft.columns) === JSON.stringify(committed.columns)} onClick={() => {
           const kanban = { ...kanbanPreferences(actual.current), phaseIds: kanbanPreferences(actual.current).phaseIds.filter((id) => draft.columns.some((column) => column.id === id)) };
           setDraft((current) => ({ ...current, kanban })); void write({ ...actual.current, columns: draft.columns, kanban });
-        }}>Save phases</button></div>
+        }}>Save</button></div>
       <label className="setting-field">Move merged PR tickets to<select aria-label="Merged PR destination" value={draft.mergedColumnId} onChange={(event) => automatic("mergedColumnId", event.target.value)}>{committed.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>
       <label className="check-setting"><SettingsInput type="checkbox" checked={draft.autoRefreshPrs} onChange={(event) => automatic("autoRefreshPrs", event.target.checked)} />Sync with GitHub, read-only into Kanban</label>
       <label className="check-setting"><SettingsInput type="checkbox" checked={githubSyncSettings(draft).importIssues} onChange={(event) => {
@@ -86,6 +86,6 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
       <button type="button" className="primary" aria-label="Save Linear team" disabled={draft.linear.teamId === committed.linear.teamId} onClick={() => void write({ ...actual.current, linear: { ...actual.current.linear, teamId: draft.linear.teamId } })}>Save</button>
     </fieldset>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
-    <button type="button" disabled={busy} onClick={reload}>Reload board settings</button>
+    <button type="button" disabled={busy} onClick={reload} aria-label="Reload board settings">Reload</button>
   </section>;
 }

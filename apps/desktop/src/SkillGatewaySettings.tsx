@@ -53,7 +53,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
         change([...value, { id: crypto.randomUUID(), name: name.trim(), enabled: true,
           ...(kind === "local" ? { kind: "local" as const, path: location } : { kind: "remote" as const, url: location }) }]);
         setName(""); setLocation("");
-      }}>Add source</button><button type="button" className="primary" aria-label="Save skill sources" disabled={disabled || busy || !dirty} onClick={save}>Save sources</button>
+      }}>Add source</button><button type="button" className="primary" aria-label="Save skill sources" disabled={disabled || busy || !dirty} onClick={save}>Save</button>
       {draft && <button type="button" className="quiet" onClick={() => { setName(""); setLocation(""); }}>Cancel new source</button>}</div>
     </div>
     <SettingsHelp label="About skill discovery" target={<h3>Find skills</h3>}>Only saved, enabled sources are read. All downloads are checked again when a selected skill is opened; a changed body needs a fresh search. Preview is not permission to run instructions or to access a different execution host.</SettingsHelp>

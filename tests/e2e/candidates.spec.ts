@@ -93,7 +93,7 @@ test("desktop stages source edits separately, applies only a fresh exact review 
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe("generated original\n");
     expect(await readFile(join(f.workspace.path, "fixture.txt"), "utf8")).toBe("Generated desktop candidate bytes.\n");
     await expect(panel).toContainText("Proposed, not accepted");
-    await panel.getByRole("button", { name: "Review source application", exact: true }).click();
+    await panel.getByRole("button", { name: "Review application to original source", exact: true }).click();
     await expect(panel.getByRole("button", { name: "Apply reviewed files", exact: true })).toBeEnabled();
     await panel.getByRole("button", { name: "Apply reviewed files", exact: true }).click();
     await expect.poll(() => f.sdk.getState().snapshot!.candidates[0]?.status).toBe("applied");

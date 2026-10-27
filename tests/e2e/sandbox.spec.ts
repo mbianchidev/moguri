@@ -21,12 +21,12 @@ test("retained native data is not readiness; desktop source publication needs ex
     await page.getByLabel("Settings source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
-    await expect(panel.getByRole("button", { name: "Use Sandbox for this session", exact: true })).toBeDisabled();
+    await expect(panel.getByRole("button", { name: "Use for session: reviewed Sandbox", exact: true })).toBeDisabled();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${fixture.result.files[0]!.bytes} bytes`, { exact: true }).click();
     const selected = panel.getByLabel("Select native output fixture.txt", { exact: true });
     await selected.focus(); await page.keyboard.press("Space"); await expect(selected).toBeChecked();
-    await panel.getByRole("button", { name: "Review selected source publication", exact: true }).click();
+    await panel.getByRole("button", { name: "Review publication of selected source", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact native source publication", exact: true });
     const publish = review.getByRole("button", { name: "Publish reviewed native files", exact: true });
     await expect(publish).toBeDisabled();
@@ -101,7 +101,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${Buffer.byteLength("generated native replacement\n")} bytes`, { exact: true }).click();
     await panel.getByLabel("Select native output fixture.txt", { exact: true }).check();
-    await panel.getByRole("button", { name: "Review selected source publication", exact: true }).click();
+    await panel.getByRole("button", { name: "Review publication of selected source", exact: true }).click();
     const publication = panel.getByRole("region", { name: "Exact native source publication", exact: true });
     await publication.getByLabel("I reviewed these exact source bases and output bytes.", { exact: false }).check();
     await publication.getByRole("button", { name: "Publish reviewed native files", exact: true }).click();

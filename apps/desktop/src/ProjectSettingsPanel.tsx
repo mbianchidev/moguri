@@ -159,15 +159,15 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     {sources && <><details open><summary>{values.instructionsPath}: {sources.instructions === null ? "missing" : "present"}</summary><pre>{sources.instructions ?? "No instructions file exists."}</pre></details>
       <details><summary>{values.mcpPath}: {sources.mcp === null ? "missing" : "present"}</summary><pre>{sources.mcp ?? "No MCP file exists."}</pre>{sources.mcpDigest && <code>SHA-256 {sources.mcpDigest}</code>}</details>
       <label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed the MCP source. Import only supported entries, disabled.</label>
-      <button disabled={!reviewed || !sources.mcpDigest || busy || dirty} onClick={() => void run(async () => { ownSave.current = true; try { await sdk.projects.importMcp(project.id, revision, true, sources.mcpDigest!); await reload(); } finally { ownSave.current = false; } })}>Import reviewed MCP config</button>
+      <button disabled={!reviewed || !sources.mcpDigest || busy || dirty} onClick={() => void run(async () => { ownSave.current = true; try { await sdk.projects.importMcp(project.id, revision, true, sources.mcpDigest!); await reload(); } finally { ownSave.current = false; } })} aria-label="Import reviewed MCP config">Import</button>
       {(sources.instructions === null || sources.mcp === null) && <div className="repo-bootstrap"><label className="setting-field">Publish defaults branch<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>
         <label className="check-setting"><SettingsInput type="checkbox" checked={publish} onChange={(event) => setPublish(event.target.checked)} />I approve creating only missing defaults and pushing this non-protected branch. My current branch/index and unrelated changes are preserved.</label>
-        <button disabled={!publish || dirty || busy} onClick={() => void run(() => sdk.projects.initialize(project.id, branch, revision, true))}>Create and push missing defaults</button></div>}
+        <button disabled={!publish || dirty || busy} onClick={() => void run(() => sdk.projects.initialize(project.id, branch, revision, true))} aria-label="Create and push missing defaults">Create and push</button></div>}
     </>}
     {json("mcpServers", "Reviewed project MCP servers")}
     <label className="setting-field">Plan file<SettingsInput value={values.planPath} onChange={(event) => change("planPath", event.target.value)} /></label>
     {saveButton("planPath", "Save plan path")}
-    <footer className="button-row"><button disabled={busy} onClick={() => { setValues(defaultProjectSettings()); setRaw({}); }}>Restore project defaults</button><button disabled={busy} onClick={() => void run(reload)}>Reload committed values</button></footer>
+    <footer className="button-row"><button disabled={busy} onClick={() => { setValues(defaultProjectSettings()); setRaw({}); }} aria-label="Restore defaults for project">Restore defaults</button><button disabled={busy} onClick={() => void run(reload)} aria-label="Reload committed values">Reload</button></footer>
     {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}
     </fieldset>
   </section>;
