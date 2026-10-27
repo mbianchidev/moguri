@@ -2509,6 +2509,10 @@ Unsent main drafts/held queues are not included. Missing parent/source/model
 capability fails explicitly with the undispatched question preserved. Existing
 captures survive parent removal; navigation attachments never change the source.
 Live coordination grants remain separate, not an automatic tool/permission grant.
+The [protocol-67 side-context qualification](architecture/session-reliability.md#protocol-67-side-context-qualification)
+records coverage and the exact local development installer. Quit before
+replacing the app, then reopen matching clients/service; retained state is
+preserved, never deleted to upgrade.
 
 The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
 Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
