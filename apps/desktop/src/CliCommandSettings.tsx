@@ -23,8 +23,8 @@ export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void
       if (request === generation.current) setError(error instanceof Error ? error.message : "The command installation did not complete. Refresh its actual status before retrying.");
     } finally { if (request === generation.current) setBusy(false); }
   };
-  return <section aria-label="Command line installation"><h3>Command line</h3>
-    <SettingsHelp label="More about this setting">Install the bundled CLI and TUI launcher for this macOS user, across profiles. It uses the app's Node runtime, needs no administrator access and does not edit shell startup files. The app must stay at its installed location.</SettingsHelp>
+  return <section aria-label="Command line installation">
+    <SettingsHelp label="More about this setting" target={<h3>Command line</h3>}>Install the bundled CLI and TUI launcher for this macOS user, across profiles. It uses the app's Node runtime, needs no administrator access and does not edit shell startup files. The app must stay at its installed location.</SettingsHelp>
     {status && <p className="fine-print">Command: <code>{status.path}</code></p>}
     <p role="status">{status?.detail ?? "Reading command installation..."}</p>
     <div className="button-row">

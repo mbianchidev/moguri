@@ -18,7 +18,7 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
     catch (error) { setError(error instanceof Error ? error.message : "Workspace work failed. Existing files/branches were preserved; inspect before retrying."); }
     finally { setBusy(false); }
   };
-  return <section aria-label="Managed worktrees"><h3>Isolated worktrees</h3><SettingsHelp label="More about this setting">Local checkouts with service-owned identity and independent writer leases. The base folder, index, unrelated edits and branches stay untouched. Session deletion never removes a worktree.</SettingsHelp>
+  return <section aria-label="Managed worktrees"><SettingsHelp label="More about this setting" target={<h3>Isolated worktrees</h3>}>Local checkouts with service-owned identity and independent writer leases. The base folder, index, unrelated edits and branches stay untouched. Session deletion never removes a worktree.</SettingsHelp>
     <div className="project-settings-grid">
       <label className="setting-field">New branch<SettingsInput aria-label="Managed worktree branch" value={branch} disabled={disabled || busy} onChange={(event) => setBranch(event.target.value)} /></label>
       <label className="setting-field">Base ref<SettingsInput aria-label="Managed worktree base" value={baseRef} disabled={disabled || busy} onChange={(event) => setBaseRef(event.target.value)} /></label>
@@ -28,8 +28,8 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
       setOutput(`Created ${workspace.branch}. Open a new session below; no model was started.`);
       return undefined;
     })}>{busy ? "Working..." : "Create worktree"}</button>
-    <button disabled={disabled || busy} onClick={() => void run(() => sdk.workspaces.discover(project.id))}>Discover Git worktrees</button>
-    <SettingsHelp label="More about this setting">Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<button disabled={disabled || busy} onClick={() => void run(() => sdk.workspaces.discover(project.id))}>Discover Git worktrees</button>}>Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</SettingsHelp>
+
     {error && <p className="inline-error" role="alert">{error}</p>}
     {!workspaces.length && <p className="fine-print">No managed checkouts yet. Ordinary project chats keep using the attached base folder.</p>}
     {removable.length > 0 && <label className="setting-field">Workspace reviewed for removal

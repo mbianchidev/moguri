@@ -37,8 +37,7 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
   const stale = Boolean(selected && (!actual || actual.revision !== selected.record.revision));
   const canWrite = tier === "Sky" ? Boolean(session && session.status !== "archived") : tier === "Terra" && Boolean(project);
   return <section aria-label="Sky Terra Glacier knowledge">
-    <h2>Sky, Terra, Glacier</h2>
-    <SettingsHelp label="More about this setting">Sky expires with its actual turn or session. Terra retains project/work-item knowledge. Glacier holds explicitly reviewed compressed knowledge across this profile. None of these grants tools, runs a model, or self-promotes.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>Sky, Terra, Glacier</h2>}>Sky expires with its actual turn or session. Terra retains project/work-item knowledge. Glacier holds explicitly reviewed compressed knowledge across this profile. None of these grants tools, runs a model, or self-promotes.</SettingsHelp>
     <p className="fine-print">Tiered context injection is {snapshot.settings.values.memory.enabled && snapshot.settings.values.memory.useTieredContext === true ? "explicitly enabled" : "off"}. Enable it separately in Repository memory. Selection is bounded and deterministic, not a claim of semantic understanding.</p>
     {error && <p role="alert" className="notice error">{error}</p>}
     {status && <p role="status">{status}</p>}

@@ -46,8 +46,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
     finally { pending.current = false; setBusy(""); }
   };
   return <section className="candidate-section" aria-label="Budget wind-down checkpoints" aria-busy={Boolean(busy)}>
-    <h2>Budget wind-down checkpoints</h2>
-    <SettingsHelp label="More about this setting">Reserved capacity is not a model call. A bounded metadata-only finishing role cannot accept code or approve Git. Checkpoint branches require actual-user accepted source bytes and this separate exact review. No checkout, push, merge or branch deletion.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>Budget wind-down checkpoints</h2>}>Reserved capacity is not a model call. A bounded metadata-only finishing role cannot accept code or approve Git. Checkpoint branches require actual-user accepted source bytes and this separate exact review. No checkout, push, merge or branch deletion.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p role="status" className="fine-print">{notice}</p>}{busy && <p role="status">{busy}</p>}
     <label className="setting-field">Retained budget checkpoint<select aria-label="Retained budget checkpoint" value={record?.id ?? ""} disabled={Boolean(busy) || dirty} onChange={(event) => setSelectedId(event.target.value)}>
       {!records.length && <option value="">No retained finishing envelopes</option>}{records.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id} / {record.status}</option>)}</select></label>
@@ -61,7 +60,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
         <p className="fine-print">Publication attempted: {String(value.winddown.commit.publicationAttempted)}. Cancel requested: {String(value.winddown.commit.cancelRequested)}. A partial job is never replayed or rolled back.</p></>}
       {value.winddown.status === "ready" && <>
         {!ownSource && <p className="settings-warning">Choose the exact original restored Local source agent after owned work ends. A deleted/moved/project-free source cannot inherit another checkout.</p>}
-        <SettingsHelp label="More about this setting">Select retained actual-user applied candidates, never a merely staged or model/critic-approved proposal. No new project tests or code-quality proof is implied by this commit.</SettingsHelp>
+        <SettingsHelp label="More about this setting" target={<h4>Accepted candidates</h4>}>Select retained actual-user applied candidates, never a merely staged or model/critic-approved proposal. No new project tests or code-quality proof is implied by this commit.</SettingsHelp>
         {candidates.map((candidate) => <label className="check-setting" key={candidate.id}><SettingsInput type="checkbox" aria-label={`Include accepted checkpoint candidate ${candidate.id}`} checked={candidateIds.includes(candidate.id)} disabled={Boolean(busy) || !ownSource}
           onChange={(event) => setCandidates(event.target.checked ? [...candidateIds, candidate.id] : candidateIds.filter((id) => id !== candidate.id))} />{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / accepted by actual user</label>)}
         <label className="setting-field">Explicit new local branch<SettingsInput aria-label="Checkpoint new local branch" value={branch} disabled={Boolean(busy) || !ownSource} onChange={(event) => setBranch(event.target.value)} /></label>

@@ -11,7 +11,7 @@ export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; o
       .finally(() => { if (current) setBusy(false); });
     return () => { current = false; };
   }, [sdk]);
-  return <section aria-label="GitHub integration connection"><h2>GitHub integration</h2><SettingsHelp label="About GitHub integration">One existing GitHub CLI account for repository discovery, issues and pull requests on this Mac. No client ID, copied token or account name to configure. Copilot model login and the private updater PAT stay separate. Remote operations retain their separately captured SSH account.</SettingsHelp>
+  return <section aria-label="GitHub integration connection"><SettingsHelp label="About GitHub integration" target={<h2>GitHub integration</h2>}>One existing GitHub CLI account for repository discovery, issues and pull requests on this Mac. No client ID, copied token or account name to configure. Copilot model login and the private updater PAT stay separate. Remote operations retain their separately captured SSH account.<br /><br />Use New to import a repository. Use Code change for pull requests and Work item for GitHub issues. Project menus start sessions from either source.</SettingsHelp>
     <button type="button" disabled={busy} onClick={() => {
       setBusy(true); setError(""); setConnection(null);
       void sdk.integrations.githubConnection().then((value) => setConnection(value.connection)).catch((error: unknown) => setError(error instanceof Error ? error.message : "The CLI account was not verified. No alternative credential was used.")).finally(() => setBusy(false));
@@ -40,7 +40,7 @@ export function LinearConnectionPanel({ sdk, onDirty }: { sdk: MoguriSdk; onDirt
     try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Linear authentication was not confirmed. No credential fallback was used."); }
     finally { setBusy(false); }
   };
-  return <section aria-label="Linear integration connection"><h2>Linear connection</h2><SettingsHelp label="More about this setting">Use this profile's personal API key in the secure secret backend. No project is needed to store or verify it. Project/team access and each external write still need their own configuration and review.</SettingsHelp>
+  return <section aria-label="Linear integration connection"><SettingsHelp label="More about this setting" target={<h2>Linear connection</h2>}>Use this profile's personal API key in the secure secret backend. No project is needed to store or verify it. Project/team access and each external write still need their own configuration and review.</SettingsHelp>
     <p role="status">Credential: {connection?.credential ?? "unobserved"}.{connection?.account ? ` Verified ${connection.account.name} / ${connection.account.workspaceName}.` : " No account identity has been verified."}</p>
     <label className="setting-field">Linear personal API key<SettingsInput type="password" aria-label="Linear personal API key" autoComplete="off" maxLength={4096} value={token} disabled={busy} onChange={(event) => setToken(event.target.value)} /></label>
     <div className="button-row"><button type="button" className="primary" disabled={busy || !token} onClick={() => void run(async () => {

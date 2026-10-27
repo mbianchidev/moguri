@@ -20,8 +20,7 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
     finally { setBusy(false); }
   };
   const operation = status?.operation, owned = Boolean(operation && ["checking", "downloading", "cancelling", "installing"].includes(operation.status));
-  return <section aria-label="Private application updates"><h3>Private GitHub updates</h3>
-    <SettingsHelp label="More about this setting">Fixed source: mbianchidev/moguri. The updater uses its own secure, whole-store-owned GitHub PAT, not Copilot sign-in or the GitHub CLI account. Prefer a fine-grained token limited to this repository with Contents read access.</SettingsHelp>
+  return <section aria-label="Private application updates"><SettingsHelp label="More about this setting" target={<h3>Private GitHub updates</h3>}>Fixed source: mbianchidev/moguri. The updater uses its own secure, whole-store-owned GitHub PAT, not Copilot sign-in or the GitHub CLI account. Prefer a fine-grained token limited to this repository with Contents read access.</SettingsHelp>
     <details className="update-token-help"><summary>Create a token with the right permissions</summary><ol>{UPDATE_TOKEN_GUIDANCE.map((step) => <li key={step}>{step}</li>)}</ol>
       <button type="button" disabled={busy} onClick={() => void run(async () => { await window.moguri.openExternal(UPDATE_TOKEN_CREATION_URL); })}>Create read-only update token</button>
       <p className="fine-print">Opens GitHub only when you click. You review repository access and complete authorization yourself. Never grant access to all repositories for updates.</p></details>
@@ -41,7 +40,7 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
       {operation && ["checking", "downloading"].includes(operation.status) && <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.application.updates.cancel(operation.id); })}>Cancel original update</button>}</div>
     {operation && <><p role="status">Update: {operation.status}{operation.release ? ` / ${operation.release.manifest.version}` : ""}. {operation.diagnostic}</p>
       {operation.stagedBundle && <p className="fine-print path">Retained verified stage: {operation.stagedBundle}</p>}
-      {operation.status === "ready" && !status?.installable && <><p className="fine-print">Installing updates requires Moguri's packaged app.</p><SettingsHelp label="About source-runtime update limits">This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout. Installation needs the actual owned packaged app.</SettingsHelp></>}
+      {operation.status === "ready" && !status?.installable && <SettingsHelp label="About source-runtime update limits" target={<p className="fine-print">Installing updates requires Moguri's packaged app.</p>}>This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout. Installation needs the actual owned packaged app.</SettingsHelp>}
       {operation.status === "ready" && status?.installable && <button type="button" disabled={disabled || busy || Boolean(token)} onClick={() => void run(async () => {
         setReview((await sdk.application.updates.installPreview(operation.id)).review); setConfirmed(false);
       })}>Review install and restart</button>}</>}

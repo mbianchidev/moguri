@@ -122,8 +122,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     const result = await api.browse(requiredScope(), input); if (isCurrent()) setBrowsed({ result, scope: scopeKey });
   });
   return <section className="candidate-panel" aria-label="Reviewed Git and GitHub workflows" aria-busy={Boolean(busy)}>
-    <h2>Git &amp; GitHub workflows</h2>
-    <SettingsHelp label="More about this setting">Explicit Local project/workspace operations. Review exact HEAD, index, remote/resource revision and protected actions before each write. Git hooks/configuration are honored, not sandboxed. GitHub uses only the named controller gh account, never SSH credentials.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>Git &amp; GitHub workflows</h2>}>Explicit Local project/workspace operations. Review exact HEAD, index, remote/resource revision and protected actions before each write. Git hooks/configuration are honored, not sandboxed. GitHub uses only the named controller gh account, never SSH credentials.</SettingsHelp>
     {!allowed && <p className="settings-warning">New work requires an explicitly allowed Local project. No Remote/Sandbox fallback or inherited root. Independently retained inspection remains available without a source project.</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}<p role="status">{busy || notice}</p>
     <fieldset disabled={Boolean(busy)} style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}><legend>Exact operation inputs</legend>
@@ -197,10 +196,9 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         })}>Execute only this reviewed operation</button>
     </section>}
     <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs and releases</summary>
-      <SettingsHelp label="More about this setting">Read-only, bounded pages. Enter the explicit repository/account above. No endpoint editor, account substitution or implicit refresh.</SettingsHelp>
-      <label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
+      <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
         {["issues", "issue", "pulls", "pull", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
-      </select></label>
+      </select></label>} descriptionFirst>Read-only, bounded pages. Enter the explicit repository/account above. No endpoint editor, account substitution or implicit refresh.</SettingsHelp>
       {(resource === "run" || resource === "logs") && <label className="setting-field">Exact workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
       <button disabled={Boolean(busy) || !allowed || !repository || !account} onClick={() => void browse()}>Read GitHub page</button>
       {browsed?.scope === scopeKey && <><p className="fine-print">{browsed.result.warning} Page {browsed.result.page}.</p>
@@ -210,12 +208,11 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         {browsed.result.nextPage && <button disabled={Boolean(busy)} onClick={() => void browse(browsed.result.nextPage!)}>Next GitHub page</button>}
       </>}
     </details>
-    <label className="setting-field"><span id={`${uid}-retained`}>Independently retained Git/GitHub operation</span><select aria-labelledby={`${uid}-retained`} value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
+    <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-retained`}>Independently retained Git/GitHub operation</span><select aria-labelledby={`${uid}-retained`} value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       <option value="">Choose retained operation</option>{records.map((value) => <option key={value.id} value={value.id}>{value.kind} / {value.status} / {value.projectId} / {value.createdAt}</option>)}
-    </select></label>
-    <SettingsHelp label="More about this setting">History includes this profile's independently retained operations from all projects, including deleted sources. Selecting history never grants that source root.</SettingsHelp>
+    </select></label>}>History includes this profile's independently retained operations from all projects, including deleted sources. Selecting history never grants that source root.</SettingsHelp>
     {value && <section className="candidate-section" aria-label="Retained Git/GitHub outcome">
-      <h3 tabIndex={-1} ref={resultHeading}>Git/GitHub operation {value.operation.status}</h3>
+      <SettingsHelp label="More about this setting" target={<h3 tabIndex={-1} ref={resultHeading}>Git/GitHub operation {value.operation.status}</h3>}>Deletion of a source session does not erase this operation. Interrupted/ambiguous writes are partial, never automatically replayed, rolled back or reported successful. Conflict resolution, rebase continue/abort and every new write need their own fresh review.</SettingsHelp>
       <p className="fine-print path">Original command: {value.operation.commandId}<br />Root: {value.operation.root.root}<br />Job: {value.operation.jobId}<br />
         Dispatched: {String(value.operation.dispatched)}. Cancel requested: {String(value.operation.cancelRequested)}.</p>
       {value.operation.diagnostic && <p className="settings-warning" role="alert">{value.operation.diagnostic}</p>}
@@ -232,7 +229,6 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       </section>}
       {value.operation.inspection && <p className="fine-print" role="status">Inspected by actual user at {value.operation.inspection.at}, observed revision {value.operation.inspection.observedRevision}. This acknowledgement is not cleanup proof, success or permission to replay; status remains {value.operation.status}.</p>}
       {value.operation.status === "running" && <button disabled={Boolean(busy)} onClick={() => void run("Requesting cancellation of original operation", async () => { await api.cancel(value.operation.id); })}>Cancel this owned operation</button>}
-      <SettingsHelp label="More about this setting">Deletion of a source session does not erase this operation. Interrupted/ambiguous writes are partial, never automatically replayed, rolled back or reported successful. Conflict resolution, rebase continue/abort and every new write need their own fresh review.</SettingsHelp>
     </section>}
   </section>;
 }

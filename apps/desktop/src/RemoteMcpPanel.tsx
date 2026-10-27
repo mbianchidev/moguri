@@ -25,8 +25,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
     finally { setBusy(false); }
   };
   return <section className="mcp-remote-panel" aria-label="Remote MCP access">
-    <h3>Remote MCP access</h3>
-    <SettingsHelp label="More about this setting">Execution is on the pinned SSH host, not inside SendBox. A saved Local MCP account is not permission to send it there. Tool calls still need their own exact approval.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Remote MCP access</h3>}>Execution is on the pinned SSH host, not inside SendBox. A saved Local MCP account is not permission to send it there. Tool calls still need their own exact approval.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}
     <div className="button-row">
@@ -44,7 +43,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         setMessage("Remote grant revoked. Existing received access and external effects cannot be rolled back; retained results remain readable.");
       })}>Revoke Remote grant</button>
     </div>
-    {!ready && <SettingsHelp label="More about this setting">Probe the configured SSH target before a new review. Revocation and retained-result inspection do not need a ready host.</SettingsHelp>}
+    {!ready && <p className="fine-print" role="status">Probe the configured SSH target before a new review. Revocation and retained-result inspection do not need a ready host.</p>}
     {review && !preview && <p className="settings-warning">This review is stale. Review the current host, root and resource again; no permission was inferred.</p>}
     {preview && <>
       <dl className="mcp-remote-scope">

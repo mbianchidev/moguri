@@ -92,6 +92,10 @@ ownership. Search sessions by fuzzy, case-insensitive name. Settings use the
 same matching, switches for booleans, dropdowns for exclusive choices and
 grips for reorderable lists; Alt+Up/Down is the keyboard alternative.
 Icon actions retain accessible names and tooltips.
+Information icons share the row of the title, toggle, field or disclosure they
+explain; wrapped labels keep the icon aligned with the first control line.
+Help remains keyboard-focusable and Escape dismisses it without changing the
+setting or toggling the disclosure.
 MCP/Linear credentials and an unavailable session USD limit use **X** actions;
 candidate-file and attachment-preview removal use bin icons. PR draft creation,
 GitHub issue import, Agent output following and all-project suggestion scope

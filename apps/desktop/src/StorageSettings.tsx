@@ -20,8 +20,7 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
     finally { setBusy(false); }
   };
   const change = (value: string) => { setPath(value); setReview(null); setConfirmed(false); setOutput(""); };
-  return <section aria-label="Whole-store location"><h3>Change storage location</h3>
-    <SettingsHelp label="More about this setting">The entire encrypted store moves together: all profiles, sessions, independent artifacts, credentials references and budget holds. Project files, managed worktrees, model/cache files and terminal owners remain at their captured resource roots.</SettingsHelp>
+  return <section aria-label="Whole-store location"><SettingsHelp label="More about this setting" target={<h3>Change storage location</h3>}>The entire encrypted store moves together: all profiles, sessions, independent artifacts, credentials references and budget holds. Project files, managed worktrees, model/cache files and terminal owners remain at their captured resource roots.</SettingsHelp>
     <label className="setting-field">Session storage location<SettingsInput aria-label="Session storage location" value={path} disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onChange={(event) => change(event.target.value)} /></label>
     <div className="button-row"><button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onClick={() => void run(async () => { const path = await window.moguri.chooseStorageDirectory(); if (path) change(path); })}>Choose storage parent</button>
       <button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride || path === storage.directory} onClick={() => void run(async () => { setReview((await sdk.application.storage.preview(path)).review); setConfirmed(false); })}>Review storage relocation</button>

@@ -62,8 +62,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
     if (owned()) { setReview(value.review); setAccepted(false); }
   };
   return <section className="candidate-section" aria-label="Managed SendBox setup" aria-busy={busy}>
-    <h3>Ready-to-use Sandbox</h3>
-    <SettingsHelp label="More about this setting">Moguri supplies its pinned worker image, Linux Node runtime and native dependencies. Review once; private workspaces and the selected provider's DNS aliases are managed automatically.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Ready-to-use Sandbox</h3>}>Moguri supplies its pinned worker image, Linux Node runtime and native dependencies. Review once; private workspaces and the selected provider's DNS aliases are managed automatically.</SettingsHelp>
     <p className="fine-print">Configured SendBox: {status?.selectedVersion ?? management.version}. Bundled version: {status ? status.bundledVersion ?? "not included in this runtime" : "checking"}. New versions install side by side, never over your existing SendBox.</p>
     {status && <p className="fine-print" role="status">{status.diagnostic}</p>}
     {error && <p className="inline-error" role="alert">{error}</p>}
@@ -92,10 +91,10 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Automatically allow the selected model provider's actual HTTPS endpoint and public DNS aliases</label>
     <p className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox 0.2.4 expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</p>
     {review && <section className="candidate-binding" aria-label="Exact managed Sandbox review">
-      <h4>SendBox {review.version} / Moguri protocol {review.protocol}</h4>
+      <SettingsHelp label="More about this setting" target={<h4>SendBox {review.version} / Moguri protocol {review.protocol}</h4>}>Linux Node 26.12.0, Moguri's agent worker and native PTY dependencies are included. No build, container command or manual SHA entry is required.</SettingsHelp>
       <p>{review.diagnostic}</p>
       <p className="fine-print path">Release location: {review.destination}</p>
-      <SettingsHelp label="More about this setting">Linux Node 26.12.0, Moguri's agent worker and native PTY dependencies are included. No build, container command or manual SHA entry is required.</SettingsHelp>
+
       <details><summary>Exact runtime and image identities</summary>
         <p className="fine-print path">Image: {review.configuration.image}</p>
         <p className="fine-print path">Worker SHA-256: {review.configuration.qualification?.workerDigest}</p>

@@ -99,14 +99,14 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
           }
         })}>Inspect recorded role</button>
         {roleData !== null && <pre ref={roleOutput} tabIndex={0} aria-label="Recorded role data">{roleData}</pre>}
-        {sequence.inputVersion === 2 && <><SettingsHelp label="More about this setting">Original declared output and context checks only. Valid is not code quality, independent lineage or acceptance.</SettingsHelp>
-          <button disabled={busy} onClick={() => void run(async () => {
+        {sequence.inputVersion === 2 && <>
+          <SettingsHelp label="More about this setting" target={<button disabled={busy} onClick={() => void run(async () => {
             const token = generation.current, value = await sdk.roleSequences.contract(sequence.id, Number(roleIndex));
             if (generation.current === token) {
               setRoleContract(JSON.stringify(value, null, 2));
               requestAnimationFrame(() => { contractOutput.current?.focus(); contractOutput.current?.scrollIntoView({ block: "nearest" }); });
             }
-          })}>Inspect role contract</button>
+          })}>Inspect role contract</button>} descriptionFirst>Original declared output and context checks only. Valid is not code quality, independent lineage or acceptance.</SettingsHelp>
           {roleContract !== null && <pre ref={contractOutput} tabIndex={0} aria-label="Role contract evaluation">{roleContract}</pre>}
         </>}
       </section>}

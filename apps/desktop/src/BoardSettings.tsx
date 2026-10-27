@@ -41,17 +41,17 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
     void write({ ...actual.current, [key]: value });
   };
   const kanban = kanbanPreferences(draft);
-  return <section className="board-configuration" aria-label="Board configuration"><h3>Project Kanban</h3><SettingsHelp label="More about this setting">Each project has a special Kanban chat. Continue work takes one item in an isolated Local checkout, uses this chat's selected model and budget, then stops at its draft PR. It never merges or drains the backlog. GitHub uses this Mac's signed-in CLI account, not Copilot login or SSH credentials.</SettingsHelp>
+  return <section className="board-configuration" aria-label="Board configuration"><SettingsHelp label="More about this setting" target={<h3>Project Kanban</h3>}>Each project has a special Kanban chat. Continue work takes one item in an isolated Local checkout, uses this chat's selected model and budget, then stops at its draft PR. It never merges or drains the backlog. GitHub uses this Mac's signed-in CLI account, not Copilot login or SSH credentials.</SettingsHelp>
     <fieldset className="settings-fields" disabled={busy}>
       <label className="check-setting"><SettingsInput type="checkbox" checked={kanban.visible} onChange={(event) => automatic("kanban", { ...kanban, visible: event.target.checked })} />Show Kanban in this project's sessions</label>
       <label className="setting-field">Continue work from<select aria-label="Continue work from" value={kanban.source} onChange={(event) => automatic("kanban", { ...kanban, source: event.target.value as KanbanSource })}>
         <option value="kanban">Open Kanban cards, including imported Linear cards</option><option value="github-issues">Open GitHub issues</option><option value="github-prs">Open GitHub pull requests</option>
       </select></label>
-      <fieldset className="kanban-eligible"><legend>Eligible Kanban phases</legend>{committed.columns.filter((column) => column.id !== committed.mergedColumnId).map((column) =>
+      <SettingsHelp label="More about this setting" target={<fieldset className="kanban-eligible"><legend>Eligible Kanban phases</legend>{committed.columns.filter((column) => column.id !== committed.mergedColumnId).map((column) =>
         <label className="check-setting" key={column.id}><SettingsInput type="checkbox" role="checkbox" checked={kanban.phaseIds.includes(column.id)} onChange={(event) => automatic("kanban", {
           ...kanban, phaseIds: event.target.checked ? [...kanban.phaseIds, column.id] : kanban.phaseIds.filter((id) => id !== column.id),
-        })} />{column.name}</label>)}</fieldset>
-      <SettingsHelp label="More about this setting">Selected phases are tried in their saved order. In progress precedes Backlog by default. Hiding Kanban preserves its cards, chat and ongoing tasks.</SettingsHelp>
+        })} />{column.name}</label>)}</fieldset>}>Selected phases are tried in their saved order. In progress precedes Backlog by default. Hiding Kanban preserves its cards, chat and ongoing tasks.</SettingsHelp>
+
       <h3>Ticket workflow</h3>
       <ReorderList items={draft.columns} scope={`${sdk.profileId}:board:${project.id}`} label="Board phases" name={(column) => column.name} disabled={busy}
         change={(columns) => setDraft((current) => ({ ...current, columns }))}>{(column) => <div className="board-phase-edit"><code>{column.id}</code><SettingsInput aria-label={`Phase name ${column.id}`} value={column.name} onChange={(event) => setDraft((current) => ({ ...current, columns: current.columns.map((entry) => entry.id === column.id ? { ...entry, name: event.target.value } : entry) }))} />
@@ -77,7 +77,7 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
       <button type="button" disabled={JSON.stringify(githubSyncSettings(draft).phases) === JSON.stringify(githubSyncSettings(committed).phases)}
         onClick={() => void write({ ...actual.current, githubSync: { ...githubSyncSettings(actual.current), phases: githubSyncSettings(draft).phases } })}>Save GitHub mapping</button>
       <label className="setting-field">Linked-PR GitHub read access<select aria-label="Linked-PR GitHub read access" value={draft.githubAccess} onChange={(event) => automatic("githubAccess", event.target.value === "gh-cli" ? "gh-cli" : "public")}><option value="public">Public GitHub API, no account</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
-      <h3>Optional Linear team</h3><SettingsHelp label="More about this setting">Authentication lives in Integrations / Linear. Save the exact team UUID before enabling import. Importing is explicit and read-only; enabling a team never exports local tickets or starts a scan.</SettingsHelp>
+      <SettingsHelp label="More about this setting" target={<h3>Optional Linear team</h3>}>Authentication lives in Integrations / Linear. Save the exact team UUID before enabling import. Importing is explicit and read-only; enabling a team never exports local tickets or starts a scan.</SettingsHelp>
       <label className="check-setting"><SettingsInput type="checkbox" checked={draft.linear.enabled} disabled={!draft.linear.enabled && !/^[A-Za-z0-9-]{1,128}$/.test(committed.linear.teamId)} onChange={(event) => {
         const enabled = event.target.checked; setDraft((current) => ({ ...current, linear: { ...current.linear, enabled } }));
         void write({ ...actual.current, linear: { ...actual.current.linear, enabled } });

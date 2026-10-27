@@ -35,7 +35,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
     if (current()) setBody(`${loaded.authority}\n\n${loaded.body}`);
   });
   return <section className="skill-gateway-settings" aria-label="Skill gateway settings">
-    <h2>Skill gateway</h2><SettingsHelp label="About the skill gateway">Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
+    <SettingsHelp label="About the skill gateway" target={<h2>Skill gateway</h2>}>Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {value.map((source) => <article className="skill-source" key={source.id}>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill source ${source.name}`} checked={source.enabled} disabled={disabled || busy}
@@ -56,7 +56,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
       }}>Add source</button><button type="button" className="primary" aria-label="Save skill sources" disabled={disabled || busy || !dirty} onClick={save}>Save sources</button>
       {draft && <button type="button" className="quiet" onClick={() => { setName(""); setLocation(""); }}>Cancel new source</button>}</div>
     </div>
-    <h3>Find skills</h3><SettingsHelp label="About skill discovery">Only saved, enabled sources are read. All downloads are checked again when a selected skill is opened; a changed body needs a fresh search. Preview is not permission to run instructions or to access a different execution host.</SettingsHelp>
+    <SettingsHelp label="About skill discovery" target={<h3>Find skills</h3>}>Only saved, enabled sources are read. All downloads are checked again when a selected skill is opened; a changed body needs a fresh search. Preview is not permission to run instructions or to access a different execution host.</SettingsHelp>
     <label className="setting-field">Source<select aria-label="Search skill source" value={sourceId} disabled={busy} onChange={(event) => { setSourceId(event.target.value); setResult(null); setBody(""); }}><option value="">All enabled sources and skills</option>{value.filter((source) => source.enabled).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
     <label className="setting-field">Search<SettingsInput aria-label="Find skills" value={query} maxLength={200} disabled={busy} onChange={(event) => { setQuery(event.target.value); setResult(null); setBody(""); }} onKeyDown={(event) => { if (event.key === "Enter" && !busy && !disabled && !dirty) { event.preventDefault(); void find(); } }} /></label>
     <button type="button" disabled={disabled || busy || dirty} onClick={() => void find()}>Find skills</button>

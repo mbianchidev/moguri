@@ -551,9 +551,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .profile-actions .ask-mascot { width: 25px; height: 22px; object-fit: contain; }
 .tooltip-trigger { display: inline-flex; min-width: 0; vertical-align: middle; }
 .compact-tooltip { position: fixed; z-index: 10000; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; padding: 9px 12px; border: 1px solid var(--control-line); border-radius: 6px; color: var(--text); background: var(--surface); box-shadow: 0 4px 16px #0004; font-size: 12px; font-weight: 400; line-height: 1.65; overflow-wrap: anywhere; white-space: normal; }
-.setting-help { display: inline-flex; vertical-align: middle; margin: 0 0 10px 6px; }
-.setting-help .info-button { color: var(--muted); width: 26px; height: 26px; padding: 4px; border: 0; }
-.settings-content :is(h2, h3):has(+ .setting-help) { display: inline-block; }
+.setting-help { display: inline-flex; vertical-align: middle; flex-shrink: 0; }
+.setting-help .info-button { color: var(--muted); width: 26px; min-width: 26px; height: 26px; min-height: 26px; padding: 4px; border: 0; }
 .copy-field { position: relative; display: flex; flex-direction: column; min-width: 0; width: 100%; }
 .copy-field > :is(input, textarea) { width: 100%; min-width: 0; padding-right: 38px; }
 .copy-field-action { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none; }
@@ -645,7 +644,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .settings-layout > nav .restore-all { margin-top: 24px; border-color: var(--line); color: var(--muted); font-size: 11px; }
 .settings-content { min-width: 0; overflow: auto; padding: 28px clamp(20px, 4vw, 64px); }
 .settings-fields, .project-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
-.settings-fields > h2 { font-size: 22px; font-weight: 550; letter-spacing: -.4px; margin: 0 0 14px; }
+.settings-fields > h2, .settings-fields > .settings-help-row > h2 { font-size: 22px; font-weight: 550; letter-spacing: -.4px; margin: 0 0 14px; }
 .settings-content h3 { font-size: 14px; font-weight: 650; margin: 32px 0 14px; }
 .settings-content p { color: var(--muted); line-height: 1.8; font-size: 13px; max-width: 76ch; }
 .settings-content .fine-print { font-size: 12px; line-height: 1.65; }
@@ -665,6 +664,22 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 :is(.check-setting, .agent-follow) input[role="switch"]:checked { background: var(--accent); border-color: var(--accent); }
 :is(.check-setting, .agent-follow) input[role="switch"]:checked::before { transform: translateX(12px); background: var(--on-accent); }
 :is(.check-setting, .agent-follow) input[role="switch"]:disabled { cursor: not-allowed; opacity: .5; }
+.settings-help-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; margin: 14px 0; }
+.settings-help-row > :not(.setting-help) { min-width: 0; }
+.settings-help-row:has(> :is(h2, h3, h4, strong, button)) { align-items: center; }
+.settings-help-row:has(> h2) { margin: 0 0 14px; }
+.settings-help-row:has(> :is(h3, h4)) { margin: 32px 0 14px; }
+.settings-content .settings-help-row > :is(h2, h3, h4) { margin: 0; }
+.settings-help-row:has(> .check-setting) { margin: 16px 0; }
+.settings-help-row > .check-setting { margin: 0; padding-block: 3px; }
+.settings-help-row:has(> :is(.setting-field, .setting-editor)) { margin: 22px 0 14px; }
+.settings-help-row > :is(.setting-field, .setting-editor) { flex: 1; margin: 0; }
+.settings-help-row > .setting-field, .settings-help-row > .setting-editor > .setting-field { margin-top: 0; padding-top: 3px; line-height: 20px; }
+.settings-help-row > p { margin: 0; padding-block: 3px; }
+.settings-help-row > details { flex: 1; margin: 0; }
+.settings-help-row > details > summary { min-height: 26px; padding-block: 3px; }
+.settings-help-row > fieldset { flex: 1; margin: 0; }
+.settings-help-row > fieldset > legend { min-height: 26px; padding-block: 3px; line-height: 20px; }
 .settings-warning { color: var(--warning-text); background: var(--warning-bg); padding: 12px 14px; border: 1px solid var(--warning-line); border-radius: 5px; font-family: inherit; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .settings-content .settings-warning { color: var(--warning-text); font-size: 12px; line-height: 1.65; }
 .capability-row, .proposal-row, .job-row { padding: 14px 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-size: 12px; }
