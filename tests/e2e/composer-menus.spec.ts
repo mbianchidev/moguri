@@ -39,7 +39,11 @@ test("the model control opens cascading model, effort and context menus with exa
     await expect(root.getByRole("button", { name: "Thinking effort", exact: true })).toContainText("Low");
     await expect(root.getByRole("button", { name: "Working context window", exact: true })).toContainText("16.4K");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
-    await root.getByRole("button", { name: "Thinking effort", exact: true }).focus(); await page.keyboard.press("ArrowRight");
+    await expect.poll(() => page.evaluate(() => innerWidth)).toBe(840);
+    const effortControl = root.getByRole("button", { name: "Thinking effort", exact: true });
+    await expect(effortControl).toBeEnabled();
+    await effortControl.focus(); await expect(effortControl).toBeFocused();
+    await page.keyboard.press("ArrowRight");
     await expect(effort.getByRole("menuitemradio", { name: "Low", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowLeft");
     await expect(root.getByRole("button", { name: "Thinking effort", exact: true })).toBeFocused();
