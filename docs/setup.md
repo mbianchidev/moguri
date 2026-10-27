@@ -1,9 +1,31 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **65**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **66**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Saved turn and usage information
+
+Turn information and **Budget and usage** open from the chat's saved snapshot,
+without fetching details on click. Tokens, context and captured-rate USD estimates
+update during a turn and remain available after reopening the chat or restarting
+the service. Cached input is shown separately and is already included in input
+tokens, not added to them. Known cache counts stay visible while another call is
+still unreported; missing cache data is not zero.
+
+`~` marks estimated input or visible streamed output and its estimated cost.
+Provider-reported usage replaces those estimates when available. Unknown or
+stopped calls retain their original holds; estimates are never bills or refunds.
+Context shows the last retained model input plus its visible output against the
+selected working window, not the unsent draft or a fresh inference request.
+Original turn details retain the window actually used for that turn.
+
+Schema 66 adds an atomic metadata marker without rewriting encrypted history,
+receipts or accounting holds. On startup, previously discarded positive cache
+counts can be recovered only from that call's exact retained provider result.
+Only the original captured rate can reprice its estimate; missing, mismatched,
+deleted or unreported evidence stays unknown. No model or tool is replayed.
 
 ## Folder sessions and shared controls
 

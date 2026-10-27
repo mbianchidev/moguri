@@ -7,16 +7,8 @@ export const callEstimate = (totals: BudgetTotals) => totals.calls === 0 ? "No m
   `${dollars(totals.knownEstimatedUsd)} known + unreported/unpriced` : dollars(totals.estimatedUsd);
 const count = (value: number) => new Intl.NumberFormat().format(value);
 export function useBudgetStatus(sdk: MoguriSdk, session: Session, snapshot: Snapshot) {
-  const [status, setStatus] = useState<BudgetStatus | null>(null), [error, setError] = useState("");
-  const stamp = JSON.stringify([snapshot.budgetEntries.map((entry) => `${entry.id}:${entry.status}:${entry.reportedTokens}:${entry.estimatedUsdMicros}`), snapshot.budgetPlans.map((plan) => `${plan.id}:${plan.revision}`)]);
-  useEffect(() => {
-    let current = true;
-    void sdk.budgets.status(session.id).then((value) => { if (current) { setStatus(value.status); setError(""); } }).catch((error: unknown) => {
-      if (current) { setStatus(null); setError(error instanceof Error ? error.message : "Budget accounting is unavailable. No free usage was assumed."); }
-    });
-    return () => { current = false; };
-  }, [sdk, session.id, session.revision, snapshot.settings.revision, snapshot.budgetPolicy.revision, snapshot.globalBudgetPolicy?.revision, snapshot.globalBudgetSequence, stamp]);
-  return { status, error };
+  const saved = snapshot.profileId === sdk.profileId ? snapshot.sessionTelemetry?.[session.id] : undefined;
+  return { status: saved?.budget ?? null, error: saved?.budgetDiagnostic ?? (saved ? "" : "No retained accounting snapshot is available. No free usage was assumed.") };
 }
 export function BudgetSummary({ status }: { status: BudgetStatus }) {
   const totals = status.totals, cappedTokens = status.limits.some((limit) => limit.tokens !== null), cappedUsd = status.limits.some((limit) => limit.usd !== null);

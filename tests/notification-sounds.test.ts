@@ -12,7 +12,7 @@ test("completion sounds follow actual terminal work once, independently from des
       { profile_id: "default", session_id: "generated-session", turn_id: "generated-completed-turn", event_type: "turn.finished", payload: { outcome: "completed", diagnostic: null } },
     ]);
     const events = store.events();
-    const snapshot: Snapshot = { ...projectEvents(events), protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
+    const snapshot: Snapshot = { ...projectEvents(events), sessionTelemetry: {}, protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
       provider: { status: "disconnected", models: [], login: null, diagnostic: null }, capabilities: [] };
     snapshot.settings.values.notifications = { ...snapshot.settings.values.notifications, completedSound: { enabled: true, id: "default" } };
     const notifier = new AttentionNotifier(0), sounds: string[] = [], banners: string[] = [];
@@ -35,7 +35,7 @@ test("factory notification sounds are audible while focused and failed work rais
       { profile_id: "default", session_id: attention.sessionId, turn_id: "generated-failed-turn", event_type: "turn.finished", payload: { outcome: "failed", diagnostic: "Generated failure." } },
       { profile_id: "default", session_id: attention.sessionId, event_type: "attention.raised", payload: { attention } },
     ]);
-    const events = store.events(), snapshot: Snapshot = { ...projectEvents(events), protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
+    const events = store.events(), snapshot: Snapshot = { ...projectEvents(events), sessionTelemetry: {}, protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
       provider: { status: "disconnected", models: [], login: null, diagnostic: null }, capabilities: [] };
     const sounds: string[] = [], notifier = new AttentionNotifier(0);
     const observe = () => notifier.observe(snapshot, events, true, () => {}, (sound) => sounds.push(sound.kind));
@@ -61,7 +61,7 @@ test("reconnect synchronizes the notification baseline without replaying offline
       { profile_id: "default", session_id: "generated-reconnected", turn_id: "generated-offline-turn", event_type: "turn.finished", payload: { outcome: "completed", diagnostic: null } },
     ]);
     const notifier = new AttentionNotifier(0), sounds: string[] = [];
-    const snapshot = (): Snapshot => ({ ...projectEvents(store.events()), protocolVersion: PROTOCOL_VERSION, seq: store.events().at(-1)!.seq, profileId: "default",
+    const snapshot = (): Snapshot => ({ ...projectEvents(store.events()), sessionTelemetry: {}, protocolVersion: PROTOCOL_VERSION, seq: store.events().at(-1)!.seq, profileId: "default",
       provider: { status: "disconnected", models: [], login: null, diagnostic: null }, capabilities: [] });
     notifier.synchronize(snapshot().seq);
     notifier.observe(snapshot(), store.events(), false, () => {}, (tone) => sounds.push(tone.kind));
@@ -82,7 +82,7 @@ test("needs-input sounds require actual pending input, never heuristic questions
       { profile_id: "default", session_id: attention.sessionId, event_type: "attention.raised", payload: { attention } },
       { profile_id: "default", session_id: attention.sessionId, event_type: "attention.raised", payload: { attention: { ...attention, id: "generated-heuristic", kind: "question", reason: "question", source: "heuristic" } } },
     ]);
-    const events = store.events(), snapshot: Snapshot = { ...projectEvents(events), protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
+    const events = store.events(), snapshot: Snapshot = { ...projectEvents(events), sessionTelemetry: {}, protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
       provider: { status: "disconnected", models: [], login: null, diagnostic: null }, capabilities: [] };
     snapshot.sessions[0]!.turnId = "generated-actual-turn";
     snapshot.sessions[0]!.pendingApproval = { id: "generated-exact-approval", stepId: "generated-step", policyRevision: 0, call: { id: "generated-call", name: "read_file", arguments: { path: "fixture.txt" } } };
@@ -104,7 +104,7 @@ test("failed, stopped and partial turns never play completion audio; focus, disa
         { profile_id: "default", session_id: "generated-outcome", event_type: "session.created", payload: { title: "Generated outcome", controls: factoryControls() } },
         { profile_id: "default", session_id: "generated-outcome", turn_id: "generated-turn", event_type: "turn.finished", payload: { outcome, diagnostic: null } },
       ]);
-      const events = store.events(), snapshot: Snapshot = { ...projectEvents(events), protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
+      const events = store.events(), snapshot: Snapshot = { ...projectEvents(events), sessionTelemetry: {}, protocolVersion: PROTOCOL_VERSION, seq: events.at(-1)!.seq, profileId: "default",
         provider: { status: "disconnected", models: [], login: null, diagnostic: null }, capabilities: [] };
       snapshot.settings.values.notifications.soundWhileFocused = false;
       const sounds: string[] = [], observe = () => new AttentionNotifier(0).observe(snapshot, events, focused, () => {}, (sound) => sounds.push(sound.kind));

@@ -125,18 +125,16 @@ test("current operation has a wall timer, respects reduced motion, and disappear
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("late original turn information never appears in another session", async () => {
+test("saved original turn information never leaks into another session or starts a click-time query", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure(); await fixture.send("Generated activity source response."); await fixture.terminal();
   await sdk.sessions.rename(fixture.sessionId, "Generated activity first");
   const second = await sdk.sessions.create(null, "Generated activity second");
   const query = fixture.service.controller.platform.query.bind(fixture.service.controller.platform);
-  let held = false, settled = false, release = () => {};
-  const barrier = new Promise<void>((resolve) => { release = resolve; });
+  let reads = 0;
   fixture.service.controller.platform.query = async (input) => {
-    const result = await query(input);
-    if (input.type === "activity.turn" && input.sessionId === fixture.sessionId && !held) { held = true; await barrier; settled = true; }
-    return result;
+    if (input.type === "activity.turn") { reads++; throw new Error("Generated click-time turn information read is forbidden."); }
+    return query(input);
   };
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -144,16 +142,16 @@ test("late original turn information never appears in another session", async ()
     const page = await app.firstWindow(), transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     await page.locator(".session-link").filter({ hasText: "Generated activity first" }).click();
     await transcript.getByRole("button", { name: "Turn information", exact: true }).click();
-    await expect.poll(() => held).toBe(true);
+    await expect(page.getByRole("dialog", { name: "Turn information", exact: true })).toContainText(fixture.modelId);
     await page.locator(".session-link").filter({ hasText: "Generated activity second" }).click();
     await expect(page.locator(".session-link[aria-current='page']")).toHaveAttribute("title", "Generated activity second");
-    release(); await expect.poll(() => settled).toBe(true);
     await expect(page.getByRole("dialog", { name: "Turn information", exact: true })).toHaveCount(0);
     await expect(transcript.locator(".conversation-turn")).toHaveCount(0);
     await expect(transcript).not.toContainText("Generated Copilot response");
     expect((await sdk.activity.list(second.id!)).activity.entries).toEqual([]);
+    expect(reads).toBe(0);
     expect(fixture.requests.length).toBe(1);
-  } finally { release(); fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
+  } finally { fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("an incomplete reasoning response shows its actual output limit and does not approve or execute its pending tool", async () => {

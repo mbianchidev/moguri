@@ -541,8 +541,6 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
     const key = message.turnId || `notice-${message.id}`, group = groups.get(key) ?? [];
     group.push(message); groups.set(key, group);
   }
-  const accountingStamp = JSON.stringify([session.turnId, session.status, snapshot.budgetEntries.filter((entry) => entry.sessionId === session.id || entry.ownerSessionId === session.id)
-    .map((entry) => [entry.id, entry.status, entry.reportedTokens, entry.estimatedUsdMicros, entry.outcome])]);
   const renderMessage = (message: PublicMessage) => {
     if (message.role === "tool" || message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome)) return null;
     return <article key={`message-${message.id}`} className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}>
@@ -573,7 +571,7 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
           {parts.map((part) => part.operation ? <ActivityRow sdk={client} entry={part.operation} version={activity.activity?.sequence ?? 0} key={part.operation.id} /> : part.message ? renderMessage(part.message) : null)}
           {messages.some((message) => message.role === "tool") && activity.loading && <p className="fine-print" role="status">Loading retained operations...</p>}
           {session.turnId === turnId && !activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === turnId)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
-          {messages[0]?.turnId && <TurnActions sdk={client} sessionId={session.id} turnId={turnId} stamp={accountingStamp}
+          {messages[0]?.turnId && <TurnActions sdk={client} sessionId={session.id} turnId={turnId} info={snapshot.sessionTelemetry?.[session.id]?.turns.find((info) => info.turnId === turnId)}
             canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text))} run={run} modal={modal} />}
         </section>
       </div>;

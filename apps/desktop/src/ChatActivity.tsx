@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
-import type { ActivityEntry, ActivityResponse, BudgetTotals, MoguriSdk, TurnInfo } from "../../../packages/sdk/src/index.ts";
+import type { ActivityEntry, ActivityResponse, BudgetTotals, MoguriSdk, TurnInfo, UsageEstimate } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { dollars } from "./BudgetControls.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -19,7 +19,8 @@ export function activityStarted(value: string | null): string {
   const date = new Date(value);
   return `${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(date)} - ${new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", hour12: true }).format(date)}`;
 }
-export const estimatedCost = (totals: BudgetTotals): string => totals.estimatedUsd !== null ? dollars(totals.estimatedUsd) :
+export const estimatedCost = (totals: BudgetTotals, estimate?: UsageEstimate | null): string => estimate?.estimatedCalls && estimate.estimatedUsd !== null ? `~${dollars(estimate.estimatedUsd)}` :
+  estimate?.estimatedCalls && estimate.knownEstimatedUsd > 0 ? `~${dollars(estimate.knownEstimatedUsd)} known + unknown` : totals.estimatedUsd !== null ? dollars(totals.estimatedUsd) :
   totals.knownEstimatedUsd > 0 ? `${dollars(totals.knownEstimatedUsd)} known + unknown` : "Not estimated";
 const active = (entry: ActivityEntry) => ["running", "waiting_input"].includes(entry.status);
 function useElapsed(startedAt: string | null, ticking: boolean) {
@@ -100,25 +101,15 @@ export function CurrentActivity({ entries, hasMore = false }: { entries: Activit
     {(running.length > 1 || hasMore) && <small>{running.length}{hasMore ? "+" : ""} concurrent</small>}<time role="timer" aria-live="off" aria-label="Elapsed operation time">{activityDuration(elapsed)}</time>
   </div>;
 }
-export function TurnActions({ sdk, sessionId, turnId, stamp, canCopy, run, modal }: {
-  sdk: MoguriSdk; sessionId: string; turnId: string; stamp: string; canCopy: boolean;
+export function TurnActions({ sdk, sessionId, turnId, info, canCopy, run, modal }: {
+  sdk: MoguriSdk; sessionId: string; turnId: string; info: TurnInfo | undefined; canCopy: boolean;
   run: (work: () => Promise<unknown>) => Promise<void>; modal: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [state, setState] = useState<{ key: string; info: TurnInfo | null; error: string }>({ key: "", info: null, error: "" });
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
-  const panelId = useId(), key = JSON.stringify([sdk.profileId, sessionId, turnId, stamp]), owner = useRef({ sdk, key }); owner.current = { sdk, key };
-  const current = state.key === key, info = current ? state.info : null, error = current ? state.error : "";
+  const panelId = useId();
+  const error = info && (info.sessionId !== sessionId || info.turnId !== turnId) ? "Saved turn information belongs to another source. No data was substituted." : "";
   useEffect(() => { if (open) modal(true); return () => { if (open) modal(false); }; }, [open, modal]);
-  useEffect(() => {
-    if (!open) return;
-    let current = true; setState({ key, info: null, error: "" });
-    void sdk.activity.turn(sessionId, turnId).then((result) => {
-      if (result.info.sessionId !== sessionId || result.info.turnId !== turnId) throw new Error("Turn information returned a different source. No data was substituted.");
-      if (current && owner.current.sdk === sdk && owner.current.key === key) setState({ key, info: result.info, error: "" });
-    }).catch((error: unknown) => { if (current && owner.current.sdk === sdk && owner.current.key === key) setState({ key, info: null, error: error instanceof Error ? error.message : "Original turn information is unavailable." }); });
-    return () => { current = false; };
-  }, [sdk, key, open]);
   useEffect(() => {
     const element = panel.current, anchor = button.current;
     if (!open || !element || !anchor) return;
@@ -132,25 +123,28 @@ export function TurnActions({ sdk, sessionId, turnId, stamp, canCopy, run, modal
     window.addEventListener("resize", position); window.addEventListener("scroll", position, true);
     return () => { observer.disconnect(); if (element.matches(":popover-open")) element.hidePopover(); window.removeEventListener("resize", position); window.removeEventListener("scroll", position, true); };
   }, [open]);
-  const tokens = (value: number | null) => value === null ? "Not reported" : value.toLocaleString();
+  const tokens = (value: number | null, known = 0, estimate?: number | null) => value === null ?
+    estimate !== null && estimate !== undefined ? `~${estimate.toLocaleString()}` : known > 0 ? `${known.toLocaleString()} known + unknown` : "Not reported" : value.toLocaleString();
   return <footer className="turn-actions" aria-label="Response actions">
     <button className="icon-button" type="button" title="Copy response" aria-label="Copy response" disabled={!canCopy} onClick={() => void run(() => window.moguri.copyText(sdk.activity.response(sessionId, turnId)))}><Icon name="Copy" /></button>
     <button ref={button} className="icon-button" type="button" title="Turn information" aria-label="Turn information" aria-haspopup="dialog" aria-controls={open ? panelId : undefined} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="Info" /></button>
     {open && <div ref={panel} id={panelId} tabIndex={-1} className="turn-info-popover" popover="auto" role="dialog" aria-label="Turn information" onToggle={(event) => {
       if (event.newState === "closed") { setOpen(false); button.current?.focus(); }
     }}>
-      {error ? <p className="inline-error" role="alert">{error}</p> : !info ? <p role="status">Loading original turn information...</p> : <>
+      {error ? <p className="inline-error" role="alert">{error}</p> : !info ? <p role="status">No original telemetry was recorded for this turn.</p> : <>
         <dl><dt>{info.models.length > 1 ? "Models" : "Model"}</dt><dd>{info.models.length ? [...new Set(info.models.map((model) => model.modelId))].join(", ") : "Not observed"}</dd>
-          <dt>Est. USD</dt><dd>{estimatedCost(info.usage)}</dd>
-          <dt>Tokens</dt><dd>{tokens(info.usage.inputTokens)} in / {tokens(info.usage.outputTokens)} out</dd>
-          <dt>Context</dt><dd>{info.usage.inputTokens !== null && info.usage.inputTokens > 0 && info.usage.cacheReadTokens !== null ? `${Math.round(info.usage.cacheReadTokens / info.usage.inputTokens * 100)}% cached input` : "Cache not reported"}</dd>
+          <dt>Est. USD</dt><dd>{estimatedCost(info.usage, info.estimate)}</dd>
+          <dt>Tokens</dt><dd>{tokens(info.usage.inputTokens, info.usage.knownInputTokens, info.estimate?.inputTokens)} in / {tokens(info.usage.outputTokens, info.usage.knownOutputTokens, info.estimate?.outputTokens)} out</dd>
+          <dt>Cache</dt><dd>{tokens(info.usage.cacheReadTokens, info.usage.knownCacheReadTokens)} read / {tokens(info.usage.cacheWriteTokens, info.usage.knownCacheWriteTokens)} write
+            {info.usage.inputTokens !== null && info.usage.inputTokens > 0 && info.usage.cacheReadTokens !== null && <small> ({Math.round(info.usage.cacheReadTokens / info.usage.inputTokens * 100)}% cached input)</small>}</dd>
+          <dt>Context</dt><dd>{info.context?.estimatedTokens !== null && info.context?.estimatedTokens !== undefined ? `~${info.context.estimatedTokens.toLocaleString()}${info.context.window ? ` / ${info.context.window.toLocaleString()}` : ""} tokens` : "Not recorded"}</dd>
         </dl>
         <details><summary>Original turn details</summary><dl><dt>Started</dt><dd>{activityStarted(info.startedAt)}</dd><dt>Duration</dt><dd>{activityDuration(info.durationMs)}</dd>
           <dt>Outcome</dt><dd>{info.outcome}</dd><dt>Response</dt><dd>{activityBytes(info.responseBytes)}</dd>
           <dt>Working window</dt><dd>{info.context?.window ? `${info.context.window.toLocaleString()} tokens` : "Not observed"}</dd>
           <dt>Context estimate</dt><dd>{info.context?.estimatedTokens === null || !info.context ? "Not observed" : `~${info.context.estimatedTokens.toLocaleString()}`}</dd>
           <dt>Reasoning tokens</dt><dd>Not separately reported</dd>
-        </dl><p className="fine-print">Original model/context evidence and complete owning-turn accounting. Estimated USD is not a bill or AI-credit balance; missing telemetry stays unknown.</p></details>
+        </dl><p className="fine-print">Original model/context evidence and complete owning-turn accounting. Values prefixed with ~ use retained input and visible-output estimates, not provider reports. Estimated USD is not a bill or AI-credit balance; missing cache telemetry stays unknown.</p></details>
       </>}
     </div>}
   </footer>;

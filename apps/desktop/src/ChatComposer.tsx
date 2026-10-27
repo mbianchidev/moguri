@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelContextPreview, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -310,7 +310,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           {decisions.error && <p className="inline-error" role="alert">{decisions.error}</p>}<button className="quiet" type="button" onClick={() => { setMenu(null); onGuardrails(); }}>Guardrails</button><button className="quiet" type="button" onClick={() => { setMenu(null); onDecisions(); }}>Decision provider settings</button></>)}
       </div>
       <div className="composer-trailing">
-        {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} editor={editor} />)}
+        {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}
         <DictationButton state={dictation.state} pushToTalk={Boolean(snapshot.settings.values.voice.pushToTalk && voiceJob?.kind !== "voice.record")} recording={Boolean(voiceJob)}
           label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"}
           disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"}
@@ -437,39 +437,37 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>{snapshot.settings.values.kupo.workflow === "auto" ? "Kupo settings" : snapshot.settings.values.kupo.workflow === "compound" ? "kupo Compound settings" : "kupo Single settings"}</button></>;
 }
 
-function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; editor: DraftEditor }) {
+function UsageMenu({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
   const accounting = useBudgetStatus(sdk, session, snapshot);
   const [budgetView, setBudgetView] = useState<"usage" | "limits">("usage");
-  const [context, setContext] = useState<ModelContextPreview | null>(null);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    let current = true;
-    void (async () => { await editor.flush(); const result = await sdk.sessions.context(session.id); if (current) { setContext(result.context); setError(""); } })().catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "Context usage is unavailable."); });
-    return () => { current = false; };
-  }, [session.draft.revision, session.revision, session.usage.length, session.usage.at(-1)?.outcome]);
+  const context = snapshot.sessionTelemetry?.[session.id]?.context;
+  const estimate = snapshot.sessionTelemetry?.[session.id]?.estimate;
   const totals = accounting.status?.totals;
-  const tokens = (value: number | null | undefined, known = 0) => value === undefined ? "Loading..." : value === null ? known > 0 ? `${count(known)} + unknown` : "Not reported" : count(value);
+  const tokens = (value: number | null | undefined, known = 0, estimated?: number | null) => value === null || value === undefined ?
+    estimated !== null && estimated !== undefined ? `~${count(estimated)}` : known > 0 ? `${count(known)} known + unknown` : "Not reported" : count(value);
   const plan = session.controls.budget.kind === "unlimited" ? snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based limits";
-  const used = context?.estimatedTokens, window = context?.contextWindow;
+  const selectedModel = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
+  const used = context?.estimatedTokens, window = session.controls.modelOptions?.contextWindow ??
+    (selectedModel && !selectedModel.synthetic ? modelContextWindows(selectedModel).values[0] : context?.window);
   const percent = used !== undefined && window ? used / window * 100 : null;
   return <>
     <div hidden={budgetView !== "usage"} className="compact-budget">
       <dl className="compact-usage">
-        <div className="compact-cost-row"><dt>Est. USD</dt><dd title="Captured model-specific estimates, including owning-session roles; not a bill.">{totals ? estimatedCost(totals) : accounting.error ? "Unavailable" : "Loading..."}</dd></div>
+        <div className="compact-cost-row"><dt>Est. USD</dt><dd title="Captured model-specific estimates, including owning-session roles; not a bill.">{totals ? estimatedCost(totals, estimate) : "Not recorded"}</dd></div>
         <div><dt>Plan</dt><dd>{plan}</dd></div>
-        <div><dt>Session</dt><dd>{totals ? `${count(totals.calls)} model call${totals.calls === 1 ? "" : "s"}` : "Loading..."}{accounting.status && accounting.status.ownerSessionId !== session.id && <small>Charged to the owning session</small>}</dd></div>
+        <div><dt>Session</dt><dd>{totals ? `${count(totals.calls)} model call${totals.calls === 1 ? "" : "s"}` : "Not recorded"}{accounting.status && accounting.status.ownerSessionId !== session.id && <small>Charged to the owning session</small>}</dd></div>
         <div><dt>Tokens</dt><dd className="compact-token-lines">
-          <span><Icon name="Up" /><span><span className="sr-only">Input tokens </span>{tokens(totals?.inputTokens, totals?.knownInputTokens)}<small> ({tokens(totals?.cacheReadTokens)} cached)</small></span></span>
-          <span><Icon name="Down" /><span><span className="sr-only">Output tokens </span>{tokens(totals?.outputTokens, totals?.knownOutputTokens)}</span></span>
+          <span><Icon name="Up" /><span><span className="sr-only">Input tokens </span>{tokens(totals?.inputTokens, totals?.knownInputTokens, estimate?.inputTokens)}<small> ({tokens(totals?.cacheReadTokens, totals?.knownCacheReadTokens)} cached)</small></span></span>
+          <span><Icon name="Down" /><span><span className="sr-only">Output tokens </span>{tokens(totals?.outputTokens, totals?.knownOutputTokens, estimate?.outputTokens)}</span></span>
         </dd></div>
         <div><dt>Context</dt><dd>
           {percent !== null && used !== undefined && window ? <meter className="compact-context-meter" aria-label="Estimated context window" min={0} max={window} value={Math.min(used, window)}
             aria-valuetext={`Estimated ${count(used)} tokens of ${count(window)}`} /> : <div className="compact-context-meter" aria-hidden="true" />}
-          <div className="compact-context-values"><span>{percent === null ? context ? `~${count(context.estimatedTokens)}` : error ? "Unavailable" : "Loading..." : `~${Math.round(percent)}%`}</span><span title="Selected working window">{window ? count(window) : "No model window"}</span></div>
+          <div className="compact-context-values"><span>{percent === null ? context ? `~${count(context.estimatedTokens)}` : "Not yet recorded" : `~${Math.round(percent)}%`}</span><span title="Selected working window">{window ? count(window) : "Not yet recorded"}</span></div>
           {percent !== null && percent > 100 && <small className="inline-error">Over the working window; context is not truncated.</small>}
         </dd></div>
       </dl>
-      <p className="compact-usage-note">Context is estimated, including the saved draft.{totals?.estimatedUsd === null && totals.knownEstimatedUsd === 0 ? " USD not reported or priced." : ""}</p>
+      <p className="compact-usage-note">Retained model context estimate; unsent draft text is not part of a model call. ~ marks input/visible-output estimates, not provider reports.{totals?.estimatedUsd === null && totals.knownEstimatedUsd === 0 && (estimate?.estimatedUsd === null || estimate?.estimatedUsd === undefined) ? " USD not reported or priced." : ""}</p>
       {totals && (totals.unknownTokenCalls > 0 || totals.heldTokens === null) && <p className="compact-usage-note">Unknown usage/holds remain charged. Open limits for details.</p>}
       <button className="compact-usage-link" type="button" onClick={() => setBudgetView("limits")}>View usage and limits...</button>
     </div>
@@ -477,5 +475,5 @@ function UsageMenu({ sdk, session, snapshot, editor }: { sdk: MoguriSdk; session
       <details><summary>Detailed session accounting</summary>{accounting.status && <BudgetSummary status={accounting.status} />}</details>
       <h3>Session budget limits</h3><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} />
     </div>
-    {(error || accounting.error) && <p className="inline-error" role="alert">{error || accounting.error}</p>}</>;
+    {accounting.error && <p className="inline-error" role="alert">{accounting.error}</p>}</>;
 }
