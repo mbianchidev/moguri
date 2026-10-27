@@ -69,14 +69,14 @@ export class SpeechCaptureController {
     }).catch(async (error: unknown) => { if (this.owner === owner && !owner.abort.signal.aborted) await this.failed(owner, error); });
   }
   private read(owner: Attempt): void {
-    if (!this.ports.read || !owner.lease || owner.reading || this.owner !== owner || owner.abort.signal.aborted) return;
+    if (!this.ports.read || !owner.lease || owner.reading || owner.finalizing || this.owner !== owner || owner.abort.signal.aborted) return;
     owner.reading = true;
     void this.ports.read(owner.lease).then((value) => {
-      if (this.owner !== owner || owner.abort.signal.aborted) return;
+      if (this.owner !== owner || owner.abort.signal.aborted || owner.finalizing) return;
       if (value.revision < owner.revision || value.revision === owner.revision && value.text !== owner.text) throw new Error("The original streamed transcript changed its version. Existing composer text was preserved.");
       owner.revision = value.revision;
       if (value.text !== owner.text) { owner.text = value.text; this.ports.changed?.(owner.lease!, value.text, false); }
-    }).catch(async (error: unknown) => { if (this.owner === owner && !owner.abort.signal.aborted) await this.failed(owner, error); })
+    }).catch(async (error: unknown) => { if (this.owner === owner && !owner.abort.signal.aborted && !owner.finalizing) await this.failed(owner, error); })
       .finally(() => { owner.reading = false; });
   }
   async start(deviceId = "default"): Promise<void> {
@@ -103,7 +103,7 @@ export class SpeechCaptureController {
     if (owner.finalizing) return owner.finalizing;
     const recorder = owner.recorder, lease = owner.lease;
     if (!recorder || !lease) return;
-    clearTimeout(this.deadline); this.publish("transcribing");
+    clearTimeout(this.deadline); clearInterval(this.progress); this.publish("transcribing");
     owner.finalizing = (async () => {
       let samples: Float32Array | undefined, bytes: Uint8Array | undefined;
       try {

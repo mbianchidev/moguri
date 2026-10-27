@@ -2920,7 +2920,14 @@ The shortcut is always hold-to-talk and ignores terminals, dialogs and other
 composers. Voice/Accessibility settings share an editable shortcut. Optional
 microphone-button push-to-talk also supports pointer release outside the button
 and Space/Enter on the focused button. Otherwise that button keeps click/start
-and click/stop.
+and click/stop. The microphone icon stays visible and highlights while the
+owning capture records, including activation through the keyboard shortcut.
+Cold-start progress distinguishes model preparation from ready streaming.
+The pinned native runtime can buffer its readiness log, so Moguri verifies the
+exact authenticated local listener instead of waiting for that log to flush.
+Capture errors retain the original recognizer diagnostic rather than a second
+misleading missing-capture message. Use matching protocol-71 clients/service
+for this repair; upgrading preserves existing history and model preferences.
 Releasing before admission never opens a late microphone and explains why no
 audio was captured, instead of silently returning to idle.
 Repeated keydown and stop requests do not duplicate frames or finalization.

@@ -2,6 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
+import { mkdir } from "node:fs/promises";
 import { audioFromBase64, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture } from "../fixture.ts";
@@ -246,6 +247,9 @@ test("Ctrl+Space streams words into the textbox while held and release flushes o
     await prompt.focus();
     await page.keyboard.down("Control"); await page.keyboard.down("Space");
     await expect(page.locator(".composer-mic")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".composer-mic svg[data-icon='Mic']")).toBeVisible();
+    await expect(page.locator(".composer-mic svg[data-icon='Stop']")).toHaveCount(0);
+    await expect(page.locator(".composer-mic")).toHaveClass(/recording/);
     await expect(prompt).toHaveValue(/Generated/, { timeout: 5000 });
     expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("running");
     expect(fixture.requests).toHaveLength(0);
@@ -254,6 +258,31 @@ test("Ctrl+Space streams words into the textbox while held and release flushes o
     await expect(prompt).toHaveValue("Generated local dictation.");
     await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("a cold recognizer with buffered readiness keeps the mic visible and flushes the same push-to-talk recording", async () => {
+  const { fixture, sdk } = await speechFixture(["--listener-delay", "1000", "--buffered-ready"]), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true }), mic = page.locator(".composer-mic");
+    await prompt.fill("Generated preserved original draft."); await prompt.focus();
+    await page.keyboard.down("Control"); await page.keyboard.down("Space");
+    await expect(mic).toHaveAttribute("aria-pressed", "true");
+    await expect(mic.locator("svg[data-icon='Mic']")).toBeVisible();
+    await expect(mic).toHaveClass(/recording/);
+    await expect(prompt).toHaveValue(/draft\. Generated /);
+    await mkdir(".moguri/artifacts", { recursive: true }); await page.screenshot({ path: ".moguri/artifacts/dictation-active-microphone.png" });
+    const capture = fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")!;
+    expect(capture.status).toBe("running");
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect.poll(() => fixture.service.controller.snapshot().jobs.find((job) => job.id === capture.id)?.status).toBe("completed");
+    await expect(prompt).toHaveValue("Generated preserved original draft. Generated local dictation.");
+    await expect(mic.locator("svg[data-icon='Mic']")).toBeVisible();
+    await expect(mic).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("alert").filter({ hasText: /capture is missing|within sixty seconds/ })).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

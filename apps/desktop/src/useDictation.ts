@@ -21,7 +21,8 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
       read: (lease) => sdk.voice.readCapture(id(), lease.id, lease.token),
       finishStream: async (lease, sequence) => {
         await sdk.voice.finishCapture(id(), lease.id, lease.token, sequence);
-        const job = await sdk.jobs.wait(lease.id, { timeoutMs: 70_000 });
+        // Includes cold startup within the original 210-second service capture lease.
+        const job = await sdk.jobs.wait(lease.id, { timeoutMs: 220_000 });
         if (job.status !== "completed") throw new Error(job.error ?? `Local dictation ${job.status}. Words already inserted in the draft were preserved.`);
         return sdk.voice.transcript(id(), lease.id);
       },

@@ -20,7 +20,7 @@ export function DictationButton({ state, pushToTalk, recording, disabled, label,
     if (held.current !== owner) return;
     held.current = null; void cancel("Push-to-talk was interrupted before release. Raw audio was discarded; inserted words were preserved.");
   };
-  return <button className={`icon-button composer-mic ${recording ? "recording" : ""}`} type="button" aria-label={label}
+  return <button className={`icon-button composer-mic ${recording || state.phase === "recording" ? "recording" : ""}`} type="button" aria-label={label}
     aria-pressed={state.phase === "recording"} disabled={disabled} title={pushToTalk ? `Hold to record; release to finish. ${title}` : `Click to start or stop recording. ${title}`}
     onPointerDown={(event) => {
       if (!pushToTalk || event.button !== 0) return;
@@ -44,6 +44,6 @@ export function DictationButton({ state, pushToTalk, recording, disabled, label,
     }}
     onBlur={() => { if (typeof held.current === "string") discard(held.current); }}
     onClick={(event) => { if (!pushToTalk || event.detail === 0) toggle(); }}>
-    <Icon name={recording ? "Stop" : "Mic"} />
+    <Icon name="Mic" />
   </button>;
 }
