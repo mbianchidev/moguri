@@ -26,6 +26,8 @@ receipts or accounting holds. On startup, previously discarded positive cache
 counts can be recovered only from that call's exact retained provider result.
 Only the original captured rate can reprice its estimate; missing, mismatched,
 deleted or unreported evidence stays unknown. No model or tool is replayed.
+The [protocol-66 qualification](architecture/chat-activity.md#protocol-66-qualification)
+records coverage and the exact local development installer's identity.
 
 ## Folder sessions and shared controls
 
