@@ -242,6 +242,7 @@ test("Ctrl+Space streams words into the textbox while held and release flushes o
   const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    await expect(page.locator(".composer-mic")).toBeEnabled();
     await prompt.focus();
     await page.keyboard.down("Control"); await page.keyboard.down("Space");
     await expect(page.locator(".composer-mic")).toHaveAttribute("aria-pressed", "true");

@@ -68,6 +68,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.getByLabel("Project plan", { exact: true }).fill("Generated explicitly saved Remote desktop plan.\n");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.planSaves.at(-1)?.status).toBe("completed");
+    await expect(page.getByLabel("Project plan", { exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
     expect(await readFile(join(workspace, "docs/plan.md"), "utf8")).toBe("Generated explicitly saved Remote desktop plan.\n");
     expect(fixture.requests.length).toBe(1);
