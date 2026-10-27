@@ -366,6 +366,14 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     else await showPanel(result.panel);
   };
   const handleSlash = async (target: Session, draft: DraftEditor, text: string) => {
+    if (/^\/side\s+\S/.test(text)) {
+      await draft.flush();
+      if (draft.getState().text !== text || draft.getState().conflict) throw new Error("The side question changed while saving. Its newer draft was preserved; send it explicitly.");
+      const result = await client.slash(target.id, text, "desktop");
+      const saved = client.getState().snapshot?.sessions.find((session) => session.id === target.id)?.draft;
+      if (saved) draft.receive(saved);
+      await applySlash(result); return;
+    }
     if (target.projectId && continueWorkInput(text)) {
       const review = await draft.reviewContinueWork();
       setContinueChoice({ review, editor: draft }); return;

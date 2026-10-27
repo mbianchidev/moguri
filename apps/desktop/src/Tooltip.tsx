@@ -19,7 +19,7 @@ export function Tooltip({ children, content, openOnClick = false, disabled = fal
   useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   useEffect(() => {
     if (!open || disabled) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.stopPropagation(); setOpen(false); } };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setOpen(false); } };
     const dismiss = (event: PointerEvent) => {
       if (event.target instanceof Node && !trigger.current?.contains(event.target) && !popup.current?.contains(event.target)) setOpen(false);
     };
@@ -42,7 +42,7 @@ export function Tooltip({ children, content, openOnClick = false, disabled = fal
     onClick={openOnClick ? show : undefined}>
     {cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], open && !disabled ? id : null].filter(Boolean).join(" ") || undefined })}
     {open && !disabled && createPortal(<div ref={popup} id={id} role="tooltip" className="compact-tooltip" style={position}
-      onMouseEnter={show} onMouseLeave={leave}>{content}</div>, trigger.current?.closest("dialog") ?? document.body)}
+      onMouseEnter={show} onMouseLeave={leave}>{content}</div>, trigger.current?.closest("dialog, [popover]") ?? document.body)}
   </span>;
 }
 

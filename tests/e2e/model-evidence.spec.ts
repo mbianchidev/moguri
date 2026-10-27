@@ -16,6 +16,7 @@ test("desktop explicitly inspects provider claims without inference or changing 
     await page.getByLabel("Prompt", { exact: true }).fill("Generated draft survives metadata inspection.");
     await page.getByRole("button", { name: /^Model:/ }).click();
     const menu = page.getByRole("dialog", { name: "Model", exact: true });
+    await menu.getByText("Model details and setup", { exact: true }).click();
     await menu.getByText("Provider-declared model metadata", { exact: true }).click();
     expect(f.reads()).toBe(0);
     await menu.getByRole("button", { name: "Read Copilot model declarations", exact: true }).click();
@@ -54,6 +55,7 @@ test("a held old-model evidence response cannot populate a changed model or eras
     await page.getByLabel("Prompt", { exact: true }).fill("Generated held-inspection draft.");
     await page.getByRole("button", { name: /^Model:/ }).click();
     const menu = page.getByRole("dialog", { name: "Model", exact: true });
+    await menu.getByText("Model details and setup", { exact: true }).click();
     await menu.getByText("Provider-declared model metadata", { exact: true }).click();
     await menu.getByRole("button", { name: "Read Copilot model declarations", exact: true }).click();
     await expect.poll(() => f.reads()).toBe(1);

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedOAuthServer } from "../fixtures/oauth.ts";
+import { openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 test.skip(process.platform !== "darwin", "The desktop alpha is qualified on macOS.");
@@ -35,7 +36,7 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await expect(page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Project file or folder/ })).toBeEnabled();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await page.keyboard.press("Escape");
     await prompt.fill("/rename Generated project-free chat"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
     await expect(page.getByRole("heading", { name: "Generated project-free chat", exact: true })).toBeVisible();

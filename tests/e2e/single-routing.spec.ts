@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { defaultSingleKupoSettings } from "../../packages/sdk/src/index.ts";
+import { openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The native desktop worker is qualified on macOS.");
@@ -18,7 +19,9 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     const composer = page.getByRole("form", { name: "Message composer" }), modelButton = composer.getByRole("button", { name: /^Model:/ });
     await modelButton.click();
     const models = page.getByRole("dialog", { name: "Model", exact: true });
-    await expect(models.getByRole("button", { name: /^Kupo Unavailable/ })).toBeDisabled();
+    await expect((await openModelChoices(page)).getByRole("menuitemradio", { name: /^Kupo Unavailable/ })).toHaveAttribute("aria-disabled", "true");
+    await page.keyboard.press("Escape");
+    await models.getByText("Model details and setup", { exact: true }).click();
     await models.getByRole("button", { name: "kupo Single settings", exact: true }).click();
     await expect(page.getByLabel("Enable kupo Single", { exact: true })).not.toBeChecked();
     await page.getByLabel("Enable kupo Single", { exact: true }).check();
@@ -33,13 +36,13 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await page.screenshot({ path: resolve(".moguri/artifacts/kupo-single-policy.png") });
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await modelButton.click();
-    const kupo = models.getByRole("button", { name: /^Kupo Moguri/ });
+    const kupo = (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Kupo Moguri/ });
     await expect(kupo).toContainText("Moguri / separately metered router and solver");
     await expect(kupo).not.toContainText("GitHub Copilot");
     await kupo.click();
     await expect.poll(() => fixture.session().controls.modelId).toBe("kupo");
-    await expect(models.getByLabel("Working context window", { exact: true })).toBeDisabled();
-    await expect(models.getByLabel("Thinking effort", { exact: true })).toBeDisabled();
+    await expect(models.getByRole("button", { name: "Working context window", exact: true })).toBeDisabled();
+    await expect(models.getByRole("button", { name: "Thinking effort", exact: true })).toBeDisabled();
     await page.keyboard.press("Escape");
     await composer.getByRole("button", { name: "Budget and usage", exact: true }).click();
     const budget = page.getByRole("dialog", { name: "Budget and usage", exact: true });

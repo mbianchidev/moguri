@@ -1,5 +1,5 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
-import { openSettingsSection } from "./navigation.ts";
+import { openModelChoices, openSettingsSection } from "./navigation.ts";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -40,6 +40,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
   try {
     const page = await app.firstWindow();
     const failures: string[] = []; page.on("pageerror", (error) => failures.push(error.message));
+    await expect(page.getByText("Local service connected", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Issues", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Kanban", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Add item to Backlog", exact: true }).click();
@@ -126,7 +127,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByText("Connected through your Copilot account.")).toBeVisible();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();

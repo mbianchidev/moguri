@@ -6,6 +6,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
+import { openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const artifacts = resolve(".moguri/artifacts");
@@ -64,7 +65,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await expect(page.getByRole("heading", { name: longName, exact: true })).toBeVisible();
     await page.screenshot({ path: join(artifacts, "desktop-held-queue.png") });
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Run queued message 1", exact: true }).click();

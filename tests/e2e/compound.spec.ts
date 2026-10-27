@@ -59,6 +59,7 @@ test("desktop saves only explicitly reviewed compound policy and exact-model lin
   try {
     const page = await app.firstWindow();
     await page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByText("Model details and setup", { exact: true }).click();
     await page.getByRole("button", { name: "Kupo settings", exact: true }).click();
     await page.getByLabel("kupo workflow", { exact: true }).selectOption("compound");
     await page.getByLabel("Complete compound routing policy", { exact: true }).fill(JSON.stringify(f.policy));

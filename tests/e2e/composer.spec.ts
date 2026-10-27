@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { isRecord, MoguriError } from "../../packages/sdk/src/index.ts";
+import { chooseContextWindow, chooseThinkingEffort, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer execution is qualified on macOS.");
@@ -25,7 +26,7 @@ test("a failed model update remains visible after closing its menu and releases 
       return dispatch(...args);
     };
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => received).toBe(true); await page.keyboard.press("Escape");
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("/rename Generated preserved failed-model draft");
     await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeDisabled();
@@ -56,7 +57,7 @@ test("closing the model menu cannot release an in-flight configuration gate or l
       return dispatch(...args);
     };
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => received).toBe(true);
     await page.keyboard.press("Escape");
     const prompt = page.getByLabel("Prompt", { exact: true });
@@ -124,15 +125,12 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     await expect(composer.getByRole("button", { name: "Autonomy level", exact: true }).locator("svg")).toHaveAttribute("data-icon", "Traffic");
 
     await composer.getByRole("button", { name: /^Model:/ }).click();
-    const model = page.getByRole("dialog", { name: "Model", exact: true });
-    await model.getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
-    await expect.poll(() => model.getByLabel("Working context window", { exact: true }).locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(["", "32768", "16384"]);
-    await model.getByLabel("Working context window", { exact: true }).selectOption("16384");
+    await chooseContextWindow(page, "16,384 tokens");
     await expect.poll(() => fixture.session().controls.modelOptions?.contextWindow).toBe(16384);
-    await model.getByLabel("Working context window", { exact: true }).press("Enter");
     expect(fixture.requests.length).toBe(0);
-    await model.getByLabel("Thinking effort", { exact: true }).selectOption("low");
+    await chooseThinkingEffort(page, "Low");
     await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 16384, thinkingEffort: "low" });
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/composer-model-menu.png") });

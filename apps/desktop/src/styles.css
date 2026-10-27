@@ -388,6 +388,19 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .context-session-options { max-height: 230px; overflow: auto; }
 .composer-model-search { width: 100%; margin-bottom: 8px; font-size: 12px; }
 .composer-model-list { max-height: 180px; overflow: auto; }
+.model-setting-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 8px; border: 0; background: transparent; text-align: left; }
+.model-setting-row > span { flex: 1; }
+.model-setting-row > small { color: var(--muted); font: inherit; max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-setting-row > svg { width: 14px; height: 14px; color: var(--muted); }
+.model-cascade-menu { position: fixed; inset: auto; margin: 0; padding: 8px; border: 1px solid var(--control-line); border-radius: 9px; background: var(--surface); color: var(--text); box-shadow: 0 6px 24px #0004; overflow: auto; }
+.model-cascade-menu > button, .model-cascade-menu .composer-menu-option { display: flex; align-items: center; gap: 8px; width: 100%; border-color: transparent; text-align: left; background: transparent; }
+.model-cascade-menu > button > span { flex: 1; }
+.model-cascade-menu [aria-checked="true"] { background: var(--selected); color: var(--selection-text); }
+.model-cascade-menu [aria-disabled="true"] { color: var(--muted); cursor: not-allowed; }
+.model-cascade-menu .composer-model-list { max-height: min(390px, calc(100dvh - 180px)); }
+.model-choice-row { display: flex; align-items: center; }
+.model-choice-row > button { flex: 1; min-width: 0; }
+.model-choice-row > .setting-help { margin: 0; flex-shrink: 0; }
 .model-tuning { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .model-tuning label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; color: var(--muted); margin-bottom: 12px; }
 .model-tuning input, .model-tuning select { width: 100%; color: var(--text); font-size: 12px; }
@@ -822,6 +835,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .slash-suggestions button { display: flex; width: 100%; gap: 12px; border: 0; text-align: left; font-size: 12px; }
 .slash-suggestions strong { min-width: 90px; font-size: 11px; }
 .slash-suggestions span { color: var(--muted); line-height: 1.6; overflow-wrap: anywhere; }
+.slash-suggestions [aria-selected="true"] { background: var(--selected); color: var(--selection-text); }
+.slash-suggestions strong > small { display: block; color: var(--muted); font-size: 10px; font-weight: 400; }
+.slash-suggestions [data-command-kind="builtin"] + [data-command-kind="skill"] { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 12px; }
 .message > header { flex-wrap: wrap; gap: 8px; }
 .message-copy { margin-inline-start: auto; width: 26px; height: 26px; min-height: 26px; opacity: 0; pointer-events: none; }
 .message:hover .message-copy, .message:focus-within .message-copy { opacity: 1; pointer-events: auto; }

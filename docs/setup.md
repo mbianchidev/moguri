@@ -1,11 +1,26 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **67**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **68**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
 ## Saved turn and usage information
+
+The model button opens **Model**, **Effort**, and **Context window** rows with
+side menus. Kupo is in the model list; its adjacent information button explains
+unavailability without enabling it or substituting another model. Only the
+selected model's qualified options are offered, and changes save through the
+shared session controls. Escape/Left returns from a submenu; Right opens it.
+
+Type `/` for the complete scrollable command list: built-ins first, enabled
+skills last. Configured skill sources refresh explicitly when this chooser is
+opened. Arrow keys move and Tab selects; skill selection loads its exact fresh
+source into your draft as untrusted guidance, without running a model or
+granting tools. A failed source stays an explicit error, not a stale catalog.
+`/side YOUR QUESTION` sends only that question and its selected attachments to
+the original read-only side chat and opens its panel. It preserves any existing
+side draft and never runs the main chat's model. `/side` alone only opens it.
 
 The small **Turns** index beside the conversation jumps to sent prompts and
 questions you actually answered, showing the original question and your choice.

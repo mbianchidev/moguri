@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { cloneRepositoryFixture } from "../fixtures/clone-repository.ts";
+import { openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -108,7 +109,7 @@ test("project-free Autopilot stays permissionless and a side chat can explicitly
     await page.getByLabel("Side question", { exact: true }).fill("Generated independent side question.");
     await expect(sidePanel.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     await sidePanel.locator("[data-composer-control='model']").click();
-    await sidePanel.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect(sidePanel.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     await page.getByLabel("Side question", { exact: true }).press("Enter");
     await expect(page.getByRole("log", { name: "Side chat transcript" })).toContainText("Generated Copilot response.");
