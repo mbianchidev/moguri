@@ -5,7 +5,7 @@ export const SETTINGS_GROUPS = [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart" },
   ] },
   { label: "Models", items: [
-    { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication" },
+    { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection" },
     { id: "localModels", label: "Local models", keywords: "Ollama llama.cpp ds4 endpoints provider API key credentials" },
     { id: "kupo", label: "Kupo routing", keywords: "automatic configured capabilities single cascade critique classifier solver" },
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },

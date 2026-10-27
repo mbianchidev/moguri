@@ -1916,6 +1916,33 @@ delete its compaction text along with its transcript, but cannot erase the
 independent ledger's real/unknown charges. There is no automatic compaction,
 summary-to-memory promotion, user-answer forgery or new sandbox claim.
 
+## Provider and model availability
+
+**Settings / Models / Providers** lists this profile's providers and discovered
+or explicitly configured models. Use the switches to disable a provider while
+retaining its login/configuration, or keep just the models you want. Disabled
+models disappear from selection lists and cannot be selected with `/model`;
+Kupo and every new model admission use the same service-owned availability.
+Already admitted calls retain their actual result and charges.
+
+Models with the same exact upstream API ID share one row and an exclusive
+provider dropdown. Choose a source explicitly when there is more than one.
+An unavailable/disabled saved source never silently changes to another provider.
+IDs are declared catalogue keys, not independent-family or quality evidence.
+Current sessions and remembered defaults retain their original selection;
+reenable it or explicitly choose another available model before new inference.
+
+CLI uses `moguri models catalogue`, `models enable|disable API_ID`,
+`models provider PROVIDER_ID enable|disable`, and
+`models source API_ID MODEL_ID`. Writes accept an observed `--revision N`.
+TUI and desktop share `/models catalogue`, `/models enable|disable API_ID`,
+`/models provider PROVIDER_ID enable|disable`, and
+`/models source API_ID MODEL_ID`; bare `/models` still opens available choices.
+These profile preferences survive restart, never sign in or start inference,
+and do not alter another profile. Local/SSH endpoint-enabled controls remain
+consistent with provider-list changes. See the
+[model-control contract](architecture/model-controls.md#provider-and-model-availability).
+
 ## Local models and startup sources
 
 **Settings / Local models** accepts explicit OpenAI-compatible base URLs and

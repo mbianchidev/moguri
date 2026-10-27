@@ -32,6 +32,7 @@ import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
+import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
@@ -52,6 +53,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [applicationBusy, setApplicationBusy] = useState(false);
   const [storageBusy, setStorageBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
+  const [modelsBusy, setModelsBusy] = useState(false);
   const [sql, setSql] = useState<Awaited<ReturnType<MoguriSdk["integrations"]["sqlStatus"]>>["connection"] | null>(null);
   const sqlGeneration = useRef(0);
   const groups = searchSettings(search);
@@ -106,7 +108,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const otherNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy;
+  const otherNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
   const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
@@ -280,7 +282,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
         {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
           <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><SettingsHelp label="About profiles" target={<h3>Profiles</h3>}>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</SettingsHelp>
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
-        {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp><ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
+        {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
+          <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
+          <ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
         {tab === "accessibility" && <><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a qualified chord or enter one explicitly. Save applies only its field. Conflicting and protected editing/system chords are rejected; none disables an optional shortcut. Voice uses the same binding in both sections.</SettingsHelp><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>
 
           <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />
