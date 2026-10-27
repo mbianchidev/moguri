@@ -21,6 +21,9 @@ granting tools. A failed source stays an explicit error, not a stale catalog.
 `/side YOUR QUESTION` sends only that question and its selected attachments to
 the original read-only side chat and opens its panel. It preserves any existing
 side draft and never runs the main chat's model. `/side` alone only opens it.
+The [protocol-68 qualification](architecture/chat-activity.md#protocol-68-composer-and-compact-control-qualification)
+records the current composer/turn-control development installer and its exact
+checksum, complete coverage and remaining release exclusions.
 
 The small **Turns** index beside the conversation jumps to sent prompts and
 questions you actually answered, showing the original question and your choice.
@@ -34,7 +37,7 @@ activates a focused point and Escape collapses expanded details.
 Older points reveal retained history automatically without
 discarding your draft or following new output away from the point you chose.
 The [navigation qualification](architecture/chat-activity.md#turn-navigation-qualification)
-records coverage and the latest turn-navigation development installer.
+records the earlier protocol-66 navigation checkpoint.
 
 Turn information and **Budget and usage** open from the chat's saved snapshot,
 without fetching details on click. Tokens, context and captured-rate USD estimates
