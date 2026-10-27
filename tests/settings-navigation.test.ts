@@ -14,7 +14,7 @@ test("settings have coherent unique groups and stable routable sections", () => 
 
 test("settings search combines category and control aliases without reading user content", () => {
   const ids = (query: string) => searchSettings(query).flatMap((group) => group.items.map((item) => item.id));
-  assert.deepEqual(ids("MODEL local"), ["localModels", "kupo", "sendbox", "budgets", "instructions", "project"]);
+  assert.deepEqual(ids("MODEL local"), ["providers", "localModels", "kupo", "sendbox", "budgets", "instructions", "project"]);
   assert.deepEqual(ids("thinking effort"), ["startup"]);
   assert.deepEqual(ids("execution permission"), SETTINGS_GROUPS.find((group) => group.label === "Execution & permissions")!.items.map((item) => item.id));
   assert.deepEqual(ids("readme readiness"), ["sendbox", "retention", "instructions", "skills", "project"]);
