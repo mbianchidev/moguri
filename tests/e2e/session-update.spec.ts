@@ -152,6 +152,9 @@ test("dropping a project on another names a folder, starts a captured multi-repo
     await expect(repositories).toHaveValue("");
     await repositories.selectOption(fixture.session().projectId!);
     await expect(page.getByRole("region", { name: "Bound workspace files", exact: true })).toContainText("fixture.txt");
+    await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Plan", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Model task plan", exact: true })).toContainText("No task plan.");
+    await expect(page.getByRole("button", { name: "Open workspace plan file", exact: true })).toHaveCount(0);
     await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Terminal", exact: true }).click();
     await expect(page.getByRole("combobox", { name: "Terminal repository", exact: true })).toHaveValue("");
     expect(fixture.service.controller.snapshot().terminals.filter((terminal) => terminal.sessionId === created.id)).toHaveLength(0);

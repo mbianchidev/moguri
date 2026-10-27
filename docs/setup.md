@@ -17,8 +17,9 @@ Edge drops continue to reorder projects.
 Folder tools explicitly select a captured repository by ID or original name.
 Files, Changes and Terminal have repository pickers; no first member,
 common-parent directory or HOME console is substituted. Folder sessions are
-currently Local-only. PR, Work item and workspace-plan panels remain
+currently Local-only. PR, Work item and workspace plan files remain
 single-repository surfaces: open them from an individual member project's chat.
+The folder's Plan panel still shows its own explicit model task checklist.
 Per-repository MCP, memory indexing, hooks, background jobs and publication are
 not implicitly combined or enabled by grouping.
 
