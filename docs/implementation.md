@@ -4,6 +4,14 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+Protocol 72 adds [Home-backed ordinary Local chats](architecture/project-free-execution.md):
+their real null project identity is separate from captured canonical
+Home/device/inode and ordinary approved file/command tools. All clients share
+that binding and independently retained actual-writer recovery. No previous
+project, replacement root, credentials, permissions or non-Local fallback is
+inferred; private roles remain root-less/tool-less and repository publication
+still requires an explicit real project.
+
 Protocol 57 makes [candidate retention](architecture/candidate-cleanup.md)
 session-owned: permanent origin-session deletion, including archived expiry,
 deletes its candidates and fixed-model proposal reports after owned work settles.

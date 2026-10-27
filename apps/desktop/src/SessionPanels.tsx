@@ -9,6 +9,31 @@ import { ApprovalActions } from "./ApprovalActions.tsx";
 import type { SettingsTab } from "./settings-catalog.ts";
 import { RepositoryPicker } from "./RepositoryPicker.tsx";
 
+export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const root = session.controls.env === "Local" ? session.homeRoot : undefined;
+  const writers = root ? snapshot.chatWriters.filter((writer) => writer.status === "unconfirmed" && writer.root.root === root.root &&
+    writer.root.device === root.device && writer.root.inode === root.inode) : [];
+  if (!writers.length) return null;
+  return <section className="settings-warning" aria-label="Home writer inspection"><strong>Home needs inspection</strong>
+    <p>Inspect the original files and processes before acknowledging risk. This does not prove cleanup, grant permissions or resume queued prompts.</p>
+    {writers.map((writer) => <details key={writer.id} open><summary>Interrupted Home writer</summary>
+      <p className="path">{writer.root.root} / {writer.id}</p><p>{writer.diagnostic}</p>
+      {snapshot.sessions.some((source) => source.id === writer.sessionId) ? writer.sessionId !== session.id &&
+        <button type="button" disabled={busy} onClick={() => void chooseSession(writer.sessionId)}>Open original chat</button> :
+        <p>Original chat removed. Its independent writer record remains.</p>}
+      <button type="button" disabled={busy || Boolean(session.turnId) || snapshot.sessions.some((source) => source.id === writer.sessionId && source.turnId === writer.turnId)}
+        onClick={() => {
+          setBusy(true); setError("");
+          void sdk.workspaces.acknowledgeHomeWriter(session.id, writer.id, writer.revision, true)
+            .catch((error: unknown) => setError(error instanceof Error ? error.message : "The exact Home inspection was not acknowledged. Original ownership remains."))
+            .finally(() => setBusy(false));
+        }}>Acknowledge inspected Home</button>
+    </details>)}
+    {error && <p className="inline-error" role="alert">{error}</p>}
+  </section>;
+}
+
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [repository, setRepository] = useState(""), generation = useRef(0);
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
@@ -52,7 +77,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
-    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
+    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
 interface PlanPanelProps { sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; onDirty: (dirty: boolean) => void; modal?: (open: boolean) => void }

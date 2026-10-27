@@ -5,7 +5,7 @@ import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
-import { BrowserPanel, ChangesPanel, FilesPanel, PlanPanel, SideChat } from "./SessionPanels.tsx";
+import { BrowserPanel, ChangesPanel, FilesPanel, HomeWriterReview, PlanPanel, SideChat } from "./SessionPanels.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
 import { AttachmentChip } from "./ContextAttachments.tsx";
@@ -413,6 +413,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     return () => window.removeEventListener("keydown", keyboard);
   }, [nativeModal, terminalDismiss, composerMenuOpen, snapshot?.settings.values.shortcuts?.commands]);
   const chatContent = session && snapshot ? <>
+    <HomeWriterReview key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} chooseSession={chooseSession} />
     {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
       <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
         {continuedWork.diagnostic && <p>{continuedWork.diagnostic}</p>}</div>
@@ -427,7 +428,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
       {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
         <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
-      <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will access this project's files."}</p>
+      <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will use the displayed session capability and scope."}</p>
+      {session.controls.env === "Local" && session.homeRoot && <p className="fine-print path">Local chat directory: {session.homeRoot.root}</p>}
       <pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
       {session.pendingApproval.recommendation && session.pendingApproval.recommendationSource?.stepId === session.pendingApproval.stepId && session.pendingApproval.recommendationSource.callId === session.pendingApproval.call.id ?
         <ModelAdvice text={session.pendingApproval.recommendation} source={session.pendingApproval.recommendationSource} /> :
@@ -646,25 +648,25 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
-  const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path,
+  const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path, session.homeRoot,
     session.repositories?.map((binding) => [binding, snapshot?.projectConfigurations.find((configuration) => configuration.projectId === binding.projectId)]),
     snapshot?.projectConfigurations.find((value) => value.projectId === session.projectId), session.controls.env === "Remote" ? snapshot?.settings.values.remote : null,
     session.controls.env === "Sandbox" ? [session.sandboxWorkspaceId, snapshot?.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId)?.revision, snapshot?.settings.values.sandbox] : null]);
-  if (!project && !session.repositories && ["Terminal", "Changes", "Files", "PR"].includes(panel)) return <div className="panel-empty"><Icon name="Files" /><h2>No project selected</h2><p>This chat cannot access workspace files or commands. Start a project chat for those operations.</p></div>;
+  if (!project && !session.repositories && ["Changes", "PR"].includes(panel)) return <div className="panel-empty"><Icon name="Files" /><h2>Choose an explicit repository</h2><p>Home files and approved commands do not require a project. Git changes and this PR picker need a selected repository; chat commands can use an explicit git -C path or gh --repo owner/repo target.</p></div>;
   if (session.repositories && ["PR", "Code change", "Work item"].includes(panel)) return <div className="panel-empty"><Icon name={panel} /><h2>Choose an individual repository chat</h2><p>This repository-specific panel is available in each member project's chat. Folder sessions can read, edit and run commands across their explicitly selected captured roots; no first repository was substituted.</p></div>;
   if (panel === "Insights") {
     const execution = snapshot?.executions.findLast((value) => value.sessionId === session.id);
     const nativeExecution = snapshot?.sandboxExecutions?.findLast((value) => value.sessionId === session.id);
     const nativeWorkspace = snapshot?.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId);
     const routing = snapshot?.routings.findLast((value) => value.sessionId === session.id);
-    const workspace = session.controls.env === "Sandbox" ? nativeWorkspace?.stage?.workspace : session.controls.env === "Remote" ? snapshot?.projectConfigurations.find((value) => value.projectId === project?.id)?.values.remotePath : snapshot?.managedWorkspaces.find((value) => value.id === session.workspaceId)?.path ?? project?.path;
+    const workspace = session.controls.env === "Sandbox" ? nativeWorkspace?.stage?.workspace : session.controls.env === "Remote" ? snapshot?.projectConfigurations.find((value) => value.projectId === project?.id)?.values.remotePath : snapshot?.managedWorkspaces.find((value) => value.id === session.workspaceId)?.path ?? project?.path ?? session.homeRoot?.root;
     const known = session.usage.filter((usage) => usage.totalTokens !== null);
     const unknown = session.usage.some((usage) => usage.totalTokens === null);
     const total = known.reduce((sum, usage) => sum + (usage.totalTokens ?? 0), 0);
     return <>
       <div className="context-binding"><span className={`status-dot ${session.status}`} /><strong>{title(session)}</strong><small>{session.status.replace("_", " ")}</small></div>
       <h2>Session details</h2><dl className="facts">
-        <dt>Project</dt><dd>{session.repositories?.map((binding) => binding.name).join(", ") ?? project?.name ?? "Unavailable"}</dd><dt>Workspace</dt><dd className="path">{session.repositories?.map((binding) => binding.root.root).join("\n") ?? workspace ?? "Unavailable"}</dd>
+        <dt>Project</dt><dd>{session.repositories?.map((binding) => binding.name).join(", ") ?? project?.name ?? "None (project-free)"}</dd><dt>Workspace</dt><dd className="path">{session.repositories?.map((binding) => binding.root.root).join("\n") ?? workspace ?? "Unavailable"}</dd>
         <dt>Profile</dt><dd>{snapshot?.profile?.name ?? client.profileId}</dd><dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
         <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
       </dl>

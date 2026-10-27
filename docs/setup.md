@@ -2298,13 +2298,41 @@ scope, or creates a project-free chat when none is selected. CLI:
 Scope is fixed for that session, not silently rebound when a different project
 is selected for new chats.
 
-These chats never reuse a previous model workspace root. Agent project files,
-shell, diff, plans and repository memory are unavailable. Independent user
-consoles are described below; opening one does not grant a model filesystem
-access. Provider calls,
-explicitly selected client snapshots/images, global guidance/skills and configured global MCPs remain available.
-The internal MCP advertises only its scope-safe page fetcher. A failed general
-chat pauses only itself, not every project-free chat or an unrelated project.
+Ordinary **Local** chats capture configured **Home** as their initial working
+directory, matching the private User console. Files, approved shell commands,
+bounded command jobs, Agent output and configured global tools work without
+selecting a project. Desktop **Files** reads that Home; **Terminal / Agent**
+shows actual agent commands, separate from private User-console bytes.
+Home is not a synthetic project or sandbox. A changed/missing directory fails
+for filesystem work instead of selecting another Home, a previous project or
+the state directory. Readback/browser status and model-only answers do not
+silently acquire filesystem authority.
+
+Manual approvals and remembered session/profile-wide grants work normally.
+Explicit Autopilot approves supported tools automatically, not hard denials,
+read-only/side restrictions, allowed-env policy or budget overrides. A Home
+binding is not permission. Side chats may read approved Home files, never run
+commands or edit them. A project-scoped remembered grant still needs a real
+project.
+
+Use an explicit `gh --repo owner/repo ...` target or `git -C /selected/checkout`
+for repository work from Home. GitHub pickers, repository diff, project plans,
+indexing and owned project publication still need a real selected repository.
+No prior project/account is inferred and no login is automated. **Browser**
+works in an ordinary chat after the user opens its pane and enables **Agent
+control**, with the same exact page leases and normal approvals. Project-free
+Remote/Sandbox transports do not use controller Home as a fallback.
+
+Model-only chats remain parallel. Actual overlapping Home writers serialize,
+including across profiles. An interrupted writer's unknown process/file effects
+retain their original profile/root identity after restart or source deletion.
+Desktop shows **Home needs inspection**; **Acknowledge inspected Home** records
+actual-user risk acceptance, not cleanup proof, permissions or queue resumption.
+CLI `moguri home status --session ID` and shared TUI/desktop `/home` inspect the
+same retained state. After actual inspection, `/home acknowledge WRITER_ID
+REVISION confirm-inspected` acknowledges only that exact writer. Resume paused
+work separately. Autopilot, a new chat, navigation and deletion cannot clear it.
+See the [Home execution contract](architecture/project-free-execution.md).
 
 Cloning requires an existing parent folder and a new destination name. It never
 overwrites a directory, initializes submodules, runs hooks/filters, logs in, or
