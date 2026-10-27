@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **66**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **67**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -2491,7 +2491,8 @@ restriction immediately blocks new edit approvals; an active turn acknowledges
 it at the next safe steer/step or completion. Already-started effects cannot be
 rolled back by a mode change. `/agent` returns at a safe boundary with the project
 writer lease. Question-only side sessions cannot promote themselves.
-`/side` snapshots approved parent context into a separate read-only conversation,
+`/side` opens a separate read-only conversation and captures its original main
+session's latest retained context whenever a new side question begins,
 with separate usage, read approvals and cancellation. User-created subsessions
 are attached agent sessions, not the optional model-subagent feature.
 Side chat exposes its own **Model** selector. It inherits the current parent
@@ -2500,8 +2501,14 @@ explicit concrete model. Choosing it does not change the parent, Env or
 read-only scope, and no failed model is silently substituted.
 Protocol 58 adds explicit root-bound live messages/public inspection and
 separate executable agent-child tasks without widening the side chat's mode.
-Captured parent context is retained independently and loaded on demand; missing
-live grants never become a snapshot-to-live fallback.
+Each new side turn atomically retains its own original-parent context snapshot.
+Main work after the first side question is included in the next one; side
+history is preserved, without injecting the same main history repeatedly.
+An in-progress answer or tool continuation keeps its original frozen capture.
+Unsent main drafts/held queues are not included. Missing parent/source/model
+capability fails explicitly with the undispatched question preserved. Existing
+captures survive parent removal; navigation attachments never change the source.
+Live coordination grants remain separate, not an automatic tool/permission grant.
 
 The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
 Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
