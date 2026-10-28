@@ -131,7 +131,9 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     expect(fixture.service.controller.snapshot().terminals.filter((entry) => entry.sessionId === child.id)).toHaveLength(1);
     await page.getByRole("button", { name: longName, exact: true }).click({ button: "right" });
     await page.getByRole("menu").getByRole("menuitem", { name: "Archive", exact: true }).click();
-    await page.getByRole("dialog", { name: "Archive session", exact: true }).getByRole("button", { name: "Archive session", exact: true }).click();
+    const archive = page.getByRole("dialog", { name: "Archive session", exact: true });
+    await archive.getByRole("radio", { name: /Settle owned work, then detach direct children/ }).check();
+    await archive.getByRole("button", { name: "Archive session", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("archived");
     await page.getByRole("button", { name: "Archived", exact: true }).click();
     await page.getByRole("button", { name: longName, exact: true }).click({ button: "right" });
@@ -142,7 +144,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("menu").getByRole("menuitem", { name: "Delete", exact: true }).click();
     const deletion = page.getByRole("dialog", { name: "Delete session", exact: true });
     await expect(deletion).toContainText("Ordinary independent artifacts");
-    await expect(deletion).toContainText("every candidate or generation proposal originating from it");
+    await expect(deletion).toContainText("every selected candidate or generation proposal");
     await deletion.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
     await deletion.getByRole("button", { name: "Delete session", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.some((session) => session.id === fixture.sessionId)).toBe(false);

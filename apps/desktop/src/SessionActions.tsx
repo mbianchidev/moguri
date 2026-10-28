@@ -133,8 +133,8 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
   const childrenReviewRequired = review !== null && review.action !== "detach" && review.showChildChoice;
   const inspectionRequired = review?.action === "delete" && /inspect|unconfirmed|cleanup/i.test(error);
   const childrenSummary = review && review.action !== "detach" && review.tree.length > 1 ? review.childrenAction === "detach" ?
-    "This choice settles owned work, detaches direct children and keeps their nested hierarchy intact." : review.childrenAction ?
-      `This choice will also ${review.childrenAction} all ${review.tree.length - 1} attached sessions, including nested subsessions.` : "" : "";
+    `${review.showChildChoice ? "This choice" : "The selected preference"} settles owned work, detaches direct children and keeps their nested hierarchy intact.` : review.childrenAction ?
+      `${review.showChildChoice ? "This choice" : "The selected preference"} will also ${review.childrenAction} all ${review.tree.length - 1} attached sessions, including nested subsessions.` : "" : "";
   const inspect = () => {
     if (!review || !options.inspect || pending.current) return;
     const id = review.session.id;
