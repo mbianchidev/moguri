@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
-import { reviewNativeTools, setupFixture } from "../fixture.ts";
+import { fixtureProvider, reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -17,6 +17,43 @@ const close = async (app: ElectronApplication) => {
   await app.close();
 };
 test.skip(process.platform !== "darwin", "Hidden native desktop workflow qualification is macOS-only.");
+
+test("issue and PR pickers stay usable when a normal chat turn finishes during a slow PR list", async () => {
+  const provider = await fixtureProvider();
+  let entered = () => {}, release = () => {};
+  const reading = new Promise<void>((resolve) => { entered = resolve; }), held = new Promise<void>((resolve) => { release = resolve; });
+  const fixture = await githubApplicationFixture({ provider: provider.provider, beforeRead: async (path) => {
+    if (path.startsWith("repos/generated-owner/fixture/pulls?")) { entered(); await held; }
+  } });
+  let app: ElectronApplication | undefined;
+  try {
+    await fixture.sdk.sessions.configure(fixture.sessionId, { ...fixture.session().controls, modelId: provider.modelId }, fixture.session().revision);
+    app = await launch(fixture.directory);
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    const panels = page.getByRole("navigation", { name: "Sidebar panels" });
+    await panels.getByRole("button", { name: "Work item", exact: true }).click();
+    const issue = page.getByRole("region", { name: "Project work items", exact: true });
+    await expect(issue.getByLabel("GitHub issue", { exact: true })).toBeEnabled();
+    await issue.getByLabel("GitHub issue", { exact: true }).selectOption("7");
+    await expect(issue.getByRole("article", { name: "Issue details", exact: true })).toContainText("issue body");
+    await panels.getByRole("button", { name: "Code change", exact: true }).click();
+    await reading;
+    await fixture.sdk.command({ type: "draft.save", sessionId: fixture.sessionId, expectedRevision: fixture.session().draft.revision,
+      text: "Generated independent conversation while pull requests load.", attachments: [] });
+    await fixture.sdk.command({ type: "message.send", sessionId: fixture.sessionId, expectedRevision: fixture.session().draft.revision, delivery: "queue" });
+    await waitFor(() => fixture.session().status === "completed");
+    release();
+    const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
+    await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();
+    await pulls.getByLabel("Pull request", { exact: true }).selectOption("11");
+    await expect(pulls.getByRole("article", { name: "Pull request details", exact: true })).toContainText("pull request body");
+    await expect(pulls.getByRole("alert")).toHaveCount(0);
+    expect(fixture.calls.filter((call) => call.path.includes("/pulls?"))).toHaveLength(1);
+    expect(fixture.writes()).toEqual({ issues: 0, pulls: 0 }); expect(provider.requests).toHaveLength(1); expect(errors).toEqual([]);
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+  } finally { release(); if (app) await close(app); await fixture.close(); await provider.close(); }
+});
 
 test("repository and project-item dropdowns show the actual account, full source and unsent session drafts", async () => {
   const fixture = await githubApplicationFixture(), app = await launch(fixture.directory);
