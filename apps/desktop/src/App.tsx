@@ -517,7 +517,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       const pressed = panelVisible && panel === item;
       return <button key={item} data-sidebar-panel={item} className={pressed ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={pressed} aria-expanded={pressed} aria-controls="session-sidebar"
       onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
-      onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })} onBlur={() => setPanelTooltip(null)}
+      onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top }); }} onBlur={() => setPanelTooltip(null)}
       onClick={() => { if (pressed) hidePanel(); else void showPanel(item); }}><Icon name={item} /></button>;
     })}</nav>
     {panelTooltip && <div id="sidebar-panel-tooltip" className="sidebar-tooltip" role="tooltip" style={{ top: Math.min(panelTooltip.top, window.innerHeight - 42) }}>{panelTooltip.panel}</div>}

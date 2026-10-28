@@ -331,7 +331,12 @@ Artifacts, Candidates and unified
 **Sandbox** management now live in Settings, with optional source-chat selection.
 Non-secret settings fields have hover/focus copy buttons; explanatory text uses
 keyboard-accessible information tooltips. Errors, status and safety reviews
-remain visible. The menu-bar mascot has a dedicated transparent template icon.
+remain visible. Icon hints dismiss after mouse-out even if clicking left the
+button focused; keyboard-visible focus still exposes them, and Escape hides a
+hint without moving focus. Moving onto help text keeps it available until the
+pointer leaves both trigger and tooltip. Pointer-origin focus restoration
+does not reopen a floating hint.
+The menu-bar mascot has a dedicated transparent template icon.
 
 New project-free Local User consoles start in the configured **HOME**, not
 Moguri's application-state directory. Project User consoles use their actual bound

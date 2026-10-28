@@ -12,7 +12,7 @@ export function Tooltip({ children, content, openOnClick = false, disabled = fal
   const leave = () => {
     clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => {
-      if (!trigger.current?.matches(":focus-within") && !popup.current?.matches(":hover")) setOpen(false);
+      if (!trigger.current?.querySelector(":focus-visible") && !popup.current?.matches(":hover")) setOpen(false);
     }, 100);
   };
   useEffect(() => () => clearTimeout(closeTimer.current), []);
@@ -37,7 +37,8 @@ export function Tooltip({ children, content, openOnClick = false, disabled = fal
     place(); window.addEventListener("resize", place); window.addEventListener("scroll", place, true);
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
   }, [open, content, disabled]);
-  return <span ref={trigger} className="tooltip-trigger" onMouseEnter={show} onMouseLeave={leave} onFocus={show}
+  return <span ref={trigger} className="tooltip-trigger" onMouseEnter={show} onMouseLeave={leave}
+    onFocus={(event) => { if (event.target instanceof Element && event.target.matches(":focus-visible")) show(); }}
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     onClick={openOnClick ? show : undefined}>
     {cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], open && !disabled ? id : null].filter(Boolean).join(" ") || undefined })}

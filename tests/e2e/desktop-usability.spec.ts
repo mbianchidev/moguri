@@ -98,6 +98,8 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     const insights = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true });
     await insights.hover(); await expect(page.getByRole("tooltip")).toHaveText("Insights");
     await insights.click(); await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeVisible();
+    await page.getByLabel("Prompt", { exact: true }).hover();
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
     await page.getByRole("button", { name: "New", exact: true }).click();
     await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await page.getByRole("button", { name: "ask Moguri", exact: true }).click();

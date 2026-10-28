@@ -1,4 +1,11 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+
+export async function focusByKeyboard(target: Locator) {
+  await target.focus();
+  await target.page().keyboard.press("Tab");
+  await target.page().keyboard.press("Shift+Tab");
+  await expect(target).toBeFocused();
+}
 
 export async function openModelChoices(page: Page) {
   await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: "Choose model", exact: true }).click();
