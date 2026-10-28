@@ -11,12 +11,16 @@ test.skip(process.platform !== "darwin", "The native browser is qualified on mac
 
 async function browserFixture(options: GeneratedProviderOptions = {}, openUrl = true) {
   const requests: string[] = [];
+  let redirectTo: string | null = null;
+  let resourceTo: string | null = null;
   const server = createServer((request, response) => {
     requests.push(request.url ?? "");
     if (request.url === "/slow") return;
+    if (request.url === "/redirect-other" && redirectTo) { response.writeHead(302, { Location: redirectTo }).end(); return; }
     response.setHeader("Content-Type", "text/html");
     response.end(`<!doctype html><title>Generated browser</title>
       <h1>Generated browser page</h1><label>Generated text <input id="text"></label>
+      ${request.url === "/cross-resource" && resourceTo ? `<img alt="Generated cross-origin resource" src="${resourceTo}">` : ""}
       <label>Generated password <input type="password" value="generated-secret"></label>
       <button onclick="this.dataset.count=String(Number(this.dataset.count || 0)+1);document.querySelector('output').textContent=document.querySelector('#text').value || 'Clicked'">Apply generated text</button>
       <output>Not applied</output><a href="/next">Generated next page</a>
@@ -41,19 +45,22 @@ async function browserFixture(options: GeneratedProviderOptions = {}, openUrl = 
     await expect(page.getByLabel("Preview URL", { exact: true })).toHaveValue(url);
     await expect.poll(() => app.evaluate(({ webContents }, url) => webContents.getAllWebContents().some((contents) => contents.getURL() === url), url)).toBe(true);
   } else await page.getByRole("button", { name: "Browser", exact: true }).click();
-  return { fixture, app, page, url, requests, close: async () => {
+  return { fixture, app, page, url, requests, redirect: (url: string) => { redirectTo = url; }, resource: (url: string) => { resourceTo = url; }, close: async () => {
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
     await app.close(); await fixture.close();
     server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve()));
   } };
 }
 
-async function callBrowser(owned: Awaited<ReturnType<typeof browserFixture>>, sdk: MoguriSdk, tool: string, args: Record<string, unknown>) {
+async function callBrowser(owned: Awaited<ReturnType<typeof browserFixture>>, sdk: MoguriSdk, tool: string, args: Record<string, unknown>, approval: "user" | "policy" = "user") {
   const catalog = await sdk.query({ type: "mcp.tools", serverId: "builtin", sessionId: owned.fixture.sessionId, query: tool, offset: 0 });
   const definition = catalog.tools.find((candidate) => candidate.name === tool);
   if (!definition) throw new Error(`Generated browser tool ${tool} was not discoverable.`);
-  const started = await sdk.command({ type: "mcp.call", sessionId: owned.fixture.sessionId, serverId: "builtin", tool, arguments: args, schemaDigest: definition.digest });
-  await owned.fixture.approve();
+  const pageArguments = tool === "browser_status" || tool === "browser_navigate" ? args :
+    { expectedUrl: (await sdk.browser.state(owned.fixture.sessionId)).browser.url, ...args };
+  const started = await sdk.command({ type: "mcp.call", sessionId: owned.fixture.sessionId, serverId: "builtin", tool, arguments: pageArguments, schemaDigest: definition.digest });
+  if (tool === "browser_status" || approval === "policy") expect(owned.fixture.session().pendingApproval).toBeNull();
+  else await owned.fixture.approve();
   await expect.poll(() => owned.fixture.service.controller.snapshot().jobs.find((job) => job.id === started.id)?.status).not.toMatch(/^(running|waiting_input)$/);
   const job = owned.fixture.service.controller.snapshot().jobs.find((job) => job.id === started.id);
   if (!job?.resultDigest) throw new Error(`Generated browser result was not retained: ${job?.error ?? "unknown result"}`);
@@ -250,10 +257,11 @@ test("default-off, denied approval, password fields and stale document refs cann
     await owned.page.getByLabel("Preview URL", { exact: true }).fill(`${owned.url}manual`);
     await owned.page.getByRole("button", { name: "Load preview", exact: true }).click();
     await expect.poll(() => owned.requests.includes("/manual")).toBe(true);
+    await expect(toggle).not.toBeChecked();
     const stale = await callBrowser(owned, sdk, "browser_click", { controlId, snapshotId: fresh.snapshotId, ref: fresh.element("button", "Apply generated text") });
     expect(stale.job.status).toBe("failed");
     await sdk.command({ type: "session.resume", sessionId: owned.fixture.sessionId });
-    await toggle.click();
+    await expect(toggle).not.toBeChecked();
     expect((await callBrowser(owned, sdk, "browser_status", {})).text).not.toContain("Generated browser");
   } finally { sdk.disconnect(); await owned.close(); }
 });
@@ -327,4 +335,105 @@ test("agent page confirmation dialogs are dismissed, never accepted or allowed t
     await toggle.click(); await expect(toggle).not.toBeChecked();
     await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).toBeNull();
   } finally { sdk.disconnect(); await owned.close(); }
+});
+
+test("an allowed Local website runs native reads and interactions without a permission card", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  try {
+    await sdk.webAllowlist.add(new URL(owned.url).origin, { kind: "session", sessionId: owned.fixture.sessionId });
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    const controlId = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId!;
+    const inspected = await callBrowser(owned, sdk, "browser_snapshot", { controlId }, "policy");
+    expect(inspected.job.status).toBe("completed");
+    const snapshot = snapshotData(inspected.text);
+    const clicked = await callBrowser(owned, sdk, "browser_click", { controlId, snapshotId: snapshot.snapshotId,
+      ref: snapshot.element("button", "Apply generated text") }, "policy");
+    expect(clicked.job.status).toBe("completed");
+    const decisions = owned.fixture.service.controller.events(0).filter((event) => event.event_type === "tool.decided");
+    expect(decisions.every((event) => event.event_type === "tool.decided" && event.payload.actor === "policy")).toBe(true);
+    expect(owned.fixture.requests).toHaveLength(0);
+  } finally { sdk.disconnect(); await owned.close(); }
+});
+
+for (const allowed of [false, true]) test(`native browser redirects ${allowed ? "reach separately allowed" : "block unreviewed"} origins without broadening the initial approval`, async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready(), received: string[] = [];
+  const destination = createServer((request, response) => {
+    received.push(request.url ?? "");
+    response.writeHead(200, { "Content-Type": "text/html" }).end("<!doctype html><title>Generated redirect destination</title><h1>Generated permitted redirect</h1>");
+  });
+  await new Promise<void>((resolve) => destination.listen(0, "127.0.0.1", resolve));
+  const address = destination.address();
+  if (!address || typeof address === "string") throw new Error("Generated redirect destination did not bind.");
+  const target = `http://127.0.0.1:${address.port}`;
+  owned.redirect(`${target}/generated-destination`);
+  try {
+    if (allowed) await sdk.webAllowlist.add(target, { kind: "global" });
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    const controlId = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId!;
+    const result = await callBrowser(owned, sdk, "browser_navigate", { controlId, url: `${owned.url}redirect-other` });
+    if (allowed) {
+      expect(result.job.status).toBe("completed");
+      expect(received).toContain("/generated-destination");
+    } else {
+      expect(result.job.status).toBe("partial");
+      expect(received).toEqual([]);
+      expect(result.result.isError).toBe(true);
+    }
+    expect(owned.requests.filter((path) => path === "/redirect-other")).toHaveLength(1);
+    expect(owned.fixture.requests).toHaveLength(0);
+  } finally {
+    sdk.disconnect(); await owned.close(); destination.closeAllConnections();
+    await new Promise<void>((resolve) => destination.close(() => resolve()));
+  }
+});
+
+test("removing a Local website allowance cancels dispatched native navigation and never replays it", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  try {
+    await sdk.webAllowlist.add(new URL(owned.url).origin, { kind: "project", projectId: owned.fixture.session().projectId });
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    const controlId = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId!;
+    const tool = (await sdk.mcp.tools("builtin", "browser_navigate", 0, owned.fixture.sessionId)).tools.find((entry) => entry.name === "browser_navigate")!;
+    const started = await sdk.mcp.call(owned.fixture.sessionId, "builtin", tool.name, { controlId, url: `${owned.url}slow` }, tool.digest);
+    expect(owned.fixture.session().pendingApproval).toBeNull();
+    await expect.poll(() => owned.requests.includes("/slow")).toBe(true);
+    await sdk.webAllowlist.remove(sdk.webAllowlist.list()[0]!.id);
+    await expect(toggle).not.toBeChecked();
+    expect((await sdk.jobs.wait(started.id!)).status).not.toBe("completed");
+    await toggle.click(); await expect(toggle).toBeChecked();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    expect(owned.requests.filter((path) => path === "/slow")).toHaveLength(1);
+    expect(owned.fixture.requests).toHaveLength(0);
+  } finally { sdk.disconnect(); await owned.close(); }
+});
+
+test("native browser subresources cannot bypass the initial website approval", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready(), received: string[] = [];
+  const resource = createServer((request, response) => {
+    received.push(request.url ?? "");
+    response.writeHead(200, { "Content-Type": "image/svg+xml" }).end('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>');
+  });
+  await new Promise<void>((resolve) => resource.listen(0, "127.0.0.1", resolve));
+  const address = resource.address();
+  if (!address || typeof address === "string") throw new Error("Generated subresource did not bind.");
+  owned.resource(`http://127.0.0.1:${address.port}/generated-image`);
+  try {
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    const controlId = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId!;
+    const result = await callBrowser(owned, sdk, "browser_navigate", { controlId, url: `${owned.url}cross-resource` });
+    expect(result.job.status).toBe("partial"); expect(result.result.isError).toBe(true);
+    expect(result.text).toContain("blocked unapproved website requests");
+    expect(received).toEqual([]); expect(owned.fixture.requests).toHaveLength(0);
+  } finally {
+    sdk.disconnect(); await owned.close(); resource.closeAllConnections();
+    await new Promise<void>((resolve) => resource.close(() => resolve()));
+  }
 });

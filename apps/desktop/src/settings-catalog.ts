@@ -19,7 +19,7 @@ export const SETTINGS_GROUPS = [
     { id: "marketplace", label: "Marketplace", keywords: "catalog extensions trusted sources" },
   ] },
   { label: "Execution & permissions", items: [
-    { id: "permissions", label: "Guardrails", keywords: "default tool permission allow deny ask autonomy execution environment policy" },
+    { id: "permissions", label: "Guardrails", keywords: "default tool permission allow deny ask autonomy execution environment policy local firewall website allowlist hosts session project global" },
     { id: "sendbox", label: "Sandbox", keywords: "sendbox native isolation managed VM image network bundled runtime automatic workspace DNS alias provider version update installer results publication" },
     { id: "remote", label: "Remote SSH", keywords: "host target identity credentials recovery" },
     { id: "subagents", label: "Subagents", keywords: "parallel children read only" },

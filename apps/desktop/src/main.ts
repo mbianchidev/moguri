@@ -445,7 +445,11 @@ else {
       const x = Math.max(0, Math.min(available.width - 1, Math.round(Number(input.bounds.x))));
       const y = Math.max(0, Math.min(available.height - 1, Math.round(Number(input.bounds.y))));
       preview.view.setBounds({ x, y, width: Math.max(1, Math.min(available.width - x, Math.round(Number(input.bounds.width)))), height: Math.max(1, Math.min(available.height - y, Math.round(Number(input.bounds.height)))) });
-      if (url && (input.reload || preview.url !== url.href)) { preview.url = url.href; await preview.view.webContents.loadURL(url.href); }
+      if (url && (input.reload || preview.url !== url.href)) {
+        if (owned.host) await owned.host.navigateByUser(url.href);
+        else await owned.view.webContents.loadURL(url.href);
+        if (preview === owned) owned.url = url.href;
+      }
     });
     ipcMain.handle("moguri:browser-control", async (event, sessionId: unknown, enabled: unknown, profileId: unknown) => {
       trusted(event);

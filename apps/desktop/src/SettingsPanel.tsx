@@ -33,6 +33,7 @@ import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
+import { WebAllowlistPanel } from "./WebAllowlistPanel.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
@@ -54,6 +55,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [storageBusy, setStorageBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [modelsBusy, setModelsBusy] = useState(false);
+  const [webBusy, setWebBusy] = useState(false), [webDirty, setWebDirty] = useState(false);
   const [sql, setSql] = useState<Awaited<ReturnType<MoguriSdk["integrations"]["sqlStatus"]>>["connection"] | null>(null);
   const sqlGeneration = useRef(0);
   const groups = searchSettings(search);
@@ -108,7 +110,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const otherNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
+  const nonWebNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
+  const otherNestedDirty = nonWebNestedDirty || webBusy || webDirty;
   const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
@@ -552,14 +555,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <label className="check-setting"><SettingsInput type="checkbox" checked={risk} onChange={(event) => setRisk(event.target.checked)} />I understand this can break functionality. Hard permissions cannot be overridden.</label>
           <div className="button-row">{saveButton("systemPrompt", "Save system prompt")}<button onClick={() => void reset("systemPrompt")} aria-label="Restore defaults for system prompt">Restore defaults</button><button onClick={() => void run(async () => { const result = await sdk.prompt.preview(session?.id); setPreview(result.effective); })} aria-label="Preview effective committed prompt">Preview</button></div>
           {preview && <details open><summary>Effective committed instructions, including protected execution guidance and approved project knowledge</summary><pre>{preview}</pre></details>}</>}
-        {tab === "permissions" && <><SettingsHelp label="About tool approvals" target={<h2>Guardrails and tool guidance</h2>}>Manual and Guided use your approval or remembered grants. Autopilot and Max automatically approve tools and commands. Hard deny rules, read-only modes, environment policy and budgets still win.</SettingsHelp>
-          <label className="setting-field">Default tool permission<select aria-label="Default tool permission" value={draft.permissions.defaultDecision ?? "ask"} onChange={(event) => automatic("permissions", { defaultDecision: event.target.value === "deny" ? "deny" : "ask" })}><option value="ask">Ask unless explicitly delegated</option><option value="deny">Deny unless an explicit rule permits review or access</option></select></label>
+        {tab === "permissions" && <><SettingsHelp label="About tool approvals" target={<h2>Guardrails and tool guidance</h2>}>Native file reads, searches, data queries and edits run without factory prompts. Scripts, external MCPs and unlisted websites ask in Manual/Guided unless explicitly delegated. Autopilot and Max automatically approve tools and commands. Explicit stricter review/deny rules, read-only modes, environment policy and budgets still win.</SettingsHelp>
+          <label className="setting-field">Default tool permission<select aria-label="Default tool permission" value={draft.permissions.defaultDecision ?? "ask"} onChange={(event) => automatic("permissions", { defaultDecision: event.target.value === "deny" ? "deny" : "ask" })}><option value="ask">Ask for scripts and unlisted websites</option><option value="deny">Deny unless an explicit rule permits review or access</option></select></label>
           <label className="setting-field">Default autonomy<select aria-label="Default autonomy" value={draft.startup.profile.autonomy ?? "inherit"} onChange={(event) => {
             const autonomy = event.target.value;
             if (autonomy === "inherit") automaticDefaults({}, ["autonomy", "automaticApprovals"]);
             else if (autonomy === "Manual" || autonomy === "Guided" || autonomy === "Autopilot" || autonomy === "Autopilot Max") automaticDefaults({ autonomy, automaticApprovals: autonomy === "Autopilot" || autonomy === "Autopilot Max" });
           }}><option value="inherit">Use shared global ({draft.startup.global.autonomy ?? "Manual"})</option><option value="Manual">Manual</option><option value="Guided">Guided</option><option value="Autopilot">Autopilot</option><option value="Autopilot Max">Autopilot Max</option></select></label>
-          {jsonEditor("permissions", "Tool and exact-command permissions")}
+          <WebAllowlistPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={session} project={project}
+            disabled={dirty || saving || nonWebNestedDirty} onBusy={setWebBusy} onDirty={setWebDirty} />
+          <details className="candidate-section"><summary>Advanced tool and command rules</summary>
+            {jsonEditor("permissions", "Tool and exact-command permissions")}</details>
 
           <SettingsHelp label="About remembered approvals" target={<h3>Remembered approvals</h3>} descriptionFirst>A tool rule has id, tool, decision (ask/allow/deny), and a project-relative pathPrefix. Remember commands or conservative command families from the approval card. MCP grants bind the actual server, tool and schema; annotations never count as approval.</SettingsHelp>{!snapshot.settings.values.permissions.remembered?.length && <p className="fine-print">No remembered approvals. Choose a scope when approving an action.</p>}
           {snapshot.settings.values.permissions.remembered?.map((grant) => { const scope = grant.scope; return <div className="remembered-approval" key={grant.id}><div><code>{grant.target.kind === "command" ? `${grant.target.command}${grant.target.match === "family" ? " (command family)" : ""}` :

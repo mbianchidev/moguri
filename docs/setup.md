@@ -206,6 +206,27 @@ and must explicitly choose a route; no default dispatch is inferred.
 
 ## Session approvals and GitHub workflows
 
+Factory Manual/Guided runs native file reads, searches, data queries and edits
+without a permission card. Explicit stricter review/deny rules still apply.
+Shell scripts and external MCPs still need approval or remembered delegation;
+an MCP read-only annotation is not authority.
+
+**Settings / Guardrails / Local website allowlist** pre-approves exact hostnames
+or HTTPS/loopback HTTP origins for one session, one real project, or all Local
+projects in this profile. Matching scopes add together. No wildcards,
+credentials, paths, query strings or cross-profile grants. CLI/TUI and desktop
+share `/firewall`, `/firewall add session|project|global HOST_ORIGIN`, and
+`/firewall remove ID`. Unlisted websites ask in Manual/Guided; explicit
+Autopilot/Max remains automatic. Every redirect and Agent-browser request keeps
+its original admitted scope. Removing a rule revokes pending website authority,
+without replay or undoing already-dispatched website effects.
+This is **not an OS firewall for approved Local shell scripts**. Remote does
+not inherit Local entries, and Sandbox retains its enforced firewall.
+See [native operations and scoped website approvals](architecture/native-network-policy.md).
+The CLI form is `moguri firewall ... --session ID`. Keyless web search contacts
+`html.duckduckgo.com`; allowing only its parent hostname does not allow that
+separate exact host.
+
 Manual and Guided approval cards offer **Only this action**, **Approve for this
 session**, **Approve for this project**, and **Always approve across projects in
 this profile**. Commands can match exact text or a displayed simple command
@@ -943,12 +964,18 @@ below remain separate; current source does not relabel them as new acceptance.
 
 Open a Local session's **Browser** pane and turn on its top **Agent control**
 switch to let the agent use that existing isolated page. An empty pane is
-enough: the agent can navigate it after exact tool approval. Builtin MCP search
+enough: the agent can navigate allowed sites automatically or request approval
+for an unlisted site in Manual/Guided. Builtin MCP search
 for `browser` or `navigate` exposes status, navigation, bounded accessibility
-snapshots, clicks, text-field input and allowed keys. Normal approvals still
-apply. Turning the switch off immediately revokes access and cancels pending
+snapshots, clicks, text-field input and allowed keys. Reads/interactions bind
+the exact `expectedUrl` returned by status/snapshot, never a replacement page.
+The native view filters redirects, subresources and WebSocket requests against
+that admitted scope. Turning the switch off revokes access and cancels pending
 actions; turning it back on creates fresh authority, never replays an old call.
 Closing/reopening, profile switching and service restart all leave control off.
+Permission/autonomy changes revoke the original control too. Direct user
+navigation turns Agent control off and unloads the prior agent-controlled
+document before releasing its retained network filter.
 No personal browser, account cookies, browser download or debug port is used.
 Password/file fields, uploads/downloads and popup windows are unavailable;
 agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
@@ -1820,11 +1847,16 @@ exhausts it, the turn stays partial and shows that exact limit; pending tools
 from the incomplete response do not run. No automatic retry, model fallback or
 budget increase occurs. See [response and reasoning bounds](architecture/model-controls.md#per-response-output-and-reasoning).
 
-Every tool needs a human approval bound to its exact arguments and policy/
-permission revisions, or an explicit bounded user delegation. Deny wins.
+Tools use native policy, a scoped website allowance, exact human approval or
+explicit user delegation. Scripts and external MCP calls are not native-safe
+merely because their names or annotations say "read". Deny wins.
 Blanket shell/wildcard allow grants are rejected; shell grants name the exact
 command string. File tools list/read/write approved project content; writes require
-the digest returned by a read, or `absent` for a new file. Protected credential
+the fresh digest returned by a read, or `absent` for a new file. An ordinary
+`read_file` refreshes a stale digest explicitly; its `sourceVersion` reports
+the change and stale byte continuations restart at zero. Use
+`requireExactVersion: true` only for an intentional pinned read. Stale writes
+and edits still fail instead of substituting versions. Protected credential
 paths and symlink escapes are rejected. Full text reads/`write_file` are limited
 to 128 KiB; selective reads and exact `edit_file` support sources up to 1 MiB.
 Structured binary documents have their separate 8-MiB parser/authoring boundary;
@@ -1837,8 +1869,10 @@ implicitly successful background work, and ordinary `run_command` is owned by
 the current turn. Explicit `command_job` watches have their separate captured
 session/root/timeout owner and truthful inspection lifecycle described above.
 The worker does not receive the local API token or refresh credential.
-An MCP call always requires an exact nested-tool approval and fresh schema/
-server fingerprint. Tool annotations are not permissions. An external MCP
+An external/script MCP call requires exact nested-tool approval or an existing
+grant, plus a fresh schema/server fingerprint. Known builtin read/status tools
+use native policy, and builtin web/browser tools use scoped website policy.
+Tool annotations are not permissions. An external MCP
 caller cannot take over a busy session or bypass the project's active lease.
 
 Desktop **Attach / @ Project text file** and TUI `/attach path/to/file` create

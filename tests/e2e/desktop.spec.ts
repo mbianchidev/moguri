@@ -216,6 +216,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByLabel("Theme", { exact: true }).selectOption("dark");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await categories.getByRole("button", { name: "Guardrails", exact: true }).click();
+    await page.getByText("Advanced tool and command rules", { exact: true }).click();
     const permission = { tools: [{ id: "generated-ui-deny", tool: "write_file", decision: "deny", pathPrefix: "" }], commands: [] };
     await page.getByLabel("Tool and exact-command permissions", { exact: true }).fill(JSON.stringify(permission));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
