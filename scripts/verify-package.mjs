@@ -155,7 +155,8 @@ try {
       const file = (await sdk.tools.catalog(owner.id, "write_file")).tools.find((tool) => tool.name === "write_file");
       const written = await sdk.tools.execute(owner.id, file.name, { path: "generated-packaged-home.txt", text: "GENERATED_PACKAGED_HOME\n", expectedDigest: "absent" }, file.schemaDigest);
       const approval = sdk.getState().snapshot.sessions.find((session) => session.id === owner.id).pendingApproval;
-      assert.ok(approval); await sdk.approvals.respond(owner.id, approval.id, true);
+      if (PROTOCOL_VERSION >= 73) assert.equal(approval, null);
+      else { assert.ok(approval); await sdk.approvals.respond(owner.id, approval.id, true); }
       assert.equal((await sdk.jobs.wait(written.id)).status, "completed");
       assert.equal((await sdk.workspaces.file(owner.id, "generated-packaged-home.txt")).text, "GENERATED_PACKAGED_HOME\n");
       const command = (await sdk.tools.catalog(owner.id, "run_command")).tools.find((tool) => tool.name === "run_command");
@@ -168,6 +169,25 @@ try {
       assert.equal(sdk.getState().snapshot.chatWriters.filter((writer) => writer.sessionId === owner.id && writer.status === "settled").length, 2);
       assert.equal(modelFixture.requests.length, 0);
       console.log("Actual bundled protocol-72 service/SDK/Node executes approved Home files and commands, retains exact writer settlement and original Agent output with a real null project and no inference.");
+      if (PROTOCOL_VERSION >= 73) {
+        await sdk.webAllowlist.add("session.example.invalid", { kind: "session", sessionId: owner.id });
+        await sdk.webAllowlist.add("global.example.invalid", { kind: "global" });
+        assert.deepEqual(sdk.webAllowlist.list(owner.id).map((entry) => entry.site), ["session.example.invalid", "global.example.invalid"]);
+        const shared = await sdk.slash(owner.id, "/firewall list", "tui");
+        assert.equal(shared.kind, "text"); assert.equal(JSON.parse(shared.text).effective.length, 2);
+        const read = (await sdk.tools.catalog(owner.id, "read_file")).tools.find((tool) => tool.name === "read_file");
+        const refreshed = await sdk.tools.execute(owner.id, read.name, { path: "generated-packaged-home.txt", expectedDigest: "0".repeat(64) }, read.schemaDigest);
+        assert.equal((await sdk.jobs.wait(refreshed.id)).status, "completed");
+        const result = JSON.parse((await sdk.mcp.readResult(refreshed.id)).text), view = JSON.parse(result.text);
+        assert.equal(result.isError, false); assert.equal(view.text, "GENERATED_PACKAGED_HOME\n");
+        assert.equal(view.sourceVersion.refreshed, true); assert.equal(view.sourceVersion.requestedDigest, "0".repeat(64));
+        assert.match(view.sourceRef.expectedDigest, /^[a-f0-9]{64}$/); assert.notEqual(view.sourceRef.expectedDigest, "0".repeat(64));
+        const decisions = sdk.getState().events.filter((event) => event.session_id === owner.id && event.event_type === "tool.decided");
+        assert.deepEqual(decisions.map((event) => event.payload.actor), ["policy", "user", "policy"]);
+        for (const entry of [...sdk.webAllowlist.list()]) await sdk.webAllowlist.remove(entry.id);
+        assert.equal(modelFixture.requests.length, 0);
+        console.log("Actual bundled protocol-73 SDK/shared TUI preserve exact Local website scopes, policy-versus-user attribution and fresh-source digests without another approval or model call.");
+      }
     }
     const settings = sdk.settings.get();
     await sdk.settings.update({ ...settings.values, mcpServers: [{ id: "generated-packaged-oauth", name: "Generated packaged OAuth", enabled: true, transport: { type: "http", url: oauth.url, auth: "oauth" } }] }, settings.revision);
@@ -258,9 +278,11 @@ try {
       assert.equal(tool.scope.root, await realpath(remoteRoot));
       const pending = await remoteSdk.mcp.call(session.id, "builtin", tool.name, { path: "docs/plan.md", query: "Generated actual packaged" }, tool.digest);
       const waiting = (await remoteSdk.mcp.remoteCalls(session.id)).calls[0];
-      assert.equal(waiting.executionId, null); assert.equal(waiting.actor, "external"); assert.equal(waiting.accessForwarded, false);
+      if (PROTOCOL_VERSION < 73) assert.equal(waiting.executionId, null);
+      assert.equal(waiting.actor, "external"); assert.equal(waiting.accessForwarded, false);
       const approval = remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).pendingApproval;
-      await remoteSdk.command({ type: "approval.respond", sessionId: session.id, approvalId: approval.id, allow: true });
+      if (PROTOCOL_VERSION >= 73) assert.equal(approval, null);
+      else await remoteSdk.command({ type: "approval.respond", sessionId: session.id, approvalId: approval.id, allow: true });
       assert.equal((await remoteSdk.jobs.wait(pending.id)).status, "completed");
       const call = (await remoteSdk.mcp.remoteCalls(session.id)).calls[0];
       assert.equal(call.status, "completed");
@@ -332,7 +354,8 @@ try {
       const tool = (await remoteSdk.mcp.tools("builtin", "memory", 0, session.id)).tools.find((tool) => tool.name === "search_memory");
       const requested = await remoteSdk.mcp.call(session.id, "builtin", tool.name, { query: "Generated actual packaged service" }, tool.digest);
       const approval = remoteSdk.getState().snapshot.sessions.find((value) => value.id === session.id).pendingApproval;
-      await remoteSdk.command({ type: "approval.respond", sessionId: session.id, approvalId: approval.id, allow: true });
+      if (PROTOCOL_VERSION >= 73) assert.equal(approval, null);
+      else await remoteSdk.command({ type: "approval.respond", sessionId: session.id, approvalId: approval.id, allow: true });
       assert.equal((await remoteSdk.jobs.wait(requested.id)).status, "completed");
       assert.match((await remoteSdk.mcp.readResult(requested.id)).text, /Generated actual packaged service/);
     }

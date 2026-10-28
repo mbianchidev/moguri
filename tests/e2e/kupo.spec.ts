@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { setupFixture } from "../fixture.ts";
+import { reviewNativeTools, setupFixture } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { openModelChoices } from "./navigation.ts";
 
@@ -52,6 +52,7 @@ test("Kupo defaults to automatic configured-model routing and runs Single from t
 
 test("ordinary desktop Kupo selects Cascade and still waits for the exact human tool approval", async () => {
   const fixture = await routedFixture({ configured: false });
+  await reviewNativeTools(fixture, ["read_file"]);
   fixture.options.respond = (_request, index) => ({ text: JSON.stringify(index === 1 ?
     { pattern: "cascade", modelId: fixture.solverId, escalationId: fixture.modelId, complexity: "moderate", confidence: 0.95, reason: "Generated desktop automatic route." } :
     { verdict: "pass", reason: "Generated desktop gate, not permission." }) });

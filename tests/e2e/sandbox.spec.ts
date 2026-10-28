@@ -90,11 +90,8 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await page.getByRole("button", { name: "Back to chat", exact: true }).click();
     await expect(prompt).toHaveValue("generated native write");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await expect.poll(() => session().pendingApproval?.call.name).toBe("read_file");
-    await page.getByRole("button", { name: "Approve this action", exact: true }).click();
-    await expect.poll(() => session().pendingApproval?.call.name).toBe("write_file");
-    await page.getByRole("button", { name: "Approve this action", exact: true }).click();
     await expect.poll(() => session().status).toBe("completed");
+    expect(session().pendingApproval).toBeNull();
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     expect(session().usage.map((usage) => usage.totalTokens)).toEqual([42, 42, 42]);
     await openSettingsSection(page, "Sandbox");

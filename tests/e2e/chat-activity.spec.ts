@@ -30,7 +30,8 @@ test("desktop expands original operations and public reasoning, copies only the 
     });
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool: inspect the generated file.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await fixture.approve(); await fixture.terminal();
+    await fixture.terminal();
+    expect(fixture.session().pendingApproval).toBeNull();
     const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     const read = transcript.locator(".activity-row[data-kind='read-file']");
     await expect(read.locator("summary svg[data-icon='ReadFile']")).toBeVisible();

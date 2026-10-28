@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk, type EventInput } from "../../packages/sdk/src/index.ts";
-import { setupFixture } from "../fixture.ts";
+import { reviewNativeTools, setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -47,6 +47,7 @@ test("the turn sidebar navigates actual prompts and chosen question answers, nev
     await expect(page.getByRole("tooltip")).toContainText("Generated second choice");
     await expect(prompt).toHaveValue("Generated saved draft preserved while navigating.");
     expect(fixture.requests).toHaveLength(2);
+    await reviewNativeTools(fixture, ["read_file"]);
     await fixture.send("generated tool navigation permission");
     const approval = page.getByRole("region", { name: "Tool approval", exact: true });
     await expect(approval).toBeVisible();

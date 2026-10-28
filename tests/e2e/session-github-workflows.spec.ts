@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
-import { setupFixture } from "../fixture.ts";
+import { reviewNativeTools, setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -137,6 +137,7 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
 
 test("approval scopes persist across turns, Autopilot explicitly enables unattended approvals and update token help stays read-only", async () => {
   const fixture = await setupFixture(); await fixture.configure();
+  await reviewNativeTools(fixture, ["read_file"]);
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();

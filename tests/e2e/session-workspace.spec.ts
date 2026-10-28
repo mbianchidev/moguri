@@ -96,11 +96,10 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await sideQuestion.fill("generated tool question");
     const sidePanel = page.locator(".side-chat-panel");
     await sidePanel.getByRole("button", { name: "Send", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Side read approval" })).toContainText("fixture.txt");
-    await sidePanel.getByRole("button", { name: "Approve this action", exact: true }).click();
     await expect(page.getByRole("log", { name: "Side chat transcript" })).toContainText("The requested fixture operation is complete.");
     const side = fixture.service.controller.snapshot().sessions.find((session) => session.kind === "side")!;
     expect(side.parentSessionId).toBe(child.id); expect(side.mode).toBe("read-only");
+    expect(side.pendingApproval).toBeNull();
     await sideQuestion.fill("Generated held side question"); await sideQuestion.press("Meta+Enter");
     await expect.poll(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === side.id)?.queue[0]?.held).toBe(true);
     await page.getByRole("button", { name: "Terminal", exact: true }).click();

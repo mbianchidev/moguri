@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { MoguriClient } from "../../packages/client/src/index.ts";
 import { startService } from "../../apps/service/src/server.ts";
-import { setupFixture, waitFor } from "../fixture.ts";
+import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { dependencyArchive, dependencyProject } from "../fixtures/dependencies.ts";
 import { existsSync } from "node:fs";
 
@@ -131,6 +131,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
+    await reviewNativeTools(fixture, ["read_file"]);
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool task");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect(page.getByRole("region", { name: "Tool approval" })).toBeVisible();

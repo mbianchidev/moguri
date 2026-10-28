@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
+import { reviewNativeTools } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const openApp = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -14,6 +15,7 @@ test("desktop reviews an exact Remote grant, approves a provider-free SSH call a
   const f = await remoteFixture({ exposeModels: false }), sdk = await new MoguriSdk(f.service.connection).ready();
   let app: ElectronApplication | undefined;
   try {
+    await reviewNativeTools(sdk, ["mcp_gateway"]);
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote");
     app = await openApp(f.directory);
     const page = await app.firstWindow(), failures: string[] = [];

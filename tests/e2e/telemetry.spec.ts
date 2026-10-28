@@ -89,7 +89,8 @@ test("desktop tool/MCP outcomes and retained storage use sanitized authoritative
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool: inspect the generated fixture.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await fixture.approve(); await fixture.terminal();
+    await fixture.terminal();
+    expect(fixture.session().pendingApproval).toBeNull();
     await fixture.send("generated failing command"); await fixture.approve(); await fixture.terminal();
     await openUsageDetails(page);
     const dashboard = page.getByRole("region", { name: "Profile usage dashboard", exact: true });

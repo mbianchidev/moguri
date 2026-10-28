@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { setupFixture, waitFor } from "../fixture.ts";
+import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop questions are qualified on macOS.");
@@ -38,6 +38,7 @@ test("desktop labels current solver guidance as advice and still requires explic
     await card.getByRole("button", { name: "Generated first choice", exact: true }).click(); await fixture.terminal();
     await expect.poll(() => sdk.getState().snapshot!.questions[0]?.answer?.text).toBe("Generated first choice");
     expect(sdk.getState().snapshot!.questions[0]?.answer?.actor).toBe("user"); expect(fixture.requests.length).toBe(2);
+    await reviewNativeTools(fixture, ["read_file"]);
     await prompt.fill("generated tool guided recommendation");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     const approval = page.getByRole("region", { name: "Tool approval", exact: true });
