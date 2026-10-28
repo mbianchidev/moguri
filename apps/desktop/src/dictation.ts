@@ -13,7 +13,7 @@ export interface CapturePorts {
   changed?(lease: CaptureLease, text: string, final: boolean): void;
 }
 interface Attempt {
-  abort: AbortController; lease?: CaptureLease; recorder?: CaptureRecorder;
+  abort: AbortController; gesture?: symbol; lease?: CaptureLease; recorder?: CaptureRecorder;
   discard?: Promise<void>; cancellation?: Promise<void>; finalizing?: Promise<void>;
   audio: Promise<void>; sequence: number; revision: number; reading?: boolean; text: string;
   observed?: { status: string; error: string | null };
@@ -79,9 +79,9 @@ export class SpeechCaptureController {
     }).catch(async (error: unknown) => { if (this.owner === owner && !owner.abort.signal.aborted && !owner.finalizing) await this.failed(owner, error); })
       .finally(() => { owner.reading = false; });
   }
-  async start(deviceId = "default"): Promise<void> {
+  async start(deviceId = "default", gesture?: symbol): Promise<void> {
     if (this.disposed || this.owner || this.cleanupOwners.size) throw new Error("Finish or confirm discard of the original capture before starting another microphone.");
-    const owner: Attempt = { abort: new AbortController(), audio: Promise.resolve(), sequence: 0, revision: -1, text: "" };
+    const owner: Attempt = { abort: new AbortController(), gesture, audio: Promise.resolve(), sequence: 0, revision: -1, text: "" };
     this.owner = owner; this.publish("starting");
     try {
       owner.lease = await this.ports.begin(owner.abort.signal);
@@ -96,10 +96,10 @@ export class SpeechCaptureController {
       this.deadline = setTimeout(() => { void this.finish().catch((error: unknown) => console.error("Bounded microphone stop failed:", error instanceof Error ? error.message : "unconfirmed finalization")); }, 120_000);
     } catch (error) { await this.failed(owner, error); }
   }
-  async finish(): Promise<void> {
+  async finish(gesture?: symbol): Promise<void> {
     const owner = this.owner;
-    if (!owner) return;
-    if (this.state.phase === "starting") return this.cancel("Recording stopped before the microphone was ready. No audio was captured. Hold until Recording appears, then release to transcribe.");
+    if (!owner || gesture !== undefined && owner.gesture !== gesture) return;
+    if (this.state.phase === "starting") return this.cancel("Recording stopped before the microphone was ready. No audio was captured. Wait for Recording before speaking.", gesture);
     if (owner.finalizing) return owner.finalizing;
     const recorder = owner.recorder, lease = owner.lease;
     if (!recorder || !lease) return;
@@ -127,10 +127,10 @@ export class SpeechCaptureController {
     })();
     return owner.finalizing;
   }
-  async cancel(reason: string | null = null): Promise<void> {
-    const owners = [...new Set([...(this.owner ? [this.owner] : []), ...this.cleanupOwners])];
+  async cancel(reason: string | null = null, gesture?: symbol): Promise<void> {
+    const owners = [...new Set([...(this.owner ? [this.owner] : []), ...this.cleanupOwners])].filter((owner) => gesture === undefined || owner.gesture === gesture);
     if (!owners.length) return;
-    this.owner = undefined; clearTimeout(this.deadline); clearInterval(this.progress);
+    if (!this.owner || owners.includes(this.owner)) { this.owner = undefined; clearTimeout(this.deadline); clearInterval(this.progress); }
     const results = await Promise.allSettled(owners.map((owner) => this.cleanup(owner)));
     const errors = results.filter((result) => result.status === "rejected").map((result) => result.reason);
     if (errors.length) {

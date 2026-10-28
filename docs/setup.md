@@ -3047,19 +3047,25 @@ changed staging entries are retained and block capture with a diagnostic.
 owning main or side-chat textbox while speaking. Release flushes the original
 buffer and replaces its provisional text once; it never sends a chat message.
 The shortcut is always hold-to-talk and ignores terminals, dialogs and other
-composers. Voice/Accessibility settings share an editable shortcut. Optional
-microphone-button push-to-talk also supports pointer release outside the button
-and Space/Enter on the focused button. Otherwise that button keeps click/start
-and click/stop. The microphone icon stays visible and highlights while the
+composers. Voice/Accessibility settings share an editable shortcut.
+**The microphone button is not push-to-talk:** click once to record and again to
+confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
+a click-owned recording does not stop that recording. Space/Enter on the focused
+button also use two separate activations, not press/release. Legacy saved
+`voice.pushToTalk` values round-trip for compatibility but no longer change this
+button, and the obsolete preference is not offered in Settings. A stale shortcut
+release cannot finish a later recording. The microphone icon stays visible and highlights while the
 owning capture records, including activation through the keyboard shortcut.
 Cold-start progress distinguishes model preparation from ready streaming.
 The pinned native runtime can buffer its readiness log, so Moguri verifies the
 exact authenticated local listener instead of waiting for that log to flush.
 Capture errors retain the original recognizer diagnostic rather than a second
-misleading missing-capture message. Use matching protocol-71 clients/service
+misleading missing-capture message. Use matching current clients/service
 for this repair; upgrading preserves existing history and model preferences.
 Releasing before admission never opens a late microphone and explains why no
-audio was captured, instead of silently returning to idle.
+audio was captured, instead of silently returning to idle. A genuinely empty
+recognition result remains an explicit error and preserves the existing draft;
+it is never replaced with invented text or a cloud/backend retry.
 Repeated keydown and stop requests do not duplicate frames or finalization.
 Blur, sleep, hidden/unmounted capture surfaces and profile changes discard active
 microphone audio with a visible interruption reason; recognized words already

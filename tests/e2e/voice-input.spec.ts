@@ -34,7 +34,7 @@ test("actual browser PCM capture reaches the original local stream and inserts w
     await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
     const stop = page.getByRole("button", { name: "Stop local dictation", exact: true });
     await expect(stop).toHaveAttribute("aria-pressed", "true");
-    await page.keyboard.press("Control+Space");
+    await stop.click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
     await expect(page.locator(".composer-transcript")).toHaveCount(0);
@@ -47,7 +47,24 @@ test("actual browser PCM capture reaches the original local stream and inserts w
   }
 });
 
-test("holding the microphone button records in push-to-talk mode and releasing outside it transcribes the original clip once", async () => {
+test("an unassigned PTT shortcut leaves the two-click microphone usable without misleading hold instructions", async () => {
+  const { fixture, sdk } = await speechFixture(), settings = sdk.settings.get()!;
+  await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, shortcut: "none", pushToTalk: true } }, settings.revision);
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), microphone = page.locator(".composer-mic");
+    await expect(microphone).toHaveAttribute("title", /No push-to-talk shortcut is assigned/);
+    await page.keyboard.press("Control+Space");
+    expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(0);
+    await microphone.click(); await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    await microphone.click();
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("microphone clicks record and confirm despite a legacy PTT preference; pointer release never commits the clip", async () => {
   const { fixture, sdk } = await speechFixture(["--transcribe-delay", "300"]);
   const settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, pushToTalk: true } }, settings.revision);
@@ -96,14 +113,21 @@ test("holding the microphone button records in push-to-talk mode and releasing o
     const prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill("Generated preserved draft.");
     const microphone = page.locator(".composer-mic");
-    const bounds = await microphone.boundingBox();
-    if (!bounds) throw new Error("Generated microphone button is not visible.");
-    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-    await page.mouse.down();
+    await microphone.click();
     await expect(microphone).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => page.evaluate(() => Number(Reflect.get(window, "generatedClipPeak")))).toBeGreaterThan(0.05);
+    await expect.poll(() => sampleCount).toBeGreaterThanOrEqual(16_000);
+    const bounds = await microphone.boundingBox();
+    if (!bounds) throw new Error("Generated microphone button is not visible.");
     await page.mouse.move(bounds.x - 60, bounds.y - 60);
+    await page.mouse.down();
     await page.mouse.up();
+    await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    await page.keyboard.press("Control+Space");
+    await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    expect(commits).toBe(0);
+    expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("running");
+    await microphone.click();
     await expect(page.locator(".composer-mic")).toBeDisabled();
     await page.evaluate(() => {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
@@ -147,8 +171,9 @@ test("device selection and push-to-talk use real qualified bindings, while relea
     await device.selectOption(selected);
     await expect.poll(() => sdk.settings.get()?.values.voice.inputDeviceId).toBe(selected);
     await page.getByLabel("Voice shortcut", { exact: true }).fill("Control+Shift+KeyD");
-    await page.getByLabel("Hold the microphone button to talk; release to finish", { exact: true }).check();
-    await expect.poll(() => sdk.settings.get()?.values.voice.pushToTalk).toBe(true);
+    await expect(page.getByLabel("Hold the microphone button to talk; release to finish", { exact: true })).toHaveCount(0);
+    await page.getByLabel("Dictation language", { exact: true }).selectOption("en-US");
+    await expect.poll(() => sdk.settings.get()?.values.voice.language).toBe("en-US");
     expect(sdk.settings.get()?.values.voice.shortcut).toBe("Control+Space");
     await page.getByRole("button", { name: "Save Voice shortcut", exact: true }).click();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
@@ -188,7 +213,7 @@ test("device selection and push-to-talk use real qualified bindings, while relea
   }
 });
 
-test("Space and Enter on the focused microphone button own press/release without a duplicate click or upload", async () => {
+test("Space and Enter activate the microphone as a click-toggle button without key-repeat or release commits", async () => {
   const { fixture, sdk } = await speechFixture();
   const settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, pushToTalk: true } }, settings.revision);
@@ -199,9 +224,11 @@ test("Space and Enter on the focused microphone button own press/release without
     for (const key of ["Space", "Enter"]) {
       await microphone.focus();
       await page.keyboard.down(key);
-      await expect(microphone).toHaveAttribute("aria-pressed", "true");
       await page.keyboard.down(key);
       await page.keyboard.up(key);
+      await expect(microphone).toHaveAttribute("aria-pressed", "true");
+      expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("running");
+      await page.keyboard.press(key);
       await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue(key === "Space" ? "Generated local dictation." : "Generated local dictation. Generated local dictation.");
       await expect(microphone).toBeEnabled();
       expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(key === "Space" ? 1 : 2);
@@ -213,6 +240,36 @@ test("Space and Enter on the focused microphone button own press/release without
   }
 });
 
+test("releasing an earlier Ctrl+Space gesture cannot finalize a newer click recording", async () => {
+  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), microphone = page.locator(".composer-mic"), prompt = page.getByLabel("Prompt", { exact: true });
+    await expect(microphone).toBeEnabled(); await prompt.focus();
+    await page.keyboard.down("Control"); await page.keyboard.down("Space");
+    await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    // macOS Ctrl-click opens a context menu; semantic activation keeps this held-key test platform-independent.
+    const activate = () => microphone.evaluate((button) => {
+      if (!(button instanceof HTMLButtonElement)) throw new Error("Generated microphone control is not a native button.");
+      button.click();
+    });
+    await activate();
+    await expect(prompt).toHaveValue("Generated local dictation.");
+    await expect(microphone).toBeEnabled();
+    await activate();
+    await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    const current = fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")!;
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    expect(fixture.service.controller.snapshot().jobs.find((job) => job.id === current.id)?.status).toBe("running");
+    await microphone.click();
+    await expect(prompt).toHaveValue("Generated local dictation. Generated local dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    const captures = fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture");
+    expect(captures).toHaveLength(2); expect(captures.every((job) => job.status === "completed")).toBe(true);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("interrupted push-to-talk reports discard, and an empty recognition result is an error rather than blank success", async () => {
   const { fixture, sdk } = await speechFixture(["--empty-transcript"]);
   const settings = sdk.settings.get()!;
@@ -220,6 +277,7 @@ test("interrupted push-to-talk reports discard, and an empty recognition result 
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), microphone = page.locator(".composer-mic");
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated preserved draft.");
     await expect(microphone).toBeEnabled();
     await page.keyboard.down("Control"); await page.keyboard.down("Space");
     await expect(microphone).toHaveAttribute("aria-pressed", "true");
@@ -233,7 +291,7 @@ test("interrupted push-to-talk reports discard, and an empty recognition result 
     await page.keyboard.up("Control"); await page.keyboard.up("Space");
     await expect(page.getByRole("alert").filter({ hasText: "No speech was recognized" })).toBeVisible();
     await expect(page.locator(".composer-transcript")).toHaveCount(0);
-    expect(fixture.session().draft.text).toBe(""); expect(fixture.requests).toHaveLength(0);
+    expect(fixture.session().draft.text).toBe("Generated preserved draft."); expect(fixture.requests).toHaveLength(0);
   } finally {
     await app.close(); sdk.disconnect(); await fixture.close();
   }

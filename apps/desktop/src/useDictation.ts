@@ -31,9 +31,15 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   }, [sdk, sessionId]);
   const state = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
   const job = snapshot.jobs.find((job) => job.id === state.id);
-  const start = useCallback(() => controller.start(snapshot.settings.values.voice.inputDeviceId ?? "default"), [controller, snapshot.settings.values.voice.inputDeviceId]);
-  const finish = useCallback(() => controller.finish(), [controller]);
-  const cancel = useCallback((reason?: string) => controller.cancel(reason), [controller]);
+  const start = useCallback((gesture?: symbol) => controller.start(snapshot.settings.values.voice.inputDeviceId ?? "default", gesture), [controller, snapshot.settings.values.voice.inputDeviceId]);
+  const finish = useCallback((gesture?: symbol) => controller.finish(gesture), [controller]);
+  const cancel = useCallback((reason?: string, gesture?: symbol) => controller.cancel(reason, gesture), [controller]);
+  const toggle = useCallback(() => {
+    const current = controller.getState();
+    if (current.cleanupPending) return;
+    if (current.phase === "idle" || current.phase === "failed") return start();
+    if (current.phase === "starting" || current.phase === "recording") return finish();
+  }, [controller, start, finish]);
   useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => { if (job) controller.observe(job.id, job.status, job.error); }, [controller, job?.id, job?.status, job?.error]);
   useEffect(() => { if (options.active === false) void cancel(); }, [options.active, cancel]);
@@ -55,7 +61,7 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const shortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
   useEffect(() => {
     if (!enabled) return;
-    let held = false;
+    let held: symbol | undefined;
     const binding = parseShortcut(shortcut);
     const down = (event: KeyboardEvent) => {
       const composer = event.target instanceof Element ? event.target.closest<HTMLElement>("[data-composer-session]") : null;
@@ -66,18 +72,18 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
       event.preventDefault(); if (event.repeat) return;
       const state = controller.getState();
       if (state.cleanupPending) return;
-      if (held || state.phase === "transcribing") return;
-      held = true;
-      if (state.phase === "idle" || state.phase === "failed") void start();
+      if (held || state.phase !== "idle" && state.phase !== "failed") return;
+      held = Symbol("voice shortcut");
+      void start(held);
     };
     const up = (event: KeyboardEvent) => {
       if (!held || !binding || event.code !== binding.code && shortcutModifiersHeld(event, binding)) return;
-      held = false; void finish();
+      const gesture = held; held = undefined; void finish(gesture);
     };
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
-    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); if (held) void cancel("The voice shortcut was interrupted before release. Raw audio was discarded; inserted words were preserved."); };
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); if (held) void cancel("The voice shortcut was interrupted before release. Raw audio was discarded; inserted words were preserved.", held); };
   }, [enabled, connected, session?.status, sessionId, controller, shortcut, start, finish, cancel]);
-  return { state, start, finish, cancel };
+  return { state, start, finish, cancel, toggle };
 }
 
 export function useDictationTranscript(sdk: MoguriSdk, sessionId: string | undefined, jobId: string | undefined) {

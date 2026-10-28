@@ -88,6 +88,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const transcriptPreview = useDictationTranscript(client, session.id, transcript?.id);
   const voiceFinalizing = finishingVoice || dictation.state.phase === "transcribing" || Boolean(voiceJob?.progress?.startsWith("Finalizing"));
   const voicePreparing = voiceJob?.kind === "voice.record" && Boolean(voiceJob.progress?.startsWith("Preparing"));
+  const voiceShortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
   const voiceActive = Boolean(voiceJob) || ["starting", "recording", "transcribing"].includes(dictation.state.phase) || dictation.state.cleanupPending;
   const isSlash = draft.text.startsWith("/");
   const attachmentTrigger = isSlash || dismissedTrigger === draft.text ? null : parseAttachmentTrigger(draft.text);
@@ -241,8 +242,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         await insertTranscript(voiceJob.id);
       } finally { setFinishingVoice(false); }
     });
-    if (dictation.state.phase === "starting" || dictation.state.phase === "recording") void dictation.finish();
-    else if (dictation.state.phase === "idle" || dictation.state.phase === "failed") void dictation.start();
+    void dictation.toggle();
   };
   const configure = (controls: Controls) => run(async () => {
     await client.sessions.configure(session.id, controls, session.revision);
@@ -359,11 +359,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}
-        <DictationButton state={dictation.state} pushToTalk={Boolean(snapshot.settings.values.voice.pushToTalk && voiceJob?.kind !== "voice.record")} recording={Boolean(voiceJob)}
+        <DictationButton state={dictation.state} recording={Boolean(voiceJob)}
           label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"}
           disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"}
-          title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`}
-          start={dictation.start} finish={dictation.finish} cancel={dictation.cancel} toggle={() => void dictate()} />
+          title={`Click to record; click again to confirm. ${voiceShortcut === "none" ? "No push-to-talk shortcut is assigned." : `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.`}`}
+          toggle={() => void dictate()} />
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
             <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || undefined} title={resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || (resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : resumeAction ? "Play" : "Send"} /></button>}
