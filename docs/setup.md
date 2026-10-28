@@ -1859,6 +1859,15 @@ the change and stale byte continuations restart at zero. Use
 and edits still fail instead of substituting versions. Protected credential
 paths and symlink escapes are rejected. Full text reads/`write_file` are limited
 to 128 KiB; selective reads and exact `edit_file` support sources up to 1 MiB.
+For `read_file`, literal `search` or byte `offset`/`limit` selects at most
+16 KiB even when `mode: "full"` is also present; only unpaged full mode uses
+the smaller source cap. A missing literal match succeeds with empty text.
+Invalid tool arguments identify the schema fields and constraints to correct,
+without echoing submitted values or executing an operation.
+Builtin MCP `grep_logs` supports a 1-MiB UTF-8 source and returns up to
+100 matching lines, 1,000 characters each, with byte offsets and explicit
+clipping/omission flags. Use `read_file` for exact source paging or
+`search_files` for regex/larger sources.
 Structured binary documents have their separate 8-MiB parser/authoring boundary;
 at most 16 snapshots and 512 KiB of attached text are accepted.
 
