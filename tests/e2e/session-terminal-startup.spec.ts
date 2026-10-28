@@ -2,7 +2,6 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { realpath } from "node:fs/promises";
-import { homedir } from "node:os";
 import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
@@ -29,7 +28,7 @@ test("explicit session navigation opens the newly selected console, preserves ex
     await expect(input).toHaveAttribute("aria-disabled", "false");
     const second = sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === chat.id)!;
     expect(second.id).not.toBe(first.id); expect(second.projectId).toBeNull();
-    expect(second.binding?.root).toBe(await realpath(homedir()));
+    expect(second.binding?.root).toBe(await realpath(fixture.home));
     expect(first.binding?.root).toBe(await realpath(fixture.project));
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.find((entry) => entry.id === second.id)?.status).toBe("closed");
@@ -51,7 +50,7 @@ test("explicit session navigation opens the newly selected console, preserves ex
     await expect.poll(() => sdk.getState().snapshot!.sessions.length).toBe(sessionCount + 1);
     const created = sdk.getState().snapshot!.sessions.at(-1)!;
     await expect.poll(() => sdk.getState().snapshot!.terminals.some((entry) => entry.sessionId === created.id)).toBe(true);
-    expect(sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === created.id)?.binding?.root).toBe(await realpath(homedir()));
+    expect(sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === created.id)?.binding?.root).toBe(await realpath(fixture.home));
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
@@ -110,7 +109,7 @@ test("hidden Chats selection cannot arm a restored pane, but visible Chats navig
     await navigation.getByRole("button", { name: "Chats", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.length).toBe(3);
     const opened = sdk.getState().snapshot!.terminals.find((entry) => entry.status === "running")!;
-    expect(opened.sessionId).toBe(chat.id); expect(opened.binding?.root).toBe(await realpath(homedir()));
+    expect(opened.sessionId).toBe(chat.id); expect(opened.binding?.root).toBe(await realpath(fixture.home));
     expect(fixture.requests).toHaveLength(0);
   } finally { await app?.close(); sdk.disconnect(); await fixture.close(); }
 });

@@ -1,5 +1,4 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
-import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
@@ -164,7 +163,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await page.reload();
     await expect(page.getByRole("button", { name: "New terminal", exact: true })).toBeEnabled();
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
-    expect((await sdk.terminal.read(legacy.id!)).terminal.binding?.root).toBe(await realpath(homedir()));
+    expect((await sdk.terminal.read(legacy.id!)).terminal.binding?.root).toBe(await realpath(fixture.home));
     await page.getByRole("button", { name: "New terminal", exact: true }).click();
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(input).toHaveAttribute("aria-disabled", "false");

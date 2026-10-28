@@ -23,7 +23,7 @@ const root = join(app, "Contents", "Resources", "app");
 for (const path of [".moguri", ".native", ".impeccable", ".copilot", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
 const node = join(root, "node_modules", "node", "bin", "node");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inherit" });
-const { PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+const { PROTOCOL_VERSION, BROWSER_MCP_TOOLS, defaultSettings } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
@@ -40,7 +40,7 @@ await access(icon);
 assert.deepEqual(await readFile(icon), await readFile(join(root, "dist", "branding", "moguri.icns")));
 const rendererAssets = await readdir(join(root, "dist", "desktop", "renderer", "assets"));
 assert.ok(rendererAssets.some((path) => /^ghostty-vt-.*\.wasm$/.test(path)));
-assert.ok(rendererAssets.some((path) => /^GhosttyTerminal-.*\.js$/.test(path)));
+assert.ok(rendererAssets.some((path) => /^(?:GhosttyTerminal|SessionTerminal)-.*\.js$/.test(path)));
 const temporary = await mkdtemp(join(tmpdir(), "moguri-packaged-"));
 const oauth = await generatedOAuthServer();
 let modelFixture;
@@ -64,6 +64,7 @@ try {
   }
   const project = join(temporary, "generated-project");
   await mkdir(project);
+  const home = join(temporary, "generated-home"); await mkdir(home);
   await writeFile(join(project, "generated.ts"), "export function packagedSdkKnowledge() { return 'generated'; }");
   const generatedBin = join(temporary, "generated-bin"); await mkdir(generatedBin);
   await writeFile(join(generatedBin, "gh"), `#!/bin/sh\nprintf '%s' '${JSON.stringify(generatedRepositoryMetadata())}'\n`, { mode: 0o700 });
@@ -81,7 +82,7 @@ try {
     };
     const credentials=new Map();
     const vault={read:async(id)=>credentials.get(id)??null,write:async(id,value)=>{credentials.set(id,value);},remove:async(id)=>{credentials.delete(id);}};
-    const options={stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{vault,executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}};
+    const options={stateDir:${JSON.stringify(join(temporary, "state"))},provider,retentionKey:Buffer.alloc(32,0x67),platform:{vault,remote:{vault,modelsVault:vault},terminal:{vault,defaultRoot:${JSON.stringify(home)},executable:"/bin/sh",args:["-c","printf 'GENERATED_PACKAGED_PTY_READY\\n'; exec cat"]}}};
     let service=await createRuntime(options);
     process.send(service.connection);
     const close=async()=>{await service.close();if(process.connected)process.disconnect();};
@@ -136,7 +137,7 @@ try {
   const preview = await query({ type: "suggestions.preview", sessionId: general.id, allProjects: false });
   assert.equal(preview.preview.scope, "project-free"); assert.equal(preview.preview.sources.length, 0);
   const generalTools = await query({ type: "mcp.tools", serverId: "builtin", sessionId: general.id, query: "", offset: 0 });
-  assert.deepEqual(generalTools.tools.map((tool) => tool.name), ["fetch_page"]);
+  assert.deepEqual(generalTools.tools.map((tool) => tool.name), [...(PROTOCOL_VERSION >= 56 ? BROWSER_MCP_TOOLS.map((tool) => tool.name) : []), "fetch_page"]);
   const meta = await send({ type: "metachat.create", projectId: null, parentSessionId: general.id, prompt: "Generated packaged settings request." });
   const proposed = await send({ type: "configuration.propose", sessionId: meta.id, proposal: { target: "global", section: "instructions", value: "Generated packaged guidance.", reason: "Generated packaged exact review." } });
   const reviewed = await query({ type: "configuration.review", proposalId: proposed.id });
@@ -144,10 +145,30 @@ try {
   await send({ type: "configuration.decide", proposalId: proposed.id, approve: true, expectedDigest: reviewed.proposal.contentDigest, acknowledgeRisk: true });
   const configured = await (await fetch(`${connection.baseUrl}/v1/snapshot`, { headers })).json();
   assert.equal(configured.settings.values.instructions, "Generated packaged guidance.");
-  assert.deepEqual(configured.settings.values.notifications, { inApp: true, os: false, previewContent: false });
+  assert.deepEqual(configured.settings.values.notifications, defaultSettings().notifications);
   const { MoguriSdk } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
   const sdk = await new MoguriSdk(connection).ready();
   try {
+    if (PROTOCOL_VERSION >= 72) {
+      const owner = await sdk.sessions.create(null, "Generated actual packaged Home execution"), binding = (await sdk.workspaces.home(owner.id)).root;
+      assert.equal(binding.root, await realpath(home)); assert.equal(sdk.getState().snapshot.sessions.find((session) => session.id === owner.id).projectId, null);
+      const file = (await sdk.tools.catalog(owner.id, "write_file")).tools.find((tool) => tool.name === "write_file");
+      const written = await sdk.tools.execute(owner.id, file.name, { path: "generated-packaged-home.txt", text: "GENERATED_PACKAGED_HOME\n", expectedDigest: "absent" }, file.schemaDigest);
+      const approval = sdk.getState().snapshot.sessions.find((session) => session.id === owner.id).pendingApproval;
+      assert.ok(approval); await sdk.approvals.respond(owner.id, approval.id, true);
+      assert.equal((await sdk.jobs.wait(written.id)).status, "completed");
+      assert.equal((await sdk.workspaces.file(owner.id, "generated-packaged-home.txt")).text, "GENERATED_PACKAGED_HOME\n");
+      const command = (await sdk.tools.catalog(owner.id, "run_command")).tools.find((tool) => tool.name === "run_command");
+      const started = await sdk.tools.execute(owner.id, command.name, { command: "pwd", timeoutMs: 2000 }, command.schemaDigest);
+      const pending = sdk.getState().snapshot.sessions.find((session) => session.id === owner.id).pendingApproval;
+      assert.ok(pending); await sdk.approvals.respond(owner.id, pending.id, true);
+      assert.equal((await sdk.jobs.wait(started.id)).status, "completed");
+      const actual = (await sdk.agentTerminals.list(owner.id)).activity.entries[0];
+      assert.ok((await sdk.agentTerminals.read(owner.id, actual.id)).content.text.includes(binding.root));
+      assert.equal(sdk.getState().snapshot.chatWriters.filter((writer) => writer.sessionId === owner.id && writer.status === "settled").length, 2);
+      assert.equal(modelFixture.requests.length, 0);
+      console.log("Actual bundled protocol-72 service/SDK/Node executes approved Home files and commands, retains exact writer settlement and original Agent output with a real null project and no inference.");
+    }
     const settings = sdk.settings.get();
     await sdk.settings.update({ ...settings.values, mcpServers: [{ id: "generated-packaged-oauth", name: "Generated packaged OAuth", enabled: true, transport: { type: "http", url: oauth.url, auth: "oauth" } }] }, settings.revision);
     const login = await sdk.mcp.oauthBegin("generated-packaged-oauth", general.id);
@@ -407,14 +428,19 @@ try {
       }
       assert.equal(new Set(consoles.map((terminal) => terminal.ownerId)).size, 1);
       assert.equal(consoleSdk.getState().snapshot.terminalOwners.filter((owner) => owner.status === "running").length, 1);
-      await footprint(4); await desktop.close(); desktop = undefined;
+      await footprint(4);
+      const previousAttachments = new Map(await Promise.all(consoles.map(async (terminal) => {
+        const current = (await consoleSdk.terminal.read(terminal.id)).terminal;
+        assert.equal(current.pid, terminal.pid); assert.equal(current.ownerId, owner.id);
+        return [terminal.id, current.attachmentId];
+      })));
       consoleSdk.disconnect();
       await replaceService(true);
       consoleSdk = await new MoguriSdk(connection).ready();
       for (const terminal of consoles) {
         const observed = await consoleSdk.terminal.read(terminal.id);
         assert.equal(observed.terminal.pid, terminal.pid); assert.equal(observed.terminal.ownerId, owner.id);
-        assert.notEqual(observed.terminal.attachmentId, terminal.attachmentId);
+        assert.notEqual(observed.terminal.attachmentId, previousAttachments.get(terminal.id));
         assert.equal(observed.data.split("GENERATED_PACKAGED_PTY_READY").length - 1, 1);
       }
       assert.equal(consoleSdk.getState().snapshot.terminalOwners.find((value) => value.id === owner.id).pid, owner.pid);
@@ -427,6 +453,8 @@ try {
       assert.match(observed, /GENERATED_PACKAGED_REATTACHED_INPUT/);
       for (const terminal of consoles) await consoleSdk.terminal.close(terminal.id);
       assert.equal(modelFixture.requests.length, 5);
+      await desktop.close(); desktop = undefined;
+      await replaceService(false);
     } finally { await desktop?.close(); consoleSdk.disconnect(); }
   }
   if (PROTOCOL_VERSION >= 29) {
@@ -486,16 +514,19 @@ try {
       import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
       const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
         refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in role inspection.");},prepare:async()=>{throw Error("No model calls in retained role inspection.");}};
-      const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider};
+      const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider,platform:{sandbox:{setup:{automatic:false,fetch:async()=>Response.json([])}}}};
       let runtime=await createRuntime(options),sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
       try{
+        console.log("GENERATED_PACKAGED_ROLE_RUNTIME_READY");
         const value=await sdk.roleSequences.read(evidence.sequenceId,1);
         assert.equal(value.sequence.status,"completed");assert.equal(value.sequence.inputDigest,evidence.inputDigest);assert.ok(value.step.result.includes(evidence.rawMarker));
         assert.equal(sdk.getState().snapshot.projects.length,0);assert.equal(sdk.getState().snapshot.sessions.some(session=>session.id===evidence.originSessionId),false);
         const cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
         const called=JSON.parse((await promisify(execFile)(process.execPath,[cli,"roles",evidence.sequenceId,"1"],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
+        console.log("GENERATED_PACKAGED_ROLE_CLI_READY");
         assert.ok(called.step.result.includes(evidence.rawMarker));assert.equal(JSON.parse((await sdk.artifacts.export(evidence.sequenceId)).export.text).schemaVersion,4);
         sdk.disconnect();await runtime.close();runtime=await createRuntime(options);sdk=await connectMoguri({stateDir:options.stateDir,autoStart:false});
+        console.log("GENERATED_PACKAGED_ROLE_REOPEN_READY");
         assert.equal((await sdk.roleSequences.read(evidence.sequenceId,1)).sequence.status,"completed");
         const artifact=(await sdk.artifacts.read(evidence.sequenceId)).artifact;await sdk.artifacts.delete(evidence.sequenceId,artifact.revision,true);
         await assert.rejects(()=>sdk.roleSequences.read(evidence.sequenceId),{code:"role_sequence_missing"});
@@ -503,7 +534,9 @@ try {
         assert.equal((await sdk.budgets.calls()).calls.length,2);
       }finally{sdk.disconnect();await runtime.close();}
     `;
-    await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 15_000 });
+    const started = performance.now();
+    await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 90_000 });
+    console.log(JSON.stringify({ primitive: "Actual bundled retained-role inspection with two independently verified distribution starts", ms: performance.now() - started, timeoutMs: 90_000 }));
     console.log("Actual bundled Node/runtime/SDK/CLI role inspection preserves source-independent raw data, version-4 export, reopen and minimal deletion intent without model preparation or replay.");
   }
   if (PROTOCOL_VERSION >= 33) {
@@ -541,7 +574,7 @@ try {
         const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
           refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in native role proposals.");},
           prepare:async()=>{throw Error("No model preparation in native role proposals.");}};
-        const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider},cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
+        const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider,platform:{sandbox:{setup:{automatic:false,fetch:async()=>Response.json([])}}}},cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
         const invoke=async args=>JSON.parse((await promisify(execFile)(process.execPath,[cli,"candidate",...args],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
         const git=args=>execFileSync("git",["--no-pager","-c","core.hooksPath=/dev/null","-c","core.fsmonitor=false",...args],{cwd:evidence.sourceRoot,encoding:"utf8"});
         const index=await readFile(join(evidence.sourceRoot,".git/index")),head=git(["rev-parse","HEAD"]);
