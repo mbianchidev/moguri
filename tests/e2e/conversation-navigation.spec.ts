@@ -48,6 +48,7 @@ test("the turn sidebar navigates actual prompts and chosen question answers, nev
     await expect(prompt).toHaveValue("Generated saved draft preserved while navigating.");
     expect(fixture.requests).toHaveLength(2);
     await reviewNativeTools(fixture, ["read_file"]);
+    const policy = structuredClone(fixture.service.controller.snapshot().settings.values.permissions.tools);
     await fixture.send("generated tool navigation permission");
     const approval = page.getByRole("region", { name: "Tool approval", exact: true });
     await expect(approval).toBeVisible();
@@ -58,7 +59,7 @@ test("the turn sidebar navigates actual prompts and chosen question answers, nev
     await expect(navigation.getByRole("button", { name: /^Prompt / })).toHaveCount(2);
     await expect(navigation.getByRole("button", { name: /^Answer / })).toHaveCount(1);
     expect(sdk.getState().snapshot?.questions.filter((question) => question.answer?.actor === "user")).toHaveLength(1);
-    expect(sdk.settings.get()!.values.permissions.tools).toEqual([]);
+    expect(sdk.settings.get()!.values.permissions.tools).toEqual(policy);
     expect(errors).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

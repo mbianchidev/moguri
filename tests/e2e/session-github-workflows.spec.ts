@@ -138,6 +138,7 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
 test("approval scopes persist across turns, Autopilot explicitly enables unattended approvals and update token help stays read-only", async () => {
   const fixture = await setupFixture(); await fixture.configure();
   await reviewNativeTools(fixture, ["read_file"]);
+  const policy = structuredClone(fixture.service.controller.snapshot().settings.values.permissions.tools);
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
@@ -156,6 +157,6 @@ test("approval scopes persist across turns, Autopilot explicitly enables unatten
     await page.getByText("Create a token with the right permissions", { exact: true }).click();
     await expect(page.getByRole("region", { name: "Private application updates", exact: true })).toContainText("Contents, Read-only");
     await expect(page.getByRole("button", { name: "Create token for read-only updates", exact: true })).toBeVisible();
-    expect(fixture.service.controller.snapshot().settings.values.permissions.tools).toEqual([]);
+    expect(fixture.service.controller.snapshot().settings.values.permissions.tools).toEqual(policy);
   } finally { await close(app); await fixture.close(); }
 });
