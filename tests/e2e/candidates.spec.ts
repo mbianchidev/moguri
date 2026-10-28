@@ -80,6 +80,11 @@ test("desktop stages source edits separately, applies only a fresh exact review 
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt");
     await panel.getByRole("button", { name: "Load source file", exact: true }).click();
+    const remove = panel.getByRole("button", { name: "Remove file from proposal", exact: true });
+    await expect(remove).toHaveText(""); await expect(remove.locator("svg[data-icon='Trash']")).toBeVisible();
+    await remove.click(); await expect(panel.getByLabel("Proposed file text", { exact: true })).toHaveCount(0);
+    await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt");
+    await panel.getByRole("button", { name: "Load source file", exact: true }).click();
     await panel.getByLabel("Proposed file text", { exact: true }).fill("Generated desktop candidate bytes.\n");
     await panel.getByRole("button", { name: "Review staging", exact: true }).click();
     await expect(panel.getByRole("button", { name: "Stage reviewed proposal", exact: true })).toBeEnabled();
@@ -88,7 +93,7 @@ test("desktop stages source edits separately, applies only a fresh exact review 
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe("generated original\n");
     expect(await readFile(join(f.workspace.path, "fixture.txt"), "utf8")).toBe("Generated desktop candidate bytes.\n");
     await expect(panel).toContainText("Proposed, not accepted");
-    await panel.getByRole("button", { name: "Review source application", exact: true }).click();
+    await panel.getByRole("button", { name: "Review application to original source", exact: true }).click();
     await expect(panel.getByRole("button", { name: "Apply reviewed files", exact: true })).toBeEnabled();
     await panel.getByRole("button", { name: "Apply reviewed files", exact: true }).click();
     await expect.poll(() => f.sdk.getState().snapshot!.candidates[0]?.status).toBe("applied");

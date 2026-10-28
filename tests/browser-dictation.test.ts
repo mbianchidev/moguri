@@ -88,3 +88,57 @@ test("external cancellation is visible rather than silently returning to idle wi
   assert.match(controller.getState().error ?? "", /cancelled/i);
   controller.dispose();
 });
+
+test("streaming captures deliver partial text while held and finish once even when the job event beats its final reply", async () => {
+  let audio: ((samples: Float32Array) => void) | undefined, appends = 0, finishes = 0;
+  const partial = Promise.withResolvers<void>(), updates: Array<{ text: string; final: boolean }> = [];
+  const controller = new SpeechCaptureController({
+    begin: async () => ({ id: "generated-live-capture", token: "generated-live-lease" }),
+    acquire: async (_lease, _device, _signal, _failed, received) => {
+      audio = received;
+      return { finish: async () => new Float32Array(), discard: async () => {} };
+    },
+    upload: async () => { throw new Error("Streaming must not upload another batch WAV."); },
+    append: async (_lease, sequence, bytes) => { appends++; assert.equal(sequence, appends); assert.equal(bytes.length, 3200); },
+    read: async () => ({ text: appends ? "Generated partial" : "", revision: appends }),
+    finishStream: async () => { finishes++; controller.observe("generated-live-capture", "completed", null); return "Generated final."; },
+    changed: (_lease, text, final) => { updates.push({ text, final }); if (!final && text) partial.resolve(); },
+    cancel: async () => {},
+  });
+  try {
+    await controller.start(); assert.equal(typeof audio, "function");
+    audio!(new Float32Array(1600).fill(0.1));
+    await partial.promise;
+    assert.equal(controller.getState().phase, "recording");
+    assert.ok(updates.some((value) => value.text === "Generated partial" && !value.final));
+    await Promise.all([controller.finish(), controller.finish()]);
+    assert.equal(appends, 1); assert.equal(finishes, 1);
+    assert.deepEqual(updates.at(-1), { text: "Generated final.", final: true });
+    assert.equal(controller.getState().phase, "idle");
+  } finally { controller.dispose(); }
+});
+
+test("a stale poll rejection cannot cancel the original buffer while its final receipt is pending", async () => {
+  const poll = Promise.withResolvers<{ text: string; revision: number }>(), final = Promise.withResolvers<string>();
+  const updates: Array<{ text: string; final: boolean }> = [];
+  let finishing = false, cancellations = 0;
+  const controller = new SpeechCaptureController({
+    begin: async () => ({ id: "generated-final-owner", token: "generated-final-lease" }),
+    acquire: async () => ({ finish: async () => new Float32Array(), discard: async () => {} }),
+    upload: async () => { throw new Error("No replay into a batch upload."); },
+    append: async () => {}, read: () => poll.promise,
+    finishStream: async () => { finishing = true; return final.promise; },
+    changed: (_lease, text, final) => updates.push({ text, final }),
+    cancel: async () => { cancellations++; },
+  });
+  try {
+    await controller.start(); const completing = controller.finish();
+    while (!finishing) await new Promise((resolve) => setTimeout(resolve, 1));
+    poll.reject(new Error("Generated stale capture poll."));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(controller.getState().phase, "transcribing"); assert.equal(cancellations, 0);
+    final.resolve("Generated original final transcript."); await completing;
+    assert.deepEqual(updates, [{ text: "Generated original final transcript.", final: true }]);
+    assert.equal(controller.getState().phase, "idle");
+  } finally { final.resolve("Generated original final transcript."); controller.dispose(); }
+});

@@ -8,6 +8,7 @@ const paths: Record<string, string> = {
   Search: "M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.5 13 5 5",
   Skill: "M3 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-3H3Zm18 0h-6a3 3 0 0 0-3 3v14a4 4 0 0 1 4-3h5Z",
   Issue: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
+  "Work item": "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
   Mcp: "M5 8h5v8H5ZM3 12h2m5 0h4m0-4h5v8h-5Zm5 4h2M8 5V3m0 18v-2m8-14V3m0 18v-2",
   Thought: "M8 18H6a4 4 0 0 1-1-8 6 6 0 0 1 11-3 5 5 0 0 1 2 10h-6l-4 4Z",
   Tool: "m14 6 4 4 3-3a6 6 0 0 1-7 8L7 22l-5-5 7-7a6 6 0 0 1 8-7Z",
@@ -21,8 +22,11 @@ const paths: Record<string, string> = {
   Back: "m14 5-7 7 7 7M7 12h14", Copy: "M8 8h12v12H8Zm-4 8V4h12", Edit: "m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z",
   Trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
   Pin: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8", More: "M5 12h.01M12 12h.01M19 12h.01",
+  Grip: "M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01",
+  Refresh: "M20 7v5h-5m5 0a8 8 0 1 0-2 6M4 17v-5h5",
   PinOff: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8M3 3l18 18",
   Plus: "M12 4v16M4 12h16", Close: "m5 5 14 14M19 5 5 19", Up: "m5 15 7-7 7 7", Down: "m5 9 7 7 7-7",
+  ChevronLeft: "m15 5-7 7 7 7", ChevronRight: "m9 5 7 7-7 7",
   Play: "m7 4 14 8-14 8Z", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
   Agent: "m5 5 14 14M5 19 19 5M8 3v4m-5 4h4m13 2h-4m-4 8v-4",
   PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
@@ -55,5 +59,5 @@ const paths: Record<string, string> = {
 };
 const aliases: Record<string, string> = { Sandbox: "Box", "Code change": "PR", "Work item": "Issue" };
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" || name === "Grip" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

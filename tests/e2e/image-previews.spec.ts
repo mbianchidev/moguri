@@ -102,6 +102,7 @@ test("sent images stay compact until clicked without gaining draft removal or ne
   try {
     const prompt = owned.page.getByLabel("Prompt", { exact: true });
     await expect(prompt).toHaveValue("Generated image preview draft.");
+    await expect(owned.page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     await prompt.press("Enter");
     await expect.poll(() => owned.fixture.session().status).toBe("completed");
     const sent = owned.page.getByRole("log", { name: "Session transcript", exact: true }).getByRole("article").filter({ hasText: "Generated image preview draft." });

@@ -1,4 +1,4 @@
-import { SettingsHelp } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp } from "./SettingsFields.tsx";
 import { useState } from "react";
 import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { useSessionActions } from "./SessionActions.tsx";
@@ -21,7 +21,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
     finally { setBusy(false); }
   };
   const pending = busy || actions.busy;
-  return <section aria-label="Stored session management"><h3>Manage stored sessions</h3><SettingsHelp label="More about this setting">Permanent session deletion also deletes its originating candidates and generation proposals. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are preserved.</SettingsHelp>
+  return <section aria-label="Stored session management"><SettingsHelp label="More about this setting" target={<h3>Manage stored sessions</h3>}>Permanent session deletion also deletes its originating candidates and generation proposals. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are preserved.</SettingsHelp>
     {snapshot.candidateCleanups.filter((cleanup) => cleanup.status !== "completed").map((cleanup) => <p key={cleanup.id} className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>
       Candidate cleanup {cleanup.status}: {cleanup.diagnostic ?? "Owned work is settling; deletion is not complete."} {cleanup.reason.kind === "session-delete" ? "Reconcile owned resources, then retry this session's deletion." : "Verified-merge cleanup will retry automatically; no code or Git resources are removed."}
     </p>)}
@@ -32,11 +32,11 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
       <option value="">Choose an actual session</option>{sessions.map((session) => <option key={session.id} value={session.id}>{session.title} / {session.status}</option>)}
     </select></label>
     {session && <><p className="fine-print">{session.status} / {session.messages.length} messages / {session.queue.length} queued. {session.completedAt ? `Last completed ${new Date(session.completedAt).toLocaleString()}.` : "No actual completion recorded."}</p>
-      <div className="button-row"><button type="button" disabled={pending} onClick={() => openSession(session.id)}>Open this session</button>
+      <div className="button-row"><SettingsAction label="Open this session" icon="Back" disabled={pending} onClick={() => openSession(session.id)} />
         {session.status === "archived" && <button type="button" disabled={pending} onClick={() => void run(async () => { await sdk.command({ type: "session.restore", sessionId: session.id }); setNotice("Session restored by its owning service."); })}>Restore session</button>}
-        {session.status !== "archived" && !session.turnId && (blocked || session.queue.length > 0) && <button type="button" disabled={pending} onClick={() => openSession(session.id)}>Inspect and resume this session</button>}
-        <button type="button" className="danger" disabled={pending || Boolean(session.turnId)} onClick={() => actions.request(session, "delete")}>{snapshot.settings.values.retention.confirmDelete === false ? "Delete stored session" : "Review session deletion"}</button>
-      </div>{session.turnId && <SettingsHelp label="More about this setting">Open and stop this owned turn before deleting it from storage. No work is replayed after sleep or reconnection.</SettingsHelp>}</>}
+        {session.status !== "archived" && !session.turnId && (blocked || session.queue.length > 0) && <button type="button" disabled={pending} onClick={() => openSession(session.id)} aria-label="Open selected session">Open</button>}
+        <SettingsAction label={snapshot.settings.values.retention.confirmDelete === false ? "Delete stored session" : "Review session deletion"} icon="Trash" className="danger" disabled={pending || Boolean(session.turnId)} onClick={() => actions.request(session, "delete")} />
+      </div>{session.turnId && <p className="fine-print">Open and stop this owned turn before deleting it from storage. No work is replayed after sleep or reconnection.</p>}</>}
     {!sessions.length && <p className="fine-print">No stored sessions in this filter.</p>}
     {notice && <p className="fine-print" role="status">{notice}</p>}{(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}
     {actions.dialog}

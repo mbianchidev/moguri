@@ -19,7 +19,7 @@ test("desktop loads exact final-role provenance without overwriting a summary an
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByText("Load a retained role proposal", { exact: true }).click();
     await panel.getByLabel("Retained role proposal", { exact: true }).selectOption(f.sequence.id);
-    const load = panel.getByRole("button", { name: "Load role proposal for staging review", exact: true });
+    const load = panel.getByRole("button", { name: "Load for review final-role proposal", exact: true });
     await expect(load).toBeEnabled(); expect(f.requests).toHaveLength(3);
     await panel.getByLabel("Candidate summary", { exact: true }).fill("Generated unsaved summary must survive.");
     await expect(load).toBeDisabled(); await expect(panel.getByLabel("Candidate summary", { exact: true })).toHaveValue("Generated unsaved summary must survive.");
@@ -38,7 +38,7 @@ test("desktop loads exact final-role provenance without overwriting a summary an
     expect(f.control.snapshot().candidates[0]?.acceptance).toBe(null);
     await expect(panel.getByLabel("Candidate summary", { exact: true })).toHaveValue("Review repository changes");
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe("generated original\n");
-    await panel.getByRole("button", { name: "Review source application", exact: true }).click();
+    await panel.getByRole("button", { name: "Review application to original source", exact: true }).click();
     await panel.getByRole("button", { name: "Apply reviewed files", exact: true }).click();
     await expect.poll(() => f.control.snapshot().candidates[0]?.status).toBe("applied");
     expect(f.control.snapshot().candidates[0]?.acceptance?.actor).toBe("user");
@@ -72,7 +72,7 @@ test("a held final-role read cannot populate a changed read-only scope or overwr
     await panel.getByLabel("Candidate summary", { exact: true }).fill("Generated preserved summary-only draft.");
     await f.sdk.sessions.mode(f.sessionId, "read-only"); gate.resolve();
     await expect(panel.getByLabel("Candidate summary", { exact: true })).toHaveValue("Generated preserved summary-only draft.");
-    await expect(panel.getByRole("button", { name: "Load role proposal for staging review", exact: true })).toBeDisabled();
+    await expect(panel.getByRole("button", { name: "Load for review final-role proposal", exact: true })).toBeDisabled();
     expect(f.control.snapshot().candidates).toHaveLength(0); expect(f.requests).toHaveLength(3);
     await panel.getByRole("button", { name: "Discard local proposal", exact: true }).click();
     await expect.poll(() => page.evaluate(() => { const event = new Event("beforeunload", { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; })).toBe(false);

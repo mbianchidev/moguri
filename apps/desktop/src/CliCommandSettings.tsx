@@ -1,4 +1,4 @@
-import { SettingsHelp } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 
@@ -23,14 +23,14 @@ export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void
       if (request === generation.current) setError(error instanceof Error ? error.message : "The command installation did not complete. Refresh its actual status before retrying.");
     } finally { if (request === generation.current) setBusy(false); }
   };
-  return <section aria-label="Command line installation"><h3>Command line</h3>
-    <SettingsHelp label="More about this setting">Install the bundled CLI and TUI launcher for this macOS user, across profiles. It uses the app's Node runtime, needs no administrator access and does not edit shell startup files. The app must stay at its installed location.</SettingsHelp>
+  return <section aria-label="Command line installation">
+    <SettingsHelp label="More about this setting" target={<h3>Command line</h3>}>Install the bundled CLI and TUI launcher for this macOS user, across profiles. It uses the app's Node runtime, needs no administrator access and does not edit shell startup files. The app must stay at its installed location.</SettingsHelp>
     {status && <p className="fine-print">Command: <code>{status.path}</code></p>}
     <p role="status">{status?.detail ?? "Reading command installation..."}</p>
     <div className="button-row">
-      <button type="button" disabled={busy || !status?.available || status.state !== "absent"} onClick={() => void run({ action: "install" })}>Install <code>moguri</code> command</button>
-      <button type="button" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }}>Remove <code>moguri</code> command</button>
-      <button type="button" disabled={busy} onClick={() => void run({ action: "status" })}>Refresh command status</button>
+      <button type="button" disabled={busy || !status?.available || status.state !== "absent"} aria-label="Install moguri command" onClick={() => void run({ action: "install" })}>Install</button>
+      <SettingsAction label="Remove moguri command" icon="Trash" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }} />
+      <SettingsAction label="Refresh command status" icon="Refresh" disabled={busy} onClick={() => void run({ action: "status" })} />
     </div>
     <p className="fine-print">After installation, run this in your terminal to add the command to your current shell's PATH:</p>
     <pre><code>{'export PATH="$HOME/.local/bin:$PATH"'}</code></pre>

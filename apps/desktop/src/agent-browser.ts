@@ -1,6 +1,6 @@
 import type { WebContents } from "electron";
 import { randomBytes, randomUUID } from "node:crypto";
-import { browserUrl, isRecord, validateBrowserArguments, type BrowserRequest, type BrowserResult, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { browserUrl, isRecord, validateBrowserArguments, webAccessAllows, type WebAccess, type BrowserRequest, type BrowserResult, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 
 const pointFunction = `function() {
   if (!(this instanceof HTMLElement) || !this.isConnected || this.closest('[inert]') || this.disabled) throw Error('The exact browser element is unavailable or disabled. Take a fresh snapshot.');
@@ -37,6 +37,9 @@ export class SessionBrowserHost {
   private mouseDown = false;
   private keyDown: string | null = null;
   private watchdog?: ReturnType<typeof setInterval>;
+  private guardedNetwork = false;
+  private webAccess?: WebAccess;
+  private networkDenied = new Set<string>();
   private readonly navigated = () => { this.pageEpoch++; this.clearRefs(); };
   private readonly debugMessage = (_event: Electron.Event, method: string) => {
     if (method !== "Page.javascriptDialogOpening" || !this.debuggerOwned || this.contents.isDestroyed()) return;
@@ -48,17 +51,38 @@ export class SessionBrowserHost {
     contents.on("did-start-navigation", this.navigated);
     contents.debugger.on("message", this.debugMessage);
   }
+  private installNetworkGate(): void {
+    this.contents.session.webRequest.onBeforeRequest({ urls: ["http://*/*", "https://*/*", "ws://*/*", "wss://*/*"] }, (details, done) => {
+      if (!this.guardedNetwork) { done({}); return; }
+      const target = new URL(details.url);
+      if (target.protocol === "wss:") target.protocol = "https:";
+      else if (target.protocol === "ws:") target.protocol = "http:";
+      const allowed = this.webAccess && webAccessAllows(this.webAccess, target.href);
+      if (!allowed && this.networkDenied.size < 20 && !this.networkDenied.has(target.origin)) {
+        this.networkDenied.add(target.origin);
+        this.report(`Agent browser blocked an unapproved website request to ${target.origin}. No request was replayed.`);
+      }
+      done({ cancel: !allowed });
+    });
+  }
   static async attach(sdk: MoguriSdk, sessionId: string, contents: WebContents, validOwner: () => boolean, report: (message: string) => void): Promise<SessionBrowserHost> {
     const host = new SessionBrowserHost(sdk, sessionId, contents, validOwner, report);
     try { await sdk.browser.host.attach(host.owner); }
     catch (error) { contents.removeListener("did-start-navigation", host.navigated); contents.debugger.removeListener("message", host.debugMessage); throw error; }
+    try {
+      if (contents.isDestroyed() || !validOwner()) throw new Error("The original native browser closed during attachment. No other view was adopted.");
+      host.installNetworkGate();
+    } catch (error) {
+      await sdk.browser.host.detach(host.owner).catch((failure: unknown) => report(`Browser attachment cleanup was not acknowledged: ${failure instanceof Error ? failure.message : "unknown cleanup failure"}`));
+      contents.removeListener("did-start-navigation", host.navigated); contents.debugger.removeListener("message", host.debugMessage); throw error;
+    }
     host.watchdog = setInterval(() => { if (Date.now() - host.lastPoll > 8000) host.revoke(); }, 1000);
     void host.poll();
     return host;
   }
   private clearRefs(): void { this.snapshotId = null; this.refs.clear(); }
   private revoke(): void {
-    this.controlId = null; this.clearRefs(); this.active?.abort.abort();
+    this.controlId = null; this.webAccess = undefined; this.clearRefs(); this.active?.abort.abort();
     if (!this.contents.isDestroyed()) {
       this.releaseInput();
       if (this.debuggerOwned && this.contents.debugger.isAttached()) this.contents.debugger.detach();
@@ -72,7 +96,10 @@ export class SessionBrowserHost {
     try {
       await this.sdk.browser.host.control(this.owner, sequence, enabled);
       const { browser } = await this.sdk.browser.state(this.owner.sessionId);
-      if (sequence === this.sequence && !this.stopped && this.validOwner()) this.controlId = enabled ? browser.controlId : null;
+      if (sequence === this.sequence && !this.stopped && this.validOwner()) {
+        this.controlId = enabled ? browser.controlId : null;
+        if (this.controlId) this.guardedNetwork = true;
+      }
       return browser;
     } catch (error) {
       if (sequence === this.sequence) {
@@ -82,6 +109,15 @@ export class SessionBrowserHost {
       }
       throw error;
     }
+  }
+  async navigateByUser(input: string): Promise<void> {
+    const url = browserUrl(input);
+    if (this.controlId) await this.control(false);
+    this.revoke();
+    if (this.stopped || !this.validOwner() || this.contents.isDestroyed()) throw new Error("The original user browser closed. No other page was opened.");
+    if (this.guardedNetwork) await this.contents.loadURL("about:blank");
+    this.guardedNetwork = false;
+    await this.contents.loadURL(url.href);
   }
   async close(): Promise<void> {
     if (this.stopped) return;
@@ -193,6 +229,12 @@ export class SessionBrowserHost {
     try {
       this.guard(request, signal);
       validateBrowserArguments(request.tool, request.arguments);
+      if (request.tool !== "browser_navigate" && this.contents.getURL() !== request.arguments.expectedUrl) throw new Error("The exact browser page changed. Take its current status before requesting another action.");
+      const target = request.tool === "browser_navigate" ? String(request.arguments.url) : String(request.arguments.expectedUrl);
+      if (!request.webAccess || target !== "about:blank" && !webAccessAllows(request.webAccess, target)) throw new Error("The browser action has no exact approved website scope. No navigation or interaction was dispatched.");
+      this.webAccess = request.webAccess;
+      this.guardedNetwork = true;
+      this.networkDenied.clear();
       await this.cdp("Page.enable");
       this.guard(request, signal);
       await this.cdp("Page.setInterceptFileChooserDialog", { enabled: true });
@@ -243,6 +285,7 @@ export class SessionBrowserHost {
         this.clearRefs();
       }
       this.guard(request, signal);
+      if (this.networkDenied.size) throw new Error(`The browser blocked unapproved website requests to ${[...this.networkDenied].join(", ")}. Review those exact destinations before another action.`);
       return { text: JSON.stringify({ source: "untrusted-browser-result", url: this.contents.getURL(), title: this.contents.getTitle().slice(0, 512), action: request.tool,
         basis: request.tool === "browser_navigate" ? "main-frame-load-finished" : "native-input-acknowledged; inspect the page for website effects", outcome: "completed" }), outcome: "completed" };
     } catch (error) {

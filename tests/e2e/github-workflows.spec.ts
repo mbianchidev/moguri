@@ -18,6 +18,7 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
+    await page.getByText("Advanced reviewed Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     await expect(panel).toBeVisible();
     await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.tag.create");
@@ -30,11 +31,11 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     await expect(review).toContainText(f.root); await expect(review).toContainText(head);
     const execute = review.getByRole("button", { name: "Execute only this reviewed operation", exact: true });
     await expect(execute).toBeDisabled();
-    await review.getByRole("checkbox").check();
+    await review.getByRole("switch").check();
     await panel.getByLabel("Exact tag name", { exact: true }).fill("generated-desktop-reviewed-tag");
     await expect(review).not.toBeVisible(); expect(f.git(["for-each-ref", "--format=%(refname)", "refs/tags/generated-desktop-tag"])).toBe("");
     await panel.getByRole("button", { name: "Review exact operation", exact: true }).click();
-    await review.getByRole("checkbox").check(); await execute.click();
+    await review.getByRole("switch").check(); await execute.click();
     await expect(panel.getByRole("heading", { name: "Git/GitHub operation completed", exact: true })).toBeVisible();
     await f.sdk.refresh();
     const retained = await f.sdk.github.read(f.sdk.github.list(f.projectId)[0]!.id);

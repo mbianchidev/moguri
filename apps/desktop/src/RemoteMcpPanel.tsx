@@ -25,8 +25,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
     finally { setBusy(false); }
   };
   return <section className="mcp-remote-panel" aria-label="Remote MCP access">
-    <h3>Remote MCP access</h3>
-    <SettingsHelp label="More about this setting">Execution is on the pinned SSH host, not inside SendBox. A saved Local MCP account is not permission to send it there. Tool calls still need their own exact approval.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Remote MCP access</h3>}>Execution is on the pinned SSH host, not inside SendBox. A saved Local MCP account is not permission to send it there. Tool calls still need their own exact approval.</SettingsHelp>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {message && <p role="status">{message}</p>}
     <div className="button-row">
@@ -44,7 +43,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         setMessage("Remote grant revoked. Existing received access and external effects cannot be rolled back; retained results remain readable.");
       })}>Revoke Remote grant</button>
     </div>
-    {!ready && <SettingsHelp label="More about this setting">Probe the configured SSH target before a new review. Revocation and retained-result inspection do not need a ready host.</SettingsHelp>}
+    {!ready && <p className="fine-print">Probe the configured SSH target before a new review. Revocation and retained-result inspection do not need a ready host.</p>}
     {review && !preview && <p className="settings-warning">This review is stale. Review the current host, root and resource again; no permission was inferred.</p>}
     {preview && <>
       <dl className="mcp-remote-scope">
@@ -65,7 +64,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         await sdk.mcp.grantRemote(session.id, serverId, preview.digest, preview.settingsRevision, forwardAccess, true);
         setReview(null); setReviewed(false); setForwardAccess(false);
         setMessage("Grant saved. Probe SSH again, then discover tools under the new scope. No tool call started.");
-      })}>Save exact Remote grant</button>
+      })} aria-label="Save exact Remote grant">Save</button>
     </>}
     <details className="mcp-remote-history"><summary>Recorded Remote calls ({calls.length})</summary>
       {!calls.length && <p>No Remote call has been admitted for this resource. A grant or catalog is not a tool effect.</p>}
@@ -79,7 +78,7 @@ export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {
         })}>Inspect</button>
         {call.executionId && session.turnId !== call.turnId && <button disabled={busy} onClick={() => void run(async () => {
           await sdk.remote.reconcile(call.executionId!); setMessage("Existing SSH receipts reconciled. No tool or credential was replayed; an original partial turn stays partial.");
-        })}>Reconcile receipts</button>}
+        })} aria-label="Reconcile receipts">Reconcile</button>}
       </div>)}
       {inspection && <pre className="mcp-remote-result" aria-label="Remote MCP operation result">{inspection}</pre>}
     </details>

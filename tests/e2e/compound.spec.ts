@@ -33,16 +33,16 @@ test("desktop reviews public task/plan/architecture/source and model cost, separ
     await expect.poll(() => f.service.controller.snapshot().compoundWorkflows[0]?.status).toBe("waiting_validation");
     const review = compound.getByRole("region", { name: "Exact compound staging and test review", exact: true });
     await expect(review).toContainText(f.proposal.plan); await expect(review).toContainText(f.proposal.architecture); await expect(review).toContainText(f.command);
-    await expect(review.getByRole("button", { name: "Stage and run reviewed project tests", exact: true })).toBeDisabled();
+    await expect(review.getByRole("button", { name: "Stage and test using reviewed project script", exact: true })).toBeDisabled();
     expect(await f.source()).toBe("generated original\n"); expect(f.session().draft.text).toBe("Generated preserved unsent composer draft.");
     await review.getByLabel("Reviewed compound staging and test", { exact: true }).check();
-    await review.getByRole("button", { name: "Stage and run reviewed project tests", exact: true }).click();
+    await review.getByRole("button", { name: "Stage and test using reviewed project script", exact: true }).click();
     await expect.poll(() => f.service.controller.snapshot().compoundWorkflows[0]?.status).toBe("proposed");
     await expect(compound).toContainText("GENERATED_REAL_PROJECT_TEST_PASSED");
     expect(await f.source()).toBe("generated original\n");
-    await compound.getByRole("button", { name: "Inspect recommended candidate", exact: true }).click();
+    await compound.getByRole("button", { name: "View candidate recommended by workflow", exact: true }).click();
     const candidates = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
-    await candidates.getByRole("button", { name: "Review source application", exact: true }).click();
+    await candidates.getByRole("button", { name: "Review application to original source", exact: true }).click();
     await candidates.getByRole("button", { name: "Apply reviewed files", exact: true }).click();
     await expect.poll(() => f.sdk.getState().snapshot!.candidates[0]?.status).toBe("applied");
     expect(await f.source()).toBe(f.proposal.patch.edits[0]!.text); expect(await readFile(join(f.project, ".git/index"))).toEqual(index);
@@ -59,6 +59,7 @@ test("desktop saves only explicitly reviewed compound policy and exact-model lin
   try {
     const page = await app.firstWindow();
     await page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: /^Model:/ }).click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByText("Model details and setup", { exact: true }).click();
     await page.getByRole("button", { name: "Kupo settings", exact: true }).click();
     await page.getByLabel("kupo workflow", { exact: true }).selectOption("compound");
     await page.getByLabel("Complete compound routing policy", { exact: true }).fill(JSON.stringify(f.policy));
@@ -70,9 +71,9 @@ test("desktop saves only explicitly reviewed compound policy and exact-model lin
     await review.getByLabel("Lineage source URL", { exact: true }).fill("https://generated.example.invalid/training-report");
     await review.getByLabel("Lineage source text", { exact: true }).fill("Generated explicitly reviewed synthetic lineage report, not real training or quality proof.");
     await review.getByLabel("Lineage review limitations", { exact: true }).fill("Generated user policy claim only. Real training and model quality remain unproven.");
-    await expect(review.getByRole("button", { name: "Add reviewed lineage claim to draft", exact: true })).toBeDisabled();
+    await expect(review.getByRole("button", { name: "Add to draft: reviewed lineage claim", exact: true })).toBeDisabled();
     await review.getByLabel("Reviewed exact lineage source", { exact: true }).check();
-    await review.getByRole("button", { name: "Add reviewed lineage claim to draft", exact: true }).click();
+    await review.getByRole("button", { name: "Add to draft: reviewed lineage claim", exact: true }).click();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => f.sdk.routing.policy()?.workflow).toBe("compound");
     const policy = f.sdk.routing.policy(); expect(policy?.workflow).toBe("compound");

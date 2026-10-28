@@ -19,6 +19,7 @@ test("desktop explicitly previews, generates, reviews, applies and restores cont
     await expect.poll(() => f.session().draft.text).toBe("Generated desktop draft survives context changes.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toContainText("Draft saved");
     await page.locator('[data-composer-control="model"]').click();
+    await page.getByRole("dialog", { name: "Model", exact: true }).getByText("Model details and setup", { exact: true }).click();
     await page.getByRole("button", { name: "Review context and compactions", exact: true }).click();
     const review = page.getByRole("dialog", { name: "Context review", exact: true });
     await expect(review).toContainText("No compactions yet");
@@ -68,6 +69,7 @@ test("closing and reopening the review preserves the actual running compaction a
     const page = await app.firstWindow();
     const open = async () => {
       await page.locator('[data-composer-control="model"]').click();
+      await page.getByRole("dialog", { name: "Model", exact: true }).getByText("Model details and setup", { exact: true }).click();
       await page.getByRole("button", { name: "Review context and compactions", exact: true }).click();
       return page.getByRole("dialog", { name: "Context review", exact: true });
     };

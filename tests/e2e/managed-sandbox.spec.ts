@@ -99,11 +99,8 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: /^Review a private native workspace/ })).toHaveCount(0);
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await expect.poll(() => session().pendingApproval?.call.name, { timeout: 30_000 }).toBe("read_file");
-    await page.getByRole("button", { name: "Approve this action", exact: true }).click();
-    await expect.poll(() => session().pendingApproval?.call.name).toBe("write_file");
-    await page.getByRole("button", { name: "Approve this action", exact: true }).click();
-    await expect.poll(() => session().status).toBe("completed");
+    await expect.poll(() => session().status, { timeout: 30_000 }).toBe("completed");
+    expect(session().pendingApproval).toBeNull();
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     expect((await sdk.workspaces.file(created.id!, "fixture.txt")).text).toBe("generated native replacement\n");
     expect(service.controller.snapshot().sandboxWorkspaces![0]?.preparation?.kind).toBe("automatic");

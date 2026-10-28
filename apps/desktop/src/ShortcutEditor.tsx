@@ -19,7 +19,7 @@ export function ShortcutEditor({ label, value, change, save, dirty, disabled }: 
       try { change(shortcutFromEvent(event)); setRecording(false); setError(""); }
       catch (error) { setError(error instanceof Error ? error.message : "Choose a qualified shortcut."); }
     }} /></label>
-    <div className="button-row"><button type="button" disabled={disabled} aria-pressed={recording} onClick={() => { setRecording(true); setError(""); input.current?.focus(); }}>{recording ? "Press a shortcut..." : `Record ${label}`}</button>
+    <div className="button-row"><button type="button" disabled={disabled} aria-pressed={recording} aria-label={recording ? "Press a shortcut..." : `Record ${label}`} onClick={() => { setRecording(true); setError(""); input.current?.focus(); }}>{recording ? "Press a shortcut..." : "Record"}</button>
       <button type="button" className="primary" aria-label={`Save ${label}`} disabled={disabled || !dirty || recording} onClick={save}>Save</button></div>
     {error && <p className="inline-error" role="alert">{error}</p>}
   </div>;

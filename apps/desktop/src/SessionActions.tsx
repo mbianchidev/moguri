@@ -95,9 +95,8 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
       {error && <p className="inline-error" role="alert">{error}</p>}
       {review.action === "delete" && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
         {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}</label>}
-      <label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
-        {review.action === "detach" ? "Do not ask again when detaching sessions" : review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>
-      <SettingsHelp label="More about this setting">Change this preference in Settings / {review.action === "detach" ? "Confirmations" : "Sessions"}. It does not grant tool permissions or enable automatic cleanup.</SettingsHelp>
+      <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
+        {review.action === "detach" ? "Do not ask again when detaching sessions" : review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>}>Change this preference in Settings / {review.action === "detach" ? "Confirmations" : "Sessions"}. It does not grant tool permissions or enable automatic cleanup.</SettingsHelp>
       <div className="button-row"><button ref={cancel} type="button" disabled={busy} onClick={close}>{review.action === "delete" ? "Cancel deletion" : "Cancel"}</button>
         <button type="submit" className={review.action === "delete" ? "danger" : "primary"} disabled={busy || stale || review.action === "delete" && !confirmed}>{title}</button></div>
     </form>

@@ -30,9 +30,9 @@ test("desktop exposes qualified finite kupo and separately reviews actual-user a
     await panel.getByRole("button", { name: "Review accepted-work Git checkpoint", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact accepted-work checkpoint Git review", exact: true });
     await expect(review).toContainText(accepted.document.patch.edits[0]!.text.trim());
-    await expect(review.getByRole("button", { name: "Create reviewed local checkpoint branch", exact: true })).toBeDisabled();
+    await expect(review.getByRole("button", { name: "Commit on new branch from reviewed checkpoint", exact: true })).toBeDisabled();
     await review.getByLabel("Reviewed accepted-work checkpoint Git branch", { exact: true }).check();
-    await review.getByRole("button", { name: "Create reviewed local checkpoint branch", exact: true }).click();
+    await review.getByRole("button", { name: "Commit on new branch from reviewed checkpoint", exact: true }).click();
     await expect.poll(() => f.sdk.winddown.list(f.sessionId)[0]?.status).toBe("completed");
     expect(f.git!(["rev-parse", "HEAD"])).toBe(head); expect(await readFile(join(f.project, ".git/index"))).toEqual(index);
     expect(f.requests).toHaveLength(1); expect(f.checkpoint.requests).toHaveLength(1);

@@ -2,13 +2,13 @@ import { cloneElement, useEffect, useId, useLayoutEffect, useRef, useState, type
 import { createPortal } from "react-dom";
 import { Icon } from "./Icon.tsx";
 
-export function Tooltip({ children, content, openOnClick = false }: {
-  children: ReactElement<AriaAttributes>; content: ReactNode; openOnClick?: boolean;
+export function Tooltip({ children, content, openOnClick = false, disabled = false }: {
+  children: ReactElement<AriaAttributes>; content: ReactNode; openOnClick?: boolean; disabled?: boolean;
 }) {
   const id = useId(), trigger = useRef<HTMLSpanElement>(null), popup = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 0 });
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const show = () => { clearTimeout(closeTimer.current); setOpen(true); };
+  const show = () => { if (!disabled) { clearTimeout(closeTimer.current); setOpen(true); } };
   const leave = () => {
     clearTimeout(closeTimer.current);
     closeTimer.current = setTimeout(() => {
@@ -16,17 +16,18 @@ export function Tooltip({ children, content, openOnClick = false }: {
     }, 100);
   };
   useEffect(() => () => clearTimeout(closeTimer.current), []);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
   useEffect(() => {
-    if (!open) return;
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.stopPropagation(); setOpen(false); } };
+    if (!open || disabled) return;
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setOpen(false); } };
     const dismiss = (event: PointerEvent) => {
       if (event.target instanceof Node && !trigger.current?.contains(event.target) && !popup.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener("keydown", escape, true); document.addEventListener("pointerdown", dismiss, true);
     return () => { document.removeEventListener("keydown", escape, true); document.removeEventListener("pointerdown", dismiss, true); };
-  }, [open]);
+  }, [open, disabled]);
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open || disabled) return;
     const place = () => {
       const anchor = trigger.current?.getBoundingClientRect(), box = popup.current?.getBoundingClientRect();
       if (!anchor || !box) return;
@@ -35,13 +36,13 @@ export function Tooltip({ children, content, openOnClick = false }: {
     };
     place(); window.addEventListener("resize", place); window.addEventListener("scroll", place, true);
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
-  }, [open, content]);
+  }, [open, content, disabled]);
   return <span ref={trigger} className="tooltip-trigger" onMouseEnter={show} onMouseLeave={leave} onFocus={show}
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}
     onClick={openOnClick ? show : undefined}>
-    {cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], open ? id : null].filter(Boolean).join(" ") || undefined })}
-    {open && createPortal(<div ref={popup} id={id} role="tooltip" className="compact-tooltip" style={position}
-      onMouseEnter={show} onMouseLeave={leave}>{content}</div>, trigger.current?.closest("dialog") ?? document.body)}
+    {cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], open && !disabled ? id : null].filter(Boolean).join(" ") || undefined })}
+    {open && !disabled && createPortal(<div ref={popup} id={id} role="tooltip" className="compact-tooltip" style={position}
+      onMouseEnter={show} onMouseLeave={leave}>{content}</div>, trigger.current?.closest("dialog, [popover]") ?? document.body)}
   </span>;
 }
 

@@ -20,8 +20,8 @@ export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDir
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const reset = () => { setDraftModel(""); setCriticModel(""); setDraftLineage(""); setCriticLineage(""); setSourceUrl(""); setSourceText(""); setLimitations(""); setReviewed(false); };
   return <section className="candidate-section" aria-label="Source-backed lineage review" aria-busy={busy}>
-    <h3>Actual-user source claim</h3><p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
-    <SettingsHelp label="More about this setting">This prepares a local policy draft only. No source URL is fetched, provider metadata inspected, policy saved or model called. Save settings separately after reviewing the complete policy.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Actual-user source claim</h3>}>This prepares a local policy draft only. No source URL is fetched, provider metadata inspected, policy saved or model called. Save settings separately after reviewing the complete policy.</SettingsHelp><p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
+
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     <label className="setting-field">Exact draft model<select aria-label="Lineage draft model" value={draftModelId} disabled={disabled || busy} onChange={(event) => setDraftModel(event.target.value)}>
       <option value="">Choose actual draft binding</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name} / {model.id}</option>)}</select></label>
@@ -42,7 +42,7 @@ export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDir
       onClick={() => { setBusy(true); setError(""); setNotice(""); void sdk.compound.lineageDraft({ draftModelId, criticModelId, draftLineage, criticLineage, sourceKind, sourceUrl, sourceText, validUntil, limitations })
         .then((value) => { onPrepared(value.review, draftModelId, criticModelId); reset(); setNotice("Exact model/source claim added only to the local policy draft and matching Critique routes. Review and Save settings separately; no model or source acceptance."); })
         .catch((error: unknown) => setError(error instanceof Error ? error.message : "Lineage draft could not be prepared. Your source and review fields were preserved."))
-        .finally(() => setBusy(false)); }}>Add reviewed lineage claim to draft</button>
-      <button disabled={disabled || busy || !dirty} onClick={reset}>Discard unsaved lineage form</button></div>
+        .finally(() => setBusy(false)); }} aria-label="Add to draft: reviewed lineage claim">Add to draft</button>
+      <button disabled={disabled || busy || !dirty} onClick={reset} aria-label="Discard unsaved lineage form">Discard</button></div>
   </section>;
 }

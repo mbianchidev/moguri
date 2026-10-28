@@ -32,7 +32,7 @@ test("explicit sound snapshots, separate auto-saved event choices and native pre
     await page.getByLabel("Play a sound: session completed", { exact: true }).uncheck();
     await expect.poll(() => sdk.settings.get()?.values.notifications.completedSound?.enabled).toBe(false);
     await page.getByRole("combobox", { name: "Needs attention sound", exact: true }).selectOption("default");
-    await page.getByLabel("Confirm removal of Generated alert", { exact: true }).check();
+    await page.getByRole("combobox", { name: "Sound reviewed for removal", exact: true }).selectOption(sound.id);
     await page.getByRole("button", { name: "Remove Generated alert", exact: true }).click();
     await expect.poll(() => sdk.notifications.list().length).toBe(0);
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");

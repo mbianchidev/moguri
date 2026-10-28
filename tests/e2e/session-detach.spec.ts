@@ -29,7 +29,7 @@ for (const scope of ["Chats", "project"] as const) {
       await row(page, before.title).dragTo(row(page, "Generated child first"), { targetPosition: { x: 45, y: 3 } });
       await expect.poll(() => sdk.getState().snapshot!.sessions.filter((session) => session.parentSessionId === parent.id)
         .sort(compareSessions).map((session) => session.id)).toEqual([second.id, first.id]);
-      await row(page, before.title).dragTo(row(page, "Generated drag parent"));
+      await row(page, before.title).dragTo(row(page, "Generated drag parent"), { targetPosition: { x: 45, y: 3 } });
       await expect(review(page)).toBeVisible();
       await expect(review(page)).toContainText("Generated drag parent");
       await expect(review(page).getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
@@ -38,7 +38,7 @@ for (const scope of ["Chats", "project"] as const) {
       await expect(review(page)).toHaveCount(0);
       await expect(link(page, before.title)).toBeFocused();
       expect(sdk.getState().snapshot!.sessions.find((session) => session.id === second.id)?.parentSessionId).toBe(parent.id);
-      await row(page, before.title).dragTo(row(page, "Generated drag parent"));
+      await row(page, before.title).dragTo(row(page, "Generated drag parent"), { targetPosition: { x: 45, y: 3 } });
       await review(page).getByRole("button", { name: "Detach session", exact: true }).click();
       await expect.poll(() => sdk.getState().snapshot!.sessions.find((session) => session.id === second.id)?.parentSessionId ?? null).toBeNull();
       await expect(link(page, before.title)).toBeFocused();
@@ -57,7 +57,7 @@ test("remembered detachment applies to drag and keyboard actions, survives reloa
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
-    await row(page, "Generated remembered child").dragTo(row(page, fixture.session().title));
+    await row(page, "Generated remembered child").dragTo(row(page, fixture.session().title), { targetPosition: { x: 45, y: 3 } });
     await review(page).getByLabel("Do not ask again when detaching sessions", { exact: true }).check();
     await review(page).getByRole("button", { name: "Detach session", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.sessions.find((session) => session.id === child.id)?.parentSessionId ?? null).toBeNull();
@@ -73,6 +73,7 @@ test("remembered detachment applies to drag and keyboard actions, survives reloa
     await expect(preference).not.toBeChecked();
     await preference.check();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect.poll(() => sdk.settings.get()?.values.interactions.confirmSessionDetach).toBe(true);
     await expect(preference).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toHaveCount(1);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
@@ -91,7 +92,7 @@ test("a changed hierarchy invalidates the exact reviewed detachment", async () =
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
-    await row(page, "Generated stale child").dragTo(row(page, fixture.session().title));
+    await row(page, "Generated stale child").dragTo(row(page, fixture.session().title), { targetPosition: { x: 45, y: 3 } });
     await expect(review(page)).toBeVisible();
     await sdk.sessions.organize(child.id!, { parentSessionId: other.id! });
     await expect(review(page).getByRole("alert")).toContainText("changed");
@@ -172,7 +173,7 @@ test("a failed remembered preference cannot detach or falsely clear review", asy
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
-    await row(page, "Generated failed-preference child").dragTo(row(page, fixture.session().title));
+    await row(page, "Generated failed-preference child").dragTo(row(page, fixture.session().title), { targetPosition: { x: 45, y: 3 } });
     await review(page).getByLabel("Do not ask again when detaching sessions", { exact: true }).check();
     await review(page).getByRole("button", { name: "Detach session", exact: true }).click();
     await expect(review(page).getByRole("alert")).toContainText("Generated preference save failed");
@@ -197,7 +198,7 @@ test("a hierarchy change during preference persistence cannot be detached by an 
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
-    await row(page, "Generated racing child").dragTo(row(page, fixture.session().title));
+    await row(page, "Generated racing child").dragTo(row(page, fixture.session().title), { targetPosition: { x: 45, y: 3 } });
     await review(page).getByLabel("Do not ask again when detaching sessions", { exact: true }).check();
     await review(page).getByRole("button", { name: "Detach session", exact: true }).click();
     await waitFor(() => entered);

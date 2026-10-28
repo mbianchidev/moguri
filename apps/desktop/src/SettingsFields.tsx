@@ -1,4 +1,4 @@
-import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState, type ComponentPropsWithoutRef, type ReactNode, type RefObject } from "react";
+import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState, type ComponentPropsWithoutRef, type ReactElement, type ReactNode, type RefObject } from "react";
 import { Icon } from "./Icon.tsx";
 import { InfoTip, Tooltip } from "./Tooltip.tsx";
 
@@ -6,8 +6,15 @@ const SettingsContext = createContext(false);
 export function SettingsFieldsProvider({ children }: { children: ReactNode }) {
   return <SettingsContext.Provider value>{children}</SettingsContext.Provider>;
 }
-export function SettingsHelp({ label, children }: { label: string; children: ReactNode }) {
-  return useContext(SettingsContext) ? <InfoTip label={label}>{children}</InfoTip> : <p className="fine-print">{children}</p>;
+export function SettingsHelp({ label, children, target, descriptionFirst = false }: { label: string; children: ReactNode; target: ReactElement; descriptionFirst?: boolean }) {
+  const active = useContext(SettingsContext);
+  if (!children) return target;
+  const description = active ? <InfoTip label={label}>{children}</InfoTip> : <p className="fine-print">{children}</p>;
+  return active ? <div className="settings-help-row">{target}{description}</div> :
+    <>{descriptionFirst && description}{target}{!descriptionFirst && description}</>;
+}
+export function SettingsAction({ label, icon, className = "", ...props }: Omit<ComponentPropsWithoutRef<"button">, "children" | "aria-label"> & { label: string; icon: string }) {
+  return <Tooltip content={label}><button {...props} type={props.type ?? "button"} className={`icon-button ${className}`} aria-label={label}><Icon name={icon} /></button></Tooltip>;
 }
 
 function CopyField({ input, name, multiline = false, children }: {
@@ -40,7 +47,7 @@ export const SettingsInput = forwardRef<HTMLInputElement, ComponentPropsWithoutR
   const active = useContext(SettingsContext);
   const input = useRef<HTMLInputElement>(null);
   useImperativeHandle(ref, () => input.current!, []);
-  const field = <input {...props} type={type} ref={input} />;
+  const field = <input {...props} type={type} role={props.role ?? (active && type === "checkbox" ? "switch" : undefined)} ref={input} />;
   return active && ["text", "search", "url", "email", "tel", "number", "date", "time", "datetime-local"].includes(type) ?
     <CopyField input={input} name={props["aria-label"] ?? props.name}>{field}</CopyField> : field;
 });

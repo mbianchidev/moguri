@@ -32,6 +32,8 @@ test("the session Agent tab renders actual approved command output in read-only 
     await expect(agent).not.toContainText("GENERATED_PRIVATE_USER_CONSOLE");
     await expect(agent).toContainText("completed");
     await expect(agent).toContainText("Local");
+    const follow = agent.getByRole("switch", { name: "Follow latest output", exact: true });
+    await expect(follow).toBeChecked(); await follow.uncheck(); await expect(follow).not.toBeChecked(); await follow.check();
     expect((await sdk.agentTerminals.list(fixture.sessionId)).activity.entries.length).toBe(1);
     expect(sdk.getState().snapshot!.terminals.length).toBe(1);
     await agent.getByRole("textbox", { name: "Agent terminal output", exact: true }).focus();

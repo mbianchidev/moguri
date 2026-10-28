@@ -31,7 +31,7 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     await expect(panel.getByRole("region", { name: "Owned generation outcome", exact: true })).toContainText("Generated, not staged or accepted");
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe("generated original\n");
     expect(await readFile(join(f.workspace.path, "fixture.txt"), "utf8")).toBe("generated original\n"); expect(f.requests).toHaveLength(1);
-    await panel.getByRole("button", { name: "Load generated proposal for staging review", exact: true }).click();
+    await panel.getByRole("button", { name: "Load for review generated proposal", exact: true }).click();
     await expect(panel.getByLabel("Proposed file text", { exact: true })).toHaveValue(generatedCandidatePatch.edits[0]!.text);
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/generated-candidate-desktop.png") });
@@ -40,7 +40,7 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     await panel.getByRole("button", { name: "Stage reviewed proposal", exact: true }).click();
     await expect.poll(() => f.service.controller.snapshot().candidates[0]?.status).toBe("staged");
     expect(f.service.controller.snapshot().candidates[0]?.generationId).toBe(generation.id);
-    await panel.getByRole("button", { name: "Review source application", exact: true }).click();
+    await panel.getByRole("button", { name: "Review application to original source", exact: true }).click();
     await panel.getByRole("button", { name: "Apply reviewed files", exact: true }).click();
     await expect.poll(() => f.service.controller.snapshot().candidates[0]?.status).toBe("applied");
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe(generatedCandidatePatch.edits[0]!.text);

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { setupFixture, waitFor } from "../fixture.ts";
+import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native attention-row layout qualification is macOS-only.");
@@ -23,6 +23,7 @@ async function compact(link: Locator, label: string) {
 
 for (const kind of ["approval", "question"] as const) test(`${kind} stays a small dot and glyph with a readable title in narrow, selected and unselected session rows`, async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  if (kind === "approval") await reviewNativeTools(fixture, ["write_file"]);
   const name = `Generated ${kind} session with a long title`, label = kind === "approval" ? "Permission or approval needed" : "Question needs your answer";
   await sdk.sessions.organize(fixture.sessionId, { title: name });
   await fixture.configure(); await fixture.send(kind === "approval" ? "generated forbidden write" : "generated structured question choices only");

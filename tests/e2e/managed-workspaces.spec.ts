@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, type ManagedWorkspace } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 
@@ -68,5 +68,37 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     expect(git(["branch", "--show-current"])).toBe("main"); expect(git(["write-tree"])).toBe(baseIndex);
     expect(await readFile(join(fixture.project, "fixture.txt"), "utf8")).toBe("generated original\n");
     expect(failures).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("worktree removal uses one explicit dropdown target and a bin action while preserving every branch and unselected checkout", async () => {
+  const fixture = await setupFixture(), git = initializeGeneratedRepository(fixture.project);
+  const sdk = await new MoguriSdk(fixture.service.connection).ready(), workspaces: ManagedWorkspace[] = [];
+  for (const branch of ["moguri/generated-removal-first", "moguri/generated-removal-second"]) {
+    const created = await sdk.workspaces.create(fixture.session().projectId, branch, { baseRef: "main" });
+    workspaces.push(await sdk.workspaces.wait(created.id!));
+  }
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Project", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Managed worktrees", exact: true });
+    for (const workspace of workspaces) await panel.locator(".workspace-record").filter({ hasText: workspace.branch }).locator("summary").click();
+    const target = panel.getByRole("combobox", { name: "Workspace reviewed for removal", exact: true });
+    await expect(target).toHaveValue("");
+    const first = panel.getByRole("button", { name: `Remove worktree ${workspaces[0]!.branch}`, exact: true });
+    const second = panel.getByRole("button", { name: `Remove worktree ${workspaces[1]!.branch}`, exact: true });
+    await target.selectOption(workspaces[0]!.id);
+    await expect(first).toBeEnabled(); await expect(second).toBeDisabled();
+    await target.selectOption(workspaces[1]!.id);
+    await expect(first).toBeDisabled(); await expect(second.locator("svg[data-icon='Trash']")).toBeVisible();
+    await second.click();
+    await expect.poll(() => sdk.getState().snapshot?.managedWorkspaces.find((workspace) => workspace.id === workspaces[1]!.id)?.status).toBe("removed");
+    expect(sdk.getState().snapshot?.managedWorkspaces.find((workspace) => workspace.id === workspaces[0]!.id)?.status).toBe("ready");
+    expect(git(["branch", "--list", workspaces[1]!.branch])).toContain(workspaces[1]!.branch);
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
+    expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

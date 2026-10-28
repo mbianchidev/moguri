@@ -1,5 +1,18 @@
 import { expect, type Page } from "@playwright/test";
 
+export async function openModelChoices(page: Page) {
+  await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: "Choose model", exact: true }).click();
+  return page.getByRole("menu", { name: "Models", exact: true });
+}
+export async function chooseThinkingEffort(page: Page, name: string) {
+  await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: "Thinking effort", exact: true }).click();
+  await page.getByRole("menu", { name: "Thinking effort", exact: true }).getByRole("menuitemradio", { name, exact: true }).click();
+}
+export async function chooseContextWindow(page: Page, name: string) {
+  await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: "Working context window", exact: true }).click();
+  await page.getByRole("menu", { name: "Working context window", exact: true }).getByRole("menuitemradio", { name, exact: true }).click();
+}
+
 export async function openSettingsSection(page: Page, section: string) {
   const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
   if (!await categories.isVisible()) await page.getByRole("button", { name: "Settings", exact: true }).click();

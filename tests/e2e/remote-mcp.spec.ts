@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
+import { reviewNativeTools } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const openApp = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -14,6 +15,7 @@ test("desktop reviews an exact Remote grant, approves a provider-free SSH call a
   const f = await remoteFixture({ exposeModels: false }), sdk = await new MoguriSdk(f.service.connection).ready();
   let app: ElectronApplication | undefined;
   try {
+    await reviewNativeTools(sdk, ["mcp_gateway"]);
     await f.probe(); await sdk.sessions.env(f.sessionId, "Remote");
     app = await openApp(f.directory);
     const page = await app.firstWindow(), failures: string[] = [];
@@ -41,7 +43,7 @@ test("desktop reviews an exact Remote grant, approves a provider-free SSH call a
     await page.getByRole("button", { name: "Discover tools", exact: true }).click();
     await page.locator(".tool-discovery-row").filter({ hasText: "grep_logs" }).click();
     await page.getByLabel("Exact MCP JSON arguments", { exact: true }).fill(JSON.stringify({ path: "fixture.txt", query: "remote source" }));
-    await page.getByRole("button", { name: "Request exact call in main session", exact: true }).click();
+    await page.getByRole("button", { name: "Request in main session with exact arguments", exact: true }).click();
     await expect.poll(() => f.session().pendingApproval?.call.name).toBe("mcp_gateway");
     expect(f.controller.snapshot().executions.length).toBe(0); expect(f.requests.length).toBe(0);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();

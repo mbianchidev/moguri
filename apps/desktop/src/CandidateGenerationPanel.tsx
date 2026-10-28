@@ -37,16 +37,16 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
   };
   return <details className="candidate-section" open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
     <summary>Generate a separate model proposal</summary>
-    <SettingsHelp label="More about this setting">Choose source files and a separate staging worktree below. This sends original reviewed source, not unsaved proposed edits. Generation never stages, applies or executes its output.</SettingsHelp>
+
     <p className="fine-print">Selected fixed model: {fixed ? model?.name : "None / choose an available fixed model in the composer"}. No provider or Env fallback.</p>
-    <label className="setting-field">Generation task<SettingsTextarea className="generation-task" aria-label="Candidate generation task" maxLength={4096} value={task} disabled={Boolean(busy)} readOnly={!writable || changed}
-      onChange={(event) => { setTask(event.target.value); if (taskScope === null) setTaskScope(scope); }} placeholder="Describe the change for the selected files" /></label>
+    <SettingsHelp label="More about this setting" target={<label className="setting-field">Generation task<SettingsTextarea className="generation-task" aria-label="Candidate generation task" maxLength={4096} value={task} disabled={Boolean(busy)} readOnly={!writable || changed}
+      onChange={(event) => { setTask(event.target.value); if (taskScope === null) setTaskScope(scope); }} placeholder="Describe the change for the selected files" /></label>} descriptionFirst>Choose source files and a separate staging worktree below. This sends original reviewed source, not unsaved proposed edits. Generation never stages, applies or executes its output.</SettingsHelp>
     {changed && <p className="settings-warning">The task belongs to an older source scope. Copy it or explicitly discard before reviewing another root.</p>}
     <div className="button-row"><button disabled={Boolean(busy) || !writable || !fixed || changed || !task.trim() || !files.length || !stageId} onClick={() => void run("Reviewing generation", async (current) => {
       if (!session) return;
       const input = { task, files }, value = await sdk.candidates.generatePreview(session.id, stageId, input);
       if (current()) setPreview({ value: value.preview, input, sessionId: session.id, stageId, key });
-    })}>Review model generation</button><button disabled={Boolean(busy) || !task} onClick={() => { setTask(""); setTaskScope(null); setPreview(null); setApproved(false); }}>Discard generation task</button></div>
+    })} aria-label="Review model generation">Review</button><button disabled={Boolean(busy) || !task} onClick={() => { setTask(""); setTaskScope(null); setPreview(null); setApproved(false); }} aria-label="Discard generation task">Discard</button></div>
     {preview && preview.key === key && <section className="generation-review" aria-label="Exact model generation review">
       <p className="fine-print">{preview.input.files.length} selected files / {preview.value.estimatedInputTokens.toLocaleString()} estimated input tokens / at most {preview.value.maxOutputTokens.toLocaleString()} output tokens.</p>
       <p className="settings-warning">{preview.value.warning}</p>
@@ -55,7 +55,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
       <button className="primary" disabled={Boolean(busy) || !approved || !writable || preview.key !== key} onClick={() => void run("Starting owned generation", async (current) => {
         const captured = preview, created = await sdk.candidates.generate(captured.sessionId, captured.stageId, captured.input, captured.value.digest, true);
         if (current()) { setSelectedId(created.id!); setTask(""); setTaskScope(null); setPreview(null); setApproved(false); setNotice("Owned generation started. Its report survives this panel; source and staging remain unchanged."); }
-      })}>Generate reviewed proposal</button>
+      })} aria-label="Generate reviewed proposal">Generate</button>
     </section>}
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     <label className="setting-field">Generation report<select aria-label="Retained generation report" value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
@@ -63,20 +63,20 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
     </select></label>
     {selected && <section className="generation-outcome" aria-label="Owned generation outcome">
       <header className="panel-toolbar"><strong>{selected.status === "proposed" ? "Generated, not staged or accepted" : `Generation ${selected.status}`}</strong>
-        {selected.status === "running" && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stopGeneration(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Generation stop was not confirmed.")).finally(() => setStopping(false)); }}>{stopping ? "Requesting stop..." : "Stop generation"}</button>}</header>
+        {selected.status === "running" && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stopGeneration(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Generation stop was not confirmed.")).finally(() => setStopping(false)); }} aria-label={stopping ? "Requesting stop..." : "Stop generation"}>{stopping ? "Requesting stop..." : "Stop"}</button>}</header>
       <p className="fine-print path">Actual model: {selected.modelId}. {usage ? usage.reportedTokens === null ? `Usage unreported; ${usage.reservedTokens ?? "unknown"} reserved tokens remain held.` : `${usage.reportedTokens.toLocaleString()} reported tokens.` : "No admitted model step is recorded yet."} No provider bill was inferred.</p>
       <p className="fine-print">Source: {selected.source.branch} / base {selected.source.head.slice(0, 12)}. Generation is untrusted model output, not a user answer, file approval or quality claim.</p>
       {selected.diagnostic && <p className="settings-warning" role="alert">{selected.diagnostic}</p>}
       {loaded && <><details><summary>Captured generation input and roots</summary><p className="fine-print path">Local source: {loaded.input.source.root}<br />Owned stage: {loaded.input.stage.root}</p><p>{loaded.input.task}</p><p className="fine-print">{loaded.input.files.map((file) => file.path).join(", ")}</p></details>
         {loaded.proposal && <><details><summary>Exact generated files ({loaded.proposal.patch.edits.length})</summary>{loaded.proposal.patch.edits.map((edit) => <div className="candidate-file-review" key={edit.path}><strong className="path">{edit.path}</strong><pre>{edit.text || "(Empty proposed file)"}</pre></div>)}</details>
-          <button disabled={Boolean(busy) || !writable || draftDirty || !compatible || selected.status !== "proposed"} onClick={() => { try { onLoad(loaded); setNotice("Loaded locally for a separate exact staging review. Nothing was written or accepted."); setExpanded(false); } catch (error) { setError(error instanceof Error ? error.message : "Proposal was not loaded into this scope."); } }}>{loadedGenerationId === selected.id ? "Loaded for staging review" : "Load generated proposal for staging review"}</button>
-          {loadedGenerationId === selected.id ? <SettingsHelp label="More about this setting">Generated bytes are in the draft below. Review staging, then source application separately. Editing the bytes clears verified model attribution.</SettingsHelp> : draftDirty && <p className="fine-print">Copy or discard your unsaved draft before loading generated bytes; they are never silently replaced.</p>}
-          {!compatible && <SettingsHelp label="More about this setting">Select the original compatible Local source and ready captured staging worktree to load this proposal. The service rechecks current bases before staging.</SettingsHelp>}
+          <button disabled={Boolean(busy) || !writable || draftDirty || !compatible || selected.status !== "proposed"} onClick={() => { try { onLoad(loaded); setNotice("Loaded locally for a separate exact staging review. Nothing was written or accepted."); setExpanded(false); } catch (error) { setError(error instanceof Error ? error.message : "Proposal was not loaded into this scope."); } }} aria-label={loadedGenerationId === selected.id ? "Loaded for review" : "Load for review generated proposal"}>{loadedGenerationId === selected.id ? "Loaded for review" : "Load for review"}</button>
+          {loadedGenerationId === selected.id ? <p className="fine-print">Generated bytes are in the draft below. Review staging, then source application separately. Editing the bytes clears verified model attribution.</p> : draftDirty && <p className="fine-print">Copy or discard your unsaved draft before loading generated bytes; they are never silently replaced.</p>}
+          {!compatible && <p className="fine-print">Select the original compatible Local source and ready captured staging worktree to load this proposal. The service rechecks current bases before staging.</p>}
         </>}
         {loaded.text !== null && <details><summary>Raw model output (untrusted)</summary><pre>{loaded.text}</pre></details>}
       </>}
     </section>}
-    {!reports.length && <SettingsHelp label="More about this setting">No retained generations yet. Review selected source/model data first; saving settings or selecting a report never calls a model.</SettingsHelp>}
+    {!reports.length && <p className="fine-print">No retained generations yet. Review selected source/model data first; saving settings or selecting a report never calls a model.</p>}
     {busy && <p className="fine-print" role="status">{busy}...</p>}
   </details>;
 }

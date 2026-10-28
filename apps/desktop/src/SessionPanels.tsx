@@ -1,49 +1,83 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DraftEditor, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
-import { chatSubmission, useQueueModifier } from "./ChatComposer.tsx";
+import { ChatComposer } from "./ChatComposer.tsx";
 import { TaskPlanPanel } from "./TaskProgress.tsx";
 import { QuestionCard } from "./QuestionCard.tsx";
 import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
+import { ApprovalActions } from "./ApprovalActions.tsx";
+import type { SettingsTab } from "./settings-catalog.ts";
+import { RepositoryPicker } from "./RepositoryPicker.tsx";
+
+export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const root = session.controls.env === "Local" ? session.homeRoot : undefined;
+  const writers = root ? snapshot.chatWriters.filter((writer) => writer.status === "unconfirmed" && writer.root.root === root.root &&
+    writer.root.device === root.device && writer.root.inode === root.inode) : [];
+  if (!writers.length) return null;
+  return <section className="settings-warning" aria-label="Home writer inspection"><strong>Home needs inspection</strong>
+    <p>Inspect the original files and processes before acknowledging risk. This does not prove cleanup, grant permissions or resume queued prompts.</p>
+    {writers.map((writer) => <details key={writer.id} open><summary>Interrupted Home writer</summary>
+      <p className="path">{writer.root.root} / {writer.id}</p><p>{writer.diagnostic}</p>
+      {snapshot.sessions.some((source) => source.id === writer.sessionId) ? writer.sessionId !== session.id &&
+        <button type="button" disabled={busy} onClick={() => void chooseSession(writer.sessionId)}>Open original chat</button> :
+        <p>Original chat removed. Its independent writer record remains.</p>}
+      <button type="button" disabled={busy || Boolean(session.turnId) || snapshot.sessions.some((source) => source.id === writer.sessionId && source.turnId === writer.turnId)}
+        onClick={() => {
+          setBusy(true); setError("");
+          void sdk.workspaces.acknowledgeHomeWriter(session.id, writer.id, writer.revision, true)
+            .catch((error: unknown) => setError(error instanceof Error ? error.message : "The exact Home inspection was not acknowledged. Original ownership remains."))
+            .finally(() => setBusy(false));
+        }}>Acknowledge inspected Home</button>
+    </details>)}
+    {error && <p className="inline-error" role="alert">{error}</p>}
+  </section>;
+}
 
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
+  const [repository, setRepository] = useState(""), generation = useRef(0);
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
   const [error, setError] = useState("");
   const load = async () => {
     setError("");
-    if (!session.projectId) { setError("Select a project to inspect file changes."); return; }
-    try { setData(await sdk.workspaces.git(session.id)); }
-    catch (error) { setError(error instanceof Error ? error.message : "Git status could not be read."); }
+    const current = ++generation.current; setData(null);
+    if (session.repositories && !repository) return;
+    if (!session.projectId && !session.repositories) { setError("Select a project to inspect file changes."); return; }
+    try { const data = await sdk.workspaces.git(session.id, true, repository || undefined); if (generation.current === current) setData(data); }
+    catch (error) { if (generation.current === current) setError(error instanceof Error ? error.message : "Git status could not be read."); }
   };
-  useEffect(() => { void load(); }, [session.id, session.workspaceId, session.turnId]);
-  return <section className="changes-panel"><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" onClick={() => void load()}><Icon name="Down" /></button></header>
+  useEffect(() => { void load(); return () => { generation.current++; }; }, [session.id, session.workspaceId, session.turnId, repository]);
+  return <section className="changes-panel"><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Down" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;
 }
 export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
+  const [repository, setRepository] = useState("");
   const [path, setPath] = useState("."), [entries, setEntries] = useState<string[]>([]), [file, setFile] = useState<{ path: string; text: string } | null>(null);
   const [loading, setLoading] = useState(false), [error, setError] = useState(""), generation = useRef(0);
   useEffect(() => {
     const current = ++generation.current; setLoading(true); setError(""); setFile(null);
-    void sdk.workspaces.files(session.id, path).then((result) => { if (generation.current === current) setEntries(result.entries); })
+    if (session.repositories && !repository) { setEntries([]); setLoading(false); return; }
+    void sdk.workspaces.files(session.id, path, repository || undefined).then((result) => { if (generation.current === current) setEntries(result.entries); })
       .catch((error: unknown) => { if (generation.current === current) { setEntries([]); setError(error instanceof Error ? error.message : "Directory could not be read from the bound root."); } })
       .finally(() => { if (generation.current === current) setLoading(false); });
     return () => { generation.current++; };
-  }, [session.id, session.workspaceId, session.sandboxWorkspaceId, session.controls.env, path]);
+  }, [session.id, session.workspaceId, session.sandboxWorkspaceId, session.controls.env, path, repository]);
   const open = (entry: string) => {
     if (entry.endsWith("/")) { setPath(entry.slice(0, -1)); return; }
     const current = ++generation.current; setLoading(true); setError("");
-    void sdk.workspaces.file(session.id, entry).then((result) => { if (generation.current === current) setFile(result); })
+    void sdk.workspaces.file(session.id, entry, repository || undefined).then((result) => { if (generation.current === current) setFile(result); })
       .catch((error: unknown) => { if (generation.current === current) setError(error instanceof Error ? error.message : "File could not be read."); })
       .finally(() => { if (generation.current === current) setLoading(false); });
   };
-  return <section className="files-panel" aria-label="Bound workspace files"><header className="panel-toolbar">
+  return <section className="files-panel" aria-label="Bound workspace files"><RepositoryPicker session={session} value={repository}
+    change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
-    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
+    <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
 interface PlanPanelProps { sdk: MoguriSdk; session: Session; snapshot: Snapshot; workspaceScope: string; onDirty: (dirty: boolean) => void; modal?: (open: boolean) => void }
@@ -206,77 +240,69 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
       session.controls.env === "Local" ? "Isolated web preview. Agent access is off until you enable it; tool approvals still apply." : "Local preview only. Agent browser control is unavailable in Sandbox and Remote; no Local fallback."}</p>
   </section>;
 }
-export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, editorFor, onDirty }: {
+export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, editorFor, onDirty, openSettings, modal, renderTranscript, renderQueue }: {
   sdk: MoguriSdk; parent: Session; snapshot: Snapshot; selectedId: string | null; select: (id: string) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
   editorFor: (session: Session) => DraftEditor;
   onDirty?: (dirty: boolean) => void;
+  openSettings: (tab: SettingsTab) => void; modal: (open: boolean) => void;
+  renderTranscript: (session: Session) => ReactNode; renderQueue: (session: Session) => ReactNode;
 }) {
-  const sides = snapshot.sessions.filter((session) => session.parentSessionId === parent.id && session.kind === "side" && session.status !== "archived");
+  const sides = snapshot.sessions.filter((session) => session.parentSessionId === parent.id && session.createdParentSessionId === parent.id && session.kind === "side" && session.status !== "archived");
   const side = sides.find((session) => session.id === selectedId) ?? sides.at(-1);
   const [error, setError] = useState("");
   const [answerDirty, setAnswerDirty] = useState(false);
   const [coordinationDirty, setCoordinationDirty] = useState(false), dirty = answerDirty || coordinationDirty;
+  const creating = useRef(false);
+  useEffect(() => {
+    if (side || creating.current) return;
+    creating.current = true; let current = true;
+    void sdk.sessions.side(parent.id).then((result) => { if (current) select(result.id!); })
+      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The original side chat could not be opened."); })
+      .finally(() => { creating.current = false; });
+    return () => { current = false; };
+  }, [sdk, parent.id, side?.id]);
   useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
   return <section className="side-chat-panel"><SessionCoordinationPanel key={`${sdk.profileId}:${parent.id}`} sdk={sdk} session={parent} snapshot={snapshot} onDirty={setCoordinationDirty} />
     <header className="panel-toolbar"><select aria-label="Question-only side session" value={side?.id ?? ""} disabled={dirty} onChange={(event) => select(event.target.value)}>{sides.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}{!side && <option value="">Question-only context</option>}</select>
     <button className="icon-button" aria-label="New side chat" title="New question-only side chat" disabled={dirty} onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Side chat could not be created."))}><Icon name="Plus" /></button></header>
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} onDirty={setAnswerDirty} /> : <p className="fine-print">Open a parallel question-only session with a snapshot of this conversation's approved context. It cannot edit code or promote itself.</p>}
+    {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} onDirty={setAnswerDirty}
+      openSettings={openSettings} modal={modal} renderTranscript={renderTranscript} renderQueue={renderQueue} /> : <p className="fine-print" role="status">Opening the original read-only side chat...</p>}
   </section>;
 }
-function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; editorFor: (session: Session) => DraftEditor; onDirty?: (dirty: boolean) => void }) {
+function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty, openSettings, modal, renderTranscript, renderQueue }: {
+  sdk: MoguriSdk; session: Session; snapshot: Snapshot; onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
+  editorFor: (session: Session) => DraftEditor; onDirty?: (dirty: boolean) => void; openSettings: (tab: SettingsTab) => void; modal: (open: boolean) => void;
+  renderTranscript: (session: Session) => ReactNode; renderQueue: (session: Session) => ReactNode;
+}) {
   const editor = useMemo(() => editorFor(session), [editorFor, session.id]);
-  const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const [error, setError] = useState("");
-  const [configuring, setConfiguring] = useState(false);
+  const [busy, setBusy] = useState(false), [composerPending, setComposerPending] = useState(false);
   const [questionDirty, setQuestionDirty] = useState(false), [coordinationDirty, setCoordinationDirty] = useState(false);
-  useEffect(() => { onDirty?.(questionDirty || coordinationDirty); return () => onDirty?.(false); }, [questionDirty, coordinationDirty, onDirty]);
-  const configurationPending = useRef(false);
-  const requiresImages = Boolean(session.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") ||
-    session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
-  const models = snapshot.provider.models.filter((model) => !model.synthetic && (!model.environments || model.environments.includes(session.controls.env)) && (!requiresImages || model.imageInput));
-  const model = models.find((model) => model.id === session.controls.modelId);
-  const held = useQueueModifier();
+  useEffect(() => { onDirty?.(questionDirty || coordinationDirty || busy || composerPending); return () => onDirty?.(false); }, [questionDirty, coordinationDirty, busy, composerPending, onDirty]);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
-  const canQueue = Boolean(draft.text.trim()) && !draft.conflict && session.status !== "archived" && !configuring && sdk.getState().status === "connected";
-  const canSend = canQueue && (question && !draft.text.startsWith("/") ? Boolean(question.allowFreeform || question.choices.includes(draft.text)) : !session.turnId && (draft.text.startsWith("/") || Boolean(model)));
   useEffect(() => { editor.receive(session.draft); }, [session.draft.revision]);
-  const send = (held = false) => {
-    setError("");
-    void (async () => {
-      if (draft.text.startsWith("/")) return onSlash(session, editor, draft.text);
-      if (question && !held) { await editor.flush(); return sdk.questions.answerDraft(question.id, question.revision); }
-      return editor.send("queue", held);
-    })().catch((error: unknown) => setError(error instanceof Error ? error.message : "Question was not sent."));
+  const run = async (operation: () => Promise<unknown>) => {
+    setError(""); setBusy(true);
+    try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "The original side-chat action failed. Its draft is preserved."); }
+    finally { setBusy(false); }
   };
-  const chooseModel = async (modelId: string) => {
-    if (configurationPending.current) return;
-    configurationPending.current = true; setConfiguring(true); setError("");
-    try {
-      const { modelOptions: _, ...controls } = session.controls;
-      await sdk.sessions.configure(session.id, { ...controls, modelId: modelId || null }, session.revision);
-    } catch (error) { setError(error instanceof Error ? error.message : "Side-chat model selection was not saved. Your draft is preserved."); }
-    finally { configurationPending.current = false; setConfiguring(false); }
-  };
+  const project = snapshot.projects.find((project) => project.id === session.projectId);
+  const workspace = snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId);
+  const boundProject = project && (!session.workspaceId || workspace) ? { ...project, path: workspace?.path ?? project.path } : undefined;
   return <><SessionCoordinationPanel key={`${sdk.profileId}:${session.id}`} sdk={sdk} session={session} snapshot={snapshot} onDirty={setCoordinationDirty} />
-    <label className="side-model">Model<select aria-label="Side chat model" value={session.controls.modelId ?? ""} disabled={configuring || Boolean(session.turnId)} onChange={(event) => void chooseModel(event.target.value)}>
-    <option value="">Select model</option>{session.controls.modelId && !model && <option value={session.controls.modelId} disabled>Unavailable: {session.controls.modelId}</option>}
-    {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
-    {!model && <p className="fine-print" role="status">{models.length ? "Choose a model for this side chat. Its read-only scope and your draft are preserved." : "No concrete model is available in this environment. Configure or reconnect one in Settings; no provider was substituted."}</p>}
-    <div className="side-transcript" role="log" aria-label="Side chat transcript">{session.messages.slice(-40).map((message) => <article key={message.id}><strong>{message.role === "user" ? "You" : "Moguri"}</strong><p>{message.text}</p></article>)}</div>
+    <p className="side-read-only"><Icon name="ReadOnly" /><strong>Read-only</strong> / main chat context refreshes for each new question</p>
+    {renderTranscript(session)}
     {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}
-    {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre><div className="button-row">
-      {[false, true].map((allow) => <button key={String(allow)} className={allow ? "primary" : ""} onClick={() => void sdk.command({ type: "approval.respond", sessionId: session.id, approvalId: session.pendingApproval!.id, allow }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Read approval was not acknowledged."))}>{allow ? "Approve read" : "Deny"}</button>)}</div></section>}
+    {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
+      <ApprovalActions key={session.pendingApproval.id} sdk={sdk} session={session} busy={busy} run={run} /></section>}
     {error && <p className="inline-error" role="alert">{error}</p>}
-    {draft.error && <p className="inline-error" role="alert">{draft.error} <button onClick={() => editor.reload()}>Reload draft</button>{draft.conflict && <button onClick={() => void editor.keepMine().catch((error: unknown) => setError(error instanceof Error ? error.message : "Draft could not be saved."))}>Keep mine</button>}</p>}
-    <textarea aria-label="Side question" aria-description="Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter holds the question without starting work." value={draft.text} onChange={(event) => editor.edit(event.target.value)} placeholder="Ask about the current context..." onKeyDown={(event) => {
-      const action = chatSubmission(event);
-      if (action && (action === "hold" ? canQueue : canSend)) send(action === "hold");
-    }} />
-    <div className="side-controls"><span title="Hard read-only policy"><Icon name="ReadOnly" />Question-only</span>{session.turnId ?
-      <button className="icon-button composer-stop" aria-label="Stop side question" disabled={session.status === "stopping"} onClick={() => void sdk.command({ type: "session.stop", sessionId: session.id }).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not acknowledged."))}><Icon name="Stop" /></button> :
-      <button className="primary icon-button" aria-label={held ? "Queue side question" : "Ask"} title={held ? "Queue without starting" : "Ask"} disabled={held ? !canQueue : !canSend} onClick={() => send(held)}><Icon name={held ? "Clock" : "Send"} /></button>}</div>
-    {session.queue.length > 0 && <div className="side-queue">{session.queue.map((item) => <button key={item.id} disabled={!item.held} onClick={() => void sdk.prompts.release(session.id, item.id, session.queueRevision).catch((error: unknown) => setError(error instanceof Error ? error.message : "Question could not be released."))}>{item.held ? "Run queued question" : "Queued"}: {item.text.slice(0, 35)}</button>)}</div>}
+    {session.queue.length > 0 && renderQueue(session)}
+    <ChatComposer session={session} project={boundProject} snapshot={snapshot} client={sdk} editor={editor} run={run} busy={busy}
+      connected={sdk.getState().status === "connected"} inputLabel="Side question" autoFocus onPendingChange={setComposerPending}
+      onSlash={onSlash} onMenuChange={modal} onConnect={() => openSettings("providers")} onGuardrails={() => openSettings("permissions")}
+      onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")}
+      onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />
   </>;
 }

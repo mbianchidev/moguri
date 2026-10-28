@@ -37,8 +37,7 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
   const stale = Boolean(selected && (!actual || actual.revision !== selected.record.revision));
   const canWrite = tier === "Sky" ? Boolean(session && session.status !== "archived") : tier === "Terra" && Boolean(project);
   return <section aria-label="Sky Terra Glacier knowledge">
-    <h2>Sky, Terra, Glacier</h2>
-    <SettingsHelp label="More about this setting">Sky expires with its actual turn or session. Terra retains project/work-item knowledge. Glacier holds explicitly reviewed compressed knowledge across this profile. None of these grants tools, runs a model, or self-promotes.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>Sky, Terra, Glacier</h2>}>Sky expires with its actual turn or session. Terra retains project/work-item knowledge. Glacier holds explicitly reviewed compressed knowledge across this profile. None of these grants tools, runs a model, or self-promotes.</SettingsHelp>
     <p className="fine-print">Tiered context injection is {snapshot.settings.values.memory.enabled && snapshot.settings.values.memory.useTieredContext === true ? "explicitly enabled" : "off"}. Enable it separately in Repository memory. Selection is bounded and deterministic, not a claim of semantic understanding.</p>
     {error && <p role="alert" className="notice error">{error}</p>}
     {status && <p role="status">{status}</p>}
@@ -48,7 +47,7 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
     </select></label>
     <div className="button-row">{records.map((record) => <button key={record.id} disabled={busy || dirty} onClick={() => void run(() => read(record.id))}>{record.title} (r{record.revision})</button>)}</div>
     {!records.length && <p>No retained notes in this exact scope.</p>}
-    <button disabled={busy} onClick={reset}>Discard editor / New note</button>
+    <button disabled={busy} onClick={reset} aria-label="Discard / New note">Discard / New note</button>
     <label className="setting-field">Knowledge title<SettingsInput aria-label="Knowledge title" value={title} disabled={!canWrite || busy} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} /></label>
     <label className="setting-field">Knowledge text<SettingsTextarea aria-label="Knowledge text" value={text} disabled={!canWrite || busy} onChange={(event) => { setText(event.target.value); setDirty(true); }} /></label>
     {tier === "Sky" && <label className="setting-field">Sky lifetime<select aria-label="Sky lifetime" value={lifetime} disabled={busy || Boolean(selected)} onChange={(event) => { setLifetime(event.target.value as "turn" | "session"); setDirty(true); }}>
@@ -60,13 +59,13 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
         { tier: "Terra" as const, projectId: project!.id, ...(selected?.record.workItemId ? { workItemId: selected.record.workItemId } : {}), title, text };
       const result = await sdk.knowledge.save(input, selected?.record.id, selected?.record.revision ?? 0);
       await read(result.id!); setStatus("Exact note saved. No model was called and no other tier changed.");
-    })}>Save knowledge</button>
+    })} aria-label="Save knowledge">Save</button>
     {selected && <>
       <p className="fine-print">Original owner: {selected.record.sessionId ?? selected.record.projectId ?? snapshot.profileId}. SHA-256 <code>{selected.record.contentDigest}</code></p>
-      <button disabled={busy || dirty || stale} onClick={() => void run(async () => { setHistory((await sdk.knowledge.history(selected.record.id)).records); })}>Review knowledge history</button>
+      <button disabled={busy || dirty || stale} onClick={() => void run(async () => { setHistory((await sdk.knowledge.history(selected.record.id)).records); })} aria-label="Review knowledge history">History</button>
       <div className="button-row">{history.map((record) => <button key={record.revision} disabled={busy} onClick={() => void run(async () => { setHistorical(await sdk.knowledge.version(record.id, record.contentDigest)); setRollback(false); })}>Inspect revision {record.revision}</button>)}</div>
       {historical && <><pre>{historical.text}</pre><label className="check-setting"><SettingsInput type="checkbox" checked={rollback} onChange={(event) => setRollback(event.target.checked)} />I reviewed these exact historical bytes.</label>
-        <button disabled={!rollback || busy || dirty || stale} onClick={() => void run(async () => { await sdk.knowledge.rollback(selected.record.id, selected.record.revision, historical.record.contentDigest, true); await read(selected.record.id); setStatus("A new rollback revision was retained; history was not rewritten."); })}>Roll back reviewed knowledge</button></>}
+        <button disabled={!rollback || busy || dirty || stale} onClick={() => void run(async () => { await sdk.knowledge.rollback(selected.record.id, selected.record.revision, historical.record.contentDigest, true); await read(selected.record.id); setStatus("A new rollback revision was retained; history was not rewritten."); })} aria-label="Roll back reviewed knowledge">Roll back</button></>}
       {selected.record.tier !== "Glacier" && <fieldset disabled={busy || dirty || stale}><legend>Explicit promotion</legend>
         <label className="setting-field">Promotion tier<select aria-label="Promotion tier" value={target} onChange={(event) => { setTarget(event.target.value as "Terra" | "Glacier"); setReviewed(false); }}>
           {selected.record.tier === "Sky" && selected.record.projectId && <option value="Terra">Terra: same project</option>}<option value="Glacier">Glacier: profile-wide</option>
@@ -77,10 +76,10 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
         <button disabled={!reviewed || !summary.trim() || !promotionTitle.trim()} onClick={() => void run(async () => {
           const result = await sdk.knowledge.promote(selected.record.id, selected.record.revision, selected.record.contentDigest, { tier: target, title: promotionTitle, text: summary }, true);
           await read(result.id!); setStatus("Reviewed knowledge promoted with independent retention. Original source was not changed.");
-        })}>Promote reviewed knowledge</button>
+        })} aria-label="Promote reviewed knowledge">Promote</button>
       </fieldset>}
       <label className="check-setting"><SettingsInput type="checkbox" checked={forget} onChange={(event) => setForget(event.target.checked)} />I approve forgetting this note and all its retained revisions. Independent promoted copies are not deleted.</label>
-      <button disabled={!forget || busy || dirty || stale} onClick={() => void run(async () => { await sdk.knowledge.forget(selected.record.id, selected.record.revision, true); reset(); setStatus("The note's encryption grant was forgotten. This is not a claim of physical disk reclamation."); })}>Forget selected knowledge</button>
+      <button disabled={!forget || busy || dirty || stale} onClick={() => void run(async () => { await sdk.knowledge.forget(selected.record.id, selected.record.revision, true); reset(); setStatus("The note's encryption grant was forgotten. This is not a claim of physical disk reclamation."); })} aria-label="Forget selected knowledge">Forget</button>
     </>}
   </section>;
 }

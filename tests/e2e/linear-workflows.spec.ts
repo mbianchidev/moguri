@@ -42,7 +42,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     const send = review.getByRole("button", { name: "Send reviewed operation to Linear", exact: true });
     await expect(send).toBeDisabled();
     expect(mutations()).toHaveLength(0);
-    await review.getByRole("checkbox").check();
+    await review.getByRole("switch").check();
     await expect(send).toBeEnabled();
     await send.click();
     await expect.poll(() => f.service.controller.snapshot().linearOperations.find((entry) => entry.action === "issue.create")?.status).toBe("completed");
@@ -80,11 +80,11 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     await expect(review).toContainText(`revision ${local.revision}`);
     await expect(review).toContainText("[redacted]");
     await expect(review).not.toContainText(LINEAR_FIXTURE_TOKEN);
-    const pull = review.getByRole("button", { name: "Apply reviewed pull to local", exact: true });
+    const pull = review.getByRole("button", { name: "Apply locally: reviewed Linear pull", exact: true });
     await expect(pull).toBeDisabled();
     expect(f.service.controller.snapshot().issues.find((entry) => entry.id === local.id)?.title).toBe("Generated local title before pull");
     expect(mutations()).toHaveLength(1);
-    await review.getByRole("checkbox").check();
+    await review.getByRole("switch").check();
     await pull.click();
     await expect.poll(() => f.service.controller.snapshot().linearOperations.find((entry) => entry.action === "ticket.sync")?.status).toBe("completed");
     const pulled = f.service.controller.snapshot().issues.find((entry) => entry.id === local.id)!;
@@ -101,7 +101,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     await expect.poll(() => f.service.controller.snapshot().sessions.some((entry) => entry.id === f.sessionId)).toBe(false);
     await expect(panel).toBeVisible();
     const createdRow = panel.getByRole("listitem").filter({ has: page.locator("strong").filter({ hasText: /^issue\.create$/ }) });
-    await createdRow.getByRole("button", { name: "Read original inputs and receipt", exact: true }).click();
+    await createdRow.getByRole("button", { name: "View receipt and original inputs", exact: true }).click();
     const retained = panel.locator("details").filter({
       has: page.locator("summary").filter({ hasText: `Original operation ${created.id}: completed` }),
     });

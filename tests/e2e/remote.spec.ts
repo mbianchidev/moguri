@@ -34,7 +34,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await page.getByRole("button", { name: "Probe SSH target", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Ready: Verified SSH host" })).toBeVisible();
-    await page.getByRole("button", { name: "About Remote MCP access", exact: true }).focus();
+    await page.getByRole("heading", { name: "Remote SSH", exact: true }).locator("..").getByRole("button", { name: "More about this setting", exact: true }).focus();
     await expect(page.getByRole("tooltip")).toContainText("Review Remote MCP resources and separate access-forwarding grants under MCP gateway.");
     await page.keyboard.press("Escape");
     await expect(page.getByText(/executable MCP transports are not qualified/)).toHaveCount(0);
@@ -68,6 +68,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.getByLabel("Project plan", { exact: true }).fill("Generated explicitly saved Remote desktop plan.\n");
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.planSaves.at(-1)?.status).toBe("completed");
+    await expect(page.getByLabel("Project plan", { exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
     expect(await readFile(join(workspace, "docs/plan.md"), "utf8")).toBe("Generated explicitly saved Remote desktop plan.\n");
     expect(fixture.requests.length).toBe(1);

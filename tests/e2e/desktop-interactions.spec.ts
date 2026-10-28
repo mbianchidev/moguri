@@ -1,5 +1,4 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
-import { homedir } from "node:os";
 import { createRequire } from "node:module";
 import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
@@ -42,6 +41,8 @@ test("attachment menu matches the five-source layout, previews retained files/im
     await page.getByRole("button", { name: "Preview attachment generated-preview.txt", exact: true }).click();
     const preview = page.getByRole("dialog", { name: "Attachment preview generated-preview.txt", exact: true });
     await expect(preview.getByLabel("Attached content")).toHaveText("Generated immutable attached file.");
+    await expect(preview.getByRole("button", { name: "Remove attachment", exact: true })).toHaveText("");
+    await expect(preview.getByRole("button", { name: "Remove attachment", exact: true }).locator("svg[data-icon='Trash']")).toBeVisible();
     await preview.getByRole("button", { name: "Remove attachment", exact: true }).click();
     await expect.poll(() => fixture.session().draft.attachments.length).toBe(0);
     await expect(prompt).toHaveValue("Generated complete unsent prompt.");
@@ -83,7 +84,7 @@ test("dragging sessions attaches reviewed JSON, remembers opt-out and the colon 
     await expect(review).toContainText("Generated source session JSON content.");
     await expect(review.getByRole("button", { name: "Attach", exact: true })).toBeDisabled();
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
-    await review.getByLabel("Do not ask me again when attaching content from a session").check();
+    await review.getByRole("checkbox", { name: "Do not ask me again when attaching content from a session", exact: true }).check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
     await expect.poll(() => fixture.session().draft.attachments.length).toBe(1);
     expect(fixture.service.controller.snapshot().settings.values.interactions.confirmSessionAttachments).toBe(false);
@@ -145,7 +146,7 @@ test("native session dragging reorders only at drop, and keyboard reordering use
     await firstRow.press("Alt+ArrowDown");
     await expect.poll(() => fixture.service.controller.snapshot().sessions.slice().sort(compareSessionOrder).map((session) => session.id)).toEqual([third, second, fixture.sessionId]);
     await page.reload();
-    await expect(page.locator(".session-link")).toHaveText(["Generated third", "Generated second", "Generated first"]);
+    await expect(page.locator(".session-row .session-link")).toHaveText(["Generated third", "Generated second", "Generated first"]);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
@@ -162,7 +163,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await page.reload();
     await expect(page.getByRole("button", { name: "New terminal", exact: true })).toBeEnabled();
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(1);
-    expect((await sdk.terminal.read(legacy.id!)).terminal.binding?.root).toBe(await realpath(homedir()));
+    expect((await sdk.terminal.read(legacy.id!)).terminal.binding?.root).toBe(await realpath(fixture.home));
     await page.getByRole("button", { name: "New terminal", exact: true }).click();
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(input).toHaveAttribute("aria-disabled", "false");
@@ -174,7 +175,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await expect(confirm).toContainText("keep running"); await confirm.getByRole("button", { name: "Keep open", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await confirm.getByLabel("Do not ask me again when closing terminal").check();
+    await confirm.getByRole("checkbox", { name: "Do not ask me again when closing terminal", exact: true }).check();
     await confirm.getByRole("button", { name: "Hide terminal", exact: true }).click();
     await expect(input).not.toBeVisible();
     expect((await sdk.terminal.read(legacy.id!)).terminal.status).toBe("running");
@@ -222,7 +223,7 @@ test("settings use one font family, omit capability-job history and left navigat
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("generated browser dictation preserves typing until the user inserts the completed local transcript", async () => {
+test("generated streamed dictation preserves typing during finalization and inserts the exact final text without an Insert action", async () => {
   const weights = Buffer.from("Generated desktop recognizer model.");
   const fixture = await setupFixture({ platform: { speech: {
     executable: process.execPath, prefixArgs: [resolve("tests/fixtures/fake-speech.mjs"), "--transcribe-delay", "3400"],
@@ -239,10 +240,9 @@ test("generated browser dictation preserves typing until the user inserts the co
     await page.getByRole("button", { name: "Stop local dictation", exact: true }).click();
     await prompt.fill("Generated typing during finalization.");
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
-    await expect(prompt).toHaveValue("Generated typing during finalization.");
-    await page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true }).click();
-    await expect(prompt).toHaveValue("Generated typing during finalization.\nGenerated local dictation.");
-    await expect.poll(() => fixture.session().draft.text).toBe("Generated typing during finalization.\nGenerated local dictation.");
+    await expect(prompt).toHaveValue("Generated typing during finalization. Generated local dictation.");
+    await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
+    await expect.poll(() => fixture.session().draft.text).toBe("Generated typing during finalization. Generated local dictation.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
     expect(fixture.requests).toHaveLength(0);

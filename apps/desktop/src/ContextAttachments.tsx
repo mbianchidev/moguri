@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type DraftEditor, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { SettingsAction } from "./SettingsFields.tsx";
 import { ContextDocument } from "./DocumentAttachment.tsx";
 
 export type AttachmentReviewRequest =
@@ -123,7 +124,7 @@ function AttachmentPreview({ sdk, sessionId, attachment, remove, close }: { sdk:
     {"source" in attachment && <p className="fine-print path">{attachment.source.location}</p>}
     {attachment.kind === "image" ? <div className="attachment-image-stage"><ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} /></div> : text === null && !error ? <p role="status">Loading retained content...</p> : <pre aria-label="Attached content">{text}</pre>}
     {error && <p className="inline-error" role="alert">{error}</p>}
-    <footer>{remove && <button className="danger" type="button" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The attachment could not be removed.")).finally(() => setBusy(false)); }}>Remove attachment</button>}<button type="button" disabled={busy} onClick={close}>Close preview</button></footer>
+    <footer>{remove && <SettingsAction label="Remove attachment" icon="Trash" className="danger" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The attachment could not be removed.")).finally(() => setBusy(false)); }} />}<button type="button" disabled={busy} onClick={close}>Close preview</button></footer>
   </dialog>;
 }
 export function ContextImage({ sdk, sessionId, attachment }: { sdk: MoguriSdk; sessionId: string; attachment: Attachment }) {

@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { chooseThinkingEffort, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -29,8 +30,8 @@ test("global fixed model/effort and last explicit selection drive new Start chat
     };
     await page.getByRole("button", { name: /^Model:/ }).click();
     const model = page.getByRole("dialog", { name: "Model", exact: true });
-    await model.getByRole("button", { name: /Generated Copilot model/ }).click();
-    await model.getByLabel("Thinking effort", { exact: true }).selectOption("high");
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
+    await chooseThinkingEffort(page, "High");
     await expect(model.getByText("Changes save automatically.", { exact: true })).toBeVisible();
     await expect.poll(() => fixture.service.controller.snapshot().lastModelSelection).toEqual({ modelId: fixture.modelId, thinkingEffort: "high" });
     await page.keyboard.press("Escape");
@@ -72,10 +73,10 @@ test("a remembered effort that loses transport support stays explicit until the 
     app = await launch(fixture.directory);
     const page = await app.firstWindow();
     await page.getByRole("button", { name: /^Model:/ }).click();
-    const model = page.getByRole("dialog", { name: "Model", exact: true }), effort = model.getByLabel("Thinking effort", { exact: true });
-    await expect(effort).toHaveValue("high"); await expect(effort).toBeEnabled();
+    const model = page.getByRole("dialog", { name: "Model", exact: true }), effort = model.getByRole("button", { name: "Thinking effort", exact: true });
+    await expect(effort).toContainText("High"); await expect(effort).toBeEnabled();
     await expect(model.getByRole("alert")).toContainText("saved thinking effort is no longer supported");
-    await effort.selectOption("");
+    await chooseThinkingEffort(page, "Model default");
     await expect(model.getByText("Changes save automatically.", { exact: true })).toBeVisible();
     await expect.poll(() => fixture.service.controller.snapshot().lastModelSelection).toEqual({ modelId: fixture.modelId });
     await page.keyboard.press("Escape"); expect(fixture.requests).toHaveLength(0);

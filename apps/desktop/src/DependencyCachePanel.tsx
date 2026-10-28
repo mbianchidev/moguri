@@ -47,8 +47,7 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
     setResult(`Job ${job.id} started. Progress, cancellation and its terminal outcome are retained below.`);
   });
   return <section aria-label="Shared dependency cache">
-    <h2>Dependency cache</h2>
-    <SettingsHelp label="More about this setting">Verified archives across projects and branches. Public content may share; private registry content stays within this profile and its exact authorization. Installed trees stay local to each worktree.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>Dependency cache</h2>}>Verified archives across projects and branches. Public content may share; private registry content stays within this profile and its exact authorization. Installed trees stay local to each worktree.</SettingsHelp>
     {!project && <p className="settings-warning">Open a project before inspecting its dependencies.</p>}
     <label className="setting-field">Package manager<select value={manager} onChange={(event) => { setManager(event.target.value as PackageManager); setPlan(null); setAccept(false); setReplace(false); }}>
       <option value="npm">npm, lockfile v2/v3 and workspaces</option><option value="pnpm">pnpm, lockfile v9 and workspaces</option>
@@ -57,10 +56,10 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
     <button disabled={!project || busy} onClick={() => void run(async () => {
       const { plan } = await sdk.cache.inspect(project!.id, manager, workspaceId);
       setPlan(plan); setAccept(false); setReplace(false); setResult("");
-    })}>Inspect current lock</button>
+    })} aria-label="Inspect current lock">Inspect</button>
     {error && <p className="notice error" role="alert">{error}</p>}
     {plan && plan.projectId === project?.id && <div className="cache-plan">
-      <h3>Exact dependency plan</h3>
+      <SettingsHelp label="More about this setting" target={<h3>Exact dependency plan</h3>}>Every exact version needs a fresh advisory check before download or reuse. Unknown status, outages and known vulnerabilities block preparation. A clean result is not a guarantee against malicious code.</SettingsHelp>
       <dl className="facts"><dt>Packages</dt><dd>{plan.packages.length}, {plan.cachedPackages} already cached</dd><dt>Manager</dt><dd>{plan.manager}</dd><dt>Lock digest</dt><dd><code>{plan.lockDigest}</code></dd>
         {plan.root && <><dt>Exact install/cache source root</dt><dd><code>{plan.root.path}</code></dd></>}
         {plan.npmCache && <><dt>npm archive cache</dt><dd><code>{plan.npmCache}</code></dd><dt>pnpm archive store</dt><dd><code>{plan.pnpmStore}</code></dd></>}
@@ -69,22 +68,22 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
       <p className="fine-print">{plan.diagnostic}</p>
       {plan.manifests && <details><summary>Exact root and member inputs ({plan.manifests.length})</summary><pre>{plan.manifests.map((manifest) => `${manifest.path}\n${manifest.digest}`).join("\n\n")}</pre></details>}
       {!!plan.registryScopes?.length && <details open><summary>Private registry and advisory review</summary>{plan.registryScopes.map((scope) => <p key={scope.registryId}><code>{scope.resource}</code><br />Advisory destination: <code>{scope.advisoryUrl}</code><br />Private-name sharing: {scope.metadataSharing ? "explicitly enabled" : "blocked; review registry authorization first"}</p>)}</details>}
-      <SettingsHelp label="More about this setting">Every exact version needs a fresh advisory check before download or reuse. Unknown status, outages and known vulnerabilities block preparation. A clean result is not a guarantee against malicious code.</SettingsHelp>
+
       <details><summary>Packages and pinned integrity</summary><pre>{plan.packages.map((entry) => `${entry.name}@${entry.version}${entry.ecosystem === "crates.io" ? " (archive only; build scripts not evaluated)" : entry.hasInstallScript ? " (lifecycle script blocked)" : ""}\n${entry.sourceIntegrity ?? entry.integrity}`).join("\n\n")}</pre></details>
       {plan.readiness && <p className={plan.readiness.ready ? "fine-print" : "settings-warning"}>{plan.readiness.diagnostic}</p>}
       <label className="check-setting"><SettingsInput type="checkbox" checked={accept} onChange={(event) => setAccept(event.target.checked)} />I approve sending these exact dependency names and versions to OSV or the explicitly reviewed private advisory destinations above.</label>
-      <div className="button-row"><button disabled={!accept || busy || plan.readiness?.ready === false || plan.registryScopes?.some((scope) => !scope.metadataSharing)} onClick={() => void operate(false)}>Prepare verified cache</button></div>
+      <div className="button-row"><button disabled={!accept || busy || plan.readiness?.ready === false || plan.registryScopes?.some((scope) => !scope.metadataSharing)} onClick={() => void operate(false)} aria-label="Prepare verified cache">Prepare</button></div>
       {plan.mode !== "cache-only" && <>
         <label className="check-setting"><SettingsInput type="checkbox" checked={replace} onChange={(event) => setReplace(event.target.checked)} />I approve replacing root/member node_modules with a managed, script-free workspace install.</label>
-        <button disabled={!accept || !replace || busy || plan.registryScopes?.some((scope) => !scope.metadataSharing)} onClick={() => void operate(true)}>Install with scripts blocked</button>
+        <button disabled={!accept || !replace || busy || plan.registryScopes?.some((scope) => !scope.metadataSharing)} onClick={() => void operate(true)} aria-label="Install with scripts blocked">Install</button>
       </>}
       <p className="settings-warning">Lifecycle code, Python source builds, Cargo build scripts/proc macros and Go builds need a separately qualified execution boundary. Native executable presence is not containment. No host-build fallback is allowed.</p>
       {!!plan.readiness?.command.length && <details><summary>Native offline cache recipe, after successful preparation</summary><pre>{JSON.stringify(plan.readiness.command, null, 2)}</pre><p className="fine-print">This recipe prepares/downloads dependencies only. It does not authorize executing package code or a build.</p></details>}
     </div>}
     <details><summary>Private npm/pnpm registry authorizations</summary>
-      <SettingsHelp label="More about this setting">No .npmrc, environment token or personal package-manager configuration is imported. Review an HTTPS registry and exact packages or @scope/* resources. Credentials stay in this profile's keychain.</SettingsHelp>
-      <button disabled={busy} onClick={() => void run(loadRegistries)}>Review saved registries</button>
-      <label className="setting-field">Registry authorization<select value={selectedRegistry} onChange={(event) => chooseRegistry(event.target.value)}><option value="">New authorization</option>{registries.map((registry) => <option key={registry.id} value={registry.id}>{registry.name} · {registry.credential}</option>)}</select></label>
+
+      <button disabled={busy} onClick={() => void run(loadRegistries)} aria-label="Review saved registries">Review</button>
+      <SettingsHelp label="More about this setting" target={<label className="setting-field">Registry authorization<select value={selectedRegistry} onChange={(event) => chooseRegistry(event.target.value)}><option value="">New authorization</option>{registries.map((registry) => <option key={registry.id} value={registry.id}>{registry.name} · {registry.credential}</option>)}</select></label>} descriptionFirst>No .npmrc, environment token or personal package-manager configuration is imported. Review an HTTPS registry and exact packages or @scope/* resources. Credentials stay in this profile's keychain.</SettingsHelp>
       <label className="setting-field">Name<SettingsInput value={registryName} maxLength={80} onChange={(event) => { setRegistryName(event.target.value); setReviewRegistry(false); }} /></label>
       <label className="setting-field">HTTPS registry resource<SettingsInput value={registryUrl} placeholder="https://packages.example.com/npm/" onChange={(event) => { setRegistryUrl(event.target.value); setReviewRegistry(false); }} /></label>
       <label className="setting-field">Exact packages or @scope/*, one per line<SettingsTextarea value={resources} onChange={(event) => { setResources(event.target.value); setReviewRegistry(false); }} /></label>
@@ -95,13 +94,13 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
         const previous = registries.find((registry) => registry.id === selectedRegistry);
         const config: DependencyRegistryConfig = { name: registryName, url: registryUrl, packages: resources.split(/\r?\n/).map((resource) => resource.trim()).filter(Boolean), advisoryUrl, sharePrivateMetadata: privateSharing };
         const result = await cache.registries.save(config, previous?.revision ?? 0, previous?.id); invalidate(); setSelectedRegistry(result.id ?? ""); await loadRegistries();
-      })}>Save reviewed registry</button>
+      })} aria-label="Save reviewed registry">Save</button>
       {selectedRegistry && <>
         <label className="setting-field">Bearer token<SettingsInput type="password" autoComplete="off" spellCheck={false} value={token} onChange={(event) => setToken(event.target.value)} /></label>
         <div className="button-row">
           <button disabled={busy || !token} onClick={() => void run(async () => { const value = token; setToken(""); invalidate(); await cache.registries.setToken(selectedRegistry, value); await loadRegistries(); })}>Store masked token</button>
           <button disabled={busy} onClick={() => void run(async () => { setToken(""); invalidate(); await cache.registries.clearToken(selectedRegistry); await loadRegistries(); })}>Clear token</button>
-          <button disabled={busy || !reviewRegistry} onClick={() => void run(async () => { const registry = registries.find((entry) => entry.id === selectedRegistry); if (!registry) return; invalidate(); setToken(""); await cache.registries.remove(registry.id, registry.revision); chooseRegistry(""); await loadRegistries(); })}>Revoke reviewed authorization</button>
+          <button disabled={busy || !reviewRegistry} onClick={() => void run(async () => { const registry = registries.find((entry) => entry.id === selectedRegistry); if (!registry) return; invalidate(); setToken(""); await cache.registries.remove(registry.id, registry.revision); chooseRegistry(""); await loadRegistries(); })} aria-label="Revoke reviewed authorization">Revoke</button>
         </div>
       </>}
     </details>

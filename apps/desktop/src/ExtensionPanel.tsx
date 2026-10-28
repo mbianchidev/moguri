@@ -34,21 +34,18 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
   const stale = Boolean(selected && (!actual || actual.revision !== selected.currentRevision));
   const entries = snapshot.registry.filter((entry) => entry.projectId === project?.id && (mode === "hooks" ? entry.kind === "hook" : Boolean(entry.marketplace || entry.ownerPluginId)));
   return <section aria-label={mode === "hooks" ? "Reviewed lifecycle hooks" : "Repository marketplace"}>
-    <h2>{mode === "hooks" ? "Lifecycle hooks" : "Repository marketplace"}</h2>
-    <SettingsHelp label="More about this setting">Imports, updates and rollbacks install disabled content. Enabling never grants tools. Every hook/script still uses actual root/mode policy, exact command approval, cancellation and truthful partial outcomes.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>{mode === "hooks" ? "Lifecycle hooks" : "Repository marketplace"}</h2>}>Imports, updates and rollbacks install disabled content. Enabling never grants tools. Every hook/script still uses actual root/mode policy, exact command approval, cancellation and truthful partial outcomes.</SettingsHelp>
     {!project && <p className="settings-warning">Choose a project. No extension inherits an unrelated root.</p>}
     {error && <p role="alert" className="notice error">{error}</p>}{status && <p role="status">{status}</p>}
     {mode === "hooks" ? <>
-      <SettingsHelp label="More about this setting">Turn-start hooks finish before any model reservation or request. Turn-end hooks run only after normal successful solver completion. Failed/denied hooks stop continuation; cleanup or cancelled turns do not launch additional hooks. Tool-less roles and read-only chats never execute them.</SettingsHelp>
-      <label className="setting-field">Hook definition JSON<SettingsTextarea aria-label="Hook definition JSON" className="json-editor" spellCheck={false} value={hookJson} onChange={(event) => { setHookJson(event.target.value); setReviewed(false); setDirty(true); }} /></label>
+      <SettingsHelp label="More about this setting" target={<label className="setting-field">Hook definition JSON<SettingsTextarea aria-label="Hook definition JSON" className="json-editor" spellCheck={false} value={hookJson} onChange={(event) => { setHookJson(event.target.value); setReviewed(false); setDirty(true); }} /></label>} descriptionFirst>Turn-start hooks finish before any model reservation or request. Turn-end hooks run only after normal successful solver completion. Failed/denied hooks stop continuation; cleanup or cancelled turns do not launch additional hooks. Tool-less roles and read-only chats never execute them.</SettingsHelp>
       <label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this exact command and trigger. Import it disabled.</label>
       <button disabled={!project || !reviewed || busy} onClick={() => void run(async () => {
         const result = await sdk.hooks.import(project!.id, parse(HookDefinitionSchema, JSON.parse(hookJson)));
         setReviewed(false); setDirty(false); setStatus(`Hook ${result.id} imported disabled. Review and enable it separately; no command ran.`);
       })}>Import reviewed hook</button>
     </> : <>
-      <SettingsHelp label="More about this setting">Use a registered repository and an immutable full commit SHA. Catalogs are read from Git objects, never from an unreviewed checkout or URL. No hosted account, clone, fetch, installer or executable entrypoint is implied. Declared licenses are informational, not a trust certification.</SettingsHelp>
-      <label className="setting-field">Catalog source repository<select aria-label="Catalog source repository" value={sourceId} onChange={(event) => { setSourceId(event.target.value); invalidate(); }}>{snapshot.projects.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
+      <SettingsHelp label="More about this setting" target={<label className="setting-field">Catalog source repository<select aria-label="Catalog source repository" value={sourceId} onChange={(event) => { setSourceId(event.target.value); invalidate(); }}>{snapshot.projects.map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>} descriptionFirst>Use a registered repository and an immutable full commit SHA. Catalogs are read from Git objects, never from an unreviewed checkout or URL. No hosted account, clone, fetch, installer or executable entrypoint is implied. Declared licenses are informational, not a trust certification.</SettingsHelp>
       <label className="setting-field">Catalog commit SHA<SettingsInput aria-label="Catalog commit SHA" value={commit} onChange={(event) => { setCommit(event.target.value); invalidate(); }} /></label>
       <label className="setting-field">Catalog path<SettingsInput aria-label="Catalog path" value={path} onChange={(event) => { setPath(event.target.value); invalidate(); }} /></label>
       <button disabled={!project || !commit || busy} onClick={() => void run(async () => {
@@ -69,9 +66,9 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
         <button disabled={!reviewed || busy} onClick={() => void run(async () => {
           const result = await sdk.marketplace.install(preview.input, preview.digest, true);
           setPreview(null); setReviewed(false); setDirty(false); setStatus(`Bundle ${result.id} installed disabled. Its previous versions remain reviewable; no code was executed.`);
-        })}>Install reviewed bundle</button></>}
+        })} aria-label="Install reviewed bundle">Install</button></>}
     </>}
-    <button disabled={busy} onClick={() => { setDirty(false); setReviewed(false); setPreview(null); setError(""); }}>Discard uncommitted review</button>
+    <button disabled={busy} onClick={() => { setDirty(false); setReviewed(false); setPreview(null); setError(""); }} aria-label="Discard uncommitted review">Discard</button>
     <h3>Installed capabilities</h3>
     <div className="button-row">{entries.map((entry) => <button key={entry.id} disabled={busy} onClick={() => void run(async () => { await read(entry); setHistory([]); })}>{entry.name}: {entry.retired ? "removed" : entry.enabled ? "enabled" : "disabled"}</button>)}</div>
     {selected && actual && <><h3>{selected.entry.name}</h3><pre>{selected.content}</pre><p className="fine-print">Content SHA-256 <code>{selected.entry.contentDigest}</code>, current revision {selected.currentRevision}.</p>
@@ -82,16 +79,16 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
           await sdk.capabilities.toggle(actual.id, !actual.enabled, selected.currentRevision);
           const current = sdk.getState().snapshot!.registry.find((entry) => entry.id === actual.id)!; await read(current);
           setStatus("Capability state changed. Enabling is not a tool/Git permission.");
-        })}>{actual.enabled ? "Disable capability" : "Enable reviewed capability"}</button>}
-        <button disabled={busy || stale} onClick={() => void run(async () => { setHistory((await sdk.capabilities.history(actual.id)).entries); })}>Review capability history</button>
+        })} aria-label={actual.enabled ? "Disable capability" : "Enable reviewed capability"}>{actual.enabled ? "Disable" : "Enable"}</button>}
+        <button disabled={busy || stale} onClick={() => void run(async () => { setHistory((await sdk.capabilities.history(actual.id)).entries); })} aria-label="Review capability history">History</button>
         {selected.entry.contentDigest !== actual.contentDigest && <button disabled={!contentReviewed || busy || stale} onClick={() => void run(async () => {
           await sdk.capabilities.rollback(actual.id, selected.currentRevision, selected.entry.contentDigest, true);
           await read(sdk.getState().snapshot!.registry.find((entry) => entry.id === actual.id)!); setStatus("A disabled rollback revision was retained. Existing history was not rewritten.");
-        })}>Roll back reviewed version disabled</button>}
+        })} aria-label="Roll back disabled capability version">Roll back disabled</button>}
         {actual.kind === "skill" && actual.enabled && session?.projectId === actual.projectId && <button disabled={!contentReviewed || busy || stale} onClick={() => void run(async () => {
           await sdk.capabilities.useSkill(session.id, actual.id, selected.entry.contentDigest, session.draft.revision);
           setStatus("Selected skill inserted into the saved draft. Nothing was sent or approved.");
-        })}>Insert skill into draft</button>}
+        })} aria-label="Insert into draft selected skill">Insert into draft</button>}
       </div>
       <div className="button-row">{history.map((entry) => <button key={entry.revision} disabled={busy} onClick={() => void run(() => read(actual, entry.contentDigest))}>Inspect version r{entry.revision}</button>)}</div>
     </>}

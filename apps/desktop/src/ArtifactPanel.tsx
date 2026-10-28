@@ -97,16 +97,16 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
             setRoleData(JSON.stringify(value.step, null, 2));
             requestAnimationFrame(() => { roleOutput.current?.focus(); roleOutput.current?.scrollIntoView({ block: "nearest" }); });
           }
-        })}>Inspect recorded role</button>
+        })} aria-label="View role from original record">View role</button>
         {roleData !== null && <pre ref={roleOutput} tabIndex={0} aria-label="Recorded role data">{roleData}</pre>}
-        {sequence.inputVersion === 2 && <><SettingsHelp label="More about this setting">Original declared output and context checks only. Valid is not code quality, independent lineage or acceptance.</SettingsHelp>
-          <button disabled={busy} onClick={() => void run(async () => {
+        {sequence.inputVersion === 2 && <>
+          <SettingsHelp label="More about this setting" target={<button disabled={busy} onClick={() => void run(async () => {
             const token = generation.current, value = await sdk.roleSequences.contract(sequence.id, Number(roleIndex));
             if (generation.current === token) {
               setRoleContract(JSON.stringify(value, null, 2));
               requestAnimationFrame(() => { contractOutput.current?.focus(); contractOutput.current?.scrollIntoView({ block: "nearest" }); });
             }
-          })}>Inspect role contract</button>
+          })} aria-label="View contract for original role">View contract</button>} descriptionFirst>Original declared output and context checks only. Valid is not code quality, independent lineage or acceptance.</SettingsHelp>
           {roleContract !== null && <pre ref={contractOutput} tabIndex={0} aria-label="Role contract evaluation">{roleContract}</pre>}
         </>}
       </section>}
@@ -122,7 +122,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
         {(!draft.id || !current) && <button disabled={busy} onClick={() => { setDraft(null); setBaseline(""); }}>Discard local edit</button>}</div>
       {current && <>
         <details><summary>Source provenance</summary><pre>{JSON.stringify({ origin: current.origin, originSessionId: current.originSessionId, workspaceId: current.workspaceId, path: current.path, sources: current.sources }, null, 2)}</pre></details>
-        <div className="button-row"><button disabled={busy || dirty || conflict || Boolean(activeCandidate)} onClick={() => void run(async () => { await sdk.artifacts.update(current.id, { status: current.status === "active" ? "archived" : "active" }, draft.revision); await load(current.id); })}>{current.status === "active" ? "Archive artifact" : "Restore artifact"}</button>
+        <div className="button-row"><button disabled={busy || dirty || conflict || Boolean(activeCandidate)} onClick={() => void run(async () => { await sdk.artifacts.update(current.id, { status: current.status === "active" ? "archived" : "active" }, draft.revision); await load(current.id); })} aria-label={current.status === "active" ? "Archive artifact" : "Restore artifact"}>{current.status === "active" ? "Archive" : "Restore"}</button>
           <button disabled={busy || dirty || conflict} onClick={() => void run(async () => { const value = (await sdk.artifacts.export(current.id)).export; const saved = await window.moguri.saveDocument(value); setNotice(saved ? `Export saved to ${saved.path}. Stored copies are unchanged.` : "Export cancelled. Stored copies are unchanged."); })}>Export artifact</button></div>
         <details><summary>Content revisions</summary><button disabled={busy || nextOffset === null} onClick={() => void run(async () => { const page = await sdk.artifacts.history(current.id, nextOffset ?? 0); setHistory((history) => [...history, ...page.revisions]); setNextOffset(page.nextOffset); })}>Load revisions</button>
           <div className="artifact-history">{history.map((artifact) => <button key={artifact.revision} disabled={busy} onClick={() => void run(async () => { setOldText((await sdk.artifacts.read(current.id, artifact.revision)).text); })}>Revision {artifact.revision} / {artifact.status}</button>)}</div>{oldText !== null && <pre aria-label="Historical artifact text">{oldText || "(Empty document)"}</pre>}</details>
@@ -140,7 +140,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
       {source && <><p className="fine-print">{source.source.actor === "model" ? "Model output. Retaining this does not label it as a human answer." : "Canonical user message."} / {source.source.outcome ?? "user input"}</p><pre className="artifact-source-preview">{source.text}</pre>
         <label className="setting-field">Kind<select aria-label="Promoted artifact kind" value={promoteKind} onChange={(event) => setPromoteKind(parse(ArtifactKindSchema, event.target.value))}>{kinds.map((kind) => <option key={kind}>{kind}</option>)}</select></label>
         <label className="setting-field">Name<SettingsInput aria-label="Promoted artifact name" value={promoteName} maxLength={160} onChange={(event) => setPromoteName(event.target.value)} /></label>
-        <button disabled={busy || dirty || !promoteName.trim()} onClick={() => void run(async () => { const created = await sdk.artifacts.promote(source.sessionId, { sourceKind: "message", sourceId: source.sourceId, kind: promoteKind, name: promoteName, expectedDigest: source.digest }); await load(created.id!); setSource(null); })}>Retain reviewed message</button></>}
+        <button disabled={busy || dirty || !promoteName.trim()} onClick={() => void run(async () => { const created = await sdk.artifacts.promote(source.sessionId, { sourceKind: "message", sourceId: source.sourceId, kind: promoteKind, name: promoteName, expectedDigest: source.digest }); await load(created.id!); setSource(null); })} aria-label="Retain reviewed message">Retain</button></>}
     </details>}
   </section>;
 }

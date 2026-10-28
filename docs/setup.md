@@ -1,9 +1,310 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **61**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **69**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Saved turn and usage information
+
+The model button opens **Model**, **Effort**, and **Context window** rows with
+side menus. Kupo is in the model list; its adjacent information button explains
+unavailability without enabling it or substituting another model. Only the
+selected model's qualified options are offered, and changes save through the
+shared session controls. Escape/Left returns from a submenu; Right opens it.
+`/thinking high` and `/effort low` set a supported effort; either accepts
+`default` to clear only that override. `/context-window 24577` sets that exact
+whole-token ceiling. `min`, `half` and `max` select the minimum, floored half
+and maximum supported ceiling. Each shortcut preserves the other setting
+and does not run a model.
+
+Type `/` for the complete scrollable command list: built-ins first, enabled
+skills last. Configured skill sources refresh explicitly when this chooser is
+opened. Arrow keys move and Tab selects; skill selection loads its exact fresh
+source into your draft as untrusted guidance, without running a model or
+granting tools. A failed source stays an explicit error, not a stale catalog.
+`/side YOUR QUESTION` sends only that question and its selected attachments to
+the original read-only side chat and opens its panel. It preserves any existing
+side draft and never runs the main chat's model. `/side` alone only opens it.
+The [protocol-68 qualification](architecture/chat-activity.md#protocol-68-composer-and-compact-control-qualification)
+records the earlier composer/turn-control development installer and its exact
+checksum, complete coverage and remaining release exclusions.
+The [tuning-shortcut qualification](architecture/model-controls.md#tuning-shortcut-qualification)
+records the preceding protocol-69 shortcut installer.
+The [settings help qualification](architecture/settings-platform.md#settings-help-alignment-qualification)
+records the current aligned-settings installer and its exact identity.
+
+The small **Turns** index beside the conversation jumps to sent prompts and
+questions you actually answered, showing the original question and your choice.
+Tool permission decisions, queued drafts and automated answers do not appear.
+The rail starts collapsed as plain blocks without numbers. Hover or focus a
+block for its prompt/question preview. The little **<** arrow expands full
+details and becomes **>** to collapse. Clicking a block expands and focuses
+that item; clicking the same item again collapses it. Both long histories and
+long individual prompt/answer details scroll inside the list. Enter/Space
+activates a focused point and Escape collapses expanded details.
+Older points reveal retained history automatically without
+discarding your draft or following new output away from the point you chose.
+The [navigation qualification](architecture/chat-activity.md#turn-navigation-qualification)
+records the earlier protocol-66 navigation checkpoint.
+
+Turn information and **Budget and usage** open from the chat's saved snapshot,
+without fetching details on click. Tokens, context and captured-rate USD estimates
+update during a turn and remain available after reopening the chat or restarting
+the service. Cached input is shown separately and is already included in input
+tokens, not added to them. Known cache counts stay visible while another call is
+still unreported; missing cache data is not zero.
+
+`~` marks estimated input or visible streamed output and its estimated cost.
+Provider-reported usage replaces those estimates when available. Unknown or
+stopped calls retain their original holds; estimates are never bills or refunds.
+Context shows the last retained model input plus its visible output against the
+selected working window, not the unsent draft or a fresh inference request.
+Original turn details retain the window actually used for that turn.
+
+Schema 66 adds an atomic metadata marker without rewriting encrypted history,
+receipts or accounting holds. On startup, previously discarded positive cache
+counts can be recovered only from that call's exact retained provider result.
+Only the original captured rate can reprice its estimate; missing, mismatched,
+deleted or unreported evidence stays unknown. No model or tool is replayed.
+The [protocol-66 qualification](architecture/chat-activity.md#protocol-66-qualification)
+records coverage and the exact local development installer's identity.
+
+## Folder sessions and shared controls
+
+Drop a project onto the center of another project and name the new folder.
+The files are not moved. Its **+** starts a Local chat with every current member
+repository captured explicitly; each nested project's **+** still starts a
+single-repository chat. Click the folder header to expand/collapse it, or use
+**Projects menu / Expand all groups / Collapse all groups**.
+Edge drops continue to reorder projects.
+
+Folder tools explicitly select a captured repository by ID or original name.
+Files, Changes and Terminal have repository pickers; no first member,
+common-parent directory or HOME console is substituted. Folder sessions are
+currently Local-only. PR, Work item and workspace plan files remain
+single-repository surfaces: open them from an individual member project's chat.
+The folder's Plan panel still shows its own explicit model task checklist.
+Per-repository MCP, memory indexing, hooks, background jobs and publication are
+not implicitly combined or enabled by grouping.
+
+Drop a session onto another to attach its navigation, including project-free
+chats; edge drops reorder. This does not change original context/coordination
+ownership. Search sessions by fuzzy, case-insensitive name. Settings use the
+same matching, switches for booleans, dropdowns for exclusive choices and
+grips for reorderable lists; Alt+Up/Down is the keyboard alternative.
+Icon actions retain accessible names and tooltips.
+Information icons share the row of the title, toggle, field or disclosure they
+explain; wrapped labels keep the icon aligned with the first control line.
+Help remains keyboard-focusable and Escape dismisses it without changing the
+setting or toggling the disclosure.
+Settings action captions use their surrounding field or section for context.
+Linear keys use **Store**, **Verify**, and **Remove**; shortcut fields use
+**Record** and **Save** in both Keyboard shortcuts and Voice dictation.
+Other settings follow the same concise pattern, with precise accessible names
+and explicit scope/restart consequences where necessary. Warnings, verification
+status and review acknowledgements remain visible.
+MCP credentials and an unavailable session USD limit retain **X** actions;
+candidate-file and attachment-preview removal use bin icons. PR draft creation,
+GitHub issue import, Agent output following and all-project suggestion scope
+use toggles. "Do not ask again" flags remain checkboxes, as do multiple-choice
+lists and explicit source/risk acknowledgements.
+
+Opening **Side chat** immediately opens its original read-only conversation.
+It captures the parent's history and inherits model, thinking, window,
+autonomy and budget controls, with the same composer, voice, Markdown
+transcript and held queue. Later changes are independent. Retained
+conversations have no arbitrary total text-byte ceiling; actual model windows,
+image bounds and finite budgets still apply. Use reviewed compaction inside
+the same session when its effective context no longer fits.
+
+## Project Kanban, continuation and provider prices
+
+Each project has a **Kanban** row and special board chat. Opening it does not run
+a model. Board shows local cards and imported Linear cards; **GitHub issues**
+and **GitHub PRs** load that repository's source picker in the same view. **Chat**
+uses the normal saved composer, model controls, approvals and transcript.
+**Work item / Kanban card** can attach a card from the selected session's own
+project without running it.
+
+Create an item directly in its column with **Add item**. Drag cards between
+columns or reorder them inside a column; Alt+Left/Right changes column and
+Alt+Up/Down reorders with the keyboard. Moves use the shared service and survive
+restart. A stale drag cannot overwrite another client's arrangement.
+
+Secondary-click a project, use the macOS two-finger click, or press Shift+F10 on
+its name for the same actions menu. **Show/Hide Kanban** is also in
+**Project settings / Project Kanban**. Hiding keeps its cards, chat and owned
+tasks. Drag project headers to reorder inside their folder; Alt+Up/Down remains
+the keyboard alternative. Project/session menus no longer contain Move up/down.
+
+Send an exact new `continue work` prompt or `/continue-work [CARD_ID]` in Chat.
+Each request asks **Work from Kanban** or **Send to model**; the choice is never
+remembered. Cancel keeps the exact draft. Sending to the model submits the
+unchanged prompt normally, without a Kanban delegation. The Kanban choice
+selects **one** eligible item, creates a visible delegated task on a new isolated
+Local worktree, and stops at its draft PR. The original chat's model and budget
+are captured; the task uses Autopilot automatic approvals, or its already
+selected qualified Max layer. The original chat and global defaults are not
+changed. Select a model first. This explicit workflow delegates its branch push
+and draft PR, never a merge, force push, rebase or branch deletion.
+Ordinary safety/context limits, hard policy and budget caps still apply.
+
+Project settings select Kanban, open GitHub issues or open GitHub PRs.
+In-progress cards precede backlog by default; eligible non-final phases are
+configurable. Existing PR work updates that exact same-repository head rather
+than creating another PR. Fork-head updates and Remote/Sandbox continuation
+remain unqualified, with no Local/account fallback. GitHub uses the captured
+controller CLI account; no automatic login or credential forwarding occurs.
+Held/recovered prompts never create an autonomous task.
+
+**Sync with GitHub** continuously reads linked status into Kanban, never the
+other direction. **Import open GitHub issues** optionally brings the repository's
+open issues onto the board and keeps imported links updated, including later
+closure/reopening. The source binds this Mac's actual CLI account, canonical
+project root, upstream and repository identity. Account/root changes fail
+explicitly rather than retargeting the import.
+
+Open issues without an active linked PR are **Backlog**; an attached draft PR
+means **In progress**; a ready open PR means **Review**; a closed issue means
+**Done**, for both completed and won't-do reasons. Explicitly linked PR-only
+cards follow their verified draft/open/closed state too. Project settings map
+these meanings to existing columns. GitHub-managed cards can be
+reordered within a column but cannot be moved to a conflicting column while
+sync is on. Turn sync off for a local-only phase override; no drag writes GitHub.
+Imported source text updates only fields that have not been edited locally.
+
+Linked statuses are checked periodically while Moguri runs; repository import
+pages are refreshed at most every five minutes automatically. The 500-card
+alpha bound is explicit. Partial/error responses keep existing cards and show
+a sync diagnostic; no prefix is falsely reported as a complete import.
+Draft PR publication places a synchronized card in In progress, not Review.
+Competing requests cannot claim the same source. Stop/cancellation and restart
+retain partial work and unknown model charges; they never replay the task.
+Inspect an interrupted task's actual branch, jobs and results before **I
+inspected this task; release card**. Inspection neither resumes nor deletes it.
+
+**Settings / Budgets / Provider API-equivalent prices** supplies current
+originating-provider reference rates, including name-matched Copilot/reseller
+models. For example, Opus 5.5 uses Anthropic's API rate, not a claimed GitHub
+invoice. Public reference refresh is explicit, credential-free and bounded;
+ordinary Copilot login/inference gains no metadata requests. Missing,
+ambiguous, stale and expired prices remain unknown. Each call captures its
+rate/source; later refresh never reprices history. Explicit user overrides win.
+Finite USD admission additionally needs the explicit API-equivalent consent
+checkbox or a fresh dated user rate, plus existing estimate-based cap consent.
+Provider-reported and billed amounts stay separate.
+
+TUI/CLI share `/kanban`, `/kanban show|hide`, `/kanban source SOURCE`,
+`/continue-work [CARD_ID]`, `/work-item [CARD_ID|clear]` and `/prices`.
+CLI also has `moguri kanban open|items|continue|work|stop|inspect` and
+`moguri prices [refresh PROVIDER]`. See the
+[contract and qualification](architecture/project-kanban.md).
+An interactive CLI slash request asks the same route question. JSON/non-TTY
+consumers receive a typed review with its exact profile/session/draft revision
+and must explicitly choose a route; no default dispatch is inferred.
+
+## Session approvals and GitHub workflows
+
+Factory Manual/Guided runs native file reads, searches, data queries and edits
+without a permission card. Explicit stricter review/deny rules still apply.
+Shell scripts and external MCPs still need approval or remembered delegation;
+an MCP read-only annotation is not authority.
+
+**Settings / Guardrails / Local website allowlist** pre-approves exact hostnames
+or HTTPS/loopback HTTP origins for one session, one real project, or all Local
+projects in this profile. Matching scopes add together. No wildcards,
+credentials, paths, query strings or cross-profile grants. CLI/TUI and desktop
+share `/firewall`, `/firewall add session|project|global HOST_ORIGIN`, and
+`/firewall remove ID`. Unlisted websites ask in Manual/Guided; explicit
+Autopilot/Max remains automatic. Every redirect and Agent-browser request keeps
+its original admitted scope. Removing a rule revokes pending website authority,
+without replay or undoing already-dispatched website effects.
+This is **not an OS firewall for approved Local shell scripts**. Remote does
+not inherit Local entries, and Sandbox retains its enforced firewall.
+See [native operations and scoped website approvals](architecture/native-network-policy.md).
+The CLI form is `moguri firewall ... --session ID`. Keyless web search contacts
+`html.duckduckgo.com`; allowing only its parent hostname does not allow that
+separate exact host.
+
+Manual and Guided approval cards offer **Only this action**, **Approve for this
+session**, **Approve for this project**, and **Always approve across projects in
+this profile**. Commands can match exact text or a displayed simple command
+family. Compound shell expressions still need their own approval. MCP grants
+bind the exact server configuration, tool and discovered schema, not just a
+tool name. **Settings / Guardrails / Remembered approvals** lists and revokes
+grants. They survive restart but never cross profiles or execution environments.
+
+Selecting **Autopilot** automatically approves declared tools and commands in
+every subsequent turn. **Autopilot Max** uses the same unattended permissions
+plus the configured bounded System One-compatible layer for qualified technical
+choices and steering. Hard denials, read-only mode, allowed-env policy, actual
+capability readiness, secret boundaries and budgets remain final. Missing
+workspaces are not invented. Max still requires an explicitly configured,
+qualified provider; the dedicated Jev wire and Remote/native Max remain
+unqualified. Upgrades preserve older bounded Autopilot selections: select the
+mode again to opt into automatic approvals. Manual remains the factory default.
+
+**New / Clone repository** loads repositories from the existing GitHub CLI
+account, with user-owned and organization-member repositories first on each
+page. Public repository search is separate and explicit. Pick a repository to
+populate its SSH URL and folder name, then choose a new destination. A direct
+HTTPS/SSH URL remains available. Moguri never authenticates, switches accounts,
+overwrites an existing folder, or forwards Copilot/updater credentials.
+
+**Code change** now includes project PR selection, full descriptions and reviewed
+PR creation; **Work item** provides the equivalent GitHub issue flow and shows
+an attached local ticket when present. PR base defaults to GitHub's actual
+default branch and head to the current local branch. The head must already be
+pushed. Review the exact title/body and confirmations before publication.
+Results are linked only after the original durable operation completes.
+Cancellation or uncertain effects remain partial, never retried as a new write.
+Existing advanced Git/review/release operations remain in the collapsed
+**Settings / GitHub workflows / Advanced** section.
+
+Project menus offer **From PR** and **From work item** dropdowns for that
+repository. Review the full body, then start an idle session with an unsent
+draft. Its canonical URL, original numeric account identity and exact source
+digest are retained. Changed source/account/root bindings require a fresh
+review. No checkout, branch, model call or prompt execution starts implicitly.
+
+TUI uses `/github repos`, `/github repos public QUERY`, `/github issues` and
+`/github pulls` for native pickers. Enter reviews an item; Ctrl+N creates its
+idle session, Ctrl+L links it, and Ctrl+B opens its canonical GitHub URL.
+Ctrl+Shift+Y opens remembered approval choices. `/approve project family`,
+`/approve session`, `/approvals`, and `/approvals revoke ID` use the same SDK.
+`/github source issue|pull NUMBER` and `/github start issue|pull NUMBER SHA`
+also support explicit source review from SDK/CLI slash consumers.
+
+GitHub settings detect the CLI account when opened, without a separate client
+ID or account-name field. If needed, sign in yourself with
+`gh auth login --hostname github.com --web --git-protocol ssh`. Explicit
+background linked-PR observations retain their existing per-project access
+choice, separate from these interactive reads.
+
+On macOS, Finder/Dock launches often omit Homebrew from `PATH`. Moguri preserves
+the inherited lookup order and adds missing `/usr/local/bin` and
+`/opt/homebrew/bin` locations when starting its Local background service; its
+owned programs inherit that environment. Direct in-process SDK runtimes and
+Remote peers keep their caller/host environment unchanged. Moguri does not run
+shell startup files, scan other applications' private
+tool caches, install a CLI or copy credentials. An explicitly supplied program
+`PATH` or absolute executable stays authoritative; Linux/Remote Linux lookup is
+unchanged. Git and GitHub CLI must still be installed by the user, and GitHub
+authentication remains explicit. After installing a build containing this fix,
+quit and reopen Moguri so its original background service restarts with the
+corrected environment; existing healthy services are not silently replaced.
+
+**Settings / General / Private GitHub updates / Create a token with the right
+permissions** supplies a prefilled fine-grained-token link and exact steps:
+resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
+Read-only**, included Metadata read access, and a short expiration. You must
+select the repository and finish authorization yourself. The updater needs no
+write, Workflows, Actions or administration permissions. Paste the token only
+into **Private release PAT**, never chat. `/updates token-help` exposes the same
+guidance in TUI/CLI. See the [workflow contract](architecture/session-github-workflows.md).
+
+## Automatic Kupo
 
 Protocol 61 adds [automatic Kupo](architecture/automatic-kupo.md) to the ordinary
 composer. It always appears in the model list, with an unavailable reason when
@@ -11,12 +312,19 @@ there is no eligible configured model. New/reset routing policies use automatic
 selection; existing explicit Single/Compound settings are preserved. Upgrading
 does not select Kupo, authenticate, make a model call or change autonomy.
 
+Protocol 63 converges its original schema-61 state with the session/GitHub
+schema-61 and Kanban/pricing schema-62 lineages. Recognized markers are required;
+upgrades preserve consent, original selected responses, encrypted history,
+receipts and unknown budget holds. A missing current marker is an error, never
+permission to recreate or replay work.
+
+## Workspace experience and skill gateway
+
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
-The left sidebar has **New**, Dashboard, Suggestions, Automations and Global
-Terminal. **Code change** and **Work item** belong to the right rail and follow
-the selected session. Code change shows an existing linked PR; Work item is
-currently an empty issue-link panel. Automations is also intentionally empty:
-no scheduler or new issue/PR linking workflow is implied. Profile, Ask Moguri
+The left sidebar has **New**, Dashboard, Suggestions and Automations.
+**Code change** and **Work item** belong to the right rail and follow
+the selected session, with the protocol-61 GitHub workflows described above.
+Automations is intentionally empty; no scheduler is implied. Profile, Ask Moguri
 and Settings share one compact footer row. Copilot connection status appears
 only in Settings / Models / Providers, not in the left sidebar.
 Artifacts, Candidates and unified
@@ -25,8 +333,8 @@ Non-secret settings fields have hover/focus copy buttons; explanatory text uses
 keyboard-accessible information tooltips. Errors, status and safety reviews
 remain visible. The menu-bar mascot has a dedicated transparent template icon.
 
-New Local User/Global consoles start in the configured **HOME**, not Moguri's
-application-state directory. Project User consoles use their actual bound
+New project-free Local User consoles start in the configured **HOME**, not
+Moguri's application-state directory. Project User consoles use their actual bound
 Moguri worktree. Existing consoles retain their original root; missing or
 invalid HOME fails rather than selecting another directory.
 
@@ -407,8 +715,8 @@ reviews. Deletion still stops owned work and preserves independent documents.
 
 Drag any part of a session row to reorder siblings, including children, within
 their pinned/unpinned group. The target's top/bottom halves insert before/after
-without nesting. There is no grip button. Alt+Up/Down on the focused name and
-Move up/down are keyboard alternatives; use **Attach to session** in the menu
+without nesting. There is no grip button. Alt+Up/Down on the focused name is
+the keyboard alternative; use **Attach to session** in the menu
 to choose a parent. Drag a child to a root row or its project/Chats/group
 header/background to detach into that root list. This asks for confirmation by
 default. **Do not ask again when detaching sessions** is saved per profile and
@@ -656,12 +964,18 @@ below remain separate; current source does not relabel them as new acceptance.
 
 Open a Local session's **Browser** pane and turn on its top **Agent control**
 switch to let the agent use that existing isolated page. An empty pane is
-enough: the agent can navigate it after exact tool approval. Builtin MCP search
+enough: the agent can navigate allowed sites automatically or request approval
+for an unlisted site in Manual/Guided. Builtin MCP search
 for `browser` or `navigate` exposes status, navigation, bounded accessibility
-snapshots, clicks, text-field input and allowed keys. Normal approvals still
-apply. Turning the switch off immediately revokes access and cancels pending
+snapshots, clicks, text-field input and allowed keys. Reads/interactions bind
+the exact `expectedUrl` returned by status/snapshot, never a replacement page.
+The native view filters redirects, subresources and WebSocket requests against
+that admitted scope. Turning the switch off revokes access and cancels pending
 actions; turning it back on creates fresh authority, never replays an old call.
 Closing/reopening, profile switching and service restart all leave control off.
+Permission/autonomy changes revoke the original control too. Direct user
+navigation turns Agent control off and unloads the prior agent-controlled
+document before releasing its retained network filter.
 No personal browser, account cookies, browser download or debug port is used.
 Password/file fields, uploads/downloads and popup windows are unavailable;
 agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
@@ -771,7 +1085,7 @@ microphone, administrator install or physical VM qualification was used.
 Drag a session above or below a sibling to reorder it. Order is saved atomically
 in the service and shared with desktop, TUI and SDK clients. It cannot move a
 session across projects, parents, groups, pinned sections or archive sections.
-Alt+Up/Down and the session action menu provide keyboard alternatives.
+Alt+Up/Down provides keyboard reordering; the session menu retains the other organization actions.
 Double-click a session to rename it; its current name is selected in the
 existing dialog. Single click still opens it, and Escape or Cancel leaves its
 name unchanged.
@@ -798,10 +1112,12 @@ dialog. It never immediately relaunches a replacement. Both confirmation
 preferences are available under **Settings > Confirmations**, including reset
 to the default of asking.
 
-Desktop dictation retains device-aware browser capture, local 16-kHz PCM,
-configurable shortcuts and push-to-talk. Completed capture stays visible as
-**Dictation ready** until explicit **Insert**, which preserves text typed during
-recognition and never sends a prompt. Native live recording separately shows
+Desktop **Ctrl+Space** is hold-to-talk: words stream into the current draft and
+release flushes the final buffer without an Insert step or prompt submission.
+Device-aware browser capture stays local, using 16-kHz PCM. Surrounding typing
+is preserved; overlapping edits stop insertion instead of overwriting text.
+Reviewed file/native transcripts retain their separate explicit Insert flow.
+Native recording separately shows
 Preparing, Recording and Finalizing: recording starts only after the pinned
 runtime reports readiness. Its Stop allows up to one minute to drain the final
 transcript instead of killing it after three seconds; cancellation still
@@ -1383,7 +1699,8 @@ Saved prompt settings are unchanged; running turns keep their captured prompt.
 
 ## Sign in with GitHub Copilot
 
-Desktop: open **GitHub Copilot**, choose **Sign in with GitHub Copilot**, then
+Desktop: open **Settings / Models / Providers**, choose **Sign in** under
+**GitHub Copilot**, then
 open GitHub and enter the displayed one-time code. TUI: press **Ctrl+L**, then
 open the displayed URL yourself. Authorization is a user action, not a test or
 an automated browser operation.
@@ -1502,13 +1819,25 @@ Unready choices explain the limitation
 or fail with a typed error; no fallback to Local or another model is possible.
 
 **Model / Working context** offers the model maximum and its integer-floored
-half, omitting windows below 8,192 tokens. Actual provider-declared working
-windows replace these derived choices when available. `/model-settings` in
-desktop, TUI or `moguri slash` shows the same service choices and current
-estimate; `/model-settings {"contextWindow":N}` selects an offered exact value.
+half as presets, omitting windows below 8,192 tokens. Without discrete provider
+restrictions, `/context-window N` or `/model-settings {"contextWindow":N}`
+accepts any exact integer from 8,192 through the model maximum. The menu also
+shows a valid exact selected value. Actual provider-declared working windows
+remain an exact allowed set rather than a range. `/context-window min|max`
+selects the actual allowed endpoints; `half` floors half the supported maximum
+and fails if that result is too small or not provider-declared, never clamping
+or substituting it. `/model-settings` in desktop, TUI or `moguri slash` shows
+the current service settings and estimate.
 `/model-settings reset` restores the model default. An unsupported saved value
 stays visible and blocks inference until explicitly corrected. No history is
 silently truncated and context/output counts remain estimates.
+
+`/thinking LEVEL` and `/effort LEVEL` are equivalent. They accept only the
+selected model's actual effort levels; `default` clears effort without clearing
+the working window. Context-only changes preserve effort and do not change the
+remembered model selection. Kupo does not accept fixed-role tuning overrides.
+Protocol 69 only advances service/state metadata for these shared validation
+rules; encrypted history, receipts, budgets and source grants are unchanged.
 
 Each response can use the model's declared output maximum within the selected
 context window and its headroom; Moguri does not impose a separate 8,192-token
@@ -1518,13 +1847,27 @@ exhausts it, the turn stays partial and shows that exact limit; pending tools
 from the incomplete response do not run. No automatic retry, model fallback or
 budget increase occurs. See [response and reasoning bounds](architecture/model-controls.md#per-response-output-and-reasoning).
 
-Every tool needs a human approval bound to its exact arguments and policy/
-permission revisions, or an explicit bounded user delegation. Deny wins.
+Tools use native policy, a scoped website allowance, exact human approval or
+explicit user delegation. Scripts and external MCP calls are not native-safe
+merely because their names or annotations say "read". Deny wins.
 Blanket shell/wildcard allow grants are rejected; shell grants name the exact
 command string. File tools list/read/write approved project content; writes require
-the digest returned by a read, or `absent` for a new file. Protected credential
+the fresh digest returned by a read, or `absent` for a new file. An ordinary
+`read_file` refreshes a stale digest explicitly; its `sourceVersion` reports
+the change and stale byte continuations restart at zero. Use
+`requireExactVersion: true` only for an intentional pinned read. Stale writes
+and edits still fail instead of substituting versions. Protected credential
 paths and symlink escapes are rejected. Full text reads/`write_file` are limited
 to 128 KiB; selective reads and exact `edit_file` support sources up to 1 MiB.
+For `read_file`, literal `search` or byte `offset`/`limit` selects at most
+16 KiB even when `mode: "full"` is also present; only unpaged full mode uses
+the smaller source cap. A missing literal match succeeds with empty text.
+Invalid tool arguments identify the schema fields and constraints to correct,
+without echoing submitted values or executing an operation.
+Builtin MCP `grep_logs` supports a 1-MiB UTF-8 source and returns up to
+100 matching lines, 1,000 characters each, within 12,000 serialized UTF-8 bytes,
+with byte offsets and explicit clipping/omission flags. Use `read_file` for exact source paging or
+`search_files` for regex/larger sources.
 Structured binary documents have their separate 8-MiB parser/authoring boundary;
 at most 16 snapshots and 512 KiB of attached text are accepted.
 
@@ -1535,8 +1878,10 @@ implicitly successful background work, and ordinary `run_command` is owned by
 the current turn. Explicit `command_job` watches have their separate captured
 session/root/timeout owner and truthful inspection lifecycle described above.
 The worker does not receive the local API token or refresh credential.
-An MCP call always requires an exact nested-tool approval and fresh schema/
-server fingerprint. Tool annotations are not permissions. An external MCP
+An external/script MCP call requires exact nested-tool approval or an existing
+grant, plus a fresh schema/server fingerprint. Known builtin read/status tools
+use native policy, and builtin web/browser tools use scoped website policy.
+Tool annotations are not permissions. An external MCP
 caller cannot take over a busy session or bypass the project's active lease.
 
 Desktop **Attach / @ Project text file** and TUI `/attach path/to/file` create
@@ -1620,6 +1965,33 @@ replays tools; normal context-window limits still apply. Session deletion may
 delete its compaction text along with its transcript, but cannot erase the
 independent ledger's real/unknown charges. There is no automatic compaction,
 summary-to-memory promotion, user-answer forgery or new sandbox claim.
+
+## Provider and model availability
+
+**Settings / Models / Providers** lists this profile's providers and discovered
+or explicitly configured models. Use the switches to disable a provider while
+retaining its login/configuration, or keep just the models you want. Disabled
+models disappear from selection lists and cannot be selected with `/model`;
+Kupo and every new model admission use the same service-owned availability.
+Already admitted calls retain their actual result and charges.
+
+Models with the same exact upstream API ID share one row and an exclusive
+provider dropdown. Choose a source explicitly when there is more than one.
+An unavailable/disabled saved source never silently changes to another provider.
+IDs are declared catalogue keys, not independent-family or quality evidence.
+Current sessions and remembered defaults retain their original selection;
+reenable it or explicitly choose another available model before new inference.
+
+CLI uses `moguri models catalogue`, `models enable|disable API_ID`,
+`models provider PROVIDER_ID enable|disable`, and
+`models source API_ID MODEL_ID`. Writes accept an observed `--revision N`.
+TUI and desktop share `/models catalogue`, `/models enable|disable API_ID`,
+`/models provider PROVIDER_ID enable|disable`, and
+`/models source API_ID MODEL_ID`; bare `/models` still opens available choices.
+These profile preferences survive restart, never sign in or start inference,
+and do not alter another profile. Local/SSH endpoint-enabled controls remain
+consistent with provider-list changes. See the
+[model-control contract](architecture/model-controls.md#provider-and-model-availability).
 
 ## Local models and startup sources
 
@@ -1969,13 +2341,49 @@ scope, or creates a project-free chat when none is selected. CLI:
 Scope is fixed for that session, not silently rebound when a different project
 is selected for new chats.
 
-These chats never reuse a previous model workspace root. Agent project files,
-shell, diff, plans and repository memory are unavailable. Independent user
-consoles are described below; opening one does not grant a model filesystem
-access. Provider calls,
-explicitly selected client snapshots/images, global guidance/skills and configured global MCPs remain available.
-The internal MCP advertises only its scope-safe page fetcher. A failed general
-chat pauses only itself, not every project-free chat or an unrelated project.
+Ordinary **Local** chats capture configured **Home** as their initial working
+directory, matching the private User console. Files, approved shell commands,
+bounded command jobs, Agent output and configured global tools work without
+selecting a project. Desktop **Files** reads that Home; **Terminal / Agent**
+shows actual agent commands, separate from private User-console bytes.
+Home is not a synthetic project or sandbox. A changed/missing directory fails
+for filesystem work instead of selecting another Home, a previous project or
+the state directory. Readback/browser status and model-only answers do not
+silently acquire filesystem authority.
+
+Manual approvals and remembered session/profile-wide grants work normally.
+Explicit Autopilot approves supported tools automatically, not hard denials,
+read-only/side restrictions, allowed-env policy or budget overrides. A Home
+binding is not permission. Side chats may read approved Home files, never run
+commands or edit them. A project-scoped remembered grant still needs a real
+project.
+
+Use an explicit `gh --repo owner/repo ...` target or `git -C /selected/checkout`
+for repository work from Home. GitHub pickers, repository diff, project plans,
+indexing and owned project publication still need a real selected repository.
+No prior project/account is inferred and no login is automated. **Browser**
+works in an ordinary chat after the user opens its pane and enables **Agent
+control**, with the same exact page leases and normal approvals. Project-free
+Remote/Sandbox transports do not use controller Home as a fallback.
+
+Model-only chats remain parallel. Actual overlapping Home writers serialize,
+including across profiles. An interrupted writer's unknown process/file effects
+retain their original profile/root identity after restart or source deletion.
+Desktop shows **Home needs inspection**; **Acknowledge inspected Home** records
+actual-user risk acceptance, not cleanup proof, permissions or queue resumption.
+CLI `moguri home status --session ID` and shared TUI/desktop `/home` inspect the
+same retained state. After actual inspection, `/home acknowledge WRITER_ID
+REVISION confirm-inspected` acknowledges only that exact writer. Resume paused
+work separately. Autopilot, a new chat, navigation and deletion cannot clear it.
+See the [Home execution contract](architecture/project-free-execution.md).
+
+The current qualified Home build is
+`release/Moguri-0.30.0-alpha.1-home-chats-72-macos-arm64.dmg`.
+Use matching protocol-72 clients/service, quit the old app before replacement
+and preserve existing state. This is ad-hoc-signed development output, not a
+notarized or uploaded release. Full source, hidden desktop, actual packaged-app,
+installed-SDK and integrity results are recorded in the
+[complete Home qualification](architecture/project-free-execution.md#complete-protocol-72-qualification).
 
 Cloning requires an existing parent folder and a new destination name. It never
 overwrites a directory, initializes submodules, runs hooks/filters, logs in, or
@@ -2224,10 +2632,11 @@ TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 Right-click a project header, press **Shift+F10** while it is focused, or open
 its **Project actions** button to choose an icon color. The same context menu
-offers named red, orange, yellow, green, blue, indigo and violet presets plus
-**Default color**. **Custom color...** opens a preview that changes the project
-only after **Save**; Cancel leaves its saved color unchanged. Color picking is
-no longer part of the project settings form.
+offers named red, orange, yellow, green, blue, indigo and violet presets, plus
+a half-white/half-black pencil swatch for a custom color. It opens a preview
+that changes the project only after **Save**; Cancel leaves the saved color
+unchanged. There are no separate Default color or Custom color buttons.
+Color picking is no longer part of the project settings form.
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
@@ -2247,7 +2656,8 @@ restriction immediately blocks new edit approvals; an active turn acknowledges
 it at the next safe steer/step or completion. Already-started effects cannot be
 rolled back by a mode change. `/agent` returns at a safe boundary with the project
 writer lease. Question-only side sessions cannot promote themselves.
-`/side` snapshots approved parent context into a separate read-only conversation,
+`/side` opens a separate read-only conversation and captures its original main
+session's latest retained context whenever a new side question begins,
 with separate usage, read approvals and cancellation. User-created subsessions
 are attached agent sessions, not the optional model-subagent feature.
 Side chat exposes its own **Model** selector. It inherits the current parent
@@ -2256,8 +2666,18 @@ explicit concrete model. Choosing it does not change the parent, Env or
 read-only scope, and no failed model is silently substituted.
 Protocol 58 adds explicit root-bound live messages/public inspection and
 separate executable agent-child tasks without widening the side chat's mode.
-Captured parent context is retained independently and loaded on demand; missing
-live grants never become a snapshot-to-live fallback.
+Each new side turn atomically retains its own original-parent context snapshot.
+Main work after the first side question is included in the next one; side
+history is preserved, without injecting the same main history repeatedly.
+An in-progress answer or tool continuation keeps its original frozen capture.
+Unsent main drafts/held queues are not included. Missing parent/source/model
+capability fails explicitly with the undispatched question preserved. Existing
+captures survive parent removal; navigation attachments never change the source.
+Live coordination grants remain separate, not an automatic tool/permission grant.
+The [protocol-67 side-context qualification](architecture/session-reliability.md#protocol-67-side-context-qualification)
+records coverage and the exact local development installer. Quit before
+replacing the app, then reopen matching clients/service; retained state is
+preserved, never deleted to upgrade.
 
 The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
 Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
@@ -2565,31 +2985,40 @@ auto-download. Audio never goes to hosted ASR or the Copilot provider.
 Desktop dictation requests audio-only OS permission only on explicit activation.
 **Voice input device** lists microphones after a separate explicit request;
 non-default selection is exact, never silently substituted. Browser capture
-downmixes/resamples locally to bounded mono 16-kHz PCM16 WAV and sends that
-transient clip to the existing local file recognizer. This avoids relying on a
-native live-microphone process to finalize on SIGINT. Audio, upload credentials
+downmixes/resamples locally to bounded mono 16-kHz PCM16 frames. A private,
+authenticated loopback connection streams those frames into the pinned native
+recognizer, which loads the already verified local model once. Audio, upload credentials
 and audio fingerprints do not enter durable events, command receipts or model
 context. Private crash staging is removed before another capture; unknown or
 changed staging entries are retained and block capture with a diagnostic.
 
-**Ctrl+Space** starts/stops desktop capture while the main chat is focused,
-including its toolbar, but not the embedded terminal, side chat or dialogs.
-Voice/Accessibility settings share an editable shortcut. Optional push-to-talk
-owns both shortcut and microphone-button press/release. Hold until Recording
-appears, speak, then release to flush the original clip and start transcription,
-including a pointer release outside the button. Space/Enter also hold/release
-the focused microphone button. Toggle mode keeps click/start and click/stop.
+**Hold Ctrl+Space, speak, release.** Recognized words appear directly in the
+owning main or side-chat textbox while speaking. Release flushes the original
+buffer and replaces its provisional text once; it never sends a chat message.
+The shortcut is always hold-to-talk and ignores terminals, dialogs and other
+composers. Voice/Accessibility settings share an editable shortcut. Optional
+microphone-button push-to-talk also supports pointer release outside the button
+and Space/Enter on the focused button. Otherwise that button keeps click/start
+and click/stop. The microphone icon stays visible and highlights while the
+owning capture records, including activation through the keyboard shortcut.
+Cold-start progress distinguishes model preparation from ready streaming.
+The pinned native runtime can buffer its readiness log, so Moguri verifies the
+exact authenticated local listener instead of waiting for that log to flush.
+Capture errors retain the original recognizer diagnostic rather than a second
+misleading missing-capture message. Use matching protocol-71 clients/service
+for this repair; upgrading preserves existing history and model preferences.
 Releasing before admission never opens a late microphone and explains why no
 audio was captured, instead of silently returning to idle.
-Repeated keydown and stop requests do not create additional clips or uploads.
+Repeated keydown and stop requests do not duplicate frames or finalization.
 Blur, sleep, hidden/unmounted capture surfaces and profile changes discard active
-microphone audio with a visible interruption reason. Hiding the window after
-Stop does not cancel recognition of the already-finalizing clip.
-Stop/release finalizes and transcribes; Cancel discards. The completed transcript
-is shown directly above the composer and in Voice settings for review.
-Insert remains explicit,
-revision-checked and never automatically sends. Desktop clips are at most two
-minutes, **3,840,044 WAV bytes**; excess/invalid input is rejected, not truncated.
+microphone audio with a visible interruption reason; recognized words already
+inserted remain in the draft. Hiding after release does not cancel the original
+flush. Editing the dictated span or receiving a different client's draft stops
+insertion instead of overwriting newer text. Typing before/after that span is
+preserved. The native host stops its exact recognizer on controller-pipe loss;
+restart never resumes a recording. Desktop captures are at most two minutes;
+excess/invalid input is rejected, not truncated. The older SDK batch-WAV and
+explicit transcript-insertion APIs remain available for integrations.
 
 TUI **Ctrl+Space** starts/stops its native default microphone; **F4** inserts the
 completed local transcript. CLI/TUI native live recording does not pretend to
@@ -2676,7 +3105,8 @@ protection to force a retry.
 
 ## Local project Kanban and optional Linear
 
-Desktop **Issues** opens this project's local board. **New** creates a
+Desktop's per-project **Kanban** row, or **Issues**, opens the special board
+chat. **New** creates a
 feature, bug or misc ticket with title, description, phase and optional
 connected GitHub PR. There is no assignee and no hosted issue upload. Use
 phase selectors to move, title to edit, and Archive/Restore to retain history.
@@ -2873,12 +3303,15 @@ Model-created subagents charge their real owner. Changing models/envs,
 resuming, deleting sources and restarting never resets cumulative accounting.
 
 USD choices require fresh model-specific estimates in **Settings / Budgets**.
-Configure canonical model IDs, input/output USD per million, a UTC effective
-date and `source: "user-estimate"`. No Copilot price is guessed; adapter default
-zero is not a bill. An explicit approved zero estimate is allowed. Historical
-unpriced/unbounded calls keep affected finite choices unavailable. Cache
-categories are included once in total input using the conservative configured
-rate, not an invented discount.
+Use an explicit canonical-model override with input/output USD per million, UTC
+date and `source: "user-estimate"`, or explicitly accept published API-equivalent
+references for finite limits. Automatic references are on for estimates, not
+finite-limit consent. They assume the named originating model's API price even
+through Copilot, never its subscription bill. An explicit approved zero
+override remains allowed. Historical unpriced/unbounded calls still block
+affected finite choices. Provider rates use reported cache subsets once;
+unknown write TTL reserves the maximum listed write price. Manual overrides
+retain their conservative flat-input behavior.
 
 The separate **Current-profile hard policy** applies across sessions, including
 Unlimited preferences. Factory/settings reset does not clear it. Removing or

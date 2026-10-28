@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { likelyQuestion } from "../apps/service/src/attention.ts";
 import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
 import { MoguriSdk, type Snapshot, type StoredEvent } from "../packages/sdk/src/index.ts";
-import { setupFixture, waitFor } from "./fixture.ts";
+import { reviewNativeTools, setupFixture, waitFor } from "./fixture.ts";
 
 test("question hints work across languages and ignore fenced code, quotations, inline examples and URLs", () => {
   assert.equal(likelyQuestion("Which generated option would you prefer?"), true);
@@ -47,6 +47,7 @@ test("attention shares atomic state, reading never answers/approves, and notific
     assert.equal(sdk.getState().snapshot!.attention.find((entry) => entry.id === attention.id)?.active, true);
     assert.equal(fixture.session().messages.filter((message) => message.role === "user").length, users);
     assert.equal(fixture.session().pendingApproval, null);
+    await reviewNativeTools(fixture, ["read_file"]);
     await fixture.send("generated tool");
     const approval = await waitFor(() => fixture.session().pendingApproval);
     await sdk.refresh();

@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native chat activity is qualified on macOS.");
 
 test("desktop expands original operations and public reasoning, copies only the response, and keeps original turn info and usage compact", async () => {
-  const fixture = await setupFixture({ reasoning: true, reasoningText: "Generated public provider reasoning.", contextWindow: 32768,
+  const fixture = await setupFixture({ reasoning: true, reasoningText: "**Considering testing strategies**\n\nGenerated public provider reasoning.", contextWindow: 32768,
     toolAdvice: "Generated plan before reading.", usage: { prompt_tokens: 30, completion_tokens: 12, total_tokens: 42, prompt_tokens_details: { cached_tokens: 10 } } });
   const sdk = await new MoguriSdk(fixture.service.connection).ready(), settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, budgets: { ...settings.values.budgets, rates: [
@@ -30,13 +30,16 @@ test("desktop expands original operations and public reasoning, copies only the 
     });
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool: inspect the generated file.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await fixture.approve(); await fixture.terminal();
+    await fixture.terminal();
+    expect(fixture.session().pendingApproval).toBeNull();
     const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     const read = transcript.locator(".activity-row[data-kind='read-file']");
     await expect(read.locator("summary svg[data-icon='ReadFile']")).toBeVisible();
     await read.locator("summary").click();
     await expect(read.getByRole("region", { name: "Operation arguments", exact: true })).toContainText('"path": "fixture.txt"');
     await expect(read.getByRole("region", { name: "Operation result", exact: true })).toContainText("generated original");
+    await expect(read.getByRole("region", { name: "Operation arguments", exact: true }).locator("header")).not.toContainText("UTF-8 bytes");
+    await expect(read.getByRole("region", { name: "Operation result", exact: true }).locator("header")).not.toContainText("UTF-8 bytes");
     await expect(read.locator(".activity-metrics")).toContainText(/Started .+ - .+/);
     await expect(read.locator(".activity-metrics")).toContainText(/Duration \d/);
     await expect(read.locator(".activity-metrics")).toContainText(/Output \d/);
@@ -45,6 +48,7 @@ test("desktop expands original operations and public reasoning, copies only the 
     await thought.locator("summary").click();
     await expect(thought).toHaveClass(/activity-status-completed/);
     await expect(thought).toContainText("Generated public provider reasoning.");
+    await expect(thought.locator("strong").filter({ hasText: "Considering testing strategies" })).toBeVisible();
     await expect(thought).toContainText("separate thought time is not reported");
     const response = transcript.getByRole("region", { name: "Assistant response", exact: true });
     await response.hover();
@@ -122,18 +126,16 @@ test("current operation has a wall timer, respects reduced motion, and disappear
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("late original turn information never appears in another session", async () => {
+test("saved original turn information never leaks into another session or starts a click-time query", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure(); await fixture.send("Generated activity source response."); await fixture.terminal();
   await sdk.sessions.rename(fixture.sessionId, "Generated activity first");
   const second = await sdk.sessions.create(null, "Generated activity second");
   const query = fixture.service.controller.platform.query.bind(fixture.service.controller.platform);
-  let held = false, settled = false, release = () => {};
-  const barrier = new Promise<void>((resolve) => { release = resolve; });
+  let reads = 0;
   fixture.service.controller.platform.query = async (input) => {
-    const result = await query(input);
-    if (input.type === "activity.turn" && input.sessionId === fixture.sessionId && !held) { held = true; await barrier; settled = true; }
-    return result;
+    if (input.type === "activity.turn") { reads++; throw new Error("Generated click-time turn information read is forbidden."); }
+    return query(input);
   };
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -141,16 +143,16 @@ test("late original turn information never appears in another session", async ()
     const page = await app.firstWindow(), transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     await page.locator(".session-link").filter({ hasText: "Generated activity first" }).click();
     await transcript.getByRole("button", { name: "Turn information", exact: true }).click();
-    await expect.poll(() => held).toBe(true);
+    await expect(page.getByRole("dialog", { name: "Turn information", exact: true })).toContainText(fixture.modelId);
     await page.locator(".session-link").filter({ hasText: "Generated activity second" }).click();
     await expect(page.locator(".session-link[aria-current='page']")).toHaveAttribute("title", "Generated activity second");
-    release(); await expect.poll(() => settled).toBe(true);
     await expect(page.getByRole("dialog", { name: "Turn information", exact: true })).toHaveCount(0);
     await expect(transcript.locator(".conversation-turn")).toHaveCount(0);
     await expect(transcript).not.toContainText("Generated Copilot response");
     expect((await sdk.activity.list(second.id!)).activity.entries).toEqual([]);
+    expect(reads).toBe(0);
     expect(fixture.requests.length).toBe(1);
-  } finally { release(); fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
+  } finally { fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("an incomplete reasoning response shows its actual output limit and does not approve or execute its pending tool", async () => {

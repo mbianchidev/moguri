@@ -61,14 +61,14 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
     setInputOwner(null); setBaseline(""); setPreview(null); setCostReviewed(false); setError("");
   };
   return <section className="candidate-section" aria-label="Public compound workflows" aria-busy={Boolean(busy)}>
-    <h2>Reviewed Cascade / Critique</h2>
+    <SettingsHelp label="More about this setting" target={<h2>Reviewed Cascade / Critique</h2>}>Local host commands are not sandboxed. Detached/reparented containment remains unproven. Exact project-test approval and source application are separate decisions.</SettingsHelp>
     <p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
-    <SettingsHelp label="More about this setting">Local host commands are not sandboxed. Detached/reparented containment remains unproven. Exact project-test approval and source application are separate decisions.</SettingsHelp>
+
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
     {!local && <p className="settings-warning">Configure an explicitly reviewed Compound routing policy, then select kupo in a Local project agent. This panel never changes Env, model, autonomy or budgets for you.</p>}
     {changedOwner && <p className="settings-warning">The source owner changed. Your unsaved task remains visible, but cannot be sent into another project. Copy it or explicitly discard before starting a new review.</p>}
-    <details open={!selected || dirty}>
+    <SettingsHelp label="More about this setting" target={<details open={!selected || dirty}>
       <summary>Prepare exact compound input</summary>
       <label className="setting-field">Current task<SettingsTextarea aria-label="Compound task" value={task} disabled={Boolean(busy) || !writable || changedOwner} maxLength={4096} onChange={(event) => edit(() => setTask(event.target.value))} /></label>
       <label className="setting-field">Reviewed request plan, if supplied<SettingsTextarea aria-label="Compound request plan" value={plan} disabled={Boolean(busy) || !writable || changedOwner} maxLength={8192} onChange={(event) => edit(() => setPlan(event.target.value))} /></label>
@@ -82,7 +82,6 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
       <label className="setting-field">Configured project validation script<select aria-label="Compound validation script" value={scriptId} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setScriptId(event.target.value))}>
         <option value="">Choose an exact user-configured project script</option>{configuration?.values.scripts.map((script) => <option key={script.id} value={script.id}>{script.name}</option>)}</select></label>
       <label className="setting-field">Test deadline in milliseconds<SettingsInput aria-label="Compound test deadline" type="number" min={100} max={120000} value={timeout} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setTimeout(event.target.value))} /></label>
-      <SettingsHelp label="More about this setting">At most 20 paths. Selected bases must match the committed clean stages. Original composer drafts, attachments and held prompts are not consumed or implicitly included. Create worktrees and configure scripts explicitly in Project settings.</SettingsHelp>
       <div className="button-row"><button disabled={Boolean(busy) || !writable || changedOwner || !task.trim() || !draftId || !alternateId || draftId === alternateId || !scriptId || !paths && !newPaths}
         onClick={() => void run("Reviewing exact compound input", async (current) => {
           if (!session) throw new Error("Choose the exact source session before reviewing a workflow.");
@@ -93,29 +92,29 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
             requestPlan: plan || null, requestArchitecture: architecture || null, validationScriptId: scriptId, validationTimeoutMs: Number(timeout) };
           const result = await sdk.compound.preview(input);
           if (current()) setPreview({ input, value: result.preview, scope: inputScope });
-        })}>Review compound input</button>
-        <button disabled={Boolean(busy) || !dirty && !changedOwner} onClick={reset}>Discard compound input</button></div>
+        })} aria-label="Review compound input">Review</button>
+        <button disabled={Boolean(busy) || !dirty && !changedOwner} onClick={reset} aria-label="Discard compound input">Discard</button></div>
       {preview && preview.scope === inputScope && <section className="candidate-binding" aria-label="Exact compound input review">
         <p className="fine-print path">Source: {preview.value.document.source.root}<br />Draft: {preview.value.document.draft.root.root}<br />Alternate: {preview.value.document.alternate.root.root}<br />HEAD: {preview.value.document.source.head}</p>
-        <SettingsHelp label="More about this setting">8-KiB role results, 16-KiB complete validation context. All-role usage is metered; estimates are not exact billing. No file, test or source application is approved here.</SettingsHelp>
+
         {preview.value.document.task.files.map((file) => <details key={file.path} open><summary className="path">{file.path} / base {file.baseDigest}</summary><pre className="workspace-file-content">{file.text ?? "(Reviewed new file)"}</pre></details>)}
-        <details><summary>Exact eligible routes, role bounds and system instructions</summary><pre>{JSON.stringify(preview.value.document, null, 2)}</pre></details>
+        <SettingsHelp label="More about this setting" target={<details><summary>Exact eligible routes, role bounds and system instructions</summary><pre>{JSON.stringify(preview.value.document, null, 2)}</pre></details>} descriptionFirst>8-KiB role results, 16-KiB complete validation context. All-role usage is metered; estimates are not exact billing. No file, test or source application is approved here.</SettingsHelp>
         <label className="check-setting"><SettingsInput aria-label="Reviewed compound input and model cost" type="checkbox" checked={costReviewed} onChange={(event) => setCostReviewed(event.target.checked)} />I reviewed this exact source/context, eligible models, privacy policy and possible model cost. Staging, tests and source acceptance stay separate.</label>
         <button className="primary" disabled={Boolean(busy) || !writable || !costReviewed} onClick={() => void run("Starting bounded reviewed compound work", async () => {
           const captured = preview; setPreview(null); setCostReviewed(false); focusNext.current = true;
           const created = await sdk.compound.start(captured.input, captured.value.digest, true);
           if (!created.id) throw new Error("No original public workflow identity was acknowledged. Inspect retained history before another review.");
           setSelectedId(created.id); setBaseline(fields);
-        })}>Start reviewed compound</button>
+        })} aria-label="Start reviewed compound">Start</button>
       </section>}
-    </details>
+    </details>}>At most 20 paths. Selected bases must match the committed clean stages. Original composer drafts, attachments and held prompts are not consumed or implicitly included. Create worktrees and configure scripts explicitly in Project settings.</SettingsHelp>
     <label className="setting-field">Retained compound workflow<select aria-label="Retained compound workflow" value={selected?.id ?? ""} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       {!workflows.length && <option value="">No retained public workflows</option>}{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{snapshot.artifacts.find((artifact) => artifact.id === workflow.id)?.name ?? workflow.id} / {workflow.status}</option>)}</select></label>
     {value && <div className="candidate-section">
       <h3 ref={outcomeHeading} tabIndex={-1}>Compound {value.workflow.status}</h3>
       <p className="fine-print">Phase: {value.workflow.phase}. {value.workflow.route ? `Classifier selected ${value.workflow.route.pattern}.` : "No route accepted."} No source acceptance or Git operation is implied.</p>
       {value.workflow.diagnostic && <p className="settings-warning" role="alert">{value.workflow.diagnostic}</p>}
-      {ownRunning && <button disabled={Boolean(busy)} onClick={() => void run("Requesting owned workflow stop", async () => { await sdk.compound.stop(value.workflow.id); })}>Stop this compound workflow</button>}
+      {ownRunning && <button disabled={Boolean(busy)} onClick={() => void run("Requesting owned workflow stop", async () => { await sdk.compound.stop(value.workflow.id); })} aria-label="Stop this compound workflow">Stop</button>}
       {value.roles.map(({ step, input, result }) => <details key={step.planId}><summary>{step.role} / {step.modelId} / {step.state}</summary>
         <p className="fine-print">Untrusted role data, never a user answer, permission or quality proof.</p>{input && <details><summary>Exact model input</summary><pre>{input}</pre></details>}{result && <pre>{result}</pre>}</details>)}
       {value.validations.map(({ validation, document, result }) => <details key={validation.id} open={Boolean(result)}><summary>Project tests / {validation.status}</summary>
@@ -132,13 +131,13 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
         <div className="button-row"><button className="primary" disabled={Boolean(busy) || !ownRunning || !testReviewed} onClick={() => void run("Approving exact staging and project tests", async () => {
           setTestReviewed(false); focusNext.current = true;
           await sdk.compound.review(value.workflow.id, review.validationId, value.workflow.revision, review.digest, true);
-        })}>Stage and run reviewed project tests</button>
+        })} aria-label="Stage and test using reviewed project script">Stage and test</button>
           <button disabled={Boolean(busy) || !ownRunning} onClick={() => void run("Declining exact staging and tests", async () => {
             setTestReviewed(false); focusNext.current = true;
             await sdk.compound.review(value.workflow.id, review.validationId, value.workflow.revision, review.digest, false);
-          })}>Decline staging and tests</button></div>
+          })} aria-label="Decline staging and tests">Decline</button></div>
       </section>}
-      {value.workflow.status === "proposed" && value.workflow.selectedCandidateId && <button onClick={() => onSelectCandidate(value.workflow.selectedCandidateId!)}>Inspect recommended candidate</button>}
+      {value.workflow.status === "proposed" && value.workflow.selectedCandidateId && <button onClick={() => onSelectCandidate(value.workflow.selectedCandidateId!)} aria-label="View candidate recommended by workflow">View candidate</button>}
     </div>}
   </section>;
 }

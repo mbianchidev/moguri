@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop execution is qualified on macOS.");
@@ -26,7 +27,7 @@ test("local model setup is independent of Copilot and startup controls are inher
     expect(fixture.requests.length).toBe(0);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated local solver/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated local solver/ }).click();
     await page.keyboard.press("Escape");
     await page.getByLabel("Prompt", { exact: true }).fill("Generated local desktop task.");
     await page.getByRole("button", { name: "Send", exact: true }).click();

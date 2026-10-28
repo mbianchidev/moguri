@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import type { ActivityResponse, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { activityBytes, activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
+import { activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { Icon } from "./Icon.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";
@@ -47,7 +47,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
         {commands.map((command, index) => <option value={command.id} key={command.id}>{index + 1}. {command.subject?.slice(0, 65) ?? "Recorded command"} / {command.status}</option>)}
         {!commands.length && <option value="">{activity.error ? "History unavailable" : activity.loading ? "Loading commands..." : "No approved command"}</option>}
       </select>
-      <label className="agent-follow"><input type="checkbox" checked={follow} onChange={(event) => { setFollow(event.target.checked); setOffset(0); }} />Follow latest output</label>
+      <label className="agent-follow"><input type="checkbox" role="switch" checked={follow} onChange={(event) => { setFollow(event.target.checked); setOffset(0); }} />Follow latest output</label>
       <Tooltip content="Copy displayed agent output"><button className="icon-button" type="button" aria-label="Copy agent output" disabled={!content} onClick={() => void copy()}><Icon name="Copy" /></button></Tooltip>
       {activity.activity?.nextBefore && <button className="quiet" type="button" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Earlier commands</button>}
     </header>
@@ -59,7 +59,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
       {loading && !result && <p role="status">Reading the original Agent output...</p>}
       <GhosttyOutput text={content?.text ?? ""} active={active} scope={JSON.stringify([sdk.profileId, session.id, selected.id, follow, offset])} />
       {content ? <div className="agent-output-pages">
-        <span>{content.offset.toLocaleString()}..{(content.offset + new TextEncoder().encode(content.text).length).toLocaleString()} / {activityBytes(content.bytes)} retained UTF-8</span>
+        <span>Captured command output</span>
         {content.offset > 0 && <button className="quiet" type="button" onClick={() => { setFollow(false); setOffset(0); }}>First page</button>}
         {content.nextOffset !== null && <button className="quiet" type="button" onClick={() => { setFollow(false); setOffset(content.nextOffset!); }}>Next page</button>}
       </div> : !loading && <p className="fine-print">{readError ? "Agent output is unavailable. Reopen this tab to retry; no empty result was assumed." : selected.status === "pending" ? "Waiting for command approval; no PTY has started." : "No output has been observed for this command."}</p>}

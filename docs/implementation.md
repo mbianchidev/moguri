@@ -4,6 +4,14 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+Protocol 72 adds [Home-backed ordinary Local chats](architecture/project-free-execution.md):
+their real null project identity is separate from captured canonical
+Home/device/inode and ordinary approved file/command tools. All clients share
+that binding and independently retained actual-writer recovery. No previous
+project, replacement root, credentials, permissions or non-Local fallback is
+inferred; private roles remain root-less/tool-less and repository publication
+still requires an explicit real project.
+
 Protocol 57 makes [candidate retention](architecture/candidate-cleanup.md)
 session-owned: permanent origin-session deletion, including archived expiry,
 deletes its candidates and fixed-model proposal reports after owned work settles.
@@ -47,6 +55,15 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > and optional read-only Linear imports. Lifecycle execution remains blocked
 > without real SendBox qualification. These features share the SDK and event
 > authority; they do not create a second hosted issue system.
+
+> The owner-requested [project Kanban/pricing follow-up](architecture/project-kanban.md)
+> adds one project board chat, shared visibility/source preferences, same-panel
+> GitHub/Linear work, card binding and one actual-user delegated Local task through
+> its draft PR. Project context menus and drag ordering share SDK authority.
+> Named models can use originating-provider API-equivalent estimates through
+> Copilot/resellers, with captured sources and separate finite-limit consent.
+> This is not an invoice, a backlog scheduler, a merge grant, qualified fork-head
+> publication or Remote/Sandbox continuation.
 
 > The [session workspace slice](architecture/session-workspace.md) implements
 > held prompts, shared slash actions, enforced read-only/side sessions,
@@ -359,9 +376,14 @@ states. Concrete models stay scoped to the active profile and selected env;
 discovery never scans arbitrary hosts or starts paid inference. Recheck
 availability at dispatch, and never replace an unavailable saved model silently.
 
-Working-context choices use the exact model maximum and its integer-floored
-half, excluding values below the shared 8,192-token working minimum. Genuine
-provider-declared supported windows replace those derived choices. SDK, CLI,
+Working-context presets use the exact model maximum and its integer-floored
+half, excluding values below the shared 8,192-token working minimum. Without
+provider-declared restrictions, exact integer ceilings within that range are
+also valid. Genuine provider-declared supported windows remain an exact allowed
+set. `/context-window TOKENS|min|half|max` preserves effort; min/max use actual
+allowed endpoints and an unsupported floored half fails without substitution.
+`/thinking LEVEL` and `/effort LEVEL` preserve context; `default` clears only
+effort, using the same actual supported levels as the model control. SDK, CLI,
 TUI and desktop share the contract; model changes and stale/default overrides
 cannot silently clamp a window or discard history. Request sizing and output
 headroom remain explicitly estimated and are rechecked against actual prepared
@@ -487,12 +509,14 @@ Model selection (**fixed model** or **kupo**), **Env**, **Autonomy level**, and 
 | --- | --- |
 | **Manual** | The user answers agent questions and approves tool/action requests. This is the out-of-box default; only explicitly preapproved operations may proceed without a prompt. |
 | **Guided** | The current generative model recommends an answer or approval with an explanation; the user still confirms. In kupo, this is the active solver model, not the hidden router or critic. |
-| **Autopilot** | The current generative model resolves routine questions and approves actions within user-delegated policy. It asks the user sparingly for missing facts, unclear scope, or permissions that were not delegated. |
-| **Autopilot Max** | A configured System One/decision provider, such as Jev, selects answers, approves or denies delegated actions, and chooses bounded steering actions. This also works with a fixed generative model; it does not require kupo. |
+| **Autopilot** | Explicit selection delegates automatic approval of all declared, qualified tools and commands for subsequent session turns. The solver still asks for genuinely missing user-only facts rather than fabricating answers. |
+| **Autopilot Max** | The same automatic tool approvals, plus a configured qualified System One-compatible decision provider for explicitly delegated technical choices and bounded steering. It also works with a fixed solver and does not require kupo. |
 
-Use the shared global/profile/repo/project/session defaults. Delegation must expose its allowed actions, repository and data scope, budget, and stop conditions. An autonomy selection is not an unrestricted permission grant: hard denials, user-only settings, secret boundaries, Git policies, and allowed-env policy remain authoritative.
+Use the shared global/profile/repo/project/session defaults. Selecting an Autopilot mode explicitly delegates tool approvals, not additional capabilities, authentication, roots or budget. Hard denials, read-only mode, user-only settings, secret boundaries, Git policies and allowed-env policy remain authoritative. Protocol 61 records explicit `automaticApprovals` consent; old bounded selections are preserved until the user selects the mode again.
 
-The decision layer handles structured questions with explicit alternatives, tool approval requests, and typed steering choices. Autopilot Max can answer those requests instead of asking the user, but it cannot invent user-only facts or turn an open-ended question into a fabricated user answer. Unclear questions, insufficient confidence, unavailable providers, and decisions outside delegation go to the user or leave the operation visibly blocked. Guided advice and automated decisions are never recorded as human approval.
+The current Max decision layer handles delegated technical questions with explicit alternatives and typed steering choices. It does not introduce another permission gate for automatically approved tools. Legacy bounded-Max tool review remains only for retained configurations without the new consent marker. No layer may invent user-only facts or turn an open-ended question into a fabricated user answer. Unclear questions, insufficient confidence, unavailable providers and decisions outside delegation go to the user or leave the operation visibly blocked. Actual automatic approvals have an autonomy actor, never a fabricated human or model approval.
+
+Manual and Guided can remember approvals in session, project or current-profile global scope. Exact commands, conservative simple command families and exact configuration/schema-bound MCP tools are distinct targets. The service derives the target from the actual pending call and atomically appends the grant with the user answer. Denials still win. See [session approvals and GitHub workflows](architecture/session-github-workflows.md) for migration, discovery, source review and cross-client behavior.
 
 Decisions bind to one request, exact arguments and context, policy revision, and session/turn/step. Recheck authorization before applying an answer, executing a tool, or admitting a steer. A user response, changed request, revoked delegation, cancellation, or newer policy invalidates an outstanding model decision. Recovery cannot replay side effects or reuse an approval for different arguments.
 

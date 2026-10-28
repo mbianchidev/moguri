@@ -65,6 +65,15 @@ test("malformed document errors preserve the whole composer and an earlier attac
     await expect(prompt).toHaveValue("Generated preserved prompt.");
     await expect(page.getByRole("button", { name: "Preview document generated.docx", exact: true })).toBeVisible();
     expect(fixture.session().draft.attachments).toHaveLength(1); expect(fixture.requests).toHaveLength(0);
+    await page.getByRole("button", { name: "Preview document generated.docx", exact: true }).click();
+    const preview = page.getByRole("dialog", { name: "Document preview generated.docx", exact: true });
+    const remove = preview.getByRole("button", { name: "Remove attachment", exact: true });
+    await expect(remove).toBeEnabled(); await expect(remove).toHaveText("");
+    await expect(remove.locator("svg[data-icon='Trash']")).toBeVisible();
+    await remove.click(); await expect(preview).toHaveCount(0);
+    await expect.poll(() => fixture.session().draft.attachments.length).toBe(0);
+    await expect(prompt).toHaveValue("Generated preserved prompt.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 

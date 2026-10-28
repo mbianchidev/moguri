@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { colorContrast, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { setupFixture, waitFor } from "../fixture.ts";
+import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -78,6 +78,7 @@ test("live work, real questions and permission pauses override merged PRs and re
     await sdk.command({ type: "attention.acknowledge", attentionIds: attention.map((entry) => entry.id) });
     await expect(question).toBeVisible(); expect(fixture.session().pendingQuestionId).toBe(questionId);
     await sdk.command({ type: "session.stop", sessionId: fixture.sessionId }); await fixture.terminal();
+    await reviewNativeTools(fixture, ["write_file"]);
     await fixture.send("generated forbidden write");
     await waitFor(() => fixture.session().pendingApproval);
     const pause = link.getByRole("img", { name: "Permission or approval needed", exact: true });

@@ -1,4 +1,4 @@
-import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { audioFromBase64, type MoguriSdk, type NotificationToneKind, type Snapshot, type UserSettings } from "../../../packages/sdk/src/index.ts";
 
@@ -20,12 +20,12 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
     const result = await window.moguri.previewNotificationSound(sdk.profileId, kind, id);
     onOutput(result.requested ? "Sound preview requested. Output depends on the system volume and device." : "Sound validated; playback is suppressed in the generated hidden window.");
   });
-  return <><h2>Attention notifications</h2><SettingsHelp label="More about this setting">Questions, pending approvals and completed/failed work use the shared service state. Reading a notification never answers or approves anything.</SettingsHelp>
+  return <><SettingsHelp label="More about this setting" target={<h2>Attention notifications</h2>}>Questions, pending approvals and completed/failed work use the shared service state. Reading a notification never answers or approves anything.</SettingsHelp>
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.inApp} disabled={disabled} onChange={(event) => onChange({ inApp: event.target.checked })} />Show in-app attention dots and icons</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.os} disabled={disabled} onChange={(event) => onChange({ os: event.target.checked })} />Enable OS banners while Moguri desktop runs in the background</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.previewContent} disabled={disabled} onChange={(event) => onChange({ previewContent: event.target.checked })} />Include session title and message preview in OS banners</label>
     <p className="settings-warning">OS banners start off and respect operating-system permissions and Do Not Disturb. Their sound is disabled to avoid duplicate alerts. Separate application sounds use the controls below and the system output volume.</p>
-    <h3>Sounds</h3>
+    <SettingsHelp label="More about this setting" target={<h3>Sounds</h3>}>Attention audio requires an actual unanswered question, pending approval or failed/partial work, not an inferred badge. Completed audio excludes stopped, failed and partial work. Both sounds start enabled while focused and in the background; your saved mute/focus choices are preserved. Startup and reconnect do not replay old sounds.</SettingsHelp>
     {sounds.map(({ key, kind, label }) => {
       const choice = values[key] ?? { enabled: true, id: "default" };
       return <section key={key} aria-label={`${label} sound`}>
@@ -39,22 +39,24 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
       </section>;
     })}
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.soundWhileFocused ?? true} disabled={disabled || busy} onChange={(event) => onChange({ soundWhileFocused: event.target.checked })} />Play application sounds while Moguri is focused</label>
-    <SettingsHelp label="More about this setting">Attention audio requires an actual unanswered question, pending approval or failed/partial work, not an inferred badge. Completed audio excludes stopped, failed and partial work. Both sounds start enabled while focused and in the background; your saved mute/focus choices are preserved. Startup and reconnect do not replay old sounds.</SettingsHelp>
-    <h3>Custom sounds</h3><SettingsHelp label="More about this setting">Import an explicit mono 16-kHz PCM16 WAV of at most ten seconds. The encrypted snapshot belongs to this profile, independent of sessions and the original file. No compressed audio decoding or silent conversion.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Custom sounds</h3>}>Import an explicit mono 16-kHz PCM16 WAV of at most ten seconds. The encrypted snapshot belongs to this profile, independent of sessions and the original file. No compressed audio decoding or silent conversion.</SettingsHelp>
     <button type="button" disabled={disabled || busy || snapshot.notificationSounds.length >= 32} onClick={() => void run(async () => {
       const selection = await window.moguri.chooseNotificationSound(sdk.profileId);
       if (!selection) return;
       await sdk.notifications.importSound(selection.name, audioFromBase64(selection.audio));
       onOutput("Sound imported. Choose it separately for attention or completion alerts.");
-    })}>Import notification sound</button>
+    })} aria-label="Import notification sound">Import</button>
+    {snapshot.notificationSounds.some((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)) && <label className="setting-field">Sound reviewed for removal
+      <select aria-label="Sound reviewed for removal" value={remove ?? ""} disabled={busy} onChange={(event) => setRemove(event.target.value || null)}>
+        <option value="">No removal confirmed</option>{snapshot.notificationSounds.filter((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)).map((sound) => <option key={sound.id} value={sound.id}>Remove {sound.name}</option>)}
+      </select></label>}
     {snapshot.notificationSounds.map((sound) => {
       const selected = sounds.some(({ key }) => values[key]?.id === sound.id);
       return <section key={sound.id} aria-label={`Retained sound ${sound.name}`}>
         <p>{sound.name} <span className="fine-print">({sound.durationMs / 1000} seconds)</span></p>
-        {selected ? <p className="fine-print">Choose another sound before removal.</p> : <><label className="check-setting"><SettingsInput type="checkbox" checked={remove === sound.id} disabled={busy} onChange={(event) => setRemove(event.target.checked ? sound.id : null)} />Confirm removal of {sound.name}</label>
-          <button type="button" disabled={disabled || busy || remove !== sound.id} onClick={() => void run(async () => {
+        {selected ? <p className="fine-print">Choose another sound before removal.</p> : <SettingsAction label={`Remove ${sound.name}`} icon="Trash" disabled={disabled || busy || remove !== sound.id} onClick={() => void run(async () => {
             await sdk.notifications.removeSound(sound.id, sound.contentDigest, true); setRemove(null); onOutput("Unused sound removed from this profile's encrypted retention.");
-          })}>Remove {sound.name}</button></>}
+          })} />}
       </section>;
     })}
   </>;

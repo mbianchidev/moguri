@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { attachmentStatus, type DocumentAttachment, type DocumentPage, type DocumentReadOptions, type DocumentSearch, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { SettingsAction } from "./SettingsFields.tsx";
 
 export function ContextDocument({ sdk, sessionId, attachment, remove, onOpenChange }: { sdk: MoguriSdk; sessionId: string; attachment: DocumentAttachment; remove?: () => Promise<void>; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
@@ -53,8 +54,8 @@ function DocumentPreview({ sdk, sessionId, attachment, remove, close }: { sdk: M
     </div>
     <div className="document-selection"><label>Literal search<input aria-label="Search document text" maxLength={200} value={query} onChange={(event) => { changed(); setQuery(event.target.value); }} /></label><button type="button" disabled={busy || !query} onClick={() => void search()}>Search document</button></div>
     {busy && <p role="status">Reading bounded snapshot...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
-    {page && <><pre aria-label="Document extracted content">{page.text || "No cells or text in this selection."}</pre><p className="fine-print">UTF-8 bytes {page.offset}..{page.offset + new TextEncoder().encode(page.text).length} of {page.bytes}. Provenance: {JSON.stringify(page.firstLocation)}.</p>{page.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void read(page.nextOffset!)}>Next content page</button>}</>}
+    {page && <><pre aria-label="Document extracted content">{page.text || "No cells or text in this selection."}</pre><p className="fine-print">Provenance: {JSON.stringify(page.firstLocation)}.</p>{page.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void read(page.nextOffset!)}>Next content page</button>}</>}
     {matches && <><pre aria-label="Document search results">{matches.matches.length ? JSON.stringify(matches.matches, null, 2) : "No literal matches."}</pre>{matches.nextCursor !== null && <button type="button" disabled={busy} onClick={() => void search(matches.nextCursor!)}>Next search results</button>}</>}
-    <footer>{remove && <button className="danger" type="button" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The document could not be removed.")).finally(() => setBusy(false)); }}>Remove attachment</button>}<button type="button" onClick={close}>Close preview</button></footer>
+    <footer>{remove && <SettingsAction label="Remove attachment" icon="Trash" className="danger" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The document could not be removed.")).finally(() => setBusy(false)); }} />}<button type="button" onClick={close}>Close preview</button></footer>
   </dialog>;
 }

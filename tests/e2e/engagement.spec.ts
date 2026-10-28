@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedOAuthServer } from "../fixtures/oauth.ts";
+import { openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 test.skip(process.platform !== "darwin", "The desktop alpha is qualified on macOS.");
@@ -35,13 +36,16 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await expect(page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Project file or folder/ })).toBeEnabled();
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await page.keyboard.press("Escape");
     await prompt.fill("/rename Generated project-free chat"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
     await expect(page.getByRole("heading", { name: "Generated project-free chat", exact: true })).toBeVisible();
     await prompt.fill("/suggestions session"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
     const suggestions = page.getByRole("region", { name: "Moguri suggestions", exact: true });
     await expect(suggestions).toContainText("Project-free chats only");
+    const allProjects = suggestions.getByRole("switch", { name: "Include conversations from all projects", exact: true });
+    await allProjects.check(); await expect(suggestions).toContainText("All projects in this profile");
+    await allProjects.uncheck(); await expect(suggestions).toContainText("Project-free chats only");
     await expect(suggestions.getByRole("button", { name: "Generate suggestions", exact: true })).toBeDisabled();
     await suggestions.getByRole("button", { name: "Propose instruction", exact: true }).click();
     await suggestions.getByRole("button", { name: "Review", exact: true }).click();
@@ -104,9 +108,9 @@ test("MCP OAuth UI uses generated explicit consent and clears the connection wit
     expect(await page.locator("body").innerText()).not.toContain("generated-oauth-access");
     await mkdir(artifacts, { recursive: true });
     await page.screenshot({ path: join(artifacts, "engagement-mcp-oauth.png") });
-    await panel.getByRole("button", { name: "Clear OAuth connection", exact: true }).click();
+    await panel.getByRole("button", { name: "Remove OAuth connection", exact: true }).click();
     await expect(panel.getByRole("status")).toContainText("cleared");
-    await page.getByRole("button", { name: "Check credential status", exact: true }).click();
+    await page.getByRole("button", { name: "Verify credential status", exact: true }).click();
     await expect(page.locator(".settings-result pre")).toContainText('"state": "required"');
     expect(secrets.size).toBe(0); expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); await oauth.close(); }

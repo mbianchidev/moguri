@@ -41,7 +41,7 @@ async function fixture() {
   let holdJobs = false;
   const running = new Map<string, { controller: AbortController; done: Promise<void> }>();
   const snapshot = (): Snapshot => ({
-    ...projectEvents(history), protocolVersion: PROTOCOL_VERSION, seq: history.at(-1)?.seq ?? 0, profileId: "default",
+    ...projectEvents(history), sessionTelemetry: {}, protocolVersion: PROTOCOL_VERSION, seq: history.at(-1)?.seq ?? 0, profileId: "default",
     provider: { status: "disconnected", models: [], login: null, diagnostic: null }, capabilities: [],
   });
   const commit = (events: EventInput[], receipt?: { id: string; digest: string; result: CommandResult }, forget?: { projects?: string[]; sessions?: string[] }) => {

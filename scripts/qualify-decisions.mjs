@@ -51,7 +51,9 @@ export async function qualifyDecisions({ packageRoot, directory }) {
     assert.ok(fixed && decision);
     const settings = structuredClone(sdk.settings.get()); settings.values.decisions = { ...settings.values.decisions, enabled: true, modelId: decision.id, outputTokens: 256 };
     await sdk.settings.update(settings.values, settings.revision);
-    const created = await sdk.sessions.create(project.id, "Generated installed owned decision", { modelId: fixed.id, autonomy: "Autopilot Max" });
+    // Qualify explicit bounded Max delegation, not newly selected automatic tool approval.
+    const created = await sdk.sessions.create(project.id, "Generated installed owned decision", { modelId: fixed.id, autonomy: "Autopilot Max",
+      ...(sdk.getState().snapshot.protocolVersion >= 65 ? { automaticApprovals: false } : {}) });
     assert.equal((await sdk.decisions.status(created.id)).ready, true);
     await sdk.command({ type: "draft.save", sessionId: created.id, expectedRevision: 0, text: "Read the exact generated external source.", attachments: [] });
     await sdk.command({ type: "message.send", sessionId: created.id, expectedRevision: 1, delivery: "queue" });
@@ -71,7 +73,7 @@ export async function qualifyDecisions({ packageRoot, directory }) {
     sdk.disconnect(); await runtime.close(); runtime = await createRuntime(options); sdk = await connectMoguri({ stateDir, autoStart: false });
     assert.equal((await sdk.decisions.read(record.id)).result, original.result); assert.equal(runtime.controller.snapshot().budgetEntries.length, 3);
     assert.equal(requests.filter((request) => request.model === "generated-fixed").length, 2); assert.equal(requests.filter((request) => request.model === "generated-decision").length, 1);
-    return "Actual packed SDK/runtime/worker/CLI/shared decisions retained exact existing delegation, provider actor, 126 all-role tokens, export-9 raw evidence and source-deletion/restart without a paid replay or model fallback.";
+    return "Actual packed SDK/runtime/worker/CLI/shared explicitly bounded Max decisions retained exact delegation, provider actor, 126 all-role tokens, export-9 raw evidence and source-deletion/restart without a paid replay or model fallback.";
   } finally {
     sdk?.disconnect();
     try { await runtime?.close(); }

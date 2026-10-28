@@ -1,11 +1,11 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
-import { openSettingsSection } from "./navigation.ts";
+import { openModelChoices, openSettingsSection } from "./navigation.ts";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { MoguriClient } from "../../packages/client/src/index.ts";
 import { startService } from "../../apps/service/src/server.ts";
-import { setupFixture, waitFor } from "../fixture.ts";
+import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { dependencyArchive, dependencyProject } from "../fixtures/dependencies.ts";
 import { existsSync } from "node:fs";
 
@@ -40,16 +40,19 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
   try {
     const page = await app.firstWindow();
     const failures: string[] = []; page.on("pageerror", (error) => failures.push(error.message));
+    await expect(page.getByText("Local service connected", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Issues", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Project issues", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "New issue", exact: true }).click();
-    await page.getByLabel("Issue title", { exact: true }).fill("Generated cache feature");
-    await page.getByLabel("Issue description", { exact: true }).fill("Generated end-to-end ticket.");
+    await expect(page.getByRole("heading", { name: "Kanban", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Add item to Backlog", exact: true }).click();
+    await page.getByLabel("New item in Backlog", { exact: true }).fill("Generated cache feature");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await expect(page.getByLabel("Issue title", { exact: true })).toHaveValue("Generated cache feature");
+    await expect(page.getByLabel("New item in Backlog", { exact: true })).toHaveValue("Generated cache feature");
     await page.getByRole("button", { name: "Dismiss", exact: true }).click();
-    await page.getByRole("button", { name: "Save issue", exact: true }).click();
+    await page.getByRole("button", { name: "Add item", exact: true }).click();
     await expect(page.getByRole("button", { name: "Generated cache feature", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Generated cache feature", exact: true }).click();
+    await page.getByLabel("Issue description", { exact: true }).fill("Generated end-to-end ticket.");
+    await page.getByRole("button", { name: "Save issue", exact: true }).click();
     await page.getByLabel("Phase for issue 1", { exact: true }).selectOption("in-progress");
     await expect.poll(() => fixture.service.controller.snapshot().issues[0]?.phaseId).toBe("in-progress");
     await page.getByRole("button", { name: "Project settings", exact: true }).click();
@@ -124,10 +127,11 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await expect(page.getByText("Connected through your Copilot account.")).toBeVisible();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: /^Model:/ }).click();
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /Generated Copilot model/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
+    await reviewNativeTools(fixture, ["read_file"]);
     await page.getByLabel("Prompt", { exact: true }).fill("generated tool task");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect(page.getByRole("region", { name: "Tool approval" })).toBeVisible();
@@ -201,9 +205,9 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByLabel("I understand this can break functionality. Hard permissions cannot be overridden.").check();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.systemPrompt).toBe("Generated user-edited instructions. Never invent results.");
-    await page.getByRole("button", { name: "View effective committed prompt" }).click();
+    await page.getByRole("button", { name: "Preview effective committed prompt" }).click();
     await expect(page.locator(".settings-content pre").last()).toContainText("moguri-execution-contract");
-    await page.getByRole("button", { name: "Restore default system prompt" }).click();
+    await page.getByRole("button", { name: "Restore defaults for system prompt" }).click();
     await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);
     await expect(page.getByText("Generated user-edited instructions. Never invent results.", { exact: true })).toHaveCount(0);
     const categories = page.getByRole("navigation", { name: "Settings categories" });
@@ -213,6 +217,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByLabel("Theme", { exact: true }).selectOption("dark");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await categories.getByRole("button", { name: "Guardrails", exact: true }).click();
+    await page.getByText("Advanced tool and command rules", { exact: true }).click();
     const permission = { tools: [{ id: "generated-ui-deny", tool: "write_file", decision: "deny", pathPrefix: "" }], commands: [] };
     await page.getByLabel("Tool and exact-command permissions", { exact: true }).fill(JSON.stringify(permission));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();

@@ -219,12 +219,12 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
           {action === "ticket.sync" && <label className="setting-field"><span id={`${uid}-direction`}>Direction</span><select aria-labelledby={`${uid}-direction`} value={direction} onChange={(event) => setDirection(event.target.value as "pull" | "push")}>
             <option value="pull">Pull Linear title, description, state and archive into local</option><option value="push">Push local title, description and mapped state to Linear</option>
           </select></label>}
-          <fieldset><legend>Explicit phase to Linear state mapping</legend>
+          <SettingsHelp label="More about this setting" target={<fieldset><legend>Explicit phase to Linear state mapping</legend>
             {board.columns.map((column) => <label className="setting-field" key={column.id}>{column.name}<SettingsInput value={mapping[column.id] ?? ""} list={`${uid}-mapping`}
               placeholder="Exact state UUID, or leave this phase unmapped" onChange={(event) => setMapping((previous) => ({ ...previous, [column.id]: event.target.value }))} /></label>)}
             <datalist id={`${uid}-mapping`}>{entities.filter((entry) => entry.kind === "state").map((entry) => <option key={entry.id} value={entry.id}>{entityName(entry)}</option>)}</datalist>
-          </fieldset>
-          <SettingsHelp label="More about this setting">Only the chosen direction runs. A changed local revision or remote base invalidates review; no background sync or automatic export is enabled.</SettingsHelp>
+          </fieldset>}>Only the chosen direction runs. A changed local revision or remote base invalidates review; no background sync or automatic export is enabled.</SettingsHelp>
+
         </>}
         {titleField && <>{updateFields && <label className="check-setting"><SettingsInput type="checkbox" checked={included.includes(projectAction ? "name" : "title")} onChange={(event) => toggle(projectAction ? "name" : "title", event.target.checked)} />Replace {projectAction ? "project name" : "issue title"}</label>}
           <label className="setting-field">{projectAction ? "Project name" : "Issue title"}<SettingsInput value={title} maxLength={160} required={!updateFields || included.includes(projectAction ? "name" : "title")}
@@ -243,8 +243,8 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
           <div key={key}><label className="check-setting"><SettingsInput type="checkbox" checked={included.includes(key)} onChange={(event) => toggle(key, event.target.checked)} />Set {labels[key]!.toLowerCase()}</label>{included.includes(key) && field(key)}</div>)}</fieldset>}
         {action.endsWith(".archive") && <label className="check-setting"><SettingsInput type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} />Archive (uncheck to restore)</label>}
         {action === "relation.create" && <label className="setting-field"><span id={`${uid}-relationship`}>Relationship</span><select aria-labelledby={`${uid}-relationship`} value={relationType} onChange={(event) => setRelationType(event.target.value as typeof relationType)}><option value="related">Related</option><option value="blocks">Selected issue blocks related issue</option><option value="duplicate">Selected issue duplicates related issue</option></select></label>}
-        {action === "issue.delete" && <SettingsHelp label="More about this setting">Uses Linear's non-permanent issue deletion. Recovery and retention follow Linear's trash policy; Moguri does not claim an undo.</SettingsHelp>}
-        <button type="submit">Preview exact Linear operation</button>
+
+        <SettingsHelp label="More about this setting" target={<button type="submit" aria-label="Preview exact Linear operation">Preview</button>} descriptionFirst>{action === "issue.delete" && <>Uses Linear's non-permanent issue deletion. Recovery and retention follow Linear's trash policy; Moguri does not claim an undo.</>}</SettingsHelp>
       </fieldset>
     </form>
     {review && <section aria-label="Exact Linear review" className="notice">
@@ -260,16 +260,16 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       <div className="button-row"><button type="button" className={review.destructive ? "danger" : "primary"} disabled={busy || !consent || !canWrite} onClick={() => void run(async () => {
         const accepted = review; setReview(null); setConsent(false);
         const result = await linear.accept(accepted, true); setNotice(`Original user operation ${result.id} was admitted. Its retained status is authoritative; it will not be replayed.`);
-      })}>{review.remoteWrite ? "Send reviewed operation to Linear" : "Apply reviewed pull to local"}</button>
+      })} aria-label={review.remoteWrite ? "Send reviewed operation to Linear" : "Apply locally: reviewed Linear pull"}>{review.remoteWrite ? "Send" : "Apply locally"}</button>
         <button type="button" disabled={busy} onClick={invalidate}>Discard review</button></div>
     </section>}
     {operations.length > 0 && <details open><summary>Retained Linear operations</summary>
       <ul>{operations.map((operation) => <li key={operation.id}>
         <strong>{operation.action}</strong> · {operation.status} · actual user
-        <button type="button" disabled={busy} onClick={() => void showOperation(operation)}>Read original inputs and receipt</button>
+        <button type="button" disabled={busy} onClick={() => void showOperation(operation)} aria-label="View receipt and original inputs">View receipt</button>
         {operation.status === "running" && <button type="button" disabled={busy || operation.stopRequested} onClick={() => void run(async () => {
           await linear.cancel(operation.id); setNotice("Cancellation requested. Dispatched remote writes remain partial unless their original result is completely acknowledged; nothing is replayed.");
-        })}>{operation.stopRequested ? "Cancellation requested" : "Cancel owned operation"}</button>}
+        })} aria-label={operation.stopRequested ? "Cancellation requested" : "Cancel owned operation"}>{operation.stopRequested ? "Cancellation requested" : "Cancel"}</button>}
         {operation.diagnostic && <p>{operation.diagnostic}</p>}
       </li>)}</ul>
     </details>}
