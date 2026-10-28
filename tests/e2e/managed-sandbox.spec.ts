@@ -8,6 +8,7 @@ import { generatedSandboxDistribution } from "../fixtures/sandbox-distribution.t
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";
 import { frameDigest } from "../../apps/service/src/worker-wire.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (state: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -105,6 +106,11 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
     expect((await sdk.workspaces.file(created.id!, "fixture.txt")).text).toBe("generated native replacement\n");
     expect(service.controller.snapshot().sandboxWorkspaces![0]?.preparation?.kind).toBe("automatic");
     expect(service.controller.snapshot().sandboxExecutions![0]?.networkScope?.allowedDomains).toContain("*.generated-tools.test");
+    await openSettingsSection(page, "Sandbox");
+    const retained = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
+    await expect(retained).toContainText("shared-cloud");
+    await expect(retained).toContainText("0.2.4");
+    await expect(retained).not.toContainText("Exact entries stay exact");
     expect(provider.requests.length).toBe(0); expect(errors).toEqual([]); passed = true;
   } finally { await app.close(); await fixture.close(passed); }
 });
