@@ -676,6 +676,36 @@ CLI/TUI expose `/sandbox setup` and its exact confirmation command, plus
 through the Node SDK; root/React entrypoints remain browser-safe. See the
 [managed contract and qualification](architecture/managed-sandbox.md).
 
+### Reproducing exact native qualification
+
+The [current 0.2.4 evidence and limits](architecture/sendbox-0.2.4-qualification.md)
+are separate from historical 0.2.3 runs and package-only verification.
+Maintainers can build the current distribution with `npm run prepare:sandbox`,
+then use its printed directory and matching image receipt:
+
+```sh
+node --import tsx scripts/qualify-sandbox.mjs \
+  --distribution /absolute/path/to/current/distribution \
+  --workload /absolute/path/to/current/distribution/image.json \
+  --archive .native/sendbox-distribution/0.2.4/sendbox-0.2.4-macos-arm64.tar.gz
+```
+
+Use the pinned Node 26.12.0 runtime. The harness requires an already approved
+exact installation at `/opt/moguri/sendbox/0.2.4` and running Apple
+Containerization on Apple-silicon macOS. An explicitly reviewed alternative
+canonical installation root can be supplied with `--installation-root`.
+It never installs components, approves macOS dialogs, forwards personal
+credentials or performs paid inference. Network probes use public anonymous
+metadata; generated model/tool frames still run in the actual guest through the
+service/SDK and real permission/accounting paths.
+
+Every invocation retains its source/artifact identities, signed network
+evidence, generated results and explicit PASS/FAIL/SKIP gates in a unique private
+`.native/qualification/current-sendbox-*` directory. Failed or missing gates exit
+nonzero; there is no warm-up retry, substitute runtime or Local fallback.
+Keep failed attempts and original native owners for inspection. This developer
+harness is not required for ordinary in-app managed setup.
+
 ## Searchable desktop navigation
 
 Settings has a search field and grouped categories. **General** owns profile

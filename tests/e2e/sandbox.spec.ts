@@ -67,7 +67,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     const review = page.getByLabel("I reviewed these committed native artifacts", { exact: false });
     await expect(review).toBeEnabled(); await review.check();
     await page.getByRole("button", { name: "Verify reviewed Sandbox", exact: true }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Verified pinned SendBox 0.2.3" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: `Verified pinned SendBox ${configuration.qualification!.release}` })).toBeVisible();
     expect(provider.requests.length).toBe(0);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Execution environment", exact: true }).click();
