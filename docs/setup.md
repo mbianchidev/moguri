@@ -2334,6 +2334,14 @@ REVISION confirm-inspected` acknowledges only that exact writer. Resume paused
 work separately. Autopilot, a new chat, navigation and deletion cannot clear it.
 See the [Home execution contract](architecture/project-free-execution.md).
 
+The current qualified Home build is
+`release/Moguri-0.30.0-alpha.1-home-chats-72-macos-arm64.dmg`.
+Use matching protocol-72 clients/service, quit the old app before replacement
+and preserve existing state. This is ad-hoc-signed development output, not a
+notarized or uploaded release. Full source, hidden desktop, actual packaged-app,
+installed-SDK and integrity results are recorded in the
+[complete Home qualification](architecture/project-free-execution.md#complete-protocol-72-qualification).
+
 Cloning requires an existing parent folder and a new destination name. It never
 overwrites a directory, initializes submodules, runs hooks/filters, logs in, or
 starts inference. SSH uses existing keys and requires known-hosts verification;

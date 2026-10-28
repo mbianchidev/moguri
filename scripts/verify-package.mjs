@@ -535,8 +535,8 @@ try {
       }finally{sdk.disconnect();await runtime.close();}
     `;
     const started = performance.now();
-    await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 90_000 });
-    console.log(JSON.stringify({ primitive: "Actual bundled retained-role inspection with two independently verified distribution starts", ms: performance.now() - started, timeoutMs: 90_000 }));
+    await promisify(execFile)(node, ["--input-type=module", "--eval", program], { timeout: 15_000 });
+    console.log(JSON.stringify({ primitive: "Actual bundled retained-role inspection with two independently verified distribution starts", ms: performance.now() - started, timeoutMs: 15_000 }));
     console.log("Actual bundled Node/runtime/SDK/CLI role inspection preserves source-independent raw data, version-4 export, reopen and minimal deletion intent without model preparation or replay.");
   }
   if (PROTOCOL_VERSION >= 33) {
