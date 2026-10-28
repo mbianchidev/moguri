@@ -2783,7 +2783,9 @@ independent project artifacts. Unconfirmed effects still require inspection
 and explicit Resume before deletion; a child disposition never bypasses that
 gate. **Settings / Retention** optionally deletes archived sessions after a
 chosen age; it starts off. The TUI `/archive` command uses the same cascade,
-detach and remembered-choice policy.
+detach and remembered-choice policy. CLI session archive/delete accepts
+`--children archive|delete|detach` as appropriate, or uses the saved profile
+choice; default Ask mode requires an explicit option.
 
 Project menus reorder entries, assign a folder/color, open GitHub, create a
 session from scratch/local work item/verified PR, open settings, change the
