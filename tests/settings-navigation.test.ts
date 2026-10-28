@@ -14,12 +14,13 @@ test("settings have coherent unique groups and stable routable sections", () => 
 
 test("settings search combines category and control aliases without reading user content", () => {
   const ids = (query: string) => searchSettings(query).flatMap((group) => group.items.map((item) => item.id));
-  assert.deepEqual(ids("MODEL local"), ["providers", "localModels", "kupo", "sendbox", "budgets", "instructions", "project"]);
+  assert.deepEqual(ids("MODEL local"), ["providers", "localModels", "kupo", "permissions", "sendbox", "budgets", "instructions", "project"]);
+  assert.deepEqual(ids("firewall"), ["permissions", "project"]);
   assert.deepEqual(ids("thinking effort"), ["startup"]);
   assert.deepEqual(ids("execution permission"), SETTINGS_GROUPS.find((group) => group.label === "Execution & permissions")!.items.map((item) => item.id));
-  assert.deepEqual(ids("readme readiness"), ["sendbox", "retention", "instructions", "skills", "project"]);
+  assert.deepEqual(ids("readme readiness"), ["permissions", "sendbox", "retention", "instructions", "skills", "project"]);
   assert.deepEqual(ids("GitHub CLI"), ["providers", "github", "instructions", "project"]);
-  assert.deepEqual(ids("input device"), ["providers", "sendbox", "skills", "voice"]);
+  assert.deepEqual(ids("input device"), ["providers", "permissions", "sendbox", "skills", "voice"]);
   assert.deepEqual(ids("zzzzzzzz-no-such-setting"), []);
   assert.ok(ids("voice").includes("voice"));
 });
