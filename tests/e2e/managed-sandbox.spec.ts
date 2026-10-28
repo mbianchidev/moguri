@@ -53,7 +53,13 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     expect(imports).toBe(1); expect(probes).toBe(1); expect(fixture.requests.length).toBe(0);
     const automatic = panel.getByLabel("Check public SendBox releases at startup and every four hours", { exact: true });
     await expect(automatic).toBeEnabled(); await automatic.uncheck();
-    await expect.poll(() => controller.snapshot().settings.values.sandboxManagement?.automaticUpdates).toBe(false);
+    try { await expect.poll(() => controller.snapshot().settings.values.sandboxManagement?.automaticUpdates).toBe(false); }
+    catch (error) {
+      console.error(JSON.stringify({ diagnostic: "generated-managed-autosave", revision: controller.snapshot().settings.revision,
+        management: controller.snapshot().settings.values.sandboxManagement, checked: await automatic.isChecked(),
+        alerts: await page.getByRole("alert").allTextContents(), toolbar: await page.locator(".settings-toolbar").innerText() }));
+      throw error;
+    }
     await expect(panel.getByLabel("Prepare private session workspaces automatically", { exact: true })).toBeChecked();
     expect(errors).toEqual([]);
   } finally {
