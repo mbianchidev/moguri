@@ -718,6 +718,9 @@ management; **Models > Providers** owns Copilot sign-in, separate from repositor
 integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
+The category list and selected settings page scroll independently, including
+long provider lists. Reaching either scroll boundary keeps the app frame and
+Settings toolbar in place. Keyboard focus can still reach controls at the bottom.
 
 The scrollable left resources are **Dashboard, Suggestions, Automations**.
 Artifacts, Candidates and Sandbox live in Settings. The right rail contains

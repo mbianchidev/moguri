@@ -9,6 +9,92 @@ import { openModelChoices, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Availability controls use generated hidden macOS windows.");
+
+test("long provider settings keep scrolling inside the viewport without moving app chrome or exposing blank space", async () => {
+  const fixture = await setupFixture(), original = fixture.provider.state.models[0]!;
+  const generated = Array.from({ length: 80 }, (_, index) => {
+    const suffix = String(index + 1).padStart(3, "0");
+    return { ...original, id: `generated-scroll-${suffix}`, apiModelId: `generated-scroll-${suffix}`, name: `Generated settings model ${suffix}` };
+  });
+  fixture.provider.state.models.push(...generated); fixture.provider.onChange(); await fixture.configure();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await openSettingsSection(page, "Providers");
+    const panel = page.getByRole("region", { name: "Provider and model availability", exact: true });
+    const content = page.locator(".settings-content"), categories = page.getByRole("navigation", { name: "Settings categories" });
+    const last = panel.getByRole("switch", { name: "Enable model generated-scroll-080", exact: true });
+    await expect(panel.getByRole("switch", { name: /^Enable model / })).toHaveCount(81);
+    const geometry = () => page.evaluate(() => {
+      const element = (selector: string) => {
+        const found = document.querySelector(selector);
+        if (!(found instanceof HTMLElement)) throw new Error(`Generated settings element is missing: ${selector}`);
+        return found;
+      };
+      const toolbar = element(".settings-toolbar").getBoundingClientRect(), body = element(".settings-content");
+      const nav = element(".settings-layout > nav").getBoundingClientRect(), bounds = body.getBoundingClientRect();
+      return { viewport: innerHeight, toolbar: { top: toolbar.top, bottom: toolbar.bottom },
+        content: { top: bounds.top, bottom: bounds.bottom, height: body.clientHeight, scrollHeight: body.scrollHeight },
+        nav: { top: nav.top, bottom: nav.bottom },
+        document: { height: document.documentElement.scrollHeight, clientHeight: document.documentElement.clientHeight, bodyHeight: document.body.getBoundingClientRect().height },
+        shell: { top: element(".app-shell").getBoundingClientRect().top, bottom: element(".app-shell").getBoundingClientRect().bottom, scrollHeight: element(".app-shell").scrollHeight },
+        offscreenLabels: Array.from(document.querySelectorAll<HTMLElement>(".sr-only")).map((label) => ({
+          text: label.textContent, bottom: label.getBoundingClientRect().bottom, parent: label.offsetParent?.className,
+        })).filter((label) => label.bottom > innerHeight).slice(-3),
+        outerScroll: ["html", "body", ".app-shell", ".main-pane", ".settings-page", ".settings-layout"].map((selector) => element(selector).scrollTop) };
+    });
+    const contained = async () => {
+      const value = await geometry();
+      expect(value.outerScroll, JSON.stringify(value)).toEqual([0, 0, 0, 0, 0, 0]);
+      expect(value.document.height, JSON.stringify(value)).toBeCloseTo(value.viewport, 0);
+      expect(value.shell.top).toBe(0);
+      expect(value.shell.bottom).toBeCloseTo(value.viewport, 0);
+      expect(value.toolbar.top).toBeGreaterThanOrEqual(0);
+      expect(value.toolbar.bottom).toBeLessThan(value.viewport);
+      expect(value.content.top).toBeGreaterThanOrEqual(value.toolbar.bottom - 1);
+      expect(value.content.bottom).toBeCloseTo(value.viewport, 0);
+      expect(value.nav.bottom).toBeCloseTo(value.viewport, 0);
+      expect(value.content.height).toBeGreaterThan(100);
+      expect(value.content.scrollHeight).toBeGreaterThan(value.content.height);
+    };
+    for (const [width, height] of [[2000, 1100], [1280, 800], [860, 620]] as const) {
+      await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0]!.setSize(size.width, size.height), { width, height });
+      await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
+      await contained();
+      await last.scrollIntoViewIfNeeded(); await last.focus();
+      await expect(last).toBeInViewport({ ratio: 1 });
+      const checked = await last.isChecked();
+      await page.keyboard.press("Space");
+      await expect(last).toBeChecked({ checked: !checked });
+      await expect(panel.getByRole("status", { name: "Model availability saving", exact: true })).toHaveText("Changes save automatically.");
+      await contained();
+      await content.hover(); await page.mouse.wheel(0, 100000);
+      await expect.poll(() => content.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop)).toBeLessThanOrEqual(2);
+      await page.mouse.wheel(0, 100000);
+      await contained();
+      const scrolledContent = await content.evaluate((element) => element.scrollTop);
+      await categories.hover(); await page.mouse.wheel(0, 100000);
+      await expect.poll(() => categories.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      await expect(categories.getByRole("button", { name: "Restore all defaults", exact: true })).toBeInViewport({ ratio: 1 });
+      expect(await content.evaluate((element) => element.scrollTop)).toBe(scrolledContent);
+      await contained();
+      const observed = await geometry();
+      console.log(JSON.stringify({ primitive: "settings-scroll-containment", width, viewportHeight: observed.viewport,
+        documentHeight: observed.document.height, contentHeight: observed.content.height, outerScroll: observed.outerScroll }));
+      await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Back to session", exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(page.locator(".settings-content").getByRole("heading", { name: "Appearance", exact: true })).toBeInViewport();
+      expect(await page.evaluate(() => document.querySelector(".app-shell")?.scrollTop)).toBe(0);
+      await categories.getByRole("button", { name: "Providers", exact: true }).click();
+    }
+    expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
+  } finally { await app.close(); await fixture.close(); }
+});
+
 test("the provider list can reduce twenty-one models to three and disabled models disappear from the picker and fail through /model", async () => {
   const fixture = await setupFixture();
   const original = fixture.provider.state.models[0]!, generated = Array.from({ length: 20 }, (_, index) => ({
