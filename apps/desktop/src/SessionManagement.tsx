@@ -8,7 +8,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
 }) {
   const [selected, setSelected] = useState(""), [filter, setFilter] = useState<"all" | "active" | "archived">("all");
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
-  const actions = useSessionActions(sdk, snapshot, { stored: true, modal: onDirty, done: () => {
+  const actions = useSessionActions(sdk, snapshot, { stored: true, modal: onDirty, inspect: openSession, done: () => {
     setSelected(""); setNotice("Stored session and its originating candidates deleted. Ordinary artifacts, applied code, worktrees and external PRs were preserved.");
   } });
   const session = snapshot.sessions.find((session) => session.id === selected);

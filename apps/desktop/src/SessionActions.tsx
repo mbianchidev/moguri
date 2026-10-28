@@ -1,26 +1,39 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, type SessionChildrenAction, type Snapshot } from "../../../packages/sdk/src/index.ts";
 
 type Action = "archive" | "delete" | "detach";
-type ReviewedSession = Pick<Session, "id" | "title" | "revision" | "status" | "projectId" | "parentSessionId">;
-type Review = { action: "archive" | "delete"; session: ReviewedSession } | {
+type ReviewedSession = Pick<Session, "id" | "title" | "revision" | "status" | "projectId" | "parentSessionId" | "kind">;
+type Review = {
+  action: "archive" | "delete"; session: ReviewedSession; tree: ReviewedSession[];
+  childrenAction: SessionChildrenAction | null; canDetachChildren: boolean; showChildChoice: boolean; confirmAction: boolean;
+} | {
   action: "detach"; session: ReviewedSession;
   destination: { groupId: string | null; revision: number | null; name: string; parent: string };
+  confirmAction: boolean;
 };
+function sameChildren(tree: ReviewedSession[], sessions: Session[], sessionId: string): boolean {
+  return JSON.stringify(sessionChildBindings(tree, sessionId)) === JSON.stringify(sessionChildBindings(sessions, sessionId));
+}
 export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
-  modal?: (open: boolean) => void; prepare?: (id: string) => Promise<void>; done?: (action: Action, id: string) => void; stored?: boolean;
+  modal?: (open: boolean) => void; prepare?: (id: string) => Promise<void>; inspect?: (id: string) => void | Promise<void>;
+  done?: (action: Action, id: string) => void; stored?: boolean;
 } = {}) {
   const [review, setReview] = useState<Review | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const [remember, setRemember] = useState(false), [confirmed, setConfirmed] = useState(false);
+  const [remember, setRemember] = useState(false), [rememberChildren, setRememberChildren] = useState(false), [confirmed, setConfirmed] = useState(false);
   const [focusTarget, setFocusTarget] = useState<{ id?: string; seq: number } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null), cancel = useRef<HTMLButtonElement>(null), pending = useRef(false), returnFocus = useRef<HTMLElement | null>(null);
   const current = snapshot.sessions.find((session) => session.id === review?.session.id);
   const destinationChanged = (value: Review, state: Snapshot) => value.action === "detach" && Boolean(value.destination.groupId &&
     !state.sessionGroups.some((group) => group.id === value.destination.groupId && group.projectId === value.session.projectId && group.revision === value.destination.revision));
-  const stale = Boolean(review && (!current || current.revision !== review.session.revision || current.status !== review.session.status || destinationChanged(review, snapshot)));
+  const stale = Boolean(review && (!current || current.revision !== review.session.revision || current.status !== review.session.status ||
+    destinationChanged(review, snapshot) || review.action !== "detach" && !sameChildren(review.tree, snapshot.sessions, review.session.id)));
   useEffect(() => { options.modal?.(Boolean(review || busy)); return () => options.modal?.(false); }, [review, busy, options.modal]);
-  useEffect(() => { if (review) { dialog.current?.showModal(); if (review.action === "detach") cancel.current?.focus(); } }, [review]);
+  useEffect(() => {
+    if (!review || dialog.current?.open) return;
+    dialog.current?.showModal();
+    if (review.action === "detach") cancel.current?.focus();
+  }, [review]);
   useLayoutEffect(() => {
     if (!focusTarget || review || busy || snapshot.seq < focusTarget.seq) return;
     const source = Array.from(document.querySelectorAll<HTMLButtonElement>(".session-link")).find((element) => element.dataset.sessionId === focusTarget.id);
@@ -34,28 +47,47 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     if (pending.current) return;
     setReview(null); focusSession(review?.session.id);
   };
-  const perform = async (value: Review, skipFuture: boolean, confirmDetach?: true) => {
+  const perform = async (value: Review, rememberAction: boolean, rememberChildrenChoice: boolean, confirmDetach?: true) => {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError("");
     try {
       await options.prepare?.(value.session.id);
+      if (rememberAction || rememberChildrenChoice) {
+        const settings = sdk.settings.get();
+        if (!settings) throw new Error("Confirmation preferences are unavailable. No session action was attempted.");
+        if (value.action === "detach") {
+          await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmSessionDetach: false } }, settings.revision);
+        } else {
+          const retention = { ...settings.values.retention };
+          if (rememberAction) retention[value.action === "archive" ? "confirmArchive" : "confirmDelete"] = false;
+          if (rememberChildrenChoice && value.childrenAction) {
+            if (value.action === "archive") {
+              if (value.childrenAction === "delete") throw new Error("Archive review cannot remember a delete-children choice.");
+              retention.archiveChildren = value.childrenAction;
+            } else {
+              if (value.childrenAction === "archive") throw new Error("Delete review cannot remember an archive-children choice.");
+              retention.deleteChildren = value.childrenAction;
+            }
+          }
+          await sdk.settings.update({ ...settings.values, retention }, settings.revision);
+        }
+      }
       const check = () => {
         const state = sdk.getState(), session = state.snapshot?.sessions.find((session) => session.id === value.session.id);
         if (state.status !== "connected" || !state.snapshot || !session || session.revision !== value.session.revision ||
-          session.status !== value.session.status || destinationChanged(value, state.snapshot)) throw new Error("This session or destination changed after review. Close and review it again; no session action was performed.");
+          session.status !== value.session.status || destinationChanged(value, state.snapshot) ||
+          value.action !== "detach" && !sameChildren(value.tree, state.snapshot.sessions, value.session.id)) {
+          throw new Error("This session or its attached children changed after review. Close and review it again; no session action was performed.");
+        }
         return session;
       };
       check();
-      if (skipFuture) {
-        const settings = sdk.settings.get();
-        if (!settings) throw new Error("Confirmation preferences are unavailable. No session action was attempted.");
-        await sdk.settings.update(value.action === "detach" ? { ...settings.values, interactions: { ...settings.values.interactions, confirmSessionDetach: false } } :
-          { ...settings.values, retention: { ...settings.values.retention, [value.action === "archive" ? "confirmArchive" : "confirmDelete"]: false } }, settings.revision);
-      }
-      check();
-      if (value.action === "delete") await sdk.sessions.delete(value.session.id, true, value.session.revision);
+      const children = value.action !== "detach" && value.tree.length > 1 && value.childrenAction ? {
+        action: value.childrenAction, expected: sessionChildBindings(value.tree, value.session.id),
+      } : undefined;
+      if (value.action === "delete") await sdk.sessions.delete(value.session.id, true, value.session.revision, children);
       else if (value.action === "detach") await sdk.sessions.organize(value.session.id, { parentSessionId: null, groupId: value.destination.groupId }, value.session.revision, confirmDetach);
-      else await sdk.command({ type: "session.archive", sessionId: value.session.id });
+      else await sdk.command({ type: "session.archive", sessionId: value.session.id, expectedRevision: value.session.revision, ...(children ? { children } : {}) });
       setReview(null); options.done?.(value.action, value.session.id);
       focusSession(value.session.id);
     } catch (error) {
@@ -66,39 +98,88 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     if (pending.current) return;
     setFocusTarget(null);
     returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setError(""); setRemember(false); setConfirmed(false);
+    setError(""); setRemember(false); setRememberChildren(false); setConfirmed(false);
     const source: ReviewedSession = { id: session.id, title: session.title, revision: session.revision, status: session.status,
-      projectId: session.projectId, parentSessionId: session.parentSessionId };
-    let value: Review;
+      projectId: session.projectId, parentSessionId: session.parentSessionId, kind: session.kind };
     if (action === "detach") {
       if (!session.parentSessionId || session.turnId || session.kind === "subagent") { setError("Only an idle user-owned child session can be detached. No hierarchy was changed."); return; }
       const group = snapshot.sessionGroups.find((group) => group.id === groupId && group.projectId === session.projectId);
       if (groupId && !group) { setError("The destination group changed. Review the original project again; no session was detached."); return; }
-      value = { action, session: source, destination: { groupId, revision: group?.revision ?? null,
+      const value: Review = { action, session: source, destination: { groupId, revision: group?.revision ?? null,
         name: group?.name ?? snapshot.projects.find((project) => project.id === session.projectId)?.name ?? "Chats",
-        parent: snapshot.sessions.find((parent) => parent.id === session.parentSessionId)?.title ?? session.parentSessionId } };
-    } else value = { action, session: source };
-    if ((action === "detach" ? snapshot.settings.values.interactions.confirmSessionDetach : action === "archive" ?
-      snapshot.settings.values.retention.confirmArchive : snapshot.settings.values.retention.confirmDelete) !== false) setReview(value);
-    else void perform(value, false);
+        parent: snapshot.sessions.find((parent) => parent.id === session.parentSessionId)?.title ?? session.parentSessionId,
+      }, confirmAction: snapshot.settings.values.interactions.confirmSessionDetach !== false };
+      if (value.confirmAction) setReview(value);
+      else void perform(value, false, false);
+      return;
+    }
+    const tree = sessionSubtree(snapshot.sessions, session.id).map((value): ReviewedSession => ({
+      id: value.id, title: value.title, revision: value.revision, status: value.status, projectId: value.projectId,
+      parentSessionId: value.parentSessionId, kind: value.kind,
+    }));
+    const children = tree.slice(1), canDetachChildren = !children.some((child) => child.parentSessionId === session.id && child.kind === "subagent");
+    const confirmAction = (action === "archive" ? snapshot.settings.values.retention.confirmArchive : snapshot.settings.values.retention.confirmDelete) !== false;
+    const preference = action === "archive" ? snapshot.settings.values.retention.archiveChildren ?? "ask" : snapshot.settings.values.retention.deleteChildren ?? "ask";
+    const preferredAction: SessionChildrenAction | null = preference === "ask" ? null : preference;
+    const childrenAction = preferredAction === "detach" && !canDetachChildren ? null : preferredAction;
+    const showChildChoice = children.length > 0 && (preference === "ask" || childrenAction === null);
+    const value: Review = { action, session: source, tree, childrenAction, canDetachChildren, showChildChoice, confirmAction };
+    if (action === "delete") setConfirmed(!confirmAction);
+    if (confirmAction || children.length > 0 && childrenAction === null) setReview(value);
+    else void perform(value, false, false);
   };
   const stored = options.stored && review?.action === "delete";
   const title = review?.action === "detach" ? "Detach session" : review?.action === "archive" ? "Archive session" : stored ? "Delete stored session" : "Delete session";
+  const childrenReviewRequired = review !== null && review.action !== "detach" && review.showChildChoice;
+  const inspectionRequired = review?.action === "delete" && /inspect|unconfirmed|cleanup/i.test(error);
+  const childrenSummary = review && review.action !== "detach" && review.tree.length > 1 ? review.childrenAction === "detach" ?
+    `${review.showChildChoice ? "This choice" : "The selected preference"} settles owned work, detaches direct children and keeps their nested hierarchy intact.` : review.childrenAction ?
+      `${review.showChildChoice ? "This choice" : "The selected preference"} will also ${review.childrenAction} all ${review.tree.length - 1} attached sessions, including nested subsessions.` : "" : "";
+  const inspect = () => {
+    if (!review || !options.inspect || pending.current) return;
+    const id = review.session.id;
+    close();
+    void Promise.resolve(options.inspect(id)).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The session could not be opened for inspection."));
+  };
   return { request, busy, reviewing: Boolean(review), error: review ? "" : error, dialog: review && <dialog ref={dialog} className="workspace-dialog" aria-label={title}
     onCancel={(event) => { if (busy) event.preventDefault(); }} onClose={close}>
-    <form onSubmit={(event) => { event.preventDefault(); if (!stale && (review.action !== "delete" || confirmed)) void perform(review, remember, review.action === "detach" ? true : undefined); }}>
+    <form onSubmit={(event) => {
+      event.preventDefault();
+      if (!stale && (!childrenReviewRequired || "childrenAction" in review && review.childrenAction !== null) &&
+        (review.action !== "delete" || !review.confirmAction || confirmed)) void perform(review, remember, rememberChildren, review.action === "detach" ? true : undefined);
+    }}>
       <h2>{title}: {review.session.title}</h2>
       <p>{review.action === "detach" ? `Detach from "${review.destination.parent}" into the "${review.destination.name}" root list. Its workspace, Env, content and cancellation ownership stay unchanged; its children remain attached to it.` :
-        review.action === "archive" ? "Stop this session's owned work and archive the conversation. Saved drafts, held prompts and independent artifacts remain; you can restore it from Archived." :
-        "Permanently delete this conversation, its saved draft, queues, session content and every candidate or generation proposal originating from it. The service settles owned work and removes proposal records and retention grants first. Ordinary independent artifacts, applied code, worktrees and external PRs survive; linked children are detached, not deleted. Failed or unconfirmed cleanup blocks deletion."}</p>
-      {stale && <p className="inline-error" role="alert">This session changed after review. Close and review it again.</p>}
+        review.action === "archive" ? `Stop this session's selected owned work and archive the conversation. Saved drafts, held prompts and independent artifacts remain; you can restore it from Archived. ${childrenSummary}` :
+        `Permanently delete this conversation, its saved draft, queues, session content and every selected candidate or generation proposal. The service settles owned work and removes proposal records and retention grants first. Ordinary independent artifacts, applied code, worktrees and external PRs survive. Failed or unconfirmed cleanup blocks deletion. ${childrenSummary}`}</p>
+      {review.action !== "detach" && review.showChildChoice && review.tree.length > 1 && <fieldset className="session-children-choice">
+        <legend>{review.tree.length - 1} attached child sessions</legend>
+        <p>{review.action === "archive" ? "Archive every attached session, including nested subsessions, or detach the direct children." :
+          "Delete every attached session, including nested subsessions, or detach the direct children."}</p>
+        <label className="check-setting"><SettingsInput type="radio" name="session-children-action" checked={review.childrenAction === review.action}
+          disabled={busy} onChange={() => setReview((current) => current && current.action !== "detach" ? { ...current, childrenAction: current.action } : current)} />
+          {review.action === "archive" ? "Archive attached sessions" : "Delete attached sessions"} (including nested subsessions)</label>
+        <label className="check-setting"><SettingsInput type="radio" name="session-children-action" checked={review.childrenAction === "detach"}
+          disabled={busy || !review.canDetachChildren} onChange={() => setReview((current) => current && current.action !== "detach" ? { ...current, childrenAction: "detach" } : current)} />
+          Settle owned work, then detach direct children; nested descendants stay with their direct parent {!review.canDetachChildren && "(unavailable while model-owned subagents are attached)"}</label>
+        <details><summary>Review attached sessions</summary><ul>{review.tree.slice(1).map((child) => <li key={child.id}>
+          {child.title}{child.parentSessionId !== review.session.id ? " (nested)" : ""}
+        </li>)}</ul></details>
+        <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={rememberChildren} disabled={busy || review.childrenAction === null}
+          onChange={(event) => setRememberChildren(event.target.checked)} />Don't ask me again about child sessions when {review.action === "archive" ? "archiving" : "deleting"}</label>}>
+          Saves this exact cascade-or-detach choice in this profile. Change it in Settings / Retention. It never grants permissions or overrides cleanup checks.
+        </SettingsHelp>
+      </fieldset>}
+      {stale && <p className="inline-error" role="alert">This session or its attached children changed after review. Close and review it again.</p>}
       {error && <p className="inline-error" role="alert">{error}</p>}
-      {review.action === "delete" && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
+      {review.action === "delete" && review.confirmAction && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
         {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}</label>}
-      <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
-        {review.action === "detach" ? "Do not ask again when detaching sessions" : review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>}>Change this preference in Settings / {review.action === "detach" ? "Confirmations" : "Sessions"}. It does not grant tool permissions or enable automatic cleanup.</SettingsHelp>
+      {review.confirmAction && <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
+        {review.action === "detach" ? "Do not ask again when detaching sessions" : review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>}>Change this preference in Settings / {review.action === "detach" ? "Confirmations" : "Sessions"}. It does not grant tool permissions or enable automatic cleanup.</SettingsHelp>}
       <div className="button-row"><button ref={cancel} type="button" disabled={busy} onClick={close}>{review.action === "delete" ? "Cancel deletion" : "Cancel"}</button>
-        <button type="submit" className={review.action === "delete" ? "danger" : "primary"} disabled={busy || stale || review.action === "delete" && !confirmed}>{title}</button></div>
+        {inspectionRequired && <button type="button" disabled={busy || !options.inspect} onClick={inspect}>Open session to inspect</button>}
+        <button type="submit" className={review.action === "delete" ? "danger" : "primary"} disabled={busy || stale ||
+          review.action === "delete" && review.confirmAction && !confirmed || childrenReviewRequired && "childrenAction" in review && review.childrenAction === null}>{title}</button></div>
     </form>
   </dialog> };
 }

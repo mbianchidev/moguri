@@ -34,12 +34,14 @@ const dropEdge = (element: HTMLElement, y: number): "before" | "after" | "inside
   const bounds = element.getBoundingClientRect(), ratio = (y - bounds.top) / bounds.height;
   return ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
 };
-export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, openKanban, settings, terminal, modal, allow, prepareSession }: {
+export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, openKanban, settings, terminal, modal, allow, prepareSession,
+  sessionActionRequest, onSessionActionRequestHandled }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
   openKanban: (projectId: string) => Promise<void>;
   modal: (open: boolean) => void; allow: () => boolean; terminal?: (projectId: string) => void;
   prepareSession?: (id: string) => Promise<void>;
+  sessionActionRequest?: { sessionId: string; action: "archive"; nonce: number } | null; onSessionActionRequestHandled?: (nonce: number) => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const editFocus = useRef<HTMLElement | null>(null);
@@ -66,7 +68,17 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const dragging = useRef<{ source: SessionPosition; siblings: SessionPosition[]; profileId: string } | null>(null);
   const projectDrag = useRef<{ id: string; siblings: ProjectPosition[]; profileId: string } | null>(null);
   const [ordering, setOrdering] = useState(false), orderPending = useRef(false);
-  const actions = useSessionActions(sdk, snapshot, { prepare: prepareSession });
+  const actions = useSessionActions(sdk, snapshot, { prepare: prepareSession, inspect: chooseSession });
+  const handledSessionAction = useRef<number | null>(null);
+  useEffect(() => {
+    const request = sessionActionRequest;
+    if (!request || handledSessionAction.current === request.nonce) return;
+    handledSessionAction.current = request.nonce;
+    const target = snapshot.sessions.find((session) => session.id === request.sessionId);
+    if (target) actions.request(target, request.action);
+    else setError("The session requested for this action is no longer available.");
+    onSessionActionRequestHandled?.(request.nonce);
+  }, [sessionActionRequest, snapshot.sessions, actions.request, onSessionActionRequestHandled]);
   useLayoutEffect(() => {
     if (edit || !editFocus.current) return;
     const anchor = editFocus.current; editFocus.current = null;

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
-import type { ActivityEntry, ActivityResponse, BudgetTotals, MoguriSdk, TurnInfo, UsageEstimate } from "../../../packages/sdk/src/index.ts";
+import type { ActivityContent, ActivityEntry, ActivityResponse, BudgetTotals, MoguriSdk, TurnInfo, UsageEstimate } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { dollars } from "./BudgetControls.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -34,33 +34,57 @@ function useElapsed(startedAt: string | null, ticking: boolean) {
   return Number.isFinite(start) && now >= start ? now - start : null;
 }
 type Read = Extract<ActivityResponse, { type: "activity.read" }>;
+function localPage(text: string, offset: number): ActivityContent {
+  const bytes = new TextEncoder().encode(text);
+  let start = Math.max(0, Math.min(offset, bytes.length));
+  while (start < bytes.length && (bytes[start]! & 0xc0) === 0x80) start++;
+  let end = Math.min(bytes.length, start + 16_384);
+  while (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) end--;
+  return { text: new TextDecoder().decode(bytes.slice(start, end)), bytes: bytes.length, offset: start, nextOffset: end < bytes.length ? end : null };
+}
 export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: ActivityEntry; version: number }) {
   const [open, setOpen] = useState(false), [argumentOffset, setArgumentOffset] = useState(0), [outputOffset, setOutputOffset] = useState(0);
   const [state, setState] = useState<{ key: string; arguments: Read | null; output: Read | null; error: string | null; loading: boolean }>({ key: "", arguments: null, output: null, error: null, loading: false });
   const key = JSON.stringify([sdk.profileId, entry.sessionId, entry.id, entry.status, version, argumentOffset, outputOffset]);
   const owner = useRef({ sdk, key }); owner.current = { sdk, key };
   const live = useElapsed(entry.startedAt, open && active(entry));
+  const sourceMessage = entry.messageId ? sdk.getState().snapshot?.sessions.find((session) => session.id === entry.sessionId)?.messages.find((message) => message.id === entry.messageId) : undefined;
+  const sourceCall = entry.source === "tool" && sourceMessage?.role === "tool" ? sourceMessage.toolCalls?.find((call) => call.id === sourceMessage.id) : undefined;
+  const localArgumentsText = entry.hasArguments && sourceMessage?.role === "tool" && sourceCall ? JSON.stringify(sourceCall.arguments, null, 2) : null;
+  const sourceOutput = entry.source === "model" && sourceMessage?.role === "assistant" ? sourceMessage.reasoning ?? sourceMessage.text :
+    entry.source === "tool" && sourceMessage?.role === "tool" ? sourceMessage.text : null;
+  const sourceOutputBytes = sourceOutput === null ? null : new TextEncoder().encode(sourceOutput).byteLength;
+  const localOutputText = entry.hasOutput && sourceOutput !== null ? sourceOutput : null;
+  const outputMatchesRetained = entry.outputBasis === "retained-tail" || sourceOutputBytes === entry.outputBytes;
+  const localArguments: Read | null = localArgumentsText === null ? null : {
+    type: "activity.read", entry, part: "arguments", content: localPage(localArgumentsText, argumentOffset),
+  };
+  const localOutput: Read | null = localOutputText === null ? null : {
+    type: "activity.read", entry, part: "output", content: localPage(localOutputText, outputOffset),
+  };
+  const needsArguments = entry.hasArguments && localArguments === null;
+  const needsOutput = entry.hasOutput && localOutput === null;
   useEffect(() => { setArgumentOffset(0); setOutputOffset(0); }, [entry.id, entry.status]);
   useEffect(() => {
-    if (!open) return;
+    if (!open || !needsArguments && !needsOutput) return;
     let current = true; setState({ key, arguments: null, output: null, error: null, loading: true });
     void Promise.all([
-      entry.hasArguments ? sdk.activity.read(entry.sessionId, entry.id, "arguments", { offset: argumentOffset }) : null,
-      entry.hasOutput ? sdk.activity.read(entry.sessionId, entry.id, "output", { offset: outputOffset }) : null,
+      needsArguments ? sdk.activity.read(entry.sessionId, entry.id, "arguments", { offset: argumentOffset }) : Promise.resolve(null),
+      needsOutput ? sdk.activity.read(entry.sessionId, entry.id, "output", { offset: outputOffset }) : Promise.resolve(null),
     ]).then(([args, output]) => {
       if (current && owner.current.sdk === sdk && owner.current.key === key) setState({ key, arguments: args, output, error: null, loading: false });
     }).catch((error: unknown) => {
       if (current && owner.current.sdk === sdk && owner.current.key === key) setState({ key, arguments: null, output: null, error: error instanceof Error ? error.message : "The exact retained activity could not be read.", loading: false });
     });
     return () => { current = false; };
-  }, [sdk, key, open]);
+  }, [sdk, key, open, needsArguments, needsOutput]);
   const current = state.key === key, observed = current ? state.output?.entry ?? state.arguments?.entry ?? entry : entry;
   const running = active(observed);
-  const renderPart = (part: Read | null, kind: "arguments" | "output") => {
+  const renderPart = (part: Read | null, kind: "arguments" | "output", title?: string) => {
     if (!part?.content) return null;
     const content = part.content, offset = kind === "arguments" ? setArgumentOffset : setOutputOffset;
     return <section className={`activity-part ${entry.kind === "thought" ? "activity-thought" : ""}`} aria-label={kind === "arguments" ? "Operation arguments" : "Operation result"}>
-      <header><strong>{kind === "arguments" ? "Arguments" : entry.kind === "thought" ? "Provider-exposed reasoning" : "Result"}</strong></header>
+      <header><strong>{title ?? (kind === "arguments" ? "Arguments" : entry.kind === "thought" ? "Provider-exposed reasoning" : "Result")}</strong></header>
       {entry.kind === "thought" ? <div className="markdown"><Suspense fallback={<p>{content.text}</p>}><RichMessage text={content.text} openLink={(href) => {
         void window.moguri.openExternal(href).catch((error: unknown) => {
           if (owner.current.sdk === sdk && owner.current.key === key) setState((value) => ({ ...value, error: error instanceof Error ? error.message : "The selected link could not be opened." }));
@@ -77,11 +101,15 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
       {observed.status !== "completed" && <span className="activity-state">{observed.status.replaceAll("_", " ")}</span>}
     </summary>
     {open && <div className="activity-expansion">
-      {(!current || state.loading) && <p role="status">Loading the retained operation...</p>}
+      {state.loading && (needsArguments && !localArguments || needsOutput && !localOutput) && <p role="status">Reading additional retained data...</p>}
       {current && state.error && <p className="inline-error" role="alert">{state.error}</p>}
-      {current && renderPart(state.arguments, "arguments")}
-      {current && renderPart(state.output, "output")}
+      {localArguments && renderPart(localArguments, "arguments")}
+      {current && !localArguments && renderPart(state.arguments, "arguments")}
+      {localOutput && renderPart(localOutput, "output", outputMatchesRetained ? undefined : "Conversation result")}
+      {current && !localOutput && renderPart(state.output, "output")}
+      {localOutput && !outputMatchesRetained && <p className="fine-print">Showing the exact tool result saved in this conversation. Separate retained source bytes are not fetched automatically.</p>}
       {!observed.hasOutput && <p className="fine-print">{running ? "No result has been observed yet." : "No readable result is retained for this operation."}</p>}
+      {["partial", "unconfirmed"].includes(observed.status) && <p className="settings-warning" role="alert">This result is partial or unconfirmed. Inspect it before explicitly choosing Resume; no continuation or cleanup success is implied.</p>}
       {observed.hasOutput && observed.outputBasis === "retained-tail" && <p className="fine-print">Bounded captured output tail, not complete process output. No final result has been retained.</p>}
       {entry.kind === "thought" && <p className="fine-print">Only provider-exposed reasoning. Request duration covers the whole model call; separate thought time is not reported.</p>}
       <footer className="activity-metrics">

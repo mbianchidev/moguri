@@ -130,6 +130,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [sideSessionId, setSideSessionId] = useState<string | null>(null);
   const [commandOutput, setCommandOutput] = useState<string | null>(null);
   const [continueChoice, setContinueChoice] = useState<{ review: ContinueWorkReview; editor: DraftEditor } | null>(null);
+  const [sessionActionRequest, setSessionActionRequest] = useState<{ sessionId: string; action: "archive"; nonce: number } | null>(null);
+  const sessionActionRequestNonce = useRef(0);
   const [suggestionsAll, setSuggestionsAll] = useState(true);
   const [artifactRequest, setArtifactRequest] = useState<ArtifactEditorRequest | null>(null);
   const switchingProfile = useRef(false);
@@ -285,7 +287,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       for (const editor of editors.current.values()) editor.dispose(); editors.current.clear();
       client.disconnect(); clients.current.delete(client); clients.current.add(next); setClient(next);
       setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
-      setPalette(false); setCommandOutput(null); setArtifactRequest(null); setNotice(null);
+      setPalette(false); setCommandOutput(null); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
     } catch (error) { next?.disconnect(); throw error; }
     finally { switchingProfile.current = false; setBusy(false); setProfilePending(false); }
   };
@@ -366,6 +368,11 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     else await showPanel(result.panel);
   };
   const handleSlash = async (target: Session, draft: DraftEditor, text: string) => {
+    if (text.trim() === "/archive") {
+      await draft.flush(); draft.edit(""); await draft.flush();
+      setSessionActionRequest({ sessionId: target.id, action: "archive", nonce: ++sessionActionRequestNonce.current });
+      return;
+    }
     if (/^\/side\s+\S/.test(text)) {
       await draft.flush();
       if (draft.getState().text !== text || draft.getState().conflict) throw new Error("The side question changed while saving. Its newer draft was preserved; send it explicitly.");
@@ -452,7 +459,8 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <div className="nav-scroll">
       <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{view}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
-      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }} />}
+      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
+        sessionActionRequest={sessionActionRequest} onSessionActionRequestHandled={(nonce) => setSessionActionRequest((request) => request?.nonce === nonce ? null : request)} />}
       </div>
       <div className="nav-footer">
         <div className="profile-actions">

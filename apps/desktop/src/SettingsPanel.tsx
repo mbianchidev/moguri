@@ -190,6 +190,30 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
     setDraft((current) => ({ ...current, [section]: replace ? value : { ...current[section], ...patch } }));
     void write({ ...committedValues.current, [section]: value }, () => {});
   };
+  const updateChildrenPreference = (action: "archive" | "delete", input: string) => {
+    if (ownSave.current) { setError("Wait for the current settings save to finish. Your edits are preserved."); return; }
+    if (raw.retention !== undefined) { setError("Save or reload retention JSON before changing its controls. Your text is preserved."); return; }
+    const saved = { ...committedValues.current.retention };
+    if (action === "archive") {
+      if (input === "ask") delete saved.archiveChildren;
+      else if (input === "archive" || input === "detach") saved.archiveChildren = input;
+      else return;
+    } else {
+      if (input === "ask") delete saved.deleteChildren;
+      else if (input === "delete" || input === "detach") saved.deleteChildren = input;
+      else return;
+    }
+    setDraft((current) => {
+      const retention = { ...current.retention };
+      if (action === "archive") {
+        if (input === "ask") delete retention.archiveChildren;
+        else if (input === "archive" || input === "detach") retention.archiveChildren = input;
+      } else if (input === "ask") delete retention.deleteChildren;
+      else if (input === "delete" || input === "detach") retention.deleteChildren = input;
+      return { ...current, retention };
+    });
+    void write({ ...committedValues.current, retention: saved }, () => {});
+  };
   const automaticDefaults = (patch: ControlDefaults, remove: (keyof ControlDefaults)[] = [], scope: "global" | "profile" = "profile") => {
     if (ownSave.current || raw.startup !== undefined) { setError("Save or reload the startup JSON before changing default controls. Your text is preserved."); return; }
     const merge = (profile: ControlDefaults) => {
@@ -516,6 +540,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <SettingsHelp label="More about this setting" target={<h3>Automatic retention</h3>}>Only actual completion qualifies. Unsent drafts, queues, user input, active descendants, live consoles and uncertain effects keep a session open. Archive and deletion each start off with seven-day factory thresholds.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.confirmArchive ?? true} onChange={(event) => automatic("retention", { confirmArchive: event.target.checked })} />Confirm before archiving a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.confirmDelete ?? true} onChange={(event) => automatic("retention", { confirmDelete: event.target.checked })} />Confirm before deleting a session</label>
+          <label className="setting-field">When archiving a session with subsessions<select aria-label="When archiving a session with subsessions" value={draft.retention.archiveChildren ?? "ask"}
+            onChange={(event) => updateChildrenPreference("archive", event.target.value)}><option value="ask">Ask me each time</option><option value="archive">Archive all attached subsessions</option><option value="detach">Detach direct children</option></select></label>
+          <label className="setting-field">When deleting a session with subsessions<select aria-label="When deleting a session with subsessions" value={draft.retention.deleteChildren ?? "ask"}
+            onChange={(event) => updateChildrenPreference("delete", event.target.value)}><option value="ask">Ask me each time</option><option value="delete">Delete all attached subsessions</option><option value="detach">Detach direct children</option></select></label>
+          <p className="fine-print">Cascade choices include nested descendants. Detaching preserves direct children and keeps their nested hierarchy intact; model-owned subagents cannot be detached. These choices do not bypass owned-work cleanup checks.</p>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.archiveCompleted ?? false} onChange={(event) => automatic("retention", { archiveCompleted: event.target.checked })} />Automatically archive completed sessions after the configured age</label>
           <label className="setting-field">Completed-session archive days<SettingsInput aria-label="Completed archive days" type="number" min={1} max={3650} value={draft.retention.archiveAfterDays ?? 7} onChange={(event) => change("retention", { ...draft.retention, archiveAfterDays: Number(event.target.value) })} /></label>
           <button type="button" className="primary" aria-label="Save archive age" disabled={saving || draft.retention.archiveAfterDays === committed.retention.archiveAfterDays} onClick={() => saveRetentionAge("archiveAfterDays")}>Save</button>

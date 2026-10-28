@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { compareSessions, isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { operationProjection } from "../../apps/service/src/operation-telemetry.ts";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -139,6 +140,117 @@ test("session names open context actions, archive confirmations can be remembere
     await expect(page.getByLabel("Confirm before archiving a session", { exact: true })).not.toBeChecked();
     await page.getByLabel("Confirm before archiving a session", { exact: true }).check();
     await expect.poll(() => sdk.getState().snapshot?.settings.values.retention.confirmArchive).toBe(true);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("desktop slash archive reviews the child tree and remembers its chosen disposition", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const firstChild = await sdk.sessions.spawn(fixture.sessionId, "agent", "Generated archive child");
+  const secondTitle = "Generated remembered archive parent", second = await sdk.sessions.create(fixture.session().projectId, secondTitle);
+  const secondChild = await sdk.sessions.spawn(second.id!, "agent", "Generated remembered archive child");
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByLabel("Prompt", { exact: true }).fill("/archive");
+    await page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Run command", exact: true }).click();
+    const firstDialog = page.getByRole("dialog", { name: "Archive session", exact: true });
+    await expect(firstDialog.getByRole("radio", { name: /Archive attached sessions/ })).toBeVisible();
+    await firstDialog.getByRole("radio", { name: /Archive attached sessions/ }).check();
+    await firstDialog.getByLabel("Don't ask me again about child sessions when archiving", { exact: true }).check();
+    await firstDialog.getByRole("button", { name: "Archive session", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === fixture.sessionId)?.status).toBe("archived");
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === firstChild.id)?.status).toBe("archived");
+    expect(sdk.settings.get()?.values.retention.archiveChildren).toBe("archive");
+    expect(sdk.settings.get()?.values.retention.confirmArchive).toBe(true);
+
+    await page.getByRole("button", { name: secondTitle, exact: true }).click({ button: "right" });
+    await page.getByRole("menu", { name: `Actions for ${secondTitle}`, exact: true }).getByRole("menuitem", { name: "Archive", exact: true }).click();
+    const rememberedDialog = page.getByRole("dialog", { name: "Archive session", exact: true });
+    await expect(rememberedDialog.locator(".session-children-choice")).toHaveCount(0);
+    await expect(rememberedDialog).toContainText("selected preference will also archive all 1 attached sessions");
+    await rememberedDialog.getByRole("button", { name: "Archive session", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === second.id)?.status).toBe("archived");
+    await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === secondChild.id)?.status).toBe("archived");
+
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Retention", exact: true }).click();
+    await page.getByLabel("When archiving a session with subsessions", { exact: true }).selectOption("ask");
+    await expect.poll(() => sdk.settings.get()?.values.retention.archiveChildren).toBeUndefined();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("deleting subsessions supports cascade review and a remembered child disposition", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const firstChild = await sdk.sessions.spawn(fixture.sessionId, "agent", "Generated delete child");
+  const secondTitle = "Generated remembered delete parent", second = await sdk.sessions.create(fixture.session().projectId, secondTitle);
+  const secondChild = await sdk.sessions.spawn(second.id!, "agent", "Generated remembered delete child");
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: fixture.session().title, exact: true }).click({ button: "right" });
+    await page.getByRole("menu", { name: `Actions for ${fixture.session().title}`, exact: true }).getByRole("menuitem", { name: "Delete", exact: true }).click();
+    const firstDialog = page.getByRole("dialog", { name: "Delete session", exact: true });
+    await firstDialog.getByRole("radio", { name: /Delete attached sessions/ }).check();
+    await firstDialog.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
+    await firstDialog.getByLabel("Don't ask me again about child sessions when deleting", { exact: true }).check();
+    await firstDialog.getByRole("button", { name: "Delete session", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.some((session) => session.id === fixture.sessionId || session.id === firstChild.id)).toBe(false);
+    expect(sdk.settings.get()?.values.retention.deleteChildren).toBe("delete");
+    expect(sdk.settings.get()?.values.retention.confirmDelete).toBe(true);
+
+    await page.getByRole("button", { name: secondTitle, exact: true }).click({ button: "right" });
+    await page.getByRole("menu", { name: `Actions for ${secondTitle}`, exact: true }).getByRole("menuitem", { name: "Delete", exact: true }).click();
+    const rememberedDialog = page.getByRole("dialog", { name: "Delete session", exact: true });
+    await expect(rememberedDialog.locator(".session-children-choice")).toHaveCount(0);
+    await expect(rememberedDialog).toContainText("selected preference will also delete all 1 attached sessions");
+    await rememberedDialog.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
+    await rememberedDialog.getByRole("button", { name: "Delete session", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot?.sessions.some((session) => session.id === second.id || session.id === secondChild.id)).toBe(false);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("blocked deletion opens the exact partial tool result for inspection without implicitly resuming", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), session = fixture.session();
+  const scope = { profile_id: sdk.profileId, project_id: session.projectId, session_id: session.id, turn_id: "generated-unconfirmed-turn" };
+  const call = { id: "generated-unconfirmed-call", name: "run_command", arguments: { command: "generated fixture only" } };
+  const events = fixture.service.store.commit([
+    { ...scope, event_type: "turn.started", payload: {
+      item: { id: "generated-unconfirmed-input", text: "Generated request for operation inspection.", attachments: [], delivery: "queue" },
+      controls: session.controls, policyRevision: sdk.getState().snapshot!.policy.revision,
+    } },
+    { ...scope, step_id: "generated-unconfirmed-step", event_type: "tool.started", payload: { call } },
+    { ...scope, event_type: "process.started", payload: { callId: "generated-unconfirmed-call", pid: 2147000000, processGroup: 2147000000 } },
+    { ...scope, step_id: "generated-unconfirmed-step", event_type: "tool.completed", payload: {
+      call,
+      text: "Generated partial tool result.", isError: true, outcome: "unconfirmed",
+    } },
+    { ...scope, event_type: "turn.finished", payload: { outcome: "partial", diagnostic: "Generated cleanup is unconfirmed." } },
+    { profile_id: sdk.profileId, project_id: session.projectId, session_id: session.id, event_type: "session.blocked", payload: { diagnostic: "Generated inspection boundary." } },
+  ]);
+  fixture.service.store.commit(operationProjection(events, sdk.profileId).map((entry) => ({
+    event_type: "operation.recorded", profile_id: sdk.profileId, payload: { entry },
+  })));
+  fixture.service.controller.refreshProfile(); await sdk.refresh();
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: session.title, exact: true }).click({ button: "right" });
+    await page.getByRole("menu", { name: `Actions for ${session.title}`, exact: true }).getByRole("menuitem", { name: "Delete", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Delete session", exact: true });
+    await dialog.getByLabel("I confirm deletion of this session, its unsent content and originating candidates.", { exact: true }).check();
+    await dialog.getByRole("button", { name: "Delete session", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toContainText("Owned tool/process effects remain unconfirmed");
+    const inspect = dialog.getByRole("button", { name: "Open session to inspect", exact: true });
+    await expect(inspect).toBeVisible(); await inspect.click();
+    await expect(dialog).toHaveCount(0);
+    const composer = page.getByRole("form", { name: "Message composer", exact: true });
+    await expect(composer.getByRole("button", { name: "Resume", exact: true })).toBeEnabled();
+    const operation = page.getByRole("log", { name: "Session transcript", exact: true }).locator(".activity-row[data-kind='command']");
+    await operation.locator("summary").click();
+    await expect(operation.getByRole("region", { name: "Operation result", exact: true })).toContainText("Generated partial tool result.");
+    await expect(operation).toContainText("Inspect it before explicitly choosing Resume");
+    expect(sdk.getState().snapshot?.sessions.some((value) => value.id === session.id)).toBe(true);
+    expect(fixture.service.controller.events(0).some((event) => event.event_type === "session.resumed" && event.session_id === session.id)).toBe(false);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
