@@ -1866,8 +1866,7 @@ Invalid tool arguments identify the schema fields and constraints to correct,
 without echoing submitted values or executing an operation.
 Builtin MCP `grep_logs` supports a 1-MiB UTF-8 source and returns up to
 100 matching lines, 1,000 characters each, within 12,000 serialized UTF-8 bytes,
-with byte offsets and explicit
-clipping/omission flags. Use `read_file` for exact source paging or
+with byte offsets and explicit clipping/omission flags. Use `read_file` for exact source paging or
 `search_files` for regex/larger sources.
 Structured binary documents have their separate 8-MiB parser/authoring boundary;
 at most 16 snapshots and 512 KiB of attached text are accepted.
