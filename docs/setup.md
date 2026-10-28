@@ -640,8 +640,9 @@ execution. No permanent historical grant or hardcoded alias is inferred.
 shared-cloud ranges, refreshed before readiness and hourly. This is broader than
 exact-host-only egress and can cover shared infrastructure; setup review states
 that explicitly before Enable Sandbox. The native public-page tool works without a project,
-uses the enforced guest proxy and requires ordinary tool permission. This is not
-an interactive browser or a general native MCP grant.
+uses the enforced guest proxy, supports public GitHub REST API JSON without
+credential forwarding, and requires ordinary tool permission. This is not an
+interactive browser or a general native MCP grant.
 
 Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
 tool rules. These permit subdomains at any depth, not the apex or lookalike
@@ -816,8 +817,10 @@ retry; no other process is adopted. CLI `moguri runtime status` and TUI
 Auto-archive and auto-delete both start off with distinct seven-day thresholds.
 Only actual completion ages a session for archive; drafts, held queues, input,
 active descendants/consoles and unconfirmed effects block it. Archived age
-starts at actual archival, not completion. Deletion preserves independently
-retained artifacts/worktrees and all-role budget accounting.
+starts at actual archival, not completion. For retained child trees, automatic
+archive/delete waits for the profile's explicit cascade-or-detach preference;
+the default Ask choice leaves the tree unchanged. Deletion preserves
+independently retained artifacts/worktrees and all-role budget accounting.
 
 Ticket phase and per-project import configuration live in **Project settings**;
 Linear authentication lives in **Integrations / Linear**, including without a
@@ -908,6 +911,11 @@ Expand a row for its original arguments/result, local start date/time, observed
 duration and retained UTF-8 output size. Large results use explicit byte pages.
 Running operations have an elapsed wall timer; waiting, failed, stopped,
 partial and unconfirmed outcomes stay distinct.
+Tool/model details already present in the session messages render immediately
+from that saved conversation instead of being fetched again when expanded.
+Separate retained source bytes are not fetched automatically. Partial or
+unconfirmed results remain inspectable, but continuing still requires an
+explicit Resume after inspection.
 
 **Thought** opens only already-public provider-exposed reasoning. Its duration
 covers the whole model request, not separately measured thinking. Hidden model
@@ -1764,9 +1772,11 @@ todo/memory SQL. Model state writes can update an explicit task plan and
 current-session Sky notes, never raw state storage, memory promotion or opt-in.
 
 Browser-free `web_search` uses public keyless search; `web_fetch` retrieves a
-selected page. Provider challenges are errors, not empty success or a hidden
-switch. Optional Firecrawl/self-hosted/API search stays behind an explicitly
-configured, approved MCP server. `create_issue` previews then separately creates
+selected public page. Public `api.github.com` REST URLs use GitHub's declared
+JSON media type and API version, without forwarding credentials. Provider
+challenges are errors, not empty success or a hidden switch. Optional
+Firecrawl/self-hosted/API search stays behind an explicitly configured,
+approved MCP server. `create_issue` previews then separately creates
 an exact GitHub/Linear issue through the configured Local account/team pipeline.
 Its actor stays model, not user acceptance.
 
@@ -2761,10 +2771,19 @@ silently checks out a branch or starts work.
 
 Session row menus pin, mark unread, rename, group, attach/detach, archive,
 unarchive or delete. Attachments must be acyclic and in the same project.
-Archive stops owned work and holds user prompts. A merged PR does not prevent
-unarchive. Delete preserves external PRs and independent project artifacts,
-detaching surviving children. **Settings / Retention** optionally deletes
-archived sessions after a chosen age; it starts off.
+Archiving or deleting a session with subsessions asks whether to cascade through
+the attached tree or detach direct children. Cascades include nested descendants;
+detaching preserves child sessions and their saved content, settles owned work
+first, and keeps each nested hierarchy with its direct parent. A remembered
+choice is profile-scoped in **Settings / Retention** and
+can be reset to **Ask me each time**. Model-owned subagents cannot be detached.
+Archive stops only the selected/cascaded owned work and holds user prompts; a
+merged PR does not prevent unarchive. Delete preserves external PRs and
+independent project artifacts. Unconfirmed effects still require inspection
+and explicit Resume before deletion; a child disposition never bypasses that
+gate. **Settings / Retention** optionally deletes archived sessions after a
+chosen age; it starts off. The TUI `/archive` command uses the same cascade,
+detach and remembered-choice policy.
 
 Project menus reorder entries, assign a folder/color, open GitHub, create a
 session from scratch/local work item/verified PR, open settings, change the
@@ -2884,7 +2903,7 @@ When enabled, up to two depth-one, tool-less children use the parent's fixed
 model/approved context with separate usage and owned cancellation. They do not
 become extra write-capable agents.
 
-The internal MCP provides `grep_logs`, `fetch_page`, `search_memory` and
+The internal MCP provides `grep_logs`, `fetch_page` (public HTML/text and GitHub REST JSON), `search_memory` and
 `memory_graph`, plus explicitly approved/enabled custom Node scripts. Custom
 scripts are **host code without SendBox**, require source review and exact call
 approval, and have bounded output/deadlines. See [the SDK contract](sdk.md)
