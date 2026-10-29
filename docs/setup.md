@@ -690,7 +690,7 @@ through the Node SDK; root/React entrypoints remain browser-safe. See the
 
 ### Reproducing exact native qualification
 
-The [current 0.2.4 evidence and limits](architecture/sendbox-0.2.4-qualification.md)
+The [current protocol-77 0.2.4 evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-77-model-controls-follow-up)
 are separate from historical 0.2.3 runs and package-only verification.
 Maintainers can build the current distribution with `npm run prepare:sandbox`,
 then use its printed directory and matching image receipt:
