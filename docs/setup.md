@@ -745,7 +745,7 @@ through the Node SDK; root/React entrypoints remain browser-safe. See the
 
 ### Reproducing exact native qualification
 
-The [current protocol81 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-81-session-and-git-follow-up)
+The [current protocol82 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-82-command-and-tool-follow-up)
 are separate from the [packaged combined80 cut](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up),
 historical 0.2.3/protocol76/77 runs and package-only verification. This cut
 includes actual two-root execution and separate source publication, not just
@@ -3835,7 +3835,7 @@ npm run package:mac
 ```
 
 For an independently retained qualification build, use
-`npm run package:mac -- --qualifier protocol81-<source-id>`. It writes a new
+`npm run package:mac -- --qualifier protocol82-<source-id>`. It writes a new
 `release/qualification-builds/<qualifier>/` tree and refuses an existing label,
 preserving all earlier app/ZIP/DMG bytes. Canonical archive/manifest basenames
 remain unchanged inside that labeled directory; this does not publish an update.

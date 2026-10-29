@@ -15,6 +15,7 @@ test("settings have coherent unique groups and stable routable sections", () => 
 test("settings search combines category and control aliases without reading user content", () => {
   const ids = (query: string) => searchSettings(query).flatMap((group) => group.items.map((item) => item.id));
   assert.deepEqual(ids("MODEL local"), ["providers", "localModels", "kupo", "permissions", "sendbox", "budgets", "instructions", "project"]);
+  for (const query of ["MCP direct", "tool preference order", "REST CLI"]) assert.ok(ids(query).includes("mcpServers"));
   assert.deepEqual(ids("firewall"), ["permissions", "project"]);
   assert.deepEqual(ids("thinking effort"), ["startup"]);
   assert.deepEqual(ids("execution permission"), SETTINGS_GROUPS.find((group) => group.label === "Execution & permissions")!.items.map((item) => item.id));

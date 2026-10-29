@@ -13,7 +13,7 @@ export const SETTINGS_GROUPS = [
   { label: "Integrations", items: [
     { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews" },
     { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
-    { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools integrations preference order ranking direct REST CLI" },
+    { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },
     { id: "plugins", label: "Plugins", keywords: "manifest import extensions" },
     { id: "marketplace", label: "Marketplace", keywords: "catalog extensions trusted sources" },
@@ -63,6 +63,8 @@ export type SettingsTab = typeof SETTINGS_GROUPS[number]["items"][number]["id"];
 
 export function searchSettings(query: string) {
   return SETTINGS_GROUPS.map((group) => ({ label: group.label, items: group.items.filter((item) => {
-    return fuzzyMatch(query.replace(/[_-]/g, " "), `${group.label} ${item.label} ${item.keywords}`);
+    const text = query.replace(/[_-]/g, " ");
+    return fuzzyMatch(text, `${group.label} ${item.label} ${item.keywords}`) ||
+      "aliases" in item && item.aliases.some((alias) => fuzzyMatch(text, `${group.label} ${alias}`));
   }) })).filter((group) => group.items.length > 0);
 }
