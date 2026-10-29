@@ -1705,11 +1705,68 @@ This does not inspect an installed version, account or current client, publish
 an npm package, enable repository memory, install anything or grant permission.
 Saved prompt settings are unchanged; running turns keep their captured prompt.
 
+### Terminal navigation and shared themes
+
+The original JRPG-style TUI uses double-line menus and an abstract crystal
+cursor, without franchise assets. Click **Current session**, **Sessions**,
+**Work items** or **Code requests** in a mouse-reporting terminal. The same
+routes are `/session`, `/sessions`, `/work-items` and `/code-requests`.
+Selecting a tab saves the current draft; it does not send it, answer a question,
+approve a tool or fetch GitHub metadata.
+
+**Tab** focuses navigation. **Up/Down** chooses a tab and **Enter** opens it.
+**Left** closes the sidebar and **Right** opens it only in navigation focus.
+Tab or Esc leaves navigation; composer arrows still edit the cursor normally.
+`/sidebar open|close` provides the same explicit control. The sidebar starts
+collapsed below 100 columns and, when explicitly opened below 80, uses the
+available width rather than squeezing the prompt. Tabs also work at 52 by 24.
+Unsaved JSON editors and settling owned operations block navigation explicitly.
+
+Type `/` for command descriptions. Up/Down selects a suggestion; Tab or a mouse
+click fills it without execution. Ordinary idle Enter runs the exact command
+when no earlier work exists. `/help` lists navigation and the shared SDK
+catalogue; `/stop`, `/approve once`, `/queue` and `/run ID` retain their existing
+service authority. Ctrl+D still denies and Ctrl+V reads full approval arguments.
+Home/End or the mouse wheel scroll command results. Existing shortcut aliases
+remain for compatibility, but slash commands are the primary discoverable route.
+An empty workspace accepts `/new global`, `/open ABSOLUTE_PATH`, `/connect`,
+`/profiles`, `/theme`, `/settings` and `/help` without inventing a project or
+starting a model.
+
+**Code requests** is the existing project/session pull-request and code-change
+surface, not a global GitHub inbox. It lists retained linked PR observations,
+reads the actual session-bound diff on explicit selection and offers an explicit
+project PR lookup. GitHub browsing requires an individual Local project; it
+never substitutes a controller root for Remote or Sandbox. Listing retained
+links is not a fresh verification, checkout, write or inference.
+
+**Settings / Appearance / Color palette** and the TUI settings palette picker
+share Moguri, Ocean, Orchid, Rose, Terminal, Aubergine, Ember, Monochrome,
+Vaporwave and Crystal, plus Custom. Ocean already supplies blue; Rose adds pink,
+Terminal green/black, Ember red and Crystal an original cobalt/silver JRPG look.
+Every preset supports Dark and Light. In a chat, use `/theme list`,
+`/theme crystal dark`, `/theme rose` or `/theme system` in TUI, desktop or CLI.
+Palette-only changes preserve the mode and saved custom colors. Dark remains
+the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
+terminal theme reports and Dark when the terminal supplies none.
+
+This independent source uses protocol/schema 78 with `theme_catalog_schema=1`,
+upgrading the genuine 76 baseline without rewriting encrypted history.
+Use the matching service or its explicit restart review; never delete state.
+The separate protocol-77 model-continuity lineage is intentionally unsupported
+by this standalone build until the actual combined source is reconciled and
+requalified. Shared queued-slash intake is also being implemented separately:
+held or ordered new navigation/theme/quit commands currently remain in the
+saved draft with an explicit unavailable error. They never execute eagerly,
+skip earlier work or become ordinary model text. Click/Tab navigation remains
+available, but is not a substitute for completed queued-slash support.
+See the [change and evidence contract](architecture/themes-and-tui.md).
+
 ## Sign in with GitHub Copilot
 
 Desktop: open **Settings / Models / Providers**, choose **Sign in** under
 **GitHub Copilot**, then
-open GitHub and enter the displayed one-time code. TUI: press **Ctrl+L**, then
+open GitHub and enter the displayed one-time code. TUI: run **/connect**, then
 open the displayed URL yourself. Authorization is a user action, not a test or
 an automated browser operation.
 
