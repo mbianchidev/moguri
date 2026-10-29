@@ -134,13 +134,17 @@ test("completed rows show checks plus green open or gray draft PRs, while only a
     await expect(mergedLink.locator('[data-icon="Check"]')).toHaveCount(0);
     const purple = await contrast(mergedIcon);
     expect(purple).toBe(await mergedLink.locator(".session-status-dot").evaluate((node) => getComputedStyle(node).backgroundColor));
+    const project = fixture.service.controller.snapshot().projects.find((project) => project.id === projectId)!;
+    await navigation.getByRole("button", { name: `Show more sessions in ${project.name}`, exact: true }).click();
     const unverified = link(unknown.id!).getByRole("img", { name: /^Attached pull request status is not verified:/ });
     await expect(unverified).toBeVisible(); await expect(unverified).toHaveAttribute("title", /HTTP 403/);
     await expect(link(unknown.id!).locator('[data-icon="PRMerged"]')).toHaveCount(0);
     await mkdir(".moguri/artifacts", { recursive: true });
     await page.screenshot({ path: ".moguri/artifacts/desktop-session-status-indicators.png", animations: "disabled" });
     const readsBeforeReload = fixture.service.store.events().filter((event) => event.event_type === "session.pr_observed").length;
-    await page.reload(); await expect(mergedIcon).toBeVisible(); await expect(draftIcon).toBeVisible();
+    await page.reload(); await expect(mergedIcon).toBeVisible();
+    await navigation.getByRole("button", { name: `Show more sessions in ${project.name}`, exact: true }).click();
+    await expect(draftIcon).toBeVisible();
     expect(fixture.service.store.events().filter((event) => event.event_type === "session.pr_observed")).toHaveLength(readsBeforeReload);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

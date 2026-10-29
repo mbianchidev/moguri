@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { setupFixture } from "../fixture.ts";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { focusByKeyboard } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The desktop experience is qualified on macOS.");
@@ -67,10 +68,16 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
     await categories.getByRole("button", { name: "Appearance", exact: true }).click();
     const info = page.getByRole("button", { name: "About appearance", exact: true });
-    await info.focus();
+    await focusByKeyboard(info);
+    await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    const description = await info.getAttribute("aria-describedby");
+    await expect(page.getByRole("tooltip")).toHaveAttribute("id", description!);
+    await page.getByRole("heading", { name: "Settings", exact: true }).hover();
     await expect(page.getByRole("tooltip")).toContainText("factory theme");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(info).toBeFocused();
+    await expect(info).not.toHaveAttribute("aria-describedby");
     await categories.getByRole("button", { name: "User guidance", exact: true }).click();
     const field = page.getByLabel("Global user guidance", { exact: true });
     await field.fill("Generated copyable guidance.");
@@ -86,6 +93,55 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
     for (const label of ["Artifacts", "Candidates", "Sandbox"]) await expect(categories.getByRole("button", { name: label, exact: true })).toBeVisible();
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); await fixture.close(); }
+});
+
+test("clicked icon tooltips leave with the pointer without stealing focus or breaking hoverable help", async () => {
+  const fixture = await setupFixture();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), settings = page.getByRole("button", { name: "Settings", exact: true });
+    await app.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler("moguri:copy-text");
+      ipcMain.handle("moguri:copy-text", (_event, text: string) => { process.env.MOGURI_GENERATED_COPY = text; });
+    });
+    await settings.hover(); await expect(page.getByRole("tooltip")).toHaveText("Settings");
+    await settings.click();
+    const outside = page.getByRole("heading", { name: "Settings", exact: true });
+    await outside.hover(); await expect(page.getByRole("tooltip")).toHaveCount(0);
+    const categories = page.getByRole("navigation", { name: "Settings categories" });
+    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    const info = page.getByRole("button", { name: "About appearance", exact: true });
+    await info.click(); await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    await expect(info).toBeFocused();
+    await page.getByRole("tooltip").hover();
+    await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    await outside.hover(); await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(info).toBeFocused(); await expect(info).not.toHaveAttribute("aria-describedby");
+    await outside.click(); await info.focus();
+    await expect(info).toBeFocused();
+    expect(await info.evaluate((button) => button.matches(":focus-visible"))).toBe(false);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await categories.getByRole("button", { name: "User guidance", exact: true }).click();
+    const field = page.getByLabel("Global user guidance", { exact: true });
+    await field.fill("Generated tooltip copy value."); await field.hover();
+    const copy = page.getByRole("button", { name: "Copy Global user guidance", exact: true });
+    await copy.hover(); await copy.click(); await expect(copy).toBeFocused();
+    await expect(page.getByRole("tooltip")).toHaveText("Copied");
+    await outside.hover(); await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(copy).toBeFocused(); await expect(copy).not.toHaveAttribute("aria-describedby");
+    expect(await app.evaluate(() => process.env.MOGURI_GENERATED_COPY)).toBe("Generated tooltip copy value.");
+    await expect(field).toHaveValue("Generated tooltip copy value.");
+    await page.getByRole("button", { name: "Save user guidance", exact: true }).click();
+    expect(fixture.requests).toHaveLength(0);
+  } finally {
+    await app.evaluate(({ BrowserWindow }) => { for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.removeAllListeners("will-prevent-unload"); window.webContents.on("will-prevent-unload", (event) => event.preventDefault());
+    } });
+    await app.close(); await fixture.close();
+  }
 });
 
 test("small real cost estimates remain graphically visible and saved skill folders refresh without inference", async () => {

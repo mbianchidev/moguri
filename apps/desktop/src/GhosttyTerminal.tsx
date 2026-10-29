@@ -3,6 +3,7 @@ import { FitAddon, Ghostty, Terminal } from "ghostty-web";
 import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
 import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { CopyButton } from "./CopyButton.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
@@ -193,7 +194,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
   return <section className="ghostty-panel" aria-label="Embedded Ghostty terminal">
     <header className="terminal-tabs"><select aria-label="Selected terminal" value={terminal?.id ?? ""} onChange={(event) => setSelected(event.target.value)}>{terminals.map((terminal, index) => <option key={terminal.id} value={terminal.id}>{terminal.title} {index + 1} / {terminal.status}</option>)}{!terminals.length && <option value="">No terminal</option>}</select>
       <Tooltip content="New terminal in this chat"><button className="icon-button" aria-label="New terminal" disabled={busy || !canOpen} onClick={() => void openTerminal()}><Icon name="Plus" /></button></Tooltip>
-      <Tooltip content="Copy terminal selection"><button className="icon-button" aria-label="Copy terminal selection" disabled={busy || !terminal} onClick={() => void run(() => window.moguri.copyText(emulator.current?.getSelection() ?? ""))}><Icon name="Copy" /></button></Tooltip>
+      <CopyButton label="Copy terminal selection" disabled={busy || !terminal} source={`${session.id}:${terminal?.id}`} text={() => emulator.current?.getSelection() ?? ""} />
       <Tooltip content="Reconnect the existing owner; no shell or input replay"><button className="icon-button" aria-label="Reconnect existing terminal" disabled={busy || !canControl} onClick={() => void run(async () => { await sdk.terminal.reconcile(terminal!.id); setViewEpoch((epoch) => epoch + 1); })}><Icon name="Link" /></button></Tooltip>
       <Tooltip content="Stop this terminal"><button className="icon-button" aria-label="Close terminal" disabled={busy || !canControl} onClick={() => void run(() => sdk.terminal.close(terminal!.id))}><Icon name="Close" /></button></Tooltip>
     </header>

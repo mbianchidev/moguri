@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **69**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **77**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -12,6 +12,13 @@ side menus. Kupo is in the model list; its adjacent information button explains
 unavailability without enabling it or substituting another model. Only the
 selected model's qualified options are offered, and changes save through the
 shared session controls. Escape/Left returns from a submenu; Right opens it.
+Switching models preserves the selected thinking preference: use the same
+supported effort, the next higher supported level, or the model's highest level
+if none is higher. Max uses High on a High-limited model and returns to Max on
+a supporting model. Choosing an effort or Model default explicitly replaces
+that preference. Provider-controlled models and Kupo retain it for the next
+fixed-model choice without receiving an unsupported override. GPT, Claude,
+Google and Grok choices have distinct decorative icons; names remain authoritative.
 `/thinking high` and `/effort low` set a supported effort; either accepts
 `default` to clear only that override. `/context-window 24577` sets that exact
 whole-token ceiling. `min`, `half` and `max` select the minimum, floored half
@@ -201,8 +208,9 @@ CLI also has `moguri kanban open|items|continue|work|stop|inspect` and
 `moguri prices [refresh PROVIDER]`. See the
 [contract and qualification](architecture/project-kanban.md).
 An interactive CLI slash request asks the same route question. JSON/non-TTY
-consumers receive a typed review with its exact profile/session/draft revision
-and must explicitly choose a route; no default dispatch is inferred.
+consumers receive a retained waiting review with its exact original input and
+owning execution, not a consumed replacement draft. A route needs the actual
+owning client claim and an explicit choice; no default dispatch is inferred.
 
 ## Session approvals and GitHub workflows
 
@@ -331,7 +339,12 @@ Artifacts, Candidates and unified
 **Sandbox** management now live in Settings, with optional source-chat selection.
 Non-secret settings fields have hover/focus copy buttons; explanatory text uses
 keyboard-accessible information tooltips. Errors, status and safety reviews
-remain visible. The menu-bar mascot has a dedicated transparent template icon.
+remain visible. Icon hints dismiss after mouse-out even if clicking left the
+button focused; keyboard-visible focus still exposes them, and Escape hides a
+hint without moving focus. Moving onto help text keeps it available until the
+pointer leaves both trigger and tooltip. Pointer-origin focus restoration
+does not reopen a floating hint.
+The menu-bar mascot has a dedicated transparent template icon.
 
 New project-free Local User consoles start in the configured **HOME**, not
 Moguri's application-state directory. Project User consoles use their actual bound
@@ -676,6 +689,38 @@ CLI/TUI expose `/sandbox setup` and its exact confirmation command, plus
 through the Node SDK; root/React entrypoints remain browser-safe. See the
 [managed contract and qualification](architecture/managed-sandbox.md).
 
+### Reproducing exact native qualification
+
+The [current combined80 0.2.4 evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up)
+are separate from historical 0.2.3/protocol76/77 runs and package-only
+verification. This cut includes actual two-root execution and separate source
+publication, not just generated mapping or readiness data.
+Maintainers can build the current distribution with `npm run prepare:sandbox`,
+then use its printed directory and matching image receipt:
+
+```sh
+node --import tsx scripts/qualify-sandbox.mjs \
+  --distribution /absolute/path/to/current/distribution \
+  --workload /absolute/path/to/current/distribution/image.json \
+  --archive .native/sendbox-distribution/0.2.4/sendbox-0.2.4-macos-arm64.tar.gz
+```
+
+Use the pinned Node 26.12.0 runtime. The harness requires an already approved
+exact installation at `/opt/moguri/sendbox/0.2.4` and running Apple
+Containerization on Apple-silicon macOS. An explicitly reviewed alternative
+canonical installation root can be supplied with `--installation-root`.
+It never installs components, approves macOS dialogs, forwards personal
+credentials or performs paid inference. Network probes use public anonymous
+metadata; generated model/tool frames still run in the actual guest through the
+service/SDK and real permission/accounting paths.
+
+Every invocation retains its source/artifact identities, signed network
+evidence, generated results and explicit PASS/FAIL/SKIP gates in a unique private
+`.native/qualification/current-sendbox-*` directory. Failed or missing gates exit
+nonzero; there is no warm-up retry, substitute runtime or Local fallback.
+Keep failed attempts and original native owners for inspection. This developer
+harness is not required for ordinary in-app managed setup.
+
 ## Searchable desktop navigation
 
 Settings has a search field and grouped categories. **General** owns profile
@@ -683,6 +728,24 @@ management; **Models > Providers** owns Copilot sign-in, separate from repositor
 integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
+The category list and selected settings page scroll independently, including
+long provider lists. Reaching either scroll boundary keeps the app frame and
+Settings toolbar in place. Keyboard focus can still reach controls at the bottom.
+
+Chats initially shows ten root sessions; each project or captured project group
+shows five, and each parent shows five subsessions. Quiet **Show more/Show less**
+controls expand only that list. Search reveals matching sessions and their
+parents. Project chevrons fold sessions without moving or archiving them.
+A project's settings button remains separate from its collapse button.
+
+The project group's **More** menu offers seven icon colors, a custom color
+picker and **Ungroup**. Ungroup returns its projects to the ordinary list,
+preserving files and existing captured-root chats; those chats remain reachable
+under Chats. Stale membership is refused instead of moving a subset.
+Copy icons briefly show a check only after the actual clipboard write succeeds.
+Known policy explanations offer **Open ... policy** to the exact Settings
+section. Keyboard users can activate the hint, Tab/Shift+Tab out, or press
+Escape. Links never change policy or discard an unsaved settings/budget edit.
 
 The scrollable left resources are **Dashboard, Suggestions, Automations**.
 Artifacts, Candidates and Sandbox live in Settings. The right rail contains
@@ -747,7 +810,31 @@ action. A successful held submission restores Stop and preserves the running
 turn. The clock stays visible while acknowledgement is pending, even after
 releasing the modifier. **Resume queued work** sends one prompt per finished turn, not one combined
 prompt or parallel calls. Stop holds undispatched work; reopening the app does
-not drain it. Interrupt retains its separately requested next-turn behavior.
+not drain it. The delivery chevron's explicit prompt Interrupt remains separate.
+Typed `/steer TEXT` and `/interrupt TEXT` join the command queue and derive their
+exact follow-up only when reached; they never interrupt earlier work eagerly.
+
+Slash text is queued as a command, never ordinary model input. This includes
+view navigation and `/theme`. **Cmd/Ctrl+Enter holds every input**, including
+`/yolo`, without inference or permission changes. Only unheld `/stop`,
+`/approve` and `/yolo` are live controls. `/yolo` enables session tool delegation
+with qualified Max when ready, otherwise Autopilot; it does not change model,
+Env, budget, read-only scope or hard policy. Ordinary command heads can run at
+an actual owned human-review wait without answering or approving it.
+
+The existing service continues service-capable commands after a client closes.
+Actual UI-only results wait for a compatible client and acknowledged view or
+user choice. The desktop Commands disclosure retains their separate responses
+and failures; they never become model messages. TUI shows the real response
+without replacing a newer edit. Closing during an unacknowledged effect retains
+its partial outcome, not a replay.
+
+CLI uses `moguri slash '/COMMAND ARGUMENT' --session ID [--hold]`.
+Busy/held requests return their exact queue identity; idle service commands
+can return their original result. `moguri commands list --session ID` and
+`moguri commands read EXECUTION_ID` inspect retained results without replay.
+Unsupported native CLI views explicitly remain waiting, not applied. Normal
+CLI capability commands and direct click/Tab/key navigation remain direct.
 
 When a session/worktree requires inspection, the composer's primary Send
 position becomes a **Resume** play icon instead of adding a header button.
@@ -1475,6 +1562,26 @@ digest/revision/`--confirm-write`. Shared terminal commands use `/sandbox`;
 than staging automatically. `--help` and `/help` list inspection, exact-run
 stop, reconciliation and publication-job cancellation.
 
+Captured project groups can explicitly choose Sandbox in the Env menu or use
+**New Sandbox chat** in the group's menu. A reviewed ready runtime and managed
+automatic private workspaces are required. `/folder-chat FOLDER_ID Sandbox`
+uses the same service/SDK; omitting Env preserves Local. Every captured project
+gets a separate private copy, with no first/default or common-parent root.
+Native tools and Files require an explicit original repository; all group shells
+are unavailable if any member has folder restrictions. Remote groups and native
+user consoles remain unqualified.
+
+Group result publication first chooses one original repository, then its
+member-relative files and a separate actual-user byte/base review. Changing the
+member clears that review. CLI adds `--repository ID` to publication preview and
+publish; shared `/sandbox publish-preview RUN_ID
+{"paths":["file"],"repository":"ID"}` prints a selector-bound confirm command.
+All original roots and policies are rechecked and leased. Partial or deleted
+receipts cannot authorize a different base; source Git HEAD/index and modes
+remain intact. See [the group contract](architecture/managed-sandbox.md#captured-project-group-extension-contract)
+for exact limits, versioned shapes and recovery boundaries. These source-level
+capabilities do not, on their own, qualify the current80 guest or installer.
+
 Other environment/autonomy combinations still require acceptance. Native console, MCP, memory, subagent,
 evolution, Git-stage views and native plan writes fail explicitly instead of
 using a Local source root. Public compound, wind-down and Max remain open.
@@ -1750,17 +1857,18 @@ Palette-only changes preserve the mode and saved custom colors. Dark remains
 the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
-This independent source uses protocol/schema 78 with `theme_catalog_schema=1`,
-upgrading the genuine 76 baseline without rewriting encrypted history.
+The merged independent themes source used protocol/schema 78 with
+`theme_catalog_schema='1'`. The current combined source uses protocol80 and
+preserves genuine76, model77, theme78 and workspace79 histories through exact
+feature-marker validation before an atomic additive migration.
 Use the matching service or its explicit restart review; never delete state.
-The separate model-continuity and queued-intake lineages (77/79) are intentionally
-unsupported by this standalone build until the actual combined source is
-reconciled and requalified as protocol 80. Shared queued-slash intake is being
-implemented separately:
-held or ordered new navigation/theme/quit commands currently remain in the
-saved draft with an explicit unavailable error. They never execute eagerly,
-skip earlier work or become ordinary model text. Click/Tab navigation remains
-available, but is not a substitute for completed queued-slash support.
+Desktop, TUI and CLI now use the shared service queue for slash text.
+Held navigation/theme/quit commands remain inert there, not in an eager local
+dispatcher or ordinary model text. Actual TUI/desktop views acknowledge their
+rendered application; continuation/archive reviews wait for the real user.
+Click/Tab navigation remains direct. Current80 artifacts require their own
+qualification; the historical standalone78 and model77 receipts do not qualify
+new worker, runtime or installer bytes.
 See the [change and evidence contract](architecture/themes-and-tui.md).
 
 ## Sign in with GitHub Copilot
@@ -2047,8 +2155,13 @@ Models with the same exact upstream API ID share one row and an exclusive
 provider dropdown. Choose a source explicitly when there is more than one.
 An unavailable/disabled saved source never silently changes to another provider.
 IDs are declared catalogue keys, not independent-family or quality evidence.
-Current sessions and remembered defaults retain their original selection;
-reenable it or explicitly choose another available model before new inference.
+Disabling a selected model or provider clears the affected session selection.
+Choose a model again before the next iteration; re-enabling alone does not
+reselect it. Drafts, held prompts and the thinking preference are preserved.
+Saved defaults and exact provider choices are retained without substituting a
+different model. Unavailable Kupo solvers are unchecked and disabled, with
+separate removal of a retained inactive approval; environment, privacy, context
+and known output bounds use the same shared eligibility rules as admission.
 
 CLI uses `moguri models catalogue`, `models enable|disable API_ID`,
 `models provider PROVIDER_ID enable|disable`, and
@@ -3075,19 +3188,25 @@ changed staging entries are retained and block capture with a diagnostic.
 owning main or side-chat textbox while speaking. Release flushes the original
 buffer and replaces its provisional text once; it never sends a chat message.
 The shortcut is always hold-to-talk and ignores terminals, dialogs and other
-composers. Voice/Accessibility settings share an editable shortcut. Optional
-microphone-button push-to-talk also supports pointer release outside the button
-and Space/Enter on the focused button. Otherwise that button keeps click/start
-and click/stop. The microphone icon stays visible and highlights while the
+composers. Voice/Accessibility settings share an editable shortcut.
+**The microphone button is not push-to-talk:** click once to record and again to
+confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
+a click-owned recording does not stop that recording. Space/Enter on the focused
+button also use two separate activations, not press/release. Legacy saved
+`voice.pushToTalk` values round-trip for compatibility but no longer change this
+button, and the obsolete preference is not offered in Settings. A stale shortcut
+release cannot finish a later recording. The microphone icon stays visible and highlights while the
 owning capture records, including activation through the keyboard shortcut.
 Cold-start progress distinguishes model preparation from ready streaming.
 The pinned native runtime can buffer its readiness log, so Moguri verifies the
 exact authenticated local listener instead of waiting for that log to flush.
 Capture errors retain the original recognizer diagnostic rather than a second
-misleading missing-capture message. Use matching protocol-71 clients/service
+misleading missing-capture message. Use matching current clients/service
 for this repair; upgrading preserves existing history and model preferences.
 Releasing before admission never opens a late microphone and explains why no
-audio was captured, instead of silently returning to idle.
+audio was captured, instead of silently returning to idle. A genuinely empty
+recognition result remains an explicit error and preserves the existing draft;
+it is never replaced with invented text or a cloud/backend retry.
 Repeated keydown and stop requests do not duplicate frames or finalization.
 Blur, sleep, hidden/unmounted capture surfaces and profile changes discard active
 microphone audio with a visible interruption reason; recognized words already
@@ -3628,6 +3747,14 @@ portable foundation, with macOS-only operational tests skipped.
 ```bash
 npm run package:mac
 ```
+
+For an independently retained qualification build, use
+`npm run package:mac -- --qualifier protocol80-<source-id>`. It writes a new
+`release/qualification-builds/<qualifier>/` tree and refuses an existing label,
+preserving all earlier app/ZIP/DMG bytes. Canonical archive/manifest basenames
+remain unchanged inside that labeled directory; this does not publish an update.
+With an already built frozen source, `node scripts/package.mjs --qualifier ...`
+packages those exact compiled inputs without rebuilding underneath active checks.
 
 DMG packaging also needs Python 3.10 or newer. The build creates a private
 `.native/dmgbuild-py<version>-<manifest-digest>/` environment and installs only

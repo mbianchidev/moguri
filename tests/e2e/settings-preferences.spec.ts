@@ -105,8 +105,8 @@ test("the complete shared preset catalogue colors real desktop controls in both 
         expect(colorContrast(actual.border, actual.background), `${id} ${theme} actual select boundary`).toBeGreaterThanOrEqual(3);
       }
     }
-    expect(sdk.settings.get()?.values.appearance.palette).toBe("crystal");
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
+    await expect.poll(() => sdk.settings.get()?.values.appearance.palette).toBe("crystal");
     await page.screenshot({ path: info.outputPath("shared-crystal-theme.png") });
     await page.reload();
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim())).toBe("#0b1536");

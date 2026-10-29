@@ -31,7 +31,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     const slash = async (value: string) => {
       await prompt.fill(value);
       await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Run command", exact: true })).toBeEnabled();
-      await prompt.press("Meta+Enter");
+      await prompt.press("Enter");
     };
     const hold = async (text: string, modifier: "Meta" | "Control") => {
       await prompt.fill(text); await page.keyboard.down(modifier);
@@ -165,7 +165,7 @@ test("the isolated native browser has no Moguri/Node bridge and hides under dial
   try {
     const page = await app.firstWindow();
     await page.getByLabel("Prompt", { exact: true }).fill(`/browser ${url}`);
-    await page.getByLabel("Prompt", { exact: true }).press("Meta+Enter");
+    await page.getByLabel("Prompt", { exact: true }).press("Enter");
     await expect(page.getByLabel("Preview URL", { exact: true })).toHaveValue(url);
     const previewUrls = () => app.evaluate(({ BrowserWindow, WebContentsView }) => BrowserWindow.getAllWindows()[0]!.contentView.children.filter((child) => child instanceof WebContentsView).map((child) => child.webContents.getURL()));
     await expect.poll(previewUrls).toContain(url);

@@ -1,3 +1,5 @@
+import type { ModelInfo } from "../../../packages/sdk/src/index.ts";
+
 const paths: Record<string, string> = {
   Changes: "M8 3v18m8-18v18M4 7h8m0 10h8", Terminal: "m4 6 6 6-6 6m9 0h7",
   Files: "M3 6h7l2 3h9v11H3Z", Browser: "M3 5h18v15H3Zm0 4h18",
@@ -56,8 +58,21 @@ const paths: Record<string, string> = {
   Attention: "M6 9a6 6 0 0 1 12 0v6l3 3H3l3-3Zm4 12h4",
   Waiting: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 8v8m6-8v8",
   Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
+  ModelGPT: "m7 3 10 0 5 9-5 9H7L2 12Zm1 5h8v8H8Zm4-5v5m0 8v5M2 12h6m8 0h6",
+  ModelClaude: "M12 2v20M2 12h20M5 5l14 14M5 19 19 5M8 3l8 18M3 8l18 8M3 16l18-8M8 21l8-18",
+  ModelGoogle: "M14 2c0 6-4 9-9 9 5 0 9 3 9 9 0-6 4-9 9-9-5 0-9-3-9-9ZM4 15v7m-3-3.5h6",
+  ModelGrok: "M20 6a9 9 0 1 0 1 9M4 20 21 3m-7 0h7v7M8 8a6 6 0 0 1 8 0",
 };
 const aliases: Record<string, string> = { Sandbox: "Box", "Code change": "PR", "Work item": "Issue" };
+export function modelIcon(model: Pick<ModelInfo, "id" | "apiModelId" | "source" | "synthetic">): string {
+  if (model.synthetic) return "Suggestions";
+  const label = (model.apiModelId ?? model.id).toLowerCase().split("/").at(-1) ?? "";
+  if (/^(?:gpt|chatgpt|o\d)/.test(label)) return "ModelGPT";
+  if (/^(?:anthropic[.:-])?claude/.test(label)) return "ModelClaude";
+  if (/^(?:google[.:-])?gemini/.test(label)) return "ModelGoogle";
+  if (/^(?:x-?ai[.:-])?grok/.test(label)) return "ModelGrok";
+  return model.source === "local" ? "House" : "Agent";
+}
 export function Icon({ name }: { name: string }) {
   return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" || name === "Grip" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }

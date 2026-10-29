@@ -142,3 +142,26 @@ test("a stale poll rejection cannot cancel the original buffer while its final r
     assert.equal(controller.getState().phase, "idle");
   } finally { final.resolve("Generated original final transcript."); controller.dispose(); }
 });
+
+test("a released shortcut cannot finish or cancel a newer click-owned recording", async () => {
+  const shortcut = Symbol("generated-held-shortcut");
+  let starts = 0, finishes = 0, uploads = 0, cancellations = 0;
+  const controller = new SpeechCaptureController({
+    begin: async () => ({ id: `generated-capture-${++starts}`, token: "generated-private-lease" }),
+    acquire: async () => ({ finish: async () => { finishes++; return new Float32Array(1600).fill(0.1); }, discard: async () => {} }),
+    upload: async () => { uploads++; }, cancel: async () => { cancellations++; },
+  });
+  try {
+    await controller.start("generated-device", shortcut);
+    await controller.cancel();
+    await controller.start("generated-device");
+    await controller.finish(shortcut);
+    await controller.cancel("Generated stale shortcut cleanup.", shortcut);
+    assert.equal(controller.getState().phase, "recording");
+    assert.equal(controller.getState().id, "generated-capture-2");
+    assert.equal(finishes, 0); assert.equal(uploads, 0); assert.equal(cancellations, 1);
+    await controller.finish();
+    assert.equal(finishes, 1); assert.equal(uploads, 1);
+    controller.observe("generated-capture-2", "completed", null);
+  } finally { controller.dispose(); }
+});

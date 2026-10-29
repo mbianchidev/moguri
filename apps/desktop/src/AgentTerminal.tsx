@@ -3,9 +3,8 @@ import { useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import type { ActivityResponse, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
-import { Icon } from "./Icon.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";
-import { Tooltip } from "./Tooltip.tsx";
+import { CopyButton } from "./CopyButton.tsx";
 
 type Read = Extract<ActivityResponse, { type: "activity.read" }>;
 export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
@@ -14,13 +13,13 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
   const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope, id: null });
   const selected = commands.find((entry) => entry.id === (selection.scope === scope ? selection.id : null)) ??
     commands.findLast((entry) => ["pending", "running"].includes(entry.status)) ?? commands.at(-1);
-  const [follow, setFollow] = useState(true), [offset, setOffset] = useState(0), [copyError, setCopyError] = useState("");
+  const [follow, setFollow] = useState(true), [offset, setOffset] = useState(0);
   const source = JSON.stringify([scope, selected?.id]), key = JSON.stringify([source, selected?.updatedSequence, follow, offset]);
   const owner = useRef({ sdk, key }); owner.current = { sdk, key };
   const [state, setState] = useState<{ sdk: MoguriSdk; source: string; key: string; result: Read | null; error: string; loading: boolean }>({
     sdk, source, key, result: null, error: "", loading: false,
   });
-  useEffect(() => { setFollow(true); setOffset(0); setCopyError(""); }, [sdk, source]);
+  useEffect(() => { setFollow(true); setOffset(0); }, [sdk, source]);
   useEffect(() => {
     if (!selected) return;
     let current = true;
@@ -34,12 +33,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
     return () => { current = false; };
   }, [sdk, key]);
   const current = state.sdk === sdk && state.source === source, result = current ? state.result : null, content = result?.content;
-  const readError = current ? state.error : "", loading = Boolean(selected) && (!current || state.loading), error = activity.error || readError || copyError;
-  const copy = async () => {
-    setCopyError("");
-    try { await window.moguri.copyText(content?.text ?? ""); }
-    catch (error) { setCopyError(error instanceof Error ? error.message : "Agent output could not be copied."); }
-  };
+  const readError = current ? state.error : "", loading = Boolean(selected) && (!current || state.loading), error = activity.error || readError;
   return <section className="agent-terminal" aria-label="Agent terminal">
     <CommandJobs sdk={sdk} session={session} snapshot={snapshot} active={active} />
     <header className="terminal-tabs">
@@ -48,7 +42,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
         {!commands.length && <option value="">{activity.error ? "History unavailable" : activity.loading ? "Loading commands..." : "No approved command"}</option>}
       </select>
       <label className="agent-follow"><input type="checkbox" role="switch" checked={follow} onChange={(event) => { setFollow(event.target.checked); setOffset(0); }} />Follow latest output</label>
-      <Tooltip content="Copy displayed agent output"><button className="icon-button" type="button" aria-label="Copy agent output" disabled={!content} onClick={() => void copy()}><Icon name="Copy" /></button></Tooltip>
+      <CopyButton label="Copy agent output" title="Copy displayed agent output" disabled={!content} source={source} text={content?.text ?? ""} />
       {activity.activity?.nextBefore && <button className="quiet" type="button" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Earlier commands</button>}
     </header>
     {error && <p className="inline-error" role="alert">{error}</p>}

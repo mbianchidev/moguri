@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
-import { Icon } from "./Icon.tsx";
+import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
 import { ContextCompactionReview } from "./ContextCompaction.tsx";
@@ -11,6 +11,7 @@ import { useDictation, useDictationTranscript } from "./useDictation.ts";
 import { DictationButton } from "./DictationButton.tsx";
 import { ModelSubmenu } from "./ModelSubmenu.tsx";
 import { InfoTip } from "./Tooltip.tsx";
+import { PolicyHint } from "./PolicyHint.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -40,7 +41,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   session: Session; project?: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
   onConnect: () => void; onMenuChange: (open: boolean) => void; onGuardrails: () => void;
   onLocalModels: () => void; onRemote: () => void; onSandbox: () => void; onRouting: () => void; onDecisions: () => void;
-  onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
+  onSlash: (session: Session, editor: DraftEditor, text: string, held?: boolean) => Promise<void>;
   inputLabel?: string; autoFocus?: boolean; onPendingChange?: (pending: boolean) => void;
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
@@ -88,6 +89,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const transcriptPreview = useDictationTranscript(client, session.id, transcript?.id);
   const voiceFinalizing = finishingVoice || dictation.state.phase === "transcribing" || Boolean(voiceJob?.progress?.startsWith("Finalizing"));
   const voicePreparing = voiceJob?.kind === "voice.record" && Boolean(voiceJob.progress?.startsWith("Preparing"));
+  const voiceShortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
   const voiceActive = Boolean(voiceJob) || ["starting", "recording", "transcribing"].includes(dictation.state.phase) || dictation.state.cleanupPending;
   const isSlash = draft.text.startsWith("/");
   const attachmentTrigger = isSlash || dismissedTrigger === draft.text ? null : parseAttachmentTrigger(draft.text);
@@ -96,7 +98,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const requiresImages = Boolean(session.inheritedImages || session.sideContext?.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
   const requiresDocuments = Boolean(session.sideContext?.documents.length) || draft.attachments.some((attachment) => attachment.kind === "document") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "document"));
   const documentBlocked = requiresDocuments && (model?.toolInput === false || session.kind === "metachat" || session.kind === "subagent");
-  const held = heldModifier && !isSlash;
+  const held = heldModifier;
   const holdingNext = heldPending || held && Boolean(draft.text.trim() || draft.attachments.length);
   const hardBudget = Boolean(snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
@@ -208,13 +210,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       });
       return;
     }
-    const pendingHold = hold && !isSlash;
+    const pendingHold = hold;
     if (pendingHold) setHeldPending(true);
     void run(async () => {
       try {
         if (answering && question && !hold) { await editor.flush(); return await client.questions.answerDraft(question.id, question.revision); }
         if (!hold && session.projectId && (isSlash || delivery === "queue") && continueWorkInput(draft.text)) return await onSlash(session, editor, draft.text);
-        if (isSlash) return await onSlash(session, editor, draft.text);
+        if (isSlash) return await onSlash(session, editor, draft.text, hold);
         return await editor.send(hold ? "queue" : delivery, hold);
       } finally { if (pendingHold) setHeldPending(false); }
     });
@@ -241,8 +243,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         await insertTranscript(voiceJob.id);
       } finally { setFinishingVoice(false); }
     });
-    if (dictation.state.phase === "starting" || dictation.state.phase === "recording") void dictation.finish();
-    else if (dictation.state.phase === "idle" || dictation.state.phase === "failed") void dictation.start();
+    void dictation.toggle();
   };
   const configure = (controls: Controls) => run(async () => {
     await client.sessions.configure(session.id, controls, session.revision);
@@ -345,25 +346,37 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           <Icon name={(session.pendingMode ?? session.mode) === "agent" ? "Edit" : "BookOpen"} /><span>{(session.pendingMode ?? session.mode) === "agent" ? "Agent" : "Read-only"}</span>
           {session.pendingMode && <small>pending</small>}
         </button>
-        {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => <button className="composer-menu-option" key={capability.env} type="button" disabled={Boolean(session.turnId) || !capability.ready || !snapshot.policy.allowedEnvs.includes(capability.env) || Boolean(session.repositories && capability.env !== "Local")} aria-pressed={session.controls.env === capability.env} title={session.repositories && capability.env !== "Local" ? "Folder sessions currently support Local execution only." : capability.reason} onClick={() => void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); })}><Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{!snapshot.policy.allowedEnvs.includes(capability.env) ? "Blocked by policy" : session.repositories && capability.env !== "Local" ? "Not qualified for folder sessions" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>)}{session.repositories && <p>Folder sessions currently support Local execution only. Each tool selects one of the exact captured repositories; there is no default or common-parent workspace.</p>}<p>Remote transfers approved context to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. Sandbox uses a separately reviewed private stage and scoped model access, never a live source checkout. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button><button type="button" className="quiet" onClick={() => { setMenu(null); onGuardrails(); }}>Sandbox qualification</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Native workspace and results</button></>)}
+        {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => {
+          const policyBlocked = !snapshot.policy.allowedEnvs.includes(capability.env);
+          const groupUnavailable = Boolean(session.repositories && (capability.env === "Remote" || capability.env === "Sandbox" &&
+            !(snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces)));
+          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={Boolean(session.turnId) || !capability.ready || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
+            title={groupUnavailable ? capability.env === "Remote" ? "Captured groups have no qualified SSH execution transport." : "Review managed automatic private workspaces in Sandbox settings first." : capability.reason} onClick={() => void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); })}>
+            <Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{policyBlocked ? "Blocked by policy" : groupUnavailable ? capability.env === "Remote" ? "Group transport not qualified" : "Managed group workspace setup required" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? session.repositories ? "Private copies of every captured repository" : "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>
+            {policyBlocked && <PolicyHint label={`Why ${capability.env} is unavailable`} target="environments">Global execution policy excludes {capability.env}. Opening its setting does not widen policy, change this session's Env or restart work.</PolicyHint>}
+          </div>;
+        })}{session.repositories && <p>Captured groups support Local and reviewed managed Sandbox execution. Every workspace tool explicitly selects an original repository. There is no first/default or common-parent root, and SSH groups remain unqualified.</p>}<p>Remote transfers approved context to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. Sandbox uses a separately reviewed private stage and scoped model access, never a live source checkout. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Sandbox qualification</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Native workspace and results</button></>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
           <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const reason = autonomy === "Manual" ? "You approve tools or remember a grant" : autonomy === "Guided" ? "Advice, then your confirmation" : autonomy === "Autopilot" ? "Automatically approve all tools and commands" :
             decisions.ready ? "Automatic approvals plus bounded System One decisions" : decisions.reason;
-          return <button className="composer-menu-option" type="button" key={autonomy} aria-pressed={autonomy === session.controls.autonomy} disabled={Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void configure({ ...session.controls, autonomy, automaticApprovals: autonomy === "Autopilot" || autonomy === "Autopilot Max" })}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>;
+          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void configure({ ...session.controls, autonomy, automaticApprovals: autonomy === "Autopilot" || autonomy === "Autopilot Max" })}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
+            {autonomy === "Autopilot Max" && !decisions.ready && <PolicyHint label="Why Autopilot Max is unavailable" target="decisions">{reason} Reviewing the actual decision configuration does not start inference or enable an unqualified transport.</PolicyHint>}
+          </div>;
         })}<p>Autopilot modes are unattended. Hard deny rules, read-only mode, environment policy and budgets still apply.</p>
+          {snapshot.settings.values.permissions.defaultDecision === "deny" && <p>Automatic approvals cannot bypass the saved tool policy.<PolicyHint label="About automatic approval policy" target="tools">Default-deny and explicit deny rules remain authoritative. Changing autonomy or opening this setting does not remove a hard rule.</PolicyHint></p>}
           {["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) && !session.controls.automaticApprovals && <p className="settings-warning">This saved mode uses legacy bounded grants. Select it again to enable automatic approvals explicitly.</p>}
           {decisions.error && <p className="inline-error" role="alert">{decisions.error}</p>}<button className="quiet" type="button" onClick={() => { setMenu(null); onGuardrails(); }}>Guardrails</button><button className="quiet" type="button" onClick={() => { setMenu(null); onDecisions(); }}>Decision provider settings</button></>)}
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}
-        <DictationButton state={dictation.state} pushToTalk={Boolean(snapshot.settings.values.voice.pushToTalk && voiceJob?.kind !== "voice.record")} recording={Boolean(voiceJob)}
+        <DictationButton state={dictation.state} recording={Boolean(voiceJob)}
           label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"}
           disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"}
-          title={`Local dictation (${shortcutLabel(snapshot.settings.values.voice.shortcut ?? "Control+Space")})`}
-          start={dictation.start} finish={dictation.finish} cancel={dictation.cancel} toggle={() => void dictate()} />
+          title={`Click to record; click again to confirm. ${voiceShortcut === "none" ? "No push-to-talk shortcut is assigned." : `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.`}`}
+          toggle={() => void dictate()} />
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
             <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || undefined} title={resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || (resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : resumeAction ? "Play" : "Send"} /></button>}
@@ -439,7 +452,11 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     setSaving(true); onSaving(true); setError(""); onError("");
     try {
       const result = await sdk.sessions.selectModel(session.id, model.id, revision.current);
-      revision.current = result.revision!; setWindow(""); setEffort("");
+      const saved = sdk.getState().snapshot?.sessions.find((value) => value.id === session.id);
+      if (!saved) throw new Error("The saved model controls could not be reloaded. Reconnect before another selection; no substitute model was chosen.");
+      revision.current = result.revision!;
+      setWindow(saved.controls.modelOptions?.contextWindow?.toString() ?? "");
+      setEffort(saved.controls.modelOptions?.thinkingEffort ?? "");
     } catch (error) { const message = error instanceof Error ? error.message : "Model selection failed. No fallback was used."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
@@ -464,8 +481,9 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       const disabled = locked || dirty || unavailable || requiresImages && !model.imageInput;
       return <div className="model-choice-row" key={model.id}><button type="button" role="menuitemradio" className="composer-menu-option" aria-checked={model.id === session.controls.modelId}
         aria-disabled={disabled} onClick={() => { if (!disabled) { setSubmenu(null); void select(model); } }}>
-        <Icon name={model.synthetic ? "Suggestions" : model.source === "local" ? "House" : "Agent"} /><span>{model.name}<small>{unavailable ? "Unavailable" : description}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>
-        {unavailable && <InfoTip label={`Why ${model.synthetic ? "Kupo" : model.name} is unavailable`}>{description}</InfoTip>}
+        <Icon name={modelIcon(model)} /><span>{model.name}<small>{unavailable ? "Unavailable" : description}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>
+        {unavailable && (model.synthetic ? <PolicyHint label="Why Kupo is unavailable" target="kupo" navigationBlocked={dirty || saving || pending ? "Save or reload your model setting edit before opening Kupo settings." : undefined}>{description}</PolicyHint> :
+          <InfoTip label={`Why ${model.name} is unavailable`}>{description}</InfoTip>)}
       </div>;
     })}</div>
     </ModelSubmenu>
@@ -475,6 +493,11 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
     </ModelSubmenu>
+    {session.controls.preferredThinkingEffort !== undefined && <p className="fine-print" role="status">
+      {effortLabel(session.controls.preferredThinkingEffort)} preference retained. {current?.synthetic ? "Kupo manages each role's effort." :
+        !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :
+          "This model has no adjustable thinking; the preference returns on a supporting model."}
+    </p>}
     <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
@@ -497,6 +520,8 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
 function UsageMenu({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
   const accounting = useBudgetStatus(sdk, session, snapshot);
   const [budgetView, setBudgetView] = useState<"usage" | "limits">("usage");
+  const [budgetDirty, setBudgetDirty] = useState(false);
+  const policyNavigationBlocked = budgetDirty ? "Save or reload the session budget edit before opening a hard-policy setting." : undefined;
   const context = snapshot.sessionTelemetry?.[session.id]?.context;
   const estimate = snapshot.sessionTelemetry?.[session.id]?.estimate;
   const totals = accounting.status?.totals;
@@ -511,7 +536,10 @@ function UsageMenu({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Sessio
     <div hidden={budgetView !== "usage"} className="compact-budget">
       <dl className="compact-usage">
         <div className="compact-cost-row"><dt>Est. USD</dt><dd title="Captured model-specific estimates, including owning-session roles; not a bill.">{totals ? estimatedCost(totals, estimate) : "Not recorded"}</dd></div>
-        <div><dt>Plan</dt><dd>{plan}</dd></div>
+        <div><dt>Plan</dt><dd>{plan}
+          {snapshot.budgetPolicy.limit && <PolicyHint label="About profile budget policy" target="profile-budget" navigationBlocked={policyNavigationBlocked}>This profile's hard cap applies even when the session preference is Unlimited. Opening policy does not clear usage, held work or a cap.</PolicyHint>}
+          {snapshot.globalBudgetPolicy?.limit && <PolicyHint label="About global budget policy" target="global-budget" navigationBlocked={policyNavigationBlocked}>The global hard cap applies across profiles. Navigation cannot refund accounting or change policy.</PolicyHint>}
+        </dd></div>
         <div><dt>Session</dt><dd>{totals ? `${count(totals.calls)} model call${totals.calls === 1 ? "" : "s"}` : "Not recorded"}{accounting.status && accounting.status.ownerSessionId !== session.id && <small>Charged to the owning session</small>}</dd></div>
         <div><dt>Tokens</dt><dd className="compact-token-lines">
           <span><Icon name="Up" /><span><span className="sr-only">Input tokens </span>{tokens(totals?.inputTokens, totals?.knownInputTokens, estimate?.inputTokens)}<small> ({tokens(totals?.cacheReadTokens, totals?.knownCacheReadTokens)} cached)</small></span></span>
@@ -530,7 +558,7 @@ function UsageMenu({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Sessio
     </div>
     <div hidden={budgetView !== "limits"}><header className="composer-usage-heading"><button className="icon-button" type="button" aria-label="Back to compact usage" onClick={() => setBudgetView("usage")}><Icon name="Back" /></button><h2>Usage and limits</h2></header>
       <details><summary>Detailed session accounting</summary>{accounting.status && <BudgetSummary status={accounting.status} />}</details>
-      <h3>Session budget limits</h3><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} />
+      <h3>Session budget limits</h3><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} onDirty={setBudgetDirty} />
     </div>
     {accounting.error && <p className="inline-error" role="alert">{accounting.error}</p>}</>;
 }

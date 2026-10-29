@@ -3,7 +3,9 @@ import { activeDecision, activeProjectWork, appearanceColors, continueWorkInput,
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
+import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
+import { CopyButton } from "./CopyButton.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, FilesPanel, HomeWriterReview, PlanPanel, SideChat } from "./SessionPanels.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
@@ -19,6 +21,8 @@ import { ApprovalActions } from "./ApprovalActions.tsx";
 import { SessionGitHub } from "./SessionGitHub.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 import { ContinueWorkDialog } from "./ContinueWorkDialog.tsx";
+import type { SessionActionOwner } from "./SessionActions.tsx";
+import type { CommandClientAttachment, CommandExecution, CommandViewContext, CommandViewOutcome } from "../../../packages/sdk/src/index.ts";
 import { ReorderList } from "./ReorderList.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
@@ -85,6 +89,27 @@ function SidebarResizer({ side, value, min, max, onChange, controls }: {
     }} />;
 }
 type Run = (action: () => Promise<unknown>) => Promise<void>;
+function waitForCommandSurface(signal: AbortSignal, applied: () => boolean): Promise<void> {
+  signal.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const finish = (error?: unknown) => {
+      observer.disconnect(); window.clearTimeout(timeout); signal.removeEventListener("abort", aborted);
+      document.body.removeEventListener("toggle", check, true);
+      if (error) reject(error); else resolve();
+    };
+    const check = () => {
+      try { signal.throwIfAborted(); if (applied()) finish(); }
+      catch (error) { finish(error); }
+    };
+    const observer = new MutationObserver(check);
+    const timeout = window.setTimeout(() => finish(new Error("The original queued view did not render within 10 seconds. Its acknowledgement remains incomplete; later queued input is held.")), 10_000);
+    const aborted = () => finish(signal.reason ?? new Error("The original queued UI action was cancelled before it rendered."));
+    signal.addEventListener("abort", aborted, { once: true });
+    document.body.addEventListener("toggle", check, true);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    check();
+  });
+}
 export function App({ client: initialClient }: { client: MoguriClient }) {
   const [client, setClient] = useState(initialClient);
   const clients = useRef(new Set([initialClient]));
@@ -117,6 +142,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [busy, setBusy] = useState(false);
   const pendingRuns = useRef(0);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(resourceSettings(layout.panel));
+  const [policyFocus, setPolicyFocus] = useState<PolicyFocusRequest | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
@@ -129,8 +155,9 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [terminalIntent, setTerminalIntent] = useState<{ panel: Panel; sessionId: string | null } | null>(null);
   const [sideSessionId, setSideSessionId] = useState<string | null>(null);
   const [commandOutput, setCommandOutput] = useState<string | null>(null);
-  const [continueChoice, setContinueChoice] = useState<{ review: ContinueWorkReview; editor: DraftEditor } | null>(null);
-  const [sessionActionRequest, setSessionActionRequest] = useState<{ sessionId: string; action: "archive"; nonce: number } | null>(null);
+  const [continueChoice, setContinueChoice] = useState<{ review: ContinueWorkReview; editor: DraftEditor;
+    queued?: { context: CommandViewContext; settle(outcome: CommandViewOutcome): void } } | null>(null);
+  const [sessionActionRequest, setSessionActionRequest] = useState<{ sessionId: string; action: "archive"; nonce: number; owner?: SessionActionOwner } | null>(null);
   const sessionActionRequestNonce = useRef(0);
   const [suggestionsAll, setSuggestionsAll] = useState(true);
   const [artifactRequest, setArtifactRequest] = useState<ArtifactEditorRequest | null>(null);
@@ -218,7 +245,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (questionDirty.current) { setNotice("Send or cancel your custom answer before switching away. It has not been sent."); return false; }
     return canChangePanel();
   };
-  const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); return true; };
+  const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); setPolicyFocus(null); return true; };
   const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); setGlobalView(null); return true; };
   const beforeHidingTerminal = (action: () => void, cancel?: () => void) => {
     if (terminalDismiss) { cancel?.(); return; }
@@ -230,7 +257,10 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const confirmTerminalNavigation = () => new Promise<boolean>((resolve) => beforeHidingTerminal(() => resolve(true), () => resolve(false)));
   const terminalOpeningHandled = (panel: Panel, sessionId: string | null) => setTerminalIntent((intent) =>
     intent?.panel === panel && intent.sessionId === sessionId ? null : intent);
-  const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; beforeHidingTerminal(() => { setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); }); };
+  const openSettings = (tab: SettingsTab, target?: PolicyTarget, prepare?: () => void) => { if (!canNavigate()) return; beforeHidingTerminal(() => {
+    prepare?.(); setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); setPolicyFocus(target ? { target, id: crypto.randomUUID() } : null);
+  }); };
+  const openPolicy = (target: PolicyTarget, prepare?: () => void) => openSettings(policyLocations[target].tab, target, prepare);
   const settingsMenu = useRef(openSettings); settingsMenu.current = openSettings;
   useEffect(() => window.moguri.onOpenSettings(() => settingsMenu.current("general")), [client]);
   useEffect(() => window.moguri.onUpdateAvailable((_id, version) => setNotice(`Moguri ${version} is verified and staged. Open Settings / General to review installation and restart. Nothing has been replaced.`, true)), [setNotice]);
@@ -286,7 +316,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       await window.moguri.profile(id);
       for (const editor of editors.current.values()) editor.dispose(); editors.current.clear();
       client.disconnect(); clients.current.delete(client); clients.current.add(next); setClient(next);
-      setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
+      setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setPolicyFocus(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
       setPalette(false); setCommandOutput(null); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
     } catch (error) { next?.disconnect(); throw error; }
     finally { switchingProfile.current = false; setBusy(false); setProfilePending(false); }
@@ -341,6 +371,20 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     });
   });
   const applySlash = async (result: SlashResult) => {
+    if (result.kind === "github-view") throw new Error("This retained GitHub picker belongs to its actual TUI binding, not a replacement desktop view.");
+    if (result.kind === "client-view") {
+      if (result.name === "sessions") { openSessionList(false); return; }
+      if (result.name === "session") { if (!leaveSurface()) throw new Error("Save or reload the current edit before returning to the original conversation."); return; }
+      if (result.name === "work-items") { await showPanel("Work item"); return; }
+      if (result.name === "code-requests") { await showPanel("Code change"); return; }
+      if (result.name === "sidebar") {
+        if (result.argument && !["open", "close"].includes(result.argument)) throw new Error("Use /sidebar [open|close].");
+        if (result.argument === "close" || !result.argument && panelVisible) hidePanel();
+        else await showPanel(isGlobalPanel(panel) || resourceSettings(panel) ? "Insights" : panel);
+        return;
+      }
+      throw new Error(`This desktop binding has no handler for ${result.name}. The queued action was not acknowledged or sent to a model.`);
+    }
     if (result.kind === "continue-work") {
       const target = client.getState().snapshot?.sessions.find((session) => session.id === result.review.sessionId);
       if (!target || result.review.profileId !== client.profileId) throw new Error("The actual continuation owner changed. No draft was consumed.");
@@ -364,41 +408,121 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (result.panel === "Suggestions") { setSuggestionsAll(result.allProjects ?? true); openGlobal("Suggestions", result.allProjects === false ? session?.id ?? null : null); }
     else if (result.panel === "Settings") openSettings("general");
     else if (result.panel === "Models") { document.querySelector<HTMLButtonElement>('[data-composer-control="model"]')?.click(); }
-    else if (result.panel === "Queue") document.querySelector(".queue")?.scrollIntoView({ block: "nearest" });
+    else if (result.panel === "Queue") {
+      const queue = document.querySelector(".queue");
+      if (queue) queue.scrollIntoView({ block: "nearest" });
+      else setCommandOutput("No undispatched prompts or commands remain in this session's queue.");
+    }
     else await showPanel(result.panel);
   };
-  const handleSlash = async (target: Session, draft: DraftEditor, text: string) => {
-    if (text.trim() === "/archive") {
-      await draft.flush(); draft.edit(""); await draft.flush();
-      setSessionActionRequest({ sessionId: target.id, action: "archive", nonce: ++sessionActionRequestNonce.current });
+  const handleSlash = async (target: Session, draft: DraftEditor, text: string, held = false) => {
+    if (target.status === "archived" && text.trim() === "/restore") {
+      await client.commands.restore(target.id, "desktop", target.revision, held);
+      if (draft.getState().text === text) draft.reload();
       return;
     }
-    if (/^\/side\s+\S/.test(text)) {
-      await draft.flush();
-      if (draft.getState().text !== text || draft.getState().conflict) throw new Error("The side question changed while saving. Its newer draft was preserved; send it explicitly.");
-      const result = await client.slash(target.id, text, "desktop");
-      const saved = client.getState().snapshot?.sessions.find((session) => session.id === target.id)?.draft;
-      if (saved) draft.receive(saved);
-      await applySlash(result); return;
-    }
-    if (target.projectId && continueWorkInput(text)) {
+    if (!text.startsWith("/") && target.projectId && continueWorkInput(text)) {
       const review = await draft.reviewContinueWork();
       setContinueChoice({ review, editor: draft }); return;
     }
-    if (/^\/attach-(?:document|file|image)(?:\s|$)/.test(text)) {
-      await draft.flush();
-      const result = await client.slash(target.id, text, "desktop");
-      const saved = client.getState().snapshot?.sessions.find((session) => session.id === target.id)?.draft;
-      if (saved) {
-        draft.receive(saved);
-        if (!draft.getState().conflict && draft.getState().text === text) { draft.edit("", saved.attachments); await draft.flush(); }
-      }
-      await applySlash(result); return;
-    }
-    await draft.flush(); draft.edit(""); await draft.flush();
-    try { await applySlash(await client.slash(target.id, text, "desktop")); }
-    catch (error) { if (client.getState().snapshot?.sessions.some((session) => session.id === target.id && session.status !== "archived")) draft.edit(text); throw error; }
+    if (draft.getState().text !== text || draft.getState().conflict) throw new Error("The original command draft changed. Its newer text was preserved; submit it explicitly.");
+    await draft.submit((expectedDraftRevision) => client.commands.submit(target.id, { client: "desktop", expectedDraftRevision, delivery: "queue", held }));
   };
+  const commandAttachment = useRef<CommandClientAttachment | null>(null);
+  const commandUi = useRef<{ canApply(execution: CommandExecution): boolean; apply(context: CommandViewContext): Promise<CommandViewOutcome> } | null>(null);
+  commandUi.current = {
+    canApply: (execution) => execution.sessionId === selectedId && execution.profileId === client.profileId && !settingsTab && !settingsUnsaved && !panelDirty &&
+      !questionDirty.current && !switchingProfile.current && !profilePending && !nativeModal && !terminalDismiss && !startOpen && !palette && !commandOutput,
+    apply: async (context) => {
+      context.signal.throwIfAborted();
+      if (context.sdk !== client || context.sessionId !== selectedId || !canNavigate()) throw new Error("The original queued UI owner or its saved edit changed. No replacement conversation was used.");
+      const result = context.result;
+      if (result.kind === "client-view" && result.name === "archive") {
+        return new Promise<CommandViewOutcome>((resolve, reject) => {
+          const nonce = ++sessionActionRequestNonce.current;
+          const clear = () => setSessionActionRequest((value) => value?.nonce === nonce ? null : value);
+          const abort = () => { clear(); reject(context.signal.reason ?? new Error("The original archive UI owner ended.")); };
+          context.signal.addEventListener("abort", abort, { once: true });
+          setSessionActionRequest({ sessionId: context.sessionId, action: "archive", nonce, owner: { signal: context.signal, settle: (outcome) => {
+            context.signal.removeEventListener("abort", abort); clear(); resolve({ outcome, ...(outcome === "completed" ? {} :
+              { diagnostic: outcome === "cancelled" ? "The actual user cancelled this exact archive review." : "The original archive view could not be applied. No replacement session was archived." }) });
+          } } });
+          if (context.signal.aborted) abort();
+        });
+      }
+      if (result.kind === "continue-work") {
+        const target = client.getState().snapshot?.sessions.find((session) => session.id === context.sessionId);
+        if (!target || !("command" in result.review)) throw new Error("The original queued continuation review is unavailable. No saved composer was substituted.");
+        return new Promise<CommandViewOutcome>((resolve, reject) => {
+          const clear = () => setContinueChoice((value) => value?.queued?.context.execution.id === context.execution.id ? null : value);
+          const abort = () => { clear(); reject(context.signal.reason ?? new Error("The exact queued continuation owner ended.")); };
+          context.signal.addEventListener("abort", abort, { once: true });
+          const settle = (outcome: CommandViewOutcome) => { context.signal.removeEventListener("abort", abort); clear(); resolve(outcome); };
+          setContinueChoice({ review: result.review, editor: editorFor(target), queued: { context, settle } });
+          if (context.signal.aborted) abort();
+        });
+      }
+      if (result.kind === "copy") { await window.moguri.copyText(result.text); setNotice("Copied.", true); return { outcome: "completed" }; }
+      if (result.kind === "export") {
+        const saved = await window.moguri.saveDocument(result.document);
+        setNotice(saved ? `Export saved to ${saved.path}.` : "Export cancelled. Original stored copies are unchanged.", true);
+        return { outcome: saved ? "completed" : "cancelled" };
+      }
+      const sidebarOpen = result.kind === "client-view" && result.name === "sidebar" ?
+        result.argument === "open" || result.argument !== "close" && !panelVisible : null;
+      await applySlash(result);
+      await waitForCommandSurface(context.signal, () => {
+        const shell = document.querySelector<HTMLElement>(".app-shell");
+        if (!shell || shell.inert) return false;
+        if (result.kind === "profile") return shell.dataset.profileId === result.profileId;
+        if (shell.dataset.profileId !== context.execution.profileId) return false;
+        if (result.kind === "session") return result.side ? shell.dataset.sideSessionId === result.sessionId &&
+          document.querySelector<HTMLElement>(".side-read-only")?.dataset.sideSessionId === result.sessionId : shell.dataset.sessionId === result.sessionId;
+        if (result.kind === "profiles") return Boolean(document.querySelector('[data-settings-tab="general"]'));
+        if (result.kind === "artifact-editor") {
+          const editor = document.querySelector<HTMLElement>(".artifact-panel");
+          return editor?.dataset.editingArtifactId === (result.artifact.id ?? "new") && editor.dataset.editingRevision === String(result.artifact.revision);
+        }
+        if (result.kind === "client-view") {
+          if (result.name === "session") return shell.dataset.sessionId === context.sessionId && !document.querySelector(".settings-layout, .global-page");
+          if (result.name === "sessions") return shell.classList.contains("nav-open") && Boolean(document.querySelector('.nav-tabs button[aria-pressed="true"]')?.textContent?.includes("Sessions"));
+          if (result.name === "sidebar") return shell.classList.contains("context-open") === sidebarOpen;
+          const target = result.name === "work-items" ? "Work item" : result.name === "code-requests" ? "Code change" : null;
+          return target !== null && shell.classList.contains("context-open") && document.querySelector<HTMLElement>("#session-sidebar")?.dataset.sessionPanel === target;
+        }
+        if (result.kind !== "panel") return true;
+        if (result.panel === "Models") return Boolean(document.querySelector('.model-popover[role="dialog"]:popover-open'));
+        if (result.panel === "Queue") return Boolean(document.querySelector(".queue, .command-output"));
+        if (result.panel === "Settings") return Boolean(document.querySelector('[data-settings-tab="general"]'));
+        const settings = resourceSettings(result.panel);
+        if (settings) return Boolean(document.querySelector(`[data-settings-tab="${settings}"]`));
+        if (isGlobalPanel(result.panel)) return Boolean(document.querySelector(`.global-page[aria-label="${result.panel} workspace"]`));
+        const side = document.querySelector<HTMLElement>("#session-sidebar"), expected = result.panel === "PR" ? "Code change" : result.panel;
+        return shell.classList.contains("context-open") && side?.dataset.sessionPanel === expected && side.dataset.sourceSessionId === context.sessionId;
+      });
+      return { outcome: "completed" };
+    },
+  };
+  useEffect(() => {
+    if (status !== "connected") return;
+    let closed = false, attached: CommandClientAttachment | undefined;
+    const apply = (context: CommandViewContext) => {
+      const owner = commandUi.current;
+      if (!owner) throw new Error("The actual queued UI owner is closed.");
+      return owner.apply(context);
+    };
+    void client.commands.attach("desktop", {
+      panel: apply, session: apply, profiles: apply, profile: apply, copy: apply, export: apply, "artifact-editor": apply, "continue-work": apply,
+      "client-view:session": apply, "client-view:sessions": apply, "client-view:work-items": apply, "client-view:code-requests": apply, "client-view:sidebar": apply, "client-view:archive": apply,
+    }, { canApply: (execution) => !closed && (commandUi.current?.canApply(execution) ?? false), onError: (error) => setNotice(error.message) })
+      .then((value) => { attached = value; if (closed) return value.dispose(); commandAttachment.current = value; })
+      .catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The original queued UI client could not attach."));
+    return () => {
+      closed = true; if (commandAttachment.current === attached) commandAttachment.current = null;
+      if (attached) void attached.dispose().catch((error: unknown) => console.error("Queued UI detach remains unconfirmed:", error instanceof Error ? error.message : "original client cleanup failed"));
+    };
+  }, [client, status]);
+  useEffect(() => { commandAttachment.current?.wake(); }, [selectedId, settingsTab, settingsUnsaved, panelDirty, profilePending, nativeModal, terminalDismiss, startOpen, palette, commandOutput]);
   const closeStart = () => { setStartOpen(false); document.querySelector<HTMLButtonElement>(".start-trigger")?.focus(); };
   const openStart = () => { if (canNavigate()) setStartOpen(true); };
   const startSession = async (projectId: string | null) => {
@@ -444,9 +568,12 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <ApprovalActions key={session.pendingApproval.id} sdk={client} session={session} busy={busy} run={run} />
     </section>}
     {session.queue.length > 0 && <Queue session={session} command={command} client={client} modal={setNativeModal} />}
+    <CommandActivity sdk={client} session={session} snapshot={snapshot} run={run} open={setCommandOutput} />
     {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
   </> : null;
-  return <><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelVisible && panelMaximized ? "context-maximized" : ""}`}>
+  return <PolicyNavigationContext.Provider value={openPolicy}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
+    data-profile-id={client.profileId} data-session-id={selectedId ?? ""} data-side-session-id={sideSessionId ?? ""}
+    className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelVisible && panelMaximized ? "context-maximized" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{globalView ?? project?.name ?? "Chats"}</span>
@@ -460,6 +587,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{view}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
+        setupSandbox={() => openSettings("sendbox")}
         sessionActionRequest={sessionActionRequest} onSessionActionRequestHandled={(nonce) => setSessionActionRequest((request) => request?.nonce === nonce ? null : request)} />}
       </div>
       <div className="nav-footer">
@@ -474,7 +602,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -503,7 +631,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
         chatContent}
       </>}
     </main>
-    <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar">
+    <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar" data-session-panel={panel} data-source-session-id={session?.id ?? ""}>
       {!panelMaximized && <SidebarResizer side="right" value={contextWidth} min={240} max={rightMax} onChange={setRightWidth} controls="session-sidebar" />}
       <header className="context-heading"><strong>{panel}</strong>
         <button className="icon-button" aria-label={panelMaximized ? "Restore session sidebar" : "Maximize session sidebar"} title={panelMaximized ? "Restore split view" : "Expand over chat; keep navigation visible"} onClick={() => { if (canChangePanel()) setPanelMaximized((value) => !value); }}><Icon name={panelMaximized ? "Minimize" : "Maximize"} /></button>
@@ -517,14 +645,23 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       const pressed = panelVisible && panel === item;
       return <button key={item} data-sidebar-panel={item} className={pressed ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={pressed} aria-expanded={pressed} aria-controls="session-sidebar"
       onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
-      onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })} onBlur={() => setPanelTooltip(null)}
+      onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top }); }} onBlur={() => setPanelTooltip(null)}
       onClick={() => { if (pressed) hidePanel(); else void showPanel(item); }}><Icon name={item} /></button>;
     })}</nav>
     {panelTooltip && <div id="sidebar-panel-tooltip" className="sidebar-tooltip" role="tooltip" style={{ top: Math.min(panelTooltip.top, window.innerHeight - 42) }}>{panelTooltip.panel}</div>}
     {terminalDismiss && <TerminalCloseReview sdk={client} cancel={() => { terminalDismiss.cancel?.(); setTerminalDismiss(null); }} confirm={() => { const { action } = terminalDismiss; setTerminalDismiss(null); action(); }} />}
     {commandOutput && <CommandOutput text={commandOutput} close={() => setCommandOutput(null)} />}
-    {continueChoice && <ContinueWorkDialog key={`${client.profileId}-${continueChoice.review.sessionId}-${continueChoice.review.expectedRevision}`} sdk={client}
-      editor={continueChoice.editor} review={continueChoice.review} close={() => setContinueChoice(null)} modal={setNativeModal} />}
+    {continueChoice && <ContinueWorkDialog key={`${client.profileId}-${continueChoice.review.sessionId}-${"command" in continueChoice.review ? continueChoice.review.command.executionId : continueChoice.review.expectedRevision}`} sdk={client}
+      editor={continueChoice.editor} review={continueChoice.review} close={() => {
+        if (continueChoice.queued) continueChoice.queued.settle({ outcome: "cancelled", restoreInput: true, diagnostic: "The actual user cancelled this original continuation before choosing a route." });
+        else setContinueChoice(null);
+      }} modal={setNativeModal} chooseQueued={continueChoice.queued ? async (choice) => {
+        const owned = continueChoice.queued;
+        if (!owned || owned.context.sdk !== client || owned.context.execution.profileId !== client.profileId) throw new Error("The actual continuation profile changed. No request was substituted.");
+        owned.context.signal.throwIfAborted();
+        await client.commands.choose(owned.context.clientId, owned.context.claim, choice);
+        owned.settle({ outcome: "completed" });
+      } : undefined} />}
     {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} /></Suspense>}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
@@ -536,7 +673,47 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
     ]} />}
-  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</>;
+  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</PolicyNavigationContext.Provider>;
+}
+
+function CommandActivity({ sdk, session, snapshot, run, open }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; run: Run; open(text: string): void }) {
+  const commands = snapshot.commandExecutions.filter((entry) => entry.sessionId === session.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const [limit, setLimit] = useState(10);
+  const [summary, setSummary] = useState<{ key: string; text: string; failed: boolean } | null>(null);
+  const latest = commands[0], key = `${sdk.profileId}/${session.id}/${latest?.id}/${latest?.revision}/${latest?.resultDigest}`;
+  useEffect(() => {
+    let current = true;
+    const abort = new AbortController();
+    if (latest?.status === "completed" && latest.resultDigest) {
+      void sdk.commands.read(latest.id, abort.signal).then((retained) => {
+        if (!current || retained.execution.resultDigest !== latest.resultDigest) return;
+        const result = retained.result;
+        setSummary(result?.kind === "ok" ? { key, failed: false, text: result.message.length > 2000 ?
+          "Command completed. Read its full retained response below." : result.message } : null);
+      }).catch((error: unknown) => {
+        if (current) setSummary({ key, failed: true, text: error instanceof Error ? error.message : "The original command response could not be read. Its record was preserved." });
+      });
+    } else setSummary(null);
+    return () => { current = false; abort.abort(); };
+  }, [sdk, key]);
+  if (!commands.length) return null;
+  const active = commands.filter((entry) => ["running", "waiting-client", "claimed"].includes(entry.status));
+  const failed = latest && ["failed", "partial"].includes(latest.status);
+  return <>{failed ? <p className="inline-error" role="alert">{latest.diagnostic ?? "The original command did not complete. Read its retained record before resuming."}</p> :
+    summary?.key === key && <p className={summary.failed ? "inline-error" : "fine-print"} role={summary.failed ? "alert" : "status"}>{summary.text}</p>}
+    <details className="queue command-activity">
+    <summary>Commands <span role="status">{active.length ? `${active.length} waiting or running` : `${commands.length} retained`}</span></summary>
+    <ol aria-label="Retained command results">{commands.slice(0, limit).map((entry) => <li key={entry.id} className="queue-item">
+      <strong>/{entry.name}</strong><span className="queue-text">{entry.status === "waiting-client" ? `Waiting for a compatible ${entry.client} view` : entry.status}</span>
+      <button className="quiet" type="button" aria-label={`Read /${entry.name} command response`} onClick={() => void run(async () => {
+        const retained = await sdk.commands.read(entry.id), result = retained.result;
+        open(`${retained.item.text}\n\n${entry.status}${entry.diagnostic ? `\n${entry.diagnostic}` : ""}${result ? `\n\n${result.kind === "text" ? result.text : result.kind === "ok" ? result.message : JSON.stringify(result, null, 2)}` : ""}`);
+      })}>Read response</button>
+      {["running", "waiting-client", "claimed"].includes(entry.status) && <button className="quiet" type="button" onClick={() => void run(() => sdk.command({ type: "session.stop", sessionId: session.id }))}>Stop command</button>}
+      {entry.diagnostic && entry.status !== "waiting-client" && <span className="command-diagnostic">{entry.diagnostic}</span>}
+    </li>)}</ol>
+    {commands.length > limit && <button className="quiet" type="button" onClick={() => setLimit((value) => value + 10)}>Show more command results...</button>}
+  </details></>;
 }
 
 function Timeline({ session, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns" }: {
@@ -575,7 +752,7 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
       aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
-          {message.role !== "notice" && <button className="icon-button message-copy" title="Copy message" aria-label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} onClick={() => void run(() => window.moguri.copyText(message.text))}><Icon name="Copy" /></button>}</header>
+          {message.role !== "notice" && <CopyButton className="message-copy" title="Copy message" label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} text={message.text} />}</header>
         <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><div className="reasoning markdown"><Suspense fallback={<p>{message.reasoning}</p>}><RichMessage text={message.reasoning} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
@@ -602,7 +779,7 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
           {messages.some((message) => message.role === "tool") && activity.loading && <p className="fine-print" role="status">Loading retained operations...</p>}
           {session.turnId === turnId && !activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === turnId)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
           {messages[0]?.turnId && <TurnActions sdk={client} sessionId={session.id} turnId={turnId} info={snapshot.sessionTelemetry?.[session.id]?.turns.find((info) => info.turnId === turnId)}
-            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text))} run={run} modal={modal} />}
+            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text))} modal={modal} />}
         </section>
       </div>;
     })}
@@ -636,7 +813,7 @@ function Queue({ session, command, client, modal }: { session: Session; command:
         {item.attachments.map((attachment) => <AttachmentChip key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} onOpenChange={modal} />)}
         {item.held && <button className="icon-button" aria-label={`Run queued message ${index + 1}`} title="Release this held prompt" onClick={() => void client.prompts.release(session.id, item.id, session.queueRevision).catch((error: unknown) => setError(error instanceof Error ? error.message : "Prompt could not be released."))}><Icon name="Play" /></button>}
         {item.delivery === "steer" && <button className="quiet" onClick={() => void command({ type: "queue.make-turn", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}>Queue as new turn</button>}
-        <button className="icon-button" aria-label={`Copy queued message ${index + 1}`} title="Copy" onClick={() => void window.moguri.copyText(item.text).catch((error: unknown) => setError(error instanceof Error ? error.message : "Copy failed."))}><Icon name="Copy" /></button>
+        <CopyButton label={`Copy queued message ${index + 1}`} title="Copy" text={item.text} />
         <button className="icon-button" aria-label={`Edit queued message ${index + 1}`} title="Edit" onClick={() => { setEditing(item.id); setText(item.text); }}><Icon name="Edit" /></button>
         <button className="icon-button" aria-label={`Remove queued message ${index + 1}`} title="Delete" onClick={() => void command({ type: "queue.remove", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}><Icon name="Trash" /></button></>}</div>}
     </ReorderList>

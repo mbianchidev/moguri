@@ -41,7 +41,7 @@ async function browserFixture(options: GeneratedProviderOptions = {}, openUrl = 
   if (openUrl) {
     await prompt.fill(`/browser ${url}`);
     await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled();
-    await prompt.press("Meta+Enter");
+    await prompt.press("Enter");
     await expect(page.getByLabel("Preview URL", { exact: true })).toHaveValue(url);
     await expect.poll(() => app.evaluate(({ webContents }, url) => webContents.getAllWebContents().some((contents) => contents.getURL() === url), url)).toBe(true);
   } else await page.getByRole("button", { name: "Browser", exact: true }).click();

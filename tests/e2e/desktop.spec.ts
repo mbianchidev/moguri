@@ -240,6 +240,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Download model once", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "About supported dictation languages", exact: true }).focus();
+    await page.keyboard.press("Enter");
     await expect(page.getByRole("tooltip")).toContainText("NVIDIA documents 40 locales:");
     await page.keyboard.press("Escape");
     await categories.getByRole("button", { name: "System prompt", exact: true }).click();

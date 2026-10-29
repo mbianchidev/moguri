@@ -292,7 +292,7 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty,
   const workspace = snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId);
   const boundProject = project && (!session.workspaceId || workspace) ? { ...project, path: workspace?.path ?? project.path } : undefined;
   return <><SessionCoordinationPanel key={`${sdk.profileId}:${session.id}`} sdk={sdk} session={session} snapshot={snapshot} onDirty={setCoordinationDirty} />
-    <p className="side-read-only"><Icon name="ReadOnly" /><strong>Read-only</strong> / main chat context refreshes for each new question</p>
+    <p className="side-read-only" data-side-session-id={session.id}><Icon name="ReadOnly" /><strong>Read-only</strong> / main chat context refreshes for each new question</p>
     {renderTranscript(session)}
     {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}
     {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>

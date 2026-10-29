@@ -5,6 +5,7 @@ import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { startService } from "../../apps/service/src/server.ts";
 import { generatedApplication, generatedUpdateFeed } from "../fixtures/updates.ts";
 import { setupFixture } from "../fixture.ts";
+import { focusByKeyboard } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop update qualification is macOS-only.");
@@ -34,7 +35,7 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     await page.getByRole("button", { name: "Check for updates now", exact: true }).click();
     await expect.poll(async () => (await sdk.application.updates.status()).update.operation?.status).toBe("ready");
     await expect(page.getByText("Installing updates requires Moguri's packaged app.", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "About source-runtime update limits", exact: true }).focus();
+    await focusByKeyboard(page.getByRole("button", { name: "About source-runtime update limits", exact: true }));
     await expect(page.getByRole("tooltip")).toContainText("This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout.");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Install and restart with verified update", exact: true })).toHaveCount(0);
