@@ -1753,9 +1753,10 @@ terminal theme reports and Dark when the terminal supplies none.
 This independent source uses protocol/schema 78 with `theme_catalog_schema=1`,
 upgrading the genuine 76 baseline without rewriting encrypted history.
 Use the matching service or its explicit restart review; never delete state.
-The separate protocol-77 model-continuity lineage is intentionally unsupported
-by this standalone build until the actual combined source is reconciled and
-requalified. Shared queued-slash intake is also being implemented separately:
+The separate model-continuity and queued-intake lineages (77/79) are intentionally
+unsupported by this standalone build until the actual combined source is
+reconciled and requalified as protocol 80. Shared queued-slash intake is being
+implemented separately:
 held or ordered new navigation/theme/quit commands currently remain in the
 saved draft with an explicit unavailable error. They never execute eagerly,
 skip earlier work or become ordinary model text. Click/Tab navigation remains
