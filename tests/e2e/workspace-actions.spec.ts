@@ -1,5 +1,6 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
@@ -133,4 +134,34 @@ test("the project menu hides a synced Kanban without recapturing a stale GitHub 
     expect(hidden.board.githubSource).toEqual(original.board.githubSource); expect(hidden.issues).toEqual(original.issues);
     expect(fixture.calls).toHaveLength(calls); expect(fixture.reads).toHaveLength(reads);
   } finally { await app.close(); await fixture.close(); }
+});
+
+test("project groups expose keyboard colors and ungroup into the standard list while their captured chat stays reachable", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const path = join(fixture.directory, "generated-group-member"); await mkdir(path);
+  const first = fixture.session().projectId!, second = (await sdk.projects.add(path)).id!;
+  const group = await sdk.projects.group("Generated group controls", [{ projectId: first, revision: 0 }, { projectId: second, revision: 0 }]);
+  const chat = await sdk.sessions.createFolder(group.id!, "Generated retained group chat");
+  const original = fixture.service.controller.snapshot().sessions.find((session) => session.id === chat.id)!.repositories;
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), folder = page.locator("details.project-folder").filter({ hasText: "Generated group controls" });
+    const actions = folder.getByRole("button", { name: "Project group actions for Generated group controls", exact: true });
+    await actions.focus(); await page.keyboard.press("Enter");
+    const menu = page.getByRole("menu", { name: "Project group actions for Generated group controls", exact: true });
+    await menu.getByRole("menuitemradio", { name: "Violet", exact: true }).focus(); await page.keyboard.press("Enter");
+    await expect.poll(() => fixture.service.controller.snapshot().projectFolders.find((folder) => folder.id === group.id)?.color).toBe("#a855f7");
+    await expect(folder.locator('summary .folder-icon > svg[data-icon="Files"]')).toHaveCSS("color", "rgb(168, 85, 247)");
+    await actions.click(); await menu.getByRole("menuitemradio", { name: "Custom group color", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Project group color", exact: true });
+    await dialog.getByLabel("Custom group color", { exact: true }).fill("#1f72a3"); await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect.poll(() => fixture.service.controller.snapshot().projectFolders.find((folder) => folder.id === group.id)?.color).toBe("#1f72a3");
+    await actions.focus(); await page.keyboard.press("Enter"); await menu.getByRole("menuitem", { name: "Ungroup", exact: true }).focus(); await page.keyboard.press("Enter");
+    await expect(folder).toHaveCount(0); await expect(page.getByRole("button", { name: "Projects menu", exact: true })).toBeFocused();
+    await expect(page.getByRole("region", { name: "Chats", exact: true }).getByRole("button", { name: "Generated retained group chat", exact: true })).toBeVisible();
+    expect(fixture.service.controller.snapshot().projectConfigurations.filter((entry) => [first, second].includes(entry.projectId)).every((entry) => entry.folderId === null)).toBe(true);
+    expect(fixture.service.controller.snapshot().sessions.find((session) => session.id === chat.id)!.repositories).toEqual(original);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
