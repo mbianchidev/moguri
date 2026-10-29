@@ -347,6 +347,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     });
   });
   const applySlash = async (result: SlashResult) => {
+    if (result.kind === "client-view") throw new Error(`This desktop binding has no handler for ${result.name}. The queued action must remain unacknowledged, not become a model prompt.`);
     if (result.kind === "continue-work") {
       const target = client.getState().snapshot?.sessions.find((session) => session.id === result.review.sessionId);
       if (!target || result.review.profileId !== client.profileId) throw new Error("The actual continuation owner changed. No draft was consumed.");
