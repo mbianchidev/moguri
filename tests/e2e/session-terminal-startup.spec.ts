@@ -22,7 +22,7 @@ test("explicit session navigation opens the newly selected console, preserves ex
     const terminal = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true });
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await terminal.click(); await expect(input).toHaveAttribute("aria-disabled", "false");
-    const first = sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === fixture.sessionId)!;
+    const first = await waitFor(() => sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === fixture.sessionId));
     await navigation.getByRole("button", { name: "Generated project-free console", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.filter((entry) => entry.sessionId === chat.id).length).toBe(1);
     await expect(input).toHaveAttribute("aria-disabled", "false");

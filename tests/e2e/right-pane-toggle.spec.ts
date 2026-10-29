@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { setupFixture } from "../fixture.ts";
+import { setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -44,7 +44,7 @@ test("clicking Terminal again respects hide confirmation and opt-out, preserves 
     const terminal = rail.getByRole("button", { name: "Terminal", exact: true }), pane = page.getByRole("complementary", { name: "Session sidebar", exact: true });
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await terminal.click(); await expect(input).toHaveAttribute("aria-disabled", "false");
-    const owner = sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === fixture.sessionId)!;
+    const owner = await waitFor(() => sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === fixture.sessionId));
     await terminal.click();
     const confirm = page.getByRole("dialog", { name: "Close terminal pane", exact: true });
     await expect(confirm).toBeVisible();
