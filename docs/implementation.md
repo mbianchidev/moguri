@@ -4,6 +4,14 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+The owner-requested [shared theme and TUI navigation slice](architecture/themes-and-tui.md)
+adds missing preset palettes through the existing SDK settings, plus original
+JRPG-style terminal menus with genuine mouse tabs, a focus-safe arrow sidebar
+and primary slash discovery. Code requests reuses existing session-linked PR
+and diff capabilities, not the deferred global inbox. This independent
+protocol-78 source does not include the separate protocol-77 model-continuity
+workstream and does not complete the first milestone.
+
 Protocol 72 adds [Home-backed ordinary Local chats](architecture/project-free-execution.md):
 their real null project identity is separate from captured canonical
 Home/device/inode and ordinary approved file/command tools. All clients share
