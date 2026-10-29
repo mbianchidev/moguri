@@ -147,9 +147,10 @@ test("project groups expose keyboard colors and ungroup into the standard list w
   try {
     const page = await app.firstWindow(), folder = page.locator("details.project-folder").filter({ hasText: "Generated group controls" });
     const actions = folder.getByRole("button", { name: "Project group actions for Generated group controls", exact: true });
-    await actions.focus(); await page.keyboard.press("Enter");
+    await actions.press("Enter");
     const menu = page.getByRole("menu", { name: "Project group actions for Generated group controls", exact: true });
-    await menu.getByRole("menuitemradio", { name: "Violet", exact: true }).focus(); await page.keyboard.press("Enter");
+    const violet = menu.getByRole("menuitemradio", { name: "Violet", exact: true });
+    await violet.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().projectFolders.find((folder) => folder.id === group.id)?.color).toBe("#a855f7");
     await expect(folder.locator('summary .folder-icon > svg[data-icon="Files"]')).toHaveCSS("color", "rgb(168, 85, 247)");
     await actions.click(); await menu.getByRole("menuitemradio", { name: "Custom group color", exact: true }).click();
