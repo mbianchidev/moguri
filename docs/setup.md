@@ -3746,6 +3746,14 @@ portable foundation, with macOS-only operational tests skipped.
 npm run package:mac
 ```
 
+For an independently retained qualification build, use
+`npm run package:mac -- --qualifier protocol80-<source-id>`. It writes a new
+`release/qualification-builds/<qualifier>/` tree and refuses an existing label,
+preserving all earlier app/ZIP/DMG bytes. Canonical archive/manifest basenames
+remain unchanged inside that labeled directory; this does not publish an update.
+With an already built frozen source, `node scripts/package.mjs --qualifier ...`
+packages those exact compiled inputs without rebuilding underneath active checks.
+
 DMG packaging also needs Python 3.10 or newer. The build creates a private
 `.native/dmgbuild-py<version>-<manifest-digest>/` environment and installs only
 the three SHA-256-locked wheels in `scripts/requirements-dmg.txt` from PyPI.
