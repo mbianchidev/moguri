@@ -1,6 +1,7 @@
 import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState, type ComponentPropsWithoutRef, type ReactElement, type ReactNode, type RefObject } from "react";
 import { Icon } from "./Icon.tsx";
 import { InfoTip, Tooltip } from "./Tooltip.tsx";
+import { useCopyFeedback } from "./CopyButton.tsx";
 
 const SettingsContext = createContext(false);
 export function SettingsFieldsProvider({ children }: { children: ReactNode }) {
@@ -20,23 +21,17 @@ export function SettingsAction({ label, icon, className = "", ...props }: Omit<C
 function CopyField({ input, name, multiline = false, children }: {
   input: RefObject<HTMLInputElement | HTMLTextAreaElement | null>; name?: string; multiline?: boolean; children: ReactNode;
 }) {
-  const [label, setLabel] = useState(name ?? "field value"), [copied, setCopied] = useState(false), [error, setError] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [label, setLabel] = useState(name ?? "field value");
+  const { copy, copied, pending, error } = useCopyFeedback(label, () => {
+    if (!input.current) throw new Error("The field is no longer available to copy.");
+    return window.moguri.copyText(input.current.value);
+  });
   useEffect(() => {
     setLabel(name ?? input.current?.labels?.[0]?.textContent?.trim() ?? "field value");
   }, [name, input]);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const copy = async () => {
-    setError(""); setCopied(false);
-    try {
-      if (!input.current) throw new Error("The field is no longer available to copy.");
-      await window.moguri.copyText(input.current.value); setCopied(true);
-      clearTimeout(timer.current); timer.current = setTimeout(() => setCopied(false), 2000);
-    } catch (error) { setError(error instanceof Error ? error.message : "Copy failed. The field was not changed."); }
-  };
   return <span className={`copy-field${multiline ? " multiline" : ""}`}>{children}
     <span className="copy-field-action"><Tooltip content={copied ? "Copied" : "Copy value"}>
-      <button type="button" className="icon-button" aria-label={`Copy ${label}`} onClick={(event) => { event.preventDefault(); void copy(); }}><Icon name={copied ? "Check" : "Copy"} /></button>
+      <button type="button" className="icon-button" aria-label={`Copy ${label}`} aria-busy={pending || undefined} onClick={(event) => { event.preventDefault(); void copy(); }}><Icon name={copied ? "Check" : "Copy"} /></button>
     </Tooltip></span>
     <span className="sr-only" aria-live="polite" aria-atomic="true">{copied ? `Copied ${label}` : ""}</span>
     {error && <span className="inline-error copy-field-error" role="alert">{error}</span>}

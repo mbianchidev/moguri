@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ActivityContent, ActivityEntry, ActivityResponse, BudgetTotals, MoguriSdk, TurnInfo, UsageEstimate } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { CopyButton } from "./CopyButton.tsx";
 import { dollars } from "./BudgetControls.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
@@ -129,9 +130,9 @@ export function CurrentActivity({ entries, hasMore = false }: { entries: Activit
     {(running.length > 1 || hasMore) && <small>{running.length}{hasMore ? "+" : ""} concurrent</small>}<time role="timer" aria-live="off" aria-label="Elapsed operation time">{activityDuration(elapsed)}</time>
   </div>;
 }
-export function TurnActions({ sdk, sessionId, turnId, info, canCopy, run, modal }: {
+export function TurnActions({ sdk, sessionId, turnId, info, canCopy, modal }: {
   sdk: MoguriSdk; sessionId: string; turnId: string; info: TurnInfo | undefined; canCopy: boolean;
-  run: (work: () => Promise<unknown>) => Promise<void>; modal: (open: boolean) => void;
+  modal: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
@@ -154,7 +155,7 @@ export function TurnActions({ sdk, sessionId, turnId, info, canCopy, run, modal 
   const tokens = (value: number | null, known = 0, estimate?: number | null) => value === null ?
     estimate !== null && estimate !== undefined ? `~${estimate.toLocaleString()}` : known > 0 ? `${known.toLocaleString()} known + unknown` : "Not reported" : value.toLocaleString();
   return <footer className="turn-actions" aria-label="Response actions">
-    <button className="icon-button" type="button" title="Copy response" aria-label="Copy response" disabled={!canCopy} onClick={() => void run(() => window.moguri.copyText(sdk.activity.response(sessionId, turnId)))}><Icon name="Copy" /></button>
+    <CopyButton label="Copy response" disabled={!canCopy} source={`${sdk.profileId}:${sessionId}:${turnId}`} text={() => sdk.activity.response(sessionId, turnId)} />
     <button ref={button} className="icon-button" type="button" title="Turn information" aria-label="Turn information" aria-haspopup="dialog" aria-controls={open ? panelId : undefined} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="Info" /></button>
     {open && <div ref={panel} id={panelId} tabIndex={-1} className="turn-info-popover" popover="auto" role="dialog" aria-label="Turn information" onToggle={(event) => {
       if (event.newState === "closed") { setOpen(false); button.current?.focus(); }

@@ -161,6 +161,10 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .project-group { padding-bottom: 18px; }
 .project-name { border: 0; background: transparent; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 650; padding: 7px 9px; width: 100%; text-align: left; }
 .project-name svg { width: 15px; }
+.project-collapse { width: 26px; height: 28px; min-height: 28px; padding: 4px; }
+.project-collapse svg { width: 14px; height: 14px; }
+.project-collapse .folder-chevron { display: flex; }
+.nav-show-more { width: 100%; min-height: 28px; padding: 4px 12px; text-align: left; font-size: 11px; }
 .session-link { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 10px; margin: 2px 0; border-color: transparent; background: transparent; }
 .session-link.selected { background: var(--selected); color: var(--selection-text); }
 .session-link-text { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
@@ -767,7 +771,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .kanban-column h2 { margin: 0; font-size: 13px; font-weight: 600; }
 .kanban-column > header span { color: var(--muted); font-size: 12px; }
 .kanban-empty { color: var(--muted); font-size: 12px; line-height: 1.7; padding: 8px 0; }
-.kanban-add-trigger { width: 100%; justify-content: flex-start; min-height: 36px; gap: 6px; }
+.kanban-add-trigger { display: flex; align-items: center; width: 100%; justify-content: flex-start; min-height: 36px; gap: 6px; }
 .kanban-add-item { display: grid; gap: 8px; padding: 8px 0; }
 .kanban-add-item > input { width: 100%; min-width: 0; }
 .kanban-drop-column { outline: 2px dashed var(--accent); outline-offset: 5px; }

@@ -61,7 +61,23 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
   const [foldersMenu, setFoldersMenu] = useState<NavigationMenu | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
-  useEffect(() => { setCollapsedFolders(new Set()); setSearch(""); setFoldersMenu(null); }, [sdk.profileId]);
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set());
+  const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
+  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setFoldersMenu(null); }, [sdk.profileId]);
+  const selectedBranch = new Set<string>();
+  for (let session = snapshot.sessions.find((session) => session.id === selectedId); session && !selectedBranch.has(session.id);
+    session = snapshot.sessions.find((parent) => parent.id === session.parentSessionId)) selectedBranch.add(session.id);
+  const page = (key: string, entries: Session[], limit: number) => {
+    if (matches || expandedLists.has(key) || entries.length <= limit) return entries;
+    const visible = entries.slice(0, limit), selected = entries.find((entry) => selectedBranch.has(entry.id));
+    if (selected && !visible.some((entry) => entry.id === selected.id)) visible[limit - 1] = selected;
+    return visible;
+  };
+  const more = (key: string, count: number, limit: number, label: string) => !matches && count > limit &&
+    <button type="button" className="quiet nav-show-more" aria-label={`${expandedLists.has(key) ? "Show fewer" : "Show more"} ${label}`}
+      aria-expanded={expandedLists.has(key)} onClick={() => setExpandedLists((current) => {
+        const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next;
+      })}>{expandedLists.has(key) ? "Show less" : "Show more"}{!expandedLists.has(key) && ` (${count - limit})`}</button>;
   const colorPending = useRef(false);
   const [savingColor, setSavingColor] = useState(false);
   const [drop, setDrop] = useState<{ id: string; edge: "before" | "after" | "detach" | "inside" } | null>(null);
@@ -302,9 +318,16 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const board = snapshot.boards.find((entry) => entry.projectId === project.id) ?? defaultBoard(project.id);
     const boardVisible = !archived && kanbanPreferences(board).visible && (!matches || sessions.some((session) => session.purpose === "kanban"));
     const visible = new Set(sessions.filter((session) => session.purpose !== "kanban" || boardVisible).map((session) => session.id));
-    const tree = (parent: string | null, group: string | null, depth = 0): ReactNode => sessions.filter((session) =>
-      session.purpose !== "kanban" && (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent && (parent !== null || session.groupId === group))
-      .sort(compareSessions).map((session) => <div key={session.id}>{renderSession(session, depth)}{tree(session.id, group, depth + 1)}</div>);
+    const roots = sessions.filter((session) => session.purpose !== "kanban" && (!session.parentSessionId || !visible.has(session.parentSessionId))).sort(compareSessions);
+    const rootIds = new Set(page(`project:${project.id}`, roots, 5).map((session) => session.id));
+    const tree = (parent: string | null, group: string | null, depth = 0): ReactNode => {
+      const entries = sessions.filter((session) => session.purpose !== "kanban" &&
+        (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent &&
+        (parent !== null || session.groupId === group && rootIds.has(session.id))).sort(compareSessions);
+      const key = `children:${parent}`, rows = parent ? page(key, entries, 5) : entries;
+      return <>{rows.map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && tree(session.id, group, depth + 1)}</div>)}
+        {parent && more(key, entries.length, 5, `subsessions of ${snapshot.sessions.find((session) => session.id === parent)?.title ?? "this session"}`)}</>;
+    };
     const boardChat = sessions.find((entry) => entry.purpose === "kanban");
     return <section className="project-group" key={project.id} aria-label={`Project ${project.name}`} onDragOver={(event) => dragHeader(event, project.id)} onDrop={(event) => detach(event, project.id)}>
       <header className={`project-row ${drop?.id === `project:${project.id}` ? `drop-${drop.edge}` : ""}`} draggable={!actions.busy && !ordering}
@@ -324,6 +347,10 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           if (edge !== "inside" && !intent.siblings.some((entry) => entry.id === project.id) || intent.id === project.id) { event.dataTransfer.dropEffect = "none"; setDrop(null); return; }
           event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDrop({ id: `project:${project.id}`, edge });
         }} onDrop={(event) => dropProject(event, project)}>
+      <button type="button" className="icon-button project-collapse" aria-label={`${collapsedProjects.has(project.id) ? "Expand" : "Collapse"} project ${project.name}`}
+        aria-expanded={!collapsedProjects.has(project.id)} onClick={() => setCollapsedProjects((current) => {
+          const next = new Set(current); if (next.has(project.id)) next.delete(project.id); else next.add(project.id); return next;
+        })}><span className={`folder-chevron${collapsedProjects.has(project.id) ? " collapsed" : ""}`}><Icon name="Down" /></span></button>
       <button className="project-name" data-project-id={project.id} aria-haspopup="menu" aria-expanded={menu?.kind === "project" && menu.id === project.id}
         aria-description="Open settings. Right-click or Shift+F10 for actions and icon color. Drop onto another project to name a folder; use row edges or Alt+Up/Down to reorder siblings." title={`Project settings: ${project.path}`} onClick={() => settings(project.id)}
         onKeyDown={(event) => {
@@ -337,27 +364,35 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           if (menu?.kind === "project" && menu.id === project.id) { closeMenu(); return; }
           const bounds = event.currentTarget.getBoundingClientRect(); openMenu("project", project.id, event.currentTarget, bounds.right, bounds.top);
         }}><Icon name="More" /></button></header>
-      {boardVisible && <><button className={`session-link kanban-link ${selectedId === boardChat?.id ? "selected" : ""}`} aria-label={`Kanban for ${project.name}`}
+      {!collapsedProjects.has(project.id) && <>{boardVisible && <><button className={`session-link kanban-link ${selectedId === boardChat?.id ? "selected" : ""}`} aria-label={`Kanban for ${project.name}`}
         aria-current={selectedId === boardChat?.id ? "page" : undefined} onClick={() => void openKanban(project.id)}><Icon name="Plan" /><span>Kanban</span><span className="queue-count">{snapshot.issues.filter((issue) => issue.projectId === project.id && !issue.archived && issue.phaseId !== board.mergedColumnId).length}</span></button>
         {boardChat && tree(boardChat.id, null, 1)}</>}
       {tree(null, null)}
       {snapshot.sessionGroups.filter((group) => group.projectId === project.id).sort((a, b) => a.order - b.order).map((group) => <div className="session-group" key={group.id} onDragOver={(event) => dragHeader(event, project.id)} onDrop={(event) => detach(event, project.id, group.id)}><h3>{group.name}</h3>{tree(null, group.id)}</div>)}
+      {more(`project:${project.id}`, roots.length, 5, `sessions in ${project.name}`)}</>}
     </section>;
   };
   const projects = [...snapshot.projects].filter((project) => !matches || snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id)))
     .sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
   const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived && (!matches || matches.has(session.id)));
   const generalIds = new Set(general.map((session) => session.id));
-  const generalTree = (parent: string | null, folderId: string | null = null, depth = 0): ReactNode => general.filter((session) =>
-    (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent &&
-    (parent !== null || (session.projectFolderId ?? null) === folderId)).sort(compareSessions).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, folderId, depth + 1)}</div>);
+  const activeFolders = new Set(snapshot.projectFolders.map((folder) => folder.id));
+  const generalTree = (parent: string | null, folderId: string | null = null, depth = 0): ReactNode => {
+    const entries = general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent &&
+      (parent !== null || (session.projectFolderId && activeFolders.has(session.projectFolderId) ? session.projectFolderId : null) === folderId)).sort(compareSessions);
+    const key = parent ? `children:${parent}` : `chats:${folderId}`, limit = parent || folderId ? 5 : 10;
+    const label = parent ? `subsessions of ${snapshot.sessions.find((session) => session.id === parent)?.title ?? "this session"}` :
+      folderId ? `sessions in ${snapshot.projectFolders.find((folder) => folder.id === folderId)?.name ?? "this folder"}` : "chats";
+    return <>{page(key, entries, limit).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, folderId, depth + 1)}</div>)}
+      {more(key, entries.length, limit, label)}</>;
+  };
   const menuSession = menu?.kind === "session" ? snapshot.sessions.find((session) => session.id === menu.id) : undefined;
   const projectMenu = menu?.kind === "project" ? snapshot.projects.find((project) => project.id === menu.id) : undefined;
   const menuProject = snapshot.projects.find((project) => project.id === menuSession?.projectId);
   const menuUnread = menuSession ? unreadSession(menuSession, snapshot) : false;
   return <><div className="project-list" aria-busy={busy || actions.busy || ordering}>
     <div className="workspace-navigation-tools"><label className="workspace-session-search"><Icon name="Search" /><input type="search" aria-label="Search sessions" placeholder="Search sessions" value={search}
-      onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) setCollapsedFolders(new Set()); }} /></label>
+      onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); } }} /></label>
       <button type="button" className="icon-button" aria-label="Projects menu" title="Projects menu" aria-haspopup="menu" aria-expanded={Boolean(foldersMenu)} onClick={(event) => {
         if (foldersMenu) { setFoldersMenu(null); return; }
         const bounds = event.currentTarget.getBoundingClientRect();
@@ -381,8 +416,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     {archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
   </div>
   {foldersMenu && <WorkspaceContextMenu label="Projects menu" point={foldersMenu} close={(restore = true) => { const anchor = foldersMenu.anchor; setFoldersMenu(null); if (restore) queueMicrotask(() => anchor.isConnected && anchor.focus()); }}>
-    <button role="menuitem" onClick={() => setCollapsedFolders(new Set())}><Icon name="Maximize" />Expand all groups</button>
-    <button role="menuitem" onClick={() => setCollapsedFolders(new Set(snapshot.projectFolders.map((folder) => folder.id)))}><Icon name="Minimize" />Collapse all groups</button>
+    <button role="menuitem" onClick={() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); }}><Icon name="Maximize" />Expand all groups</button>
+    <button role="menuitem" onClick={() => { setCollapsedFolders(new Set(snapshot.projectFolders.map((folder) => folder.id))); setCollapsedProjects(new Set(snapshot.projects.map((project) => project.id))); }}><Icon name="Minimize" />Collapse all groups</button>
   </WorkspaceContextMenu>}
   {menu && projectMenu && <WorkspaceContextMenu label={`Project actions for ${projectMenu.name}`} point={menu} close={closeMenu}>
     <div role="group" aria-label="Project icon color">
