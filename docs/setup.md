@@ -743,10 +743,11 @@ through the Node SDK; root/React entrypoints remain browser-safe. See the
 
 ### Reproducing exact native qualification
 
-The [current combined80 0.2.4 evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up)
-are separate from historical 0.2.3/protocol76/77 runs and package-only
-verification. This cut includes actual two-root execution and separate source
-publication, not just generated mapping or readiness data.
+The [current protocol81 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-81-session-and-git-follow-up)
+are separate from the [packaged combined80 cut](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up),
+historical 0.2.3/protocol76/77 runs and package-only verification. This cut
+includes actual two-root execution and separate source publication, not just
+generated mapping or readiness data.
 Maintainers can build the current distribution with `npm run prepare:sandbox`,
 then use its printed directory and matching image receipt:
 
@@ -1910,15 +1911,16 @@ the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
 The merged independent themes source used protocol/schema 78 with
-`theme_catalog_schema='1'`. The current combined source uses protocol80 and
-preserves genuine76, model77, theme78 and workspace79 histories through exact
+`theme_catalog_schema='1'`. The current follow-up uses protocol81, preserving
+all six combined80 markers plus its independent request-recovery and Git
+markers. Genuine76, model77, theme78 and workspace79 histories retain exact
 feature-marker validation before an atomic additive migration.
 Use the matching service or its explicit restart review; never delete state.
 Desktop, TUI and CLI now use the shared service queue for slash text.
 Held navigation/theme/quit commands remain inert there, not in an eager local
 dispatcher or ordinary model text. Actual TUI/desktop views acknowledge their
 rendered application; continuation/archive reviews wait for the real user.
-Click/Tab navigation remains direct. Current80 artifacts require their own
+Click/Tab navigation remains direct. Current81 artifacts require their own
 qualification; the historical standalone78 and model77 receipts do not qualify
 new worker, runtime or installer bytes.
 See the [change and evidence contract](architecture/themes-and-tui.md).
@@ -3801,7 +3803,7 @@ npm run package:mac
 ```
 
 For an independently retained qualification build, use
-`npm run package:mac -- --qualifier protocol80-<source-id>`. It writes a new
+`npm run package:mac -- --qualifier protocol81-<source-id>`. It writes a new
 `release/qualification-builds/<qualifier>/` tree and refuses an existing label,
 preserving all earlier app/ZIP/DMG bytes. Canonical archive/manifest basenames
 remain unchanged inside that labeled directory; this does not publish an update.
