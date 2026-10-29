@@ -9,7 +9,7 @@ export async function qualifyModelDefaults({ packageRoot, directory }) {
   const root = resolve(packageRoot), stateDir = join(directory, "state"), started = performance.now();
   await mkdir(directory, { recursive: true });
   const { createRuntime } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
-  const { MoguriSdk, PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
+  const { MoguriSdk, PROTOCOL_VERSION, supportedThinkingEffort } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
   const modelId = "generated-installed-model-default";
   let calls = 0;
   const provider = {
@@ -55,8 +55,32 @@ export async function qualifyModelDefaults({ packageRoot, directory }) {
     const recovered = await sdk.sessions.create(null, "Generated installed retained model preference");
     assert.deepEqual(current(recovered.id).controls.modelOptions, { thinkingEffort: "high" });
     assert.equal(current(recovered.id).controls.modelId, modelId);
+    const maximumId = "generated-installed-max-preference";
+    provider.state.models.push({ ...provider.state.models[0], id: maximumId, name: "Generated installed Max model", thinkingLevels: ["high", "max"] });
+    provider.onChange(); await sdk.refresh();
+    assert.equal(supportedThinkingEffort("high", ["low", "max"]), "max");
+    await sdk.sessions.selectModel(recovered.id, maximumId);
+    await sdk.sessions.modelOptions(recovered.id, { thinkingEffort: "max" }, undefined, true);
+    await sdk.sessions.selectModel(recovered.id, modelId);
+    assert.deepEqual(current(recovered.id).controls.modelOptions, { thinkingEffort: "high" });
+    assert.equal(current(recovered.id).controls.preferredThinkingEffort, "max");
+    sdk.disconnect(); await runtime.close(); runtime = await createRuntime(options);
+    sdk = await new MoguriSdk(runtime.connection).ready();
+    assert.equal(current(recovered.id).controls.preferredThinkingEffort, "max");
+    await sdk.sessions.selectModel(recovered.id, maximumId);
+    assert.deepEqual(current(recovered.id).controls.modelOptions, { thinkingEffort: "max" });
+    await sdk.models.setEnabled(maximumId, false);
+    assert.equal(current(recovered.id).controls.modelId, null);
+    await sdk.models.setEnabled(maximumId, true);
+    assert.equal(current(recovered.id).controls.modelId, null);
+    await sdk.sessions.selectModel(recovered.id, modelId);
+    assert.deepEqual(current(recovered.id).controls.modelOptions, { thinkingEffort: "high" });
+    await sdk.slash(recovered.id, "/model-settings reset", "tui");
+    await sdk.sessions.selectModel(recovered.id, maximumId);
+    assert.equal(current(recovered.id).controls.modelOptions, undefined);
+    assert.equal(current(recovered.id).controls.preferredThinkingEffort, undefined);
     assert.equal((await sdk.budgets.calls()).calls.length, 0); assert.equal(calls, 0);
-    return { status: "PASS", primitive: `Installed protocol-${PROTOCOL_VERSION} model defaults, explicit SDK/CLI/TUI selection, fixed-global precedence and source-independent restart`,
+    return { status: "PASS", primitive: `Installed protocol-${PROTOCOL_VERSION} model defaults, effort fallback/restoration, disable/re-enable re-selection, SDK/CLI/TUI controls and source-independent restart`,
       ms: performance.now() - started, modelCalls: 0, network: "owned loopback control plane only; no inference or personal credentials" };
   } finally { sdk?.disconnect(); await runtime?.close(); }
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
-import { Icon } from "./Icon.tsx";
+import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
 import { ContextCompactionReview } from "./ContextCompaction.tsx";
@@ -439,7 +439,11 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     setSaving(true); onSaving(true); setError(""); onError("");
     try {
       const result = await sdk.sessions.selectModel(session.id, model.id, revision.current);
-      revision.current = result.revision!; setWindow(""); setEffort("");
+      const saved = sdk.getState().snapshot?.sessions.find((value) => value.id === session.id);
+      if (!saved) throw new Error("The saved model controls could not be reloaded. Reconnect before another selection; no substitute model was chosen.");
+      revision.current = result.revision!;
+      setWindow(saved.controls.modelOptions?.contextWindow?.toString() ?? "");
+      setEffort(saved.controls.modelOptions?.thinkingEffort ?? "");
     } catch (error) { const message = error instanceof Error ? error.message : "Model selection failed. No fallback was used."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
@@ -464,7 +468,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       const disabled = locked || dirty || unavailable || requiresImages && !model.imageInput;
       return <div className="model-choice-row" key={model.id}><button type="button" role="menuitemradio" className="composer-menu-option" aria-checked={model.id === session.controls.modelId}
         aria-disabled={disabled} onClick={() => { if (!disabled) { setSubmenu(null); void select(model); } }}>
-        <Icon name={model.synthetic ? "Suggestions" : model.source === "local" ? "House" : "Agent"} /><span>{model.name}<small>{unavailable ? "Unavailable" : description}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>
+        <Icon name={modelIcon(model)} /><span>{model.name}<small>{unavailable ? "Unavailable" : description}</small></span>{model.id === session.controls.modelId && <Icon name="Check" />}</button>
         {unavailable && <InfoTip label={`Why ${model.synthetic ? "Kupo" : model.name} is unavailable`}>{description}</InfoTip>}
       </div>;
     })}</div>
@@ -475,6 +479,11 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
     </ModelSubmenu>
+    {session.controls.preferredThinkingEffort !== undefined && <p className="fine-print" role="status">
+      {effortLabel(session.controls.preferredThinkingEffort)} preference retained. {current?.synthetic ? "Kupo manages each role's effort." :
+        !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :
+          "This model has no adjustable thinking; the preference returns on a supporting model."}
+    </p>}
     <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}

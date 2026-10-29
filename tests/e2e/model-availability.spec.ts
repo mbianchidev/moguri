@@ -95,6 +95,40 @@ test("long provider settings keep scrolling inside the viewport without moving a
   } finally { await app.close(); await fixture.close(); }
 });
 
+test("disabling the current model leaves the composer unselected until another explicit choice, even after re-enable", async () => {
+  const fixture = await setupFixture({ reasoning: true }), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure(); await sdk.refresh();
+  await sdk.sessions.modelOptions(fixture.sessionId, { thinkingEffort: "high" }, undefined, true);
+  await sdk.command({ type: "draft.save", sessionId: fixture.sessionId, expectedRevision: fixture.session().draft.revision,
+    text: "Generated draft waits for model selection.", attachments: [] });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await openSettingsSection(page, "Providers");
+    const panel = page.getByRole("region", { name: "Provider and model availability", exact: true });
+    await panel.getByRole("switch", { name: `Enable model ${fixture.modelId}`, exact: true }).uncheck();
+    await expect.poll(() => fixture.session().controls.modelId).toBeNull();
+    await expect(panel.getByRole("status", { name: "Model availability saving", exact: true })).toHaveText("Changes save automatically.");
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await expect(composer.getByRole("button", { name: /^Model:/ })).toContainText("Select model");
+    await expect(composer.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated draft waits for model selection.");
+    await openSettingsSection(page, "Providers");
+    await panel.getByRole("switch", { name: `Enable model ${fixture.modelId}`, exact: true }).check();
+    await expect(panel.getByRole("status", { name: "Model availability saving", exact: true })).toHaveText("Changes save automatically.");
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await expect(composer.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await composer.getByRole("button", { name: /^Model:/ }).click();
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Generated Copilot model / }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ thinkingEffort: "high" });
+    await page.keyboard.press("Escape");
+    await expect(composer.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("the provider list can reduce twenty-one models to three and disabled models disappear from the picker and fail through /model", async () => {
   const fixture = await setupFixture();
   const original = fixture.provider.state.models[0]!, generated = Array.from({ length: 20 }, (_, index) => ({

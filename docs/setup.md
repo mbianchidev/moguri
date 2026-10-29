@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **69**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **77**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -12,6 +12,13 @@ side menus. Kupo is in the model list; its adjacent information button explains
 unavailability without enabling it or substituting another model. Only the
 selected model's qualified options are offered, and changes save through the
 shared session controls. Escape/Left returns from a submenu; Right opens it.
+Switching models preserves the selected thinking preference: use the same
+supported effort, the next higher supported level, or the model's highest level
+if none is higher. Max uses High on a High-limited model and returns to Max on
+a supporting model. Choosing an effort or Model default explicitly replaces
+that preference. Provider-controlled models and Kupo retain it for the next
+fixed-model choice without receiving an unsupported override. GPT, Claude,
+Google and Grok choices have distinct decorative icons; names remain authoritative.
 `/thinking high` and `/effort low` set a supported effort; either accepts
 `default` to clear only that override. `/context-window 24577` sets that exact
 whole-token ceiling. `min`, `half` and `max` select the minimum, floored half
@@ -2027,8 +2034,13 @@ Models with the same exact upstream API ID share one row and an exclusive
 provider dropdown. Choose a source explicitly when there is more than one.
 An unavailable/disabled saved source never silently changes to another provider.
 IDs are declared catalogue keys, not independent-family or quality evidence.
-Current sessions and remembered defaults retain their original selection;
-reenable it or explicitly choose another available model before new inference.
+Disabling a selected model or provider clears the affected session selection.
+Choose a model again before the next iteration; re-enabling alone does not
+reselect it. Drafts, held prompts and the thinking preference are preserved.
+Saved defaults and exact provider choices are retained without substituting a
+different model. Unavailable Kupo solvers are unchecked and disabled, with
+separate removal of a retained inactive approval; environment, privacy, context
+and known output bounds use the same shared eligibility rules as admission.
 
 CLI uses `moguri models catalogue`, `models enable|disable API_ID`,
 `models provider PROVIDER_ID enable|disable`, and

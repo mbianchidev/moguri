@@ -3,11 +3,73 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { setupFixture } from "../fixture.ts";
-import { isRecord, MoguriError } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { chooseContextWindow, chooseThinkingEffort, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer execution is qualified on macOS.");
+test("model dropdown keeps preferred Max through High fallback and restores it until the user explicitly changes effort", async () => {
+  const fixture = await setupFixture({ reasoning: true, contextWindow: 32768 }), original = fixture.provider.state.models[0]!;
+  const maximum = { ...original, id: "gpt-generated-max", apiModelId: "gpt-generated-max", name: "Generated GPT Max", thinkingLevels: ["low", "high", "max"] as const };
+  const limited = { ...original, id: "claude-generated-high", apiModelId: "claude-generated-high", name: "Generated Claude High", thinkingLevels: ["low", "high"] as const };
+  fixture.provider.state.models.push({ ...maximum, thinkingLevels: [...maximum.thinkingLevels] }, { ...limited, thinkingLevels: [...limited.thinkingLevels] });
+  fixture.provider.onChange();
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.sessions.selectModel(fixture.sessionId, maximum.id);
+  await sdk.sessions.modelOptions(fixture.sessionId, { thinkingEffort: "max", contextWindow: 16384 }, undefined, true);
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    const menu = page.getByRole("dialog", { name: "Model", exact: true });
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Generated Claude High / }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ thinkingEffort: "high" });
+    await expect(menu.getByRole("button", { name: "Thinking effort", exact: true })).toContainText("High");
+    await expect(menu.getByRole("status").filter({ hasText: "Max" })).toContainText("High");
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Generated GPT Max / }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ thinkingEffort: "max" });
+    await expect(menu.getByRole("button", { name: "Thinking effort", exact: true })).toContainText("Max");
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Generated Claude High / }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions?.thinkingEffort).toBe("high");
+    await chooseThinkingEffort(page, "High");
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Generated GPT Max / }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ thinkingEffort: "high" });
+    await expect(menu.getByRole("button", { name: "Thinking effort", exact: true })).toContainText("High");
+    await chooseThinkingEffort(page, "Model default");
+    await (await openModelChoices(page)).getByRole("menuitemradio", { name: /^Generated Claude High / }).click();
+    await expect.poll(() => fixture.session().controls.modelOptions).toBeUndefined();
+    expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("GPT, Claude, Google and Grok choices use distinct decorative icons while model names remain accessible", async () => {
+  const fixture = await setupFixture(), original = fixture.provider.state.models[0]!;
+  const choices = [
+    { id: "gpt-generated-icon", name: "Generated GPT icon", icon: "ModelGPT" },
+    { id: "claude-generated-icon", name: "Generated Claude icon", icon: "ModelClaude" },
+    { id: "gemini-generated-icon", name: "Generated Google icon", icon: "ModelGoogle" },
+    { id: "grok-generated-icon", name: "Generated Grok icon", icon: "ModelGrok" },
+  ];
+  fixture.provider.state.models = choices.map((choice) => ({ ...original, id: choice.id, apiModelId: choice.id, name: choice.name }));
+  fixture.provider.onChange();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(); await page.getByRole("button", { name: /^Model:/ }).click();
+    const models = await openModelChoices(page), shapes: Array<string | null> = [];
+    for (const choice of choices) {
+      const option = models.getByRole("menuitemradio", { name: new RegExp(`^${choice.name} `) }), icon = option.locator("svg");
+      await expect(icon).toHaveAttribute("data-icon", choice.icon);
+      await expect(icon).toHaveAttribute("aria-hidden", "true");
+      shapes.push(await icon.locator("path").getAttribute("d"));
+    }
+    expect(new Set(shapes).size).toBe(4);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
+
 test("a failed model update remains visible after closing its menu and releases only its own pending gate", async () => {
   const fixture = await setupFixture();
   const app = await electron.launch({

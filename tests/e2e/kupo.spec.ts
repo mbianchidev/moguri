@@ -3,12 +3,33 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { reviewNativeTools, setupFixture } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
-import { openModelChoices } from "./navigation.ts";
+import { openModelChoices, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Kupo desktop coverage uses generated hidden macOS fixtures.");
+
+test("unavailable and unbounded models cannot be checked for Kupo; retained unavailable approvals can only be removed", async () => {
+  const fixture = await routedFixture();
+  await fixture.sdk.models.setEnabled(fixture.solver.modelId, false);
+  const { maxTokens: _, ...original } = fixture.provider.state.models[0]!;
+  fixture.provider.state.models.push({ ...original, id: "generated-unbounded-kupo", apiModelId: "generated-unbounded-kupo", name: "Generated unknown-output model" });
+  fixture.provider.onChange(); await fixture.sdk.refresh();
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(); await openSettingsSection(page, "Kupo routing");
+    const id = fixture.solverId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const unavailable = page.getByRole("checkbox", { name: new RegExp(`unavailable solver ${id}`, "i") });
+    await expect(unavailable).toBeDisabled();
+    await expect(unavailable).not.toBeChecked();
+    await expect(page.getByRole("checkbox", { name: "Approve solver Generated unknown-output model", exact: true })).toBeDisabled();
+    await expect(fixture.sdk.sessions.selectModel(fixture.sessionId, "kupo")).rejects.toThrow(/eligible|approved|pool|unavailable/i);
+    await page.getByRole("button", { name: `Remove unavailable solver ${fixture.solverId}`, exact: true }).click();
+    await expect.poll(() => fixture.sdk.settings.get()!.values.kupo.approvedModelIds.includes(fixture.solverId)).toBe(false);
+    expect(fixture.requests).toHaveLength(0); expect(fixture.solver.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
 
 test("the disconnected model dropdown always shows unavailable Kupo and its reason", async () => {
   const fixture = await setupFixture();
