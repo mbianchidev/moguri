@@ -38,9 +38,9 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await page.getByRole("button", { name: /^Model:/ }).click();
     await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await page.keyboard.press("Escape");
-    await prompt.fill("/rename Generated project-free chat"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
+    await prompt.fill("/rename Generated project-free chat"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Enter");
     await expect(page.getByRole("heading", { name: "Generated project-free chat", exact: true })).toBeVisible();
-    await prompt.fill("/suggestions session"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Meta+Enter");
+    await prompt.fill("/suggestions session"); await expect(page.getByRole("button", { name: "Run command", exact: true })).toBeEnabled(); await prompt.press("Enter");
     const suggestions = page.getByRole("region", { name: "Moguri suggestions", exact: true });
     await expect(suggestions).toContainText("Project-free chats only");
     const allProjects = suggestions.getByRole("switch", { name: "Include conversations from all projects", exact: true });

@@ -679,9 +679,29 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
 function CommandActivity({ sdk, session, snapshot, run, open }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; run: Run; open(text: string): void }) {
   const commands = snapshot.commandExecutions.filter((entry) => entry.sessionId === session.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
   const [limit, setLimit] = useState(10);
+  const [summary, setSummary] = useState<{ key: string; text: string; failed: boolean } | null>(null);
+  const latest = commands[0], key = `${sdk.profileId}/${session.id}/${latest?.id}/${latest?.revision}/${latest?.resultDigest}`;
+  useEffect(() => {
+    let current = true;
+    const abort = new AbortController();
+    if (latest?.status === "completed" && latest.resultDigest) {
+      void sdk.commands.read(latest.id, abort.signal).then((retained) => {
+        if (!current || retained.execution.resultDigest !== latest.resultDigest) return;
+        const result = retained.result;
+        setSummary(result?.kind === "ok" ? { key, failed: false, text: result.message.length > 2000 ?
+          "Command completed. Read its full retained response below." : result.message } : null);
+      }).catch((error: unknown) => {
+        if (current) setSummary({ key, failed: true, text: error instanceof Error ? error.message : "The original command response could not be read. Its record was preserved." });
+      });
+    } else setSummary(null);
+    return () => { current = false; abort.abort(); };
+  }, [sdk, key]);
   if (!commands.length) return null;
   const active = commands.filter((entry) => ["running", "waiting-client", "claimed"].includes(entry.status));
-  return <details className="queue command-activity">
+  const failed = latest && ["failed", "partial"].includes(latest.status);
+  return <>{failed ? <p className="inline-error" role="alert">{latest.diagnostic ?? "The original command did not complete. Read its retained record before resuming."}</p> :
+    summary?.key === key && <p className={summary.failed ? "inline-error" : "fine-print"} role={summary.failed ? "alert" : "status"}>{summary.text}</p>}
+    <details className="queue command-activity">
     <summary>Commands <span role="status">{active.length ? `${active.length} waiting or running` : `${commands.length} retained`}</span></summary>
     <ol aria-label="Retained command results">{commands.slice(0, limit).map((entry) => <li key={entry.id} className="queue-item">
       <strong>/{entry.name}</strong><span className="queue-text">{entry.status === "waiting-client" ? `Waiting for a compatible ${entry.client} view` : entry.status}</span>
@@ -693,7 +713,7 @@ function CommandActivity({ sdk, session, snapshot, run, open }: { sdk: MoguriSdk
       {entry.diagnostic && entry.status !== "waiting-client" && <span className="command-diagnostic">{entry.diagnostic}</span>}
     </li>)}</ol>
     {commands.length > limit && <button className="quiet" type="button" onClick={() => setLimit((value) => value + 10)}>Show more command results...</button>}
-  </details>;
+  </details></>;
 }
 
 function Timeline({ session, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns" }: {

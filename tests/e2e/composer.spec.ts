@@ -130,7 +130,7 @@ test("closing the model menu cannot release an in-flight configuration gate or l
     await expect(prompt).toHaveValue("/rename Generated command after configuration");
     expect(fixture.session().title).not.toBe("Generated command after configuration");
     release(); await expect(command).toBeEnabled();
-    await prompt.press("Meta+Enter");
+    await prompt.press("Enter");
     await expect(page.getByRole("heading", { name: "Generated command after configuration", exact: true })).toBeVisible();
     expect(fixture.session().controls.modelId).toBe(fixture.modelId); expect(fixture.requests.length).toBe(0);
   } finally { release(); fixture.service.controller.dispatch = dispatch; await app.close(); await fixture.close(); }

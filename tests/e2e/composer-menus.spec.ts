@@ -24,7 +24,7 @@ test("the model control opens cascading model, effort and context menus with exa
     const kupo = models.getByRole("menuitemradio", { name: /^Kupo/ });
     await expect(kupo).toHaveAttribute("aria-disabled", "true");
     await models.getByRole("button", { name: "Why Kupo is unavailable", exact: true }).hover();
-    await expect(page.getByRole("tooltip")).toContainText(/model|pool|Kupo|disabled/i);
+    await expect(page.getByRole("dialog", { name: "Why Kupo is unavailable", exact: true })).toContainText(/model|pool|Kupo|disabled/i);
     await mkdir(".moguri/artifacts", { recursive: true }); await page.screenshot({ path: ".moguri/artifacts/composer-model-cascade.png" });
     await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
     await root.getByRole("button", { name: "Thinking effort", exact: true }).click();
@@ -81,7 +81,9 @@ test("model tuning slash shortcuts share the real controls and keep an exact non
     await page.keyboard.press("Escape");
     await prompt.fill("/context-window 1"); await page.getByRole("button", { name: "Run command", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Allowed whole-token ceilings");
-    await expect(prompt).toHaveValue("/context-window 1");
+    await expect(prompt).toHaveValue("");
+    const failed = fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "context-window" && entry.status === "failed");
+    expect(failed).toBeDefined(); expect(fixture.service.store.blob(failed!.inputDigest)).toContain("/context-window 1");
     expect(fixture.session().controls.modelOptions).toEqual({ contextWindow: 24577, thinkingEffort: "medium" });
     await prompt.fill("/context-window half"); await page.getByRole("button", { name: "Run command", exact: true }).click();
     await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 16384, thinkingEffort: "medium" });

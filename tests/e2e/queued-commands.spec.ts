@@ -34,6 +34,28 @@ test("desktop slash text waits in the real service queue instead of changing the
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("service-only command completion and failure are visible without moving focus or replaying the source", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), input = page.getByRole("textbox", { name: "Prompt", exact: true });
+    await input.fill("/theme crystal light"); await input.press("Enter");
+    await expect.poll(() => fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "theme")?.status).toBe("completed");
+    const entry = fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "theme")!;
+    const retained = (await sdk.commands.read(entry.id)).result;
+    expect(retained?.kind).toBe("ok");
+    if (retained?.kind !== "ok") throw new Error("Generated settings command lost its actual retained confirmation.");
+    await expect(page.getByRole("status").filter({ hasText: retained.message })).toBeVisible();
+    await expect(input).toBeFocused(); await expect(page.getByRole("dialog", { name: "Command output", exact: true })).toHaveCount(0);
+    await input.fill("/model generated-unavailable-model"); await input.press("Enter");
+    await expect.poll(() => fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "model")?.status).toBe("failed");
+    const failed = fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "model")!;
+    await expect(page.getByRole("alert")).toContainText(failed.diagnostic!); await expect(input).toHaveValue("");
+    expect((await sdk.commands.read(failed.id)).item.text).toBe("/model generated-unavailable-model");
+    expect(fixture.requests).toHaveLength(0);
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("Cmd/Ctrl+Enter holds even yolo without running it or requiring a selected model", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
   try {
