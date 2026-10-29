@@ -488,6 +488,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .queue-item textarea { width: 100%; padding: 6px; }
 .queue-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queue-item .quiet { font-size: 10px; padding: 5px; }
+.command-activity > summary { padding: 8px 10px; font-size: 11px; cursor: pointer; }
+.command-activity > summary span { margin-left: 8px; color: var(--muted); }
+.command-activity > ol { margin: 0; padding: 0; list-style: none; }
+.command-diagnostic { flex-basis: 100%; color: var(--muted); overflow-wrap: anywhere; }
 .queue-delivery { color: var(--muted); font-size: 10px; min-width: 38px; }
 .context-pane { position: relative; background: var(--subtle); border-left: 1px solid var(--line); min-width: 0; overflow: hidden; display: none; flex-direction: column; }
 .context-open .context-pane { display: flex; }

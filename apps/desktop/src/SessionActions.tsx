@@ -4,14 +4,15 @@ import { sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, typ
 
 type Action = "archive" | "delete" | "detach";
 type ReviewedSession = Pick<Session, "id" | "title" | "revision" | "status" | "projectId" | "parentSessionId" | "kind">;
-type Review = {
+export interface SessionActionOwner { signal: AbortSignal; settle(outcome: "completed" | "cancelled" | "failed"): void }
+type Review = ({
   action: "archive" | "delete"; session: ReviewedSession; tree: ReviewedSession[];
   childrenAction: SessionChildrenAction | null; canDetachChildren: boolean; showChildChoice: boolean; confirmAction: boolean;
 } | {
   action: "detach"; session: ReviewedSession;
   destination: { groupId: string | null; revision: number | null; name: string; parent: string };
   confirmAction: boolean;
-};
+}) & { owner?: SessionActionOwner };
 function sameChildren(tree: ReviewedSession[], sessions: Session[], sessionId: string): boolean {
   return JSON.stringify(sessionChildBindings(tree, sessionId)) === JSON.stringify(sessionChildBindings(sessions, sessionId));
 }
@@ -34,6 +35,14 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     dialog.current?.showModal();
     if (review.action === "detach") cancel.current?.focus();
   }, [review]);
+  useEffect(() => {
+    const owner = review?.owner;
+    if (!owner) return;
+    const abort = () => setReview((value) => value?.owner === owner ? null : value);
+    owner.signal.addEventListener("abort", abort, { once: true });
+    if (owner.signal.aborted) abort();
+    return () => owner.signal.removeEventListener("abort", abort);
+  }, [review]);
   useLayoutEffect(() => {
     if (!focusTarget || review || busy || snapshot.seq < focusTarget.seq) return;
     const source = Array.from(document.querySelectorAll<HTMLButtonElement>(".session-link")).find((element) => element.dataset.sessionId === focusTarget.id);
@@ -45,13 +54,16 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
   const focusSession = (id?: string) => setFocusTarget({ id, seq: sdk.getState().snapshot?.seq ?? snapshot.seq });
   const close = () => {
     if (pending.current) return;
+    review?.owner?.settle("cancelled");
     setReview(null); focusSession(review?.session.id);
   };
   const perform = async (value: Review, rememberAction: boolean, rememberChildrenChoice: boolean, confirmDetach?: true) => {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError("");
     try {
+      value.owner?.signal.throwIfAborted();
       await options.prepare?.(value.session.id);
+      value.owner?.signal.throwIfAborted();
       if (rememberAction || rememberChildrenChoice) {
         const settings = sdk.settings.get();
         if (!settings) throw new Error("Confirmation preferences are unavailable. No session action was attempted.");
@@ -82,6 +94,7 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
         return session;
       };
       check();
+      value.owner?.signal.throwIfAborted();
       const children = value.action !== "detach" && value.tree.length > 1 && value.childrenAction ? {
         action: value.childrenAction, expected: sessionChildBindings(value.tree, value.session.id),
       } : undefined;
@@ -89,13 +102,15 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
       else if (value.action === "detach") await sdk.sessions.organize(value.session.id, { parentSessionId: null, groupId: value.destination.groupId }, value.session.revision, confirmDetach);
       else await sdk.command({ type: "session.archive", sessionId: value.session.id, expectedRevision: value.session.revision, ...(children ? { children } : {}) });
       setReview(null); options.done?.(value.action, value.session.id);
+      value.owner?.settle("completed");
       focusSession(value.session.id);
     } catch (error) {
       setError(error instanceof Error ? error.message : "The session action failed. Unconfirmed work and retained artifacts were preserved.");
     } finally { pending.current = false; setBusy(false); }
   };
-  const request = (session: Session, action: Action, groupId = session.groupId) => {
-    if (pending.current) return;
+  const request = (session: Session, action: Action, groupId = session.groupId, owner?: SessionActionOwner) => {
+    if (pending.current) { setError("The previous exact session action is still settling."); owner?.settle("failed"); return; }
+    if (owner?.signal.aborted) { owner.settle("cancelled"); return; }
     setFocusTarget(null);
     returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setError(""); setRemember(false); setRememberChildren(false); setConfirmed(false);
@@ -105,7 +120,7 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
       if (!session.parentSessionId || session.turnId || session.kind === "subagent") { setError("Only an idle user-owned child session can be detached. No hierarchy was changed."); return; }
       const group = snapshot.sessionGroups.find((group) => group.id === groupId && group.projectId === session.projectId);
       if (groupId && !group) { setError("The destination group changed. Review the original project again; no session was detached."); return; }
-      const value: Review = { action, session: source, destination: { groupId, revision: group?.revision ?? null,
+      const value: Review = { action, session: source, owner, destination: { groupId, revision: group?.revision ?? null,
         name: group?.name ?? snapshot.projects.find((project) => project.id === session.projectId)?.name ?? "Chats",
         parent: snapshot.sessions.find((parent) => parent.id === session.parentSessionId)?.title ?? session.parentSessionId,
       }, confirmAction: snapshot.settings.values.interactions.confirmSessionDetach !== false };
@@ -123,7 +138,7 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     const preferredAction: SessionChildrenAction | null = preference === "ask" ? null : preference;
     const childrenAction = preferredAction === "detach" && !canDetachChildren ? null : preferredAction;
     const showChildChoice = children.length > 0 && (preference === "ask" || childrenAction === null);
-    const value: Review = { action, session: source, tree, childrenAction, canDetachChildren, showChildChoice, confirmAction };
+    const value: Review = { action, session: source, tree, childrenAction, canDetachChildren, showChildChoice, confirmAction, owner };
     if (action === "delete") setConfirmed(!confirmAction);
     if (confirmAction || children.length > 0 && childrenAction === null) setReview(value);
     else void perform(value, false, false);

@@ -4,7 +4,7 @@ import { ClientError, compareSessions, defaultBoard, defaultProjectConfiguration
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
-import { useSessionActions } from "./SessionActions.tsx";
+import { useSessionActions, type SessionActionOwner } from "./SessionActions.tsx";
 import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -42,7 +42,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   openKanban: (projectId: string) => Promise<void>;
   modal: (open: boolean) => void; allow: () => boolean; terminal?: (projectId: string) => void;
   prepareSession?: (id: string) => Promise<void>;
-  sessionActionRequest?: { sessionId: string; action: "archive"; nonce: number } | null; onSessionActionRequestHandled?: (nonce: number) => void;
+  sessionActionRequest?: { sessionId: string; action: "archive"; nonce: number; owner?: SessionActionOwner } | null; onSessionActionRequestHandled?: (nonce: number) => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
   const editFocus = useRef<HTMLElement | null>(null);
@@ -99,8 +99,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     if (!request || handledSessionAction.current === request.nonce) return;
     handledSessionAction.current = request.nonce;
     const target = snapshot.sessions.find((session) => session.id === request.sessionId);
-    if (target) actions.request(target, request.action);
-    else setError("The session requested for this action is no longer available.");
+    if (target) actions.request(target, request.action, undefined, request.owner);
+    else { setError("The session requested for this action is no longer available."); request.owner?.settle("failed"); }
     onSessionActionRequestHandled?.(request.nonce);
   }, [sessionActionRequest, snapshot.sessions, actions.request, onSessionActionRequestHandled]);
   useLayoutEffect(() => {

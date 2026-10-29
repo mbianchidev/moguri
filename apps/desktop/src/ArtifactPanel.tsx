@@ -73,7 +73,8 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
     }
     setNotice("Retained independently. No conversation, source file or policy was changed.");
   };
-  return <section className="artifact-panel" aria-label="Retained artifacts" aria-busy={busy}>
+  return <section className="artifact-panel" aria-label="Retained artifacts" aria-busy={busy}
+    data-editing-artifact-id={draft?.id ?? (draft ? "new" : "")} data-editing-revision={draft?.revision}>
     <p className="fine-print">Retained text, independent of sessions. Never automatic instructions or model context; media is not copied.</p>
     <DecisionPanel sdk={sdk} snapshot={snapshot} session={session} selection={decision?.id} />
     <div className="panel-toolbar"><label className="setting-field">Document<select aria-label="Retained artifact" value={draft?.id ?? ""} disabled={busy || dirty} onChange={(event) => { const id = event.target.value; if (id) void run(() => load(id)); }}>

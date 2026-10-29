@@ -208,8 +208,9 @@ CLI also has `moguri kanban open|items|continue|work|stop|inspect` and
 `moguri prices [refresh PROVIDER]`. See the
 [contract and qualification](architecture/project-kanban.md).
 An interactive CLI slash request asks the same route question. JSON/non-TTY
-consumers receive a typed review with its exact profile/session/draft revision
-and must explicitly choose a route; no default dispatch is inferred.
+consumers receive a retained waiting review with its exact original input and
+owning execution, not a consumed replacement draft. A route needs the actual
+owning client claim and an explicit choice; no default dispatch is inferred.
 
 ## Session approvals and GitHub workflows
 
@@ -807,7 +808,31 @@ action. A successful held submission restores Stop and preserves the running
 turn. The clock stays visible while acknowledgement is pending, even after
 releasing the modifier. **Resume queued work** sends one prompt per finished turn, not one combined
 prompt or parallel calls. Stop holds undispatched work; reopening the app does
-not drain it. Interrupt retains its separately requested next-turn behavior.
+not drain it. The delivery chevron's explicit prompt Interrupt remains separate.
+Typed `/steer TEXT` and `/interrupt TEXT` join the command queue and derive their
+exact follow-up only when reached; they never interrupt earlier work eagerly.
+
+Slash text is queued as a command, never ordinary model input. This includes
+view navigation and `/theme`. **Cmd/Ctrl+Enter holds every input**, including
+`/yolo`, without inference or permission changes. Only unheld `/stop`,
+`/approve` and `/yolo` are live controls. `/yolo` enables session tool delegation
+with qualified Max when ready, otherwise Autopilot; it does not change model,
+Env, budget, read-only scope or hard policy. Ordinary command heads can run at
+an actual owned human-review wait without answering or approving it.
+
+The existing service continues service-capable commands after a client closes.
+Actual UI-only results wait for a compatible client and acknowledged view or
+user choice. The desktop Commands disclosure retains their separate responses
+and failures; they never become model messages. TUI shows the real response
+without replacing a newer edit. Closing during an unacknowledged effect retains
+its partial outcome, not a replay.
+
+CLI uses `moguri slash '/COMMAND ARGUMENT' --session ID [--hold]`.
+Busy/held requests return their exact queue identity; idle service commands
+can return their original result. `moguri commands list --session ID` and
+`moguri commands read EXECUTION_ID` inspect retained results without replay.
+Unsupported native CLI views explicitly remain waiting, not applied. Normal
+CLI capability commands and direct click/Tab/key navigation remain direct.
 
 When a session/worktree requires inspection, the composer's primary Send
 position becomes a **Resume** play icon instead of adding a header button.
@@ -1810,17 +1835,18 @@ Palette-only changes preserve the mode and saved custom colors. Dark remains
 the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
-This independent source uses protocol/schema 78 with `theme_catalog_schema=1`,
-upgrading the genuine 76 baseline without rewriting encrypted history.
+The merged independent themes source used protocol/schema 78 with
+`theme_catalog_schema='1'`. The current combined source uses protocol80 and
+preserves genuine76, model77, theme78 and workspace79 histories through exact
+feature-marker validation before an atomic additive migration.
 Use the matching service or its explicit restart review; never delete state.
-The separate model-continuity and queued-intake lineages (77/79) are intentionally
-unsupported by this standalone build until the actual combined source is
-reconciled and requalified as protocol 80. Shared queued-slash intake is being
-implemented separately:
-held or ordered new navigation/theme/quit commands currently remain in the
-saved draft with an explicit unavailable error. They never execute eagerly,
-skip earlier work or become ordinary model text. Click/Tab navigation remains
-available, but is not a substitute for completed queued-slash support.
+Desktop, TUI and CLI now use the shared service queue for slash text.
+Held navigation/theme/quit commands remain inert there, not in an eager local
+dispatcher or ordinary model text. Actual TUI/desktop views acknowledge their
+rendered application; continuation/archive reviews wait for the real user.
+Click/Tab navigation remains direct. Current80 artifacts require their own
+qualification; the historical standalone78 and model77 receipts do not qualify
+new worker, runtime or installer bytes.
 See the [change and evidence contract](architecture/themes-and-tui.md).
 
 ## Sign in with GitHub Copilot

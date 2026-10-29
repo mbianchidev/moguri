@@ -41,7 +41,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   session: Session; project?: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
   onConnect: () => void; onMenuChange: (open: boolean) => void; onGuardrails: () => void;
   onLocalModels: () => void; onRemote: () => void; onSandbox: () => void; onRouting: () => void; onDecisions: () => void;
-  onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>;
+  onSlash: (session: Session, editor: DraftEditor, text: string, held?: boolean) => Promise<void>;
   inputLabel?: string; autoFocus?: boolean; onPendingChange?: (pending: boolean) => void;
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
@@ -98,7 +98,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const requiresImages = Boolean(session.inheritedImages || session.sideContext?.inheritedImages) || draft.attachments.some((attachment) => attachment.kind === "image") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "image"));
   const requiresDocuments = Boolean(session.sideContext?.documents.length) || draft.attachments.some((attachment) => attachment.kind === "document") || session.messages.some((message) => message.attachments?.some((attachment) => attachment.kind === "document"));
   const documentBlocked = requiresDocuments && (model?.toolInput === false || session.kind === "metachat" || session.kind === "subagent");
-  const held = heldModifier && !isSlash;
+  const held = heldModifier;
   const holdingNext = heldPending || held && Boolean(draft.text.trim() || draft.attachments.length);
   const hardBudget = Boolean(snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
@@ -210,13 +210,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       });
       return;
     }
-    const pendingHold = hold && !isSlash;
+    const pendingHold = hold;
     if (pendingHold) setHeldPending(true);
     void run(async () => {
       try {
         if (answering && question && !hold) { await editor.flush(); return await client.questions.answerDraft(question.id, question.revision); }
         if (!hold && session.projectId && (isSlash || delivery === "queue") && continueWorkInput(draft.text)) return await onSlash(session, editor, draft.text);
-        if (isSlash) return await onSlash(session, editor, draft.text);
+        if (isSlash) return await onSlash(session, editor, draft.text, hold);
         return await editor.send(hold ? "queue" : delivery, hold);
       } finally { if (pendingHold) setHeldPending(false); }
     });
