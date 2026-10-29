@@ -3,7 +3,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { nativePublicationFixture } from "../fixtures/native-publication.ts";
+import { nativeGroupPublicationFixture, nativePublicationFixture } from "../fixtures/native-publication.ts";
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";
 
@@ -43,6 +43,43 @@ test("retained native data is not readiness; desktop source publication needs ex
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/native-publication-review.png") });
     expect(errors).toEqual([]);
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("group result publication has no first repository and changing its explicit member revokes the old review", async () => {
+  const fixture = await nativeGroupPublicationFixture(), app = await launch(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await openSettingsSection(page, "Sandbox");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(fixture.groupSessionId);
+    const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
+    await expect(panel.getByRole("region", { name: "Original captured native repositories", exact: true })).toContainText(fixture.repositories[1]!.root.root);
+    await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
+    const picker = panel.getByRole("combobox", { name: "Native publication repository", exact: true });
+    await expect(picker).toHaveValue("");
+    const first = fixture.repositories[0]!, second = fixture.repositories[1]!;
+    const check = (directory: string) => panel.getByLabel(`Select native output ${directory}/fixture.txt`, { exact: true });
+    for (const [index, repository] of fixture.repositories.entries()) {
+      await panel.getByText(`${repository.name}/fixture.txt / ${fixture.result.files[index]!.bytes} bytes`, { exact: true }).click();
+      await expect(check(repository.directory)).toBeDisabled();
+    }
+    await picker.selectOption(first.projectId); await expect(check(first.directory)).toBeEnabled(); await expect(check(second.directory)).toBeDisabled();
+    await check(first.directory).check();
+    await panel.getByRole("button", { name: "Review publication of selected source", exact: true }).click();
+    const review = panel.getByRole("region", { name: "Exact native source publication", exact: true });
+    await expect(review).toContainText(first.root.root);
+    await picker.selectOption(second.projectId); await expect(review).toHaveCount(0); await expect(check(first.directory)).not.toBeChecked();
+    await check(second.directory).check();
+    await panel.getByRole("button", { name: "Review publication of selected source", exact: true }).click();
+    await expect(review).toContainText(second.root.root);
+    const publish = review.getByRole("button", { name: "Publish reviewed native files", exact: true });
+    await expect(publish).toBeDisabled();
+    await review.getByLabel("I reviewed these exact source bases and output bytes.", { exact: false }).check(); await publish.click();
+    await expect.poll(() => fixture.service.controller.snapshot().sandboxPublications?.[0]?.status).toBe("completed");
+    expect(await readFile(join(first.root.root, "fixture.txt"), "utf8")).toBe("generated original\n");
+    expect(await readFile(join(second.root.root, "fixture.txt"), "utf8")).toBe(fixture.result.files[1]!.text);
+    expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); await fixture.close(); }
 });
 

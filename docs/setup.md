@@ -1560,6 +1560,26 @@ digest/revision/`--confirm-write`. Shared terminal commands use `/sandbox`;
 than staging automatically. `--help` and `/help` list inspection, exact-run
 stop, reconciliation and publication-job cancellation.
 
+Captured project groups can explicitly choose Sandbox in the Env menu or use
+**New Sandbox chat** in the group's menu. A reviewed ready runtime and managed
+automatic private workspaces are required. `/folder-chat FOLDER_ID Sandbox`
+uses the same service/SDK; omitting Env preserves Local. Every captured project
+gets a separate private copy, with no first/default or common-parent root.
+Native tools and Files require an explicit original repository; all group shells
+are unavailable if any member has folder restrictions. Remote groups and native
+user consoles remain unqualified.
+
+Group result publication first chooses one original repository, then its
+member-relative files and a separate actual-user byte/base review. Changing the
+member clears that review. CLI adds `--repository ID` to publication preview and
+publish; shared `/sandbox publish-preview RUN_ID
+{"paths":["file"],"repository":"ID"}` prints a selector-bound confirm command.
+All original roots and policies are rechecked and leased. Partial or deleted
+receipts cannot authorize a different base; source Git HEAD/index and modes
+remain intact. See [the group contract](architecture/managed-sandbox.md#captured-project-group-extension-contract)
+for exact limits, versioned shapes and recovery boundaries. These source-level
+capabilities do not, on their own, qualify the current80 guest or installer.
+
 Other environment/autonomy combinations still require acceptance. Native console, MCP, memory, subagent,
 evolution, Git-stage views and native plan writes fail explicitly instead of
 using a Local source root. Public compound, wind-down and Max remain open.

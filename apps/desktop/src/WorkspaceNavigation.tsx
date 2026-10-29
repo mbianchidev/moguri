@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ClientError, compareSessions, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
@@ -7,6 +7,7 @@ import { Icon } from "./Icon.tsx";
 import { useSessionActions, type SessionActionOwner } from "./SessionActions.tsx";
 import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
+import { PolicyNavigationContext } from "./PolicyHint.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -36,15 +37,17 @@ const dropEdge = (element: HTMLElement, y: number): "before" | "after" | "inside
   return ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
 };
 export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, openKanban, settings, terminal, modal, allow, prepareSession,
-  sessionActionRequest, onSessionActionRequestHandled }: {
+  sessionActionRequest, onSessionActionRequestHandled, setupSandbox }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
   openKanban: (projectId: string) => Promise<void>;
   modal: (open: boolean) => void; allow: () => boolean; terminal?: (projectId: string) => void;
   prepareSession?: (id: string) => Promise<void>;
   sessionActionRequest?: { sessionId: string; action: "archive"; nonce: number; owner?: SessionActionOwner } | null; onSessionActionRequestHandled?: (nonce: number) => void;
+  setupSandbox?: () => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
+  const openPolicy = useContext(PolicyNavigationContext);
   const editFocus = useRef<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -463,6 +466,18 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   {menu && folderMenu && <WorkspaceContextMenu label={`Project group actions for ${folderMenu.name}`} point={menu} close={closeMenu}>
     <NavigationColors label="Project group icon color" color={groupColor(folderMenu)} busy={savingColor} pick={(color) => saveFolderColor(folderMenu, color)}
       customLabel="Custom group color" custom={() => open({ kind: "folder-color", folder: folderMenu, anchor: menu.anchor })} />
+    <button role="menuitem" disabled={busy || !snapshot.policy.allowedEnvs.includes("Sandbox") ||
+      !snapshot.capabilities.some((capability) => capability.env === "Sandbox" && capability.ready) ||
+      !(snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces) ||
+      !snapshot.projectConfigurations.some((configuration) => configuration.folderId === folderMenu.id)}
+      title={!snapshot.policy.allowedEnvs.includes("Sandbox") ? "Global execution policy excludes Sandbox." : "Requires a reviewed ready SendBox runtime and managed automatic private workspaces for every captured member."}
+      onClick={() => void run(async () => { const result = await sdk.sessions.createFolder(folderMenu.id, `${folderMenu.name} Sandbox chat`, { env: "Sandbox" }); await chooseSession(result.id!); })}>
+      <Icon name="Sandbox" />New Sandbox chat
+    </button>
+    {!snapshot.policy.allowedEnvs.includes("Sandbox") && openPolicy && <button role="menuitem" onClick={() => openPolicy("environments")}>
+      <Icon name="Settings" />Open execution policy
+    </button>}
+    {setupSandbox && <button role="menuitem" onClick={setupSandbox}><Icon name="Settings" />Sandbox settings</button>}
     <button role="menuitem" onClick={() => void ungroup(folderMenu)}><Icon name="Group" />Ungroup</button>
   </WorkspaceContextMenu>}
   {menu && menuSession && <WorkspaceContextMenu label={`Actions for ${menuSession.title}`} point={menu} close={closeMenu}>

@@ -8,6 +8,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
   const [paths, setPaths] = useState(""), [source, setSource] = useState<{ value: SandboxWorkspacePreview; revision: number; scope: string } | null>(null);
   const [sourceReviewed, setSourceReviewed] = useState(false), [selectedId, setSelectedId] = useState("");
   const [result, setResult] = useState<{ id: string; digest: string; value: SandboxResult } | null>(null), [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const [repositoryId, setRepositoryId] = useState("");
   const [review, setReview] = useState<{ value: SandboxPublicationPreview; revision: number; scope: string } | null>(null), [accepted, setAccepted] = useState(false);
   const [inspectionReviewed, setInspectionReviewed] = useState(false), [publicationId, setPublicationId] = useState("");
   const [busy, setBusy] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -15,6 +16,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
   const workspace = (snapshot.sandboxWorkspaces ?? []).find((value) => value.id === session?.sandboxWorkspaceId);
   const executions = [...snapshot.sandboxExecutions ?? []].filter((value) => !sessionOnly || value.sessionId === session?.id).reverse();
   const execution = executions.find((value) => value.id === selectedId) ?? (selectedId ? undefined : executions.find((value) => value.sessionId === session?.id) ?? executions[0]);
+  const repository = execution?.repositories?.find((value) => value.projectId === repositoryId);
   const owner = snapshot.sessions.find((value) => value.id === execution?.sessionId);
   const publications = [...snapshot.sandboxPublications ?? []].filter((value) => !sessionOnly || value.sourceSessionId === session?.id).reverse(), publication = publications.find((value) => value.id === publicationId);
   const job = snapshot.jobs.find((value) => value.id === publication?.jobId);
@@ -22,19 +24,20 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
   const sourceScope = JSON.stringify([sdk.profileId, session?.id, session?.revision, session?.controls.env, session?.workspaceId, session?.sandboxWorkspaceId,
     configuration?.revision, snapshot.settings.values.sandbox, snapshot.policy.revision, snapshot.settings.permissionRevision, paths]);
   const resultScope = JSON.stringify([sdk.profileId, execution?.id, execution?.resultDigest]);
-  const publicationScope = JSON.stringify([sdk.profileId, execution?.id, execution?.revision, execution?.resultDigest, selectedPaths,
-    snapshot.projectConfigurations.find((value) => value.projectId === execution?.projectId)?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision]);
+  const publicationScope = JSON.stringify([sdk.profileId, execution?.id, execution?.revision, execution?.resultDigest, selectedPaths, repositoryId,
+    execution?.repositories ? execution.repositories.map((binding) => [binding, snapshot.projectConfigurations.find((value) => value.projectId === binding.projectId)?.values]) :
+      snapshot.projectConfigurations.find((value) => value.projectId === execution?.projectId)?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision]);
   const scope = JSON.stringify([sourceScope, resultScope, publicationScope]), currentScope = useRef(scope), generation = useRef(0), pending = useRef(false);
   const outcome = useRef<HTMLElement>(null), focusOutcome = useRef(false);
   currentScope.current = scope;
   const available = native?.ready && snapshot.policy.allowedEnvs.includes("Sandbox");
-  const prepared = session?.controls.env === "Sandbox" && available && !session.turnId && session.status !== "archived";
+  const prepared = session?.controls.env === "Sandbox" && available && !session.turnId && session.status !== "archived" && !session.repositories;
   const automatic = snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces;
   const retained = result && result.id === execution?.id && result.digest === execution?.resultDigest ? result.value : null;
   const active = owner?.turnId === execution?.turnId;
   useEffect(() => { setSource(null); setSourceReviewed(false); }, [sourceScope]);
   useEffect(() => { setPaths(""); }, [sdk.profileId, session?.id]);
-  useEffect(() => { setResult(null); setSelectedPaths([]); setInspectionReviewed(false); }, [resultScope]);
+  useEffect(() => { setResult(null); setSelectedPaths([]); setRepositoryId(""); setInspectionReviewed(false); }, [resultScope]);
   useEffect(() => { setReview(null); setAccepted(false); }, [publicationScope]);
   useEffect(() => { if (publication && focusOutcome.current) { focusOutcome.current = false; outcome.current?.focus(); outcome.current?.scrollIntoView({ block: "nearest" }); } }, [publication?.id]);
   useEffect(() => { onDirty(Boolean(busy) || Boolean(paths && !workspace)); return () => onDirty(false); }, [busy, paths, workspace?.id, onDirty]);
@@ -53,11 +56,12 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     <button type="button" disabled={Boolean(busy)} onClick={setup} aria-label="Review Sandbox configuration">Review</button>
     {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
-    {automatic && <p className="fine-print" role="status">Private workspaces are prepared automatically when you send. {session?.projectId ? "The bound project is copied under its folder/ignore policy; your source checkout is never mounted." : "This chat keeps an empty, root-less private workspace."} Retained work is preserved across turns.</p>}
+    {automatic && <p className="fine-print" role="status">Private workspaces are prepared automatically when you send. {session?.repositories ? `Every one of the ${session.repositories.length} captured repositories is copied into its own private directory under its actual folder/ignore policy. Tools explicitly select a member; no default root or live checkout is mounted.` : session?.projectId ? "The bound project is copied under its folder/ignore policy; your source checkout is never mounted." : "This chat keeps an empty, root-less private workspace."} Retained work is preserved across turns.</p>}
     {!automatic && <p className="fine-print">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</p>}
     <details className="candidate-section">
       <summary>Advanced exact-file workspace preparation</summary>
-      <p className="fine-print">Only selected text snapshots enter the VM. Model root is {session?.projectId ? <code>/workspace</code> : "null in a project-free chat"}; the Local source is never mounted or written by native tools.</p>
+      {session?.repositories && <p className="fine-print">Captured groups require managed automatic preparation of their complete original member set. A single-project text review cannot replace that group scope.</p>}
+      <p className="fine-print">Only selected text snapshots enter the VM. Model root is {session?.repositories ? "one explicitly selected captured repository, never a default" : session?.projectId ? <code>/workspace</code> : "null in a project-free chat"}; the Local source is never mounted or written by native tools.</p>
       {!session ? <p>Choose an existing session before preparing its private workspace.</p> : <>
         {session.controls.env !== "Sandbox" && <button type="button" disabled={Boolean(busy) || !available || Boolean(session.turnId)} onClick={() => void run("Selecting Sandbox", async () => { await sdk.sessions.env(session.id, "Sandbox", session.revision); })} aria-label="Use for session: reviewed Sandbox">Use for session</button>}
         {workspace && <p className="fine-print path">Prepared record: {workspace.id} / {workspace.status}. Actual root ownership is rechecked before every admission.{workspace.diagnostic && ` ${workspace.diagnostic}`}</p>}
@@ -86,6 +90,8 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {execution && <div className="candidate-section" aria-label="Original native run">
       <p className="fine-print">Native outcome: {execution.status}. Worker: {execution.workerOutcome ?? "not acknowledged"}. Cleanup: {execution.cleanup}. Cancellation: {execution.cancellation}.</p>
       <p className="fine-print path">Original VM: {execution.nativeSessionId ?? "unbound"}. CLI exit: {execution.cliExitCode ?? "unreported"}. Model root: {execution.root ?? "null"}. Original source: {execution.sourceRoot ?? "none"}.</p>
+      {execution.repositories && <section aria-label="Original captured native repositories"><p className="fine-print">No default model root. Each tool selects an original ID/name; publication separately chooses one captured source.</p>
+        {execution.repositories.map((binding) => <p className="fine-print path" key={binding.projectId}>{binding.name} / {binding.projectId}<br />{binding.guestRoot} / original {binding.root.root}</p>)}</section>}
       {execution.networkScope && <p className="fine-print">Configured tool/provider domain rules (SendBox {execution.config.qualification?.release ?? "unreported"}): {execution.networkScope.allowedDomains.join(", ")}.
         {" "}From SendBox 0.2.4, a github.com grant also delegates GitHub Meta domains and IPv4/IPv6 ranges, including shared-cloud addresses. This configured list is not the complete effective destination scope.
         {" "}Explicit *.domain.com rules exclude their apex. Provider endpoints and aliases remain exact; tool permission stays separate.</p>}
@@ -108,17 +114,24 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {retained && execution && <div className="candidate-section" aria-label="Retained native output files">
       <p className="fine-print">Signed runtime exit: {retained.exitCode ?? "unreported"} / rollback: {retained.rollback} / after-state association: {retained.afterBinding}. Journal: {retained.journal.status}. Provenance is not code quality or acceptance.</p>
       {retained.journal.diagnostic && <p className="settings-warning">{retained.journal.diagnostic}</p>}
-      {retained.files.map((file) => <details key={file.path}><summary className="path">{file.path} / {file.bytes} bytes</summary>
+      {execution.repositories && <label className="setting-field">Original source repository<select aria-label="Native publication repository" value={repositoryId} disabled={Boolean(busy)}
+        onChange={(event) => { setRepositoryId(event.target.value); setSelectedPaths([]); setReview(null); setAccepted(false); }}>
+        <option value="">Choose one captured repository</option>{execution.repositories.map((binding) => <option key={binding.projectId} value={binding.projectId}>{binding.name} / {binding.projectId}</option>)}
+      </select></label>}
+      {retained.files.map((file) => {
+        const member = execution.repositories?.find((binding) => file.path.startsWith(`${binding.directory}/`));
+        const path = member ? file.path.slice(member.directory.length + 1) : file.path, publishable = member ? member.projectId === repository?.projectId : Boolean(execution.sourceRoot);
+        return <details key={file.path}><summary className="path">{member ? `${member.name}/${path}` : file.path} / {file.bytes} bytes</summary>
         <p className="fine-print path">SHA-256 {file.digest}</p><pre className="workspace-file-content">{file.text}</pre>
-        <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Select native output ${file.path}`} checked={selectedPaths.includes(file.path)} disabled={Boolean(busy) || !execution.sourceRoot}
-          onChange={(event) => setSelectedPaths((paths) => event.target.checked ? [...paths, file.path] : paths.filter((path) => path !== file.path))} />Include these exact bytes in source-publication review</label>
-      </details>)}
+        <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Select native output ${file.path}`} checked={publishable && selectedPaths.includes(path)} disabled={Boolean(busy) || !publishable}
+          onChange={(event) => setSelectedPaths((paths) => event.target.checked ? [...paths, path] : paths.filter((value) => value !== path))} />Include these exact bytes in source-publication review</label>
+      </details>; })}
       {retained.deletedPaths.length > 0 && <p className="settings-warning">Deleted native paths are not automatically published: {retained.deletedPaths.join(", ")}.</p>}
       {retained.excludedCount > 0 && <details><summary>{retained.excludedCount} excluded outputs</summary>
         {retained.excludedCount > retained.excluded.length && <p className="fine-print">Showing {retained.excluded.length} bounded exclusion descriptions of {retained.excludedCount}; omitted files are not retained or publishable text outputs.</p>}
         {retained.excluded.map((value) => <p key={value.path} className="fine-print path">{value.path}: {value.reason}</p>)}</details>}
-      <button type="button" disabled={Boolean(busy) || !selectedPaths.length || selectedPaths.length > 20 || !execution.sourceRoot} onClick={() => void run("Reviewing original source publication", async (current) => {
-        const value = (await sdk.sandbox.publicationPreview(execution.id, selectedPaths)).preview;
+      <button type="button" disabled={Boolean(busy) || !selectedPaths.length || selectedPaths.length > 20 || !(execution.sourceRoot || repository)} onClick={() => void run("Reviewing original source publication", async (current) => {
+        const value = (await sdk.sandbox.publicationPreview(execution.id, selectedPaths, repository?.projectId)).preview;
         if (current()) setReview({ value, revision: execution.revision, scope: publicationScope });
       })} aria-label="Review publication of selected source">Review publication</button>
     </div>}
@@ -129,7 +142,8 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       {review.value.document.patch.edits.map((edit) => <details key={edit.path}><summary className="path">{edit.path} / base {edit.baseDigest}</summary><pre className="workspace-file-content">{edit.text}</pre></details>)}
       <label className="check-setting"><SettingsInput type="checkbox" checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I reviewed these exact source bases and output bytes. This authorizes only this copy, not code quality, execution or a Git commit.</label>
       <button type="button" className="primary" disabled={Boolean(busy) || !accepted} onClick={() => void run("Admitting reviewed source publication", async () => {
-        const value = await sdk.sandbox.publish(execution.id, review.value.document.patch.edits.map((edit) => edit.path), review.value.digest, review.revision);
+        const value = await sdk.sandbox.publish(execution.id, review.value.document.patch.edits.map((edit) => edit.path), review.value.digest, review.revision,
+          review.value.document.version === 2 ? review.value.document.repositoryId : undefined);
         focusOutcome.current = true; setPublicationId(value.id!); setReview(null); setAccepted(false); setSelectedPaths([]);
         setNotice("Exact user publication admitted. Inspect the original job's actual files/outcome; no commit or rollback is assumed.");
       })} aria-label="Publish reviewed native files">Publish</button>
