@@ -124,6 +124,16 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > same SDK/worker. User and Global consoles stay private. Each command owns its
 > existing PTY; interactive stdin or persistent shared shell state is not added.
 
+> The [shared command/tool-preference slice](architecture/command-tool-preferences.md)
+> adds original UI-design, continuation, collaboration and constructive critique
+> presets, atomic Manual child assignment and user-requested owned orchestration
+> on the existing queue/worker/coordination path. Suggestions default to the
+> actual project while retaining source review. Profile-owned method ranking
+> defaults to Gateway MCP, direct MCP, REST, then CLI; exact direct MCP schemas
+> retain the existing service-owned gateway approval, account/root and transport
+> boundaries. None of these commands answers questions, enables optional
+> tool-less subagents globally or authorizes unknown-effect replay.
+
 > [Reviewed context compaction](architecture/context-compaction.md) now adds an
 > explicit preview/generate/review/apply/restore workflow through the same SDK,
 > Local/SSH worker and all-role ledger. Original history, complete recent turns

@@ -13,7 +13,7 @@ export const SETTINGS_GROUPS = [
   { label: "Integrations", items: [
     { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews" },
     { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
-    { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools integrations" },
+    { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools integrations preference order ranking direct REST CLI" },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },
     { id: "plugins", label: "Plugins", keywords: "manifest import extensions" },
     { id: "marketplace", label: "Marketplace", keywords: "catalog extensions trusted sources" },

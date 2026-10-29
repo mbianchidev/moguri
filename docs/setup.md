@@ -426,7 +426,9 @@ guidance never installs or enables a capability.
 prior prompts, without creating a hidden chat or calling a model. Optionally
 select a chat to narrow the scope. Review the exact usage gaps, excerpts and
 selected model before generation; configuration proposals still need a separate
-actual-user decision. `/suggestions session` preserves explicit scoped access.
+actual-user decision. `/suggestions` defaults to the current project's scope;
+`/suggestions session` preserves the explicit alias and `/suggestions all`
+requests the wider review.
 
 **Dashboard** has My work, Usage, Cost and Velocity pages with charts first,
 project/model breakdowns and detailed accounting behind a disclosure. The
@@ -1911,16 +1913,18 @@ the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
 The merged independent themes source used protocol/schema 78 with
-`theme_catalog_schema='1'`. The current follow-up uses protocol81, preserving
+`theme_catalog_schema='1'`. The current follow-up uses protocol82, preserving
 all six combined80 markers plus its independent request-recovery and Git
-markers. Genuine76, model77, theme78 and workspace79 histories retain exact
+markers from81, with distinct `workflow_commands_schema='1'` and
+`tool_preferences_schema='1'`. Genuine76, model77, theme78, workspace79 and81
+histories retain exact
 feature-marker validation before an atomic additive migration.
 Use the matching service or its explicit restart review; never delete state.
 Desktop, TUI and CLI now use the shared service queue for slash text.
 Held navigation/theme/quit commands remain inert there, not in an eager local
 dispatcher or ordinary model text. Actual TUI/desktop views acknowledge their
 rendered application; continuation/archive reviews wait for the real user.
-Click/Tab navigation remains direct. Current81 artifacts require their own
+Click/Tab navigation remains direct. Current82 artifacts require their own
 qualification; the historical standalone78 and model77 receipts do not qualify
 new worker, runtime or installer bytes.
 See the [change and evidence contract](architecture/themes-and-tui.md).
@@ -2006,6 +2010,17 @@ Defaults cover current changes/relevant code, or the project when clean.
 Debug can inspect the session-owned app/Agent logs and an explicitly configured
 approved DAP adapter. Other targets need explicit selection. None of these
 commands changes Env, model, autonomy, permissions or budget.
+
+New [shared commands](architecture/command-tool-preferences.md) add
+`/impeccable [PROMPT]` for UI design, `/continue` without a new prompt,
+`/orchestrate PROMPT` for actual owned multi-session work, `/spawn PROMPT`
+for one atomically assigned Manual child, and `/spar PROMPT` for focused real
+questions before implementation. `/critique PROMPT` and `/roast-me PROMPT`
+analyze the work with service-enforced read-only tools; sharper criticism
+does not permit personal abuse. All keep the existing ordered/held semantics.
+Continue cannot answer pending questions, repeat unknown writes or clear
+partial work. Only provably undispatched Local failures can recover directly;
+other quarantined work still needs original inspection and explicit Resume.
 
 In **Side chat / Main and child sessions**, inspect public transcript/progress,
 send advisory messages, review/revoke exact root grants, or explicitly dispatch
@@ -3143,6 +3158,16 @@ discovers bounded tool pages, checks auth and requests exact calls in an idle
 main session. Return to that session to approve. Configuration is user-only;
 discovery may start the configured local executable, so enable only trusted
 servers. Protected-env policy cannot be bypassed by Local MCP discovery.
+
+**Tools and MCP / Tool preference order** ranks equivalent available methods.
+Factory order is **MCP via Gateway, MCP direct, REST API, CLI**, active
+immediately and editable per profile by dragging or Alt+Up/Down. TUI/CLI use
+`/tool-preferences [mcp-gateway mcp-direct rest cli|reset]`.
+Direct MCP exposes an exactly discovered tool's own typed model schema, then
+uses the same service-owned approval/account/root and MCP connection path.
+Ranking never grants permission, authenticates/installs a tool, changes Env or
+retries an uncertain write. Unsupported methods stay unavailable. See the
+[bounded discovery and recovery contract](architecture/command-tool-preferences.md#ranked-methods-and-direct-schemas).
 
 Bearer credentials live only in the OS keychain. Stdio children receive no
 ambient provider tokens. HTTP requires HTTPS, except explicit loopback HTTP.
