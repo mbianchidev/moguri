@@ -403,9 +403,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .model-cascade-menu [aria-checked="true"] { background: var(--selected); color: var(--selection-text); }
 .model-cascade-menu [aria-disabled="true"] { color: var(--muted); cursor: not-allowed; }
 .model-cascade-menu .composer-model-list { max-height: min(390px, calc(100dvh - 180px)); }
-.model-choice-row { display: flex; align-items: center; }
-.model-choice-row > button { flex: 1; min-width: 0; }
-.model-choice-row > .setting-help { margin: 0; flex-shrink: 0; }
+:is(.model-choice-row, .composer-option-row) { display: flex; align-items: center; }
+:is(.model-choice-row, .composer-option-row) > button { flex: 1; min-width: 0; }
+:is(.model-choice-row, .composer-option-row) > .setting-help { margin: 0; flex-shrink: 0; }
 .model-tuning { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .model-tuning label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; color: var(--muted); margin-bottom: 12px; }
 .model-tuning input, .model-tuning select { width: 100%; color: var(--text); font-size: 12px; }
@@ -556,6 +556,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .profile-actions .ask-mascot { width: 25px; height: 22px; object-fit: contain; }
 .tooltip-trigger { display: inline-flex; min-width: 0; vertical-align: middle; }
 .compact-tooltip { position: fixed; z-index: 10000; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; padding: 9px 12px; border: 1px solid var(--control-line); border-radius: 6px; color: var(--text); background: var(--surface); box-shadow: 0 4px 16px #0004; font-size: 12px; font-weight: 400; line-height: 1.65; overflow-wrap: anywhere; white-space: normal; }
+.policy-tooltip > button { display: inline-flex; align-items: center; gap: 7px; padding: 4px 0; margin-top: 7px; color: var(--accent); font-size: inherit; }
+.policy-tooltip > button svg { width: 13px; height: 13px; }
+[data-policy-target] { scroll-margin-block: 18px; }
+[data-policy-target]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 2px; }
 .setting-help { display: inline-flex; vertical-align: middle; flex-shrink: 0; }
 .setting-help .info-button { color: var(--muted); width: 26px; min-width: 26px; height: 26px; min-height: 26px; padding: 4px; border: 0; }
 .copy-field { position: relative; display: flex; flex-direction: column; min-width: 0; width: 100%; }

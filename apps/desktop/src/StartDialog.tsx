@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { GitHubRepositoryPicker } from "./GitHubPickers.tsx";
+import { PolicyHint } from "./PolicyHint.tsx";
 
 export function StartDialog({ sdk, snapshot, start, close, modal }: {
   sdk: MoguriSdk; snapshot: Snapshot; start: (projectId: string | null) => Promise<void>; close: () => void; modal: (open: boolean) => void;
@@ -45,7 +46,9 @@ export function StartDialog({ sdk, snapshot, start, close, modal }: {
         const project = await sdk.projects.add(path);
         if (!project.id) throw new Error("The selected folder was not registered. No chat was created.");
         await start(project.id);
-      })}><Icon name="Files" />Import local folder</button><button type="button" disabled={busy || !localAllowed} title={localAllowed ? undefined : "Local cloning is blocked by execution policy"} onClick={() => { setMode("clone"); setError(""); }}><Icon name="PR" />Clone repository</button></footer>
+      })}><Icon name="Files" />Import local folder</button><button type="button" disabled={busy || !localAllowed} title={localAllowed ? undefined : "Local cloning is blocked by execution policy"} onClick={() => { setMode("clone"); setError(""); }}><Icon name="PR" />Clone repository</button>
+        {!localAllowed && <PolicyHint label="Why cloning is unavailable" target="environments" beforeNavigate={close} navigationBlocked={busy || cloning ? "Finish or cancel the current owned action before leaving this dialog." : undefined}>Cloning runs on this Local host, which global execution policy excludes. Opening policy does not clone, authenticate or grant Local execution.</PolicyHint>}
+      </footer>
     </> : <form onSubmit={(event) => {
       event.preventDefault();
       if (busy || cloning || jobId) return;

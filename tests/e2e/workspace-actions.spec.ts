@@ -165,3 +165,99 @@ test("project groups expose keyboard colors and ungroup into the standard list w
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
+
+test("a policy explanation offers real keyboard navigation to its exact setting without granting permission or losing a saved prompt", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.command({ type: "policy.set", allowedEnvs: ["Sandbox", "Remote"] });
+  const policy = structuredClone(sdk.getState().snapshot!.policy), text = "Generated preserved policy-navigation draft.";
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("textbox", { name: "Prompt", exact: true }).fill(text);
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Execution environment", exact: true }).click();
+    const why = page.getByRole("button", { name: "Why Local is unavailable", exact: true });
+    await expect(why).toBeVisible(); await why.focus(); await page.keyboard.press("Enter");
+    const hint = page.getByRole("dialog", { name: "Why Local is unavailable", exact: true });
+    const policyLink = hint.getByRole("button", { name: "Open execution policy", exact: true });
+    await expect(policyLink).toBeFocused();
+    await page.keyboard.press("Shift+Tab"); await expect(hint).not.toBeVisible(); await expect(why).toBeFocused();
+    await page.keyboard.press("Enter"); await expect(policyLink).toBeFocused();
+    await page.keyboard.press("Tab"); await expect(hint).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Remote SSH setup", exact: true })).toBeFocused();
+    await why.focus(); await page.keyboard.press("Enter"); await expect(policyLink).toBeFocused();
+    await page.keyboard.press("Escape"); await expect(hint).not.toBeVisible(); await expect(why).toBeFocused();
+    await why.click(); await expect(hint).toBeVisible(); await page.mouse.move(2, 2); await expect(hint).not.toBeVisible();
+    await why.focus(); await page.keyboard.press("Enter"); await policyLink.click();
+    const heading = page.getByRole("heading", { name: "Allowed execution environments", exact: true });
+    await expect(heading).toBeFocused(); await expect(heading).toBeInViewport();
+    await expect(page.getByRole("combobox", { name: "Global allowed environments", exact: true })).toHaveValue("protected");
+    expect(fixture.session().draft.text).toBe(text); expect(fixture.service.controller.snapshot().policy).toEqual(policy);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("the disabled Local clone explanation can leave its own modal and focus execution policy without a clone or login", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.command({ type: "policy.set", allowedEnvs: ["Remote"] });
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    const start = page.getByRole("dialog", { name: "New", exact: true });
+    await expect(start.getByRole("button", { name: "Clone repository", exact: true })).toBeDisabled();
+    await start.getByRole("button", { name: "Why cloning is unavailable", exact: true }).focus(); await page.keyboard.press("Enter");
+    const hint = page.getByRole("dialog", { name: "Why cloning is unavailable", exact: true });
+    await hint.getByRole("button", { name: "Open execution policy", exact: true }).click();
+    await expect(start).not.toBeVisible();
+    await expect(page.getByRole("heading", { name: "Allowed execution environments", exact: true })).toBeFocused();
+    expect(fixture.service.controller.snapshot().policy.allowedEnvs).toEqual(["Remote"]);
+    expect(fixture.service.controller.snapshot().jobs.some((job) => job.kind === "project.clone")).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+for (const scope of ["profile", "global"] as const) test(`the ${scope} hard-cap hint focuses the actual policy and never removes its accounting`, async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const limit = { basis: "estimate" as const, tokens: 10000 };
+  if (scope === "profile") await sdk.budgets.policy(limit, sdk.getState().snapshot!.budgetPolicy.revision, true);
+  else {
+    const { catalog } = await sdk.profiles.list();
+    await sdk.profiles.globalBudget(limit, catalog.globalBudget.revision, true);
+  }
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Budget and usage", exact: true }).click();
+    await page.getByRole("button", { name: `About ${scope} budget policy`, exact: true }).focus(); await page.keyboard.press("Enter");
+    const hint = page.getByRole("dialog", { name: `About ${scope} budget policy`, exact: true });
+    await hint.getByRole("button", { name: `Open ${scope} budget policy`, exact: true }).click();
+    await expect(page.getByRole("heading", { name: scope === "profile" ? "Current-profile hard policy" : "Global hard policy", exact: true })).toBeFocused();
+    await sdk.refresh();
+    expect(scope === "profile" ? sdk.getState().snapshot!.budgetPolicy.limit : sdk.getState().snapshot!.globalBudgetPolicy!.limit).toEqual(limit);
+    expect(fixture.service.controller.snapshot().budgetEntries).toHaveLength(0); expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("policy navigation never discards an unsaved session budget edit hidden behind compact usage", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.budgets.policy({ basis: "estimate", tokens: 10000 }, sdk.getState().snapshot!.budgetPolicy.revision, true);
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Budget and usage", exact: true }).click();
+    await page.getByRole("button", { name: "View usage and limits...", exact: true }).click();
+    await page.getByRole("combobox", { name: "session budget mode", exact: true }).selectOption("limited");
+    const tokenCap = page.getByRole("spinbutton", { name: "session token cap", exact: true });
+    await tokenCap.fill("23456");
+    await page.getByRole("button", { name: "Back to compact usage", exact: true }).click();
+    await page.getByRole("button", { name: "About profile budget policy", exact: true }).focus(); await page.keyboard.press("Enter");
+    await expect(page.getByRole("tooltip")).toContainText("Save or reload the session budget edit");
+    await expect(page.getByRole("button", { name: "Open profile budget policy", exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "View usage and limits...", exact: true }).click();
+    await expect(tokenCap).toHaveValue("23456");
+    expect(fixture.session().controls.budget.kind).toBe("unlimited"); expect(fixture.requests).toHaveLength(0);
+    await page.getByRole("button", { name: "Reload budget", exact: true }).click();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});

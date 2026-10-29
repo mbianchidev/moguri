@@ -34,14 +34,16 @@ import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
 import { WebAllowlistPanel } from "./WebAllowlistPanel.tsx";
+import { PolicyHint, policyLocations, type PolicyFocusRequest } from "./PolicyHint.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets";
-export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
+export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
   prepareMaintenance: () => Promise<void>;
+  policyFocus?: PolicyFocusRequest | null;
   artifactRequest?: ArtifactEditorRequest | null; onArtifactRequestHandled?: () => void;
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab);
@@ -109,6 +111,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const memoryJobs = snapshot.jobs.filter((job) => job.kind === "memory.index" && job.projectId === project?.id &&
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
   useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
+  useEffect(() => {
+    if (!policyFocus || tab !== policyLocations[policyFocus.target].tab) return;
+    setSearch("");
+    const frame = requestAnimationFrame(() => {
+      const target = document.getElementById(policyLocations[policyFocus.target].heading);
+      target?.scrollIntoView({ block: "start" }); target?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [policyFocus?.id, tab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
   const nonWebNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
   const otherNestedDirty = nonWebNestedDirty || webBusy || webDirty;
@@ -353,7 +364,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <p role="status">{sql ? `${sql.healthy ? "Daemon reports healthy" : "Not connected"}${sql.version ? ` / ${sql.version}` : ""}. ${sql.diagnostic}` : "Connection has not been observed. Saving configuration never claims the daemon is connected."}</p></>}
         {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
         {(tab === "hooks" || tab === "marketplace") && <ExtensionPanel key={`${snapshot.profileId}:${project?.id}:${tab}`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode={tab} onDirty={setProjectDirty} />}
-        {tab === "decisions" && <><SettingsHelp label="More about this setting" target={<h2>Decision providers and Local Max</h2>}>Off by default, with no selected model. Explicitly select a bounded-model System One-compatible transport, exact model ID, output/deadline/call bounds and separate hosted-data consent. Saving never starts inference, selects a solver, changes Env or grants tools.<br /><br />Current Max automatically approves tools; reviewDelegatedTools applies only to retained legacy bounded configurations. Technical questions need kind: technical-choice, an exact question and identical offered choices, with freeform disabled. They are not user-only facts. Steering starts off and selects only original user-authored id/text alternatives; continue and askUser are reserved.</SettingsHelp>
+        {tab === "decisions" && <><SettingsHelp label="More about this setting" target={<h2 id="policy-decisions" data-policy-target tabIndex={-1}>Decision providers and Local Max</h2>}>Off by default, with no selected model. Explicitly select a bounded-model System One-compatible transport, exact model ID, output/deadline/call bounds and separate hosted-data consent. Saving never starts inference, selects a solver, changes Env or grants tools.<br /><br />Current Max automatically approves tools; reviewDelegatedTools applies only to retained legacy bounded configurations. Technical questions need kind: technical-choice, an exact question and identical offered choices, with freeform disabled. They are not user-only facts. Steering starts off and selects only original user-authored id/text alternatives; continue and askUser are reserved.</SettingsHelp>
           {jsonEditor("decisions", "Decision provider policy")}
           <details><summary>Available exact model IDs</summary><pre>{JSON.stringify(routingModels.map(({ id, name, source, environments, contextWindow, maxTokens, endpointBoundary }) => ({ id, name, source, environments, contextWindow, maxTokens, endpointBoundary })), null, 2)}</pre></details>
 
@@ -362,7 +373,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
 
           <button type="button" disabled={saving} onClick={() => void reset("decisions")} aria-label="Restore defaults for decision providers">Restore defaults</button>
         </>}
-        {tab === "kupo" && <><h2>Kupo</h2>
+        {tab === "kupo" && <><h2 id="policy-kupo" data-policy-target tabIndex={-1}>Kupo</h2>
           <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy} onChange={(event) => {
             if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
             const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
@@ -441,9 +452,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           {jsonEditor("budgets", "Budget model estimates")}
           <SettingsHelp label="More about this setting" target={<details><summary>Illustrative estimate configuration, not Copilot pricing</summary><pre>{JSON.stringify({ rates: [{ modelId: session?.controls.modelId ?? "replace-with-canonical-model-id", inputUsdPerMillion: 1, outputUsdPerMillion: 2, effectiveAt: new Date().toISOString().slice(0, 10), source: "user-estimate" }], maxPriceAgeDays: 30 }, null, 2)}</pre></details>}>Replace illustrative rates with your own approved estimate. An explicit zero rate is allowed; unknown metadata never supplies zero automatically.</SettingsHelp>
           <button type="button" disabled={saving} onClick={() => void reset("budgets")} aria-label="Restore defaults for price estimates">Restore defaults</button>
-          <SettingsHelp label="More about this setting" target={<h3>Current-profile hard policy</h3>}>Applies across this profile's sessions and model-created legs. Unlimited preferences, default resets, source deletion and restart cannot remove this policy or refund accounting. Removing the policy requires this explicit revision-bound action.</SettingsHelp>
+          <SettingsHelp label="More about this setting" target={<h3 id="policy-profile-budget" data-policy-target tabIndex={-1}>Current-profile hard policy</h3>}>Applies across this profile's sessions and model-created legs. Unlimited preferences, default resets, source deletion and restart cannot remove this policy or refund accounting. Removing the policy requires this explicit revision-bound action.</SettingsHelp>
           <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="profile" onDirty={setProfileBudgetDirty} disabled={dirty || saving} />
-          <SettingsHelp label="More about this setting" target={<h3>Global hard policy</h3>}>Applies across every profile. Creating/switching profiles cannot refund global usage or escape unknown held calls. No other profile's task content is disclosed here.</SettingsHelp>
+          <SettingsHelp label="More about this setting" target={<h3 id="policy-global-budget" data-policy-target tabIndex={-1}>Global hard policy</h3>}>Applies across every profile. Creating/switching profiles cannot refund global usage or escape unknown held calls. No other profile's task content is disclosed here.</SettingsHelp>
           {profileCatalog && <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="global" globalPolicy={profileCatalog.globalBudget} onDirty={setGlobalBudgetDirty} disabled={dirty || saving} />}
         </>}
         {tab === "localModels" && <><SettingsHelp label="More about this setting" target={<h2>Configured local models</h2>}>Connect an OpenAI-compatible server you started, such as ds4, Ollama or llama.cpp. Saving performs bounded model discovery only against enabled URLs. It never scans hosts, downloads weights or selects a model automatically.</SettingsHelp>
@@ -596,7 +607,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
           <label className="check-setting"><SettingsInput type="checkbox" checked={risk} onChange={(event) => setRisk(event.target.checked)} />I understand this can break functionality. Hard permissions cannot be overridden.</label>
           <div className="button-row">{saveButton("systemPrompt", "Save system prompt")}<button onClick={() => void reset("systemPrompt")} aria-label="Restore defaults for system prompt">Restore defaults</button><button onClick={() => void run(async () => { const result = await sdk.prompt.preview(session?.id); setPreview(result.effective); })} aria-label="Preview effective committed prompt">Preview</button></div>
           {preview && <details open><summary>Effective committed instructions, including protected execution guidance and approved project knowledge</summary><pre>{preview}</pre></details>}</>}
-        {tab === "permissions" && <><SettingsHelp label="About tool approvals" target={<h2>Guardrails and tool guidance</h2>}>Native file reads, searches, data queries and edits run without factory prompts. Scripts, external MCPs and unlisted websites ask in Manual/Guided unless explicitly delegated. Autopilot and Max automatically approve tools and commands. Explicit stricter review/deny rules, read-only modes, environment policy and budgets still win.</SettingsHelp>
+        {tab === "permissions" && <><SettingsHelp label="About tool approvals" target={<h2 id="policy-tools" data-policy-target tabIndex={-1}>Guardrails and tool guidance</h2>}>Native file reads, searches, data queries and edits run without factory prompts. Scripts, external MCPs and unlisted websites ask in Manual/Guided unless explicitly delegated. Autopilot and Max automatically approve tools and commands. Explicit stricter review/deny rules, read-only modes, environment policy and budgets still win.</SettingsHelp>
           <label className="setting-field">Default tool permission<select aria-label="Default tool permission" value={draft.permissions.defaultDecision ?? "ask"} onChange={(event) => automatic("permissions", { defaultDecision: event.target.value === "deny" ? "deny" : "ask" })}><option value="ask">Ask for scripts and unlisted websites</option><option value="deny">Deny unless an explicit rule permits review or access</option></select></label>
           <label className="setting-field">Default autonomy<select aria-label="Default autonomy" value={draft.startup.profile.autonomy ?? "inherit"} onChange={(event) => {
             const autonomy = event.target.value;
@@ -627,9 +638,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             void run(async () => { await sdk.sandbox.probe(); return sdk.sandbox.status(); }).finally(() => setSandboxBusy(false));
           }} aria-label={sandboxBusy ? "Verifying original native guest..." : "Verify reviewed Sandbox"}>{sandboxBusy ? "Verifying..." : "Verify"}</button>
             <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())} aria-label="Check Sandbox readiness">Check</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("sandbox")} aria-label="Restore defaults for Sandbox">Restore defaults</button></div></details>}>Manual configurations keep their exact artifact and host scope. Managed setup supplies compatible pins and separately enables selected-provider aliases. Custom worker builds must match this app's protocol; changing JSON cannot upgrade old bytes.</SettingsHelp>
+          {!snapshot.policy.allowedEnvs.includes("Sandbox") && <PolicyHint label="Why Sandbox verification is unavailable" target="environments" navigationBlocked={dirty || saving || sandboxDraftDirty || sandboxBusy ? "Save or reload the current configuration before opening execution policy." : undefined}>Global execution policy excludes Sandbox. Qualification does not override that policy; opening its setting starts no VM.</PolicyHint>}
           <SandboxPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} setup={() => document.getElementById("sandbox-configuration")?.scrollIntoView({ block: "start" })} /></>}
         {tab === "permissions" && <>
-          <SettingsHelp label="More about this setting" target={<h3>Allowed execution environments</h3>}>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.<br /><br />Local and ordinary SSH own known process groups, not arbitrary double-forked/setsid descendants. Whole-session containment requires the qualified owned VM and verified VM teardown; a CLI exit is not proof. Missing qualification blocks work instead of switching environments. Resetting ordinary settings never widens this separate policy.</SettingsHelp>
+          <SettingsHelp label="More about this setting" target={<h3 id="policy-environments" data-policy-target tabIndex={-1}>Allowed execution environments</h3>}>Changing global allowed-env policy is user-only. Excluding Local blocks new work; already-running Local turns may finish under their recorded revision.<br /><br />Local and ordinary SSH own known process groups, not arbitrary double-forked/setsid descendants. Whole-session containment requires the qualified owned VM and verified VM teardown; a CLI exit is not proof. Missing qualification blocks work instead of switching environments. Resetting ordinary settings never widens this separate policy.</SettingsHelp>
           <select aria-label="Global allowed environments" value={environmentChoice} onChange={(event) => void run(() => event.target.value === "sandbox" ? sdk.containment.requireSandbox(true) :
             sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : event.target.value === "remote" ? ["Remote"] : ["Sandbox", "Remote"] }))}>
             <option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option>

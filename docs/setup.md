@@ -729,6 +729,21 @@ The category list and selected settings page scroll independently, including
 long provider lists. Reaching either scroll boundary keeps the app frame and
 Settings toolbar in place. Keyboard focus can still reach controls at the bottom.
 
+Chats initially shows ten root sessions; each project or captured project group
+shows five, and each parent shows five subsessions. Quiet **Show more/Show less**
+controls expand only that list. Search reveals matching sessions and their
+parents. Project chevrons fold sessions without moving or archiving them.
+A project's settings button remains separate from its collapse button.
+
+The project group's **More** menu offers seven icon colors, a custom color
+picker and **Ungroup**. Ungroup returns its projects to the ordinary list,
+preserving files and existing captured-root chats; those chats remain reachable
+under Chats. Stale membership is refused instead of moving a subset.
+Copy icons briefly show a check only after the actual clipboard write succeeds.
+Known policy explanations offer **Open ... policy** to the exact Settings
+section. Keyboard users can activate the hint, Tab/Shift+Tab out, or press
+Escape. Links never change policy or discard an unsaved settings/budget edit.
+
 The scrollable left resources are **Dashboard, Suggestions, Automations**.
 Artifacts, Candidates and Sandbox live in Settings. The right rail contains
 **Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change,

@@ -3,6 +3,7 @@ import { activeDecision, activeProjectWork, appearanceColors, continueWorkInput,
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
+import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
@@ -118,6 +119,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const [busy, setBusy] = useState(false);
   const pendingRuns = useRef(0);
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(resourceSettings(layout.panel));
+  const [policyFocus, setPolicyFocus] = useState<PolicyFocusRequest | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
@@ -219,7 +221,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (questionDirty.current) { setNotice("Send or cancel your custom answer before switching away. It has not been sent."); return false; }
     return canChangePanel();
   };
-  const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); return true; };
+  const leaveSettings = () => { if (!canNavigate()) return false; setSettingsTab(null); setPolicyFocus(null); return true; };
   const leaveSurface = () => { if (!leaveSettings()) return false; setBoardOpen(false); setGlobalView(null); return true; };
   const beforeHidingTerminal = (action: () => void, cancel?: () => void) => {
     if (terminalDismiss) { cancel?.(); return; }
@@ -231,7 +233,10 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const confirmTerminalNavigation = () => new Promise<boolean>((resolve) => beforeHidingTerminal(() => resolve(true), () => resolve(false)));
   const terminalOpeningHandled = (panel: Panel, sessionId: string | null) => setTerminalIntent((intent) =>
     intent?.panel === panel && intent.sessionId === sessionId ? null : intent);
-  const openSettings = (tab: SettingsTab) => { if (!canNavigate()) return; beforeHidingTerminal(() => { setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); }); };
+  const openSettings = (tab: SettingsTab, target?: PolicyTarget, prepare?: () => void) => { if (!canNavigate()) return; beforeHidingTerminal(() => {
+    prepare?.(); setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); setPolicyFocus(target ? { target, id: crypto.randomUUID() } : null);
+  }); };
+  const openPolicy = (target: PolicyTarget, prepare?: () => void) => openSettings(policyLocations[target].tab, target, prepare);
   const settingsMenu = useRef(openSettings); settingsMenu.current = openSettings;
   useEffect(() => window.moguri.onOpenSettings(() => settingsMenu.current("general")), [client]);
   useEffect(() => window.moguri.onUpdateAvailable((_id, version) => setNotice(`Moguri ${version} is verified and staged. Open Settings / General to review installation and restart. Nothing has been replaced.`, true)), [setNotice]);
@@ -287,7 +292,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       await window.moguri.profile(id);
       for (const editor of editors.current.values()) editor.dispose(); editors.current.clear();
       client.disconnect(); clients.current.delete(client); clients.current.add(next); setClient(next);
-      setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
+      setSelectedId(targetSessionId ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(false); setSettingsTab(null); setPolicyFocus(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
       setPalette(false); setCommandOutput(null); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
     } catch (error) { next?.disconnect(); throw error; }
     finally { switchingProfile.current = false; setBusy(false); setProfilePending(false); }
@@ -447,7 +452,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     {session.queue.length > 0 && <Queue session={session} command={command} client={client} modal={setNativeModal} />}
     {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
   </> : null;
-  return <><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelVisible && panelMaximized ? "context-maximized" : ""}`}>
+  return <PolicyNavigationContext.Provider value={openPolicy}><div inert={profilePending} aria-busy={profilePending} style={shellStyle} className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelVisible && panelMaximized ? "context-maximized" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{globalView ?? project?.name ?? "Chats"}</span>
@@ -475,7 +480,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
       {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -537,7 +542,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
     ]} />}
-  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</>;
+  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</PolicyNavigationContext.Provider>;
 }
 
 function Timeline({ session, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns" }: {
