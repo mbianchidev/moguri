@@ -33,6 +33,13 @@ the actions in **Settings / GitHub workflows / Advanced reviewed operations**.
 Local built-ins create/switch/rename branches, stage/unstage exact files, commit
 only selected staged paths while preserving the original index and unrelated
 work, push a new branch, and retain the existing rebase/tag workflows.
+Managed branch rename updates its exact workspace/change-set metadata in the
+same verified completion transaction. Managed roots retain their captured
+change-set branch: create another branch without checkout or create a separate
+managed worktree instead of switching an existing managed root. If rename
+metadata fails, the operation stays partial; after exact user inspection
+acknowledgement, explicit workspace reconciliation can repair only the original
+verified metadata, without replaying Git or completing the partial report.
 **Rollback creates a new revert commit**, preserving history and restoring the
 previous committed tree; it requires the exact current single-parent commit
 and a clean checkout. It never means reset-hard, clean, stash or forced rename.
