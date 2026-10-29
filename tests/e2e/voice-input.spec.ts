@@ -405,7 +405,7 @@ test("push-to-talk onset preserves the first microphone samples through cold aud
     await expect.poll(() => samples).toBeGreaterThanOrEqual(4096);
     expect(openingSamples, "the opening 250 ms must not disappear while the processing graph initializes").toBeGreaterThan(3000);
     console.log(JSON.stringify({ primitive: "generated-ptt-opening-pcm", openingSamples, firstFrameSamples: 4096,
-      sourceRate: 16_000, openingToneMs: 250, processorDelayMs: 650, recognizerDelayMs: 1000, modelCalls: 0 }));
+      sourceRate: 48_000, captureRate: 16_000, openingToneMs: 250, processorDelayMs: 650, recognizerDelayMs: 1000, modelCalls: 0 }));
     await page.keyboard.up("Space"); await page.keyboard.up("Control");
     await expect(prompt).toHaveValue("Generated local dictation.");
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
