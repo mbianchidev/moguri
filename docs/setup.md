@@ -3243,6 +3243,13 @@ owning main or side-chat textbox while speaking. Release flushes the original
 buffer and replaces its provisional text once; it never sends a chat message.
 The shortcut is always hold-to-talk and ignores terminals, dialogs and other
 composers. Voice/Accessibility settings share an editable shortcut.
+Recording no longer waits for an unrelated draft-save acknowledgement or an
+extra SDK conversation refresh. Its silent audio processor prepares during capture
+admission, before the selected microphone opens, and connects immediately so
+the opening audio is not lost during worklet startup or permission-release IPC.
+No microphone is kept open in the background. First-time OS authorization
+still requires the user; wait for the recording highlight if permission or
+device startup is pending.
 **The microphone button is not push-to-talk:** click once to record and again to
 confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
 a click-owned recording does not stop that recording. Space/Enter on the focused

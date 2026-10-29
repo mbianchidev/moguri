@@ -194,6 +194,12 @@ test("device selection and push-to-talk use real qualified bindings, while relea
 
     await page.evaluate(() => {
       const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      const NativeContext = AudioContext, prepared: AudioContext[] = [];
+      class ObservedContext extends NativeContext {
+        constructor(options?: AudioContextOptions) { super(options); prepared.push(this); }
+      }
+      Reflect.set(window, "AudioContext", ObservedContext);
+      Reflect.set(window, "generatedInterruptedContextStates", () => prepared.map((context) => context.state));
       Reflect.set(window, "generatedMediaCalls", 0);
       navigator.mediaDevices.getUserMedia = (constraints) => { Reflect.set(window, "generatedMediaCalls", Number(Reflect.get(window, "generatedMediaCalls")) + 1); return original(constraints); };
     });
@@ -205,6 +211,11 @@ test("device selection and push-to-talk use real qualified bindings, while relea
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("cancelled");
     await expect(page.getByRole("alert").filter({ hasText: "before the microphone was ready" })).toBeVisible();
     expect(await page.evaluate(() => Reflect.get(window, "generatedMediaCalls"))).toBe(0);
+    await expect.poll(() => page.evaluate(() => {
+      const states: unknown = Reflect.get(window, "generatedInterruptedContextStates");
+      if (typeof states !== "function") throw new Error("Generated interrupted context observer is missing.");
+      return states();
+    })).toEqual(["closed"]);
     expect(fixture.session().draft.text).toBe(savedFirstTranscript); expect(fixture.requests.length).toBe(0);
   } finally {
     gate.resolve(); fixture.service.controller.platform.voice.status = original;
@@ -341,6 +352,148 @@ test("a cold recognizer with buffered readiness keeps the mic visible and flushe
     await expect(page.getByRole("alert").filter({ hasText: /capture is missing|within sixty seconds/ })).toHaveCount(0);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("push-to-talk onset preserves the first microphone samples through cold audio-processor startup", async () => {
+  const { fixture, sdk } = await speechFixture(["--listener-delay", "1000", "--buffered-ready"]), app = await launch(fixture.directory);
+  let samples = 0, openingSamples = 0;
+  const capture = fixture.service.controller.platform.captureVoice.bind(fixture.service.controller.platform);
+  fixture.service.controller.platform.captureVoice = async (request) => {
+    if (request.action === "append") {
+      const bytes = audioFromBase64(request.audio), values = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      for (let offset = 0; offset < bytes.length; offset += 2) {
+        if (samples++ < 4096 && Math.abs(values.getInt16(offset, true)) > 1000) openingSamples++;
+      }
+    }
+    return capture(request);
+  };
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    await expect(page.locator(".composer-mic")).toBeEnabled();
+    await page.evaluate(() => {
+      const NativeContext = AudioContext, acquire = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      class ColdContext extends NativeContext {
+        constructor(options?: AudioContextOptions) {
+          super(options);
+          const add = this.audioWorklet.addModule.bind(this.audioWorklet);
+          this.audioWorklet.addModule = async (...args: Parameters<Worklet["addModule"]>) => {
+            await new Promise((resolve) => setTimeout(resolve, 650));
+            return add(...args);
+          };
+        }
+      }
+      Reflect.set(window, "AudioContext", ColdContext);
+      navigator.mediaDevices.getUserMedia = async (constraints) => {
+        const device = await acquire(constraints);
+        for (const track of device.getTracks()) track.stop();
+        const context = new NativeContext({ sampleRate: 48_000 }), oscillator = context.createOscillator(), gain = context.createGain();
+        const destination = context.createMediaStreamDestination();
+        oscillator.frequency.value = 440; oscillator.connect(gain); gain.connect(destination);
+        await context.resume();
+        gain.gain.setValueAtTime(0.4, context.currentTime);
+        gain.gain.setValueAtTime(0, context.currentTime + 0.25);
+        oscillator.start();
+        Reflect.set(window, "generatedCloseOnsetInput", () => context.close());
+        return destination.stream;
+      };
+    });
+
+    await prompt.focus(); await page.keyboard.down("Control"); await page.keyboard.down("Space");
+    await expect(page.locator(".composer-mic")).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => samples).toBeGreaterThanOrEqual(4096);
+    expect(openingSamples, "the opening 250 ms must not disappear while the processing graph initializes").toBeGreaterThan(3000);
+    console.log(JSON.stringify({ primitive: "generated-ptt-opening-pcm", openingSamples, firstFrameSamples: 4096,
+      sourceRate: 16_000, openingToneMs: 250, processorDelayMs: 650, recognizerDelayMs: 1000, modelCalls: 0 }));
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect(prompt).toHaveValue("Generated local dictation.");
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally {
+    const page = await app.firstWindow();
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    await page.evaluate(async () => { const close: unknown = Reflect.get(window, "generatedCloseOnsetInput"); if (typeof close === "function") await close(); });
+    await app.close(); sdk.disconnect(); await fixture.close();
+  }
+});
+
+test("push-to-talk onset does not wait for an unrelated draft-save acknowledgement", async () => {
+  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
+  const dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller), saved = Promise.withResolvers<void>();
+  let saving = false;
+  fixture.service.controller.dispatch = async (raw: unknown) => {
+    if (typeof raw === "object" && raw !== null && "command" in raw && typeof raw.command === "object" && raw.command !== null &&
+      "type" in raw.command && raw.command.type === "draft.save") { saving = true; await saved.promise; }
+    return dispatch(raw);
+  };
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    await page.evaluate(() => {
+      const acquire = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      Reflect.set(window, "generatedOnsetMediaCalls", 0);
+      navigator.mediaDevices.getUserMedia = (constraints) => {
+        Reflect.set(window, "generatedOnsetMediaCalls", Number(Reflect.get(window, "generatedOnsetMediaCalls")) + 1);
+        return acquire(constraints);
+      };
+    });
+    await prompt.fill("Generated still-saving draft.");
+    await expect.poll(() => saving).toBe(true);
+    const pressedAt = performance.now();
+    await prompt.focus(); await page.keyboard.down("Control"); await page.keyboard.down("Space");
+    await expect.poll(() => page.evaluate(() => Reflect.get(window, "generatedOnsetMediaCalls")), { timeout: 2000 }).toBe(1);
+    await expect(page.locator(".composer-mic")).toHaveAttribute("aria-pressed", "true");
+    console.log(JSON.stringify({ primitive: "generated-ptt-save-independent-onset", recordingMs: performance.now() - pressedAt,
+      draftSaveAcknowledged: false, modelCalls: 0 }));
+    saved.resolve();
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect(prompt).toHaveValue("Generated still-saving draft. Generated local dictation.");
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally {
+    saved.resolve(); fixture.service.controller.dispatch = dispatch;
+    const page = await app.firstWindow(); await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    await app.close(); sdk.disconnect(); await fixture.close();
+  }
+});
+
+test("failed onset preparation closes its exact silent context without opening a microphone or losing draft text", async () => {
+  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    await prompt.fill("Generated draft before failed startup.");
+    await page.evaluate(() => {
+      const NativeContext = AudioContext, contexts: AudioContext[] = [], acquire = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      Reflect.set(window, "generatedFailedOnsetMedia", 0);
+      class FailedContext extends NativeContext {
+        constructor(options?: AudioContextOptions) {
+          super(options); contexts.push(this);
+          this.audioWorklet.addModule = async () => { throw new Error("Generated unavailable onset processor."); };
+        }
+      }
+      Reflect.set(window, "AudioContext", FailedContext);
+      Reflect.set(window, "generatedFailedOnsetStates", () => contexts.map((context) => context.state));
+      navigator.mediaDevices.getUserMedia = (constraints) => {
+        Reflect.set(window, "generatedFailedOnsetMedia", Number(Reflect.get(window, "generatedFailedOnsetMedia")) + 1);
+        return acquire(constraints);
+      };
+    });
+    await prompt.focus(); await page.keyboard.down("Control"); await page.keyboard.down("Space");
+    await expect(page.getByRole("alert").filter({ hasText: "Generated unavailable onset processor." })).toBeVisible();
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
+    await expect.poll(() => page.evaluate(() => {
+      const states: unknown = Reflect.get(window, "generatedFailedOnsetStates");
+      if (typeof states !== "function") throw new Error("Generated context ownership observer is missing.");
+      return states();
+    })).toEqual(["closed"]);
+    expect(await page.evaluate(() => Reflect.get(window, "generatedFailedOnsetMedia"))).toBe(0);
+    await expect(prompt).toHaveValue("Generated draft before failed startup.");
+    await expect(page.locator(".composer-mic")).toBeEnabled();
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
+    expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("cancelled");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

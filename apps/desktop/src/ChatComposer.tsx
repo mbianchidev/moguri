@@ -73,8 +73,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const automaticNative = snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces;
   const needsNativeStage = session.controls.env === "Sandbox" && nativeStage?.status !== "ready" && !automaticNative;
   const dictation = useDictation(client, session, snapshot, { shortcuts: true,
-    beforeStart: async () => {
-      await editor.flush(); dictated.current?.close();
+    beforeStart: () => {
+      dictated.current?.close();
       dictated.current = editor.startDictation(input.current?.selectionStart, input.current?.selectionEnd);
     },
     onTranscript: (text, id, final) => {

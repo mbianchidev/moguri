@@ -477,9 +477,10 @@ else {
       if (audioGranted()) throw new Error("Another explicit microphone permission request is still owned. Finish or cancel it first.");
       const generated = process.env.MOGURI_TEST_WINDOW === "hidden" && app.commandLine.hasSwitch("use-fake-device-for-media-stream");
       if (process.env.MOGURI_TEST_WINDOW === "hidden" && !generated) throw new Error("Hidden audio checks require Chromium's generated media device. No real microphone permission was requested.");
-      const allowed = generated || process.platform !== "darwin" || await systemPreferences.askForMediaAccess("microphone");
+      const needsPrompt = !generated && process.platform === "darwin" && systemPreferences.getMediaAccessStatus("microphone") !== "granted";
+      const allowed = !needsPrompt || await systemPreferences.askForMediaAccess("microphone");
       if (!allowed) throw new Error("Microphone access was denied. The saved draft was not changed.");
-      await scoped.refresh();
+      if (needsPrompt) await scoped.refresh();
       if (event.sender !== mainWindow?.webContents || attentionClient !== scoped || epoch !== profileEpoch || !validCapture()) throw new Error("Audio permission finished for a stale owner. No late microphone was opened.");
       const id = randomUUID();
       audioGrant = { id, profileId: activeProfileId, epoch, expires: Date.now() + 30_000,
