@@ -245,9 +245,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     });
     void dictation.toggle();
   };
-  const configure = (controls: Controls) => run(async () => {
-    await client.sessions.configure(session.id, controls, session.revision);
-    setMenu(null);
+  const selectAutonomy = (autonomy: Controls["autonomy"]) => run(async () => {
+    trackConfiguration(true); setConfigurationError("");
+    try { await client.sessions.autonomy(session.id, autonomy, session.revision); setMenu(null); }
+    catch (error) { setConfigurationError(error instanceof Error ? error.message : "The autonomy selection was not acknowledged. Existing controls were preserved."); throw error; }
+    finally { trackConfiguration(false); }
   });
   const toggle = (value: Menu) => { if (value === "attach") setTrigger(null); setMenu((current) => current === value ? null : value); };
   const chooseAttachmentTrigger = () => {
@@ -362,7 +364,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const reason = autonomy === "Manual" ? "You approve tools or remember a grant" : autonomy === "Guided" ? "Advice, then your confirmation" : autonomy === "Autopilot" ? "Automatically approve all tools and commands" :
             decisions.ready ? "Automatic approvals plus bounded System One decisions" : decisions.reason;
-          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void configure({ ...session.controls, autonomy, automaticApprovals: autonomy === "Autopilot" || autonomy === "Autopilot Max" })}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
+          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={configuring || Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void selectAutonomy(autonomy)}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
             {autonomy === "Autopilot Max" && !decisions.ready && <PolicyHint label="Why Autopilot Max is unavailable" target="decisions">{reason} Reviewing the actual decision configuration does not start inference or enable an unqualified transport.</PolicyHint>}
           </div>;
         })}<p>Autopilot modes are unattended. Hard deny rules, read-only mode, environment policy and budgets still apply.</p>

@@ -1,9 +1,54 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **77**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **81**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Reliable session controls and built-in Git
+
+Select **Autonomy / Autopilot** or run `/autonomy Autopilot` once to enable
+automatic tool approvals for subsequent turns. Reselecting an older bounded
+value explicitly saves that consent; opening a chat or changing a model/budget
+does not silently upgrade it. Hard denials, read-only mode, Env, roots, budgets
+and user-only decisions still apply.
+
+Transient snapshot failures resynchronize without stranding a healthy event
+connection as disconnected or discarding the composer. Draft saves that never
+dispatched resume against the fresh original revision; another client's changed
+draft stays a conflict. Unknown dispatched saves or prompts are not replayed.
+Slow reads through both the SDK and desktop proxy use their
+actual service deadline; expired reads remain actionable errors. Unknown
+mutation responses are inspected by original command receipt, never resent.
+Keep local edits open until their saved acknowledgement; a pending/unknown
+command is not proof of failure or permission to repeat an external effect.
+
+Agents can discover **git_read** and **git_write** rather than creating scripts
+for covered operations. TUI/CLI and desktop share `/git status`, `/git branches`,
+`/git log`, `/git show COMMIT_SHA`, `/git diff [staged]`, `/git preview ACTION_JSON`
+and `/git execute confirm-write {action,expectedDigest,confirmations}`. Ordinary
+slash commands keep their service-owned queue ordering. Desktop also exposes
+the actions in **Settings / GitHub workflows / Advanced reviewed operations**.
+
+Local built-ins create/switch/rename branches, stage/unstage exact files, commit
+only selected staged paths while preserving the original index and unrelated
+work, push a new branch, and retain the existing rebase/tag workflows.
+**Rollback creates a new revert commit**, preserving history and restoring the
+previous committed tree; it requires the exact current single-parent commit
+and a clean checkout. It never means reset-hard, clean, stash or forced rename.
+Exact-byte staging accepts canonical regular files up to 2 MiB each/8 MiB total,
+with a separately bounded complete Git review; filtered/text-normalized paths
+require explicit inspection outside this built-in. A partial Git outcome holds
+the root for inspection, not automatic retry or rollback.
+
+These new native Git adapters are Local-project/worktree only. Unsupported
+Remote, Sandbox, captured-group and Home scopes cannot use the controller's
+checkout as a fallback. [The contract](architecture/github-workflows.md)
+records ownership, approvals, cancellation/recovery and original-result limits.
+Public tool results have discoverable retained source IDs and digest/revision
+bound pages, not guessed step IDs; private roles, hooks and user consoles remain
+unavailable. Protocol 81 adds two independent markers without rewriting any of
+combined80's six original markers, ciphertext, receipts or unknown charges.
 
 ## Saved turn and usage information
 

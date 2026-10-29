@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
-import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
+import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
@@ -218,7 +218,7 @@ else {
       const url = new URL(request.url);
       if (url.hostname !== "app") return new Response("Unknown Moguri origin.", { status: 403 });
       if (url.pathname.startsWith("/v1/")) {
-        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/query", "/v1/query-cancel", "/v1/terminal", "/v1/voice", "/v1/application", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
+        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/command-receipt", "/v1/query", "/v1/query-cancel", "/v1/terminal", "/v1/voice", "/v1/application", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
         const profileId = request.headers.get("X-Moguri-Profile") ?? PROFILE_ID;
         if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) return new Response("Profile scope denied.", { status: 403 });
         return fetch(`${connection.baseUrl}${url.pathname}`, {
@@ -226,7 +226,7 @@ else {
           headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json", "X-Moguri-Profile": profileId,
             ...(request.headers.get("X-Moguri-Query-Id") ? { "X-Moguri-Query-Id": request.headers.get("X-Moguri-Query-Id")! } : {}) },
           ...(request.method === "POST" ? { body: await request.text() } : {}),
-          signal: AbortSignal.any([request.signal, AbortSignal.timeout(20_000)]),
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(url.pathname === "/v1/query" ? QUERY_TIMEOUT_MS + QUERY_REPLY_GRACE_MS : 20_000)]),
         });
       }
       const path = resolve(rendererRoot, `.${decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname)}`);

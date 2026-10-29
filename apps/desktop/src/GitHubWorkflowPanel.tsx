@@ -7,6 +7,9 @@ import type { GithubAction, GithubBrowse, GithubPreview, GithubResponse, GithubS
 type Read = Extract<GithubResponse, { type: "github.read" }>;
 type Browse = Extract<GithubResponse, { type: "github.browse" }>;
 const actions: Array<[GithubAction["kind"], string]> = [
+  ["git.branch.create", "Create exact local branch"], ["git.branch.rename", "Rename current branch"], ["git.switch", "Switch to existing local branch"],
+  ["git.stage", "Stage exact files"], ["git.unstage", "Unstage exact files"], ["git.commit", "Commit selected staged paths"],
+  ["git.revert", "Roll back current commit with a new revert commit"],
   ["git.push", "Push branch / exact force-with-lease"], ["git.rebase", "Rebase / continue / abort"],
   ["git.tag.create", "Create local tag"], ["git.tag.push", "Push exact tag"], ["git.tag.delete", "Delete explicit tag"],
   ["github.issue.create", "Create GitHub issue"], ["github.issue.update", "Edit / close / reopen issue"], ["github.issue.comment", "Comment on issue"],
@@ -22,6 +25,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const [kind, setKind] = useState<GithubAction["kind"]>("git.push");
   const [repository, setRepository] = useState(""), [account, setAccount] = useState(""), [remote, setRemote] = useState("origin");
   const [branch, setBranch] = useState(""), [force, setForce] = useState(false), [onto, setOnto] = useState("");
+  const [checkout, setCheckout] = useState(false), [pathsText, setPathsText] = useState("");
   const [rebaseMode, setRebaseMode] = useState<"start" | "continue" | "abort">("start");
   const [tag, setTag] = useState(""), [target, setTarget] = useState(""), [annotated, setAnnotated] = useState(true), [message, setMessage] = useState("");
   const [deleteLocation, setDeleteLocation] = useState<"local" | "remote">("local");
@@ -43,7 +47,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const requiredScope = (): GithubScope => { if (!scope) throw new Error("Choose an explicit Local project for new Git/GitHub work. Retained inspection needs no source root."); return scope; };
   const scopeKey = JSON.stringify([sdk.profileId, project?.id, project?.path, scope, session?.controls.env, session?.kind, session?.mode, session?.pendingMode, session?.status,
     configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, snapshot.settings.values.permissions,
-    kind, repository, account, remote, branch, force, onto, rebaseMode, tag, target, annotated, message, deleteLocation, number, title, body, editTitle, editBody,
+    kind, repository, account, remote, branch, force, onto, checkout, pathsText, rebaseMode, tag, target, annotated, message, deleteLocation, number, title, body, editTitle, editBody,
     state, base, head, headRepository, draft, prerelease, reviewEvent, commentId, commentChannel, threadId, resolveThread, mergeMethod, releaseId, headSha, seconds, runId, resource]);
   const current = useRef(scopeKey); current.current = scopeKey;
   const allowed = Boolean(project && snapshot.policy.allowedEnvs.includes("Local") && (!session || session.projectId === project.id && session.controls.env === "Local" && session.status !== "archived"));
@@ -87,6 +91,12 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const action = (): GithubAction => {
     const gh = { repository, account }, n = () => positive(number, "issue/PR number");
     switch (kind) {
+      case "git.branch.create": return { kind, branch, start: target, checkout };
+      case "git.branch.rename": return { kind, from: branch, to: target };
+      case "git.switch": return { kind, branch };
+      case "git.revert": return { kind, commit: headSha };
+      case "git.stage": case "git.unstage": return { kind, paths: pathsText.split(/\r?\n/).filter(Boolean) };
+      case "git.commit": return { kind, paths: pathsText.split(/\r?\n/).filter(Boolean), message };
       case "git.push": return { kind, remote, branch, forceWithLease: force };
       case "git.rebase": return rebaseMode === "start" ? { kind, mode: "start", onto } : { kind, mode: rebaseMode };
       case "git.tag.create": return { kind, tag, target, annotated, message: annotated ? message : "" };
@@ -132,6 +142,12 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         <label className="setting-field">Explicit controller gh login<SettingsInput value={account} onChange={(event) => setAccount(event.target.value)} autoComplete="off" /></label>
       </div>
       {(kind === "git.push" || kind === "git.tag.push" || kind === "git.tag.delete" && deleteLocation === "remote") && <label className="setting-field">Configured Git remote<SettingsInput value={remote} onChange={(event) => setRemote(event.target.value)} /></label>}
+      {["git.branch.create", "git.branch.rename", "git.switch"].includes(kind) && <label className="setting-field">{kind === "git.branch.create" ? "New local branch" : kind === "git.branch.rename" ? "Exact current branch" : "Existing local branch"}<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>}
+      {(kind === "git.branch.create" || kind === "git.branch.rename") && <label className="setting-field">{kind === "git.branch.rename" ? "New branch name" : "Exact starting branch or commit"}<SettingsInput value={target} onChange={(event) => setTarget(event.target.value)} /></label>}
+      {kind === "git.branch.create" && <label className="check-setting"><SettingsInput type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} />Also switch to the new branch (requires a clean checkout)</label>}
+      {["git.stage", "git.unstage", "git.commit"].includes(kind) && <label className="setting-field">Exact file paths, one per line<SettingsTextarea value={pathsText} onChange={(event) => setPathsText(event.target.value)} /></label>}
+      {kind === "git.commit" && <label className="setting-field">Exact commit message<SettingsTextarea value={message} maxLength={4096} onChange={(event) => setMessage(event.target.value)} /></label>}
+      {kind === "git.revert" && <><label className="setting-field">Exact current commit SHA to revert<SettingsInput value={headSha} aria-describedby={`${uid}-revert-help`} onChange={(event) => setHeadSha(event.target.value)} /></label><small id={`${uid}-revert-help`}>Creates a new commit with the previous tree. History is preserved; dirty work is never reset.</small></>}
       {kind === "git.push" && <>
         <label className="setting-field">Exact destination branch<SettingsInput value={branch} placeholder={configuration?.values.repo.mainBranch} onChange={(event) => setBranch(event.target.value)} /></label>
         <label className="check-setting"><SettingsInput type="checkbox" checked={force} onChange={(event) => setForce(event.target.checked)} />Request force-with-lease at the exact captured remote SHA (never raw force)</label>
