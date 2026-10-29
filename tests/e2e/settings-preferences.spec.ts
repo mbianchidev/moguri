@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { appearanceColors, colorContrast, MoguriSdk, themePalettes, themeVariable } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -74,6 +74,44 @@ test("named and custom palettes update actual elements and reject unreadable cus
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text").trim())).toBe("#e1e8f0");
     expect(fixture.requests.length).toBe(0);
   } finally { await close(app); await fixture.close(); }
+});
+
+test("the complete shared preset catalogue colors real desktop controls in both modes and survives reload", async ({}, info) => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Appearance", exact: true }).click();
+    const palette = page.getByLabel("Color palette", { exact: true }), mode = page.getByLabel("Theme", { exact: true });
+    expect(await palette.locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(themePalettes.map((entry) => entry.id));
+    for (const theme of ["light", "dark"] as const) {
+      await mode.selectOption(theme);
+      for (const { id } of themePalettes.filter((entry) => entry.id !== "custom")) {
+        await palette.selectOption(id);
+        const colors = appearanceColors({ theme, palette: id }, theme), variables = Object.keys(colors).map(themeVariable);
+        await expect.poll(() => page.evaluate((keys) => Object.fromEntries(keys.map((key) =>
+          [key, getComputedStyle(document.documentElement).getPropertyValue(key).trim()])), variables)).toEqual(
+          Object.fromEntries(Object.entries(colors).map(([key, value]) => [themeVariable(key), value])));
+        const actual = await palette.evaluate((element) => {
+          const css = getComputedStyle(element), hex = (color: string) => {
+            const channels = color.match(/\d+/g);
+            if (!channels || channels.length !== 3) throw new Error(`Expected an opaque control color, got ${color}.`);
+            return "#" + channels.map((channel) => Number(channel).toString(16).padStart(2, "0")).join("");
+          };
+          return { text: hex(css.color), background: hex(css.backgroundColor), border: hex(css.borderTopColor) };
+        });
+        expect(colorContrast(actual.text, actual.background), `${id} ${theme} actual select text`).toBeGreaterThanOrEqual(4.5);
+        expect(colorContrast(actual.border, actual.background), `${id} ${theme} actual select boundary`).toBeGreaterThanOrEqual(3);
+      }
+    }
+    expect(sdk.settings.get()?.values.appearance.palette).toBe("crystal");
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
+    await page.screenshot({ path: info.outputPath("shared-crystal-theme.png") });
+    await page.reload();
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim())).toBe("#0b1536");
+    expect(errors).toEqual([]); expect(fixture.requests.length).toBe(0);
+  } finally { await close(app); sdk.disconnect(); await fixture.close(); }
 });
 
 test("session management deletes only the confirmed actual session and preserves independent artifacts", async () => {

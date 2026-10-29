@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, VerbositySchema, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, appearanceColors, themePalettes, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, VerbositySchema, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -562,9 +562,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
         {tab === "appearance" && <><SettingsHelp label="About appearance" target={<h2>Appearance</h2>}>Dark is Moguri's factory theme. This preference is shared by SDK clients; desktop resolves System against the operating system.</SettingsHelp>
           <label className="setting-field">Theme<select aria-label="Theme" value={draft.appearance.theme} onChange={(event) => automatic("appearance", { theme: event.target.value === "light" ? "light" : event.target.value === "system" ? "system" : "dark" })}><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
           <label className="setting-field">Color palette<select aria-label="Color palette" value={draft.appearance.palette ?? "moguri"} onChange={(event) => {
-            const palette = event.target.value;
-            if (palette === "moguri" || palette === "ocean" || palette === "orchid" || palette === "custom") automatic("appearance", { palette });
-          }}><option value="moguri">Moguri</option><option value="ocean">Ocean</option><option value="orchid">Orchid</option><option value="custom">Custom</option></select></label>
+            const palette = themePalettes.find((palette) => palette.id === event.target.value);
+            if (palette) automatic("appearance", { palette: palette.id });
+          }}>{themePalettes.map((palette) => <option key={palette.id} value={palette.id}>{palette.name}</option>)}</select></label>
+          <p className="fine-print">{themePalettes.find((palette) => palette.id === (draft.appearance.palette ?? "moguri"))?.description}. Every preset supports Dark and Light.</p>
           <SettingsHelp label="More about this setting" target={<details><summary>Custom element colors</summary>
             <label className="setting-field">Customize mode<select aria-label="Customize color mode" value={customMode} onChange={(event) => setCustomMode(event.target.value === "light" ? "light" : "dark")}><option value="dark">Dark</option><option value="light">Light</option></select></label>
             <div className="theme-color-grid">{(Object.keys(appearanceColors(draft.appearance, customMode)) as ThemeColor[]).map((key) => <label className="setting-field" key={`${customMode}:${key}`}>{key.replace(/[A-Z]/g, (value) => ` ${value.toLowerCase()}`)}
