@@ -1,8 +1,9 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { githubBoardFixture } from "../fixtures/github-board.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -111,5 +112,25 @@ test("Kanban Add item aligns its plus with the label and still creates in the ch
     await title.fill("Generated aligned item"); await title.press("Enter");
     await expect(board.getByRole("region", { name: "In progress issues", exact: true }).getByRole("button", { name: "Generated aligned item", exact: true })).toBeVisible();
     expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("the project menu hides a synced Kanban without recapturing a stale GitHub binding or removing cards", async () => {
+  const fixture = await githubBoardFixture();
+  await fixture.configure(true); expect((await fixture.refresh()).status).toBe("completed");
+  const configuration = (await fixture.sdk.projects.configuration(fixture.projectId)).configuration;
+  await fixture.sdk.projects.organize(fixture.projectId, { folderId: configuration.folderId, color: "#3b82f6", order: configuration.order }, configuration.revision);
+  const original = await fixture.sdk.issues.board(fixture.projectId), calls = fixture.calls.length, reads = fixture.reads.length;
+  const project = fixture.service.controller.snapshot().projects.find((project) => project.id === fixture.projectId)!, app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), section = page.getByRole("region", { name: `Project ${project.name}`, exact: true });
+    await section.getByRole("button", { name: `Project actions for ${project.name}`, exact: true }).click();
+    await page.getByRole("menuitem", { name: "Hide Kanban", exact: true }).click();
+    await expect.poll(async () => kanbanPreferences((await fixture.sdk.issues.board(fixture.projectId)).board).visible).toBe(false);
+    await expect(section.getByRole("button", { name: `Kanban for ${project.name}`, exact: true })).not.toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    const hidden = await fixture.sdk.issues.board(fixture.projectId);
+    expect(hidden.board.githubSource).toEqual(original.board.githubSource); expect(hidden.issues).toEqual(original.issues);
+    expect(fixture.calls).toHaveLength(calls); expect(fixture.reads).toHaveLength(reads);
   } finally { await app.close(); await fixture.close(); }
 });
