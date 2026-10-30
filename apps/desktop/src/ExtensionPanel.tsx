@@ -4,6 +4,7 @@ import {
   HookDefinitionSchema, MarketplaceInputSchema, MarketplaceSourceSchema, parse, type CapabilityEntry, type MarketplacePreview, type MarketplaceCatalogListing,
   type MoguriSdk, type Project, type Session, type Snapshot,
 } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; project?: Project; session?: Session; mode: "hooks" | "marketplace"; onDirty: (value: boolean) => void;
@@ -35,8 +36,8 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
   const entries = snapshot.registry.filter((entry) => entry.projectId === project?.id && (mode === "hooks" ? entry.kind === "hook" : Boolean(entry.marketplace || entry.ownerPluginId)));
   return <section aria-label={mode === "hooks" ? "Reviewed lifecycle hooks" : "Repository marketplace"}>
     <SettingsHelp label="More about this setting" target={<h2>{mode === "hooks" ? "Lifecycle hooks" : "Repository marketplace"}</h2>}>Imports, updates and rollbacks install disabled content. Enabling never grants tools. Every hook/script still uses actual root/mode policy, exact command approval, cancellation and truthful partial outcomes.</SettingsHelp>
-    {!project && <p className="settings-warning">Choose a project. No extension inherits an unrelated root.</p>}
-    {error && <p role="alert" className="notice error">{error}</p>}{status && <p role="status">{status}</p>}
+    {!project && <Alert as="p" tone="warning" className="settings-warning">Choose a project. No extension inherits an unrelated root.</Alert>}
+    {error && <Alert as="p" role="alert" className="notice error">{error}</Alert>}{status && <Alert as="p" role="status">{status}</Alert>}
     {mode === "hooks" ? <>
       <SettingsHelp label="More about this setting" target={<label className="setting-field">Hook definition JSON<SettingsTextarea aria-label="Hook definition JSON" className="json-editor" spellCheck={false} value={hookJson} onChange={(event) => { setHookJson(event.target.value); setReviewed(false); setDirty(true); }} /></label>} descriptionFirst>Turn-start hooks finish before any model reservation or request. Turn-end hooks run only after normal successful solver completion. Failed/denied hooks stop continuation; cleanup or cancelled turns do not launch additional hooks. Tool-less roles and read-only chats never execute them.</SettingsHelp>
       <label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this exact command and trigger. Import it disabled.</label>
@@ -60,7 +61,7 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
         const input = parse(MarketplaceInputSchema, { projectId: project!.id, sourceProjectId: sourceId, commit, path, packageName, version });
         setPreview((await sdk.marketplace.preview(input)).preview); setReviewed(false); setDirty(false);
       })}>Review pinned bundle</button>
-      {preview && <><p className="settings-warning">{preview.warning}</p><p>Source: <code>{preview.source.root}</code>, catalog SHA-256 <code>{preview.catalogDigest}</code></p>
+      {preview && <><Alert as="p" tone="warning" className="settings-warning">{preview.warning}</Alert><p>Source: <code>{preview.source.root}</code>, catalog SHA-256 <code>{preview.catalogDigest}</code></p>
         <pre>{JSON.stringify(preview.manifest, null, 2)}</pre>
         <label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed the exact source, license, complete capabilities and commands. Install/update this bundle disabled.</label>
         <button disabled={!reviewed || busy} onClick={() => void run(async () => {
@@ -72,7 +73,7 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
     <h3>Installed capabilities</h3>
     <div className="button-row">{entries.map((entry) => <button key={entry.id} disabled={busy} onClick={() => void run(async () => { await read(entry); setHistory([]); })}>{entry.name}: {entry.retired ? "removed" : entry.enabled ? "enabled" : "disabled"}</button>)}</div>
     {selected && actual && <><h3>{selected.entry.name}</h3><pre>{selected.content}</pre><p className="fine-print">Content SHA-256 <code>{selected.entry.contentDigest}</code>, current revision {selected.currentRevision}.</p>
-      {stale && <p role="alert" className="settings-warning">Another client changed this capability. Review its current content again; this old review cannot enable or replace it.</p>}
+      {stale && <Alert as="p" role="alert" className="settings-warning">Another client changed this capability. Review its current content again; this old review cannot enable or replace it.</Alert>}
       <label className="check-setting"><SettingsInput type="checkbox" checked={contentReviewed} onChange={(event) => setContentReviewed(event.target.checked)} />I reviewed these exact bytes and their execution requirements.</label>
       <div className="button-row">
         {selected.entry.contentDigest === actual.contentDigest && <button disabled={!contentReviewed || busy || stale || actual.retired} onClick={() => void run(async () => {

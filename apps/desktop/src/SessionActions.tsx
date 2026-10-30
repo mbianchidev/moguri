@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, type SessionChildrenAction, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Action = "archive" | "delete" | "detach";
 type ReviewedSession = Pick<Session, "id" | "title" | "revision" | "status" | "projectId" | "parentSessionId" | "kind">;
@@ -185,8 +186,8 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
           Saves this exact cascade-or-detach choice in this profile. Change it in Settings / Retention. It never grants permissions or overrides cleanup checks.
         </SettingsHelp>
       </fieldset>}
-      {stale && <p className="inline-error" role="alert">This session or its attached children changed after review. Close and review it again.</p>}
-      {error && <p className="inline-error" role="alert">{error}</p>}
+      {stale && <Alert as="p" className="inline-error" role="alert">This session or its attached children changed after review. Close and review it again.</Alert>}
+      {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       {review.action === "delete" && review.confirmAction && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
         {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}</label>}
       {review.confirmAction && <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />

@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ArtifactMaterialization, ArtifactMaterializationPreview, MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function ArtifactRepositoryCopy({ sdk, snapshot, projectId, expectedSetDigest, allowWorkspaces = true, defaultWorkspaceId = null, onSaved, onBusy }: {
   sdk: MoguriSdk; snapshot: Snapshot; projectId: string; expectedSetDigest?: string; allowWorkspaces?: boolean; defaultWorkspaceId?: string | null;
@@ -53,7 +54,7 @@ export function ArtifactRepositoryCopy({ sdk, snapshot, projectId, expectedSetDi
       {preview.commit && <p className="fine-print">New local branch {preview.commit.branch}, parent {preview.commit.base}. Current checkout and index remain unchanged.</p>}
       <button className="primary" type="button" disabled={busy || Boolean(saved)} onClick={() => void run(write)} aria-label={commit ? "Write and commit reviewed copy" : "Write reviewed repository copy"}>{commit ? "Write and commit" : "Write"}</button></>}
     {busy && jobId && <><p className="fine-print" role="status">{job?.progress ?? "Waiting for the owned repository job."}</p><button type="button" onClick={() => void sdk.jobs.cancel(jobId).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not acknowledged. Inspect the owned job."))}>Stop repository copy</button></>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {saved && <p className="fine-print" role="status">Exact repository copy verified{saved.commit ? `; local commit ${saved.commit.commit}` : ""}. Stored Moguri documents remain until a separate explicit deletion.</p>}
   </section>;
 }

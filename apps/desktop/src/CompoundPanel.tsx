@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { activeCompound, COMPOUND_EVIDENCE_WARNING, type CompoundInput, type CompoundResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Read = Extract<CompoundResponse, { type: "compound.read" }>;
 type Preview = Extract<CompoundResponse, { type: "compound.preview" }>["preview"];
@@ -64,10 +65,10 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
     <SettingsHelp label="More about this setting" target={<h2>Reviewed Cascade / Critique</h2>}>Local host commands are not sandboxed. Detached/reparented containment remains unproven. Exact project-test approval and source application are separate decisions.</SettingsHelp>
     <p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
 
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
-    {!local && <p className="settings-warning">Configure an explicitly reviewed Compound routing policy, then select kupo in a Local project agent. This panel never changes Env, model, autonomy or budgets for you.</p>}
-    {changedOwner && <p className="settings-warning">The source owner changed. Your unsaved task remains visible, but cannot be sent into another project. Copy it or explicitly discard before starting a new review.</p>}
+    {!local && <Alert as="p" tone="warning" className="settings-warning">Configure an explicitly reviewed Compound routing policy, then select kupo in a Local project agent. This panel never changes Env, model, autonomy or budgets for you.</Alert>}
+    {changedOwner && <Alert as="p" tone="warning" className="settings-warning">The source owner changed. Your unsaved task remains visible, but cannot be sent into another project. Copy it or explicitly discard before starting a new review.</Alert>}
     <SettingsHelp label="More about this setting" target={<details open={!selected || dirty}>
       <summary>Prepare exact compound input</summary>
       <label className="setting-field">Current task<SettingsTextarea aria-label="Compound task" value={task} disabled={Boolean(busy) || !writable || changedOwner} maxLength={4096} onChange={(event) => edit(() => setTask(event.target.value))} /></label>
@@ -113,19 +114,19 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
     {value && <div className="candidate-section">
       <h3 ref={outcomeHeading} tabIndex={-1}>Compound {value.workflow.status}</h3>
       <p className="fine-print">Phase: {value.workflow.phase}. {value.workflow.route ? `Classifier selected ${value.workflow.route.pattern}.` : "No route accepted."} No source acceptance or Git operation is implied.</p>
-      {value.workflow.diagnostic && <p className="settings-warning" role="alert">{value.workflow.diagnostic}</p>}
+      {value.workflow.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.workflow.diagnostic}</Alert>}
       {ownRunning && <button disabled={Boolean(busy)} onClick={() => void run("Requesting owned workflow stop", async () => { await sdk.compound.stop(value.workflow.id); })} aria-label="Stop this compound workflow">Stop</button>}
       {value.roles.map(({ step, input, result }) => <details key={step.planId}><summary>{step.role} / {step.modelId} / {step.state}</summary>
         <p className="fine-print">Untrusted role data, never a user answer, permission or quality proof.</p>{input && <details><summary>Exact model input</summary><pre>{input}</pre></details>}{result && <pre>{result}</pre>}</details>)}
       {value.validations.map(({ validation, document, result }) => <details key={validation.id} open={Boolean(result)}><summary>Project tests / {validation.status}</summary>
         <p className="fine-print path">{document.stage.root}<br /><code>{document.command}</code></p><p className="fine-print">Decision: {validation.decision?.actor ?? "not supplied"}. Dispatched: {String(validation.dispatched)}. Exit: {result?.exitCode ?? "unreported"}. Candidate unchanged: {result ? String(result.candidateUnchanged) : "unreported"}.</p>
-        {result && <pre>{result.text}</pre>}{validation.diagnostic && <p className="settings-warning">{validation.diagnostic}</p>}</details>)}
+        {result && <pre>{result.text}</pre>}{validation.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{validation.diagnostic}</Alert>}</details>)}
       {review && <section className="candidate-binding" aria-label="Exact compound staging and test review">
         <h3 ref={reviewHeading} tabIndex={-1}>Review exact candidate staging and host tests</h3>
         <h4>Plan</h4><pre>{review.document.proposal.plan}</pre><h4>Architecture</h4><pre>{review.document.proposal.architecture}</pre>
         <p className="fine-print path">Source unchanged: {review.document.source.root}<br />Owned candidate: {review.document.stage.root}</p>
         {review.document.proposal.patch.edits.map((edit) => <details key={edit.path} open><summary>{edit.path} / original base {edit.baseDigest}</summary><pre>{edit.text}</pre></details>)}
-        <p className="settings-warning">This executes project code on the Local host, not in Sandbox. No automatic dependency install. Hard denials and folder restrictions still win.</p>
+        <Alert as="p" tone="warning" className="settings-warning">This executes project code on the Local host, not in Sandbox. No automatic dependency install. Hard denials and folder restrictions still win.</Alert>
         <pre>{review.document.command}</pre><p className="fine-print">Deadline: {review.document.timeoutMs} ms. Only these bytes and this exact configured command are proposed. Passing tests and critic advice do not accept source changes.</p>
         <label className="check-setting"><SettingsInput aria-label="Reviewed compound staging and test" type="checkbox" checked={testReviewed} disabled={Boolean(busy) || !ownRunning} onChange={(event) => setTestReviewed(event.target.checked)} />I reviewed the exact candidate bytes, owned root and host command. Approve this staging/test only, not source application.</label>
         <div className="button-row"><button className="primary" disabled={Boolean(busy) || !ownRunning || !testReviewed} onClick={() => void run("Approving exact staging and project tests", async () => {

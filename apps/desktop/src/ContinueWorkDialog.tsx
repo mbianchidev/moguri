@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContinueWorkChoice, ContinueWorkReview, DraftEditor, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function ContinueWorkDialog({ sdk, editor, review, close, modal, chooseQueued }: {
   sdk: MoguriSdk; editor: DraftEditor; review: ContinueWorkReview; close: () => void; modal: (open: boolean) => void;
@@ -28,7 +29,7 @@ export function ContinueWorkDialog({ sdk, editor, review, close, modal, chooseQu
     <pre className="kanban-source-body">{review.text}</pre>
     <p className="fine-print">Kanban handles one item through its PR. Sending to the model uses the normal chat, controls and permissions. {"command" in review ? "Cancel preserves this original input without replacing a newer composer draft." : "Cancel keeps your draft."}</p>
     {!canDelegate && <p className="fine-print">Kanban delegation needs an idle writable Local project chat. You can still send the prompt normally.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {busy && <p role="status">Saving this choice. No replacement request will be sent.</p>}
     <footer><button disabled={busy} onClick={close}>Cancel</button><button disabled={busy || !session} onClick={() => void choose("prompt")}>Send to model</button>
       <button className="primary" autoFocus disabled={busy || !canDelegate} onClick={() => void choose("kanban")}>Work from Kanban</button></footer>

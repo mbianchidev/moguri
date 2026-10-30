@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CompactionPreview, CompactionResponse, ContextCompaction, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 type ContextState = Extract<CompactionResponse, { type: "compaction.state" }>;
 const count = (value: number) => new Intl.NumberFormat().format(value);
@@ -55,7 +56,7 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
     <p>Summaries are model-produced proposals, not user answers or permissions. Nothing is applied automatically. Original history and your draft stay retained.</p>
     {state ? <><dl className="context-estimates"><dt>Active conversation</dt><dd>~{count(state.estimatedTokens)} tokens</dd><dt>Retained originals</dt><dd>~{count(state.originalEstimatedTokens)} tokens</dd></dl>
       <p className="fine-print">Conversation estimates exclude system prompt, tools and draft. They are not exact tokenization or billing. Env: {session.controls.env}{session.controls.env === "Remote" ? ", pinned SSH execution, not sandbox isolation" : ", host execution, not sandboxed"}.</p></> : <p role="status">Loading retained context...</p>}
-    {stateError && <div role="alert" className="inline-error">{stateError}</div>}
+    {stateError && <Alert as="div" role="alert" className="inline-error">{stateError}</Alert>}
     <button type="button" className="quiet" disabled={busy} onClick={() => void refresh()}>Reload context</button>
     <details className="compaction-generation" open={!selected || !["proposed", "restored", "applied"].includes(selected.status)}>
       <summary>Generate a new proposal</summary>
@@ -80,7 +81,7 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
       {selected && <><p className="fine-print">Actual model: {snapshot.provider.models.find((model) => model.id === selected.modelId)?.name ?? selected.modelId}. Status: <strong>{selected.status}</strong>. {selected.afterTokens === null ? "No accepted size reduction." : `~${count(selected.beforeTokens)} to ~${count(selected.afterTokens)} conversation tokens.`}</p>
         {selected.status === "running" && <p role="status">Owned compaction is running. You can close this review without losing it.</p>}
         {selected.status === "running" && <button type="button" disabled={busy} onClick={() => void work(async () => { await sdk.compactions.stop(session.id, selected.id); })}>Stop compaction</button>}
-        {selected.diagnostic && <p className="inline-error" role="alert">{selected.diagnostic}</p>}
+        {selected.diagnostic && <Alert as="p" className="inline-error" role="alert">{selected.diagnostic}</Alert>}
         {content !== null && <><h3>Review model-produced summary</h3><pre className="compaction-summary" aria-label="Proposed context summary" tabIndex={0}>{content}</pre></>}
         {validProposal && <><p className="fine-print">This is lossy model-derived context. Inspect intent, constraints and unknowns before adopting it.</p>
           {stale && <p role="status">Source changed. This proposal cannot replace the current context.</p>}
@@ -96,6 +97,6 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
     </section>}
     {active && <p role="status" className="fine-print">Finish or stop active work and hold/remove queued prompts before changing context.</p>}
     {busy && <p role="status" className="fine-print">Waiting for the service. Your draft is preserved.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </dialog>;
 }

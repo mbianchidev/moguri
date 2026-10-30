@@ -2,6 +2,7 @@ import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.ts
 import { useState } from "react";
 import { type MoguriSdk, type Project, type ProjectSettings, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabled, openSession }: {
   sdk: MoguriSdk; project: Project; settings: ProjectSettings; snapshot: Snapshot; disabled: boolean; openSession: (id: string) => void;
@@ -30,7 +31,7 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
     })}>{busy ? "Working..." : "Create worktree"}</button>
     <SettingsHelp label="More about this setting" target={<button disabled={disabled || busy} onClick={() => void run(() => sdk.workspaces.discover(project.id))} aria-label="Discover Git worktrees">Discover</button>}>Discovery reads Git registration only. Unmanaged roots are not adopted, removed or granted to an agent; attach their folder explicitly as a project if needed.</SettingsHelp>
 
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {!workspaces.length && <p className="fine-print">No managed checkouts yet. Ordinary project chats keep using the attached base folder.</p>}
     {removable.length > 0 && <label className="setting-field">Workspace reviewed for removal
       <select aria-label="Workspace reviewed for removal" value={removal?.id ?? ""} disabled={disabled || busy} onChange={(event) => {
@@ -42,7 +43,7 @@ export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabl
     {workspaces.slice().reverse().map((workspace) => {
       const bound = snapshot.sessions.filter((session) => session.workspaceId === workspace.id).length;
       return <details key={workspace.id} className="workspace-record"><summary>{workspace.branch} / {workspace.status}{bound ? ` / ${bound} session${bound === 1 ? "" : "s"}` : ""}</summary>
-        <p className="fine-print path">{workspace.path}</p><p className="fine-print">Base <code>{workspace.baseCommit}</code></p>{workspace.diagnostic && <p className="settings-warning">{workspace.diagnostic}</p>}
+        <p className="fine-print path">{workspace.path}</p><p className="fine-print">Base <code>{workspace.baseCommit}</code></p>{workspace.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{workspace.diagnostic}</Alert>}
         <div className="button-row"><button disabled={disabled || busy || workspace.status !== "ready"} onClick={() => void run(async () => { const created = await sdk.sessions.create(project.id, workspace.branch, { env: "Local" }, workspace.id); openSession(created.id!); })}><Icon name="Plus" />New chat</button>
           <button disabled={disabled || busy || workspace.status === "removed"} onClick={() => void run(() => sdk.workspaces.inspect(workspace.id))}>Inspect</button>
           <button disabled={disabled || busy || workspace.status !== "partial"} onClick={() => void run(() => sdk.workspaces.reconcile(workspace.id, workspace.revision))}>Reconcile</button>

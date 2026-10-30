@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MoguriSdk, OperationEntry, ProfileStorage, Snapshot, TelemetryQuery, TelemetryResponse, UsageFilters } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Operations = Extract<TelemetryResponse, { type: "telemetry.operations" }>;
 type Family = OperationEntry["family"] | "";
@@ -38,7 +39,7 @@ export function OperationalUsage({ sdk, snapshot, filters }: { sdk: MoguriSdk; s
       {open && <section aria-label="Tool and MCP outcomes" aria-busy={loading || !operationCurrent}>
         <p className="fine-print">Uses the selected dates and source filters, not calendar buckets. Actual MCP attempts are separate from ordinary tools and gateway discovery. Explicit user plan saves have their own history.</p>
         <label className="setting-field">Attempt family<select aria-label="Operation family filter" value={family} onChange={(event) => { const value = event.target.value; if (value === "" || value === "tool" || value === "mcp") setFamily(value); }}><option value="">Tools and MCP, counted once</option><option value="tool">Tools and gateway metadata</option><option value="mcp">MCP tool attempts</option></select></label>
-        {(loading || !operationCurrent) && <p role="status">Loading retained outcomes...</p>}{operationCurrent && operationError && <p className="inline-error" role="alert">{operationError}</p>}
+        {(loading || !operationCurrent) && <p role="status">Loading retained outcomes...</p>}{operationCurrent && operationError && <Alert as="p" className="inline-error" role="alert">{operationError}</Alert>}
         {operations && <>
           <dl className="facts"><dt>Retained attempts</dt><dd>{operations.totals.attempts}</dd><dt>Observed starts</dt><dd>{operations.totals.started}</dd>
             <dt>Failure rate</dt><dd>{failureRate(operations.totals)}</dd><dt>Completed / failed</dt><dd>{operations.totals.completed} / {operations.totals.failed}</dd>
@@ -47,7 +48,7 @@ export function OperationalUsage({ sdk, snapshot, filters }: { sdk: MoguriSdk; s
             <dt>Observed lifecycle wall</dt><dd>{operations.totals.elapsedSamples ? `${(operations.totals.observedWallMs / 1000).toFixed(2)} s / ${operations.totals.elapsedSamples} samples` : "No complete timing samples"}</dd>
             <dt>Unmeasured attempts</dt><dd>{operations.totals.unmeasuredAttempts}</dd><dt>Retries</dt><dd>Not attributed</dd></dl>
           <p className="fine-print">Failure rate is failed / (completed + failed). Denied, unfinished and uncertain outcomes are shown separately. Lifecycle wall observations include dispatch/result transport; overlaps are not active tool time.</p>
-          {operations.window.excludedUncertainTimeCalls > 0 && <p className="settings-warning">{operations.window.excludedUncertainTimeCalls} attempts lack a verified request/start time and are excluded from this dated view. All time includes them.</p>}
+          {operations.window.excludedUncertainTimeCalls > 0 && <Alert as="p" tone="warning" className="settings-warning">{operations.window.excludedUncertainTimeCalls} attempts lack a verified request/start time and are excluded from this dated view. All time includes them.</Alert>}
           {operations.repositoryCoverage.unattributedCalls > 0 && <p className="fine-print">{operations.repositoryCoverage.unattributedCalls} source/date-matching attempts have no captured repository; repository filters exclude them without guessing.</p>}
           {filters.visibility === "open-source" && operations.repositoryCoverage.unverifiedLicenseCalls > 0 && <p className="fine-print">{operations.repositoryCoverage.unverifiedLicenseCalls} public-repository attempts have unknown license evidence and are excluded without inferring a license.</p>}
           {!operations.totals.attempts && <p>No retained attempts match these filters. Previously deleted history is unavailable, not proof of zero calls.</p>}
@@ -67,7 +68,7 @@ export function OperationalUsage({ sdk, snapshot, filters }: { sdk: MoguriSdk; s
       {storageOpen && <section aria-label="Retained profile storage" aria-busy={measuring || !storageCurrent}>
         <p className="fine-print">Entire current profile, regardless of date, project or model filters. Key-backed ciphertext, not disk usage, plaintext size or freed disk.</p>
         <button type="button" disabled={measuring} onClick={() => setRefresh((value) => value + 1)}>Refresh retained size</button>
-        {(measuring || !storageCurrent) && <p role="status">Measuring retained ciphertext...</p>}{storageCurrent && storageError && <p className="inline-error" role="alert">{storageError}</p>}
+        {(measuring || !storageCurrent) && <p role="status">Measuring retained ciphertext...</p>}{storageCurrent && storageError && <Alert as="p" className="inline-error" role="alert">{storageError}</Alert>}
         {storage && <><dl className="facts"><dt>Included ciphertext</dt><dd>{bytes(storage.bytes.total)}</dd><dt>Sealed event payloads</dt><dd>{bytes(storage.bytes.events)} / {storage.counts.events} events</dd>
           <dt>Encrypted blob grants</dt><dd>{bytes(storage.bytes.blobGrants)} / {storage.counts.blobGrants} grants</dd><dt>Distinct blob contents</dt><dd>{storage.counts.blobContents}</dd>
           <dt>Encrypted scope keys</dt><dd>{bytes(storage.bytes.keys)} / {storage.counts.keys} keys</dd><dt>Physical / freed disk</dt><dd>Not measured</dd></dl>

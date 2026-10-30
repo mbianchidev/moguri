@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { ReorderList } from "./ReorderList.tsx";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 const values = (board: BoardConfig): BoardConfig => ({ columns: structuredClone(board.columns), mergedColumnId: board.mergedColumnId,
   autoRefreshPrs: board.autoRefreshPrs, githubAccess: board.githubAccess, linear: { ...board.linear }, kanban: structuredClone(kanbanPreferences(board)),
@@ -85,7 +86,7 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
       <label className="setting-field">Linear team UUID<SettingsInput aria-label="Linear team UUID" value={draft.linear.teamId} onChange={(event) => setDraft((current) => ({ ...current, linear: { ...current.linear, teamId: event.target.value } }))} /></label>
       <button type="button" className="primary" aria-label="Save Linear team" disabled={draft.linear.teamId === committed.linear.teamId} onClick={() => void write({ ...actual.current, linear: { ...actual.current.linear, teamId: draft.linear.teamId } })}>Save</button>
     </fieldset>
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     <button type="button" disabled={busy} onClick={reload} aria-label="Reload board settings">Reload</button>
   </section>;
 }

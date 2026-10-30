@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { MoguriSdk, StorageMoveReview, StorageStatus } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
   sdk: MoguriSdk; disabled: boolean; onBusy: (busy: boolean) => void; prepareMaintenance: () => Promise<void>;
@@ -25,11 +26,11 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
     <div className="button-row"><button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onClick={() => void run(async () => { const path = await window.moguri.chooseStorageDirectory(); if (path) change(path); })} aria-label="Choose storage parent">Choose</button>
       <button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride || path === storage.directory} onClick={() => void run(async () => { setReview((await sdk.application.storage.preview(path)).review); setConfirmed(false); })} aria-label="Review storage relocation">Review</button>
       <button type="button" disabled={busy} onClick={() => { if (storage) change(storage.directory); }} aria-label="Discard storage edit">Discard</button></div>
-    {storage?.explicitOverride && <p className="settings-warning">This launch explicitly selected MOGURI_STATE_DIR. Restart without the override before changing default storage. It is never silently cleared or rewritten.</p>}
-    {storage?.diagnostic && <p className="settings-warning">{storage.diagnostic}</p>}
+    {storage?.explicitOverride && <Alert as="p" tone="warning" className="settings-warning">This launch explicitly selected MOGURI_STATE_DIR. Restart without the override before changing default storage. It is never silently cleared or rewritten.</Alert>}
+    {storage?.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{storage.diagnostic}</Alert>}
     {review && <><dl className="facts"><dt>Encrypted source</dt><dd className="path">{review.source}</dd><dt>New data directory</dt><dd className="path">{review.destination}</dd>
       <dt>Original resources retained</dt><dd className="path">{review.resourceBase}</dd><dt>Profiles / actual owners</dt><dd>{review.profiles.length} / {review.activeOwners.length}</dd></dl>
-      <p className="settings-warning">Confirmation stops owned model/tool work and closes every SQLite writer before copying. Unknown accounting remains held. Authenticated user terminals survive this explicit restart without input replay. The old encrypted database remains a retired backup, not a second writer. Neither source nor partial destination is automatically deleted.</p>
+      <Alert as="p" tone="warning" className="settings-warning">Confirmation stops owned model/tool work and closes every SQLite writer before copying. Unknown accounting remains held. Authenticated user terminals survive this explicit restart without input replay. The old encrypted database remains a retired backup, not a second writer. Neither source nor partial destination is automatically deleted.</Alert>
       <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the exact source, destination, retained resources and restart impact</label>
       <button type="button" className="primary" disabled={disabled || busy || !confirmed} onClick={() => void run(async () => {
         await prepareMaintenance();
@@ -38,6 +39,6 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
         setOutput(`Encrypted store copied and discovery published at ${result.directory}. Restart was suppressed in the generated hidden window.`);
       })} aria-label="Move and restart Moguri with relocated storage">Move and restart</button></>}
     {storage?.operation && <p className="fine-print">Last relocation: {storage.operation.status}. {storage.operation.diagnostic}</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{output && <p role="status">{output}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{output && <Alert as="p" role="status">{output}</Alert>}
   </section>;
 }

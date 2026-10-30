@@ -34,6 +34,7 @@ test("long clipboard text becomes an exact scoped file and modifier queueing nev
     expect(fixture.session().queue[0]?.attachments[0]?.digest).toBe(attachment.digest);
     expect(fixture.requests.length).toBe(0);
     expect(errors).toEqual([]);
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
@@ -78,6 +79,7 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
     await expect(review.getByRole("button", { name: "Attach", exact: true })).toBeDisabled();
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
+    await expect(review).toBeHidden();
     await expect(prompt).toHaveValue("");
     await expect.poll(() => fixture.session().draft.attachments.some((attachment) => attachment.kind === "folder")).toBe(true);
     await prompt.fill(`#https://github.com/generated/example/issues/7`); await prompt.press("Tab");
@@ -85,6 +87,7 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
     await expect(review).toContainText("Generated attachment issue");
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
+    await expect(review).toBeHidden();
     await expect(prompt).toHaveValue("");
     await prompt.fill(`:${source.id}`); await prompt.press("Tab");
     await expect(review).toContainText("Generated source conversation text.");
@@ -92,6 +95,7 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
     await page.screenshot({ path: resolve(".moguri/artifacts/typed-context-review.png") });
     await review.getByLabel("I reviewed this source snapshot and destination.").check();
     await review.getByRole("button", { name: "Attach", exact: true }).click();
+    await expect(review).toBeHidden();
     await expect.poll(() => fixture.session().draft.attachments.map((attachment) => attachment.kind)).toEqual(["folder", "github_issue", "session"]);
     expect(fixture.service.controller.snapshot().sessions.find((session) => session.id === source.id)?.status).toBe("completed");
     expect(fixture.requests.length).toBe(2);
@@ -99,5 +103,6 @@ test("clipboard images, exact folder review and typed GitHub/session triggers pr
     await page.screenshot({ path: resolve(".moguri/artifacts/typed-context-compact.png") });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     expect(errors).toEqual([]);
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function McpOAuthPanel({ sdk, serverId, sessionId, snapshot }: { sdk: MoguriSdk; serverId: string; sessionId?: string; snapshot: Snapshot }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export function McpOAuthPanel({ sdk, serverId, sessionId, snapshot }: { sdk: Mog
     return () => { current = false; };
   }, [serverId, state?.id, state?.state, state?.authorizationUrlReady, busy]);
   return <section className="mcp-oauth-panel" aria-label="MCP OAuth"><SettingsHelp label="More about this setting" target={<h3>OAuth connection</h3>}>Authorization-code flow with PKCE, issuer/resource binding and keychain-only credentials. Login opens only when you explicitly choose its authorization link.</SettingsHelp>
-    {state && <p role="status">Last authorization: {state.state}{state.diagnostic ? ` / ${state.diagnostic}` : ""}</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {state && <p role="status">Last authorization: {state.state}{state.diagnostic ? ` / ${state.diagnostic}` : ""}</p>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <div className="button-row"><button disabled={busy || Boolean(state && ["waiting", "exchanging"].includes(state.state))} onClick={() => void run(async () => { const result = await sdk.mcp.oauthBegin(serverId, sessionId); setUrl((await sdk.mcp.oauthStatus(result.id!)).url); })} aria-label="Connect OAuth">Connect</button>
       {url && <button className="primary" onClick={() => void run(() => window.moguri.openExternal(url))}>Open authorization</button>}
       {state && ["waiting", "exchanging"].includes(state.state) && <button onClick={() => void run(() => sdk.mcp.oauthCancel(state.id))} aria-label="Cancel login">Cancel</button>}

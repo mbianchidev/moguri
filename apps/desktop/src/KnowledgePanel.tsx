@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { KnowledgeRecord, KnowledgeTier, MoguriSdk, Project, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; project?: Project; session?: Session; onDirty: (value: boolean) => void;
@@ -39,9 +40,9 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
   return <section aria-label="Sky Terra Glacier knowledge">
     <SettingsHelp label="More about this setting" target={<h2>Sky, Terra, Glacier</h2>}>Sky expires with its actual turn or session. Terra retains project/work-item knowledge. Glacier holds explicitly reviewed compressed knowledge across this profile. None of these grants tools, runs a model, or self-promotes.</SettingsHelp>
     <p className="fine-print">Tiered context injection is {snapshot.settings.values.memory.enabled && snapshot.settings.values.memory.useTieredContext === true ? "explicitly enabled" : "off"}. Enable it separately in Repository memory. Selection is bounded and deterministic, not a claim of semantic understanding.</p>
-    {error && <p role="alert" className="notice error">{error}</p>}
-    {status && <p role="status">{status}</p>}
-    {stale && <p role="alert" className="settings-warning">The selected note expired or changed in another client. Your edit remains here; reload the current note before applying it.</p>}
+    {error && <Alert as="p" role="alert" className="notice error">{error}</Alert>}
+    {status && <Alert as="p" role="status">{status}</Alert>}
+    {stale && <Alert as="p" role="alert" className="settings-warning">The selected note expired or changed in another client. Your edit remains here; reload the current note before applying it.</Alert>}
     <label className="setting-field">Knowledge tier<select aria-label="Knowledge tier" value={tier} disabled={busy || dirty} onChange={(event) => { reset(); setTier(event.target.value as KnowledgeTier); }}>
       <option value="Sky">Sky: current session</option><option value="Terra">Terra: current project</option><option value="Glacier">Glacier: this profile</option>
     </select></label>
@@ -53,7 +54,7 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
     {tier === "Sky" && <label className="setting-field">Sky lifetime<select aria-label="Sky lifetime" value={lifetime} disabled={busy || Boolean(selected)} onChange={(event) => { setLifetime(event.target.value as "turn" | "session"); setDirty(true); }}>
       <option value="session">Until session archival/deletion</option><option value="turn">Until the actual current turn ends</option>
     </select></label>}
-    {tier === "Glacier" && <p className="settings-warning">Create Glacier notes only by reviewing and compressing an exact Sky/Terra source. Existing Glacier revisions can be reviewed, rolled back or forgotten, not silently re-attributed.</p>}
+    {tier === "Glacier" && <Alert as="p" tone="warning" className="settings-warning">Create Glacier notes only by reviewing and compressing an exact Sky/Terra source. Existing Glacier revisions can be reviewed, rolled back or forgotten, not silently re-attributed.</Alert>}
     <button disabled={!canWrite || busy || stale || !title.trim() || !text.trim()} onClick={() => void run(async () => {
       const input = tier === "Sky" ? { tier: "Sky" as const, sessionId: session!.id, lifetime, title, text } :
         { tier: "Terra" as const, projectId: project!.id, ...(selected?.record.workItemId ? { workItemId: selected.record.workItemId } : {}), title, text };

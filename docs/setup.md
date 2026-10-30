@@ -1,9 +1,61 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **77**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **81**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Reliable session controls and built-in Git
+
+Select **Autonomy / Autopilot** or run `/autonomy Autopilot` once to enable
+automatic tool approvals for subsequent turns. Reselecting an older bounded
+value explicitly saves that consent; opening a chat or changing a model/budget
+does not silently upgrade it. Hard denials, read-only mode, Env, roots, budgets
+and user-only decisions still apply.
+
+Transient snapshot failures resynchronize without stranding a healthy event
+connection as disconnected or discarding the composer. Draft saves that never
+dispatched resume against the fresh original revision; another client's changed
+draft stays a conflict. Unknown dispatched saves or prompts are not replayed.
+Slow reads through both the SDK and desktop proxy use their
+actual service deadline; expired reads remain actionable errors. Unknown
+mutation responses are inspected by original command receipt, never resent.
+Keep local edits open until their saved acknowledgement; a pending/unknown
+command is not proof of failure or permission to repeat an external effect.
+
+Agents can discover **git_read** and **git_write** rather than creating scripts
+for covered operations. TUI/CLI and desktop share `/git status`, `/git branches`,
+`/git log`, `/git show COMMIT_SHA`, `/git diff [staged]`, `/git preview ACTION_JSON`
+and `/git execute confirm-write {action,expectedDigest,confirmations}`. Ordinary
+slash commands keep their service-owned queue ordering. Desktop also exposes
+the actions in **Settings / GitHub workflows / Advanced reviewed operations**.
+
+Local built-ins create/switch/rename branches, stage/unstage exact files, commit
+only selected staged paths while preserving the original index and unrelated
+work, push a new branch, and retain the existing rebase/tag workflows.
+Managed branch rename updates its exact workspace/change-set metadata in the
+same verified completion transaction. Managed roots retain their captured
+change-set branch: create another branch without checkout or create a separate
+managed worktree instead of switching an existing managed root. If rename
+metadata fails, the operation stays partial; after exact user inspection
+acknowledgement, explicit workspace reconciliation can repair only the original
+verified metadata, without replaying Git or completing the partial report.
+**Rollback creates a new revert commit**, preserving history and restoring the
+previous committed tree; it requires the exact current single-parent commit
+and a clean checkout. It never means reset-hard, clean, stash or forced rename.
+Exact-byte staging accepts canonical regular files up to 2 MiB each/8 MiB total,
+with a separately bounded complete Git review; filtered/text-normalized paths
+require explicit inspection outside this built-in. A partial Git outcome holds
+the root for inspection, not automatic retry or rollback.
+
+These new native Git adapters are Local-project/worktree only. Unsupported
+Remote, Sandbox, captured-group and Home scopes cannot use the controller's
+checkout as a fallback. [The contract](architecture/github-workflows.md)
+records ownership, approvals, cancellation/recovery and original-result limits.
+Public tool results have discoverable retained source IDs and digest/revision
+bound pages, not guessed step IDs; private roles, hooks and user consoles remain
+unavailable. Protocol 81 adds two independent markers without rewriting any of
+combined80's six original markers, ciphertext, receipts or unknown charges.
 
 ## Saved turn and usage information
 
@@ -171,6 +223,18 @@ open issues onto the board and keeps imported links updated, including later
 closure/reopening. The source binds this Mac's actual CLI account, canonical
 project root, upstream and repository identity. Account/root changes fail
 explicitly rather than retargeting the import.
+Presentation-only project changes, such as a sidebar color, do not invalidate
+that retained source. Each observation checks fresh current permissions; an
+actual policy change during a read rejects its staged page, and a later
+permitted refresh can recover without replacing source/card identities.
+
+Card moves and other successful operations use informational notices, not red
+errors. Desktop alerts have a small **X** button, including errors in settings,
+the composer and panels. Closing one hides only its message: drafts, failed
+jobs, required answers/approvals and recovery actions remain unchanged.
+Different/new notifications reappear. The TUI footer similarly offers **[x]**
+and Escape in composer focus; ordinary information is not colored as an error.
+See the [shared alert and Kanban observation contract](architecture/alerts-kanban-sync.md).
 
 Open issues without an active linked PR are **Backlog**; an attached draft PR
 means **In progress**; a ready open PR means **Review**; a closed issue means
@@ -374,7 +438,9 @@ guidance never installs or enables a capability.
 prior prompts, without creating a hidden chat or calling a model. Optionally
 select a chat to narrow the scope. Review the exact usage gaps, excerpts and
 selected model before generation; configuration proposals still need a separate
-actual-user decision. `/suggestions session` preserves explicit scoped access.
+actual-user decision. `/suggestions` defaults to the current project's scope;
+`/suggestions session` preserves the explicit alias and `/suggestions all`
+requests the wider review.
 
 **Dashboard** has My work, Usage, Cost and Velocity pages with charts first,
 project/model breakdowns and detailed accounting behind a disclosure. The
@@ -691,10 +757,11 @@ through the Node SDK; root/React entrypoints remain browser-safe. See the
 
 ### Reproducing exact native qualification
 
-The [current combined80 0.2.4 evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up)
-are separate from historical 0.2.3/protocol76/77 runs and package-only
-verification. This cut includes actual two-root execution and separate source
-publication, not just generated mapping or readiness data.
+The [current protocol82 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-82-command-and-tool-follow-up)
+are separate from the [packaged combined80 cut](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up),
+historical 0.2.3/protocol76/77 runs and package-only verification. This cut
+includes actual two-root execution and separate source publication, not just
+generated mapping or readiness data.
 Maintainers can build the current distribution with `npm run prepare:sandbox`,
 then use its printed directory and matching image receipt:
 
@@ -1858,15 +1925,18 @@ the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
 The merged independent themes source used protocol/schema 78 with
-`theme_catalog_schema='1'`. The current combined source uses protocol80 and
-preserves genuine76, model77, theme78 and workspace79 histories through exact
+`theme_catalog_schema='1'`. The current follow-up uses protocol82, preserving
+all six combined80 markers plus its independent request-recovery and Git
+markers from81, with distinct `workflow_commands_schema='1'` and
+`tool_preferences_schema='1'`. Genuine76, model77, theme78, workspace79 and81
+histories retain exact
 feature-marker validation before an atomic additive migration.
 Use the matching service or its explicit restart review; never delete state.
 Desktop, TUI and CLI now use the shared service queue for slash text.
 Held navigation/theme/quit commands remain inert there, not in an eager local
 dispatcher or ordinary model text. Actual TUI/desktop views acknowledge their
 rendered application; continuation/archive reviews wait for the real user.
-Click/Tab navigation remains direct. Current80 artifacts require their own
+Click/Tab navigation remains direct. Current82 artifacts require their own
 qualification; the historical standalone78 and model77 receipts do not qualify
 new worker, runtime or installer bytes.
 See the [change and evidence contract](architecture/themes-and-tui.md).
@@ -1952,6 +2022,17 @@ Defaults cover current changes/relevant code, or the project when clean.
 Debug can inspect the session-owned app/Agent logs and an explicitly configured
 approved DAP adapter. Other targets need explicit selection. None of these
 commands changes Env, model, autonomy, permissions or budget.
+
+New [shared commands](architecture/command-tool-preferences.md) add
+`/impeccable [PROMPT]` for UI design, `/continue` without a new prompt,
+`/orchestrate PROMPT` for actual owned multi-session work, `/spawn PROMPT`
+for one atomically assigned Manual child, and `/spar PROMPT` for focused real
+questions before implementation. `/critique PROMPT` and `/roast-me PROMPT`
+analyze the work with service-enforced read-only tools; sharper criticism
+does not permit personal abuse. All keep the existing ordered/held semantics.
+Continue cannot answer pending questions, repeat unknown writes or clear
+partial work. Only provably undispatched Local failures can recover directly;
+other quarantined work still needs original inspection and explicit Resume.
 
 In **Side chat / Main and child sessions**, inspect public transcript/progress,
 send advisory messages, review/revoke exact root grants, or explicitly dispatch
@@ -3090,6 +3171,16 @@ main session. Return to that session to approve. Configuration is user-only;
 discovery may start the configured local executable, so enable only trusted
 servers. Protected-env policy cannot be bypassed by Local MCP discovery.
 
+**Tools and MCP / Tool preference order** ranks equivalent available methods.
+Factory order is **MCP via Gateway, MCP direct, REST API, CLI**, active
+immediately and editable per profile by dragging or Alt+Up/Down. TUI/CLI use
+`/tool-preferences [mcp-gateway mcp-direct rest cli|reset]`.
+Direct MCP exposes an exactly discovered tool's own typed model schema, then
+uses the same service-owned approval/account/root and MCP connection path.
+Ranking never grants permission, authenticates/installs a tool, changes Env or
+retries an uncertain write. Unsupported methods stay unavailable. See the
+[bounded discovery and recovery contract](architecture/command-tool-preferences.md#ranked-methods-and-direct-schemas).
+
 Bearer credentials live only in the OS keychain. Stdio children receive no
 ambient provider tokens. HTTP requires HTTPS, except explicit loopback HTTP.
 TUI `/mcp token SERVER`
@@ -3189,6 +3280,13 @@ owning main or side-chat textbox while speaking. Release flushes the original
 buffer and replaces its provisional text once; it never sends a chat message.
 The shortcut is always hold-to-talk and ignores terminals, dialogs and other
 composers. Voice/Accessibility settings share an editable shortcut.
+Recording no longer waits for an unrelated draft-save acknowledgement or an
+extra SDK conversation refresh. Its silent audio processor prepares during capture
+admission, before the selected microphone opens, and connects immediately so
+the opening audio is not lost during worklet startup or permission-release IPC.
+No microphone is kept open in the background. First-time OS authorization
+still requires the user; wait for the recording highlight if permission or
+device startup is pending.
 **The microphone button is not push-to-talk:** click once to record and again to
 confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
 a click-owned recording does not stop that recording. Space/Enter on the focused
@@ -3749,7 +3847,7 @@ npm run package:mac
 ```
 
 For an independently retained qualification build, use
-`npm run package:mac -- --qualifier protocol80-<source-id>`. It writes a new
+`npm run package:mac -- --qualifier protocol82-<source-id>`. It writes a new
 `release/qualification-builds/<qualifier>/` tree and refuses an existing label,
 preserving all earlier app/ZIP/DMG bytes. Canonical archive/manifest basenames
 remain unchanged inside that labeled directory; this does not publish an update.

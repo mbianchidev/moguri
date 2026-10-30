@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { type DependencyPlan, type MoguriSdk, type PackageManager, type Project } from "../../../packages/sdk/src/index.ts";
 import type { DependencyRegistryConfig, DependencyRegistryPreview } from "../../../packages/protocol/src/workspace.ts";
 import { createCacheApi } from "../../../packages/sdk/src/cache.ts";
+import { Alert } from "./Alert.tsx";
 
 export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: MoguriSdk; project?: Project; workspaceId?: string }) {
   const [manager, setManager] = useState<PackageManager>("npm");
@@ -48,7 +49,7 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
   });
   return <section aria-label="Shared dependency cache">
     <SettingsHelp label="More about this setting" target={<h2>Dependency cache</h2>}>Verified archives across projects and branches. Public content may share; private registry content stays within this profile and its exact authorization. Installed trees stay local to each worktree.</SettingsHelp>
-    {!project && <p className="settings-warning">Open a project before inspecting its dependencies.</p>}
+    {!project && <Alert as="p" tone="warning" className="settings-warning">Open a project before inspecting its dependencies.</Alert>}
     <label className="setting-field">Package manager<select value={manager} onChange={(event) => { setManager(event.target.value as PackageManager); setPlan(null); setAccept(false); setReplace(false); }}>
       <option value="npm">npm, lockfile v2/v3 and workspaces</option><option value="pnpm">pnpm, lockfile v9 and workspaces</option>
       <option value="python">Python, hash-pinned binary-wheel cache</option><option value="cargo">Rust / Cargo, locked archive cache</option><option value="go">Go, go.mod / go.sum cache</option>
@@ -57,7 +58,7 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
       const { plan } = await sdk.cache.inspect(project!.id, manager, workspaceId);
       setPlan(plan); setAccept(false); setReplace(false); setResult("");
     })} aria-label="Inspect current lock">Inspect</button>
-    {error && <p className="notice error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="notice error" role="alert">{error}</Alert>}
     {plan && plan.projectId === project?.id && <div className="cache-plan">
       <SettingsHelp label="More about this setting" target={<h3>Exact dependency plan</h3>}>Every exact version needs a fresh advisory check before download or reuse. Unknown status, outages and known vulnerabilities block preparation. A clean result is not a guarantee against malicious code.</SettingsHelp>
       <dl className="facts"><dt>Packages</dt><dd>{plan.packages.length}, {plan.cachedPackages} already cached</dd><dt>Manager</dt><dd>{plan.manager}</dd><dt>Lock digest</dt><dd><code>{plan.lockDigest}</code></dd>
@@ -70,14 +71,14 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
       {!!plan.registryScopes?.length && <details open><summary>Private registry and advisory review</summary>{plan.registryScopes.map((scope) => <p key={scope.registryId}><code>{scope.resource}</code><br />Advisory destination: <code>{scope.advisoryUrl}</code><br />Private-name sharing: {scope.metadataSharing ? "explicitly enabled" : "blocked; review registry authorization first"}</p>)}</details>}
 
       <details><summary>Packages and pinned integrity</summary><pre>{plan.packages.map((entry) => `${entry.name}@${entry.version}${entry.ecosystem === "crates.io" ? " (archive only; build scripts not evaluated)" : entry.hasInstallScript ? " (lifecycle script blocked)" : ""}\n${entry.sourceIntegrity ?? entry.integrity}`).join("\n\n")}</pre></details>
-      {plan.readiness && <p className={plan.readiness.ready ? "fine-print" : "settings-warning"}>{plan.readiness.diagnostic}</p>}
+      {plan.readiness && <Alert as="p" tone="warning" className={plan.readiness.ready ? "fine-print" : "settings-warning"}>{plan.readiness.diagnostic}</Alert>}
       <label className="check-setting"><SettingsInput type="checkbox" checked={accept} onChange={(event) => setAccept(event.target.checked)} />I approve sending these exact dependency names and versions to OSV or the explicitly reviewed private advisory destinations above.</label>
       <div className="button-row"><button disabled={!accept || busy || plan.readiness?.ready === false || plan.registryScopes?.some((scope) => !scope.metadataSharing)} onClick={() => void operate(false)} aria-label="Prepare verified cache">Prepare</button></div>
       {plan.mode !== "cache-only" && <>
         <label className="check-setting"><SettingsInput type="checkbox" checked={replace} onChange={(event) => setReplace(event.target.checked)} />I approve replacing root/member node_modules with a managed, script-free workspace install.</label>
         <button disabled={!accept || !replace || busy || plan.registryScopes?.some((scope) => !scope.metadataSharing)} onClick={() => void operate(true)} aria-label="Install with scripts blocked">Install</button>
       </>}
-      <p className="settings-warning">Lifecycle code, Python source builds, Cargo build scripts/proc macros and Go builds need a separately qualified execution boundary. Native executable presence is not containment. No host-build fallback is allowed.</p>
+      <Alert as="p" tone="warning" className="settings-warning">Lifecycle code, Python source builds, Cargo build scripts/proc macros and Go builds need a separately qualified execution boundary. Native executable presence is not containment. No host-build fallback is allowed.</Alert>
       {!!plan.readiness?.command.length && <details><summary>Native offline cache recipe, after successful preparation</summary><pre>{JSON.stringify(plan.readiness.command, null, 2)}</pre><p className="fine-print">This recipe prepares/downloads dependencies only. It does not authorize executing package code or a build.</p></details>}
     </div>}
     <details><summary>Private npm/pnpm registry authorizations</summary>
@@ -104,6 +105,6 @@ export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: Mogur
         </div>
       </>}
     </details>
-    {result && <p role="status">{result}</p>}
+    {result && <Alert as="p" role="status">{result}</Alert>}
   </section>;
 }

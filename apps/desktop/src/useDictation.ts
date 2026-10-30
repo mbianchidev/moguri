@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { parseShortcut, shortcutMatches, shortcutModifiersHeld, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
-import { captureBrowserAudio } from "./browser-audio.ts";
+import { captureBrowserAudio, prepareBrowserAudio, type BrowserAudioPreparation } from "./browser-audio.ts";
 import { SpeechCaptureController } from "./dictation.ts";
 
 export function useDictation(sdk: MoguriSdk, session: Session | undefined, snapshot: Snapshot, options: {
-  shortcuts?: boolean; active?: boolean; beforeStart?: () => Promise<void>;
+  shortcuts?: boolean; active?: boolean; beforeStart?: () => void | Promise<void>;
   onTranscript?: (text: string, jobId: string, final: boolean) => void;
 } = {}) {
   const before = useRef(options.beforeStart); before.current = options.beforeStart;
@@ -12,9 +12,14 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const sessionId = session?.id;
   const controller = useMemo(() => {
     const id = () => { if (!sessionId) throw new Error("Choose an actual chat before dictating. No hidden session was created."); return sessionId; };
+    let preparation: BrowserAudioPreparation | undefined;
     return new SpeechCaptureController({
-      begin: async (signal) => { await before.current?.(); signal.throwIfAborted(); return sdk.voice.startCapture(id(), undefined, { streaming: true }); },
-      acquire: (lease, device, signal, failed, received) => captureBrowserAudio(sdk.profileId, id(), lease, device, signal, failed, received),
+      begin: async (signal) => {
+        await before.current?.(); signal.throwIfAborted();
+        preparation = prepareBrowserAudio(signal);
+        return sdk.voice.startCapture(id(), undefined, { streaming: true });
+      },
+      acquire: (lease, device, signal, failed, received) => captureBrowserAudio(sdk.profileId, id(), lease, device, signal, failed, received, preparation),
       upload: (lease, bytes) => sdk.voice.uploadCapture(id(), lease.id, lease.token, bytes),
       cancel: (lease) => sdk.voice.cancelCapture(id(), lease.id, lease.token),
       append: (lease, sequence, bytes) => sdk.voice.appendCapture(id(), lease.id, lease.token, sequence, bytes),

@@ -2,6 +2,7 @@ import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { ApplicationConfiguration, ApplicationPreferences, MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { CliCommandSettings } from "./CliCommandSettings.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function ApplicationSettings({ sdk, revision, onBusy }: { sdk: MoguriSdk; revision: number; onBusy: (busy: boolean) => void }) {
   const [configuration, setConfiguration] = useState<ApplicationConfiguration | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -30,7 +31,7 @@ export function ApplicationSettings({ sdk, revision, onBusy }: { sdk: MoguriSdk;
     <SettingsHelp label="More about this setting" target={<h3>Application</h3>}>These preferences belong to this encrypted store and apply across profiles. Profile appearance and voice settings stay separate.</SettingsHelp>
     <label className="check-setting"><SettingsInput type="checkbox" checked={pending.menuBar ?? configuration?.values.menuBar ?? false} disabled={!configuration || busy} onChange={(event) => void preference("menuBar", event.target.checked)} />Show Moguri in the menu bar</label>
     <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={pending.automaticUpdates ?? configuration?.values.automaticUpdates ?? false} disabled={!configuration || busy} onChange={(event) => void preference("automaticUpdates", event.target.checked)} />Automatically check and stage updates at app startup and every four hours</label>}>Checks need the separate private-release credential below. Installation and restart always require actual confirmation; disabling checks affects future admissions, not already owned downloads.</SettingsHelp>
-    {error && <><p className="inline-error" role="alert">{error}</p><button type="button" disabled={busy} onClick={() => {
+    {error && <><Alert as="p" className="inline-error" role="alert">{error}</Alert><button type="button" disabled={busy} onClick={() => {
       setBusy(true); void sdk.application.status().then(async (value) => { setConfiguration(value.configuration); await window.moguri.applyApplicationPreferences(); setPending({}); setError(""); })
         .catch((error: unknown) => setError(error instanceof Error ? error.message : "The actual saved native preference could not be applied.")).finally(() => setBusy(false));
     }} aria-label="Reload and apply saved application preference">Reload and apply</button></>}

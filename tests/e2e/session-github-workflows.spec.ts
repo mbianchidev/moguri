@@ -18,7 +18,7 @@ const close = async (app: ElectronApplication) => {
 };
 test.skip(process.platform !== "darwin", "Hidden native desktop workflow qualification is macOS-only.");
 
-test("issue and PR pickers stay usable when a normal chat turn finishes during a slow PR list", async () => {
+test("issue and PR pickers stay usable beyond twenty seconds when a normal chat turn finishes during a slow PR list", async () => {
   const provider = await fixtureProvider();
   let entered = () => {}, release = () => {};
   const reading = new Promise<void>((resolve) => { entered = resolve; }), held = new Promise<void>((resolve) => { release = resolve; });
@@ -43,6 +43,7 @@ test("issue and PR pickers stay usable when a normal chat turn finishes during a
       text: "Generated independent conversation while pull requests load.", attachments: [] });
     await fixture.sdk.command({ type: "message.send", sessionId: fixture.sessionId, expectedRevision: fixture.session().draft.revision, delivery: "queue" });
     await waitFor(() => fixture.session().status === "completed");
+    await new Promise((resolve) => setTimeout(resolve, 20_100));
     release();
     const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
     await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();

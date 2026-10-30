@@ -47,7 +47,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     await page.getByLabel("New item in Backlog", { exact: true }).fill("Generated cache feature");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(page.getByLabel("New item in Backlog", { exact: true })).toHaveValue("Generated cache feature");
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await page.getByRole("button", { name: "Add item", exact: true }).click();
     await expect(page.getByRole("button", { name: "Generated cache feature", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Generated cache feature", exact: true }).click();
@@ -200,7 +200,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true }).click();
     await expect(prompt).toHaveValue("Generated user-edited instructions. Never invent results.");
     await expect(page.getByRole("alert")).toContainText("Your edit is preserved");
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save settings", exact: true })).toBeDisabled();
     await page.getByLabel("I understand this can break functionality. Hard permissions cannot be overridden.").check();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();

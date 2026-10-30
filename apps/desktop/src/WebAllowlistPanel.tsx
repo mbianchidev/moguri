@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { effectiveWebAllowances, type MoguriSdk, type Project, type Session, type Snapshot, type WebScope } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function WebAllowlistPanel({ sdk, snapshot, session, project, disabled, onBusy, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; disabled: boolean;
@@ -62,7 +63,7 @@ export function WebAllowlistPanel({ sdk, snapshot, session, project, disabled, o
         onClick={() => void run(() => sdk.webAllowlist.remove(entry.id, snapshot.settings.revision), "Website allowance removed. Pending website authority was revoked.")}><Icon name="Trash" /></button>
     </div>)}
     {busy && <p role="status">Saving website allowance...</p>}
-    {status && <p role="status">{status}</p>}
-    {error && <p role="alert">{error}</p>}
+    {status && <Alert as="p" role="status">{status}</Alert>}
+    {error && <Alert as="p" role="alert">{error}</Alert>}
   </section>;
 }

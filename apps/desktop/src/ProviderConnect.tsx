@@ -1,5 +1,6 @@
 import { SettingsHelp } from "./SettingsFields.tsx";
 import type { MoguriSdk, ProviderState } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function ProviderConnect({ provider, run, client }: {
   provider: ProviderState; run: (action: () => Promise<unknown>) => Promise<void>; client: MoguriSdk;
@@ -21,6 +22,6 @@ export function ProviderConnect({ provider, run, client }: {
         </div> : <button className="primary" disabled={!enabled || copilot.status === "connecting"} onClick={() => void run(() => client.command({ type: "provider.login" }))} aria-label={copilot.status === "connecting" ? "Starting sign-in..." : "Sign in with GitHub Copilot"}>{copilot.status === "connecting" ? "Starting..." : "Sign in"}</button>}
 
       </>}
-    {copilot.diagnostic && <p className="inline-error" role="status">{copilot.diagnostic}</p>}
+    {copilot.diagnostic && <Alert as="p" className="inline-error" role="status">{copilot.diagnostic}</Alert>}
   </section>;
 }

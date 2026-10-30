@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { githubServiceFixture } from "../github-workflows-fixture.ts";
 
@@ -51,4 +51,50 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     expect(f.sdk.github.list(f.projectId)).toHaveLength(1); expect(errors).toEqual([]);
     expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((window) => window.isVisible()))).toBe(false);
   } finally { try { await app?.close(); } finally { await f.close(); } }
+});
+
+test("desktop built-in branch creation, rename and history-preserving rollback use exact shared Git reviews", async () => {
+  const f = await githubServiceFixture();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
+    args: [`--user-data-dir=${join(f.directory, "electron-profile")}`, ...(process.env.MOGURI_TEST_APP ? [] : ["."])],
+    env: { ...process.env, MOGURI_STATE_DIR: f.stateDir, MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
+    await page.getByText("Advanced reviewed Git and GitHub operations", { exact: true }).click();
+    const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
+    const execute = async () => {
+      const previous = new Set(f.service.controller.snapshot().githubOperations.map((operation) => operation.id));
+      await panel.getByRole("button", { name: "Review exact operation", exact: true }).click();
+      const review = panel.getByRole("region", { name: "Exact Git/GitHub operation review", exact: true });
+      await expect(review).toBeVisible();
+      for (const check of await review.locator('input[type="checkbox"]').all()) await check.check();
+      await review.getByRole("button", { name: "Execute only this reviewed operation", exact: true }).click();
+      await expect.poll(() => f.service.controller.snapshot().githubOperations.find((operation) => !previous.has(operation.id))?.status).toBe("completed");
+      await expect(panel.getByRole("heading", { name: "Git/GitHub operation completed", exact: true })).toBeVisible();
+    };
+    const base = f.git(["rev-parse", "HEAD"]);
+    await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.branch.create");
+    await panel.getByLabel("New local branch", { exact: true }).fill("generated/desktop-built-in");
+    await panel.getByLabel("Exact starting branch or commit", { exact: true }).fill(base);
+    await panel.getByLabel("Also switch to the new branch (requires a clean checkout)", { exact: true }).check();
+    await execute(); expect(f.git(["branch", "--show-current"])).toBe("generated/desktop-built-in");
+    await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.branch.rename");
+    await panel.getByLabel("Exact current branch", { exact: true }).fill("generated/desktop-built-in");
+    await panel.getByLabel("New branch name", { exact: true }).fill("generated/desktop-renamed");
+    await execute(); expect(f.git(["branch", "--show-current"])).toBe("generated/desktop-renamed");
+    await writeFile(join(f.root, "fixture.txt"), "Generated hidden rollback target.\n");
+    f.git(["add", "--", "fixture.txt"]); f.git(["commit", "--no-gpg-sign", "-m", "Generated hidden rollback target"]);
+    const target = f.git(["rev-parse", "HEAD"]);
+    await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.revert");
+    await panel.getByLabel("Exact current commit SHA to revert", { exact: true }).fill(target);
+    await execute();
+    expect(f.git(["rev-parse", "HEAD^"])).toBe(target);
+    expect(f.git(["rev-parse", "HEAD^{tree}"])).toBe(f.git(["rev-parse", `${base}^{tree}`]));
+    await f.sdk.refresh(); expect(f.sdk.github.list(f.projectId).filter((operation) => operation.status === "completed")).toHaveLength(3);
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((window) => window.isVisible()))).toBe(false);
+  } finally { await app.close(); await f.close(); }
 });

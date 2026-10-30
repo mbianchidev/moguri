@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ModelAdviceSource, MoguriSdk, UserQuestion } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function QuestionCard({ sdk, question, decisionPending = false, onDirty }: { sdk: MoguriSdk; question: UserQuestion; decisionPending?: boolean; onDirty?: (dirty: boolean) => void }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -31,7 +32,7 @@ export function QuestionCard({ sdk, question, decisionPending = false, onDirty }
       <div className="button-row"><button type="button" disabled={busy} onClick={() => { setText(""); setOther(false); }}>Cancel custom answer</button><button type="submit" className="primary" disabled={busy || !text.trim()}>Send answer</button></div>
     </form>}
     <p className="fine-print">{question.allowFreeform ? "Or type your answer and press Enter. Cmd/Ctrl+Enter still queues instead." : "Choose an offered answer or explicitly submit Other. Queuing a prompt does not answer."} Answers are task context, not tool/Git permission. Never enter credentials; use connection settings.</p>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }
 

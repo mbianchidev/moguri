@@ -1,6 +1,7 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { audioFromBase64, type MoguriSdk, type NotificationToneKind, type Snapshot, type UserSettings } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Preferences = UserSettings["notifications"];
 const sounds = [{ key: "needsInputSound", kind: "needs-input", label: "Needs attention" }, { key: "completedSound", kind: "completed", label: "Session completed" }] as const;
@@ -24,7 +25,7 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.inApp} disabled={disabled} onChange={(event) => onChange({ inApp: event.target.checked })} />Show in-app attention dots and icons</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.os} disabled={disabled} onChange={(event) => onChange({ os: event.target.checked })} />Enable OS banners while Moguri desktop runs in the background</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.previewContent} disabled={disabled} onChange={(event) => onChange({ previewContent: event.target.checked })} />Include session title and message preview in OS banners</label>
-    <p className="settings-warning">OS banners start off and respect operating-system permissions and Do Not Disturb. Their sound is disabled to avoid duplicate alerts. Separate application sounds use the controls below and the system output volume.</p>
+    <Alert as="p" tone="warning" className="settings-warning">OS banners start off and respect operating-system permissions and Do Not Disturb. Their sound is disabled to avoid duplicate alerts. Separate application sounds use the controls below and the system output volume.</Alert>
     <SettingsHelp label="More about this setting" target={<h3>Sounds</h3>}>Attention audio requires an actual unanswered question, pending approval or failed/partial work, not an inferred badge. Completed audio excludes stopped, failed and partial work. Both sounds start enabled while focused and in the background; your saved mute/focus choices are preserved. Startup and reconnect do not replay old sounds.</SettingsHelp>
     {sounds.map(({ key, kind, label }) => {
       const choice = values[key] ?? { enabled: true, id: "default" };

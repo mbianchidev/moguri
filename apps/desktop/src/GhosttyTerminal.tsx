@@ -5,6 +5,7 @@ import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, ty
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { Alert } from "./Alert.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
 function observeTerminalFit(terminal: Terminal, container: HTMLElement): () => void {
@@ -56,7 +57,7 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
     if (!current) return;
     current.reset(); if (text) current.write(text);
   }, [text]);
-  return <>{error && <p className="inline-error" role="alert">{error}</p>}<div ref={host} className="ghostty-host agent-ghostty-host" aria-label="Agent terminal output" aria-readonly="true" />
+  return <>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<div ref={host} className="ghostty-host agent-ghostty-host" aria-label="Agent terminal output" aria-readonly="true" />
     <pre className="sr-only" aria-label="Agent command transcript" aria-live="off">{text}</pre></>;
 }
 export function GhosttyTerminal({ sdk, session, snapshot, active, visible = active, autoStart = false, onAutoStartHandled, requestedRoot }: {
@@ -198,10 +199,10 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
       <Tooltip content="Reconnect the existing owner; no shell or input replay"><button className="icon-button" aria-label="Reconnect existing terminal" disabled={busy || !canControl} onClick={() => void run(async () => { await sdk.terminal.reconcile(terminal!.id); setViewEpoch((epoch) => epoch + 1); })}><Icon name="Link" /></button></Tooltip>
       <Tooltip content="Stop this terminal"><button className="icon-button" aria-label="Close terminal" disabled={busy || !canControl} onClick={() => void run(() => sdk.terminal.close(terminal!.id))}><Icon name="Close" /></button></Tooltip>
     </header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {terminal?.env === "Remote" && owner?.remote && <p className="terminal-host-boundary"><strong>Remote SSH console</strong><br />
       {owner.remote.target.user}@{owner.remote.target.host}:{owner.remote.target.port}<br /><code>{terminal.binding?.root}</code></p>}
-    {!connected && <p className="inline-error" role="status">Control plane disconnected. Queued input was discarded; no shell will be opened automatically.</p>}
+    {!connected && <Alert as="p" className="inline-error" role="status">Control plane disconnected. Queued input was discarded; no shell will be opened automatically.</Alert>}
     <div ref={host} className="ghostty-host" aria-disabled="true" />
     {!terminal && <p className="fine-print" role="status">{busy ? "Starting terminal..." : canOpen ? autoStart && !autoOpened.current ? "Opening the selected terminal root..." : "No running console. Use + to open one; restoring a pane never replays a launch." : env === "Sandbox" ? "Interactive user consoles are not qualified for Sandbox. The Agent tab shows approved command output; no Local shell was substituted." : profileOwner?.diagnostic ?? "Terminal unavailable under the current environment, project or owner policy. No alternate root was used."}</p>}
     {!session.projectId && !session.repositories && env === "Local" && defaultRoot && <p className="terminal-boundary">This chat's user console starts in <code>{defaultRoot}</code>. This does not give any chat or model workspace access.</p>}

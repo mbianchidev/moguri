@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ModelEvidenceReport, ModelInfo, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function ModelEvidencePanel({ sdk, model, scope, remote }: { sdk: MoguriSdk; model?: ModelInfo; scope: string; remote: boolean }) {
   const [report, setReport] = useState<{ sdk: MoguriSdk; scope: string; value: ModelEvidenceReport } | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
@@ -29,7 +30,7 @@ export function ModelEvidencePanel({ sdk, model, scope, remote }: { sdk: MoguriS
     {remote && <p className="fine-print">Metadata is read by the local control plane. Remote inference still runs on your configured SSH host.</p>}
     {supported ? <button type="button" disabled={busy} onClick={() => void inspect()}>{busy ? "Reading Copilot catalogue..." : "Read Copilot model declarations"}</button> :
       <p className="fine-print">Choose an available concrete Copilot model. Local/Remote endpoint families and synthetic model lineage remain unknown; names are never used to invent them.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {loaded && <section className="model-evidence" aria-label="Provider-declared model evidence">
       <p className="fine-print" role="status">{loaded.status === "declared" ? "Provider declaration received, not independently verified." : "Provider family is unknown; no family was inferred."}</p>
       <dl className="composer-usage"><dt>Claimed family</dt><dd>{loaded.claimed.family ?? "Unknown / not declared"}</dd>

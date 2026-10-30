@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, WinddownResponse } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Read = Extract<WinddownResponse, { type: "winddown.read" }>;
 type Preview = Extract<WinddownResponse, { type: "winddown.commit.preview" }>["preview"];
@@ -47,19 +48,19 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
   };
   return <section className="candidate-section" aria-label="Budget wind-down checkpoints" aria-busy={Boolean(busy)}>
     <SettingsHelp label="More about this setting" target={<h2>Budget wind-down checkpoints</h2>}>Reserved capacity is not a model call. A bounded metadata-only finishing role cannot accept code or approve Git. Checkpoint branches require actual-user accepted source bytes and this separate exact review. No checkout, push, merge or branch deletion.</SettingsHelp>
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p role="status" className="fine-print">{notice}</p>}{busy && <p role="status">{busy}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" role="status" className="fine-print">{notice}</Alert>}{busy && <p role="status">{busy}</p>}
     <label className="setting-field">Retained budget checkpoint<select aria-label="Retained budget checkpoint" value={record?.id ?? ""} disabled={Boolean(busy) || dirty} onChange={(event) => setSelectedId(event.target.value)}>
       {!records.length && <option value="">No retained finishing envelopes</option>}{records.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id} / {record.status}</option>)}</select></label>
     {value && <>
       <h3 ref={outcome} tabIndex={-1}>Checkpoint {value.winddown.status}</h3>
       <p className="fine-print">Actual finishing model: {value.winddown.step.modelId}. Observation: {value.winddown.step.state}. Original turn: {value.winddown.turnId}.</p>
-      {value.winddown.diagnostic && <p className="settings-warning" role="alert">{value.winddown.diagnostic}</p>}
+      {value.winddown.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.winddown.diagnostic}</Alert>}
       <details><summary>Original metadata-only model input/result</summary>{value.roleInput && <pre>{value.roleInput}</pre>}{value.result && <pre>{value.result}</pre>}<p className="fine-print">Untrusted model data, not a user answer, validation proof or Git authority.</p></details>
       {["held", "running", "committing"].includes(value.winddown.status) && <button disabled={Boolean(busy)} onClick={() => void run("Stopping the original checkpoint owner", async () => { await sdk.winddown.stop(value.winddown.id); })} aria-label="Stop this checkpoint owner">Stop</button>}
       {value.winddown.commit && <><p className="fine-print path">Actual user Git intent: {value.winddown.commit.branch} / base {value.winddown.commit.base}<br />Prepared: {value.winddown.commit.preparedCommit ?? "not recorded"}<br />Published: {value.winddown.commit.publishedCommit ?? "not acknowledged"}</p>
         <p className="fine-print">Publication attempted: {String(value.winddown.commit.publicationAttempted)}. Cancel requested: {String(value.winddown.commit.cancelRequested)}. A partial job is never replayed or rolled back.</p></>}
       {value.winddown.status === "ready" && <>
-        {!ownSource && <p className="settings-warning">Choose the exact original restored Local source agent after owned work ends. A deleted/moved/project-free source cannot inherit another checkout.</p>}
+        {!ownSource && <Alert as="p" tone="warning" className="settings-warning">Choose the exact original restored Local source agent after owned work ends. A deleted/moved/project-free source cannot inherit another checkout.</Alert>}
         <SettingsHelp label="More about this setting" target={<h4>Accepted candidates</h4>}>Select retained actual-user applied candidates, never a merely staged or model/critic-approved proposal. No new project tests or code-quality proof is implied by this commit.</SettingsHelp>
         {candidates.map((candidate) => <label className="check-setting" key={candidate.id}><SettingsInput type="checkbox" aria-label={`Include accepted checkpoint candidate ${candidate.id}`} checked={candidateIds.includes(candidate.id)} disabled={Boolean(busy) || !ownSource}
           onChange={(event) => setCandidates(event.target.checked ? [...candidateIds, candidate.id] : candidateIds.filter((id) => id !== candidate.id))} />{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / accepted by actual user</label>)}
@@ -73,7 +74,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
           <button disabled={Boolean(busy) || !ownSource} onClick={() => void run("Declining checkpoint Git publication", async () => { await sdk.winddown.decline(value.winddown.id, value.winddown.revision, true); })} aria-label="Decline checkpoint Git publication">Decline</button></div>
         {preview && preview.scope === scope && <section className="candidate-binding" aria-label="Exact accepted-work checkpoint Git review">
           <p className="fine-print path">Root: {preview.value.document.source.root}<br />New branch: {preview.value.document.branch}<br />Base: {preview.value.document.base}</p>
-          <p className="settings-warning">{preview.value.warning}</p><pre>{preview.value.document.message}</pre>
+          <Alert as="p" tone="warning" className="settings-warning">{preview.value.warning}</Alert><pre>{preview.value.document.message}</pre>
           {preview.value.document.files.map((file) => <details key={file.path} open><summary>{file.path} / {file.mode} / {file.digest}</summary><pre>{file.text}</pre></details>)}
           <label className="check-setting"><SettingsInput aria-label="Reviewed accepted-work checkpoint Git branch" type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed these exact accepted bytes, root, base, new local branch and Git message. Preserve the source index/HEAD; no push or merge.</label>
           <button className="primary" disabled={Boolean(busy) || !ownSource || !reviewed} onClick={() => void run("Creating the exact reviewed checkpoint branch", async () => {

@@ -124,6 +124,16 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > same SDK/worker. User and Global consoles stay private. Each command owns its
 > existing PTY; interactive stdin or persistent shared shell state is not added.
 
+> The [shared command/tool-preference slice](architecture/command-tool-preferences.md)
+> adds original UI-design, continuation, collaboration and constructive critique
+> presets, atomic Manual child assignment and user-requested owned orchestration
+> on the existing queue/worker/coordination path. Suggestions default to the
+> actual project while retaining source review. Profile-owned method ranking
+> defaults to Gateway MCP, direct MCP, REST, then CLI; exact direct MCP schemas
+> retain the existing service-owned gateway approval, account/root and transport
+> boundaries. None of these commands answers questions, enables optional
+> tool-less subagents globally or authorizes unknown-effect replay.
+
 > [Reviewed context compaction](architecture/context-compaction.md) now adds an
 > explicit preview/generate/review/apply/restore workflow through the same SDK,
 > Local/SSH worker and all-role ledger. Original history, complete recent turns
@@ -471,6 +481,15 @@ Initial behavior:
 - preserve a worktree when deleting or archiving its session;
 - never push, merge, rebase, or delete branches without explicit policy or user action.
 
+The protocol-81 [reviewed Git built-ins](architecture/github-workflows.md#git-operations)
+reuse this exact authority for status/history/diff, branch creation/switch/rename,
+exact stage/unstage, selected staged commits, new-branch pushes and
+history-preserving rollback of the current single-parent commit. Agents discover
+typed `git_read`/`git_write` instead of manufacturing scripts for covered work.
+Rollback creates a new revert commit, never an implicit reset. Selected commits
+preserve the original index and unrelated staged/dirty bytes. This executable
+adapter is Local-project/worktree only; unqualified transports do not fall back.
+
 ### 3. Session lifecycle
 
 Initial session states:
@@ -521,6 +540,11 @@ Model selection (**fixed model** or **kupo**), **Env**, **Autonomy level**, and 
 | **Autopilot Max** | The same automatic tool approvals, plus a configured qualified System One-compatible decision provider for explicitly delegated technical choices and bounded steering. It also works with a fixed solver and does not require kupo. |
 
 Use the shared global/profile/repo/project/session defaults. Selecting an Autopilot mode explicitly delegates tool approvals, not additional capabilities, authentication, roots or budget. Hard denials, read-only mode, user-only settings, secret boundaries, Git policies and allowed-env policy remain authoritative. Protocol 61 records explicit `automaticApprovals` consent; old bounded selections are preserved until the user selects the mode again.
+
+Protocol 81 gives that explicit selection its own revision-bound SDK/service
+command, so reselecting the same legacy value persists consent for later turns.
+An actual generic autonomy change cannot carry Manual's false marker into
+Autopilot; unrelated edits and loading old history still cannot broaden consent.
 
 The current Max decision layer handles delegated technical questions with explicit alternatives and typed steering choices. It does not introduce another permission gate for automatically approved tools. Legacy bounded-Max tool review remains only for retained configurations without the new consent marker. No layer may invent user-only facts or turn an open-ended question into a fabricated user answer. Unclear questions, insufficient confidence, unavailable providers and decisions outside delegation go to the user or leave the operation visibly blocked. Actual automatic approvals have an autonomy actor, never a fabricated human or model approval.
 

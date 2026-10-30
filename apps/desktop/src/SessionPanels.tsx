@@ -8,6 +8,7 @@ import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
 import { ApprovalActions } from "./ApprovalActions.tsx";
 import type { SettingsTab } from "./settings-catalog.ts";
 import { RepositoryPicker } from "./RepositoryPicker.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -30,7 +31,7 @@ export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sd
             .finally(() => setBusy(false));
         }}>Acknowledge inspected Home</button>
     </details>)}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }
 
@@ -48,7 +49,7 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   };
   useEffect(() => { void load(); return () => { generation.current++; }; }, [session.id, session.workspaceId, session.turnId, repository]);
   return <section className="changes-panel"><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Down" /></button></header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;
@@ -75,7 +76,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
   return <section className="files-panel" aria-label="Bound workspace files"><RepositoryPicker session={session} value={repository}
     change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
-    {loading && <p role="status">Loading from the bound workspace...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {loading && <p role="status">Loading from the bound workspace...</p>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
@@ -135,7 +136,7 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
         return load(plan.bindingDigest);
       }).catch((error: unknown) => setError(error instanceof Error ? error.message : "The plan was not saved; your edit was preserved.")).finally(() => setSaving(false));
     }}>Save</button></header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {plan?.boundary && <details className="plan-binding"><summary>SSH destination and binding</summary><p className="fine-print path">{plan.boundary.root}/{plan.path} / {plan.boundary.hostFingerprint}. Saving uses this exact reviewed binding, not a Local path.</p></details>}
     {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : session.controls.env === "Remote" && session.mode === "agent" ? "Finish owned work and verify the exact Remote target/policy before saving. No Local fallback." : "Question-only or unavailable workspace. Plan editing is disabled."}</p>}
     <textarea aria-label="Project plan" spellCheck={false} value={text} readOnly={readOnly} disabled={!plan || saving} onChange={(event) => setText(event.target.value)} placeholder={session.controls.env === "Remote" ? "No plan exists in the approved remote workspace." : "No plan yet. Write one here to create it explicitly."} />
@@ -145,7 +146,7 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
       <p className="fine-print path">Pinned host: {save.hostFingerprint}. Worker cleanup: {execution?.cleanup === "acknowledged" ? "user inspection acknowledged, not proof" : execution?.cleanup ?? "not confirmed"}. SSH is not sandbox isolation or descendant-containment proof.</p>
       {save.createdDirectories.length > 0 && <p className="fine-print">Created directories: {save.createdDirectories.join(", ")}. No rollback is implied.</p>}
       {save.artifactId && <p className="fine-print">Independent retained snapshot: <code>{save.artifactId}</code>. Open it from Artifacts.</p>}
-      {save.diagnostic && <p className="inline-error" role="alert">{save.diagnostic}</p>}
+      {save.diagnostic && <Alert as="p" className="inline-error" role="alert">{save.diagnostic}</Alert>}
       {save.status === "running" && <button type="button" disabled={stopping} onClick={() => { setStopping(true); void sdk.plans.stopSave(session.id, save.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Exact save stop was not confirmed.")).finally(() => setStopping(false)); }}>Stop Remote save</button>}
     </details>}
   </section>;
@@ -234,7 +235,7 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
     <span>{enabled ? "Agent can use this page" : "Agent access off"}</span></div>
     <form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => { urlDirty.current = true; setUrl(event.target.value); }} />
     <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!activeUrl} onClick={() => void window.moguri.openExternal(activeUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <div ref={host} className="browser-host">{!session.browserUrl && <p>Enter a preview URL. This isolated view has no Moguri bridge, account cookies, filesystem access or automatic model context.</p>}</div>
     <p className="terminal-boundary">{enabled ? "Approved browser tools can read and control this page. Turn off Agent control to revoke access immediately." :
       session.controls.env === "Local" ? "Isolated web preview. Agent access is off until you enable it; tool approvals still apply." : "Local preview only. Agent browser control is unavailable in Sandbox and Remote; no Local fallback."}</p>
@@ -266,7 +267,7 @@ export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, e
   return <section className="side-chat-panel"><SessionCoordinationPanel key={`${sdk.profileId}:${parent.id}`} sdk={sdk} session={parent} snapshot={snapshot} onDirty={setCoordinationDirty} />
     <header className="panel-toolbar"><select aria-label="Question-only side session" value={side?.id ?? ""} disabled={dirty} onChange={(event) => select(event.target.value)}>{sides.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}{!side && <option value="">Question-only context</option>}</select>
     <button className="icon-button" aria-label="New side chat" title="New question-only side chat" disabled={dirty} onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Side chat could not be created."))}><Icon name="Plus" /></button></header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} onDirty={setAnswerDirty}
       openSettings={openSettings} modal={modal} renderTranscript={renderTranscript} renderQueue={renderQueue} /> : <p className="fine-print" role="status">Opening the original read-only side chat...</p>}
   </section>;
@@ -297,7 +298,7 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty,
     {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}
     {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
       <ApprovalActions key={session.pendingApproval.id} sdk={sdk} session={session} busy={busy} run={run} /></section>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {session.queue.length > 0 && renderQueue(session)}
     <ChatComposer session={session} project={boundProject} snapshot={snapshot} client={sdk} editor={editor} run={run} busy={busy}
       connected={sdk.getState().status === "connected"} inputLabel="Side question" autoFocus onPendingChange={setComposerPending}

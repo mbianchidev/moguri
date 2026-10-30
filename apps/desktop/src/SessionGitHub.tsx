@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { GithubAction, GithubPreview, GithubScope, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { GitHubItemPicker, type GithubProject, type GithubSelection } from "./GitHubPickers.tsx";
+import { Alert } from "./Alert.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSession, selectedUrl }: {
@@ -63,12 +64,12 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   const kanban = kind === "issue" && session.projectId ? <KanbanWorkItem sdk={sdk} session={session} snapshot={snapshot} /> : null;
   if (!scope) return <section className="session-github"><p className="fine-print">GitHub {label} workflows need an explicit Local project. Remote and Sandbox do not borrow this Mac's account or checkout.</p>
     {kanban}
-    {creating && <><p className="settings-warning">Your publication form is preserved. Restore its Local destination or copy/discard the edit explicitly.</p>
+    {creating && <><Alert as="p" tone="warning" className="settings-warning">Your publication form is preserved. Restore its Local destination or copy/discard the edit explicitly.</Alert>
       <label className="setting-field">Preserved title<input readOnly value={title} /></label><label className="setting-field">Preserved body<textarea readOnly value={body} /></label>
       <button type="button" disabled={busy} onClick={discard}>Discard preserved form</button></>}
     {operationId && <p className="fine-print">Original operation: {operationId} / {retainedOperation?.status ?? "unobserved"}. Inspect its retained history; no different environment was used.</p>}
     {retainedOperation?.status === "running" && <button type="button" disabled={stopping} onClick={cancelOriginal}>Cancel original GitHub operation</button>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
   return <section className="session-github" aria-label={kind === "pull" ? "Project pull requests" : "Project work items"} aria-busy={busy}>
     {kanban}
@@ -89,7 +90,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
       const value = await sdk.github.preview(scope, operation()); if (isCurrent()) setReview(value.preview);
     }); }}>
       <h3>Create {label}</h3><p className="fine-print">{context?.repository ?? "Load the project repository first."} / {context?.account}. The body below is sent only after your exact review.</p>
-      {scopeChanged && <><p className="settings-warning" role="status">The project, workspace or policy changed. Your form is preserved; review the current destination before publishing.</p>
+      {scopeChanged && <><Alert as="p" className="settings-warning" role="status">The project, workspace or policy changed. Your form is preserved; review the current destination before publishing.</Alert>
         <button type="button" disabled={busy || attempted || !writeAllowed} onClick={() => void run(async (isCurrent) => {
           const value = await sdk.github.project(scope); if (!isCurrent()) return;
           setContext(value); setContextScope(scopeKey); setCreationScope(scopeKey); setReview(null); setConfirmed([]);
@@ -124,7 +125,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     </form>}
     {operationId && <p className="fine-print">Original GitHub operation: <code>{operationId}</code> / {retainedOperation?.status ?? "unobserved"}. Its result remains in GitHub workflow history.</p>}
     {retainedOperation?.status === "running" && <button type="button" disabled={stopping} onClick={cancelOriginal}>Cancel original GitHub operation</button>}
-    {notice && <p className="fine-print" role="status">{notice}</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }
 function KanbanWorkItem({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
@@ -142,6 +143,6 @@ function KanbanWorkItem({ sdk, session, snapshot }: { sdk: MoguriSdk; session: S
       {selected.linear && <p className="fine-print">Imported Linear item {selected.linear.identifier}; no remote write.</p>}
       <Suspense fallback={<p>{selected.body}</p>}><RichMessage text={selected.body} openLink={(url) => void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened."))} /></Suspense>
     </article>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }

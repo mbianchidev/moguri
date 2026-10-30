@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { KUPO_MODEL_ID, type CandidateGenerationInput, type CandidateGenerationPreview, type CandidateGenerationResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Read = Extract<CandidateGenerationResponse, { type: "candidate.generation.read" }>;
 export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, files, scope, sourceRoot, writable, draftDirty, loadedGenerationId, onDirty, onLoad }: {
@@ -41,7 +42,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
     <p className="fine-print">Selected fixed model: {fixed ? model?.name : "None / choose an available fixed model in the composer"}. No provider or Env fallback.</p>
     <SettingsHelp label="More about this setting" target={<label className="setting-field">Generation task<SettingsTextarea className="generation-task" aria-label="Candidate generation task" maxLength={4096} value={task} disabled={Boolean(busy)} readOnly={!writable || changed}
       onChange={(event) => { setTask(event.target.value); if (taskScope === null) setTaskScope(scope); }} placeholder="Describe the change for the selected files" /></label>} descriptionFirst>Choose source files and a separate staging worktree below. This sends original reviewed source, not unsaved proposed edits. Generation never stages, applies or executes its output.</SettingsHelp>
-    {changed && <p className="settings-warning">The task belongs to an older source scope. Copy it or explicitly discard before reviewing another root.</p>}
+    {changed && <Alert as="p" tone="warning" className="settings-warning">The task belongs to an older source scope. Copy it or explicitly discard before reviewing another root.</Alert>}
     <div className="button-row"><button disabled={Boolean(busy) || !writable || !fixed || changed || !task.trim() || !files.length || !stageId} onClick={() => void run("Reviewing generation", async (current) => {
       if (!session) return;
       const input = { task, files }, value = await sdk.candidates.generatePreview(session.id, stageId, input);
@@ -49,7 +50,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
     })} aria-label="Review model generation">Review</button><button disabled={Boolean(busy) || !task} onClick={() => { setTask(""); setTaskScope(null); setPreview(null); setApproved(false); }} aria-label="Discard generation task">Discard</button></div>
     {preview && preview.key === key && <section className="generation-review" aria-label="Exact model generation review">
       <p className="fine-print">{preview.input.files.length} selected files / {preview.value.estimatedInputTokens.toLocaleString()} estimated input tokens / at most {preview.value.maxOutputTokens.toLocaleString()} output tokens.</p>
-      <p className="settings-warning">{preview.value.warning}</p>
+      <Alert as="p" tone="warning" className="settings-warning">{preview.value.warning}</Alert>
       <details><summary>Exact generation system prompt</summary><pre>{preview.value.systemPrompt}</pre></details>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label="Approve one generation call and proposal retention" checked={approved} disabled={Boolean(busy)} onChange={(event) => setApproved(event.target.checked)} />I approve one model call and proposal retention until explicit report deletion, originating-session deletion or verified exact linked-PR merge. No file write is approved here.</label>
       <button className="primary" disabled={Boolean(busy) || !approved || !writable || preview.key !== key} onClick={() => void run("Starting owned generation", async (current) => {
@@ -57,7 +58,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
         if (current()) { setSelectedId(created.id!); setTask(""); setTaskScope(null); setPreview(null); setApproved(false); setNotice("Owned generation started. Its report survives this panel; source and staging remain unchanged."); }
       })} aria-label="Generate reviewed proposal">Generate</button>
     </section>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     <label className="setting-field">Generation report<select aria-label="Retained generation report" value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       <option value="">Choose an independent generation</option>{reports.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id} / {record.status}</option>)}
     </select></label>
@@ -66,7 +67,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
         {selected.status === "running" && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stopGeneration(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Generation stop was not confirmed.")).finally(() => setStopping(false)); }} aria-label={stopping ? "Requesting stop..." : "Stop generation"}>{stopping ? "Requesting stop..." : "Stop"}</button>}</header>
       <p className="fine-print path">Actual model: {selected.modelId}. {usage ? usage.reportedTokens === null ? `Usage unreported; ${usage.reservedTokens ?? "unknown"} reserved tokens remain held.` : `${usage.reportedTokens.toLocaleString()} reported tokens.` : "No admitted model step is recorded yet."} No provider bill was inferred.</p>
       <p className="fine-print">Source: {selected.source.branch} / base {selected.source.head.slice(0, 12)}. Generation is untrusted model output, not a user answer, file approval or quality claim.</p>
-      {selected.diagnostic && <p className="settings-warning" role="alert">{selected.diagnostic}</p>}
+      {selected.diagnostic && <Alert as="p" className="settings-warning" role="alert">{selected.diagnostic}</Alert>}
       {loaded && <><details><summary>Captured generation input and roots</summary><p className="fine-print path">Local source: {loaded.input.source.root}<br />Owned stage: {loaded.input.stage.root}</p><p>{loaded.input.task}</p><p className="fine-print">{loaded.input.files.map((file) => file.path).join(", ")}</p></details>
         {loaded.proposal && <><details><summary>Exact generated files ({loaded.proposal.patch.edits.length})</summary>{loaded.proposal.patch.edits.map((edit) => <div className="candidate-file-review" key={edit.path}><strong className="path">{edit.path}</strong><pre>{edit.text || "(Empty proposed file)"}</pre></div>)}</details>
           <button disabled={Boolean(busy) || !writable || draftDirty || !compatible || selected.status !== "proposed"} onClick={() => { try { onLoad(loaded); setNotice("Loaded locally for a separate exact staging review. Nothing was written or accepted."); setExpanded(false); } catch (error) { setError(error instanceof Error ? error.message : "Proposal was not loaded into this scope."); } }} aria-label={loadedGenerationId === selected.id ? "Loaded for review" : "Load for review generated proposal"}>{loadedGenerationId === selected.id ? "Loaded for review" : "Load for review"}</button>

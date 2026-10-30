@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CoordinationRead, CoordinationResponse, MoguriSdk, Session, Snapshot, SessionContextInput } from "../../../packages/sdk/src/index.ts";
 import { QuestionCard } from "./QuestionCard.tsx";
+import { Alert } from "./Alert.tsx";
 
 type Review = Extract<CoordinationResponse, { type: "coordination.preview" }>;
 export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onDirty?: (dirty: boolean) => void }) {
@@ -66,7 +67,7 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
           await sdk.coordination.grant(session.id, target.id, grant.digest, !grant.link?.enabled, true); setReview(null); setStatus(grant.link?.enabled ? "Coordination revoked. Existing messages remain retained." : "Coordination granted to these exact reviewed roots.");
         })}>{grant.link?.enabled ? "Revoke coordination" : "Grant reviewed coordination"}</button></section>}
       {inspection && <section aria-label="Coordinated session state"><p><strong>{inspection.title}</strong>: {inspection.status} / {inspection.mode} / {inspection.env}. {inspection.queued} queued.</p>
-        {inspection.lastError && <p className="inline-error" role="alert">{inspection.lastError}</p>}
+        {inspection.lastError && <Alert as="p" className="inline-error" role="alert">{inspection.lastError}</Alert>}
         {inspection.plan && <><strong>{inspection.plan.title}</strong><ol>{inspection.plan.steps.map((step, index) => <li key={index}>{step.status}: {step.text}</li>)}</ol><p className="fine-print">Model-authored progress, not task acceptance or permission.</p></>}
         {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}
         {approval && <section aria-label="Coordinated child approval"><strong>Original child approval: {approval.call.name}</strong><pre tabIndex={0}>{JSON.stringify(approval.call.arguments, null, 2)}</pre><div className="button-row">
@@ -77,7 +78,7 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
       {data && (data.action === "transcript" || data.action === "snapshot") && <section aria-label="Coordinated public context"><pre tabIndex={0}>{data.text}</pre>
         <p className="fine-print">Public session data only; no private consoles or hidden reasoning.</p>
         {data.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: data.action, targetSessionId: target.id, offset: data.nextOffset!, expectedDigest: data.digest }))}>Next context page</button>}</section>}
-      {data?.action === "inbox" && <section aria-label="Session coordination inbox">{data.messages.map((message) => <article key={message.id}><strong>{message.kind} / {message.origin.actor} / {message.fromSessionId}</strong><p>{message.text}</p>{message.deliveryDiagnostic && <p className="inline-error" role="alert">{message.deliveryDiagnostic}</p>}</article>)}
+      {data?.action === "inbox" && <section aria-label="Session coordination inbox">{data.messages.map((message) => <article key={message.id}><strong>{message.kind} / {message.origin.actor} / {message.fromSessionId}</strong><p>{message.text}</p>{message.deliveryDiagnostic && <Alert as="p" className="inline-error" role="alert">{message.deliveryDiagnostic}</Alert>}</article>)}
         {data.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: "inbox", offset: data.nextOffset! }))}>Earlier inbox page</button>}</section>}
       <label>Message to {target.title}<textarea aria-label="Coordination message" value={text} maxLength={8000} disabled={busy} onChange={(event) => setText(event.target.value)} /></label>
       <div className="button-row">
@@ -88,6 +89,6 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
       </div>
       <p className="fine-print">Dispatch queues metered child work under its existing model, budget, environment and approvals. It never answers a question, approves an operation or changes autonomy.</p>
     </>}
-    {busy && <p role="status">Waiting for the original session operation...</p>}{status && <p role="status">{status}</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {busy && <p role="status">Waiting for the original session operation...</p>}{status && <Alert as="p" role="status">{status}</Alert>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </details>;
 }

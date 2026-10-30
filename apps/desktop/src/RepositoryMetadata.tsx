@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, RepositoryObservation, RepositoryPreview, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { sessionTitle } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 interface View { sdk: MoguriSdk; key: string; preview: RepositoryPreview | null; observation: RepositoryObservation | null; pending: boolean; error: string; jobId: string | null }
 export function RepositoryMetadata({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Snapshot }) {
@@ -60,7 +61,7 @@ export function RepositoryMetadata({ sdk, snapshot }: { sdk: MoguriSdk; snapshot
     <p className="fine-print">Optional, explicit metadata lookup. Review the actual bound root first; no GitHub request or model call runs just by opening this section. Stored facts label future admitted work, never old calls.</p>
     <label className="setting-field">Bound session<select aria-label="Repository scope session" value={session?.id ?? ""} onChange={(event) => setSessionId(event.target.value)}><option value="">Choose an explicit project session</option>{snapshot.sessions.filter((session) => session.projectId !== null).map((session) => <option key={session.id} value={session.id}>{sessionTitle(session)} / {session.controls.env}</option>)}</select></label>
     <button type="button" disabled={!session || visible?.pending || session.controls.env === "Sandbox"} onClick={() => void preview()}>Review repository binding</button>
-    {visible?.pending && <p role="status">Checking this exact repository scope...</p>}{visible?.error && <p className="inline-error" role="alert">{visible.error}</p>}
+    {visible?.pending && <p role="status">Checking this exact repository scope...</p>}{visible?.error && <Alert as="p" className="inline-error" role="alert">{visible.error}</Alert>}
     {visible?.preview && <><dl className="facts"><dt>Observed upstream</dt><dd>{visible.preview.repository}</dd><dt>Actual root</dt><dd className="path">{visible.preview.root}</dd><dt>Execution boundary</dt><dd>{visible.preview.env === "Remote" ? "Pinned SSH root" : "Local host"}</dd><dt>Metadata lookup</dt><dd>{visible.preview.lookupBoundary === "control-plane-public" ? "Public GitHub API from control plane; no credential" : visible.preview.lookupBoundary === "remote-gh-cli" ? "GitHub CLI account on captured SSH host" : "GitHub CLI account on this host"}</dd>
       {visible.preview.remote && <><dt>Captured SSH host</dt><dd>{visible.preview.remote.user}@{visible.preview.remote.host}:{visible.preview.remote.port}</dd><dt>Pinned host key</dt><dd>{visible.preview.remote.hostFingerprint}</dd></>}
     </dl>
@@ -71,9 +72,9 @@ export function RepositoryMetadata({ sdk, snapshot }: { sdk: MoguriSdk; snapshot
       {visible.observation.remote && <><dt>Observation SSH host</dt><dd>{visible.observation.remote.user}@{visible.observation.remote.host}:{visible.observation.remote.port}</dd><dt>Observation SSH root</dt><dd className="path">{visible.observation.remote.root}</dd><dt>Observation host key</dt><dd>{visible.observation.remote.hostFingerprint}</dd></>}
     </dl>
       <p className="fine-print">Detected license metadata, not a legal/compliance review. Changes require another explicit refresh. Every admitted step rechecks its real Git origin; stale roots stay unassigned. Clearing affects future attribution only; historical names, visibility and charges remain retained.</p>
-      {visible.preview && visible.preview.repository !== visible.observation.repository.url && <p className="settings-warning">This stored repository differs from the current upstream. It will not label new calls.</p>}
+      {visible.preview && visible.preview.repository !== visible.observation.repository.url && <Alert as="p" tone="warning" className="settings-warning">This stored repository differs from the current upstream. It will not label new calls.</Alert>}
       <button type="button" disabled={visible.pending || jobs.some((job) => ["running", "waiting_input"].includes(job.status))} onClick={() => void clear()}>Clear future attribution</button>
     </>}
-    {jobs.map((job) => <div className="call-record" key={job.id}><strong>Metadata refresh / {job.status}</strong>{job.error && <p className="inline-error">{job.error}</p>}<small>{job.id}</small>{["running", "waiting_input"].includes(job.status) && <button type="button" onClick={() => void stop(job.id)}>Stop this refresh</button>}</div>)}
+    {jobs.map((job) => <div className="call-record" key={job.id}><strong>Metadata refresh / {job.status}</strong>{job.error && <Alert as="p" className="inline-error">{job.error}</Alert>}<small>{job.id}</small>{["running", "waiting_input"].includes(job.status) && <button type="button" onClick={() => void stop(job.id)}>Stop this refresh</button>}</div>)}
   </section></details>;
 }

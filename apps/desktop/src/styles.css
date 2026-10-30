@@ -222,10 +222,19 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .question-other { display: grid; gap: 7px; margin-top: 10px; }
 .question-other textarea { width: 100%; min-height: 76px; resize: vertical; font: inherit; }
 .nav-toggle { display: none; }
-.notice { padding: 9px 20px; display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.5; background: var(--error-bg); color: var(--error-text); }
+.notice { padding: 9px 20px; display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.5; background: var(--selected); color: var(--selection-text); }
 .notice > span { flex: 1; }
 .notice button { color: inherit; }
 .notice.info { background: var(--selected); color: var(--selection-text); }
+.notice.error { background: var(--error-bg); color: var(--error-text); }
+.app-alert { display: flex; align-items: flex-start; gap: 8px; overflow-wrap: anywhere; }
+.app-alert[data-alert-tone="error"]:not(.notice) { color: var(--danger); }
+.app-alert[data-alert-tone="warning"]:not(.notice) { color: var(--warning-text); }
+.app-alert-content { flex: 1; min-width: 0; }
+.app-alert .app-alert-dismiss { flex: none; width: 24px; height: 24px; padding: 4px; color: inherit; margin-block: -3px; }
+.app-alert .app-alert-dismiss:hover { color: inherit; background: var(--subtle); }
+.alert-recovery { display: flex; align-items: flex-start; gap: 8px; }
+.alert-recovery > .app-alert { flex: 1; }
 .conversation-history { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 .timeline { flex: 1; overflow: auto; padding: 24px max(24px, calc((100% - 1120px) / 2)); min-width: 0; min-height: 0; scroll-behavior: auto; }
 .turn-navigation { display: flex; flex-direction: column; width: 40px; flex-shrink: 0; min-height: 0; padding: 10px 3px; border-left: 1px solid var(--soft-line); background: var(--canvas); }

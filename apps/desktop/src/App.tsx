@@ -25,6 +25,7 @@ import type { SessionActionOwner } from "./SessionActions.tsx";
 import type { CommandClientAttachment, CommandExecution, CommandViewContext, CommandViewOutcome } from "../../../packages/sdk/src/index.ts";
 import { ReorderList } from "./ReorderList.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
+import { Alert } from "./Alert.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -600,7 +601,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       </div>
     </nav>
     <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
-      {(notice || connectionError) && <div className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"}><span>{connectionError ?? notice?.text}</span><button className="quiet" onClick={() => setNotice(null)}>Dismiss</button></div>}
+      {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
       settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
@@ -699,8 +700,8 @@ function CommandActivity({ sdk, session, snapshot, run, open }: { sdk: MoguriSdk
   if (!commands.length) return null;
   const active = commands.filter((entry) => ["running", "waiting-client", "claimed"].includes(entry.status));
   const failed = latest && ["failed", "partial"].includes(latest.status);
-  return <>{failed ? <p className="inline-error" role="alert">{latest.diagnostic ?? "The original command did not complete. Read its retained record before resuming."}</p> :
-    summary?.key === key && <p className={summary.failed ? "inline-error" : "fine-print"} role={summary.failed ? "alert" : "status"}>{summary.text}</p>}
+  return <>{failed ? <Alert as="p" className="inline-error" role="alert">{latest.diagnostic ?? "The original command did not complete. Read its retained record before resuming."}</Alert> :
+    summary?.key === key && <Alert as="p" className={summary.failed ? "inline-error" : "fine-print"} role={summary.failed ? "alert" : "status"}>{summary.text}</Alert>}
     <details className="queue command-activity">
     <summary>Commands <span role="status">{active.length ? `${active.length} waiting or running` : `${commands.length} retained`}</span></summary>
     <ol aria-label="Retained command results">{commands.slice(0, limit).map((entry) => <li key={entry.id} className="queue-item">
@@ -763,7 +764,7 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
     {session.messages.length === 0 && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{session.controls.automaticApprovals && ["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
-    {activity.error && <p className="inline-error activity-read-error" role="alert">{activity.error}</p>}
+    {activity.error && <Alert as="p" className="inline-error activity-read-error" role="alert">{activity.error}</Alert>}
     {[...groups].map(([turnId, messages]) => {
       const first = messages[0]?.role === "user" ? messages[0] : null;
       const operations = entries.filter((entry) => entry.turnId === turnId && entry.kind !== "model");
@@ -805,7 +806,7 @@ function Queue({ session, command, client, modal }: { session: Session; command:
   };
   return <section className="queue" aria-label="Message queue"><header><strong>Queued messages</strong><span>{session.queue.length} unclaimed</span>
     {!session.turnId && session.queue.some((item) => item.delivery !== "steer") && <button className="quiet" onClick={() => void command({ type: "session.resume", sessionId: session.id })}>Resume queued work</button>}</header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <ReorderList items={session.queue} scope={`${client.profileId}:queue:${session.id}`} label="Queued prompt order" name={(_item, index) => `queued message ${index + 1}`} disabled={editing !== null}
       change={async (items) => { await client.command({ type: "queue.reorder", sessionId: session.id, expectedRevision: session.queueRevision, messageIds: items.map((item) => item.id) }); }}>
       {(item, index) => <div className="queue-item">{editing === item.id ? <><textarea aria-label="Edit queued message" value={text} onChange={(event) => setText(event.target.value)} /><button onClick={() => void save(item.id)}>Save</button><button className="quiet" onClick={() => setEditing(null)}>Cancel</button></> :
@@ -859,9 +860,9 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
         {routing.plan?.pattern === "cascade" && <><dt>Gate / escalation</dt><dd className="path">{routing.plan.escalationId}</dd></>}
         {routing.plan?.pattern === "critique" && <><dt>Read-only critic</dt><dd className="path">{routing.plan.criticId}</dd></>}
         <dt>Confidence / threshold</dt><dd>{routing.plan?.confidence ?? "Not classified"} / {routing.policy.minimumConfidence}</dd></dl>
-        {routing.plan && <p>{routing.plan.reason}</p>}{routing.diagnostic && <p className="inline-error">{routing.diagnostic}</p>}<p className="fine-print">Model-supplied confidence is not calibrated probability or permission. Inspect per-call accounting below for actual dispatches; classifier output never becomes solver instructions.</p></details>}
+        {routing.plan && <p>{routing.plan.reason}</p>}{routing.diagnostic && <Alert as="p" className="inline-error">{routing.diagnostic}</Alert>}<p className="fine-print">Model-supplied confidence is not calibrated probability or permission. Inspect per-call accounting below for actual dispatches; classifier output never becomes solver instructions.</p></details>}
       {execution && <details><summary>Owned remote execution</summary><p className="path">{execution.id}</p><p>{execution.status} / cancellation {execution.cancellation} / {execution.cleanup}</p><p>{execution.diagnostic}</p><button disabled={Boolean(session.turnId)} onClick={() => void run(() => client.remote.reconcile(execution.id))}>Reconcile receipts</button></details>}
-      {nativeExecution && <details><summary>Owned native execution</summary><p className="path">{nativeExecution.id}</p><p>{nativeExecution.status} / cancellation {nativeExecution.cancellation} / {nativeExecution.cleanup}</p><p>Model root: {nativeExecution.root ?? "null, project-free"}. Source changes require separate actual-user publication in Sandbox.</p>{nativeExecution.diagnostic && <p className="settings-warning">{nativeExecution.diagnostic}</p>}</details>}
+      {nativeExecution && <details><summary>Owned native execution</summary><p className="path">{nativeExecution.id}</p><p>{nativeExecution.status} / cancellation {nativeExecution.cancellation} / {nativeExecution.cleanup}</p><p>Model root: {nativeExecution.root ?? "null, project-free"}. Source changes require separate actual-user publication in Sandbox.</p>{nativeExecution.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{nativeExecution.diagnostic}</Alert>}</details>}
       <details><summary>Startup control sources</summary><pre>{JSON.stringify(session.defaults ?? { source: "legacy explicit session controls" }, null, 2)}</pre><p className="fine-print">These sources were recorded when the session was created. Changing defaults does not rewrite this session.</p></details>
       <h2>Usage</h2><dl className="facts"><dt>Direct model calls</dt><dd>{session.usage.length}</dd><dt>Direct tokens</dt><dd>{known.length ? number(total) + (unknown ? " + unknown" : "") : session.usage.length ? "Unavailable" : "No requests yet"}</dd><dt>Request wall time</dt><dd>{(session.usage.reduce((sum, usage) => sum + usage.requestMs, 0) / 1000).toFixed(2)} s</dd></dl>
       {snapshot && <SessionBudgetSummary sdk={client} snapshot={snapshot} session={session} />}
@@ -869,7 +870,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
       {session.usage.length > 0 && <details><summary>Per-call accounting</summary>{session.usage.map((usage) => <div className="call-record" key={usage.stepId}><strong>{usage.modelId}</strong><small>{usage.role} / {usage.outcome}</small><span>{usage.totalTokens === null ? "Tokens unavailable" : `${number(usage.totalTokens)} tokens (${usage.quality})`}</span></div>)}</details>}
       <button className="trace-toggle" onClick={() => setTrace((value) => !value)}>{trace ? "Hide" : "Show"} recent event trace</button>
       {trace && <div className="event-trace"><p className="fine-print">Most recent 200 received events, filtered to this session.</p>{events.filter((event) => event.session_id === session.id).map((event) => <details key={event.id}><summary>#{event.seq} {event.event_type}</summary><pre>{JSON.stringify(event, null, 2)}</pre></details>)}</div>}
-      {session.lastError && <p className="inline-error">{session.lastError}</p>}
+      {session.lastError && <Alert as="p" className="inline-error">{session.lastError}</Alert>}
     </>;
   }
   if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
@@ -907,7 +908,7 @@ function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel:
     <header><h2>Hide terminal pane?</h2><button className="icon-button" type="button" aria-label="Cancel closing terminal pane" disabled={busy} onClick={() => ref.current?.close()}><Icon name="Close" /></button></header>
     <p>Your consoles keep running. Use the terminal's X button to terminate a console without this confirmation.</p>
     <label className="check-setting"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />Do not ask me again when closing terminal</label>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <footer><button type="button" disabled={busy} onClick={() => ref.current?.close()}>Keep open</button><button className="primary" type="button" disabled={busy} onClick={() => void hide()}>Hide terminal</button></footer>
   </dialog>;
 }

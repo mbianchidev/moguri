@@ -8,6 +8,7 @@ import { useSessionActions, type SessionActionOwner } from "./SessionActions.tsx
 import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 import { PolicyNavigationContext } from "./PolicyHint.tsx";
+import { Alert } from "./Alert.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -419,7 +420,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         const bounds = event.currentTarget.getBoundingClientRect();
         setFoldersMenu({ kind: "project", id: "folders", x: bounds.left, y: bounds.bottom, anchor: event.currentTarget, trigger: event.currentTarget });
       }}><Icon name="More" /></button></div>
-    {(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}
+    {(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
     <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
@@ -655,13 +656,13 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
           })(); }}>Save reviewed export</button><p className="fine-print">{exportedDigest ? "Exact export saved. Deletion still requires your explicit confirmation below." : "Save the exact export to a new file before deleting stored copies."}</p></>}
           {artifactAction === "materialize" && <ArtifactRepositoryCopy sdk={sdk} snapshot={snapshot} projectId={edit.project!.id} expectedSetDigest={artifactPreview.digest} allowWorkspaces={false} onSaved={setMaterialized} onBusy={setBusy} />}
         </>}
-        {staleArtifacts && <p className="settings-warning">The artifact set changed. Reload its impact before choosing.</p>}
+        {staleArtifacts && <Alert as="p" tone="warning" className="settings-warning">The artifact set changed. Reload its impact before choosing.</Alert>}
       </>}<button type="button" disabled={busy || previewLoading} onClick={() => void loadArtifacts()}>Reload artifact preview</button></section>}
       <label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I understand and confirm this removal.</label></> :
       edit.kind === "color" || edit.kind === "folder-color" ? <label className="setting-field">{edit.kind === "folder-color" ? "Custom group color" : "Custom project color"}<span className="project-custom-color"><input type="color" aria-label={edit.kind === "folder-color" ? "Custom group color" : "Custom project color"} value={value} disabled={busy} onChange={(event) => setValue(event.target.value)} /><code>{value}</code></span></label> :
       choices ? <label className="setting-field">{edit.kind === "work" ? "Or choose a local work item" : "Destination"}<select aria-label="Destination" value={value} onChange={(event) => { setValue(event.target.value); setGithub(null); }}><option value="">{edit.kind === "work" ? "Choose local work item" : "None"}</option>{choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> :
         <label className="setting-field">{edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"}<input ref={nameInput} aria-label={edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"} autoFocus value={value} onChange={(event) => { setValue(event.target.value); setGithub(null); }} required={!github} /></label>}
     {edit.kind === "pr" && <p className="fine-print">Binds PR context without changing this folder's checkout or starting work.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className={destructive ? "danger" : "primary"} disabled={busy || previewLoading || staleArtifacts || artifactChoiceMissing || destructive && !confirmed || !destructive && !["attach", "group", "folder"].includes(edit.kind) && !value.trim() && !github} type="submit">{busy ? "Working..." : destructive ? "Delete" : edit.kind === "pr" || edit.kind === "work" ? "Start session" : "Save"}</button></footer>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className={destructive ? "danger" : "primary"} disabled={busy || previewLoading || staleArtifacts || artifactChoiceMissing || destructive && !confirmed || !destructive && !["attach", "group", "folder"].includes(edit.kind) && !value.trim() && !github} type="submit">{busy ? "Working..." : destructive ? "Delete" : edit.kind === "pr" || edit.kind === "work" ? "Start session" : "Save"}</button></footer>
   </form></dialog>;
 }

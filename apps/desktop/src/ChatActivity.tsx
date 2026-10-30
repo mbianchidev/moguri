@@ -3,6 +3,7 @@ import type { ActivityContent, ActivityEntry, ActivityResponse, BudgetTotals, Mo
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { dollars } from "./BudgetControls.tsx";
+import { Alert } from "./Alert.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 const icons: Record<ActivityEntry["kind"], string> = {
@@ -103,14 +104,14 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
     </summary>
     {open && <div className="activity-expansion">
       {state.loading && (needsArguments && !localArguments || needsOutput && !localOutput) && <p role="status">Reading additional retained data...</p>}
-      {current && state.error && <p className="inline-error" role="alert">{state.error}</p>}
+      {current && state.error && <Alert as="p" className="inline-error" role="alert">{state.error}</Alert>}
       {localArguments && renderPart(localArguments, "arguments")}
       {current && !localArguments && renderPart(state.arguments, "arguments")}
       {localOutput && renderPart(localOutput, "output", outputMatchesRetained ? undefined : "Conversation result")}
       {current && !localOutput && renderPart(state.output, "output")}
       {localOutput && !outputMatchesRetained && <p className="fine-print">Showing the exact tool result saved in this conversation. Separate retained source bytes are not fetched automatically.</p>}
       {!observed.hasOutput && <p className="fine-print">{running ? "No result has been observed yet." : "No readable result is retained for this operation."}</p>}
-      {["partial", "unconfirmed"].includes(observed.status) && <p className="settings-warning" role="alert">This result is partial or unconfirmed. Inspect it before explicitly choosing Resume; no continuation or cleanup success is implied.</p>}
+      {["partial", "unconfirmed"].includes(observed.status) && <Alert as="p" className="settings-warning" role="alert">This result is partial or unconfirmed. Inspect it before explicitly choosing Resume; no continuation or cleanup success is implied.</Alert>}
       {observed.hasOutput && observed.outputBasis === "retained-tail" && <p className="fine-print">Bounded captured output tail, not complete process output. No final result has been retained.</p>}
       {entry.kind === "thought" && <p className="fine-print">Only provider-exposed reasoning. Request duration covers the whole model call; separate thought time is not reported.</p>}
       <footer className="activity-metrics">
@@ -160,7 +161,7 @@ export function TurnActions({ sdk, sessionId, turnId, info, canCopy, modal }: {
     {open && <div ref={panel} id={panelId} tabIndex={-1} className="turn-info-popover" popover="auto" role="dialog" aria-label="Turn information" onToggle={(event) => {
       if (event.newState === "closed") { setOpen(false); button.current?.focus(); }
     }}>
-      {error ? <p className="inline-error" role="alert">{error}</p> : !info ? <p role="status">No original telemetry was recorded for this turn.</p> : <>
+      {error ? <Alert as="p" className="inline-error" role="alert">{error}</Alert> : !info ? <p role="status">No original telemetry was recorded for this turn.</p> : <>
         <dl><dt>{info.models.length > 1 ? "Models" : "Model"}</dt><dd>{info.models.length ? [...new Set(info.models.map((model) => model.modelId))].join(", ") : "Not observed"}</dd>
           <dt>Est. USD</dt><dd>{estimatedCost(info.usage, info.estimate)}</dd>
           <dt>Tokens</dt><dd>{tokens(info.usage.inputTokens, info.usage.knownInputTokens, info.estimate?.inputTokens)} in / {tokens(info.usage.outputTokens, info.usage.knownOutputTokens, info.estimate?.outputTokens)} out</dd>

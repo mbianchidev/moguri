@@ -34,7 +34,7 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(page.getByLabel("Profile name", { exact: true })).toHaveValue("Generated desktop Beta");
     await expect(active).toBeDisabled();
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await page.getByRole("button", { name: "Create profile", exact: true }).click();
     const profile = await waitFor(() => fixture.service.profiles.catalog().profiles.find((profile) => profile.name === "Generated desktop Beta" && profile.status === "ready"));
     await expect(active).toBeEnabled(); await expect(active).toHaveValue("default");
@@ -127,7 +127,7 @@ test("native profile startup and preview partitions reject foreign sessions and 
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-session", id, "default"), b.id!);
     await expect(page.getByRole("alert")).toContainText("notification's session was removed from its actual profile");
     await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated native Beta");
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-session", id, "default"), a.id!);
     await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Default"); await expect.poll(previewUrls).not.toContain(url);
     await page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: a.id!, url, bounds });

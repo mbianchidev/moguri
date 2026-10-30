@@ -1,6 +1,7 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { UPDATE_TOKEN_CREATION_URL, UPDATE_TOKEN_GUIDANCE, type MoguriSdk, type UpdateInstallReview, type UpdateStatus } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMaintenance }: {
   sdk: MoguriSdk; revision: number; disabled: boolean; onBusy: (busy: boolean) => void; prepareMaintenance: () => Promise<void>;
@@ -32,8 +33,8 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
       <button type="button" disabled={disabled || busy || owned || Boolean(token)} onClick={() => void run(async () => { setStatus((await sdk.application.updates.credential()).update); })} aria-label="Inspect updater credential">Inspect</button>
       <SettingsAction label="Remove updater credential" icon="Trash" disabled={disabled || busy || owned} onClick={() => void run(async () => { await sdk.application.updates.setToken(null); setToken(""); setStatus((await sdk.application.updates.status()).update); })} />
       <button type="button" disabled={busy || !token} onClick={() => setToken("")} aria-label="Discard token edit">Discard</button></div>
-    {status?.diagnostic && <p className="settings-warning">{status.diagnostic}</p>}
-    <p className="settings-warning">Updates do not require Apple signing. Integrity/repository checks are not notarization or an independent signing trust root. Moguri retains quarantine and never bypasses Gatekeeper or other OS warnings. Downloading/staging does not execute new code.</p>
+    {status?.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{status.diagnostic}</Alert>}
+    <Alert as="p" tone="warning" className="settings-warning">Updates do not require Apple signing. Integrity/repository checks are not notarization or an independent signing trust root. Moguri retains quarantine and never bypasses Gatekeeper or other OS warnings. Downloading/staging does not execute new code.</Alert>
     <div className="button-row"><button type="button" disabled={disabled || busy || owned || !status?.enabled || Boolean(token)} onClick={() => void run(async () => {
       await sdk.application.updates.check(); setStatus((await sdk.application.updates.status()).update);
     })} aria-label="Check for updates now">Check</button>
@@ -46,10 +47,10 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
       })} aria-label="Review install and restart">Review install</button>}</>}
     {review && <><dl className="facts"><dt>New version</dt><dd>{review.version}</dd><dt>Exact destination</dt><dd className="path">{review.destination}</dd>
       <dt>Preserved previous app</dt><dd className="path">{review.backup}</dd><dt>Old bundle SHA-512</dt><dd className="path">{review.oldBundleSha512}</dd><dt>New bundle SHA-512</dt><dd className="path">{review.bundleSha512}</dd></dl>
-      <p className="settings-warning">Confirmation stops all profile work and restarts the actual app. Unknown accounting stays held and authenticated terminals survive without input replay. A trusted current-code helper preserves the old bundle and verifies the exact same-filesystem candidate. Interrupted work never installs itself again.</p>
+      <Alert as="p" tone="warning" className="settings-warning">Confirmation stops all profile work and restarts the actual app. Unknown accounting stays held and authenticated terminals survive without input replay. A trusted current-code helper preserves the old bundle and verifies the exact same-filesystem candidate. Interrupted work never installs itself again.</Alert>
       <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the exact old/new application bytes, destination, backup and restart</label>
       <div className="button-row"><button type="button" className="primary" disabled={disabled || busy || !confirmed || Boolean(token)} onClick={() => void run(async () => { await prepareMaintenance(); await window.moguri.installUpdate(review.id, review.digest); })} aria-label="Install and restart with verified update">Install and restart</button>
         <button type="button" disabled={busy} onClick={() => { setReview(null); setConfirmed(false); }} aria-label="Cancel install review">Cancel</button></div></>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }
