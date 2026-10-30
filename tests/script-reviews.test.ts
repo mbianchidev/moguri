@@ -118,3 +118,55 @@ test("retained unsafe review survives genuine service restart and a missing forc
     assert.equal(fixture.requests.length, calls);
   } finally { sdk?.disconnect(); await reopened?.close(); await fixture.close(); }
 });
+
+test("the actual TUI queued force owns only its original command and still requires normal execution permission", { skip: process.platform !== "darwin" }, async () => {
+  const fixture = await scriptReviewFixture({ unsafe: true });
+  try {
+    await fixture.send("Generated queued script review."); await fixture.terminal();
+    const review = fixture.review()!, original = fixture.session(), calls = fixture.requests.length;
+    const text = `/script-review force ${review.id} ${review.revision} ${review.source.digest} ${original.revision} confirm-unsafe`;
+    const saved = await fixture.sdk.command({ type: "draft.save", sessionId: original.id, expectedRevision: original.draft.revision, text, attachments: [] });
+    await fixture.sdk.command({ type: "message.send", sessionId: original.id, expectedRevision: saved.revision!, delivery: "queue", client: "tui" });
+    const execution = await waitFor(() => {
+      const value = fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.sessionId === original.id && entry.name === "script-review");
+      return value && ["completed", "failed", "partial"].includes(value.status) ? value : null;
+    });
+    assert.equal(execution.status, "completed", execution.diagnostic ?? "");
+    const approval = await waitFor(() => fixture.session().pendingApproval);
+    assert.equal(approval.call.name, "run_script");
+    await assert.rejects(() => access(join(fixture.project, "generated-script-result.txt")), { code: "ENOENT" });
+    await fixture.sdk.approvals.respond(original.id, approval.id, true);
+    await waitFor(() => fixture.session().turnId === null);
+    assert.equal(await readFile(join(fixture.project, "generated-script-result.txt"), "utf8"), "GENERATED_FORCED_RUN");
+    assert.equal(fixture.requests.length, calls);
+    assert.equal(fixture.session().queue.length, 0);
+  } finally { await fixture.close(); }
+});
+
+test("a complete safe review still follows explicitly delegated Autopilot policy without another approval or model", { skip: process.platform !== "darwin" }, async () => {
+  const fixture = await scriptReviewFixture({ autopilot: true });
+  try {
+    await fixture.send("Generated explicit automatic reviewed script.");
+    assert.equal((await fixture.terminal()).status, "completed");
+    assert.equal(fixture.session().pendingApproval, null);
+    assert.ok(fixture.service.controller.events(0).some((event) => event.event_type === "tool.decided" && event.payload.actor === "autonomy"));
+    assert.ok(fixture.review()?.attempt);
+  } finally { await fixture.close(); }
+});
+
+test("failed original job persistence cannot start a forced script, publish an approval or authorize replay", { skip: process.platform !== "darwin" }, async () => {
+  const fixture = await scriptReviewFixture({ unsafe: true });
+  try {
+    await fixture.send("Generated retained failure-bound script review."); await fixture.terminal();
+    const review = fixture.review()!, jobs = fixture.service.controller.snapshot().jobs.length;
+    fixture.service.store.db.exec("CREATE TRIGGER generated_script_job_failure BEFORE INSERT ON events WHEN json_extract(NEW.data,'$.event_type')='job.started' BEGIN SELECT RAISE(ABORT,'Generated script job persistence failure'); END;");
+    await assert.rejects(() => fixture.sdk.scriptReviews.force(fixture.sessionId, review.id, review.source.digest, review.revision, fixture.session().revision));
+    fixture.service.store.db.exec("DROP TRIGGER generated_script_job_failure");
+    assert.equal(fixture.session().turnId, null); assert.equal(fixture.session().pendingApproval, null);
+    assert.equal(fixture.service.controller.snapshot().jobs.length, jobs);
+    await assert.rejects(() => access(join(fixture.project, "generated-script-result.txt")), { code: "ENOENT" });
+    const retained = fixture.review()!;
+    assert.equal(retained.force?.actor, "user"); assert.ok(retained.attempt);
+    await assert.rejects(() => fixture.sdk.scriptReviews.force(fixture.sessionId, review.id, review.source.digest, retained.revision, fixture.session().revision), /original|retained|exact/i);
+  } finally { await fixture.close(); }
+});

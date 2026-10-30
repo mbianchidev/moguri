@@ -7,7 +7,7 @@ import { focusByKeyboard } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop script review is qualified on macOS.");
-test("unsafe findings require an explicit full-source user force and still cannot self-approve execution", async () => {
+test("unsafe findings require an explicit full-source user force and still cannot self-approve execution", async ({}, info) => {
   const fixture = await scriptReviewFixture({ unsafe: true });
   await fixture.send("Generated desktop unsafe script review."); await fixture.terminal();
   const app = await electron.launch({
@@ -23,6 +23,7 @@ test("unsafe findings require an explicit full-source user force and still canno
     const read = panel.getByRole("button", { name: `Read full script review ${review.id}`, exact: true });
     await focusByKeyboard(read); await page.keyboard.press("Enter");
     await expect(panel.getByLabel(`Complete reviewed script ${review.id}`, { exact: true })).toHaveText(fixture.source);
+    await page.screenshot({ path: info.outputPath("unsafe-script-review.png"), animations: "disabled" });
     const force = panel.getByRole("button", { name: "Force unsafe script under normal policy", exact: true });
     await expect(force).toBeDisabled();
     await expect(page.getByRole("region", { name: "Tool approval", exact: true })).toHaveCount(0);
