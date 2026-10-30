@@ -167,7 +167,7 @@ test("private update setup exposes supported owner/Contents prefill and disclose
     });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const update = page.getByRole("region", { name: "Private application updates", exact: true });
-    const setup = update.getByRole("button", { name: "Create token for read-only updates", exact: true });
+    const setup = update.getByRole("button", { name: "Set up read-only update access", exact: true });
     await expect(setup).toBeVisible();
     await expect(update.getByText(/GitHub cannot preselect/)).toBeVisible();
     await expect(update.getByText(/Only select repositories/).first()).toBeVisible();
