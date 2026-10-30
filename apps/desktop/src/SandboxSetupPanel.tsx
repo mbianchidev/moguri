@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   defaultSandboxManagement, type MoguriSdk, type SandboxManagement, type SandboxSetupReview, type SandboxSetupStatus, type Snapshot,
 } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 const active = new Set(["checking", "preparing", "installing", "importing", "verifying"]);
 export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDirty, update }: {
@@ -64,9 +65,9 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
   return <section className="candidate-section" aria-label="Managed SendBox setup" aria-busy={busy}>
     <SettingsHelp label="More about this setting" target={<h3>Ready-to-use Sandbox</h3>}>Moguri supplies its pinned worker image, Linux Node runtime and native dependencies. Review once; private workspaces and the selected provider's DNS aliases are managed automatically.</SettingsHelp>
     <p className="fine-print">Configured SendBox: {status?.selectedVersion ?? management.version}. Bundled version: {status ? status.bundledVersion ?? "not included in this runtime" : "checking"}. New versions install side by side, never over your existing SendBox.</p>
-    {status && <p className="fine-print" role="status">{status.diagnostic}</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
-    {status?.operation && <p className="fine-print" role="status">Setup {status.operation.status}. {status.operation.diagnostic}</p>}
+    {status && <Alert as="p" className="fine-print" role="status">{status.diagnostic}</Alert>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    {status?.operation && <Alert as="p" className="fine-print" role="status">Setup {status.operation.status}. {status.operation.diagnostic}</Alert>}
     {status?.operation && active.has(status.operation.status) && <button type="button" onClick={() => {
       void sdk.sandbox.setup.cancel(status.operation!.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Original setup cancellation was not confirmed."));
     }} aria-label="Cancel original setup">Cancel</button>}
@@ -89,7 +90,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       onChange={(event) => update({ automaticWorkspaces: event.target.checked })} />Prepare private session workspaces automatically</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticProviderNetwork} disabled={disabled || busy}
       onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Automatically allow the selected model provider's actual HTTPS endpoint and public DNS aliases</label>
-    <p className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox 0.2.4 expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</p>
+    <Alert as="p" tone="warning" className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox 0.2.4 expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</Alert>
     {review && <section className="candidate-binding" aria-label="Exact managed Sandbox review">
       <SettingsHelp label="More about this setting" target={<h4>SendBox {review.version} / Moguri protocol {review.protocol}</h4>}>Linux Node 26.12.0, Moguri's agent worker and native PTY dependencies are included. No build, container command or manual SHA entry is required.</SettingsHelp>
       <p>{review.diagnostic}</p>

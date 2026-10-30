@@ -6,6 +6,7 @@ import type {
   LinearCatalogResource, LinearEntity, LinearIssueFields, LinearOperation, LinearPhaseMapping, LinearPreview,
   LinearProjectFields, LinearResponse, LinearSnapshot, LinearWorkflowInput,
 } from "../../../packages/protocol/src/linear-workflows.ts";
+import { Alert } from "./Alert.tsx";
 
 type Action = LinearWorkflowInput["action"];
 const actions: { value: Action; label: string }[] = [
@@ -180,7 +181,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     <p className="fine-print">Profile {snapshot.profileId} · {enabled ? `Enabled team ${board.linear.teamId}` : "Off by default. Enable an exact team and store a personal API key in board configuration."} · Local control-plane connection</p>
     {!snapshot.policy.allowedEnvs.includes("Local") && <p role="status">Global policy excludes Local. No Linear connection or credential fallback is available here.</p>}
     {prohibitedSession && <p role="status">This session is Remote, side or read-only. It cannot mutate Linear or local tickets.</p>}
-    {(error || notice) && <p className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</p>}
+    {(error || notice) && <Alert as="p" className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</Alert>}
     <fieldset disabled={busy || !enabled || !snapshot.policy.allowedEnvs.includes("Local")}>
       <legend>Read explicitly</legend>
       <div className="button-row"><label className="setting-field"><span id={`${uid}-collection`}>Collection</span><select aria-labelledby={`${uid}-collection`} value={resource} onChange={(event) => { setResource(event.target.value as LinearCatalogResource); setCatalog(null); }}>

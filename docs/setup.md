@@ -223,6 +223,18 @@ open issues onto the board and keeps imported links updated, including later
 closure/reopening. The source binds this Mac's actual CLI account, canonical
 project root, upstream and repository identity. Account/root changes fail
 explicitly rather than retargeting the import.
+Presentation-only project changes, such as a sidebar color, do not invalidate
+that retained source. Each observation checks fresh current permissions; an
+actual policy change during a read rejects its staged page, and a later
+permitted refresh can recover without replacing source/card identities.
+
+Card moves and other successful operations use informational notices, not red
+errors. Desktop alerts have a small **X** button, including errors in settings,
+the composer and panels. Closing one hides only its message: drafts, failed
+jobs, required answers/approvals and recovery actions remain unchanged.
+Different/new notifications reappear. The TUI footer similarly offers **[x]**
+and Escape in composer focus; ordinary information is not colored as an error.
+See the [shared alert and Kanban observation contract](architecture/alerts-kanban-sync.md).
 
 Open issues without an active linked PR are **Backlog**; an attached draft PR
 means **In progress**; a ready open PR means **Review**; a closed issue means

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { GatewaySkill, MoguriSdk, SkillSource } from "../../../packages/sdk/src/index.ts";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled, onDirty }: {
   sdk: MoguriSdk; value: SkillSource[]; change: (sources: SkillSource[]) => void; save: () => void;
@@ -36,7 +37,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
   });
   return <section className="skill-gateway-settings" aria-label="Skill gateway settings">
     <SettingsHelp label="About the skill gateway" target={<h2>Skill gateway</h2>}>Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {value.map((source) => <article className="skill-source" key={source.id}>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill source ${source.name}`} checked={source.enabled} disabled={disabled || busy}
         onChange={(event) => change(value.map((entry) => entry.id === source.id ? { ...entry, enabled: event.target.checked } : entry))} /><strong>{source.name}</strong></label>

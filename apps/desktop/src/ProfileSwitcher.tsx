@@ -1,6 +1,7 @@
 import { SettingsAction, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { MoguriSdk, Profile, ProfileCatalog, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function ProfileSwitcher({ sdk, snapshot, disabled, expanded, setExpanded, onSwitch, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; disabled: boolean; expanded: boolean; setExpanded: (open: boolean) => void;
@@ -55,6 +56,6 @@ export function ProfileSwitcher({ sdk, snapshot, disabled, expanded, setExpanded
           <button type="button" disabled={busy || inspected !== profile.id} onClick={() => void run(async () => { await sdk.profiles.retry(profile.id, profile.revision, true); await sdk.profiles.wait(profile.id); setInspected(""); await reload(); })} aria-label="Retry profile setup">Retry</button></>}
       </div>)}
     </div>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
   </section>;
 }

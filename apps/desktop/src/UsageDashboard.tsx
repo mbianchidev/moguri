@@ -3,6 +3,7 @@ import { API_EQUIVALENT_NOTICE, isModelRole, type BudgetBucket, type BudgetPlan,
 import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { OperationalUsage } from "./OperationalUsage.tsx";
 import { RepositoryMetadata } from "./RepositoryMetadata.tsx";
+import { Alert } from "./Alert.tsx";
 
 type Result = Extract<BudgetResponse, { type: "budget.dashboard" }>;
 type Filters = Omit<Extract<BudgetQuery, { type: "budget.dashboard" }>, "type">;
@@ -50,9 +51,9 @@ export function UsageDashboard({ sdk, snapshot, initialFilters = {} }: { sdk: Mo
     {filters.range?.kind === "custom" && <div><label className="setting-field">From (UTC)<input aria-label="Usage range from" type="date" value={custom.from} onChange={(event) => setCustom((range) => ({ ...range, from: event.target.value }))} /></label><label className="setting-field">Through (UTC)<input aria-label="Usage range through" type="date" value={custom.to} onChange={(event) => setCustom((range) => ({ ...range, to: event.target.value }))} /></label><button type="button" disabled={!custom.from || !custom.to || loading} onClick={() => choose("range", { kind: "custom", ...custom })}>Apply UTC range</button></div>}
     <label className="setting-field">Calendar buckets<select aria-label="Usage calendar buckets" value={filters.bucket ?? "month"} onChange={(event) => { const bucket = buckets.find((value) => value === event.target.value); if (bucket) choose("bucket", bucket); }}>{buckets.map((bucket) => <option key={bucket} value={bucket}>{bucket === "all" ? "Whole selected range" : bucket === "week" ? "Week (Monday, UTC)" : `${bucket[0]!.toUpperCase()}${bucket.slice(1)} (UTC)`}</option>)}</select></label>
     </details>
-    {resultCurrent && error && <p className="inline-error" role="alert">{error}</p>}{(loading || !resultCurrent) && <p role="status">Updating authoritative totals...</p>}
+    {resultCurrent && error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{(loading || !resultCurrent) && <p role="status">Updating authoritative totals...</p>}
     {result && <><p className="fine-print">{result.window.from ? `${result.window.from} through ${result.window.to}, inclusive UTC.` : "All recorded dates, including calls with uncertain historical times."} Date filters never reduce cumulative budget charges.</p>
-      {result.window.excludedUncertainTimeCalls > 0 && <p className="settings-warning">{result.window.excludedUncertainTimeCalls} calls have no verified request time and are excluded from this dated view. All time includes them.</p>}
+      {result.window.excludedUncertainTimeCalls > 0 && <Alert as="p" tone="warning" className="settings-warning">{result.window.excludedUncertainTimeCalls} calls have no verified request time and are excluded from this dated view. All time includes them.</Alert>}
       {result.repositoryCoverage.unattributedCalls > 0 && <p className="fine-print">{result.repositoryCoverage.unattributedCalls} calls in this source/date view lack repository attribution{filters.repositoryId || filters.organization || filters.visibility ? " and are excluded by repository filters" : ""}. Earlier deleted or unverified history is not reconstructed.</p>}
       {filters.visibility === "open-source" && result.repositoryCoverage.unverifiedLicenseCalls > 0 && <p className="fine-print">{result.repositoryCoverage.unverifiedLicenseCalls} public-repository calls have unverified detected licenses and are excluded from this category, not assumed unlicensed or zero work.</p>}
       <dl className="facts"><dt>Model calls</dt><dd>{result.totals.calls}</dd><dt>Reported tokens</dt><dd>{tokens(result.totals)}</dd>
@@ -111,7 +112,7 @@ function UsagePlans({ sdk, filters, stamp }: { sdk: MoguriSdk; filters: PlanFilt
   }, [sdk, key]);
   return <section aria-label="Planned model reservations" aria-busy={loading || !current}>
     <label className="setting-field">Reservation state<select aria-label="Planned reservation state" value={status} onChange={(event) => { setStatus((["held", "consumed", "released"] as const).find((value) => value === event.target.value) ?? ""); setOffset(0); }}><option value="held">Held, not dispatched</option><option value="consumed">Transferred to a model call</option><option value="released">Released without dispatch</option><option value="">All retained states</option></select></label>
-    {(loading || !current) && <p role="status">Loading planned reservations...</p>}{current && error && <p className="inline-error" role="alert">{error}</p>}
+    {(loading || !current) && <p role="status">Loading planned reservations...</p>}{current && error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {page?.plans.map((plan) => <div className="call-record" key={plan.id}><strong>{plan.role} / {plan.modelId}</strong><small>{plan.env} / {plan.status} / {plan.createdAt}</small>
       <span>{plan.inputBound.toLocaleString()} input + {plan.outputBound.toLocaleString()} output tokens reserved; {plan.usdMicros === null ? "USD estimate unknown" : dollars(plan.usdMicros / 1_000_000) + " captured estimate"}</span>
       <small>Owning session {plan.ownerSessionId}; turn {plan.turnId}</small>
@@ -132,7 +133,7 @@ function UsageCalls({ sdk, filters, stamp, onTurn }: { sdk: MoguriSdk; filters: 
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
   }, [sdk, JSON.stringify(filters), offset, stamp]);
-  return <div aria-label="Accounted model calls" aria-busy={loading}>{loading && <p role="status">Loading retained calls...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+  return <div aria-label="Accounted model calls" aria-busy={loading}>{loading && <p role="status">Loading retained calls...</p>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {result?.calls.map((call) => <div className="call-record" key={call.id}><strong>{call.modelId}</strong><small>{call.role} / {call.env} / {call.status} / {call.outcome}</small>
       <span>{call.imported && call.timeBasis !== "model-start" || call.timeBasis === "unknown" ? "Unverified historical request time" : call.createdAt}</span>
       <small>{call.repository ? `${call.repository.fullName} / ${call.repository.ownerKind} / ${call.repository.visibility} / metadata ${call.repository.observedAt}` : `Repository unassigned${call.repositoryDiagnostic ? ` / ${call.repositoryDiagnostic}` : ""}`}</small>
@@ -140,7 +141,7 @@ function UsageCalls({ sdk, filters, stamp, onTurn }: { sdk: MoguriSdk; filters: 
       <span>{call.stream?.firstOutputMs === null || call.stream?.firstOutputMs === undefined ? "First output unmeasured" : `${call.stream.firstOutputMs.toFixed(1)} ms first output`}; {(call.requestMs / 1000).toFixed(2)} s request wall time</span>
       {call.rate && <small>{call.rate.effectiveAt} / {call.rate.source}; input {dollars(call.rate.inputUsdPerMillion)}, output {dollars(call.rate.outputUsdPerMillion)} per million</small>}
       {call.rate?.source === "provider-api-equivalent" && <small>API-equivalent reference: {call.rate.pricing.provider} / {call.rate.pricing.modelId}. Not the transport's bill.</small>}
-      {call.telemetryDiagnostic && <p className="inline-error">{call.telemetryDiagnostic}</p>}
+      {call.telemetryDiagnostic && <Alert as="p" className="inline-error">{call.telemetryDiagnostic}</Alert>}
       {(call.ownerTurnId || call.turnId) && <button type="button" className="quiet" onClick={() => { const turn = call.ownerTurnId ?? call.turnId; if (turn) onTurn(turn); }}>{call.ownerTurnId ? "Filter this owning turn" : "Filter this actual turn"}</button>}
     </div>)}
     {result && !result.calls.length && <p>No calls match this view.</p>}<p className="fine-print">Pages show current accounting. New calls or late reports can change ordering; totals are computed separately, not by adding these pages.</p>

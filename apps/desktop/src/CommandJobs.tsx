@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CommandJobRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function CommandJobs({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
   const jobs = snapshot.jobs.filter((job) => job.sessionId === session.id && job.commandJob);
@@ -42,7 +43,7 @@ export function CommandJobs({ sdk, session, snapshot, active }: { sdk: MoguriSdk
       {data ? <>
         <p className="fine-print"><strong>{data.status}</strong> / {data.env} / {data.root}. Source: {data.source}. Observed wall time {data.elapsedMs === null ? "unavailable" : `${Math.round(data.elapsedMs)} ms`}; output {data.outputBytes === null ? "unavailable" : `${data.outputBytes} normalized bytes`}.</p>
         {data.text !== null && <pre className="command-job-output" tabIndex={0} aria-label="Original watch output">{data.text}</pre>}
-        {data.diagnostic && <p className="inline-error" role="alert">{data.diagnostic}</p>}
+        {data.diagnostic && <Alert as="p" className="inline-error" role="alert">{data.diagnostic}</Alert>}
         <div className="button-row">{offset > 0 && <button type="button" onClick={() => setOffset(0)}>First watch page</button>}
           {data.nextOffset !== null && <button type="button" onClick={() => setOffset(data.nextOffset!)}>Next watch page</button>}</div>
         {selected.status === "partial" && !selected.commandJob?.inspected && data.inspectionDigest && <section aria-label="Unconfirmed watch inspection">
@@ -52,7 +53,7 @@ export function CommandJobs({ sdk, session, snapshot, active }: { sdk: MoguriSdk
         </section>}
       </> : <p role="status">Reading the original watch job...</p>}
     </>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <p className="fine-print">Watch jobs are explicit Local work, independent of a finished model turn. No User/Global console access, PID adoption or restart replay. CPU/RSS and unobserved output are unavailable, not zero.</p>
   </details>;
 }

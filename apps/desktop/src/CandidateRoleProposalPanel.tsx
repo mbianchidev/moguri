@@ -1,6 +1,7 @@
 import { SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function CandidateRoleProposalPanel({ sdk, snapshot, session, scope, sourceRoot, writable, draftDirty, loadedSequenceId, onLoad }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; scope: string; sourceRoot?: string; writable: boolean; draftDirty: boolean;
@@ -34,7 +35,7 @@ export function CandidateRoleProposalPanel({ sdk, snapshot, session, scope, sour
       <option value="">Choose a completed retained role sequence</option>{reports.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id}</option>)}
     </select></label>} descriptionFirst>Inspect the final actual draft/revision/escalation. No workflow or model call starts here; provenance is not quality or user acceptance.</SettingsHelp>
     {busy && <p className="fine-print" role="status">Reading canonical role proposal...</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {loaded && <>
       <p className="fine-print path">Actual final model: {loaded.document.roleOrigin.modelId} / {loaded.document.roleOrigin.role} / step {loaded.document.roleOrigin.stepId}</p>
 

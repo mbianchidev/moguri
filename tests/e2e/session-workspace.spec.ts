@@ -81,7 +81,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await plan.fill("Generated independent desktop plan.");
     await page.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     await expect(plan).toHaveValue("Generated independent desktop plan.");
-    await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    await page.locator(".main-pane > .app-alert").getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await page.getByRole("complementary", { name: "Session sidebar" }).getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().artifacts.length).toBe(1);
     const artifactId = fixture.service.controller.snapshot().artifacts[0]!.id;

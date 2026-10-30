@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function useCopyFeedback(source: string, operation: () => Promise<void>) {
   const [copied, setCopied] = useState(false), [pending, setPending] = useState(false), [error, setError] = useState("");
@@ -34,6 +35,6 @@ export function CopyButton({ label, text, source, title = label, className = "",
         event.preventDefault(); void feedback.copy();
       }}><Icon name={feedback.copied ? "Check" : "Copy"} /></button></Tooltip>
     <span className="sr-only" role="status">{feedback.copied ? "Copied." : ""}</span>
-    {feedback.error && <span className="inline-error" role="alert">{feedback.error}</span>}
+    {feedback.error && <Alert as="span" className="inline-error" role="alert">{feedback.error}</Alert>}
   </>;
 }

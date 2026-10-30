@@ -4,6 +4,7 @@ import { activeCompound, activeDecision, ArtifactKindSchema, parse, type Artifac
 import { Icon } from "./Icon.tsx";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { DecisionPanel } from "./DecisionPanel.tsx";
+import { Alert } from "./Alert.tsx";
 
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status, folderId: value.folderId ?? null, workItemId: value.workItemId ?? null });
@@ -82,7 +83,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
     </select></label><button className="icon-button" aria-label="New artifact" title="New retained document" disabled={busy || dirty} onClick={fresh}><Icon name="Plus" /></button></div>
     <label className="check-setting"><SettingsInput type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived documents</label>
     {!documents.length && !draft && <p>No retained documents yet. Create one here or retain a completed message below.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     {draft && <>
       {!draft.id ? <><label className="setting-field">Kind<select aria-label="Artifact kind" value={draft.kind} disabled={busy} onChange={(event) => setDraft({ ...draft, kind: parse(ArtifactKindSchema, event.target.value) })}>{kinds.map((kind) => <option key={kind} value={kind}>{kind.replace("-", " ")}</option>)}</select></label>
         <label className="setting-field">Scope<select aria-label="Artifact scope" value={draft.projectId ?? ""} disabled={busy} onChange={(event) => setDraft({ ...draft, projectId: event.target.value || null, sessionId: null, workItemId: null })}><option value="">Profile / no project</option>{draft.projectId && !snapshot.projects.some((project) => project.id === draft.projectId) && <option value={draft.projectId}>Former project / unavailable</option>}{snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label></> :
@@ -117,7 +118,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
       {current && <p className="fine-print">{native || publication ? "Immutable native input/result, original owner and actual source-publication acceptance. Use Sandbox to inspect exact outputs; metadata edits cannot rewrite provenance or authorize source copying." : sequence ? "Immutable role input and actual model observations. Protocol completion is not a user answer, code-quality proof or approval." : generated ? "Immutable generation input/result. Actual model provenance is retained; staging and application require separate reviews." : candidate ? candidate.generationId ? "Derived from a canonical model proposal. Immutable bytes, model provenance and actual user acceptance stay separate." : "Imported proposal with unverified authorship. Its immutable bytes and actual acceptance are separate; use Candidates to review/apply." : sourceLabel(current)}{current.edited ? " / explicitly edited" : ""}</p>}
       {current?.sources.filter((source) => source.boundary?.env === "Remote").map((source, index) => <p className="fine-print path" key={index}>Remote source: {source.boundary?.root}/{source.boundary?.path} / {source.boundary?.hostFingerprint} / {source.outcome ?? "unconfirmed"}</p>)}
       <label className="setting-field">Text<SettingsTextarea className="artifact-editor" aria-label="Artifact text" value={draft.text} maxLength={128 * 1024} disabled={busy} readOnly={immutable} spellCheck={false} onChange={(event) => setDraft({ ...draft, text: event.target.value })} /></label>
-      {conflict && <p className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</p>}
+      {conflict && <Alert as="p" tone="warning" className="settings-warning">This document changed or was deleted elsewhere. Your edit is preserved. Reload committed values before another save.</Alert>}
       <div className="button-row"><button className="primary" disabled={busy || !draft.name.trim() || conflict || Boolean(draft.id) && !dirty} onClick={() => void run(save)}>Save artifact</button>
         {draft.id && <button disabled={busy} onClick={() => void run(() => load(draft.id!))}>Reload committed</button>}
         {(!draft.id || !current) && <button disabled={busy} onClick={() => { setDraft(null); setBaseline(""); }}>Discard local edit</button>}</div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { API_EQUIVALENT_NOTICE, type MoguriSdk, type PriceProvider, type PricingResponse, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { dollars } from "./BudgetControls.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function ProviderPricing({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Snapshot }) {
   const [catalog, setCatalog] = useState<PricingResponse | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
@@ -42,6 +43,6 @@ export function ProviderPricing({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: S
         {match.rate?.source === "provider-api-equivalent" && <small>{match.rate.pricing.provider} / {match.rate.pricing.modelId} / captured source {match.rate.effectiveAt}</small>}
       </div>)}
     </details>}
-    {notice && <p className="fine-print" role="status">{notice}</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }

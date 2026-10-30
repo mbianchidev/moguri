@@ -1,5 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 const MIME = "application/x-moguri-list-order";
 export function reorderItems<T extends { id: string }>(items: readonly T[], sourceId: string, beforeId: string | null): T[] {
@@ -71,6 +72,6 @@ export function ReorderList<T extends { id: string }>({ items, scope, label, nam
         }}><Icon name="Grip" /></button>
       <div className="reorder-content">{children(item, index)}</div>
     </div>)}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </div>;
 }

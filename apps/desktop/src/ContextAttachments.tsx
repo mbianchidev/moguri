@@ -3,6 +3,7 @@ import { sessionTitle, type Attachment, type AttachmentAccess, type ContextPrevi
 import { Icon } from "./Icon.tsx";
 import { SettingsAction } from "./SettingsFields.tsx";
 import { ContextDocument } from "./DocumentAttachment.tsx";
+import { Alert } from "./Alert.tsx";
 
 export type AttachmentReviewRequest =
   | { kind: "folder"; path: string; preview: ContextPreview }
@@ -86,21 +87,22 @@ export function AttachmentReview({ request, sdk, sessionId, editor, close, adopt
     {request.preview.text && <pre>{request.preview.text}</pre>}
     <label className="check-setting"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} />I reviewed this source snapshot and destination.</label>
     {request.kind === "session" && <label className="check-setting"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />Do not ask me again when attaching content from a session</label>}
-    {error && <p className="inline-error" role="alert">{error}</p>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className="primary" type="button" disabled={!checked || busy} onClick={() => void attach()}>Attach</button></footer>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<footer><button type="button" disabled={busy} onClick={close}>Cancel</button><button className="primary" type="button" disabled={!checked || busy} onClick={() => void attach()}>Attach</button></footer>
   </dialog>;
 }
 export function AttachmentChip({ sdk, sessionId, attachment, remove, onOpenChange }: {
   sdk: MoguriSdk; sessionId: string; attachment: Attachment; remove?: () => Promise<void>; onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false), [error, setError] = useState("");
+  const [open, setOpen] = useState(false), [error, setError] = useState(""), [imageError, setImageError] = useState("");
   useEffect(() => { if (open) onOpenChange?.(true); return () => { if (open) onOpenChange?.(false); }; }, [open, onOpenChange]);
   return <span className={`attachment-chip${attachment.kind === "image" ? " attachment-chip-image" : ""}`} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>
     {attachment.kind === "document" ? <ContextDocument sdk={sdk} sessionId={sessionId} attachment={attachment} remove={remove} onOpenChange={onOpenChange} /> :
       <button className="attachment-preview-button" type="button" aria-label={`Preview attachment ${attachment.path}`} onClick={() => setOpen(true)}>
-        {attachment.kind === "image" ? <ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "File"} />}<span>{attachment.path}</span>
+        {attachment.kind === "image" ? <ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} onError={setImageError} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "File"} />}<span>{attachment.path}</span>
       </button>}
     {remove && <button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => void remove().catch((error: unknown) => setError(error instanceof Error ? error.message : "The attachment could not be removed."))}><Icon name="Close" /></button>}
-    {error && <span className="inline-error" role="alert">{error}</span>}
+    {error && <Alert as="span" className="inline-error" role="alert">{error}</Alert>}
+    {imageError && <Alert as="span" className="inline-error" role="alert">{imageError}</Alert>}
     {open && <AttachmentPreview sdk={sdk} sessionId={sessionId} attachment={attachment} remove={remove} close={() => setOpen(false)} />}
   </span>;
 }
@@ -123,21 +125,21 @@ function AttachmentPreview({ sdk, sessionId, attachment, remove, close }: { sdk:
     <p className="fine-print">Retained snapshot / {attachment.bytes} bytes. Viewing this content does not send a prompt.</p>
     {"source" in attachment && <p className="fine-print path">{attachment.source.location}</p>}
     {attachment.kind === "image" ? <div className="attachment-image-stage"><ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} /></div> : text === null && !error ? <p role="status">Loading retained content...</p> : <pre aria-label="Attached content">{text}</pre>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <footer>{remove && <SettingsAction label="Remove attachment" icon="Trash" className="danger" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The attachment could not be removed.")).finally(() => setBusy(false)); }} />}<button type="button" disabled={busy} onClick={close}>Close preview</button></footer>
   </dialog>;
 }
-export function ContextImage({ sdk, sessionId, attachment }: { sdk: MoguriSdk; sessionId: string; attachment: Attachment }) {
+export function ContextImage({ sdk, sessionId, attachment, onError }: { sdk: MoguriSdk; sessionId: string; attachment: Attachment; onError?: (message: string) => void }) {
   const [source, setSource] = useState(""), [error, setError] = useState("");
   useEffect(() => {
-    let current = true; setSource(""); setError("");
+    let current = true; setSource(""); setError(""); onError?.("");
     void sdk.attachments.read(sessionId, attachment.id).then((result) => {
       if (result.content.kind !== "image") throw new Error("The retained attachment is not an image. No substitute content was shown.");
       if (current) setSource(`data:${result.content.mimeType};base64,${result.content.data}`);
-    }).catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "Image preview unavailable."); });
+    }).catch((error: unknown) => { if (current) { const message = error instanceof Error ? error.message : "Image preview unavailable."; setError(message); onError?.(message); } });
     return () => { current = false; };
-  }, [sdk, sessionId, attachment.id, attachment.digest]);
-  return source ? <img className="context-image" src={source} alt={attachment.path} /> : error ? <span className="inline-error" role="alert">{error}</span> : <span role="status">Loading image...</span>;
+  }, [sdk, sessionId, attachment.id, attachment.digest, onError]);
+  return source ? <img className="context-image" src={source} alt={attachment.path} /> : error ? onError ? <span className="image-preview-unavailable">Image unavailable</span> : <Alert as="span" className="inline-error" role="alert">{error}</Alert> : <span role="status">Loading image...</span>;
 }
 export async function clipboardImage(file: File): Promise<string> {
   if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) && /\.(pdf|docx|xlsx)$/i.test(file.name)) throw new Error("Use Attach > Local file for PDF, Word or Excel files. Clipboard document capture is unavailable here; your complete draft was preserved.");

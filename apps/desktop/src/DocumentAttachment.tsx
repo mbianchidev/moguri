@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { attachmentStatus, type DocumentAttachment, type DocumentPage, type DocumentReadOptions, type DocumentSearch, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { SettingsAction } from "./SettingsFields.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function ContextDocument({ sdk, sessionId, attachment, remove, onOpenChange }: { sdk: MoguriSdk; sessionId: string; attachment: DocumentAttachment; remove?: () => Promise<void>; onOpenChange?: (open: boolean) => void }) {
   const [open, setOpen] = useState(false);
@@ -44,7 +45,7 @@ function DocumentPreview({ sdk, sessionId, attachment, remove, close }: { sdk: M
     <header><h2>{attachment.path}</h2><button className="icon-button" type="button" aria-label="Close document preview" onClick={close}><Icon name="Close" /></button></header>
     <p>{attachmentStatus(attachment)} / {attachment.bytes} original bytes / {attachment.extractedBytes} extracted bytes.</p>
     <p className="fine-print">Encrypted immutable snapshot. Untrusted document content is not permission. Only bounded sections are inspected; this preview starts no model call.</p>
-    {attachment.summary.noTextPages.length > 0 && <p className="inline-error" role="status">No extractable text on pages {attachment.summary.noTextPages.join(", ")}. They may be blank or scanned/image-only. OCR is unavailable.</p>}
+    {attachment.summary.noTextPages.length > 0 && <Alert as="p" className="inline-error" role="status">No extractable text on pages {attachment.summary.noTextPages.join(", ")}. They may be blank or scanned/image-only. OCR is unavailable.</Alert>}
     <details><summary>Extraction limitations and provenance</summary>{attachment.summary.limitations.map((limitation) => <p key={limitation}>{limitation}</p>)}<p className="fine-print">Extractor: {attachment.summary.extractor}. SHA-256: {attachment.digest}.</p></details>
     <div className="document-selection">
       {attachment.format === "pdf" ? <label>Page<input aria-label="Document page" type="number" min={1} max={attachment.summary.pages} value={pageNumber} onChange={(event) => { changed(); setPageNumber(event.target.value); }} /></label> :
@@ -53,7 +54,7 @@ function DocumentPreview({ sdk, sessionId, attachment, remove, close }: { sdk: M
       <button type="button" disabled={busy} onClick={() => void read()}>Read selection</button>
     </div>
     <div className="document-selection"><label>Literal search<input aria-label="Search document text" maxLength={200} value={query} onChange={(event) => { changed(); setQuery(event.target.value); }} /></label><button type="button" disabled={busy || !query} onClick={() => void search()}>Search document</button></div>
-    {busy && <p role="status">Reading bounded snapshot...</p>}{error && <p className="inline-error" role="alert">{error}</p>}
+    {busy && <p role="status">Reading bounded snapshot...</p>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {page && <><pre aria-label="Document extracted content">{page.text || "No cells or text in this selection."}</pre><p className="fine-print">Provenance: {JSON.stringify(page.firstLocation)}.</p>{page.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void read(page.nextOffset!)}>Next content page</button>}</>}
     {matches && <><pre aria-label="Document search results">{matches.matches.length ? JSON.stringify(matches.matches, null, 2) : "No literal matches."}</pre>{matches.nextCursor !== null && <button type="button" disabled={busy} onClick={() => void search(matches.nextCursor!)}>Next search results</button>}</>}
     <footer>{remove && <SettingsAction label="Remove attachment" icon="Trash" className="danger" disabled={busy} onClick={() => { setBusy(true); void remove().then(close).catch((error: unknown) => setError(error instanceof Error ? error.message : "The document could not be removed.")).finally(() => setBusy(false)); }} />}<button type="button" onClick={close}>Close preview</button></footer>

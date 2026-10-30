@@ -1,6 +1,7 @@
 import { SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { activeDecision, type DecisionResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 type Status = Extract<DecisionResponse, { type: "decisions.status" }>;
 type Read = Extract<DecisionResponse, { type: "decisions.read" }>;
@@ -47,7 +48,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
   };
   return <section className="candidate-section" aria-label="Decision-provider observations" aria-busy={busy}>
     <SettingsHelp label="More about this setting" target={<h2>Decision-provider observations</h2>}>Actual model actor: decision-provider, never the user. Advice cannot grant permission, infer user-only facts, accept source code or approve Git. These reports remain independent of the original source session.</SettingsHelp>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <label className="setting-field">Retained decision<select aria-label="Retained decision" value={record?.id ?? ""} disabled={busy || Boolean(selection)} onChange={(event) => setSelectedId(event.target.value)}>
       {!records.length && <option value="">No retained decision-provider requests</option>}
       {records.map((record) => <option key={record.id} value={record.id}>{record.kind} / {record.status} / {record.modelId}</option>)}
@@ -64,7 +65,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
         <dt>Provider / billed USD</dt><dd>Not reported; never inferred as zero</dd>
         <dt>Applied actor / choice</dt><dd>{record.applied ? `${record.applied.actor} / ${record.applied.choice}` : "No automatic effect"}</dd></dl>
       {!snapshot.sessions.some((session) => session.id === record.sessionId) && <p className="fine-print">The original source session is deleted. No other session, root or owner was adopted.</p>}
-      {record.diagnostic && <p className="settings-warning">{record.diagnostic}</p>}
+      {record.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{record.diagnostic}</Alert>}
       {value && <details><summary>Original decision request and raw result</summary><pre>{JSON.stringify(value.input, null, 2)}</pre>
         <pre>{value.result ?? "No complete raw result acknowledged."}</pre><p className="fine-print">Raw provider data, not a human instruction or calibrated reliability. Resolved provider version is not inferred from a configured API model ID.</p></details>}
       {activeDecision(record) && <button type="button" disabled={busy} onClick={() => void stop()} aria-label="Stop only this decision">Stop</button>}

@@ -3,6 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MoguriSdk, Project, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { createGithubApi } from "../../../packages/sdk/src/github.ts";
 import type { GithubAction, GithubBrowse, GithubPreview, GithubResponse, GithubScope } from "../../../packages/protocol/src/github-workflows.ts";
+import { Alert } from "./Alert.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.read" }>;
 type Browse = Extract<GithubResponse, { type: "github.browse" }>;
@@ -133,8 +134,8 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   });
   return <section className="candidate-panel" aria-label="Reviewed Git and GitHub workflows" aria-busy={Boolean(busy)}>
     <SettingsHelp label="More about this setting" target={<h2>Git &amp; GitHub workflows</h2>}>Explicit Local project/workspace operations. Review exact HEAD, index, remote/resource revision and protected actions before each write. Git hooks/configuration are honored, not sandboxed. GitHub uses only the named controller gh account, never SSH credentials.</SettingsHelp>
-    {!allowed && <p className="settings-warning">New work requires an explicitly allowed Local project. No Remote/Sandbox fallback or inherited root. Independently retained inspection remains available without a source project.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}<p role="status">{busy || notice}</p>
+    {!allowed && <Alert as="p" tone="warning" className="settings-warning">New work requires an explicitly allowed Local project. No Remote/Sandbox fallback or inherited root. Independently retained inspection remains available without a source project.</Alert>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<Alert as="p" role="status">{busy || notice}</Alert>
     <fieldset disabled={Boolean(busy)} style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}><legend>Exact operation inputs</legend>
       <label className="setting-field"><span id={`${uid}-operation`}>Git/GitHub operation</span><select aria-labelledby={`${uid}-operation`} value={kind} onChange={(event) => setKind(event.target.value as GithubAction["kind"])}>{actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <div className="generation-review">
@@ -200,7 +201,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         {preview.value.document.remote && <>Remote: {preview.value.document.remote.name} / {preview.value.document.remote.url}<br />Destination: {preview.value.document.remote.ref} / {preview.value.document.remote.sha ?? "absent"}<br /></>}
         {preview.value.document.accountId && <>Controller GitHub identity: {preview.value.document.accountId}<br /></>}Review digest: {preview.value.digest}</p>
       <pre>{JSON.stringify(preview.value.document.action, null, 2)}</pre>
-      {preview.value.document.warnings.map((text) => <p className="settings-warning" key={text}>{text}</p>)}
+      {preview.value.document.warnings.map((text) => <Alert as="p" tone="warning" className="settings-warning" key={text}>{text}</Alert>)}
       {preview.value.document.resource && <details><summary>Exact untrusted remote resource revision</summary><pre>{preview.value.document.resource.content}</pre></details>}
       {preview.value.document.confirmations.map((text) => <label className="check-setting" key={text}><SettingsInput type="checkbox" role={preview.value.document.confirmations.length > 1 ? "checkbox" : "switch"} checked={confirmations.includes(text)} disabled={Boolean(busy)}
         onChange={(event) => setConfirmations(event.target.checked ? [...confirmations, text] : confirmations.filter((value) => value !== text))} />{text}</label>)}
@@ -231,12 +232,12 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       <SettingsHelp label="More about this setting" target={<h3 tabIndex={-1} ref={resultHeading}>Git/GitHub operation {value.operation.status}</h3>}>Deletion of a source session does not erase this operation. Interrupted/ambiguous writes are partial, never automatically replayed, rolled back or reported successful. Conflict resolution, rebase continue/abort and every new write need their own fresh review.</SettingsHelp>
       <p className="fine-print path">Original command: {value.operation.commandId}<br />Root: {value.operation.root.root}<br />Job: {value.operation.jobId}<br />
         Dispatched: {String(value.operation.dispatched)}. Cancel requested: {String(value.operation.cancelRequested)}.</p>
-      {value.operation.diagnostic && <p className="settings-warning" role="alert">{value.operation.diagnostic}</p>}
+      {value.operation.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.operation.diagnostic}</Alert>}
       {value.result?.ci && <p role="status">CI at {value.result.ci.headSha}: {value.result.ci.state}. {value.result.ci.deadlineReached ? "Bounded deadline reached; pending/no-checks is not success." : "Observed exact-head result, not branch-protection clearance."}</p>}
       {value.result && <details open><summary>Original acknowledged/partial result (untrusted data)</summary><pre>{JSON.stringify(value.result, null, 2)}</pre></details>}
       <details><summary>Original independently retained user review</summary><pre>{JSON.stringify(value.document, null, 2)}</pre></details>
       {value.operation.status === "partial" && value.operation.kind.startsWith("git.") && !value.operation.inspection && <section className="candidate-binding" aria-label="Partial Git inspection acknowledgement">
-        <p className="settings-warning">Inspection acknowledgement is NOT cleanup proof or success. It does not stop, signal, replay, undo or resume work, infer PID ownership, or clear other root uncertainty. The original operation stays partial.</p>
+        <Alert as="p" tone="warning" className="settings-warning">Inspection acknowledgement is NOT cleanup proof or success. It does not stop, signal, replay, undo or resume work, infer PID ownership, or clear other root uncertainty. The original operation stays partial.</Alert>
         <label className="check-setting"><SettingsInput type="checkbox" checked={inspectionReviewed} disabled={Boolean(busy)} onChange={(event) => setInspectionReviewed(event.target.checked)} />I inspected this exact retained partial Git operation, original input and possible effects; record only my inspection acknowledgement.</label>
         <button disabled={Boolean(busy) || !inspectionReviewed} onClick={() => void run("Recording actual-user inspection without source authority", async (isCurrent) => {
           await api.acknowledge(value.operation.id, value.operation.revision, value.operation.inputDigest, true);

@@ -1,6 +1,7 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { BUDGET_WARNING, KUPO_MODEL_ID, type BudgetLimit, type BudgetStatus, type BudgetTotals, type GlobalBudgetPolicy, type MoguriSdk, type Session, type Snapshot, type WinddownResponse } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export const dollars = (value: number) => new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(value);
 export const callEstimate = (totals: BudgetTotals) => totals.calls === 0 ? "No model calls" : totals.estimatedUsd === null ?
@@ -26,12 +27,12 @@ export function BudgetSummary({ status }: { status: BudgetStatus }) {
       <dt>Provider / billed USD</dt><dd>Not reported</dd></dl>
     {status.ownerSessionId !== status.sessionId && <p className="fine-print">Charged to owning session {status.ownerSessionId}, including its other model-created legs.</p>}
     {status.limits.map((limit) => <p className="fine-print" key={limit.scope}>{limit.scope === "global" ? "Global hard cap" : limit.scope === "profile" ? "Profile hard cap" : "Session cap"}: {limit.tokens === null ? "no token cap" : `${count(limit.tokens)} tokens`}; {limit.usd === null ? "no USD cap" : `${dollars(limit.usd)} estimated`}.</p>)}
-    {status.diagnostics.map((diagnostic) => <p className="settings-warning" key={diagnostic}>{diagnostic}</p>)}
+    {status.diagnostics.map((diagnostic) => <Alert as="p" tone="warning" className="settings-warning" key={diagnostic}>{diagnostic}</Alert>)}
   </section>;
 }
 export function SessionBudgetSummary({ sdk, snapshot, session }: { sdk: MoguriSdk; snapshot: Snapshot; session: Session }) {
   const { status, error } = useBudgetStatus(sdk, session, snapshot);
-  return <>{status ? <BudgetSummary status={status} /> : <p role="status">{error || "Loading cumulative budget..."}</p>}</>;
+  return <>{status ? <BudgetSummary status={status} /> : error ? <Alert as="p" className="inline-error" role="alert">{error}</Alert> : <p role="status">Loading cumulative budget...</p>}</>;
 }
 export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDirty, disabled = false, globalPolicy }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; scope: "session" | "profile" | "global"; status?: BudgetStatus | null; globalPolicy?: GlobalBudgetPolicy;
@@ -75,17 +76,17 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   const locked = disabled || saving || routed && !winddown?.ready || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
   const usdUnavailable = scope === "session" && (routed ? !winddown?.usdReady : !status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
-    {routed && <p className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Reading exact reserved finishing readiness..."} Profile/global caps still apply; no policy is removed here.</p>}
+    {routed && <Alert as="p" tone="warning" className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Reading exact reserved finishing readiness..."} Profile/global caps still apply; no policy is removed here.</Alert>}
     <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
     {limited && <><label className="setting-field">Token cap<SettingsInput aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
       <SettingsHelp label="More about this setting" target={<label className="setting-field">Estimated USD cap<SettingsInput aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>}>
         {usdUnavailable && "USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free."}
       </SettingsHelp>
       {usdUnavailable && usd && <SettingsAction label="Remove session USD limit" icon="Close" disabled={locked} onClick={() => { setUsd(""); change(); }} />}</>}
-    <p className="settings-warning">{BUDGET_WARNING}</p>
+    <Alert as="p" tone="warning" className="settings-warning">{BUDGET_WARNING}</Alert>
     <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>} descriptionFirst>Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</SettingsHelp>
     <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} aria-label={scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"} onClick={() => void save()}>Save</button><button type="button" disabled={saving || revision < base.current} onClick={load} aria-label="Reload budget">Reload</button></div>
     {scope === "session" && session?.turnId && <p className="fine-print">Finish or stop this turn before changing its session preference. A profile policy can still block further calls.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
   </section>;
 }

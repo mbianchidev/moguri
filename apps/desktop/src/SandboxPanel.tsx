@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, SandboxWorkspacePreview, SandboxResult, SandboxPublicationPreview } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOnly = false }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; onDirty: (dirty: boolean) => void; setup: () => void; sessionOnly?: boolean;
@@ -54,7 +55,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     <h2>Sandbox workspace</h2>
     <p className="fine-print" role="status">{native?.reason ?? "Native readiness has not been observed."}</p>
     <button type="button" disabled={Boolean(busy)} onClick={setup} aria-label="Review Sandbox configuration">Review</button>
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
     {automatic && <p className="fine-print" role="status">Private workspaces are prepared automatically when you send. {session?.repositories ? `Every one of the ${session.repositories.length} captured repositories is copied into its own private directory under its actual folder/ignore policy. Tools explicitly select a member; no default root or live checkout is mounted.` : session?.projectId ? "The bound project is copied under its folder/ignore policy; your source checkout is never mounted." : "This chat keeps an empty, root-less private workspace."} Retained work is preserved across turns.</p>}
     {!automatic && <p className="fine-print">Enable managed Sandbox in Settings for automatic workspace preparation. Exact-file preparation below is an advanced option, not the managed workflow.</p>}
@@ -95,7 +96,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       {execution.networkScope && <p className="fine-print">Configured tool/provider domain rules (SendBox {execution.config.qualification?.release ?? "unreported"}): {execution.networkScope.allowedDomains.join(", ")}.
         {" "}From SendBox 0.2.4, a github.com grant also delegates GitHub Meta domains and IPv4/IPv6 ranges, including shared-cloud addresses. This configured list is not the complete effective destination scope.
         {" "}Explicit *.domain.com rules exclude their apex. Provider endpoints and aliases remain exact; tool permission stays separate.</p>}
-      {execution.diagnostic && <p className="settings-warning">{execution.diagnostic}</p>}
+      {execution.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{execution.diagnostic}</Alert>}
       <div className="button-row">
         {active && <button type="button" disabled={Boolean(busy)} onClick={() => void run("Stopping original native turn", async () => { await sdk.sandbox.stop(execution.id); setNotice("Stop requested only for the original native owner. Inspect its actual outcome and cleanup."); })} aria-label="Stop this native turn">Stop</button>}
         <button type="button" disabled={Boolean(busy) || !execution.resultDigest} onClick={() => void run("Inspecting retained native result", async (current) => {
@@ -113,7 +114,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     </div>}
     {retained && execution && <div className="candidate-section" aria-label="Retained native output files">
       <p className="fine-print">Signed runtime exit: {retained.exitCode ?? "unreported"} / rollback: {retained.rollback} / after-state association: {retained.afterBinding}. Journal: {retained.journal.status}. Provenance is not code quality or acceptance.</p>
-      {retained.journal.diagnostic && <p className="settings-warning">{retained.journal.diagnostic}</p>}
+      {retained.journal.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{retained.journal.diagnostic}</Alert>}
       {execution.repositories && <label className="setting-field">Original source repository<select aria-label="Native publication repository" value={repositoryId} disabled={Boolean(busy)}
         onChange={(event) => { setRepositoryId(event.target.value); setSelectedPaths([]); setReview(null); setAccepted(false); }}>
         <option value="">Choose one captured repository</option>{execution.repositories.map((binding) => <option key={binding.projectId} value={binding.projectId}>{binding.name} / {binding.projectId}</option>)}
@@ -126,7 +127,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
         <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Select native output ${file.path}`} checked={publishable && selectedPaths.includes(path)} disabled={Boolean(busy) || !publishable}
           onChange={(event) => setSelectedPaths((paths) => event.target.checked ? [...paths, path] : paths.filter((value) => value !== path))} />Include these exact bytes in source-publication review</label>
       </details>; })}
-      {retained.deletedPaths.length > 0 && <p className="settings-warning">Deleted native paths are not automatically published: {retained.deletedPaths.join(", ")}.</p>}
+      {retained.deletedPaths.length > 0 && <Alert as="p" tone="warning" className="settings-warning">Deleted native paths are not automatically published: {retained.deletedPaths.join(", ")}.</Alert>}
       {retained.excludedCount > 0 && <details><summary>{retained.excludedCount} excluded outputs</summary>
         {retained.excludedCount > retained.excluded.length && <p className="fine-print">Showing {retained.excluded.length} bounded exclusion descriptions of {retained.excludedCount}; omitted files are not retained or publishable text outputs.</p>}
         {retained.excluded.map((value) => <p key={value.path} className="fine-print path">{value.path}: {value.reason}</p>)}</details>}
@@ -154,7 +155,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
     {publication && <section ref={outcome} tabIndex={-1} className="candidate-section" aria-label="Native source publication outcome">
       <SettingsHelp label="More about this setting" target={<p className="fine-print" role="status">Publication {publication.status}. Actual acceptance actor: {publication.acceptance.actor}. {job?.progress}</p>}>Retained independently of the source session/execution. Partial work is never silently retried; source index/HEAD and unrelated edits are not reset.</SettingsHelp>
       <p className="fine-print path">Original source: {publication.root}. Attempted: {publication.attemptedPaths.join(", ") || "none"}; verified copied: {publication.publishedPaths.join(", ") || "none"}.</p>
-      {publication.diagnostic && <p className="inline-error" role="alert">{publication.diagnostic}</p>}
+      {publication.diagnostic && <Alert as="p" className="inline-error" role="alert">{publication.diagnostic}</Alert>}
       {job && ["running", "waiting_input"].includes(job.status) && <button type="button" disabled={Boolean(busy)} onClick={() => void run("Stopping original publication job", async () => { await sdk.jobs.cancel(job.id); })} aria-label="Stop original publication">Stop</button>}
 
     </section>}

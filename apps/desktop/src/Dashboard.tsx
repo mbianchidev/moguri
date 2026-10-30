@@ -3,6 +3,7 @@ import type { BudgetRange, BudgetTotals, MoguriSdk, Snapshot, WorkspaceDashboard
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { InfoTip } from "./Tooltip.tsx";
+import { Alert } from "./Alert.tsx";
 
 const pages = ["My work", "Usage", "Cost", "Velocity"] as const;
 type Page = typeof pages[number];
@@ -67,12 +68,12 @@ export function Dashboard({ sdk, snapshot, openSession }: { sdk: MoguriSdk; snap
       <span className="fine-print">UTC dates</span><InfoTip label="About dashboard measurements">Only this profile's authoritative records. Current open sessions stay visible even if older than the selected range. Completed/archived sessions use their recorded update time. Charts never change budget charges. Deleted source history is not reconstructed.</InfoTip>
     </div>
     {range.kind === "custom" && <div className="dashboard-custom"><label>From<input type="date" aria-label="Dashboard range from" value={custom.from} onChange={(event) => setCustom((value) => ({ ...value, from: event.target.value }))} /></label><label>Through<input type="date" aria-label="Dashboard range through" value={custom.to} onChange={(event) => setCustom((value) => ({ ...value, to: event.target.value }))} /></label>
-      <button type="button" disabled={!custom.from || !custom.to || custom.from > custom.to} onClick={() => setRange({ kind: "custom", ...custom })}>Apply range</button>{custom.from > custom.to && <span role="alert">From must be on or before Through.</span>}</div>}
-    {current && state.error && <p className="inline-error" role="alert">{state.error}</p>}{navigationError && <p className="inline-error" role="alert">{navigationError}</p>}
+      <button type="button" disabled={!custom.from || !custom.to || custom.from > custom.to} onClick={() => setRange({ kind: "custom", ...custom })}>Apply range</button>{custom.from > custom.to && <Alert as="span" role="alert">From must be on or before Through.</Alert>}</div>}
+    {current && state.error && <Alert as="p" className="inline-error" role="alert">{state.error}</Alert>}{navigationError && <Alert as="p" className="inline-error" role="alert">{navigationError}</Alert>}
     {!data && !(current && state.error) && <p role="status">Reading authoritative dashboard data...</p>}
     {data && <section aria-label={`${page} dashboard`}>
       <header className="dashboard-page-heading"><h2>{page}</h2><span>{data.window.from} to {data.window.to}</span></header>
-      {data.window.excludedUncertainTimeCalls > 0 && <p className="settings-warning">{data.window.excludedUncertainTimeCalls} calls have no verified date and are excluded here. Detailed all-time accounting retains them.</p>}
+      {data.window.excludedUncertainTimeCalls > 0 && <Alert as="p" tone="warning" className="settings-warning">{data.window.excludedUncertainTimeCalls} calls have no verified date and are excluded here. Detailed all-time accounting retains them.</Alert>}
       {page === "My work" ? <>
         <div className="dashboard-metrics"><Metric label="Open" value={count(data.work.open)} /><Metric label="In progress" value={count(data.work.inProgress)} /><Metric label="Completed" value={count(data.work.completed)} /><Metric label="Projects" value={count(data.projects.length)} /></div>
         <Trend title="Completed turns" values={data.days.map((value) => ({ date: value.date, value: value.completedTurns }))} />

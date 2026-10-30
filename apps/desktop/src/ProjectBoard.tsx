@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type Reac
 import { activeProjectWork, claimedProjectWork, compareIssues, defaultBoard, githubManagedIssue, githubSyncSettings, issuePosition, kanbanPreferences, type IssueInput, type IssueKind, type IssuePosition, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
+import { Alert } from "./Alert.tsx";
 
 const newFields = (phaseId: string): IssueInput => ({ title: "", body: "", kind: "feature", phaseId, pullRequestUrl: null });
 const CARD_DRAG = "application/x-moguri-kanban-card";
@@ -117,15 +118,15 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange, 
         }} />Import open GitHub issues</label>}
       <span className="fine-print">GitHub updates Kanban only. Dragging never changes GitHub.</span>
       {board.githubSource && <span className="fine-print">Source: {board.githubSource.account} / {board.githubSource.repository}</span>}
-      {syncJob && <p className={syncJob.status === "failed" || syncJob.status === "partial" ? "inline-error" : "fine-print"}
+      {syncJob && <Alert as="p" className={syncJob.status === "failed" || syncJob.status === "partial" ? "inline-error" : "fine-print"}
         role={syncJob.status === "failed" || syncJob.status === "partial" ? "alert" : "status"}>
         GitHub sync {syncJob.status}: {syncJob.error ?? syncJob.progress}
-      </p>}
+      </Alert>}
     </div>
     <div className="board-view-switch" role="group" aria-label="Kanban view"><button aria-pressed={view === "board"} disabled={dirty || busy} onClick={() => setView("board")}>Board</button>
       <button aria-pressed={view === "chat"} disabled={dirty || busy} onClick={() => setView("chat")}>Chat</button>
       <span>Continue from {preferences.source === "kanban" ? "Kanban cards" : preferences.source === "github-prs" ? "open GitHub PRs" : "open GitHub issues"} / one item to its draft PR</span></div>
-    {(error || notice) && <div className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</div>}
+    {(error || notice) && <Alert as="div" className={`notice ${error ? "error" : "info"}`} role={error ? "alert" : "status"}>{error || notice}</Alert>}
     {createdSession && <button className="quiet" disabled={busy || dirty} onClick={() => void openSession(createdSession)}>Open created source session</button>}
     {view === "chat" ? <div className="kanban-chat">{children}</div> : <div className="kanban-board-content">
     <p className="board-guidance">Use /continue-work or send "continue work" in Chat. Opening this board never starts inference or signs in.</p>
@@ -188,8 +189,8 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange, 
             <span>{issue.github.state === "closed" ? issue.github.stateReason === "not_planned" ? "Closed: won't do" : issue.github.stateReason === "duplicate" ? "Closed: duplicate" : "Closed" : "Open issue"}</span>
             {issue.github.pullRequests.map((request) => <button className="quiet" key={request.url} onClick={() => void run(async () => { await window.moguri.openExternal(request.url); })}>
               {request.draft ? "Draft PR" : "PR"} #{request.number}</button>)}
-            {issue.github.diagnostic && <p className="inline-error">{issue.github.diagnostic}</p>}</div>}
-          {issue.pullRequest && <div className="ticket-link"><button className="quiet" onClick={() => void run(async () => { await window.moguri.openExternal(issue.pullRequest!.url); })}>{issue.pullRequest.repo}#{issue.pullRequest.number}</button><span>{issue.pullRequest.state}</span>{issue.pullRequest.diagnostic && <p className="inline-error">{issue.pullRequest.diagnostic}</p>}</div>}
+            {issue.github.diagnostic && <Alert as="p" className="inline-error">{issue.github.diagnostic}</Alert>}</div>}
+          {issue.pullRequest && <div className="ticket-link"><button className="quiet" onClick={() => void run(async () => { await window.moguri.openExternal(issue.pullRequest!.url); })}>{issue.pullRequest.repo}#{issue.pullRequest.number}</button><span>{issue.pullRequest.state}</span>{issue.pullRequest.diagnostic && <Alert as="p" className="inline-error">{issue.pullRequest.diagnostic}</Alert>}</div>}
           {issue.linear && <p className="fine-print">Imported from Linear {issue.linear.identifier}</p>}
           {claims.has(`kanban:${issue.id}`) && <p className="fine-print">Claimed by a retained task. Finish or inspect that task before starting again.</p>}
           {githubManagedIssue(board, issue) && <p className="fine-print">Column follows GitHub. Drag to reorder within this column.</p>}

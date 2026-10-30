@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { COMPOUND_EVIDENCE_WARNING, type CompoundLineageInput, type CompoundLineageReview, type ModelInfo, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDirty, onBusy }: {
   sdk: MoguriSdk; models: ModelInfo[]; disabled: boolean;
@@ -22,7 +23,7 @@ export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDir
   return <section className="candidate-section" aria-label="Source-backed lineage review" aria-busy={busy}>
     <SettingsHelp label="More about this setting" target={<h3>Actual-user source claim</h3>}>This prepares a local policy draft only. No source URL is fetched, provider metadata inspected, policy saved or model called. Save settings separately after reviewing the complete policy.</SettingsHelp><p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
 
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     <label className="setting-field">Exact draft model<select aria-label="Lineage draft model" value={draftModelId} disabled={disabled || busy} onChange={(event) => setDraftModel(event.target.value)}>
       <option value="">Choose actual draft binding</option>{models.map((model) => <option key={model.id} value={model.id}>{model.name} / {model.id}</option>)}</select></label>
     <label className="setting-field">Exact critic model<select aria-label="Lineage critic model" value={criticModelId} disabled={disabled || busy} onChange={(event) => setCriticModel(event.target.value)}>

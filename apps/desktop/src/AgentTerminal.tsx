@@ -5,6 +5,7 @@ import { activityDuration, activityStarted, CurrentActivity } from "./ChatActivi
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";
 import { CopyButton } from "./CopyButton.tsx";
+import { Alert } from "./Alert.tsx";
 
 type Read = Extract<ActivityResponse, { type: "activity.read" }>;
 export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
@@ -45,7 +46,7 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
       <CopyButton label="Copy agent output" title="Copy displayed agent output" disabled={!content} source={source} text={content?.text ?? ""} />
       {activity.activity?.nextBefore && <button className="quiet" type="button" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Earlier commands</button>}
     </header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {selected ? <>
       <code className="agent-command-line" tabIndex={0}>{selected.subject ?? "Original command text unavailable."}</code>
       <p className="agent-command-meta"><strong>{selected.status}</strong><span>{selected.env ?? "unknown"} execution</span><span>{activityStarted(selected.startedAt)}</span><span>Duration {activityDuration(selected.durationMs)}</span></p>

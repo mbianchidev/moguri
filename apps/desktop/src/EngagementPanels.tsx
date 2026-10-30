@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialAll, chooseSession, modal }: {
   sdk: MoguriSdk; session?: Session; snapshot: Snapshot; allProjects: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void;
@@ -33,7 +34,7 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
   return <section className="suggestions-panel" aria-label="Moguri suggestions"><header className="panel-toolbar"><strong>Improve your Moguri workflow</strong><button className="icon-button" aria-label="Refresh suggestion sources" title="Refresh sources" disabled={busy} onClick={() => void load()}><Icon name="Down" /></button></header>
     <p className="fine-print">Scope: {session?.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name : allProjects ? "All projects in this profile" : "Project-free chats only"}. Preview is local; nothing is sent automatically.</p>
     {session?.projectId === null && <label className="check-setting"><input type="checkbox" role="switch" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {preview && <><p className="fine-print">{preview.diagnostic}</p>
       <h2>Usage gaps</h2>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
       {preview.repeated.length > 0 && <><h2>Repeated guidance</h2>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
@@ -79,9 +80,9 @@ function ConfigurationReview({ sdk, id, close }: { sdk: MoguriSdk; id: string; c
   const text = (value: unknown) => typeof value === "string" ? value : JSON.stringify(value, null, 2);
   const project = sdk.getState().snapshot?.projects.find((project) => project.id === data?.proposal.projectId);
   return <dialog ref={dialog} className="workspace-dialog configuration-review" onClose={close} aria-label="Review configuration change"><header><h2>Review exact change</h2><button className="icon-button" aria-label="Close configuration review" disabled={busy} onClick={close}><Icon name="Close" /></button></header>
-    {error && <p className="inline-error" role="alert">{error}</p>}{data && <><p><strong>{project?.name ?? (data.proposal.projectId ? data.proposal.projectId : "Global")} / {data.proposal.section}</strong></p>{project && <p className="fine-print path">{project.path}</p>}<p>{data.proposal.reason}</p><details open><summary>Current base</summary><pre>{text(data.before)}</pre></details><details open><summary>Proposed value</summary><pre>{text(data.spec.value)}</pre></details>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{data && <><p><strong>{project?.name ?? (data.proposal.projectId ? data.proposal.projectId : "Global")} / {data.proposal.section}</strong></p>{project && <p className="fine-print path">{project.path}</p>}<p>{data.proposal.reason}</p><details open><summary>Current base</summary><pre>{text(data.before)}</pre></details><details open><summary>Proposed value</summary><pre>{text(data.spec.value)}</pre></details>
       {data.proposal.evidence.length > 0 && <details><summary>Verified source references</summary>{data.proposal.evidence.map((source) => <article key={source.messageId}><strong>{source.title}</strong><pre>{source.text}</pre></article>)}</details>}
-      <p className="settings-warning">{data.warning}</p><label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact scope and change, and approve the configuration risk.</label>
+      <Alert as="p" tone="warning" className="settings-warning">{data.warning}</Alert><label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this exact scope and change, and approve the configuration risk.</label>
       <footer><button disabled={busy} onClick={() => void decide(false)}>Reject</button><button className="primary" disabled={!confirmed || busy} onClick={() => void decide(true)}>{data.proposal.target === "skill" ? "Install disabled skill" : data.proposal.target === "repo-instructions" ? "Write instructions locally" : "Apply"}</button></footer>
     </>}
   </dialog>;
@@ -90,7 +91,7 @@ export function AttentionPanel({ sdk, snapshot, chooseSession }: { sdk: MoguriSd
   const [error, setError] = useState("");
   const active = snapshot.attention.filter((entry) => entry.active).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const read = async (id: string) => { try { await sdk.attention.acknowledge([id]); } catch (error) { setError(error instanceof Error ? error.message : "Read acknowledgement failed."); } };
-  return <section aria-label="Attention list"><h2>Needs your attention</h2>{error && <p className="inline-error" role="alert">{error}</p>}{!active.length && <p className="fine-print">No pending attention. Read acknowledgement never answers a question or approves a tool.</p>}
+  return <section aria-label="Attention list"><h2>Needs your attention</h2>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length && <p className="fine-print">No pending attention. Read acknowledgement never answers a question or approves a tool.</p>}
     {active.map((entry) => { const session = snapshot.sessions.find((session) => session.id === entry.sessionId); return <article className={`attention-item ${entry.acknowledged ? "read" : "unread"}`} key={entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} /><div><button className="quiet" onClick={() => void chooseSession(entry.sessionId)}>{session?.title ?? "Session removed"}</button><p>{entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p><small>{new Date(entry.createdAt).toLocaleString()}</small></div>{!entry.acknowledged && <button className="icon-button" aria-label={`Mark attention read ${entry.id}`} title="Mark read, not resolved" onClick={() => void read(entry.id)}><Icon name="Check" /></button>}</article>; })}
   </section>;
 }

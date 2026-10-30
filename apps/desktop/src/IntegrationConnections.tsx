@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal?: () => void }) {
   const [connection, setConnection] = useState<GitHubConnection | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -17,7 +18,7 @@ export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; o
       void sdk.integrations.githubConnection().then((value) => setConnection(value.connection)).catch((error: unknown) => setError(error instanceof Error ? error.message : "The CLI account was not verified. No alternative credential was used.")).finally(() => setBusy(false));
     }} aria-label={busy ? "Checking account..." : "Verify GitHub CLI account"}>{busy ? "Checking..." : "Verify"}</button>
     {connection && <p role="status">Verified CLI account: {connection.login} / {connection.id}. This does not grant repository access or approve an operation.</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <details><summary>Sign in or fix repository access</summary><p>In a Local session terminal or your own terminal on this Mac, run <code>gh auth login --hostname github.com --web --git-protocol ssh</code>, then return and check the account. You complete authorization yourself. Private repositories need access through this account; organizations may also require SSO authorization.</p>
       <p className="fine-print">For background linked-PR observations, choose your signed-in GitHub CLI account under Project settings. Remote metadata retains its separately selected SSH account. No account switching or authentication is automatic.</p></details>
     {!openTerminal && <p className="fine-print">Select a Local session to open its terminal. No global console or hidden chat will be created.</p>}
@@ -48,6 +49,6 @@ export function LinearConnectionPanel({ sdk, onDirty }: { sdk: MoguriSdk; onDirt
     })} aria-label="Store Linear key in keychain">Store</button>
       <button type="button" disabled={busy || Boolean(token)} onClick={() => void run(async () => { setConnection((await sdk.linear.connection(true)).connection); })} aria-label="Verify Linear account">Verify</button>
       <button type="button" className="quiet" aria-label="Remove Linear key" disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("Profile credential removed. Existing requests and reviews were invalidated."); })}>Remove</button></div>
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
   </section>;
 }

@@ -2,6 +2,7 @@ import { SettingsAction, SettingsHelp } from "./SettingsFields.tsx";
 import { useState } from "react";
 import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { useSessionActions } from "./SessionActions.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; openSession: (id: string) => void; onDirty: (dirty: boolean) => void;
@@ -22,9 +23,9 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
   };
   const pending = busy || actions.busy;
   return <section aria-label="Stored session management"><SettingsHelp label="More about this setting" target={<h3>Manage stored sessions</h3>}>Permanent session deletion also deletes its originating candidates and generation proposals. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are preserved.</SettingsHelp>
-    {snapshot.candidateCleanups.filter((cleanup) => cleanup.status !== "completed").map((cleanup) => <p key={cleanup.id} className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>
+    {snapshot.candidateCleanups.filter((cleanup) => cleanup.status !== "completed").map((cleanup) => <Alert as="p" key={cleanup.id} className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>
       Candidate cleanup {cleanup.status}: {cleanup.diagnostic ?? "Owned work is settling; deletion is not complete."} {cleanup.reason.kind === "session-delete" ? "Reconcile owned resources, then retry this session's deletion." : "Verified-merge cleanup will retry automatically; no code or Git resources are removed."}
-    </p>)}
+    </Alert>)}
     <label className="setting-field">Show sessions<select aria-label="Stored session filter" value={filter} onChange={(event) => {
       const value = event.target.value; if (value === "all" || value === "active" || value === "archived") { setFilter(value); setSelected(""); }
     }}><option value="all">All sessions</option><option value="active">Not archived</option><option value="archived">Archived</option></select></label>
@@ -38,7 +39,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
         <SettingsAction label={snapshot.settings.values.retention.confirmDelete === false ? "Delete stored session" : "Review session deletion"} icon="Trash" className="danger" disabled={pending || Boolean(session.turnId)} onClick={() => actions.request(session, "delete")} />
       </div>{session.turnId && <p className="fine-print">Open and stop this owned turn before deleting it from storage. No work is replayed after sleep or reconnection.</p>}</>}
     {!sessions.length && <p className="fine-print">No stored sessions in this filter.</p>}
-    {notice && <p className="fine-print" role="status">{notice}</p>}{(error || actions.error) && <p className="inline-error" role="alert">{error || actions.error}</p>}
+    {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}{(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
     {actions.dialog}
   </section>;
 }

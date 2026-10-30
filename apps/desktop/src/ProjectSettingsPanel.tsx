@@ -4,6 +4,7 @@ import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSett
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -104,7 +105,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const canRun = session?.projectId === project.id && !dirty && !busy;
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
     <button className="primary" aria-label="Save project settings" disabled={!loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
-    {error && <div className="notice error" role="alert"><span>{error}</span><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
+    {error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
     {!loaded && <p role="status">Loading committed project settings...</p>}
     <fieldset className="project-settings-fields" disabled={!loaded || busy}>
     <BoardSettings sdk={sdk} project={project} snapshot={snapshot} onDirty={setBoardDirty} />
@@ -130,7 +131,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     {saveButton("readOnlyFolders", "Save read-only folders")}
     <label className="setting-field">Denied folders, one per line<SettingsTextarea aria-label="Denied folders" value={values.deniedFolders.join("\n")} onChange={(event) => change("deniedFolders", event.target.value.split("\n").map((value) => value.trim()).filter(Boolean))} /></label>
     {saveButton("deniedFolders", "Save denied folders")}
-    <p className="settings-warning">These are deterministic agent rules, not OS containment. Host command/MCP tools are disabled when they cannot enforce these restrictions. A manually opened user console still runs host code.</p>
+    <Alert as="p" tone="warning" className="settings-warning">These are deterministic agent rules, not OS containment. Host command/MCP tools are disabled when they cannot enforce these restrictions. A manually opened user console still runs host code.</Alert>
     <h3>Sandbox</h3>{json("sandbox", "Project SendBox configuration (null inherits global)")}
     <p className="fine-print">Configuration does not make an unqualified SendBox backend ready. No Local fallback.</p>
     <h3>Remote SSH workspace</h3><SettingsHelp label="More about this setting" target={<label className="setting-field">Canonical remote path<SettingsInput aria-label="Remote workspace path" value={values.remotePath ?? ""} placeholder="/absolute/path/on/ssh/host" onChange={(event) => change("remotePath", event.target.value || null)} /></label>}>An explicit path on the configured SSH host. It is not this local folder, a synchronization setting or a home-directory mount. Remote project chats cannot run until it is approved and canonical.</SettingsHelp>
@@ -154,7 +155,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       <div><label className="setting-field">MCP file<SettingsInput value={values.mcpPath} onChange={(event) => change("mcpPath", event.target.value)} /></label>{saveButton("mcpPath", "Save MCP path")}</div></div>
     <label className="setting-field">Instruction override (empty uses repo file)<SettingsTextarea aria-label="Project instruction override" value={values.instructions} onChange={(event) => change("instructions", event.target.value)} /></label>
     {saveButton("instructions", "Save project instructions")}
-    <p className="settings-warning">Repository instructions are untrusted guidance. They cannot grant permissions or override read-only mode. Do not put secrets in instructions or scripts.</p>
+    <Alert as="p" tone="warning" className="settings-warning">Repository instructions are untrusted guidance. They cannot grant permissions or override read-only mode. Do not put secrets in instructions or scripts.</Alert>
     <button disabled={dirty || busy} onClick={() => void run(async () => { const result = await sdk.projects.sources(project.id); setSources(result); setReviewed(false); return undefined; })}>Review repo files</button>
     {sources && <><details open><summary>{values.instructionsPath}: {sources.instructions === null ? "missing" : "present"}</summary><pre>{sources.instructions ?? "No instructions file exists."}</pre></details>
       <details><summary>{values.mcpPath}: {sources.mcp === null ? "missing" : "present"}</summary><pre>{sources.mcp ?? "No MCP file exists."}</pre>{sources.mcpDigest && <code>SHA-256 {sources.mcpDigest}</code>}</details>

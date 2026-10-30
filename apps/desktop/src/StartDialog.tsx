@@ -3,6 +3,7 @@ import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { GitHubRepositoryPicker } from "./GitHubPickers.tsx";
 import { PolicyHint } from "./PolicyHint.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function StartDialog({ sdk, snapshot, start, close, modal }: {
   sdk: MoguriSdk; snapshot: Snapshot; start: (projectId: string | null) => Promise<void>; close: () => void; modal: (open: boolean) => void;
@@ -34,7 +35,7 @@ export function StartDialog({ sdk, snapshot, start, close, modal }: {
   }, [job?.status, job?.id, snapshot.projects]);
   return <dialog ref={dialog} className="workspace-dialog start-dialog" aria-label="New" onClose={close} onCancel={(event) => { if (busy || cloning) event.preventDefault(); }}>
     <header><h2>{mode === "clone" ? "Clone repository" : "New"}</h2><button type="button" className="icon-button" aria-label="Close New" disabled={busy || cloning} onClick={close}><Icon name="Close" /></button></header>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {mode === "choose" ? <>
       <button type="button" className="start-option" disabled={busy} onClick={() => void run(() => start(null))}><Icon name="Side chat" /><span><strong>New chat</strong><small>No project or workspace access</small></span></button>
       <label className="setting-field">Project<input aria-label="Find a project" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a project" /></label>

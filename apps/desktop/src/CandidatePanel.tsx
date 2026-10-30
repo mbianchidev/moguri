@@ -5,6 +5,7 @@ import { CandidateGenerationPanel } from "./CandidateGenerationPanel.tsx";
 import { CandidateRoleProposalPanel } from "./CandidateRoleProposalPanel.tsx";
 import { CompoundPanel } from "./CompoundPanel.tsx";
 import { WinddownPanel } from "./WinddownPanel.tsx";
+import { Alert } from "./Alert.tsx";
 
 interface DraftFile { path: string; baseDigest: string; baseText: string; text: string }
 const summaryDefault = "Review repository changes";
@@ -99,11 +100,11 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     <SettingsHelp label="More about this setting" target={<label className="setting-field">Retained proposal<select aria-label="Retained candidate" value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       <option value="">Choose a retained proposal</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / {candidate.status}</option>)}
     </select></label>} descriptionFirst>Candidates and generation proposals are permanently deleted with their originating session or after fresh verification that their exact linked PR merged. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees and PRs keep their own lifecycle.</SettingsHelp>
-    {error && <p className="inline-error" role="alert">{error}</p>}{notice && <p className="fine-print" role="status">{notice}</p>}
-    {!local && <p className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited."} Retained proposals remain readable.</p>}
-    {cleanup && <p className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>Candidate cleanup {cleanup.status}. {cleanup.diagnostic ?? "Settling exact owned work before deletion."} Deletion is not complete; retained proposals remain inspectable.</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
+    {!local && <Alert as="p" tone="warning" className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited."} Retained proposals remain readable.</Alert>}
+    {cleanup && <Alert as="p" className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>Candidate cleanup {cleanup.status}. {cleanup.diagnostic ?? "Settling exact owned work before deletion."} Deletion is not complete; retained proposals remain inspectable.</Alert>}
     {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
-    {changedScope && <p className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</p>}
+    {changedScope && <Alert as="p" tone="warning" className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</Alert>}
     <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} repositoryReady={Boolean(repositoryReady)} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
     <WinddownPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWinddownDirty} />
     <CandidateGenerationPanel sdk={sdk} snapshot={snapshot} session={session} stageId={stageId} files={files.map(({ path, baseDigest }) => ({ path, baseDigest }))}
@@ -146,7 +147,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
         <button disabled={Boolean(busy) || !files.length && !changedScope && !dirty} onClick={reset} aria-label="Discard local proposal">Discard</button></div>
       {preview && preview.scope === scope && <div className="candidate-binding" aria-label="Exact staging preview">
         <p className="fine-print path">Local source: {preview.value.document.source.root}<br />Owned stage: {preview.value.document.stage.root}</p>
-        {preview.value.warning && <p className="settings-warning">{preview.value.warning}</p>}
+        {preview.value.warning && <Alert as="p" tone="warning" className="settings-warning">{preview.value.warning}</Alert>}
         <p className="fine-print">{preview.value.document.patch.edits.length} exact files / base <code>{preview.value.document.source.head.slice(0, 12)}</code>. Staging does not accept or apply them.</p>
       </div>}
     </details>
@@ -159,9 +160,9 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
       <details open={selected.status === "partial"}><summary>Captured Local source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage branch: {selected.stage.branch}</p></details>
       <p className="fine-print">{selected.compoundOrigin ? "Derived from an actual public compound role. Inspect the separate retained workflow for actual tests and critic observations; provenance is not quality or source acceptance." : selected.roleOrigin ? "Derived from the exact final retained model role. Its independent origin is not quality or acceptance." : selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
       {selected.stopRequested && <p className="fine-print">Owned stop was requested; the actual outcome is {selected.status}.</p>}
-      {selected.diagnostic && <p className={selected.status === "partial" ? "settings-warning" : "inline-error"} role="alert">{selected.diagnostic}</p>}
+      {selected.diagnostic && <Alert as="p" className={selected.status === "partial" ? "settings-warning" : "inline-error"} role="alert">{selected.diagnostic}</Alert>}
       <p className="fine-print">Staged: {selected.stagedPaths.length}/{selected.paths.length}. Source attempts: {selected.attemptedPaths.length}. Confirmed source publications: {selected.appliedPaths.length}.</p>
-      {selected.status === "partial" && <p className="settings-warning">Files may already be published. No rollback or retry occurred. Inspect both captured roots before an explicit existing workspace/session recovery action.</p>}
+      {selected.status === "partial" && <Alert as="p" tone="warning" className="settings-warning">Files may already be published. No rollback or retry occurred. Inspect both captured roots before an explicit existing workspace/session recovery action.</Alert>}
       {document && <details><summary>Exact proposed files ({document.patch.edits.length})</summary>{document.patch.edits.map((edit) => <div key={edit.path} className="candidate-file-review">
         <strong className="path">{edit.path}</strong><p className="fine-print path">Source base: {edit.baseDigest}</p><pre>{edit.text || "(Empty proposed file)"}</pre>
       </div>)}</details>}

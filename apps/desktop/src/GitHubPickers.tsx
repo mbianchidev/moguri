@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { githubItemIdentity, type GithubItem, type GithubRepository, type GithubResponse, type GithubScope, type GithubSourceBinding, type GithubWorkSource, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { Alert } from "./Alert.tsx";
 
 export type GithubProject = Extract<GithubResponse, { type: "github.project" }>;
 export interface GithubSelection { context: GithubProject; source: GithubWorkSource; binding: GithubSourceBinding; item: GithubItem; digest: string }
@@ -39,7 +40,7 @@ export function GitHubRepositoryPicker({ sdk, selected, choose, disabled }: {
     </select></label>
     {page && <p className="fine-print" role="status">Signed in as {page.account}. {repositories.length} loaded. Public visibility alone does not establish an open-source license.</p>}
     {page?.nextPage && <button type="button" disabled={disabled || busy} onClick={() => void load(page.nextPage!)}>Load more repositories</button>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <p className="fine-print">Uses the GitHub CLI account on this Mac, separate from Copilot and updates. No automatic sign-in. You can also enter a repository URL below.</p>
   </section>;
 }
@@ -98,7 +99,7 @@ export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contex
       {items.map((item) => <option key={item.id} value={item.number}>#{item.number} {item.title} / {item.draft ? "draft" : item.state}</option>)}</select></label>
     <div className="button-row"><button type="button" disabled={disabled || busy} onClick={() => void load()}>Refresh {kind === "pull" ? "pull requests" : "issues"}</button>
       {nextPage && <button type="button" disabled={disabled || busy} onClick={() => void load(nextPage)}>Load more</button>}</div>
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {!busy && context && !items.length && !error && <p className="fine-print">No {kind === "pull" ? "pull requests" : "issues"} on this page. Create one or load another page if available.</p>}
     {busy && <p className="fine-print" role="status">Reading the selected repository and account...</p>}
   </section>;

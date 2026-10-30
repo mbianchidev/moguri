@@ -12,6 +12,7 @@ import { DictationButton } from "./DictationButton.tsx";
 import { ModelSubmenu } from "./ModelSubmenu.tsx";
 import { InfoTip } from "./Tooltip.tsx";
 import { PolicyHint } from "./PolicyHint.tsx";
+import { Alert } from "./Alert.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -278,14 +279,14 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     }}
     aria-label="Message composer" aria-description={resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without resuming." : answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without starting work."}>
     {documentCapture && <div className="document-capture"><p role="status">Extracting {documentCapture.name} locally. No model call; your draft is preserved.</p><progress aria-label="Local document extraction" /><button type="button" onClick={() => void client.attachments.cancelDocument(session.id, documentCapture.id).catch((error: unknown) => setDocumentError(error instanceof Error ? error.message : "Capture stop is unconfirmed. Inspect the saved draft."))}>Cancel extraction</button></div>}
-    {documentError && <p className="inline-error" role="alert">{documentError}</p>}
-    {configuring && <p className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</p>}
-    {configurationError && menu !== "model" && <p className="inline-error" role="alert">{configurationError}</p>}
+    {documentError && <Alert as="p" className="inline-error" role="alert">{documentError}</Alert>}
+    {configuring && <Alert as="p" className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</Alert>}
+    {configurationError && menu !== "model" && <Alert as="p" className="inline-error" role="alert">{configurationError}</Alert>}
     {session.controls.modelId && (!model || model.synthetic && !eligibleModel) && <button type="button" className="setup-hint" onClick={session.controls.modelId === KUPO_MODEL_ID ? onRouting : onConnect}>{session.controls.modelId === KUPO_MODEL_ID ? `Kupo is unavailable in ${session.controls.env}. ${snapshot.routingDiagnostics?.join(" ") ?? "Inspect its model pool and budget policy."}` : `Saved model ${session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.`}<Icon name="Down" /></button>}
     {model && !eligibleModel && <button type="button" className="setup-hint" onClick={() => setMenu("model")}>This saved model is not available in {session.controls.env}. Choose a compatible model explicitly.<Icon name="Down" /></button>}
-    {requiresImages && model && !model.imageInput && !answering && <p className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</p>}
-    {documentBlocked && !answering && <p className="composer-context-warning" role="status">Documents need an ordinary chat and tool-capable model. Your complete draft and held queue are preserved; no document is dropped or expanded into the prompt.</p>}
-    {answering && draft.attachments.length > 0 && <p className="composer-context-warning" role="status">Answers consume only text. Attached context stays saved.</p>}
+    {requiresImages && model && !model.imageInput && !answering && <Alert as="p" className="composer-context-warning" role="status">Select an image-capable model. The complete context stays in your draft or conversation.</Alert>}
+    {documentBlocked && !answering && <Alert as="p" className="composer-context-warning" role="status">Documents need an ordinary chat and tool-capable model. Your complete draft and held queue are preserved; no document is dropped or expanded into the prompt.</Alert>}
+    {answering && draft.attachments.length > 0 && <Alert as="p" className="composer-context-warning" role="status">Answers consume only text. Attached context stays saved.</Alert>}
     {session.localFinishing && <p className="local-finishing">Local finishing. New Local turns are blocked by policy.</p>}
     {needsNativeStage && <button type="button" className="setup-hint" onClick={onSandbox}>Review a private native workspace before starting a turn. Your draft and held queue are preserved.<Icon name="Box" /></button>}
     {session.controls.autonomy === "Autopilot Max" && !decisions.ready && <button type="button" className="setup-hint" onClick={onDecisions}>{decisions.reason}<Icon name="Rocket" /></button>}
@@ -327,16 +328,16 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {suggestions.length > 0 && <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
       aria-selected={index === slashOption} key={suggestion.kind === "skill" ? suggestion.skill.id : suggestion.name} data-command-kind={suggestion.kind}
       onClick={() => selectSlash(suggestion)}><strong>/{suggestion.name}{suggestion.kind === "skill" && <small>Skill / {suggestion.skill.sourceName}</small>}</strong><span>{suggestion.description}</span></button>)}</div>}
-    {slashOpen && slashCatalog.scope === slashScope && slashCatalog.error && <p className="inline-error" role="alert">{slashCatalog.error} Built-in slash commands remain available.</p>}
+    {slashOpen && slashCatalog.scope === slashScope && slashCatalog.error && <Alert as="p" className="inline-error" role="alert">{slashCatalog.error} Built-in slash commands remain available.</Alert>}
     {sessionOptions.length > 0 && <div className="attachment-session-suggestions" role="listbox" aria-label="Active context sessions">{sessionOptions.map((source, index) => <button type="button" role="option" aria-selected={index === sessionOption} key={source.id} onClick={() => { setTrigger(attachmentTrigger); void attachSession(source.id); }}><Icon name="Side chat" /><span>{sessionTitle(source)}</span></button>)}</div>}
     {attachmentTrigger && <button className="attachment-trigger-hint quiet" type="button" onClick={chooseAttachmentTrigger}>{attachmentTrigger.prefix} {attachmentTriggers[attachmentTrigger.prefix]}<small>Tab to choose; text stays literal until selection</small></button>}
-    {draft.error && <div className="draft-error" role="alert"><p>{draft.error}</p><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
+    {draft.error && <div className="draft-error"><Alert as="p" role="alert">{draft.error}</Alert><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "transcribing" ? "Flushing the original local audio buffer. Inserted words are preserved." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
-    {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <p className="composer-voice-status inline-error" role="alert">{dictation.state.error}</p>}
-    {voiceOutcome?.status === "failed" && <p className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</p>}
+    {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.state.error}</Alert>}
+    {voiceOutcome?.status === "failed" && <Alert as="p" className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</Alert>}
     {transcript && transcript.id !== insertedTranscript && !voiceFinalizing && <div className="composer-transcript"><Icon name="Mic" /><div className="composer-transcript-text"><strong>Dictation ready</strong>
-      {transcriptPreview?.error ? <p className="inline-error" role="alert">{transcriptPreview.error}</p> : <p aria-label="Dictation transcript">{transcriptPreview?.text ?? "Loading the local transcript..."}</p>}</div>
+      {transcriptPreview?.error ? <Alert as="p" className="inline-error" role="alert">{transcriptPreview.error}</Alert> : <p aria-label="Dictation transcript">{transcriptPreview?.text ?? "Loading the local transcript..."}</p>}</div>
       <button type="button" disabled={!transcriptPreview?.text} onClick={() => void run(() => insertTranscript(transcript.id))}>Insert</button></div>}
     <div className="composer-toolbar">
       <div className="composer-leading">
@@ -369,8 +370,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           </div>;
         })}<p>Autopilot modes are unattended. Hard deny rules, read-only mode, environment policy and budgets still apply.</p>
           {snapshot.settings.values.permissions.defaultDecision === "deny" && <p>Automatic approvals cannot bypass the saved tool policy.<PolicyHint label="About automatic approval policy" target="tools">Default-deny and explicit deny rules remain authoritative. Changing autonomy or opening this setting does not remove a hard rule.</PolicyHint></p>}
-          {["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) && !session.controls.automaticApprovals && <p className="settings-warning">This saved mode uses legacy bounded grants. Select it again to enable automatic approvals explicitly.</p>}
-          {decisions.error && <p className="inline-error" role="alert">{decisions.error}</p>}<button className="quiet" type="button" onClick={() => { setMenu(null); onGuardrails(); }}>Guardrails</button><button className="quiet" type="button" onClick={() => { setMenu(null); onDecisions(); }}>Decision provider settings</button></>)}
+          {["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) && !session.controls.automaticApprovals && <Alert as="p" tone="warning" className="settings-warning">This saved mode uses legacy bounded grants. Select it again to enable automatic approvals explicitly.</Alert>}
+          {decisions.error && <Alert as="p" className="inline-error" role="alert">{decisions.error}</Alert>}<button className="quiet" type="button" onClick={() => { setMenu(null); onGuardrails(); }}>Guardrails</button><button className="quiet" type="button" onClick={() => { setMenu(null); onDecisions(); }}>Decision provider settings</button></>)}
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}
@@ -512,9 +513,9 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>{snapshot.settings.values.kupo.workflow === "auto" ? "Kupo settings" : snapshot.settings.values.kupo.workflow === "compound" ? "kupo Compound settings" : "kupo Single settings"}</button>
     </details>
       {session.turnId && <p>Stop the active turn before changing model settings.</p>}
-      {staleWindow && <p className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</p>}
-      {staleEffort && <p className="inline-error" role="alert">The saved thinking effort is no longer supported. Choose an offered effort or provider default explicitly. The model and context were not substituted.</p>}
-      {error && <p className="inline-error" role="alert">{error}</p>}
+      {staleWindow && <Alert as="p" className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</Alert>}
+      {staleEffort && <Alert as="p" className="inline-error" role="alert">The saved thinking effort is no longer supported. Choose an offered effort or provider default explicitly. The model and context were not substituted.</Alert>}
+      {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       <div className="button-row"><span className="fine-print" role="status">{saving ? "Saving..." : dirty ? "Settings were not saved. Reload before choosing again." : "Changes save automatically."}</span><button type="button" className="quiet" disabled={saving || pending} onClick={reload}>Reload</button></div>
     </>;
 }
@@ -562,5 +563,5 @@ function UsageMenu({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Sessio
       <details><summary>Detailed session accounting</summary>{accounting.status && <BudgetSummary status={accounting.status} />}</details>
       <h3>Session budget limits</h3><BudgetLimitEditor sdk={sdk} snapshot={snapshot} session={session} scope="session" status={accounting.status} onDirty={setBudgetDirty} />
     </div>
-    {accounting.error && <p className="inline-error" role="alert">{accounting.error}</p>}</>;
+    {accounting.error && <Alert as="p" className="inline-error" role="alert">{accounting.error}</Alert>}</>;
 }

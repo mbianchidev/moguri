@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { Alert } from "./Alert.tsx";
 
 type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string };
 export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
@@ -49,6 +50,6 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
         onChange={(event) => { const enabled = event.target.checked; void run({ kind: "model", id: model.apiModelId, enabled }, () => sdk.models.setEnabled(model.apiModelId, enabled, snapshot.settings.revision)); }} /><span className="sr-only">Enable {model.name}</span></label>
     </div>)}
     {!models.length && <p className="fine-print">{search ? "No matching model in this profile's inventory." : "No model has been advertised or explicitly configured. Sign in or configure a provider; none will be guessed."}</p>}
-    {error && <p className="inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }

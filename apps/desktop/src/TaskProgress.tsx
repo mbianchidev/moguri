@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTaskProgress } from "../../../packages/sdk/src/react.ts";
 import type { MoguriSdk, Session, TaskProgress } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
 
 export function TaskPlanPanel({ sdk, session, modal }: { sdk: MoguriSdk; session: Session; modal?: (open: boolean) => void }) {
   const turnId = session.turnId ?? session.messages.findLast((message) => message.role === "user")?.turnId;
@@ -15,7 +16,7 @@ function ActiveTaskPlan({ sdk, session, modal }: { sdk: MoguriSdk; session: Sess
   const { progress, error } = useTaskProgress(sdk, session, sdk.getState().status === "connected");
   const [details, setDetails] = useState(false);
   useEffect(() => { modal?.(details); return () => modal?.(false); }, [details, modal]);
-  if (error) return <p className="inline-error" role="alert">{error}</p>;
+  if (error) return <Alert as="p" className="inline-error" role="alert">{error}</Alert>;
   if (!progress) return <p role="status">Reading the owning model's task plan...</p>;
   if (!progress.plan) return <p className="fine-print">No task plan matches the current turn and workspace. Earlier plans were not reused.</p>;
   const checklist = progress.checklist, model = progress.longRunning ? progress.model : null;

@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } f
 import type { ConversationNavigationEntry } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { Alert } from "./Alert.tsx";
 
 const preview = (text: string) => {
   const value = text.replace(/\s+/g, " ").trim();
@@ -71,7 +72,7 @@ export function ConversationNavigation({ entries, viewport, renderedFrom, label,
         </button>
       </Tooltip></li>;
     })}</ol>
-    {error && <p className="turn-navigation-error inline-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="turn-navigation-error inline-error" role="alert">{error}</Alert>}
   </nav>;
 }
 

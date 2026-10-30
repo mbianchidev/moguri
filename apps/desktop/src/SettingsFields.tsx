@@ -2,6 +2,7 @@ import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, 
 import { Icon } from "./Icon.tsx";
 import { InfoTip, Tooltip } from "./Tooltip.tsx";
 import { useCopyFeedback } from "./CopyButton.tsx";
+import { Alert } from "./Alert.tsx";
 
 const SettingsContext = createContext(false);
 export function SettingsFieldsProvider({ children }: { children: ReactNode }) {
@@ -34,7 +35,7 @@ function CopyField({ input, name, multiline = false, children }: {
       <button type="button" className="icon-button" aria-label={`Copy ${label}`} aria-busy={pending || undefined} onClick={(event) => { event.preventDefault(); void copy(); }}><Icon name={copied ? "Check" : "Copy"} /></button>
     </Tooltip></span>
     <span className="sr-only" aria-live="polite" aria-atomic="true">{copied ? `Copied ${label}` : ""}</span>
-    {error && <span className="inline-error copy-field-error" role="alert">{error}</span>}
+    {error && <Alert as="span" className="inline-error copy-field-error" role="alert">{error}</Alert>}
   </span>;
 }
 
