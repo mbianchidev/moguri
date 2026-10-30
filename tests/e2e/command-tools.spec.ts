@@ -1,4 +1,4 @@
-import { _electron as electron, expect, test } from "@playwright/test";
+import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { MoguriSdk, effectiveToolPreferences } from "../../packages/sdk/src/index.ts";
@@ -9,6 +9,13 @@ const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Generated command/settings clients use hidden native Electron.");
+
+async function returnToSavedSession(page: Page) {
+  await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
+  await page.getByRole("button", { name: "Back to session", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toBeVisible();
+  await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+}
 
 test("the requested factory ranking is active immediately and actual keyboard reordering persists without granting permission", async () => {
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready(), app = await launch(f.directory);
@@ -30,6 +37,7 @@ test("the requested factory ranking is active immediately and actual keyboard re
     await page.getByRole("button", { name: "Reset tool preference order", exact: true }).click();
     await expect.poll(() => effectiveToolPreferences(sdk.settings.get()?.values.toolPreferences).order[0]).toBe("mcp-gateway");
     expect(f.requests).toHaveLength(0);
+    await returnToSavedSession(page);
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
@@ -77,5 +85,6 @@ test("a failed ranking save keeps the local order visible and a concurrent clien
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     expect(sdk.settings.get()?.values.appearance.theme).toBe("light");
     expect(f.requests).toHaveLength(0);
+    await returnToSavedSession(page);
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
