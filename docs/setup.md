@@ -5,6 +5,43 @@ history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
+## Work-item comments and repository scripts
+
+Built-in GitHub/Linear work-item reads, previews, imports and local cards strip
+hidden Markdown/HTML comments, including `<!-- ... -->`, `<--- ... -->` and
+unterminated blocks. Existing original events/snapshots remain retained;
+derived views disclose their own digest when different. Visible text is still
+untrusted and cannot grant tools or override policy.
+
+Before curl/wget or running a repository script, the agent must inspect its
+**entire exact source** with `review_script`, from a permitted Local file/Home
+or an explicit public HTTPS raw URL. Public source reads need normal website
+approval. The agent reports encoded/obfuscated payloads, unexpected API calls
+and other unsafe/uncertain behavior before requesting execution. Only a source
+assessed safe can request `run_script` under the normal tool policy.
+
+An unsafe assessment reports findings **without asking to execute**. In the
+conversation's **Repository script reviews**, choose **Read full source and
+review**. Only an explicit acknowledgement followed by **Force unsafe script
+under normal policy** overrides that advisory. Manual/Guided execution approval
+is still required, and hard denials/read-only/root/source checks cannot be
+overridden. Agent assessments are not safety guarantees. Each review has at
+most one original execution attempt, with no automatic replay.
+
+CLI/TUI: `/script-review list`, `/script-review read ID`, or the explicit
+`/script-review force ID REVIEW_REV SHA SESSION_REV confirm-unsafe`.
+CLI also supports `moguri script-review ... --session ID`. Inspect the returned
+job/approval for its actual outcome. Private or oversized sources are blocked,
+not truncated. Script execution is non-interactive Local only, using the exact
+reviewed bytes rather than a second download; Remote/Sandbox do not fall back.
+This does not isolate arbitrary approved shells, package-manager tasks,
+transitive scripts or external MCP services. See the
+[content-review contract](architecture/content-review.md).
+
+Protocol 83 migrates existing state without deleting it. Explicitly restart
+an older service to load matching clients/workers. Old native worker
+qualification does not establish that new bytes are installed.
+
 ## Reliable session controls and built-in Git
 
 Native file tools normalize requested paths and configured permission prefixes

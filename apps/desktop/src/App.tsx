@@ -26,6 +26,7 @@ import type { CommandClientAttachment, CommandExecution, CommandViewContext, Com
 import { ReorderList } from "./ReorderList.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
+import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -555,13 +556,14 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       {continuedWork.prUrl && <button type="button" onClick={() => void run(async () => { await window.moguri.openExternal(continuedWork.prUrl!); })}>Open published PR</button>}
     </section>}
     <Timeline key={JSON.stringify([client.profileId, session.id])} session={session} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
+    <ScriptReviewsPanel key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
     {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
     {session.pendingApproval && <section className="approval" aria-label="Tool approval">
       <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
       {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
         <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
-      <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will use the displayed session capability and scope."}</p>
+      <p><strong>{session.pendingApproval.call.name}</strong>{session.pendingApproval.call.name === "run_script" ? " will execute the exact reviewed script on your Mac without sandbox isolation. The agent's assessment is not permission or a safety guarantee." : session.pendingApproval.call.name === "run_command" ? session.controls.env === "Remote" ? " will run on the configured SSH host, not inside SendBox." : session.controls.env === "Sandbox" ? " will run inside the approved SendBox boundary." : " will run on your Mac without sandbox isolation." : session.pendingApproval.call.name === "mcp_gateway" ? " may access host code or external services through the configured MCP. Review the exact server, tool and arguments." : session.pendingApproval.call.name === "run_subagent" ? " will send the approved context to a separate, tool-less model call." : session.pendingApproval.call.name.startsWith("propose_") ? " will create a pending proposal, not apply or enable it." : " will use the displayed session capability and scope."}</p>
       {session.controls.env === "Local" && session.homeRoot && <p className="fine-print path">Local chat directory: {session.homeRoot.root}</p>}
       <pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
       {session.pendingApproval.recommendation && session.pendingApproval.recommendationSource?.stepId === session.pendingApproval.stepId && session.pendingApproval.recommendationSource.callId === session.pendingApproval.call.id ?
