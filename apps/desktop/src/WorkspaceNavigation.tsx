@@ -438,10 +438,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
-      <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)} onToggle={(event) => {
-        const open = event.currentTarget.open;
-        setCollapsedFolders((current) => { if (current.has(group.id) === !open) return current; const next = new Set(current); if (open) next.delete(group.id); else next.add(group.id); return next; });
-      }}><summary onContextMenu={(event) => { event.preventDefault(); openMenu("folder", group.id, event.currentTarget, event.clientX, event.clientY); }}
+      <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)}><summary onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest("button")) return;
+        event.preventDefault();
+        setCollapsedFolders((current) => { const next = new Set(current); if (next.has(group.id)) next.delete(group.id); else next.add(group.id); return next; });
+      }} onContextMenu={(event) => { event.preventDefault(); openMenu("folder", group.id, event.currentTarget, event.clientX, event.clientY); }}
         onKeyDown={(event) => {
           if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
             event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.top);
@@ -550,6 +551,11 @@ function WorkspaceContextMenu({ label, point, close, children }: { label: string
     onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); close(); return; }
       if (event.key === "Tab") { close(false); return; }
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault(); event.stopPropagation();
+        if (event.target instanceof Element) event.target.closest<HTMLButtonElement>("button:not(:disabled)")?.click();
+        return;
+      }
       const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
       const palette = horizontal && event.target instanceof Element ? event.target.closest(".project-color-palette") : null;
       if ((horizontal && !palette) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
