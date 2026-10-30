@@ -7,6 +7,16 @@ clients and service; never delete state to upgrade.
 
 ## Reliable session controls and built-in Git
 
+Native file tools normalize requested paths and configured permission prefixes
+before matching. Hard denials/reviews cannot be skipped with `./`, internal
+`..`, repeated separators or macOS case/Unicode aliases. Protected credential,
+control-state and Git filenames stay protected in every case. Parent-directory
+symlinks are refused too: select the real relative project path. Explicit allow
+rules do not broaden through case folding, and file writes still require their
+original base digest. See [file-access boundaries](architecture/file-access.md).
+Restart an already running service to load a repaired build; stored state and
+unknown accounting must not be deleted to upgrade.
+
 Select **Autonomy / Autopilot** or run `/autonomy Autopilot` once to enable
 automatic tool approvals for subsequent turns. Reselecting an older bounded
 value explicitly saves that consent; opening a chat or changing a model/budget
