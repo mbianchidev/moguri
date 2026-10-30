@@ -140,7 +140,7 @@ test("an empty workspace creates no console, while explicitly created chats keep
     await expect(page.getByRole("alert")).toContainText("Create or select a session in this project first");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(0);
     expect(fixture.service.controller.snapshot().sessions).toHaveLength(0);
-    await page.locator(".main-pane > .app-alert").getByRole("button", { name: "Dismiss alert", exact: true }).click();
+    await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await page.getByRole("button", { name: "New", exact: true }).click();
     await page.getByRole("dialog", { name: "New", exact: true }).getByRole("button", { name: /^New chat/ }).click();
     await expect.poll(() => fixture.service.controller.snapshot().terminals.length).toBe(1);

@@ -27,7 +27,7 @@ function DismissibleAlert({ as: Tag = "div", role, tone, className = "", childre
   if (dismissed) return null;
   const severity = tone ?? (className.split(/\s+/).includes("settings-warning") ? "warning" : role === "alert" ? "error" : "info");
   const Content = Tag === "div" ? "div" : "span";
-  return <Tag {...props} className={`app-alert ${className}`} data-alert-tone={severity} role={role ?? (severity === "error" ? "alert" : "status")}>
+  return <Tag {...props} className={`app-alert ${className}`} data-alert-tone={severity} role={role ?? (severity === "error" ? "alert" : severity === "info" ? "status" : undefined)}>
     <Content className="app-alert-content">{children}</Content>
     <button type="button" className="icon-button app-alert-dismiss" aria-label="Dismiss alert" title="Dismiss" onClick={(event) => {
       event.preventDefault(); event.stopPropagation(); restoreFocus(event.currentTarget); setDismissed(true); onDismiss?.();
