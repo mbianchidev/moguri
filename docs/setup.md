@@ -367,12 +367,15 @@ authentication remains explicit. After installing a build containing this fix,
 quit and reopen Moguri so its original background service restarts with the
 corrected environment; existing healthy services are not silently replaced.
 
-**Settings / General / Private GitHub updates / Create a token with the right
-permissions** supplies a prefilled fine-grained-token link and exact steps:
+**Settings / General / Private GitHub updates / Set up read-only update access**
+opens a prefilled fine-grained-token link only when clicked. **Create a token
+with the right permissions** contains the complete steps:
 resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
-Read-only**, included Metadata read access, and a short expiration. You must
-select the repository and finish authorization yourself. The updater needs no
-write, Workflows, Actions or administration permissions. Paste the token only
+Read-only**, included Metadata read access, and a short expiration. GitHub's
+supported URL parameters cannot preselect the repository: explicitly choose
+**Only select repositories / moguri** and finish authorization yourself. The
+update source stays `mbianchidev/moguri`, not the project currently being viewed.
+The updater needs no write, Workflows, Actions or administration permissions. Paste the token only
 into **Private release PAT**, never chat. `/updates token-help` exposes the same
 guidance in TUI/CLI. See the [workflow contract](architecture/session-github-workflows.md).
 
@@ -442,11 +445,19 @@ actual-user decision. `/suggestions` defaults to the current project's scope;
 `/suggestions session` preserves the explicit alias and `/suggestions all`
 requests the wider review.
 
-**Dashboard** has My work, Usage, Cost and Velocity pages with charts first,
-project/model breakdowns and detailed accounting behind a disclosure. The
+**Dashboard** has My work, Usage, Cost and Velocity pages, project/model
+breakdowns and detailed accounting behind a disclosure. **My work / Active
+sessions** puts current running, waiting and stopping sessions first, with
+questions/approvals ahead of other work. Each session shows its actual project
+or project-free scope and Env. Click or keyboard-activate a session to open that
+exact conversation, preserving saved drafts without sending held prompts,
+answering questions or resuming work. Held queues alone are not active sessions.
+Connection loss explicitly marks activity last-observed and disables these
+navigation controls; missing data is not an empty activity list. The
 initial window is seven UTC days, with 30/60/90-day presets and custom inclusive
-dates initialized to the trailing year. My work includes current open sessions
-even when older than the selected range. Velocity reports observed completed
+dates initialized to the trailing year. The project filter applies to current
+activity, but its date range never hides active sessions. My work includes
+current open sessions even when older than the selected range. Velocity reports observed completed
 agent turns, timing and user interventions against the previous equal window,
 not invented time savings or a proven productivity increase. Unknown tokens,
 unpriced calls and invoices stay distinct. CLI/TUI share
@@ -795,6 +806,14 @@ management; **Models > Providers** owns Copilot sign-in, separate from repositor
 integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
+**Per-project configuration / Project** also has a dropdown of the active
+profile's registered projects, using exact names and paths. It changes only the
+configuration target, not the current session or its captured root. Empty
+profiles select nothing. Removed targets stay explicitly unavailable, with
+pending edits preserved read-only; **Discard unavailable project edit** releases
+that edit before choosing a different project. Concurrent saves still require
+the committed revision. Settings search has no Copy value control; ordinary
+non-secret settings fields retain theirs.
 The category list and selected settings page scroll independently, including
 long provider lists. Reaching either scroll boundary keeps the app frame and
 Settings toolbar in place. Keyboard focus can still reach controls at the bottom.
@@ -806,7 +825,11 @@ parents. Project chevrons fold sessions without moving or archiving them.
 A project's settings button remains separate from its collapse button.
 
 The project group's **More** menu offers seven icon colors, a custom color
-picker and **Ungroup**. Ungroup returns its projects to the ordinary list,
+picker, **Expand all projects**, **Collapse all projects** and **Ungroup**.
+Expand/collapse affects only that group's member projects (attached folders),
+preserving unrelated groups, drafts and session ownership. Expanding also opens
+the selected outer group; it does not change paging or persisted project data.
+Ungroup returns its projects to the ordinary list,
 preserving files and existing captured-root chats; those chats remain reachable
 under Chats. Stale membership is refused instead of moving a subset.
 Copy icons briefly show a check only after the actual clipboard write succeeds.

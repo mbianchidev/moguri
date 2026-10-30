@@ -188,7 +188,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
   const pendingQuestion = snapshot?.questions.find((question) => question.id === session?.pendingQuestionId && question.status === "open");
   const decisionReview = snapshot?.decisions.find((record) => record.sessionId === session?.id && record.turnId === session?.turnId && activeDecision(record));
-  const displayProjectId = settingsTab === "project" ? settingsProjectId : boardOpen ? projectId : session ? session.projectId : projectId;
+  const displayProjectId = boardOpen ? projectId : session ? session.projectId : projectId;
   const project = snapshot?.projects.find((project) => project.id === displayProjectId);
   const connectedPr = session && snapshot ? sessionPullRequestUrl(session, snapshot) : null;
   const continuedWork = snapshot?.projectWorkRuns.findLast((work) => work.originSessionId === session?.id);
@@ -259,6 +259,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
   const terminalOpeningHandled = (panel: Panel, sessionId: string | null) => setTerminalIntent((intent) =>
     intent?.panel === panel && intent.sessionId === sessionId ? null : intent);
   const openSettings = (tab: SettingsTab, target?: PolicyTarget, prepare?: () => void) => { if (!canNavigate()) return; beforeHidingTerminal(() => {
+    if (!settingsTab && tab !== "project") setSettingsProjectId(session ? session.projectId : projectId);
     prepare?.(); setBoardOpen(false); setGlobalView(null); setSettingsTab(tab); setPolicyFocus(target ? { target, id: crypto.randomUUID() } : null);
   }); };
   const openPolicy = (target: PolicyTarget, prepare?: () => void) => openSettings(policyLocations[target].tab, target, prepare);
@@ -603,7 +604,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
       {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -618,10 +619,10 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
         </div>
       </section> : <>
-      <header className="session-header">
+      <header className="session-header" data-session-id={session?.id}>
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
-        <div className="session-heading"><h1>{session ? title(session) : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}</span></div>
+        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session) : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}</span></div>
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">

@@ -592,6 +592,18 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .dashboard-page-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 24px 0 18px; }
 .dashboard-page-heading h2 { margin: 0; font-size: 24px; font-weight: 550; letter-spacing: -.5px; }
 .dashboard-page-heading > span { color: var(--muted); font-size: 12px; }
+.dashboard-active { margin-block: 24px; padding: 18px; border: 1px solid var(--control-line); border-radius: 8px; background: var(--surface); }
+.dashboard-active header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }
+.dashboard-active h2 { margin: 0; font-size: 18px; font-weight: 550; }
+.dashboard-active header > span { color: var(--muted); font-size: 12px; }
+.dashboard-active ul { list-style: none; padding: 0; margin: 16px 0 0; }
+.dashboard-active li { border-top: 1px solid var(--line); }
+.dashboard-active li button { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; width: 100%; padding: 14px 8px; border-color: transparent; background: transparent; text-align: left; }
+.dashboard-active li button:hover { background: var(--hover); }
+.dashboard-active-title { min-width: 0; overflow-wrap: anywhere; }
+.dashboard-active-title small { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; }
+.dashboard-active-state { font-size: 12px; }
+.dashboard-active [data-needs-attention] .dashboard-active-state { font-weight: 650; }
 .dashboard-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block: 1px solid var(--line); margin-bottom: 24px; }
 .dashboard-metric { padding: 16px 12px; min-width: 0; border-right: 1px solid var(--line); }
 .dashboard-metric:first-child { padding-left: 0; }

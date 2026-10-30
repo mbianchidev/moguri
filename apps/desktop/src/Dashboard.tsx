@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
-import type { BudgetRange, BudgetTotals, MoguriSdk, Snapshot, WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
+import { sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type Snapshot, type WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
+import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { InfoTip } from "./Tooltip.tsx";
@@ -44,17 +45,32 @@ function Breakdown({ title, values, money = false }: { title: string; values: { 
 }
 
 export function Dashboard({ sdk, snapshot, openSession }: { sdk: MoguriSdk; snapshot: Snapshot; openSession: (id: string) => Promise<void> }) {
+  const { status } = useMoguri(sdk), connected = status === "connected" && snapshot.profileId === sdk.profileId;
   const [page, setPage] = useState<Page>("My work"), [range, setRange] = useState<BudgetRange>({ kind: "days", days: 7 }), [projectId, setProjectId] = useState("");
   const [custom, setCustom] = useState(() => ({ from: day(Date.now() - 364 * DAY), to: day(Date.now()) }));
   const [state, setState] = useState<{ sdk: MoguriSdk; key: string; value?: WorkspaceDashboard; error?: string } | null>(null), [navigationError, setNavigationError] = useState("");
-  const stamp = JSON.stringify([snapshot.sessions.map((session) => [session.id, session.revision]), snapshot.budgetEntries, snapshot.budgetPlans, snapshot.projects, snapshot.budgetPolicy.revision]);
-  const key = JSON.stringify([range, projectId, stamp]), current = state?.sdk === sdk && state.key === key, data = current ? state.value : undefined;
+  const [opening, setOpening] = useState<string | null>(null);
+  const stamp = JSON.stringify([snapshot.sessions.map((session) => [session.id, session.revision, session.status, session.turnId, session.updatedAt]), snapshot.budgetEntries, snapshot.budgetPlans, snapshot.projects, snapshot.budgetPolicy.revision]);
+  const key = JSON.stringify([range, projectId, stamp, connected]), current = state?.sdk === sdk && state.key === key, data = current ? state.value : undefined;
   useEffect(() => {
     let active = true; setState({ sdk, key });
+    if (!connected) { setState({ sdk, key, error: "Dashboard history is unavailable while this profile's service is not connected. No empty totals were substituted." }); return; }
     void sdk.dashboard.overview({ range, ...(projectId ? { projectId } : {}) }).then((result) => { if (active) setState({ sdk, key, value: result.dashboard }); })
       .catch((error: unknown) => { if (active) setState({ sdk, key, error: error instanceof Error ? error.message : "Dashboard data is unavailable. No empty totals were substituted." }); });
     return () => { active = false; };
   }, [sdk, key]);
+  const navigate = (id: string) => {
+    setNavigationError(""); setOpening(id);
+    void (async () => {
+      const current = sdk.getState();
+      if (current.status !== "connected" || current.snapshot?.profileId !== snapshot.profileId || !current.snapshot.sessions.some((session) => session.id === id)) {
+        throw new Error("The exact session is unavailable in this connected profile. No replacement was opened.");
+      }
+      await openSession(id);
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(`.session-header[data-session-id="${CSS.escape(id)}"] h1`)?.focus());
+    })().catch((error: unknown) => setNavigationError(error instanceof Error ? error.message : "The selected session could not be opened. Your draft is preserved."))
+      .finally(() => setOpening(null));
+  };
   const presets = [7, 30, 60, 90] as const;
   const selectRange = (value: string) => {
     if (value === "custom") setRange({ kind: "custom", ...custom });
@@ -69,6 +85,7 @@ export function Dashboard({ sdk, snapshot, openSession }: { sdk: MoguriSdk; snap
     </div>
     {range.kind === "custom" && <div className="dashboard-custom"><label>From<input type="date" aria-label="Dashboard range from" value={custom.from} onChange={(event) => setCustom((value) => ({ ...value, from: event.target.value }))} /></label><label>Through<input type="date" aria-label="Dashboard range through" value={custom.to} onChange={(event) => setCustom((value) => ({ ...value, to: event.target.value }))} /></label>
       <button type="button" disabled={!custom.from || !custom.to || custom.from > custom.to} onClick={() => setRange({ kind: "custom", ...custom })}>Apply range</button>{custom.from > custom.to && <Alert as="span" role="alert">From must be on or before Through.</Alert>}</div>}
+    {page === "My work" && <ActiveSessions sdk={sdk} snapshot={snapshot} projectId={projectId} connected={connected} disabled={opening !== null} navigate={navigate} />}
     {current && state.error && <Alert as="p" className="inline-error" role="alert">{state.error}</Alert>}{navigationError && <Alert as="p" className="inline-error" role="alert">{navigationError}</Alert>}
     {!data && !(current && state.error) && <p role="status">Reading authoritative dashboard data...</p>}
     {data && <section aria-label={`${page} dashboard`}>
@@ -80,7 +97,7 @@ export function Dashboard({ sdk, snapshot, openSession }: { sdk: MoguriSdk; snap
         <div className="dashboard-projects">{data.projects.map((project) => <article className="dashboard-project" key={project.projectId ?? "chats"}><header><h3>{project.name}</h3><small>{knownTokens(project.totals)} tokens</small></header>
           <div className="work-ribbon" aria-hidden="true">{(["open", "inProgress", "completed", "archived"] as const).map((status) => <span key={status} className={status} style={{ flexGrow: project.work[status] }} />)}</div>
           <p className="work-counts">{project.work.open} open / {project.work.inProgress} in progress / {project.work.completed} completed{project.work.archived ? ` / ${project.work.archived} archived` : ""}</p>
-          <ul>{project.sessionIds.map((id) => { const session = snapshot.sessions.find((value) => value.id === id); return session ? <li key={id}><button type="button" className="quiet" onClick={() => { setNavigationError(""); void openSession(id).catch((error: unknown) => setNavigationError(error instanceof Error ? error.message : "The selected session could not be opened.")); }}>{session.title}</button><span>{session.turnId ? "in progress" : session.status.replaceAll("_", " ")}</span></li> : null; })}</ul>
+          <ul>{project.sessionIds.map((id) => { const session = snapshot.sessions.find((value) => value.id === id); return session ? <li key={id}><button type="button" className="quiet" disabled={!connected || opening !== null} onClick={() => navigate(id)}>{session.title}</button><span>{sessionIndicator(session, snapshot).label}</span></li> : null; })}</ul>
           {!project.sessionIds.length && <p className="fine-print">No current or recently completed sessions in this range.</p>}
         </article>)}</div>{!data.projects.length && <p className="fine-print">No projects or chats yet. Choose New to start.</p>}
       </> : page === "Usage" ? <>
@@ -101,6 +118,34 @@ export function Dashboard({ sdk, snapshot, openSession }: { sdk: MoguriSdk; snap
       </>}
     </section>}
     {(page === "Usage" || page === "Cost") && <details className="dashboard-details"><summary>Detailed accounting and original records</summary><UsageDashboard key={JSON.stringify([sdk.profileId, range, projectId])} sdk={sdk} snapshot={snapshot} initialFilters={{ range, ...(projectId ? { projectId } : {}) }} /></details>}
+  </section>;
+}
+
+function ActiveSessions({ sdk, snapshot, projectId, connected, disabled, navigate }: {
+  sdk: MoguriSdk; snapshot: Snapshot; projectId: string; connected: boolean; disabled: boolean; navigate: (id: string) => void;
+}) {
+  const entries = (snapshot.profileId === sdk.profileId ? snapshot.sessions : []).filter((session) =>
+    (!projectId || session.projectId === projectId) && session.status !== "archived" &&
+    (session.turnId !== null || session.pendingApproval || session.pendingQuestionId || ["running", "waiting_input", "stopping"].includes(session.status)))
+    .map((session) => {
+      const waiting = Boolean(session.pendingApproval || session.pendingQuestionId || session.status === "waiting_input");
+      const confirmed = waiting || session.turnId !== null && ["running", "stopping"].includes(session.status);
+      return { session, waiting, label: confirmed ? sessionIndicator(session, snapshot).label : "Activity unconfirmed" };
+    }).sort((a, b) => Number(b.waiting) - Number(a.waiting) || b.session.updatedAt.localeCompare(a.session.updatedAt) || a.session.id.localeCompare(b.session.id));
+  const attention = entries.filter((entry) => entry.waiting).length;
+  return <section className="dashboard-active" aria-label="Active sessions">
+    <header><h2>Active sessions</h2><span role="status" aria-atomic="true">{connected ?
+      `${entries.length} active${entries.some((entry) => entry.label === "Activity unconfirmed") ? " or unconfirmed" : ""} / ${attention} need attention` : "Last observed activity; service is not connected."}</span></header>
+    <p className="fine-print">Current activity in {snapshot.profile?.name ?? sdk.profileId}, independent of the date range. Held prompts are not active work.</p>
+    {entries.length ? <ul>{entries.map(({ session, waiting, label }) => {
+      const owner = session.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name ?? "Unavailable project" :
+        session.projectFolderId ? snapshot.projectFolders.find((folder) => folder.id === session.projectFolderId)?.name ?? "Unavailable project group" : "Project-free chat";
+      return <li key={session.id}><button type="button" data-session-id={session.id} data-needs-attention={waiting || undefined}
+        disabled={!connected || disabled} aria-label={`Open session ${sessionTitle(session)}`} onClick={() => navigate(session.id)}>
+        <span className="dashboard-active-title">{sessionTitle(session)}<small>{owner} / {session.controls.env}</small></span>
+        <span className="dashboard-active-state">{connected ? label : `Last observed: ${label}`}</span>
+      </button></li>;
+    })}</ul> : connected ? <p>No active sessions{projectId ? " in this project" : " in this profile"}.</p> : <p>Current activity is unavailable. Last observed records cannot confirm that no work is running.</p>}
   </section>;
 }
 

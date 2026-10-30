@@ -69,7 +69,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set());
   const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
-  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setFoldersMenu(null); removedFolderFocus.current = null; }, [sdk.profileId]);
+  const [navigationStatus, setNavigationStatus] = useState("");
+  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
   useLayoutEffect(() => {
     const request = removedFolderFocus.current;
     if (!request || request.profileId !== sdk.profileId || snapshot.projectFolders.some((folder) => folder.id === request.id)) return;
@@ -117,6 +118,18 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const run = async (operation: () => Promise<unknown>) => { setError(""); try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Workspace action failed."); } };
   const open = (value: Edit) => { if (allow()) setEdit(value); };
   const folder = (project: Project) => (snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id));
+  const collapseGroupProjects = (group: NavigationFolder, collapsed: boolean) => {
+    const state = sdk.getState().snapshot, currentGroup = state?.profileId === sdk.profileId && state.projectFolders.find((value) => value.id === group.id);
+    if (!currentGroup || !state) { setError("This project group is no longer available in the original profile. No other group was changed."); return; }
+    const members = state.projects.filter((project) => state.projectConfigurations.some((configuration) => configuration.projectId === project.id && configuration.folderId === group.id));
+    setCollapsedProjects((current) => {
+      const next = new Set(current);
+      for (const project of members) { if (collapsed) next.add(project.id); else next.delete(project.id); }
+      return next;
+    });
+    if (!collapsed) setCollapsedFolders((current) => { const next = new Set(current); next.delete(group.id); return next; });
+    setNavigationStatus(`${collapsed ? "Collapsed" : "Expanded"} ${members.length} project${members.length === 1 ? "" : "s"} in ${currentGroup.name}.`);
+  };
   const closeMenu = (restore = true) => {
     const anchor = menu?.anchor; setMenu(null);
     if (restore) queueMicrotask(() => { if (anchor?.isConnected) anchor.focus(); });
@@ -421,6 +434,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         setFoldersMenu({ kind: "project", id: "folders", x: bounds.left, y: bounds.bottom, anchor: event.currentTarget, trigger: event.currentTarget });
       }}><Icon name="More" /></button></div>
     {(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
+    <p className="sr-only" role="status" aria-atomic="true">{navigationStatus}</p>
     <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
@@ -467,6 +481,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   {menu && folderMenu && <WorkspaceContextMenu label={`Project group actions for ${folderMenu.name}`} point={menu} close={closeMenu}>
     <NavigationColors label="Project group icon color" color={groupColor(folderMenu)} busy={savingColor} pick={(color) => saveFolderColor(folderMenu, color)}
       customLabel="Custom group color" custom={() => open({ kind: "folder-color", folder: folderMenu, anchor: menu.anchor })} />
+    <button role="menuitem" onClick={() => collapseGroupProjects(folderMenu, false)}><Icon name="Maximize" />Expand all projects</button>
+    <button role="menuitem" onClick={() => collapseGroupProjects(folderMenu, true)}><Icon name="Minimize" />Collapse all projects</button>
     <button role="menuitem" disabled={busy || !snapshot.policy.allowedEnvs.includes("Sandbox") ||
       !snapshot.capabilities.some((capability) => capability.env === "Sandbox" && capability.ready) ||
       !(snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces) ||
