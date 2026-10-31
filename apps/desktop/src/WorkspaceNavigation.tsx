@@ -572,7 +572,7 @@ function unreadSession(session: Session, snapshot: Snapshot): boolean {
 function SessionIndicators({ indicator }: { indicator: ReturnType<typeof sessionIndicator> }) {
   const names: Partial<Record<typeof indicator.kind, string>> = {
     running: "Progress", question: "Question", approval: "Waiting", completed: "Check", merged: "PRMerged",
-    failed: "Issue", partial: "Issue", stopped: "Waiting", queued: "Clock",
+    failed: "Close", partial: "Issue", stopped: "Waiting", queued: "Clock",
   };
   const name = names[indicator.kind];
   return <span className="session-indicators">

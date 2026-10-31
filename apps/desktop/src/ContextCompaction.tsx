@@ -53,9 +53,9 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
     if (event.key === "Enter") { event.stopPropagation(); if (!(event.target instanceof Element) || !event.target.closest("button,summary,select")) event.preventDefault(); }
   }}>
     <header><h2>Context review</h2><button type="button" className="icon-button" aria-label="Close context review" onClick={() => dialog.current?.close()}><Icon name="Close" /></button></header>
-    <p>Summaries are model-produced proposals, not user answers or permissions. Nothing is applied automatically. Original history and your draft stay retained.</p>
+    <p>Summaries are model-produced context, not user answers, source acceptance or permissions. Manual proposals require review; only an explicitly enabled Kupo policy may apply a qualified automatic text summary. Original history and your draft stay retained.</p>
     {state ? <><dl className="context-estimates"><dt>Active conversation</dt><dd>~{count(state.estimatedTokens)} tokens</dd><dt>Retained originals</dt><dd>~{count(state.originalEstimatedTokens)} tokens</dd></dl>
-      <p className="fine-print">Conversation estimates exclude system prompt, tools and draft. They are not exact tokenization or billing. Env: {session.controls.env}{session.controls.env === "Remote" ? ", pinned SSH execution, not sandbox isolation" : ", host execution, not sandboxed"}.</p></> : <p role="status">Loading retained context...</p>}
+      <p className="fine-print">Conversation estimates exclude system prompt, tools and draft. They are not exact tokenization or billing. Env: {session.controls.env}{session.controls.env === "Remote" ? ", pinned SSH execution, not sandbox isolation" : session.controls.env === "Sandbox" ? ", qualified private native SendBox guest" : ", host execution, not sandboxed"}.</p></> : <p role="status">Loading retained context...</p>}
     {stateError && <Alert as="div" role="alert" className="inline-error">{stateError}</Alert>}
     <button type="button" className="quiet" disabled={busy} onClick={() => void refresh()}>Reload context</button>
     <details className="compaction-generation" open={!selected || !["proposed", "restored", "applied"].includes(selected.status)}>
@@ -67,7 +67,7 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
         </select></label>
         <label>Keep recent turns<input aria-label="Keep recent turns" type="number" min={1} max={20} step={1} value={keep} disabled={disabled} onChange={(event) => { setKeep(event.target.value); setPreview(null); }} /></label>
       </div>
-      <p className="fine-print">Complete recent turns and tool pairs remain intact. Image history is not supported by this text-only compactor. kupo does not choose another model for you.</p>
+      <p className="fine-print">Complete recent turns and tool pairs remain intact. Image history is not supported by this text-only compactor. Manual proposals use the exact model selected here; automatic Kupo stays within its explicitly enabled policy and eligible pool.</p>
       <div className="button-row"><button type="button" disabled={disabled || !modelId || !Number.isInteger(Number(keep)) || Number(keep) < 1 || Number(keep) > 20} onClick={() => void work(async () => { setPreview((await sdk.compactions.preview(session.id, { modelId, keepRecentTurns: Number(keep) })).preview); })}>Preview source</button>
         {preview && <button type="button" className="primary" disabled={disabled || preview.sourceDigest !== state?.sourceDigest} onClick={() => void work(async () => { const result = await sdk.compactions.generate(session.id, preview, true); setPreview(null); setSelectedId(result.id!); })}>Generate proposal</button>}</div>
       {preview && <div className="context-preview"><p>Compact {preview.prefixMessages} messages; retain {preview.retainedMessages}. Estimated request: ~{count(preview.estimatedInputTokens)} tokens, output at most {count(preview.maxOutputTokens)}. Generation may spend budget.</p>
@@ -79,6 +79,7 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
       <h3>Compaction history</h3>
       {state?.compactions.length ? <label>Retained operation<select aria-label="Compaction history" value={selectedId} disabled={busy} onChange={(event) => { setSelectedId(event.target.value); setError(""); setRestoreReview(false); }}>{state.compactions.toReversed().map((entry) => <option key={entry.id} value={entry.id}>{title(entry)}</option>)}</select></label> : <p>No compactions yet. Previewing does not start inference.</p>}
       {selected && <><p className="fine-print">Actual model: {snapshot.provider.models.find((model) => model.id === selected.modelId)?.name ?? selected.modelId}. Status: <strong>{selected.status}</strong>. {selected.afterTokens === null ? "No accepted size reduction." : `~${count(selected.beforeTokens)} to ~${count(selected.afterTokens)} conversation tokens.`}</p>
+        {selected.automatic && <p className="fine-print">Origin: actual-user-enabled Kupo policy, owning turn {selected.automatic.ownerTurnId}. Applying this model-produced context is not human content review or tool permission.</p>}
         {selected.status === "running" && <p role="status">Owned compaction is running. You can close this review without losing it.</p>}
         {selected.status === "running" && <button type="button" disabled={busy} onClick={() => void work(async () => { await sdk.compactions.stop(session.id, selected.id); })}>Stop compaction</button>}
         {selected.diagnostic && <Alert as="p" className="inline-error" role="alert">{selected.diagnostic}</Alert>}

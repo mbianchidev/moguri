@@ -212,6 +212,20 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > ownership, source publication and budget accounting remain separate.
 > This is the supported macOS slice, not Linux or the completed roadmap.
 
+> Protocol84 adds owner-requested
+> [current-profile model recovery, scheduled prompts and Kupo modes](architecture/recovery-scheduling-kupo.md)
+> through the same service/SDK/worker. Recovery uses the exact 30/90/120/180
+> deadline sequence, reset only by a complete metered recovered response.
+> Scheduling owns unsent ghost input and one-at-most queue admission. Automatic
+> Kupo selects supported effort/max context for Balanced/Savings/Performance;
+> frontier/cost/evaluation classes need actual source review. Bounded
+> re-review, explicitly enabled text compaction and complete finite Local role
+> holds preserve originals, unknown charges and ordinary permissions.
+> Fixed-model controls and previous explicit selections remain independent.
+> Missing System One and Remote/native wind-down qualification stays blocked;
+> no source review, classifier advice or generated fixture is a quality,
+> independence, permission or whole-milestone guarantee.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

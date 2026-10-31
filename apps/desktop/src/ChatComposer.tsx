@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort } from "../../../packages/sdk/src/index.ts";
+import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -13,6 +13,7 @@ import { ModelSubmenu } from "./ModelSubmenu.tsx";
 import { InfoTip } from "./Tooltip.tsx";
 import { PolicyHint } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
+import { SchedulePromptDialog } from "./ScheduledPrompts.tsx";
 
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
@@ -54,8 +55,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const decisions = useDecisionStatus(client, session, snapshot, menu === "autonomy" || session.controls.autonomy === "Autopilot Max");
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const [contextReview, setContextReview] = useState(false);
+  const [scheduleReview, setScheduleReview] = useState<"ask" | "schedule" | null>(null);
   const [heldPending, setHeldPending] = useState(false);
   const [resuming, setResuming] = useState(false), resumePending = useRef(false);
+  const [retrying, setRetrying] = useState(false), retryPending = useRef(false);
   const [pendingTrigger, setPendingTrigger] = useState<ReturnType<typeof parseAttachmentTrigger>>(null);
   const triggerRef = useRef(pendingTrigger);
   const setTrigger = (value: typeof pendingTrigger) => { triggerRef.current = value; setPendingTrigger(value); };
@@ -107,9 +110,15 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const needsResume = !session.turnId && (snapshot.blockedSessions.includes(session.id) ||
     Boolean(session.workspaceId && snapshot.blockedWorkspaces.includes(session.workspaceId)) ||
     Boolean(session.projectId && !session.workspaceId && snapshot.blockedProjects.includes(session.projectId)));
-  const resumeAction = needsResume && !isSlash && !held && !heldPending;
+  const failedRequest = retryFailure(session, snapshot.modelFailures);
+  const retryAction = Boolean(failedRequest) && !isSlash && !held && !heldPending;
+  const recoveryCycle = snapshot.modelRecoveryCycle;
+  const nextRecoveryAt = failedRequest?.status === "pending" && recoveryCycle?.status === "active" && recoveryCycle.round < 4 ?
+    new Date(Date.parse(recoveryCycle.startedAt) + RECOVERY_DELAYS_MS[recoveryCycle.round]!) : null;
+  const resumeAction = needsResume && !retryAction && !isSlash && !held && !heldPending;
+  const canRetry = connected && !busy && !configuring && !retrying && !voiceActive;
   const canResume = connected && !busy && !configuring && !resuming && session.status !== "archived";
-  const canQueue = connected && !busy && !configuring && !resuming && !voiceActive && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
+  const canQueue = connected && !busy && !configuring && !resuming && !retrying && !voiceActive && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
   const canSend = answering ? canQueue && Boolean(draft.text.trim()) && Boolean(question?.allowFreeform || question?.choices.includes(draft.text)) :
     canQueue && snapshot.provider.status === "connected" && eligibleModel && !needsNativeStage && (session.controls.autonomy !== "Autopilot Max" || decisions.ready) &&
     snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && !documentBlocked && (delivery === "queue" || Boolean(session.turnId));
@@ -151,8 +160,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       input.current?.focus();
     });
   };
-  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || previewOpen || contextReview); return () => onMenuChange(false); }, [menu, attachmentReview, previewOpen, contextReview, onMenuChange]);
-  useEffect(() => { onPendingChange?.(configuring || heldPending || resuming); return () => onPendingChange?.(false); }, [configuring, heldPending, resuming, onPendingChange]);
+  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null); return () => onMenuChange(false); }, [menu, attachmentReview, previewOpen, contextReview, scheduleReview, onMenuChange]);
+  useEffect(() => { onPendingChange?.(configuring || heldPending || resuming || retrying); return () => onPendingChange?.(false); }, [configuring, heldPending, resuming, retrying, onPendingChange]);
   const adopt = async (saved: Session["draft"]) => {
     const text = editor.getState().text;
     editor.receive(saved);
@@ -201,7 +210,22 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const submit = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
-    if (heldPending || resumePending.current) return;
+    if (heldPending || resumePending.current || retryPending.current) return;
+    if (failedRequest && !isSlash && !hold) {
+      if (!canRetry) return;
+      retryPending.current = true; setRetrying(true);
+      void run(async () => {
+        try { await client.sessions.retry(session.id, failedRequest.id, failedRequest.revision); }
+        finally { retryPending.current = false; setRetrying(false); }
+      });
+      return;
+    }
+    if (hold && !session.turnId && !isSlash) {
+      if (!canQueue) return;
+      const choice = snapshot.settings.values.interactions.idleScheduleAction ?? "ask";
+      if (choice === "send") { submit(undefined, false); return; }
+      setScheduleReview(choice); return;
+    }
     if (needsResume && !isSlash && !hold) {
       if (!canResume) return;
       resumePending.current = true; setResuming(true);
@@ -262,7 +286,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
-  const sendLabel = isSlash ? "Run command" : held || heldPending ? "Queue prompt without starting work" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
+  const sendLabel = isSlash ? "Run command" : held || heldPending ? session.turnId ? "Queue prompt without starting work" : "Schedule prompt" : retryAction ? "Retry last model request" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className={`composer compact-composer ${dragging ? "session-drop-target" : ""}`} data-composer-session={session.id} onSubmit={(event) => submit(event)} onKeyDown={(event) => { if (event.key === "Escape") { setTrigger(null); setDismissedTrigger(draft.text); } }}
     onDragOver={(event) => { if (event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setDragging(true); } }}
@@ -277,7 +301,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         await attachSession(source.sessionId);
       });
     }}
-    aria-label="Message composer" aria-description={resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without resuming." : answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without starting work."}>
+    aria-label="Message composer" aria-description={retryAction ? "Enter retries the original failed model request without sending or clearing this draft. Earlier tools and hooks are not replayed." : resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without resuming." : answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter holds or schedules without starting work."}>
+    {failedRequest && <Alert as="p" className="composer-context-warning" role="status">{failedRequest.status === "exhausted" ? "Automatic recovery exhausted all four rounds. Retry remains an explicit action." :
+      failedRequest.status === "blocked" ? failedRequest.diagnostic : nextRecoveryAt ? `Automatic recovery round ${recoveryCycle!.round + 1} is scheduled for ${nextRecoveryAt.toLocaleTimeString()}. Retry now leaves that countdown unchanged unless the response succeeds.` : failedRequest.diagnostic} Your unsent draft and queued prompts are preserved.</Alert>}
     {documentCapture && <div className="document-capture"><p role="status">Extracting {documentCapture.name} locally. No model call; your draft is preserved.</p><progress aria-label="Local document extraction" /><button type="button" onClick={() => void client.attachments.cancelDocument(session.id, documentCapture.id).catch((error: unknown) => setDocumentError(error instanceof Error ? error.message : "Capture stop is unconfirmed. Inspect the saved draft."))}>Cancel extraction</button></div>}
     {documentError && <Alert as="p" className="inline-error" role="alert">{documentError}</Alert>}
     {configuring && <Alert as="p" className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</Alert>}
@@ -322,7 +348,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           const action = chatSubmission(event);
           if (!action) return;
           event.preventDefault();
-          if (isSlash || action === "hold" ? canQueue : needsResume ? canResume : canSend) submit(undefined, action === "hold");
+          if (isSlash || action === "hold" ? canQueue : retryAction ? canRetry : needsResume ? canResume : canSend) submit(undefined, action === "hold");
         }
       }} />
     {suggestions.length > 0 && <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
@@ -359,7 +385,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
             {policyBlocked && <PolicyHint label={`Why ${capability.env} is unavailable`} target="environments">Global execution policy excludes {capability.env}. Opening its setting does not widen policy, change this session's Env or restart work.</PolicyHint>}
           </div>;
         })}{session.repositories && <p>Captured groups support Local and reviewed managed Sandbox execution. Every workspace tool explicitly selects an original repository. There is no first/default or common-parent root, and SSH groups remain unqualified.</p>}<p>Remote transfers approved context to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. Sandbox uses a separately reviewed private stage and scoped model access, never a live source checkout. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Sandbox qualification</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Native workspace and results</button></>)}
-        <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
+        <ComposerPopover name="model" label="Model" description={model?.name ?? session.controls.modelId ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{model?.synthetic && session.controls.kupoMode ? ` · ${kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name}` : session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
           <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
@@ -382,7 +408,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           toggle={() => void dictate()} />
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
-            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || undefined} title={resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? "Queue without starting (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || (resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : resumeAction ? "Play" : "Send"} /></button>}
+            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || retrying || undefined} title={retryAction ? "Retry the exact failed model request. Earlier tools/hooks are not replayed; your new draft is not sent or cleared." : resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? session.turnId ? "Queue without starting (Cmd/Ctrl+Enter)" : "Schedule this idle prompt (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || retrying || (retryAction ? !canRetry : resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : retryAction ? "Refresh" : resumeAction ? "Play" : "Send"} /></button>}
           <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
             <h2>Delivery</h2>{(["queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}
             {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); submit(undefined, held); }}>{sendLabel}</button>}
@@ -394,6 +420,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     </div>
     {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => setAttachmentReview(null)} />}
     {contextReview && <ContextCompactionReview sdk={client} session={session} snapshot={snapshot} close={() => { setContextReview(false); document.getElementById(`prompt-${session.id}`)?.focus(); }} />}
+    {scheduleReview && <SchedulePromptDialog sdk={client} session={session} editor={editor} initial={scheduleReview} close={() => setScheduleReview(null)} />}
   </form>;
 }
 
@@ -440,7 +467,17 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const [effort, setEffort] = useState<ThinkingEffort | "">(session.controls.modelOptions?.thinkingEffort ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [submenu, setSubmenu] = useState<"models" | "effort" | "context" | null>(null);
+  const [submenu, setSubmenu] = useState<"models" | "effort" | "context" | "mode" | null>(null);
+  const [modeChoices, setModeChoices] = useState<KupoModeAvailability[]>([]), [modeError, setModeError] = useState("");
+  const modeScope = JSON.stringify([sdk.profileId, session.id, session.controls.env, session.controls.modelId, session.controls.kupoMode, snapshot.settings.revision, snapshot.policy.revision, snapshot.provider.models]);
+  useEffect(() => {
+    if (!current?.synthetic || snapshot.settings.values.kupo.workflow !== "auto") return;
+    let active = true;
+    setModeChoices([]); setModeError("");
+    void sdk.routing.modes(session.id).then(({ modes }) => { if (active) setModeChoices(modes); })
+      .catch((error: unknown) => { if (active) setModeError(error instanceof Error ? error.message : "Mode readiness could not be read. No option was guessed."); });
+    return () => { active = false; };
+  }, [sdk, modeScope]);
   const revision = useRef(session.revision);
   const windows = current && !current.synthetic ? modelContextWindows(current) : null;
   const staleWindow = Boolean(window && (!current || current.synthetic || !supportsModelContextWindow(current, Number(window))));
@@ -469,6 +506,12 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     catch (error) { const message = error instanceof Error ? error.message : "Model settings were not saved."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
+  const chooseMode = async (mode: KupoMode) => {
+    setSaving(true); onSaving(true); setError(""); onError("");
+    try { const result = await sdk.sessions.kupoMode(session.id, mode, revision.current); revision.current = result.revision!; setSubmenu(null); }
+    catch (error) { const message = error instanceof Error ? error.message : "The original Kupo mode was not saved. No model or effort was substituted."; setError(message); onError(message); }
+    finally { setSaving(false); onSaving(false); }
+  };
   const locked = saving || pending || Boolean(session.turnId);
   const effortChoices: Array<ThinkingEffort | ""> = ["", ...current?.thinkingLevels ?? []];
   return <>{snapshot.provider.status !== "connected" && <><p>Connect GitHub Copilot or configure a local model to use Kupo.</p><button type="button" onClick={onConnect}>Connect Copilot</button></>}
@@ -490,12 +533,24 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       </div>;
     })}</div>
     </ModelSubmenu>
-    <ModelSubmenu label="Thinking effort" text="Effort" value={current?.synthetic ? "Managed by Kupo" : current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
+    {current?.synthetic ? <ModelSubmenu label="Kupo mode" text="Mode" value={snapshot.settings.values.kupo.workflow !== "auto" ? "Retained explicit policy" : session.controls.kupoMode ? kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name : "Legacy / choose a mode"}
+      open={submenu === "mode"} disabled={locked || snapshot.settings.values.kupo.workflow !== "auto"} toggle={() => setSubmenu(submenu === "mode" ? null : "mode")} close={() => setSubmenu(null)}>
+      {!modeChoices.length && !modeError && <p role="status">Reading shared mode readiness...</p>}
+      {kupoModes.map((mode) => {
+        const choice = modeChoices.find((choice) => choice.mode === mode.id), unavailable = !choice?.available;
+        return <div key={mode.id} className="model-choice-row"><button type="button" role="menuitemradio" className="composer-menu-option"
+          aria-label={mode.name} aria-description={mode.description} aria-checked={session.controls.kupoMode === mode.id} aria-disabled={unavailable}
+          onClick={() => { if (!unavailable) void chooseMode(mode.id); }}><span>{mode.name}<small>{mode.description}</small></span>{session.controls.kupoMode === mode.id && <Icon name="Check" />}</button>
+          <InfoTip label={`About ${mode.name} readiness`}>{choice?.reason ?? (modeError || "Readiness is not yet known. No model was admitted.")}</InfoTip></div>;
+      })}
+      <p className="fine-print">Effort is selected per actual model. Context uses its genuine maximum. Source reviews do not grant permissions or prove quality. Autonomous compaction, finite automatic wind-down and missing System One transports stay unavailable.</p>
+      {modeError && <Alert as="p" className="inline-error" role="alert">{modeError}</Alert>}
+    </ModelSubmenu> : <ModelSubmenu label="Thinking effort" text="Effort" value={current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
       open={submenu === "effort"} disabled={locked || !current?.thinkingLevels?.length && !staleEffort} toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
       {effortChoices.map((value) => <button key={value} type="button" role="menuitemradio" aria-checked={effort === value}
         onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
-    </ModelSubmenu>
+    </ModelSubmenu>}
     {session.controls.preferredThinkingEffort !== undefined && <p className="fine-print" role="status">
       {effortLabel(session.controls.preferredThinkingEffort)} preference retained. {current?.synthetic ? "Kupo manages each role's effort." :
         !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :

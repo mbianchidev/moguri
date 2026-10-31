@@ -27,6 +27,7 @@ import { ReorderList } from "./ReorderList.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
 import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
+import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -617,7 +618,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
             <option value="">All projects</option>{globalSessionId && !globalSession && <option value={globalSessionId} disabled>Source chat removed; choose a current scope</option>}{snapshot.sessions.filter((session) => session.status !== "archived" && session.kind !== "subagent").map((session) => <option key={session.id} value={session.id}>{title(session)}</option>)}
           </select></label>}
         </header>
-        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <div className="panel-empty"><Icon name="Clock" /><h2>No automations yet</h2><p>This space is reserved for automations. Nothing is scheduled here.</p></div> :
+        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} /> :
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
         </div>
       </section> : <>
@@ -791,6 +792,7 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
       {entries.filter((entry) => entry.turnId === null).map((entry) => <ActivityRow sdk={client} entry={entry} version={activity.activity?.sequence ?? 0} key={entry.id} />)}
       {!activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === null)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
     </section>}
+    <GhostPrompts sdk={client} session={session} snapshot={snapshot} run={run} />
   </div>
   </div>{navigation.length > 0 && <ConversationNavigation entries={navigation} viewport={scroll} renderedFrom={start} label={navigationLabel} onNavigate={(entry) => {
     follow.current = false; setHistoryStart(Math.min(start, entry.messageIndex));
