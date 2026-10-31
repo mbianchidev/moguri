@@ -1,6 +1,12 @@
 # First-milestone gap handoff
 
-Current issue-17 source continuation: model windows/scoped paste, native
+Current protocol85 continuation and its remaining implementation/user-review/
+upstream gates are in [owned model transports](architecture/owned-model-transports.md).
+That selected-boundary scheduling/decision/finishing slice does not close
+automatic native rollback restaging, Jev or Remote/native accepted-work Git.
+The historical handoff and starting-point estimate below remain original.
+
+Historical issue-17 source continuation: model windows/scoped paste, native
 0.2.3 service/client lifecycle, reviewed Local Cascade/Critique, finite Local
 wind-down/accepted-work checkpoints and
 [bounded Local Max](architecture/owned-decisions.md) now have executable shared

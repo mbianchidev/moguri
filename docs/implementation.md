@@ -226,6 +226,17 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > no source review, classifier advice or generated fixture is a quality,
 > independence, permission or whole-milestone guarantee.
 
+> Protocol85 adds [owned model transports](architecture/owned-model-transports.md)
+> to the same draft/source authority. Idle native scheduling can prepare complete
+> owned source model-free before ghost admission under the existing explicit
+> managed policy. Bounded-model technical/steering decisions and finite metadata
+> finishing execute inside the actual selected SSH/native parent, with exact
+> role/transport receipts, holds, cancellation and terminal late-data recovery.
+> They cannot replay effects, transfer roots, grant source acceptance or adopt
+> Local Git. Jev's unavailable output/accounting wire, the held native rollback
+> restaging policy and Remote/native accepted-work checkpoint integration remain
+> separate gates; none is counted as completed by a version or generated test.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.

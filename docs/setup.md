@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **84**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **85**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -50,8 +50,14 @@ CLI: `moguri scheduled list`, `moguri scheduled create TIMING.json --session ID`
 `moguri scheduled send-now ID` and `moguri scheduled cancel ID`. Creation consumes
 only the exact existing saved draft, not a file of replacement prompt text.
 Active-turn Queue/Steer/Interrupt and ordinary held slash commands are unchanged.
-Sandbox scheduling requires the existing exact reviewed private workspace.
-An unprepared native root is a visible setup gate, never a base-checkout fallback.
+An idle unprepared Sandbox session can capture its complete owned private source
+under the existing explicitly enabled managed all-root policy before creating
+the ghost. This preparation is model-free: original command/draft/scope intent
+precedes copy, and no model turn or history is created. Stop, changed scope/draft
+or failed preparation preserves input without admitting a ghost. Verified ready
+stages may be reused; failed/rolled-back stages cannot be restored or transferred
+by scheduling. Disabled managed preparation remains a visible setup gate, never
+a base-checkout fallback.
 
 ## Kupo modes, evidence and context
 
@@ -91,19 +97,48 @@ admitted documents through `list_documents`, and original operations through
 actor, model and retained summary, and can restore original history without
 replaying work or resetting charges.
 
-Finite automatic **Local** work requires the existing enabled, bounded
+Finite automatic **Local, SSH and native** work requires the existing enabled, bounded
 wind-down model and complete role reservations. Every prospective role and
 escaped-result input is held atomically before the first proposal; transfers
 bind actual model starts. Only undispatched holds release after their owner
 ends. Unknown calls remain held, and stricter policy still wins.
-Remote/native finite wind-down and unqualified System One/Max transports remain
-blocked, not moved to the Local controller. Sandbox must use the current exact
+SSH/native metadata finishing runs on the original selected-boundary parent,
+never a controller model. It is not task completion, source acceptance or an
+automatic Git checkpoint. Remote/native accepted-work Git integration remains
+unimplemented; Local helpers cannot adopt those reports or roots.
+Sandbox must use the current exact
 worker/distribution qualification, not historical bytes or installed SendBox
 0.2.3. No personal model inference or sign-in is used to qualify this slice.
 
 Protocol84 appends independent recovery, scheduling and Kupo-mode markers while
 preserving genuine combined80/81/82/83 history, ciphertext and receipts.
-See the [full contract and source evidence](architecture/recovery-scheduling-kupo.md).
+Protocol85 transactionally adds `scheduled_native_preparation_schema`,
+`owned_model_transport_schema` and `transport_finishing_schema` from genuine84,
+without rewriting the original delivered `d6aeae4` installer or its evidence.
+See the [original recovery contract](architecture/recovery-scheduling-kupo.md)
+and [owned transport continuation](architecture/owned-model-transports.md).
+
+## Selected-boundary bounded decisions
+
+Configure **Settings / Decision providers** with an explicit `bounded-model`
+and a genuinely available model at the session's Env, positive complete output
+bound, deadline and separate technical/steering delegation. Fixed models and
+Kupo share the same actual parent, actor and all-role ledger. SSH/native private
+calls run tool-less inside that original pinned worker/guest; they are not
+rootless OS processes, a second executor or a Local fallback.
+
+**Artifacts / Decision-provider observations** shows the real Env, execution,
+model step and `owned-role-acknowledged` cleanup. That proves only private-role
+release, not parent/guest exit. Stop cancels only that private call; the original
+question still needs its real answer. Missing terminal release may require
+stopping the known parent and stays unconfirmed rather than answering.
+Restart and explicit inspection can reconcile exact late raw results/charges
+without changing terminal work, cleanup, source acceptance or human answers.
+Unknown usage remains held; failed source writes never create a success receipt.
+
+Jev/System One still has no enforceable upstream output-token/accounting
+contract. Selecting Jev preserves that explicit unavailable reason; it does not
+select this bounded generative alternative, install a provider or lift a cap.
 
 ## Work-item comments and repository scripts
 
