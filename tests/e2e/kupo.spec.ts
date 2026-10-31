@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { reviewNativeTools, setupFixture } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { openModelChoices, openSettingsSection } from "./navigation.ts";
+import { defaultKupoSettings } from "../../packages/sdk/src/index.ts";
+import { generatedKupoProfile } from "../fixtures/kupo-profiles.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -74,6 +76,10 @@ test("Kupo defaults to automatic configured-model routing and runs Single from t
 test("ordinary desktop Kupo selects Cascade and still waits for the exact human tool approval", async () => {
   const fixture = await routedFixture({ configured: false });
   await reviewNativeTools(fixture, ["read_file"]);
+  await fixture.sdk.refresh();
+  const draft = await generatedKupoProfile(fixture.sdk, fixture.solverId, { category: "economy", score: 0.3, price: 0 });
+  const gate = await generatedKupoProfile(fixture.sdk, fixture.modelId, { category: "frontier", score: 0.8, price: 5 });
+  await fixture.sdk.routing.configure({ ...defaultKupoSettings(), modelProfiles: [draft, gate] }, fixture.sdk.settings.get()!.revision);
   fixture.options.respond = (_request, index) => ({ text: JSON.stringify(index === 1 ?
     { pattern: "cascade", modelId: fixture.solverId, escalationId: fixture.modelId, complexity: "moderate", confidence: 0.95, reason: "Generated desktop automatic route." } :
     { verdict: "pass", reason: "Generated desktop gate, not permission." }) });

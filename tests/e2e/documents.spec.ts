@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { generatedDocx, generatedPdf, generatedXlsx } from "../fixtures/documents.ts";
+import { finishIdleSchedule } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop attachment workflows are qualified on macOS.");
@@ -45,8 +46,9 @@ test("native document selection, format chips and bounded previews work for PDF,
       await expect(prompt).toHaveValue("Generated complete unsent document task.");
     }
     await prompt.press("Meta+Enter");
-    await expect.poll(() => fixture.session().queue[0]?.attachments.filter((attachment) => attachment.kind === "document").length).toBe(3);
-    expect(fixture.session().queue[0]?.held).toBe(true); expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
+    await finishIdleSchedule(page);
+    await expect.poll(() => fixture.service.controller.snapshot().scheduledPrompts[0]?.attachments.filter((attachment) => attachment.kind === "document").length).toBe(3);
+    expect(fixture.service.controller.snapshot().scheduledPrompts[0]?.status).toBe("scheduled"); expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
   } finally { await app.close(); await fixture.close(); }
 });

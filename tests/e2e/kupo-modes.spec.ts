@@ -31,7 +31,9 @@ test("Kupo offers three real modes instead of effort, keeps unsupported Performa
     await modes.getByRole("menuitemradio", { name: "Savings", exact: true }).click();
     await expect.poll(() => fixture.session().controls.kupoMode).toBe("savings");
     await expect(prompt).toHaveValue("Generated draft preserved across Kupo mode choices.");
-    await page.keyboard.press("Escape"); await prompt.press("Enter");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+    await prompt.press("Enter");
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests).toHaveLength(0); expect(fixture.solver.requests).toHaveLength(1);
     expect(fixture.session().usage[0]?.totalTokens).toBe(42);

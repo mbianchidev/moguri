@@ -4,9 +4,9 @@ import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { setupFixture } from "../fixture.ts";
+import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
-import { openModelChoices } from "./navigation.ts";
+import { finishIdleSchedule, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const artifacts = resolve(".moguri/artifacts");
@@ -21,6 +21,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
   await generatedRepository(fixture.project);
   await writeFile(join(fixture.project, "fixture.txt"), "Generated local diff.\n");
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure(); await fixture.send("generated slow existing desktop queue owner"); await waitFor(() => fixture.requests.length === 1);
   const app = await launch(join(fixture.directory, "state"));
   const longName = "Generated long session name covering bounded titles and compact navigation ".repeat(2).trim();
   try {
@@ -47,7 +48,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await hold("Generated second held prompt", "Control");
     await expect.poll(() => fixture.session().queue.length).toBe(2);
     expect(fixture.session().queue.every((item) => item.held)).toBe(true);
-    expect(fixture.requests.length).toBe(0);
+    expect(fixture.requests.length).toBe(1);
     await page.getByRole("button", { name: "Edit queued message 1", exact: true }).click();
     await page.getByLabel("Edit queued message", { exact: true }).fill("Generated edited held prompt");
     await page.getByRole("region", { name: "Message queue" }).getByRole("button", { name: "Save", exact: true }).click();
@@ -59,6 +60,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: "Copy queued message 1", exact: true }).click();
     await page.getByRole("button", { name: "Remove queued message 2", exact: true }).click();
     await expect.poll(() => fixture.session().queue.length).toBe(1);
+    await sdk.command({ type: "session.stop", sessionId: fixture.sessionId }); await fixture.terminal();
     await slash("/read-only");
     await expect.poll(() => fixture.session().mode).toBe("read-only");
     await slash(`/rename ${longName}`);
@@ -70,9 +72,9 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Run queued message 1", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
-    expect(fixture.requests.length).toBe(1);
+    expect(fixture.requests.length).toBe(2);
     await page.locator(".message.user").last().hover();
-    await page.getByRole("button", { name: /^Copy sent prompt / }).click();
+    await page.locator(".message.user").last().getByRole("button", { name: /^Copy sent prompt / }).click();
     await slash("/agent");
     await expect.poll(() => fixture.session().mode).toBe("agent");
     await page.getByRole("button", { name: "Plan", exact: true }).click();
@@ -101,7 +103,9 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     expect(side.parentSessionId).toBe(child.id); expect(side.mode).toBe("read-only");
     expect(side.pendingApproval).toBeNull();
     await sideQuestion.fill("Generated held side question"); await sideQuestion.press("Meta+Enter");
-    await expect.poll(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === side.id)?.queue[0]?.held).toBe(true);
+    await finishIdleSchedule(page);
+    await expect.poll(() => fixture.service.controller.snapshot().scheduledPrompts.find((prompt) => prompt.sessionId === side.id)?.status).toBe("scheduled");
+    await expect(sidePanel.getByRole("article", { name: "Unsent scheduled prompt", exact: true })).toContainText("Generated held side question");
     await page.getByRole("button", { name: "Terminal", exact: true }).click();
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(input).toBeAttached();

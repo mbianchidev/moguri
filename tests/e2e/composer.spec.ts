@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { chooseContextWindow, chooseThinkingEffort, openModelChoices } from "./navigation.ts";
+import { chooseContextWindow, chooseThinkingEffort, finishIdleSchedule, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer execution is qualified on macOS.");
@@ -159,10 +159,11 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     await expect(page.locator(".composer-controls")).toHaveCount(0);
     await prompt.fill("Generated modifier-held prompt.");
     await page.keyboard.down("Meta");
-    const queue = composer.getByRole("button", { name: "Queue prompt without starting work", exact: true });
+    const queue = composer.getByRole("button", { name: "Schedule prompt", exact: true });
     await expect(queue.locator("svg")).toHaveAttribute("data-icon", "Clock");
     await queue.click(); await page.keyboard.up("Meta");
-    await expect.poll(() => fixture.session().queue[0]?.held).toBe(true);
+    await finishIdleSchedule(page);
+    await expect.poll(() => fixture.service.controller.snapshot().scheduledPrompts[0]?.status).toBe("scheduled");
     expect(fixture.requests.length).toBe(0);
     await expect(send().locator("svg")).toHaveAttribute("data-icon", "Send");
     await page.keyboard.down("Meta");

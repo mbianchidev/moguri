@@ -1,4 +1,4 @@
-import { openSettingsSection } from "./navigation.ts";
+import { finishIdleSchedule, openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -53,8 +53,9 @@ test("Enter sends, Shift+Enter inserts a line, composition never submits, and mo
     const transcript = await page.getByRole("log", { name: "Session transcript", exact: true }).boundingBox(), text = await message.boundingBox();
     expect(text!.width).toBeGreaterThan(transcript!.width * 0.85);
     await prompt.fill("Generated held prompt"); await prompt.press("Control+Enter");
-    await expect.poll(() => fixture.session().queue.at(-1)?.held).toBe(true);
-    expect(fixture.session().queue.at(-1)?.text).toBe("Generated held prompt");
+    await finishIdleSchedule(page);
+    await expect.poll(() => sdk.scheduledPrompts.list(fixture.sessionId)[0]?.status).toBe("scheduled");
+    expect(sdk.scheduledPrompts.list(fixture.sessionId)[0]?.text).toBe("Generated held prompt");
     await expect(prompt).toHaveValue("");
     expect(fixture.requests.length).toBe(1);
 

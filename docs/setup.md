@@ -26,6 +26,10 @@ Earlier tools, hooks, Git, installs and publications are not rerun. Existing
 unknown charges stay held and each retry gets a new actual-call reservation.
 Stop cancels automatic recovery. Root/policy/model/authorization changes
 require new reviewed intent, not an account, provider, model or Env fallback.
+Local and pinned SSH continuation are qualified. Native failures that roll back
+the private workspace stay **blocked for inspection/preparation**; automatic
+native root-transfer continuation is not implemented. Retry cannot acknowledge
+that source review or create a different stage on the user's behalf.
 
 Use **Cmd/Ctrl+Enter** on an ordinary idle prompt to schedule it. Moguri first
 asks whether to send now; **Don't ask me again** remembers the selected action
@@ -46,6 +50,8 @@ CLI: `moguri scheduled list`, `moguri scheduled create TIMING.json --session ID`
 `moguri scheduled send-now ID` and `moguri scheduled cancel ID`. Creation consumes
 only the exact existing saved draft, not a file of replacement prompt text.
 Active-turn Queue/Steer/Interrupt and ordinary held slash commands are unchanged.
+Sandbox scheduling requires the existing exact reviewed private workspace.
+An unprepared native root is a visible setup gate, never a base-checkout fallback.
 
 ## Kupo modes, evidence and context
 
