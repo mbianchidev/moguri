@@ -15,7 +15,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
   const record = records.find((record) => record.id === selectedId) ?? (!selectedId ? records.find((record) => record.sessionId === session?.id) : undefined);
   const value = record && read?.winddown.id === record.id && read.winddown.revision === record.revision ? read : null;
   const ownSource = session && record && session.id === record.sessionId && session.projectId === record.projectId && session.workspaceId === record.workspaceId &&
-    session.controls.env === "Local" && session.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" &&
+    record.env === "Local" && session.controls.env === "Local" && session.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" &&
     !session.turnId && snapshot.policy.allowedEnvs.includes("Local");
   const candidates = snapshot.candidates.filter((candidate) => candidate.status === "applied" && candidate.acceptance?.actor === "user" &&
     candidate.projectId === record?.projectId && candidate.source.workspaceId === record?.workspaceId && candidate.source.root === record?.source?.root);
@@ -53,13 +53,17 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
       {!records.length && <option value="">No retained finishing envelopes</option>}{records.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id} / {record.status}</option>)}</select></label>
     {value && <>
       <h3 ref={outcome} tabIndex={-1}>Checkpoint {value.winddown.status}</h3>
-      <p className="fine-print">Actual finishing model: {value.winddown.step.modelId}. Observation: {value.winddown.step.state}. Original turn: {value.winddown.turnId}.</p>
+      <p className="fine-print">Actual finishing model: {value.winddown.step.modelId}. Env: {value.winddown.env}. Observation: {value.winddown.step.state}. Original turn: {value.winddown.turnId}.</p>
+      {value.winddown.version === 2 && value.winddown.transport && <p className="fine-print path">Original owned execution: {value.winddown.transport.executionId}<br />Worker: {value.winddown.transport.workerDigest}</p>}
       {value.winddown.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.winddown.diagnostic}</Alert>}
       <details><summary>Original metadata-only model input/result</summary>{value.roleInput && <pre>{value.roleInput}</pre>}{value.result && <pre>{value.result}</pre>}<p className="fine-print">Untrusted model data, not a user answer, validation proof or Git authority.</p></details>
       {["held", "running", "committing"].includes(value.winddown.status) && <button disabled={Boolean(busy)} onClick={() => void run("Stopping the original checkpoint owner", async () => { await sdk.winddown.stop(value.winddown.id); })} aria-label="Stop this checkpoint owner">Stop</button>}
       {value.winddown.commit && <><p className="fine-print path">Actual user Git intent: {value.winddown.commit.branch} / base {value.winddown.commit.base}<br />Prepared: {value.winddown.commit.preparedCommit ?? "not recorded"}<br />Published: {value.winddown.commit.publishedCommit ?? "not acknowledged"}</p>
         <p className="fine-print">Publication attempted: {String(value.winddown.commit.publicationAttempted)}. Cancel requested: {String(value.winddown.commit.cancelRequested)}. A partial job is never replayed or rolled back.</p></>}
-      {value.winddown.status === "ready" && <>
+      {value.winddown.status === "ready" && value.winddown.env !== "Local" && <Alert as="p" className="fine-print" role="status">
+        Finishing metadata came from the original {value.winddown.env} worker. It is not task completion, source acceptance or Git authority. Local checkpoint helpers cannot publish a different root.
+      </Alert>}
+      {value.winddown.status === "ready" && value.winddown.env === "Local" && <>
         {!ownSource && <Alert as="p" tone="warning" className="settings-warning">Choose the exact original restored Local source agent after owned work ends. A deleted/moved/project-free source cannot inherit another checkout.</Alert>}
         <SettingsHelp label="More about this setting" target={<h4>Accepted candidates</h4>}>Select retained actual-user applied candidates, never a merely staged or model/critic-approved proposal. No new project tests or code-quality proof is implied by this commit.</SettingsHelp>
         {candidates.map((candidate) => <label className="check-setting" key={candidate.id}><SettingsInput type="checkbox" aria-label={`Include accepted checkpoint candidate ${candidate.id}`} checked={candidateIds.includes(candidate.id)} disabled={Boolean(busy) || !ownSource}
