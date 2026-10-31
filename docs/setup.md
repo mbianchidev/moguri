@@ -5,7 +5,54 @@ history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
+## Work-item comments and repository scripts
+
+Built-in GitHub/Linear work-item reads, previews, imports and local cards strip
+hidden Markdown/HTML comments, including `<!-- ... -->`, `<--- ... -->` and
+unterminated blocks. Existing original events/snapshots remain retained;
+derived views disclose their own digest when different. Visible text is still
+untrusted and cannot grant tools or override policy.
+
+Before curl/wget or running a repository script, the agent must inspect its
+**entire exact source** with `review_script`, from a permitted Local file/Home
+or an explicit public HTTPS raw URL. Public source reads need normal website
+approval. The agent reports encoded/obfuscated payloads, unexpected API calls
+and other unsafe/uncertain behavior before requesting execution. Only a source
+assessed safe can request `run_script` under the normal tool policy.
+
+An unsafe assessment reports findings **without asking to execute**. In the
+conversation's **Repository script reviews**, choose **Read full source and
+review**. Only an explicit acknowledgement followed by **Force unsafe script
+under normal policy** overrides that advisory. Manual/Guided execution approval
+is still required, and hard denials/read-only/root/source checks cannot be
+overridden. Agent assessments are not safety guarantees. Each review has at
+most one original execution attempt, with no automatic replay.
+
+CLI/TUI: `/script-review list`, `/script-review read ID`, or the explicit
+`/script-review force ID REVIEW_REV SHA SESSION_REV confirm-unsafe`.
+CLI also supports `moguri script-review ... --session ID`. Inspect the returned
+job/approval for its actual outcome. Private or oversized sources are blocked,
+not truncated. Script execution is non-interactive Local only, using the exact
+reviewed bytes rather than a second download; Remote/Sandbox do not fall back.
+This does not isolate arbitrary approved shells, package-manager tasks,
+transitive scripts or external MCP services. See the
+[content-review contract](architecture/content-review.md).
+
+Protocol 83 migrates existing state without deleting it. Explicitly restart
+an older service to load matching clients/workers. Old native worker
+qualification does not establish that new bytes are installed.
+
 ## Reliable session controls and built-in Git
+
+Native file tools normalize requested paths and configured permission prefixes
+before matching. Hard denials/reviews cannot be skipped with `./`, internal
+`..`, repeated separators or macOS case/Unicode aliases. Protected credential,
+control-state and Git filenames stay protected in every case. Parent-directory
+symlinks are refused too: select the real relative project path. Explicit allow
+rules do not broaden through case folding, and file writes still require their
+original base digest. See [file-access boundaries](architecture/file-access.md).
+Restart an already running service to load a repaired build; stored state and
+unknown accounting must not be deleted to upgrade.
 
 Select **Autonomy / Autopilot** or run `/autonomy Autopilot` once to enable
 automatic tool approvals for subsequent turns. Reselecting an older bounded
@@ -367,12 +414,15 @@ authentication remains explicit. After installing a build containing this fix,
 quit and reopen Moguri so its original background service restarts with the
 corrected environment; existing healthy services are not silently replaced.
 
-**Settings / General / Private GitHub updates / Create a token with the right
-permissions** supplies a prefilled fine-grained-token link and exact steps:
+**Settings / General / Private GitHub updates / Set up read-only update access**
+opens a prefilled fine-grained-token link only when clicked. **Create a token
+with the right permissions** contains the complete steps:
 resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
-Read-only**, included Metadata read access, and a short expiration. You must
-select the repository and finish authorization yourself. The updater needs no
-write, Workflows, Actions or administration permissions. Paste the token only
+Read-only**, included Metadata read access, and a short expiration. GitHub's
+supported URL parameters cannot preselect the repository: explicitly choose
+**Only select repositories / moguri** and finish authorization yourself. The
+update source stays `mbianchidev/moguri`, not the project currently being viewed.
+The updater needs no write, Workflows, Actions or administration permissions. Paste the token only
 into **Private release PAT**, never chat. `/updates token-help` exposes the same
 guidance in TUI/CLI. See the [workflow contract](architecture/session-github-workflows.md).
 
@@ -442,11 +492,19 @@ actual-user decision. `/suggestions` defaults to the current project's scope;
 `/suggestions session` preserves the explicit alias and `/suggestions all`
 requests the wider review.
 
-**Dashboard** has My work, Usage, Cost and Velocity pages with charts first,
-project/model breakdowns and detailed accounting behind a disclosure. The
+**Dashboard** has My work, Usage, Cost and Velocity pages, project/model
+breakdowns and detailed accounting behind a disclosure. **My work / Active
+sessions** puts current running, waiting and stopping sessions first, with
+questions/approvals ahead of other work. Each session shows its actual project
+or project-free scope and Env. Click or keyboard-activate a session to open that
+exact conversation, preserving saved drafts without sending held prompts,
+answering questions or resuming work. Held queues alone are not active sessions.
+Connection loss explicitly marks activity last-observed and disables these
+navigation controls; missing data is not an empty activity list. The
 initial window is seven UTC days, with 30/60/90-day presets and custom inclusive
-dates initialized to the trailing year. My work includes current open sessions
-even when older than the selected range. Velocity reports observed completed
+dates initialized to the trailing year. The project filter applies to current
+activity, but its date range never hides active sessions. My work includes
+current open sessions even when older than the selected range. Velocity reports observed completed
 agent turns, timing and user interventions against the previous equal window,
 not invented time savings or a proven productivity increase. Unknown tokens,
 unpriced calls and invoices stay distinct. CLI/TUI share
@@ -795,6 +853,14 @@ management; **Models > Providers** owns Copilot sign-in, separate from repositor
 integration. SendBox configuration is under **Execution & permissions**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
+**Per-project configuration / Project** also has a dropdown of the active
+profile's registered projects, using exact names and paths. It changes only the
+configuration target, not the current session or its captured root. Empty
+profiles select nothing. Removed targets stay explicitly unavailable, with
+pending edits preserved read-only; **Discard unavailable project edit** releases
+that edit before choosing a different project. Concurrent saves still require
+the committed revision. Settings search has no Copy value control; ordinary
+non-secret settings fields retain theirs.
 The category list and selected settings page scroll independently, including
 long provider lists. Reaching either scroll boundary keeps the app frame and
 Settings toolbar in place. Keyboard focus can still reach controls at the bottom.
@@ -806,7 +872,11 @@ parents. Project chevrons fold sessions without moving or archiving them.
 A project's settings button remains separate from its collapse button.
 
 The project group's **More** menu offers seven icon colors, a custom color
-picker and **Ungroup**. Ungroup returns its projects to the ordinary list,
+picker, **Expand all projects**, **Collapse all projects** and **Ungroup**.
+Expand/collapse affects only that group's member projects (attached folders),
+preserving unrelated groups, drafts and session ownership. Expanding also opens
+the selected outer group; it does not change paging or persisted project data.
+Ungroup returns its projects to the ordinary list,
 preserving files and existing captured-root chats; those chats remain reachable
 under Chats. Stale membership is refused instead of moving a subset.
 Copy icons briefly show a check only after the actual clipboard write succeeds.

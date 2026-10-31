@@ -41,8 +41,9 @@ import { Alert } from "./Alert.tsx";
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences";
-export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
+export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
+  configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
   prepareMaintenance: () => Promise<void>;
   policyFocus?: PolicyFocusRequest | null;
@@ -69,6 +70,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   const [raw, setRaw] = useState<Record<string, string>>({});
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(draft) !== JSON.stringify(committed);
   const [projectDirty, setProjectDirty] = useState(false);
+  const configurationSelect = useRef<HTMLSelectElement>(null);
+  const registeredConfigurationProject = snapshot.projects.find((value) => value.id === configurationProjectId);
+  const retainedConfigurationProject = useRef<{ sdk: MoguriSdk; id: string | null; project?: Project }>({ sdk, id: configurationProjectId });
+  if (retainedConfigurationProject.current.sdk !== sdk || retainedConfigurationProject.current.id !== configurationProjectId) {
+    retainedConfigurationProject.current = { sdk, id: configurationProjectId };
+  }
+  if (registeredConfigurationProject) retainedConfigurationProject.current.project = registeredConfigurationProject;
+  const configurationProject = registeredConfigurationProject ?? retainedConfigurationProject.current.project;
+  const [discardedConfigurationProject, setDiscardedConfigurationProject] = useState<string | null>(null);
   const [resourceDirty, setResourceDirty] = useState(false), [resourceSessionId, setResourceSessionId] = useState(session?.id ?? "");
   const resourceSession = snapshot.sessions.find((value) => value.id === resourceSessionId);
   const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
@@ -309,7 +319,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
   return <SettingsFieldsProvider><section className="settings-page" aria-label="Moguri settings">
     <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" disabled={saving || sandboxBusy || lineageBusy} onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
     <div className="settings-layout" data-settings-tab={tab}><nav aria-label="Settings categories">
-      <label className="settings-search"><span className="sr-only">Search settings</span><SettingsInput type="search" aria-label="Search settings" placeholder="Search settings" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <label className="settings-search"><span className="sr-only">Search settings</span><input type="search" aria-label="Search settings" placeholder="Search settings" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
       <span className="sr-only" role="status">{search.trim() ? `${groups.reduce((sum, group) => sum + group.items.length, 0)} settings sections found` : ""}</span>
       {groups.map((group) => <section className="settings-category" key={group.label} aria-label={`${group.label} settings`}><h2>{group.label}</h2>{group.items.map((item) => <button key={item.id} disabled={saving || sandboxBusy || lineageBusy} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => { if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; } setTab(item.id); setOutput(""); setInput(""); }}>{item.label}</button>)}</section>)}
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
@@ -550,7 +560,26 @@ export function SettingsPanel({ sdk, snapshot, session, project, initialTab = "g
             <button type="button" className="primary" aria-label={`Save ${label}`} disabled={saving || (draft.guidance?.[key] ?? "") === (committed.guidance?.[key] ?? "")} onClick={() => saveGuidance(key)}>Save</button>
           </div>)}</section>)}</>}
         {tab === "notifications" && <NotificationSettings sdk={sdk} snapshot={snapshot} values={draft.notifications} disabled={saving} onChange={(patch) => automatic("notifications", patch)} onBusy={setSoundsBusy} onError={setError} onOutput={setOutput} />}
-        {tab === "project" && (project ? <ProjectSettingsPanel key={project.id} sdk={sdk} project={project} session={session?.projectId === project.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} openSession={openSession} /> : <p>Open a project to configure it.</p>)}
+        {tab === "project" && <>
+          <SettingsHelp label="About configuration projects" target={<label className="setting-field">Project<select ref={configurationSelect} aria-label="Configuration project"
+            value={configurationProjectId ?? ""} disabled={dirty || saving || nestedDirty || !snapshot.projects.length} onChange={(event) => {
+              const state = sdk.getState(), id = event.target.value;
+              if (dirty || nestedDirty || state.status !== "connected" || state.snapshot?.profileId !== snapshot.profileId || !state.snapshot.projects.some((value) => value.id === id)) {
+                setError("Choose an available project in this connected profile after saving or discarding edits. No replacement project was selected."); return;
+              }
+              setDiscardedConfigurationProject(null); selectConfigurationProject(id);
+            }}>
+            <option value="" disabled>Choose a project</option>
+            {snapshot.projects.map((value) => <option key={value.id} value={value.id}>{value.name} ({value.path})</option>)}
+            {configurationProjectId && !registeredConfigurationProject && <option value={configurationProjectId} disabled>Unavailable project ({configurationProject?.name ?? configurationProjectId})</option>}
+          </select></label>}>Only registered projects in this profile. Choosing a configuration target never moves running work or changes a session's captured folder.</SettingsHelp>
+          {configurationProjectId && !registeredConfigurationProject && <Alert as="p" tone="warning" role="alert">This project is no longer available in this profile; no replacement was selected. Pending edits remain read-only until you explicitly discard them.</Alert>}
+          {configurationProject && (registeredConfigurationProject || discardedConfigurationProject !== configurationProjectId) ?
+            <ProjectSettingsPanel key={configurationProject.id} sdk={sdk} project={configurationProject} available={Boolean(registeredConfigurationProject)}
+              discardUnavailable={() => { setDiscardedConfigurationProject(configurationProjectId); setProjectDirty(false); queueMicrotask(() => configurationSelect.current?.focus()); }}
+              session={session?.projectId === configurationProject.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} openSession={openSession} /> :
+            !configurationProjectId && <p>{snapshot.projects.length ? "Choose a registered project to configure." : "No registered projects in this profile."}</p>}
+        </>}
         {tab === "retention" && <><SettingsHelp label="More about this setting" target={<h2>Archived-session retention</h2>}>Off by default. Permanent session deletion, including archived-session expiry, also deletes every originating candidate and generation proposal, including their proposal records and retention grants. Archiving alone preserves candidates. Ordinary artifacts, applied code, worktrees and external PRs survive. Usage and required accounting remain.<br /><br />Fresh authoritative verification that the exact linked repository/PR merged also deletes its associated candidates, including archived-session candidates, under configured metadata-access policy. Closed or unverified PRs do not trigger deletion.</SettingsHelp>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the authoritative data directory..."}</p>
           <StorageSettings sdk={sdk} disabled={dirty || saving || otherNestedDirty} onBusy={setStorageBusy} prepareMaintenance={prepareMaintenance} />

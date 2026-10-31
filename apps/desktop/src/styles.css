@@ -592,6 +592,18 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .dashboard-page-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 24px 0 18px; }
 .dashboard-page-heading h2 { margin: 0; font-size: 24px; font-weight: 550; letter-spacing: -.5px; }
 .dashboard-page-heading > span { color: var(--muted); font-size: 12px; }
+.dashboard-active { margin-block: 24px; padding: 18px; border: 1px solid var(--control-line); border-radius: 8px; background: var(--surface); }
+.dashboard-active header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; }
+.dashboard-active h2 { margin: 0; font-size: 18px; font-weight: 550; }
+.dashboard-active header > span { color: var(--muted); font-size: 12px; }
+.dashboard-active ul { list-style: none; padding: 0; margin: 16px 0 0; }
+.dashboard-active li { border-top: 1px solid var(--line); }
+.dashboard-active li button { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 20px; width: 100%; padding: 14px 8px; border-color: transparent; background: transparent; text-align: left; }
+.dashboard-active li button:hover { background: var(--hover); }
+.dashboard-active-title { min-width: 0; overflow-wrap: anywhere; }
+.dashboard-active-title small { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; }
+.dashboard-active-state { font-size: 12px; }
+.dashboard-active [data-needs-attention] .dashboard-active-state { font-weight: 650; }
 .dashboard-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-block: 1px solid var(--line); margin-bottom: 24px; }
 .dashboard-metric { padding: 16px 12px; min-width: 0; border-right: 1px solid var(--line); }
 .dashboard-metric:first-child { padding-left: 0; }
@@ -628,6 +640,11 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .dashboard-project li button { min-width: 0; overflow-wrap: anywhere; text-align: left; padding-block: 9px; }
 .dashboard-project li > span { white-space: nowrap; }
 .dashboard-details { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 8px; }
+.script-reviews { margin: 12px 24px; padding: 14px; border: 1px solid var(--control-line); border-radius: 8px; background: var(--surface); }
+.script-reviews summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+.script-reviews article { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
+.script-reviews h3 { font-size: 13px; overflow-wrap: anywhere; }
+.script-reviews pre { max-height: 320px; overflow: auto; font-size: 12px; }
 .skill-source { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .skill-source .check-setting { margin: 0; }.skill-source > code { grid-column: 1; overflow-wrap: anywhere; color: var(--muted); }
 .skill-source > button { grid-column: 2; grid-row: 1 / span 2; }

@@ -130,6 +130,7 @@ test("recovery preserves explicit hold, Shift+Enter and slash actions instead of
     app = await launch(fixture.directory);
     const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer", exact: true });
     const prompt = page.getByLabel("Prompt", { exact: true });
+    await expect(composer.getByRole("button", { name: "Resume", exact: true })).toBeEnabled();
     await prompt.fill("Generated held recovery prompt."); await prompt.press("Meta+Enter");
     await expect.poll(() => current().queue[0]?.held).toBe(true);
     await expect(composer.getByRole("button", { name: "Resume", exact: true })).toBeEnabled();

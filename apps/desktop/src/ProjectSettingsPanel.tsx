@@ -6,8 +6,9 @@ import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
 import { Alert } from "./Alert.tsx";
 
-export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession }: {
+export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
+  available?: boolean; discardUnavailable?: () => void;
 }) {
   const [values, setValues] = useState<ProjectSettings>(defaultProjectSettings);
   const [committed, setCommitted] = useState<ProjectSettings>(defaultProjectSettings);
@@ -38,17 +39,18 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     committedValues.current = configuration.values; setCommitted(structuredClone(configuration.values));
     setValues(structuredClone(configuration.values)); setRevision(configuration.revision); setRaw({}); setLoaded(true);
   };
-  useEffect(() => { void run(reload); }, [project.id]);
+  useEffect(() => { if (available) void run(reload); }, [sdk, project.id]);
   useEffect(() => {
+    if (!available) { setRepositories(null); return; }
     let current = true;
     void sdk.projects.repositories(project.id).then((value) => { if (current) setRepositories(value); })
       .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "The actual repository layout could not be verified. No upstream control was enabled."); } });
     return () => { current = false; };
-  }, [sdk, project.id, project.path, JSON.stringify(presentation.values.deniedFolders)]);
+  }, [sdk, project.id, project.path, available, JSON.stringify(presentation.values.deniedFolders)]);
   useEffect(() => { onDirty(dirty || busy || boardDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, onDirty]);
   const committedRevision = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id)?.revision ?? 0;
   useEffect(() => {
-    if (loaded && !ownSave.current && committedRevision !== revision) {
+    if (available && loaded && !ownSave.current && committedRevision !== revision) {
       if (dirty) setError("Another client changed project settings. Your edit is preserved; reload before saving.");
       else void run(reload);
     }
@@ -58,6 +60,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const saveButton = (key: keyof ProjectSettings, label: string) => <button type="button" className="primary" aria-label={label} disabled={!loaded || busy || !sectionDirty(key)} onClick={() => void save(key)}>Save</button>;
   const json = (key: "scripts" | "sandbox" | "mcpServers" | "defaults", label: string) => <div className="setting-editor"><label className="setting-field">{label}<SettingsTextarea aria-label={label} className="json-editor short" spellCheck={false} value={raw[key] ?? JSON.stringify(values[key], null, 2)} onChange={(event) => setRaw((current) => ({ ...current, [key]: event.target.value }))} /></label>{saveButton(key, `Save ${label}`)}</div>;
   const save = (section?: keyof ProjectSettings) => run(async () => {
+    if (!available) throw new Error("The original project is unavailable. No settings were written to another project.");
     if (ownSave.current) throw new Error("Wait for the current project settings save to finish.");
     const input = section ? { ...committedValues.current, [section]: values[section] } : { ...values };
     for (const [key, text] of Object.entries(raw)) if (!section || key === section) Object.assign(input, { [key]: JSON.parse(text) });
@@ -104,10 +107,11 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   };
   const canRun = session?.projectId === project.id && !dirty && !busy;
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
-    <button className="primary" aria-label="Save project settings" disabled={!loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
-    {error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={busy} onClick={() => void run(reload)}>Reload</button></div>}
-    {!loaded && <p role="status">Loading committed project settings...</p>}
-    <fieldset className="project-settings-fields" disabled={!loaded || busy}>
+    <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
+    {!available && discardUnavailable && <button type="button" disabled={busy} onClick={discardUnavailable}>Discard unavailable project edit</button>}
+    {error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={!available || busy} onClick={() => void run(reload)}>Reload</button></div>}
+    {!loaded && available && <p role="status">Loading committed project settings...</p>}
+    <fieldset className="project-settings-fields" disabled={!available || !loaded || busy}>
     <BoardSettings sdk={sdk} project={project} snapshot={snapshot} onDirty={setBoardDirty} />
     <SettingsHelp label="More about this setting" target={<h3>Project instruction overrides</h3>}>Unselected fields inherit this profile's global guidance. An empty explicit override disables that inherited field. Saving a field preserves other pending text and grants no tools.</SettingsHelp>
     {WORKFLOW_GUIDANCE_FIELDS.map(({ key, label }) => <div className="setting-editor" key={key}>
