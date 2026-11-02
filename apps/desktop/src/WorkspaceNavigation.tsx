@@ -1,6 +1,6 @@
 import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ClientError, compareSessions, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -9,6 +9,7 @@ import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 import { PolicyNavigationContext } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
+import { BulkSessionActions } from "./BulkSessionActions.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -52,11 +53,15 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const editFocus = useRef<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [selection, setSelection] = useState<{ projectId: string | null; ids: string[] } | null>(null);
+  const priority = (a: Session, b: Session) => compareSessionPriority(a, b, snapshot);
+  const bulk = (projectId: string | null) => selection?.projectId === projectId &&
+    <BulkSessionActions sdk={sdk} snapshot={snapshot} ids={selection.ids} clear={() => setSelection(null)} prepare={prepareSession} modal={modal} />;
   const matches = useMemo(() => {
     if (!search.trim()) return null;
     const values = new Map(snapshot.sessions.map((session) => [session.id, session]));
     const selected = new Set(snapshot.sessions.filter((session) => (session.status === "archived") === archived &&
-      fuzzyMatch(search, sessionTitle(session, 160, "New chat"))).map((session) => session.id));
+      fuzzyMatch(search, `${session.id} ${sessionTitle(session, 160, "New chat")}`)).map((session) => session.id));
     for (const id of [...selected]) {
       let parent = values.get(id)?.parentSessionId;
       while (parent && !selected.has(parent)) { selected.add(parent); parent = values.get(parent)?.parentSessionId; }
@@ -70,7 +75,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set());
   const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
   const [navigationStatus, setNavigationStatus] = useState("");
-  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
+  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
   useLayoutEffect(() => {
     const request = removedFolderFocus.current;
     if (!request || request.profileId !== sdk.profileId || snapshot.projectFolders.some((folder) => folder.id === request.id)) return;
@@ -312,7 +317,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const indicator = sessionIndicator(session, snapshot);
     const unread = unreadSession(session, snapshot);
     return <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
-    draggable={!actions.busy && !ordering} onDragStart={(event) => {
+    draggable={!actions.busy && !ordering && !selection} onDragStart={(event) => {
       if (!allow() || orderPending.current) { event.preventDefault(); return; }
       dragging.current = { source: position(session), siblings: siblings(session).map(position), profileId: sdk.profileId };
       event.dataTransfer.setData(SESSION_DRAG, JSON.stringify({ profileId: sdk.profileId, sessionId: session.id })); event.dataTransfer.effectAllowed = "copyMove"; setMenu(null);
@@ -333,6 +338,12 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === session.id ? null : value);
     }} onDrop={(event) => dropSession(event, session)}
     onContextMenu={(event) => { event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu("session", session.id, anchor, event.clientX, event.clientY); }}>
+    {selection?.projectId === session.projectId && <label className="session-selection"><input type="checkbox" aria-label={`Select session ${session.title}`}
+      checked={selection.ids.includes(session.id)} disabled={actions.busy || ordering} onChange={(event) => {
+        const checked = event.target.checked;
+        setSelection((current) => current?.projectId === session.projectId ? { ...current, ids: checked ?
+          [...new Set([...current.ids, session.id])] : current.ids.filter((id) => id !== session.id) } : current);
+      }} /></label>}
     <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions. Drop on a session to attach; drop near its edges or use Alt+Up/Down to reorder siblings. Drag a child to a header to detach.`}
       aria-haspopup="menu" aria-expanded={menu?.kind === "session" && menu.id === session.id} aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}
       onDoubleClick={(event) => { event.preventDefault(); open({ kind: "rename", session }); }}
@@ -352,12 +363,13 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const board = snapshot.boards.find((entry) => entry.projectId === project.id) ?? defaultBoard(project.id);
     const boardVisible = !archived && kanbanPreferences(board).visible && (!matches || sessions.some((session) => session.purpose === "kanban"));
     const visible = new Set(sessions.filter((session) => session.purpose !== "kanban" || boardVisible).map((session) => session.id));
-    const roots = sessions.filter((session) => session.purpose !== "kanban" && (!session.parentSessionId || !visible.has(session.parentSessionId))).sort(compareSessions);
+    const pinned = sessions.filter((session) => session.pinned && session.purpose !== "kanban").sort(priority);
+    const roots = sessions.filter((session) => !session.pinned && session.purpose !== "kanban" && (!session.parentSessionId || !visible.has(session.parentSessionId))).sort(priority);
     const rootIds = new Set(page(`project:${project.id}`, roots, 5).map((session) => session.id));
     const tree = (parent: string | null, group: string | null, depth = 0): ReactNode => {
-      const entries = sessions.filter((session) => session.purpose !== "kanban" &&
+      const entries = sessions.filter((session) => !session.pinned && session.purpose !== "kanban" &&
         (session.parentSessionId && visible.has(session.parentSessionId) ? session.parentSessionId : null) === parent &&
-        (parent !== null || session.groupId === group && rootIds.has(session.id))).sort(compareSessions);
+        (parent !== null || session.groupId === group && rootIds.has(session.id))).sort(priority);
       const key = `children:${parent}`, rows = parent ? page(key, entries, 5) : entries;
       return <>{rows.map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && tree(session.id, group, depth + 1)}</div>)}
         {parent && more(key, entries.length, 5, `subsessions of ${snapshot.sessions.find((session) => session.id === parent)?.title ?? "this session"}`)}</>;
@@ -398,7 +410,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           if (menu?.kind === "project" && menu.id === project.id) { closeMenu(); return; }
           const bounds = event.currentTarget.getBoundingClientRect(); openMenu("project", project.id, event.currentTarget, bounds.right, bounds.top);
         }}><Icon name="More" /></button></header>
-      {!collapsedProjects.has(project.id) && <>{boardVisible && <><button className={`session-link kanban-link ${selectedId === boardChat?.id ? "selected" : ""}`} aria-label={`Kanban for ${project.name}`}
+      {!collapsedProjects.has(project.id) && <>{bulk(project.id)}{pinned.length > 0 && <div className="pinned-sessions" aria-label={`Pinned sessions in ${project.name}`}>
+        {pinned.map((session) => <div key={session.id}>{renderSession(session, 0)}{tree(session.id, session.groupId, 1)}</div>)}</div>}
+        {boardVisible && <><button className={`session-link kanban-link ${selectedId === boardChat?.id ? "selected" : ""}`} aria-label={`Kanban for ${project.name}`}
         aria-current={selectedId === boardChat?.id ? "page" : undefined} onClick={() => void openKanban(project.id)}><Icon name="Plan" /><span>Kanban</span><span className="queue-count">{snapshot.issues.filter((issue) => issue.projectId === project.id && !issue.archived && issue.phaseId !== board.mergedColumnId).length}</span></button>
         {boardChat && tree(boardChat.id, null, 1)}</>}
       {tree(null, null)}
@@ -412,12 +426,15 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const generalIds = new Set(general.map((session) => session.id));
   const activeFolders = new Set(snapshot.projectFolders.map((folder) => folder.id));
   const generalTree = (parent: string | null, folderId: string | null = null, depth = 0): ReactNode => {
-    const entries = general.filter((session) => (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent &&
-      (parent !== null || (session.projectFolderId && activeFolders.has(session.projectFolderId) ? session.projectFolderId : null) === folderId)).sort(compareSessions);
+    const pinned = parent === null ? general.filter((session) => session.pinned &&
+      (session.projectFolderId && activeFolders.has(session.projectFolderId) ? session.projectFolderId : null) === folderId).sort(priority) : [];
+    const entries = general.filter((session) => !session.pinned && (session.parentSessionId && generalIds.has(session.parentSessionId) ? session.parentSessionId : null) === parent &&
+      (parent !== null || (session.projectFolderId && activeFolders.has(session.projectFolderId) ? session.projectFolderId : null) === folderId)).sort(priority);
     const key = parent ? `children:${parent}` : `chats:${folderId}`, limit = parent || folderId ? 5 : 10;
     const label = parent ? `subsessions of ${snapshot.sessions.find((session) => session.id === parent)?.title ?? "this session"}` :
       folderId ? `sessions in ${snapshot.projectFolders.find((folder) => folder.id === folderId)?.name ?? "this folder"}` : "chats";
-    return <>{page(key, entries, limit).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, folderId, depth + 1)}</div>)}
+    return <>{pinned.map((session) => <div key={session.id}>{renderSession(session, 0)}{generalTree(session.id, folderId, 1)}</div>)}
+      {page(key, entries, limit).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, folderId, depth + 1)}</div>)}
       {more(key, entries.length, limit, label)}</>;
   };
   const menuSession = menu?.kind === "session" ? snapshot.sessions.find((session) => session.id === menu.id) : undefined;
@@ -435,7 +452,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       }}><Icon name="More" /></button></div>
     {(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
     <p className="sr-only" role="status" aria-atomic="true">{navigationStatus}</p>
-    <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button></header>{generalTree(null)}</section>
+    <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
+      <button type="button" className="icon-button" aria-label="Select chats" disabled={actions.busy} onClick={() => setSelection({ projectId: null, ids: [] })}><Icon name="Check" /></button></header>{bulk(null)}{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
       <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)}><summary onClick={(event) => {
@@ -472,6 +490,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" onClick={() => settings(projectMenu.id)}><Icon name="Settings" />Settings</button>
     <button role="menuitem" onClick={() => void toggleKanban(projectMenu)}><Icon name="Plan" />{kanbanPreferences(snapshot.boards.find((board) => board.projectId === projectMenu.id) ?? defaultBoard(projectMenu.id)).visible ? "Hide Kanban" : "Show Kanban"}</button>
     {terminal && <button role="menuitem" onClick={() => terminal(projectMenu.id)}><Icon name="Terminal" />Open project terminal</button>}
+    <button role="menuitem" onClick={() => { setSelection({ projectId: projectMenu.id, ids: [] }); setCollapsedProjects((current) => { const next = new Set(current); next.delete(projectMenu.id); return next; }); closeMenu(); }}><Icon name="Check" />Select sessions</button>
     <button role="menuitem" onClick={() => void run(async () => { const info = await sdk.projects.git(projectMenu.id, false); if (!info.repository) throw new Error("This attached folder has no supported GitHub upstream."); await window.moguri.openExternal(info.repository); })}><Icon name="PR" />Open in GitHub</button>
     <button role="menuitem" onClick={() => open({ kind: "new-group", project: projectMenu })}><Icon name="Group" />New session group</button>
     <button role="menuitem" onClick={() => open({ kind: "folder", project: projectMenu })}><Icon name="Files" />Move to folder</button>
@@ -577,7 +596,9 @@ function SessionIndicators({ indicator }: { indicator: ReturnType<typeof session
   const name = names[indicator.kind];
   return <span className="session-indicators">
     {name && <span className="session-mark" data-session-state={indicator.kind} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} /></span>}
-    {indicator.kind === "completed" && indicator.prUrl && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img" aria-label={indicator.prLabel} title={indicator.prLabel}><Icon name="PR" /></span>}
+    {indicator.prUrl && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img"
+      aria-label={`${indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.prLabel}`} title={indicator.prLabel}><Icon name="PR" />
+      {indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
   </span>;
 }
 function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }: { edit: Edit; sdk: MoguriSdk; snapshot: Snapshot; close: () => void; chooseSession: (id: string) => Promise<void>; detach: (session: Session) => void }) {

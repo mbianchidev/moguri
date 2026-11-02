@@ -8,6 +8,9 @@ import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, FilesPanel, HomeWriterReview, PlanPanel, SideChat } from "./SessionPanels.tsx";
+import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
+import { InteractiveHtml } from "./InteractiveHtml.tsx";
+import { CodeChangePane } from "./CodeChangePane.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { AttentionPanel, SuggestionsPanel, ConfigurationProposals } from "./EngagementPanels.tsx";
 import { AttachmentChip } from "./ContextAttachments.tsx";
@@ -752,7 +755,15 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
     group.push(message); groups.set(key, group);
   }
   const renderMessage = (message: PublicMessage) => {
-    if (message.role === "tool") return null;
+    const outputs = message.attachments ?? [];
+    const renderOutputs = () => outputs.map((attachment) => attachment.kind === "html" ?
+      <InteractiveHtml key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} /> :
+      <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />);
+    if (message.role === "tool") {
+      const visible = outputs.filter((attachment) => !session.messages.some((other) => other.role === "assistant" && other.attachments?.some((item) => item.id === attachment.id)));
+      return visible.length ? <article className="message notice" key={`output-${message.id}`} aria-label="Original tool outputs">
+        <header><strong>Tool outputs</strong><span>{message.outcome}</span></header>{renderOutputs()}</article> : null;
+    }
     const hidden = message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome);
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
       aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
@@ -761,7 +772,9 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
         <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><div className="reasoning markdown"><Suspense fallback={<p>{message.reasoning}</p>}><RichMessage text={message.reasoning} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
-        {message.attachments?.some((attachment) => attachment.kind !== "image") && <div className="message-documents attachment-list">{message.attachments.filter((attachment) => attachment.kind !== "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
+        {message.attachments?.filter((attachment): attachment is Extract<typeof attachment, { kind: "html" }> => attachment.kind === "html")
+          .map((attachment) => <InteractiveHtml key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} />)}
+        {message.attachments?.some((attachment) => attachment.kind !== "image" && attachment.kind !== "html") && <div className="message-documents attachment-list">{message.attachments.filter((attachment) => attachment.kind !== "image" && attachment.kind !== "html").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
       </article>}{answers.get(message.id)?.map((entry) => <AnsweredQuestion key={entry.id} entry={entry} />)}</Fragment>;
   };
   return <div className="conversation-history"><div ref={scroll} className="timeline" role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content}>
@@ -825,7 +838,7 @@ function Queue({ session, command, client, modal }: { session: Session; command:
     </ReorderList>
   </section>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, prUrl, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; onTerminalOpeningHandled?: () => void;
@@ -857,10 +870,13 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
     return <>
       <div className="context-binding"><span className={`status-dot ${session.status}`} /><strong>{title(session)}</strong><small>{session.status.replace("_", " ")}</small></div>
       <h2>Session details</h2><dl className="facts">
+        <dt>Session ID</dt><dd className="path"><code>{session.id}</code><CopyButton label="Copy session ID" text={session.id} /></dd>
         <dt>Project</dt><dd>{session.repositories?.map((binding) => binding.name).join(", ") ?? project?.name ?? "None (project-free)"}</dd><dt>Workspace</dt><dd className="path">{session.repositories?.map((binding) => binding.root.root).join("\n") ?? workspace ?? "Unavailable"}</dd>
         <dt>Profile</dt><dd>{snapshot?.profile?.name ?? client.profileId}</dd><dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
         <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
       </dl>
+      <p className="fine-print">Mention <code>:{session.id}</code> in a composer to attach a reviewed public snapshot. An ID grants no execution or private-console access.</p>
+      {snapshot && <SessionCoordinationPanel sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} />}
       {routing && <details><summary>Kupo routing provenance</summary><dl className="facts"><dt>Status</dt><dd>{routing.status}</dd><dt>Workflow</dt><dd>{routing.plan?.pattern ?? "Not selected"}</dd><dt>Classifier</dt><dd className="path">{routing.classifierModelId ?? "Not called (one eligible model)"}</dd><dt>Draft / solver</dt><dd className="path">{routing.plan?.modelId ?? "No accepted plan"}</dd>
         {routing.plan?.pattern === "cascade" && <><dt>Gate / escalation</dt><dd className="path">{routing.plan.escalationId}</dd></>}
         {routing.plan?.pattern === "critique" && <><dt>Read-only critic</dt><dd className="path">{routing.plan.criticId}</dd></>}
@@ -886,7 +902,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty}
     openSettings={openSettings} modal={modal} renderTranscript={(side) => <Timeline key={JSON.stringify([client.profileId, side.id])} session={side} snapshot={snapshot} run={run} client={client} modal={modal} label="Side chat transcript" navigationLabel="Side chat turns" />}
     renderQueue={(side) => <Queue session={side} command={(command) => run(() => client.command(command))} client={client} modal={modal} />} />;
-  if ((panel === "Code change" || panel === "PR") && snapshot) return <section aria-label="Session code change" data-session-id={session.id}><p className="fine-print">{title(session)}</p><h2>{prUrl ? "Connected PR" : "Pull requests"}</h2>{!prUrl && <p className="fine-print">This session has no linked pull request. Choose an existing PR or review a new one below.</p>}<SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="pull" selectedUrl={prUrl} onDirty={onDirty} chooseSession={chooseSession} /></section>;
+  if ((panel === "Code change" || panel === "PR") && snapshot) return <CodeChangePane key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} chooseSession={chooseSession} />;
   if (panel === "Work item" && snapshot) return <section aria-label="Session work item" data-session-id={session.id}><p className="fine-print">{title(session)}</p><SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="issue" onDirty={onDirty} chooseSession={chooseSession} /></section>;
   return <p>Choose a supported panel.</p>;
 }

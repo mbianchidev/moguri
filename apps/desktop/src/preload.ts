@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { DesktopBridge } from "./bridge.d.ts";
 
 const bridge: DesktopBridge = {
+  previewHtml: (input, profileId) => ipcRenderer.invoke("moguri:html-preview", input, profileId),
+  onHtmlDismiss: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, id: unknown) => { if (typeof id === "string" && id.length <= 128) listener(id); };
+    ipcRenderer.on("moguri:html-dismiss", receive);
+    return () => ipcRenderer.removeListener("moguri:html-dismiss", receive);
+  },
   connection: () => ipcRenderer.invoke("moguri:connection"),
   profile: (profileId) => ipcRenderer.invoke("moguri:profile", profileId),
   chooseProject: (purpose) => ipcRenderer.invoke("moguri:choose-project", purpose),

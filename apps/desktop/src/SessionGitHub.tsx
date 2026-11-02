@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { GithubAction, GithubPreview, GithubScope, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { githubItemIdentity, sessionPullRequestUrls, type GithubAction, type GithubPreview, type GithubScope, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { GitHubItemPicker, type GithubProject, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
+import { PullRequestPane } from "./PullRequestPane.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSession, selectedUrl }: {
@@ -47,7 +48,15 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     await sdk.refresh();
     const actual = sdk.getState().snapshot?.sessions.find((entry) => entry.id === session.id);
     if (!actual) throw new Error("The destination session was removed. The GitHub item was not deleted.");
-    await sdk.sessions.organize(session.id, kind === "pull" ? { prUrl: url } : { workItemUrl: url, workItemId: null }, actual.revision);
+    if (kind === "pull") {
+      if (selection?.item.url === url) await sdk.sessions.associatePr(session.id, { ...selection.source, expectedDigest: selection.digest }, actual.revision);
+      else {
+        if (!scope || !context) throw new Error("The exact publication account/root is no longer available. The existing PR was preserved; reload it before associating.");
+        const identity = githubItemIdentity(url);
+        const reviewed = await sdk.github.source(scope, { kind: "pull", repository: identity.repository, number: identity.number, account: context.account, accountId: context.accountId });
+        await sdk.sessions.associatePr(session.id, { ...reviewed.source, expectedDigest: reviewed.digest }, actual.revision);
+      }
+    } else await sdk.sessions.organize(session.id, { workItemUrl: url, workItemId: null }, actual.revision);
   };
   const operation = (): GithubAction => {
     if (!context) throw new Error("Load this project's GitHub repository and account first.");
@@ -83,8 +92,9 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
       {kind === "pull" && <p className="fine-print path">{selection.item.head} into {selection.item.base}</p>}
       <div className="github-item-body"><Suspense fallback={<p>{selection.item.body}</p>}><RichMessage text={selection.item.body || "No description."} openLink={(url) => void run(async () => { await window.moguri.openExternal(url); })} /></Suspense></div>
       <div className="button-row"><button type="button" disabled={busy || !selection.item.url} onClick={() => void run(async () => { await window.moguri.openExternal(selection.item.url!); })}>Open in GitHub</button>
-        <button type="button" disabled={busy || selection.item.url === bound} onClick={() => void run(async () => { await attach(selection.item.url!); setNotice(`Linked ${label} #${selection.item.number}. No checkout or model call was started.`); })}>{selection.item.url === bound ? "Linked to this session" : "Link to this session"}</button>
+        <button type="button" disabled={busy || selection.item.url === bound || kind === "pull" && sessionPullRequestUrls(session, snapshot).includes(selection.item.url ?? "")} onClick={() => void run(async () => { await attach(selection.item.url!); setNotice(`Linked ${label} #${selection.item.number}. Original PR associations and cleanup provenance were preserved; no checkout or model call was started.`); })}>{selection.item.url === bound || kind === "pull" && sessionPullRequestUrls(session, snapshot).includes(selection.item.url ?? "") ? "Linked to this session" : "Link to this session"}</button>
         <button type="button" disabled={busy} onClick={() => void run(async () => { const started = await sdk.github.startSession(scope, selection.source, selection.digest); await chooseSession(started.id!); })}>Start session from {label}</button></div>
+      {kind === "pull" && <PullRequestPane key={JSON.stringify([selection.source, selection.item.headSha, selection.binding])} sdk={sdk} scope={scope} session={session} snapshot={snapshot} selection={selection} />}
     </article>}
     {creating && <form className="github-create" aria-label={`Create ${label}`} onSubmit={(event) => { event.preventDefault(); void run(async (isCurrent) => {
       const value = await sdk.github.preview(scope, operation()); if (isCurrent()) setReview(value.preview);

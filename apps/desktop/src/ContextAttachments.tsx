@@ -11,8 +11,9 @@ export type AttachmentReviewRequest =
   | { kind: "session"; sourceSessionId: string; preview: ContextPreview };
 type Run = (work: () => Promise<unknown>) => Promise<void>;
 export const SESSION_DRAG_TYPE = "application/x-moguri-session";
-export const matchingContextSessions = (snapshot: Snapshot, destinationId: string, query: string) => snapshot.sessions.filter((source) => source.id !== destinationId && source.status !== "archived" &&
-  (!query || source.id === query || sessionTitle(source).toLowerCase().includes(query.toLowerCase()) || sessionTitle(source).toLowerCase().replace(/\s+/g, "-").includes(query.toLowerCase())));
+export const matchingContextSessions = (snapshot: Snapshot, destinationId: string, query: string) => snapshot.sessions.filter((source) => source.id !== destinationId &&
+  (source.status !== "archived" || source.id === query) && (!query || source.id.toLowerCase().startsWith(query.toLowerCase()) ||
+    sessionTitle(source).toLowerCase().includes(query.toLowerCase()) || sessionTitle(source).toLowerCase().replace(/\s+/g, "-").includes(query.toLowerCase())));
 export function AttachmentMenu({ sdk, session, project, snapshot, run, capture, selectFile, attachPath, review, close, initial }: {
   sdk: MoguriSdk; session: Session; project?: Project; snapshot: Snapshot; run: Run; capture: Run;
   review: (request: AttachmentReviewRequest) => Promise<void>; close: () => void;
@@ -51,8 +52,8 @@ export function AttachmentMenu({ sdk, session, project, snapshot, run, capture, 
       <p>Read-only snapshot. Access uses this Mac's chosen GitHub CLI account or the public API, never an SSH host's account.</p>
     </>}
     {page === "session" && <>
-      <label className="setting-field">Find session<input aria-label="Find context session" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Session name" /></label>
-      <div className="context-session-options">{matchingContextSessions(snapshot, session.id, query).map((source) => <button className="composer-menu-option" type="button" key={source.id} onClick={() => void run(async () => { await review({ kind: "session", sourceSessionId: source.id, preview: (await sdk.attachments.sessionPreview(session.id, source.id)).preview }); close(); })}><Icon name="Side chat" /><span>{sessionTitle(source)}<small>{snapshot.projects.find((value) => value.id === source.projectId)?.name ?? "No project"}</small></span></button>)}</div>
+      <label className="setting-field">Find session<input aria-label="Find context session" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Session name or exact ID" /></label>
+      <div className="context-session-options">{matchingContextSessions(snapshot, session.id, query).map((source) => <button className="composer-menu-option" type="button" key={source.id} onClick={() => void run(async () => { await review({ kind: "session", sourceSessionId: source.id, preview: (await sdk.attachments.sessionPreview(session.id, source.id)).preview }); close(); })}><Icon name="Side chat" /><span>{sessionTitle(source)}<small>{source.id} / {snapshot.projects.find((value) => value.id === source.projectId)?.name ?? "No project"}</small></span></button>)}</div>
       {!matchingContextSessions(snapshot, session.id, query).length && <p>No matching active sessions.</p>}
     </>}
   </div>;
@@ -114,8 +115,8 @@ function AttachmentPreview({ sdk, sessionId, attachment, remove, close }: { sdk:
     if (attachment.kind === "image") return;
     let current = true;
     void sdk.attachments.read(sessionId, attachment.id).then((result) => {
-      if (result.content.kind !== "text") throw new Error("The retained attachment type differs from this text preview. No substitute content was shown.");
-      if (current) setText(result.content.text);
+      if (result.content.kind !== "text" && result.content.kind !== "html") throw new Error("The retained attachment type differs from this text preview. No substitute content was shown.");
+      if (current) setText(result.content.kind === "html" ? result.content.html : result.content.text);
     })
       .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The retained attachment could not be read."); });
     return () => { current = false; };
