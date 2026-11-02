@@ -4,6 +4,18 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+Protocol 87's [session-controls and interactive-tool slice](architecture/session-controls-and-tools.md)
+exposes actual IDs and reviewed context mentions, exact success-only task
+dependencies, scoped peer messages, project-local priority/pinning/bulk actions,
+multiple verified PR associations and actual CI/review panes. Explicit voice
+enable/disable owns the sole pinned model; the factory shortcut taps to start
+and finish, with optional held push-to-talk and separately consented standby.
+Actual JS/TS semantic and deterministic array tools, isolated interactive HTML
+and owned Local Electron/Chromium screenshot delivery reuse the same SDK,
+worker, approvals and encrypted events. Other semantic languages, arbitrary
+native OS control, non-Local app interaction and general-purpose automations
+remain unavailable. This does not complete the first milestone.
+
 The owner-requested [shared theme and TUI navigation slice](architecture/themes-and-tui.md)
 adds missing preset palettes through the existing SDK settings, plus original
 JRPG-style terminal menus with genuine mouse tabs, a focus-safe arrow sidebar
@@ -449,7 +461,7 @@ capabilities, including generation previews and future-role admission.
 | GitHub issue | `#` | An issue accessible through the active profile's authorized GitHub integration |
 | GitHub pull request | `#` | A PR accessible through the same integration; label issue and PR results distinctly |
 | GitHub file | `@owner/repo/path` | Exact public or explicitly authenticated CLI-readable UTF-8 file snapshot |
-| Moguri session | `:session-name` | Same-profile public transcript; desktop lists non-archived sessions, while explicit SDK/CLI review can still select retained archived context |
+| Moguri session | `:session-name`, `:session-ID` or a known full ID | Same-profile reviewed public transcript, including retained archived sources; never another execution root or private console |
 | Local project file or folder | `@project-name/path` | Explicit named Local source; the current session's bound Local worktree is used when applicable, never silently replaced by its base checkout |
 
 The desktop Attach menu has five entries: Project file or folder, Issue or pull

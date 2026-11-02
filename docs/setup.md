@@ -1,9 +1,60 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **85**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **87**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Session controls and interactive tools
+
+**Insights / Session details** shows the real stable session ID.
+Use a known full ID in a prompt or `:ID` in the context picker to review and
+attach that exact same-profile public transcript. Archived context is available.
+This never navigates into another execution root or exposes its private console.
+The Coordination pane also reviews exact peer context/message grants and a
+dependency on one already queued or running task. Only actual successful
+completion releases that wait. Failure, Stop, changed scope or unknown results
+stay blocked until explicit cancellation/replacement.
+
+Project sessions show actual questions/approvals first, then finished or fresh
+verified merge-ready sessions, errors and running/queued work. **Pin** overrides
+that priority within the original project or project-free Chats; stored order
+breaks ties. Pinned attached sessions are promoted visually, not reparented.
+The project menu's **Select sessions** offers homogeneous attach/detach and
+whole-set archive/delete. Review unselected children. Scoped **Do not ask me
+again** controls skip only repeat confirmations, never changed-set review,
+policy or unconfirmed cleanup. Independent artifacts and Git resources survive.
+
+**Code change** shows a count beside its PR icon when multiple verified PRs
+are associated. Select an exact association, then **Files**, **Actions** or
+**Reviews**. Actions shows real jobs/steps/logs and a reviewed two-minute
+exact-head watch. Account/root/head changes are stale, not silently adopted.
+Reading or watching never approves a review, rerun, push or merge.
+
+The synthetic dropdown labels Balanced/Savings/Performance **Kupo effort**,
+separately from a concrete model's thinking effort. Automations copy now covers
+broader actions, but only the existing one-time scheduled prompt capability is
+implemented; a general-purpose automation engine is not claimed.
+
+Native JS/TS `goto_definition`/`find_references` use actual semantic tokens over
+bounded approved files, not name/regex guesses. Deterministic array tools are
+`find_in_array`, `order_asc`, `order_desc`, `find_bigger`, `find_smaller`.
+Other semantic languages, dependency types and custom compiler plugins are
+unsupported. Use tool discovery for exact schemas and continuation digests.
+
+`render_html` creates an interactive chat page retaining its original source.
+Open it to interact in a separate isolated renderer; Escape closes it.
+No network, Node, privileged preload, host files or app navigation is available.
+Non-rendering clients show the retained source and their limitation.
+`click`, `type`, `wait`, `take_screenshot` use the exact user-enabled Browser pane.
+`playwright` launches only a newly owned Local Electron/Chromium target using
+an explicit installed executable and approved entry/URL, then closes its bounded
+batch. It does not adopt personal browsers/apps, download a browser, control
+native OS windows or claim SendBox isolation. Actual screenshot bytes appear
+as attachments on the owning chat response.
+
+See [the exact ownership, limits, migrations and qualification contract](architecture/session-controls-and-tools.md)
+and [typed SDK calls](sdk.md#session-ids-dependencies-and-interactive-outputs).
 
 ## Model recovery and scheduled prompts
 
@@ -1535,8 +1586,9 @@ dialog. It never immediately relaunches a replacement. Both confirmation
 preferences are available under **Settings > Confirmations**, including reset
 to the default of asking.
 
-Desktop **Ctrl+Space** is hold-to-talk: words stream into the current draft and
-release flushes the final buffer without an Insert step or prompt submission.
+Desktop **Ctrl+Space** taps to start and taps again to finish by default.
+Optional **Hold shortcut to talk** selects held press/release. Words stream
+into the current draft without an Insert step or prompt submission.
 Device-aware browser capture stays local, using 16-kHz PCM. Surrounding typing
 is preserved; overlapping edits stop insertion instead of overwriting text.
 Reviewed file/native transcripts retain their separate explicit Insert flow.
@@ -3520,6 +3572,14 @@ explicitly accept the one-time download. The pinned model is
 offered as usable without fine-tuning; do not interpret this as 22 verified
 languages or 40 ready languages.
 
+**Enable voice dictation** downloads the sole pinned Moguri-managed model after
+license/runtime review. **Disable and delete managed voice model** cancels and
+joins this profile's voice work, closes its recognizer and removes only that
+owned model/staging. Enabling again downloads it again if missing. It never
+deletes user-selected external models or another app's weights. A shared
+verified official model may serve other profiles; disabling does not cancel
+their already-running work, but later use requires an explicit model download.
+
 The pinned NeMo-Speech.cpp 0.2.0 native runtime ships with the build. Preparing
 that runtime does not download the weights. The model download is staged,
 size/SHA-256 verified and atomically installed under the private state directory.
@@ -3536,24 +3596,28 @@ and audio fingerprints do not enter durable events, command receipts or model
 context. Private crash staging is removed before another capture; unknown or
 changed staging entries are retained and block capture with a diagnostic.
 
-**Hold Ctrl+Space, speak, release.** Recognized words appear directly in the
-owning main or side-chat textbox while speaking. Release flushes the original
-buffer and replaces its provisional text once; it never sends a chat message.
-The shortcut is always hold-to-talk and ignores terminals, dialogs and other
-composers. Voice/Accessibility settings share an editable shortcut.
+**Tap Ctrl+Space, wait for Recording, speak, tap again.** Recognized words
+appear directly in the owning main or side-chat textbox. Finish flushes the
+original buffer and replaces its provisional text once; it never sends a chat
+message. **Hold shortcut to talk** explicitly selects press/release instead.
+Terminals, dialogs and unrelated composers do not acquire its capture.
+Voice/Accessibility settings share an editable shortcut.
 Recording no longer waits for an unrelated draft-save acknowledgement or an
-extra SDK conversation refresh. Its silent audio processor prepares during capture
-admission, before the selected microphone opens, and connects immediately so
+extra SDK conversation refresh. Its input-free audio processor and local
+recognizer prepare in advance while voice is enabled, before live microphone
+capture, and connect immediately so
 the opening audio is not lost during worklet startup or permission-release IPC.
-No microphone is kept open in the background. First-time OS authorization
-still requires the user; wait for the recording highlight if permission or
-device startup is pending.
+No microphone standby is implicit. **Keep microphone ready while this composer
+is focused** separately consents to visible device readiness, without recording
+until activation. Disable, focus/ownership loss, sleep and cancellation close
+standby. First-time OS authorization still requires the user; wait for the
+recording highlight if permission or device startup is pending.
 **The microphone button is not push-to-talk:** click once to record and again to
 confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
 a click-owned recording does not stop that recording. Space/Enter on the focused
 button also use two separate activations, not press/release. Legacy saved
-`voice.pushToTalk` values round-trip for compatibility but no longer change this
-button, and the obsolete preference is not offered in Settings. A stale shortcut
+`voice.pushToTalk` values select only the optional held shortcut, never this
+button. A stale shortcut
 release cannot finish a later recording. The microphone icon stays visible and highlights while the
 owning capture records, including activation through the keyboard shortcut.
 Cold-start progress distinguishes model preparation from ready streaming.

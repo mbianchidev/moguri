@@ -18,6 +18,9 @@ export class HtmlPreviewHost {
   async close(): Promise<void> {
     this.generation++;
     this.pendingKey = undefined;
+    await this.disposeCurrent();
+  }
+  private async disposeCurrent(): Promise<void> {
     const current = this.current;
     if (!current) return;
     if (!current.window.isDestroyed()) current.window.contentView.removeChildView(current.view);
@@ -38,9 +41,10 @@ export class HtmlPreviewHost {
       if (!currentOwner() || !sdk.getState().snapshot?.sessions.some((session) => session.id === request.sessionId)) { await this.close(); throw new Error("The original page owner was removed or changed."); }
       this.place(this.current.view, window, request.bounds); return;
     }
-    await this.close();
-    const generation = this.generation;
+    const generation = ++this.generation;
     this.pendingKey = key;
+    await this.disposeCurrent();
+    if (generation !== this.generation || !currentOwner()) throw new Error("A newer page or profile owns this renderer. No stale source was rendered.");
     const original = await sdk.attachments.read(request.sessionId, request.attachmentId);
     if (!currentOwner() || generation !== this.generation || original.attachment.kind !== "html" || original.attachment.digest !== request.digest || original.content.kind !== "html") {
       throw new Error("The exact retained HTML source/profile changed. No replacement source was rendered.");
@@ -48,7 +52,9 @@ export class HtmlPreviewHost {
     const storage = electronSession.fromPartition(`moguri-html-${randomUUID()}`, { cache: false });
     storage.setPermissionRequestHandler((_contents, _permission, respond) => respond(false));
     storage.setPermissionCheckHandler(() => false);
-    storage.webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, (details, respond) => respond({ cancel: details.url !== "about:blank" && !details.url.startsWith("data:text/html;base64,") }));
+    storage.webRequest.onBeforeRequest({ urls: ["<all_urls>"] }, (details, respond) => respond({ cancel:
+      details.url !== "about:blank" && !details.url.startsWith("data:text/html;base64,") &&
+      !(details.resourceType === "image" && (details.url.startsWith("data:image/") || details.url.startsWith("blob:"))) }));
     storage.on("will-download", (event) => event.preventDefault());
     const view = new WebContentsView({ webPreferences: { session: storage, contextIsolation: true, nodeIntegration: false,
       nodeIntegrationInSubFrames: false, nodeIntegrationInWorker: false, sandbox: true, webSecurity: true, webviewTag: false,
@@ -84,7 +90,7 @@ export class HtmlPreviewHost {
       try { await Promise.race([contents.loadURL(url), new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error("Isolated page load exceeded ten seconds. Source was retained; no successful render was inferred.")), 10000); })]); }
       finally { clearTimeout(timer); }
       if (!currentOwner() || this.current !== owned || contents.getOSProcessId() === window.webContents.getOSProcessId()) throw new Error("The page did not retain a separate current renderer. No privileged/shared renderer was accepted.");
-    } catch (error) { await this.close(); throw error; }
+    } catch (error) { if (this.current === owned) await this.close(); throw error; }
   }
   private place(view: WebContentsView, window: BrowserWindow, bounds: HtmlPreviewRequest["bounds"]) {
     const { width, height } = window.getContentBounds();

@@ -31,9 +31,12 @@ export function InteractiveHtml({ sdk, sessionId, attachment }: { sdk: MoguriSdk
         while (again && !disposed && host.current) {
           again = false;
           const bounds = host.current.getBoundingClientRect(), blocked = document.querySelector("dialog[open], [popover]:popover-open");
-          if (blocked || bounds.bottom < 0 || bounds.top > innerHeight || bounds.width < 1 || bounds.height < 1) await window.moguri.previewHtml({ type: "hide", sessionId, attachmentId: attachment.id, digest: attachment.digest }, sdk.profileId);
+          const timeline = host.current.closest(".timeline")?.getBoundingClientRect();
+          const x = Math.max(0, bounds.left, timeline?.left ?? 0), y = Math.max(0, bounds.top, timeline?.top ?? 0);
+          const right = Math.min(innerWidth, bounds.right, timeline?.right ?? innerWidth), bottom = Math.min(innerHeight, bounds.bottom, timeline?.bottom ?? innerHeight);
+          if (blocked || right <= x || bottom <= y) await window.moguri.previewHtml({ type: "hide", sessionId, attachmentId: attachment.id, digest: attachment.digest }, sdk.profileId);
           else await window.moguri.previewHtml({ type: "show", sessionId, attachmentId: attachment.id, digest: attachment.digest,
-            bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height } }, sdk.profileId);
+            bounds: { x, y, width: right - x, height: bottom - y } }, sdk.profileId);
         }
       } catch (error) { if (!disposed) setError(error instanceof Error ? error.message : "The isolated page did not render. Its original source is retained."); }
       finally { pending = false; }

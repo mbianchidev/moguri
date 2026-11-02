@@ -756,13 +756,13 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
   }
   const renderMessage = (message: PublicMessage) => {
     const outputs = message.attachments ?? [];
-    const renderOutputs = () => outputs.map((attachment) => attachment.kind === "html" ?
+    const renderOutputs = (attachments = outputs) => attachments.map((attachment) => attachment.kind === "html" ?
       <InteractiveHtml key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} /> :
       <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />);
     if (message.role === "tool") {
       const visible = outputs.filter((attachment) => !session.messages.some((other) => other.role === "assistant" && other.attachments?.some((item) => item.id === attachment.id)));
       return visible.length ? <article className="message notice" key={`output-${message.id}`} aria-label="Original tool outputs">
-        <header><strong>Tool outputs</strong><span>{message.outcome}</span></header>{renderOutputs()}</article> : null;
+        <header><strong>Tool outputs</strong><span>{message.outcome}</span></header>{renderOutputs(visible)}</article> : null;
     }
     const hidden = message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome);
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
