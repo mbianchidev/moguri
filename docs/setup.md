@@ -4043,6 +4043,15 @@ never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
 
+Cold startup waits up to 60 seconds for the authenticated service, including
+encrypted-history replay and recovery. Large retained stores can take longer
+than ten seconds and must not be reported as failed while still initializing.
+An exited launch reports its exit code/signal and exact private `service.log`
+path. A competing client that lost the writer lock still waits for the actual
+authenticated owner. A readiness deadline never kills that owner, resets the
+store or starts an automatic replacement; inspect the log and reconnect after
+the service reports ready.
+
 Protocol/database version 18 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
