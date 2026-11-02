@@ -164,6 +164,16 @@ The [protocol86 contract](architecture/native-retry-checkpoints.md) records
 the exact scope, migrations and qualification; Jev's unavailable enforceable
 output/accounting wire remains a separate upstream gate.
 
+Final protocol86 qualification at executable source `286b047`: the complete
+corrected native-enabled source sweep passes **2,155**, skips **2**, fails **0**
+out of **2,157**; the two conditional physical source gates also pass separately.
+Complete hidden desktop passes **315**, skips **2**, fails **0** out of **317**;
+actual packaged CLI/native/SSH checks pass **7/7**. Build, types, independently
+packed install/runtime and root/consumer audits pass with zero vulnerabilities.
+The failed predecessor sweeps, exact current eight-gate native receipt, original
+`d6aeae4` DMG and separate new development installer are preserved in the
+[qualification record](architecture/native-retry-checkpoints.md#final-source-and-physical-qualification).
+
 ## Selected-boundary bounded decisions
 
 Configure **Settings / Decision providers** with an explicit `bounded-model`
