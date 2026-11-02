@@ -4052,6 +4052,22 @@ authenticated owner. A readiness deadline never kills that owner, resets the
 store or starts an automatic replacement; inspect the log and reconnect after
 the service reports ready.
 
+The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
+the independent packed SDK/install/audit and seven hidden packaged startup,
+shutdown and CLI checks (one unpackaged-only case remains skipped).
+An actual eleven-second startup preserves the generated encrypted draft:
+11,407 ms through the independently installed SDK and 11,936 ms through the
+new app's bundled Node/SDK. No personal state is used by those checks, and
+the qualified native payload hashes are unchanged. These focused results do
+not relabel the earlier full-suite record.
+
+The separate ad-hoc development installer is
+`release/qualification-builds/startup-5d34148/Moguri-0.30.0-alpha.1-macos-arm64.dmg`,
+790,482,149 bytes, SHA-256
+`cc45aa47a61de638875218d1b7be17de6482b08d14027ab63db6fd37db1867d9`.
+Its disk-image integrity passes; it is not notarized. The original `d6aeae4`
+and prior protocol86 `286b047` installers remain byte-identical.
+
 Protocol/database version 18 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session
 retention keys, plus independent artifact keys, wrapped by an OS-keychain master under
