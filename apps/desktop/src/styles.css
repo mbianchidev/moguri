@@ -63,6 +63,23 @@ svg { flex-shrink: 0; }
 .github-write-review { border: 1px solid var(--control-line); border-radius: 6px; padding: 10px; }
 .github-write-review .check-setting { align-items: start; }
 .workspace-dialog .github-item { max-height: 240px; overflow: auto; }
+.scheduled-draft-preview { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; padding: 10px; background: var(--subtle); border-radius: 6px; color: var(--muted); }
+.scheduled-ghost { margin: 20px 0; padding: 14px 16px; border: 1px dashed var(--control-line); border-radius: 10px; background: transparent; color: var(--muted); }
+.scheduled-ghost header, .scheduled-prompts-panel > header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scheduled-ghost header strong { font-size: 12px; font-weight: 500; }
+.scheduled-ghost time { margin-left: auto; font-size: 12px; }
+.scheduled-prompt-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 10px 0; line-height: 1.5; }
+.scheduled-prompt-actions { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
+.scheduled-ghost .scheduled-prompt-actions { opacity: 0; }
+.scheduled-ghost:hover .scheduled-prompt-actions, .scheduled-ghost:focus-within .scheduled-prompt-actions { opacity: 1; }
+.scheduled-prompt-diagnostic { color: var(--warning-text); font-size: 12px; overflow-wrap: anywhere; }
+.scheduled-prompts-panel { width: min(840px, 100%); margin: 0 auto; padding: 22px; }
+.scheduled-prompts-panel h2 { font-size: 16px; margin: 0; }
+.scheduled-prompt-row { display: flex; align-items: start; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.scheduled-prompt-row > div:first-child { flex: 1; min-width: 0; }
+.scheduled-prompt-row time, .scheduled-prompt-row small { display: block; color: var(--muted); font-size: 12px; margin-top: 5px; }
+@media (hover: none) { .scheduled-ghost .scheduled-prompt-actions { opacity: 1; } }
+@media (max-width: 640px) { .scheduled-prompt-row { flex-direction: column; } .scheduled-prompts-panel { padding: 14px; } }
 .approval-options { display: flex; flex-wrap: wrap; gap: 10px; }
 .approval-options .setting-field { flex: 1; min-width: 180px; margin: 0; }
 .approval-options select { width: 100%; }

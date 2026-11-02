@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import sharp from "sharp";
 import { DraftEditor, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { finishIdleSchedule } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The desktop checkpoint is qualified on macOS.");
@@ -29,9 +30,10 @@ test("long clipboard text becomes an exact scoped file and modifier queueing nev
     expect(attachment.kind).toBe("paste_file");
     expect((await sdk.attachments.read(fixture.sessionId, attachment.id)).content).toEqual({ kind: "text", text });
     await prompt.press("Meta+Enter");
-    await expect.poll(() => fixture.session().queue[0]?.held).toBe(true);
-    expect(fixture.session().queue[0]?.text).toBe("Before \u{1f34a}  After");
-    expect(fixture.session().queue[0]?.attachments[0]?.digest).toBe(attachment.digest);
+    await finishIdleSchedule(page);
+    await expect.poll(() => sdk.scheduledPrompts.list(fixture.sessionId)[0]?.status).toBe("scheduled");
+    expect(sdk.scheduledPrompts.list(fixture.sessionId)[0]?.text).toBe("Before \u{1f34a}  After");
+    expect(sdk.scheduledPrompts.list(fixture.sessionId)[0]?.attachments[0]?.digest).toBe(attachment.digest);
     expect(fixture.requests.length).toBe(0);
     expect(errors).toEqual([]);
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();

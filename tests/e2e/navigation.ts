@@ -35,3 +35,11 @@ export async function openUsageDetails(page: Page) {
   if (!await details.isVisible()) await page.getByText("Detailed accounting and original records", { exact: true }).click();
   await expect(details).toBeVisible();
 }
+
+export async function finishIdleSchedule(page: Page) {
+  const choice = page.getByRole("dialog", { name: "Send now or schedule", exact: true });
+  await choice.getByRole("button", { name: "No, schedule", exact: true }).click();
+  const schedule = page.getByRole("dialog", { name: "Schedule prompt", exact: true });
+  await schedule.getByRole("button", { name: "Schedule prompt", exact: true }).click();
+  await expect(schedule).toBeHidden();
+}

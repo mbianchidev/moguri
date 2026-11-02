@@ -56,10 +56,12 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
     {record && <>
       <h3 ref={heading} tabIndex={-1}>Decision {record.status}</h3>
       <dl className="facts"><dt>Actual role / model</dt><dd>{record.role} / {record.modelId}</dd>
+        <dt>Env</dt><dd>{record.env}</dd>
+        {record.version === 2 && <><dt>Original parent execution / worker</dt><dd className="path">{record.transport.executionId} / {record.transport.workerDigest}</dd></>}
         <dt>Provider / requested API model</dt><dd>{record.providerId} / {record.apiModelId}</dd>
         <dt>Source session / turn</dt><dd className="path">{record.sessionId} / {record.turnId}</dd>
         <dt>Original request / model step</dt><dd className="path">{record.sourceDigest} / {record.stepId ?? "Not admitted"}</dd>
-        <dt>Worker / cancellation / cleanup</dt><dd>{record.workerOutcome ?? "Not acknowledged"} / {record.cancellation} / {record.cleanup}</dd>
+        <dt>{record.version === 2 ? "Owned role / cancellation / cleanup" : "Worker / cancellation / cleanup"}</dt><dd>{record.workerOutcome ?? "Not acknowledged"} / {record.cancellation} / {record.cleanup}</dd>
         <dt>Reported tokens</dt><dd>{charge?.reportedTokens ?? (record.stepId ? "Unknown; original hold remains" : "No model call admitted")}</dd>
         <dt>Held tokens</dt><dd>{charge && charge.status !== "settled" ? charge.reservedTokens ?? "Unknown / blocks finite admission" : 0}</dd>
         <dt>Provider / billed USD</dt><dd>Not reported; never inferred as zero</dd>

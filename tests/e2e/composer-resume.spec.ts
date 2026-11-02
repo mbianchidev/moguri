@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { isRecord, MoguriError, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { finishIdleSchedule } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const recoveryFixture = () => setupFixture({ workerPath: resolve(".moguri/artifacts/generated-resume-missing-worker.mjs") });
@@ -132,7 +133,8 @@ test("recovery preserves explicit hold, Shift+Enter and slash actions instead of
     const prompt = page.getByLabel("Prompt", { exact: true });
     await expect(composer.getByRole("button", { name: "Resume", exact: true })).toBeEnabled();
     await prompt.fill("Generated held recovery prompt."); await prompt.press("Meta+Enter");
-    await expect.poll(() => current().queue[0]?.held).toBe(true);
+    await finishIdleSchedule(page);
+    await expect.poll(() => sdk.scheduledPrompts.list(fixture.sessionId)[0]?.status).toBe("scheduled");
     await expect(composer.getByRole("button", { name: "Resume", exact: true })).toBeEnabled();
     expect(sdk.getState().snapshot!.blockedProjects).toContain(fixture.session().projectId);
     expect(fixture.requests).toHaveLength(0);
@@ -143,7 +145,7 @@ test("recovery preserves explicit hold, Shift+Enter and slash actions instead of
     await prompt.fill("Generated newline"); await prompt.press("Shift+Enter");
     await expect(prompt).toHaveValue("Generated newline\n");
     await expect(page.getByRole("status").filter({ hasText: /^Draft saved$/ })).toHaveCount(1);
-    expect(current().queue).toHaveLength(1); expect(fixture.requests).toHaveLength(0);
+    expect(current().queue).toHaveLength(0); expect(sdk.scheduledPrompts.list(fixture.sessionId)).toHaveLength(1); expect(fixture.requests).toHaveLength(0);
     expect(fixture.service.controller.events(0).filter((event) => event.event_type === "session.resumed")).toHaveLength(0);
   } finally { await app?.close(); sdk.disconnect(); await fixture.close(); }
 });

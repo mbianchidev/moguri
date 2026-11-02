@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, themePalettes, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, appearanceColors, themePalettes, shortcutLabel, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { Icon } from "./Icon.tsx";
@@ -31,6 +31,7 @@ import { ArtifactPanel } from "./ArtifactPanel.tsx";
 import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
+import { KupoModelProfiles } from "./KupoModelProfiles.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
 import { WebAllowlistPanel } from "./WebAllowlistPanel.tsx";
@@ -82,7 +83,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [resourceDirty, setResourceDirty] = useState(false), [resourceSessionId, setResourceSessionId] = useState(session?.id ?? "");
   const resourceSession = snapshot.sessions.find((value) => value.id === resourceSessionId);
   const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
-  const [lineageDirty, setLineageDirty] = useState(false), [lineageBusy, setLineageBusy] = useState(false);
+  const [lineageDraftDirty, setLineageDirty] = useState(false), [lineageDraftBusy, setLineageBusy] = useState(false);
+  const [modelProfileDirty, setModelProfileDirty] = useState(false), [modelProfileBusy, setModelProfileBusy] = useState(false);
+  const lineageDirty = lineageDraftDirty || modelProfileDirty, lineageBusy = lineageDraftBusy || modelProfileBusy;
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
@@ -133,7 +136,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     return () => cancelAnimationFrame(frame);
   }, [policyFocus?.id, tab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const nonWebNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
+  const nonWebNestedDirty = projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
   const otherNestedDirty = nonWebNestedDirty || webBusy || webDirty;
   const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
@@ -386,7 +389,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <button type="button" disabled={saving} onClick={() => void reset("decisions")} aria-label="Restore defaults for decision providers">Restore defaults</button>
         </>}
         {tab === "kupo" && <><h2 id="policy-kupo" data-policy-target tabIndex={-1}>Kupo</h2>
-          <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy} onChange={(event) => {
+          <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy} onChange={(event) => {
             if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
             const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
             const pool = { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence };
@@ -403,7 +406,18 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               {sdk.routing.capabilities().map((profile) => <tr key={profile.modelId}><td>{routingModels.find((model) => model.id === profile.modelId)?.name ?? profile.modelId}</td><td>{profile.categories.join(", ")}</td><td>{profile.toolInput === null ? "Unknown" : profile.toolInput ? "Declared" : "Disabled"}</td></tr>)}
             </tbody></table>
             {!sdk.routing.capabilities().length && <p>No eligible configured models. Inspect provider, privacy and environment diagnostics below.</p>}
-            <Alert as="p" tone="warning" className="settings-warning">Draft and review tool requests never execute before response selection and ordinary permissions. Critique needs a current source-reviewed distinct lineage pair; otherwise only eligible Single/Cascade plans are offered. Finite automatic budgets, images, synthetic tuning and Sandbox routing remain unavailable, without fallback.</Alert>
+            <h3>Automatic context compaction</h3>
+            <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable automatic Kupo compaction" disabled={saving}
+              checked={draft.kupo.autoCompaction?.enabled === true} onChange={(event) => automatic("kupo", {
+                autoCompaction: { ...defaultKupoCompaction(), ...(draft.kupo.workflow === "auto" ? draft.kupo.autoCompaction : {}), enabled: event.target.checked },
+              })} />Allow bounded automatic text summaries at safe model boundaries</label>
+            <p className="fine-print">Off by default. Enabling explicitly permits Kupo to spend metered compaction calls and apply source-bound summaries, not permissions or human answers. Complete recent turns and original history remain retained and readable. Images are not compacted or silently dropped. Advanced policy sets the exact compactor, trigger fraction, recent turns, output bound and per-turn call limit.</p>
+            <Alert as="p" tone="warning" className="settings-warning">Only a selected original response reaches ordinary permissions. New modes require comparable reviewed Cascade evidence or an independent same-cost-class Critique pair. Missing System One/Max transports remain blocked. Sandbox needs fresh exact native-byte qualification; no Local fallback.</Alert>
+            <KupoModelProfiles sdk={sdk} models={routingModels} disabled={saving || lineageBusy} onDirty={setModelProfileDirty} onBusy={setModelProfileBusy}
+              onPrepared={(profile) => {
+                const policy = parse(AutomaticKupoSettingsSchema, raw.kupo === undefined ? draft.kupo : JSON.parse(raw.kupo));
+                setRaw((raw) => ({ ...raw, kupo: JSON.stringify({ ...policy, modelProfiles: [...(policy.modelProfiles ?? []).filter((entry) => entry.modelId !== profile.modelId), profile] }, null, 2) }));
+              }} />
             <details><summary>Advanced model pool and lineage policy</summary>
               {jsonEditor("kupo", "Advanced automatic routing policy", saving || lineageBusy)}
               <CompoundLineageReview sdk={sdk} models={routingModels} disabled={saving} onDirty={setLineageDirty} onBusy={setLineageBusy}
@@ -505,13 +519,18 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="setting-field">Global default model<select aria-label="Global default model" disabled={saving} value={!Object.hasOwn(draft.startup.global, "modelId") ? "last-used" : draft.startup.global.modelId ?? "none"} onChange={(event) => {
             const value = event.target.value;
             if (value === "last-used") automaticDefaults({}, ["modelId", "modelOptions"], "global");
-            else automaticDefaults({ modelId: value === "none" ? null : value }, ["modelOptions"], "global");
+            else automaticDefaults({ modelId: value === "none" ? null : value, ...(value === "kupo" ? { kupoMode: draft.startup.global.kupoMode ?? "balanced" } : {}) }, ["modelOptions"], "global");
           }}>
             <option value="last-used">Last selected model and thinking effort</option><option value="none">No selected model</option>
             {draft.startup.global.modelId && !globalDefaultModel && <option value={draft.startup.global.modelId}>Saved unavailable model: {draft.startup.global.modelId}</option>}
             {snapshot.provider.models.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}
           </select></label>
-          {draft.startup.global.modelId && <label className="setting-field">Global default thinking effort<select aria-label="Global default thinking effort" disabled={saving || !globalDefaultModel?.thinkingLevels?.length && !globalDefaultEffort} value={globalDefaultEffort ?? "default"} onChange={(event) => {
+          {globalDefaultModel?.synthetic ? <label className="setting-field">Global default Kupo mode<select aria-label="Global default Kupo mode" disabled={saving}
+            value={draft.startup.global.kupoMode ?? "legacy"} onChange={(event) => automaticDefaults({ kupoMode: parse(KupoModeSchema, event.target.value) }, ["modelOptions"], "global")}>
+            {!draft.startup.global.kupoMode && <option value="legacy" disabled>Retained policy; explicitly choose a mode</option>}
+            {kupoModes.map((mode) => <option value={mode.id} key={mode.id}>{mode.name}</option>)}
+          </select><small>Exact model, supported effort, evaluated class and current policy are checked before every paid request.</small></label> :
+          draft.startup.global.modelId && <label className="setting-field">Global default thinking effort<select aria-label="Global default thinking effort" disabled={saving || !globalDefaultModel?.thinkingLevels?.length && !globalDefaultEffort} value={globalDefaultEffort ?? "default"} onChange={(event) => {
             const value = event.target.value;
             if (value === "default") automaticDefaults({ modelOptions: { thinkingEffort: undefined } }, [], "global");
             else {
@@ -524,15 +543,20 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             {globalDefaultModel?.thinkingLevels?.map((effort) => <option value={effort} key={effort}>{effort}</option>)}
           </select></label>}
 
-          {snapshot.lastModelSelection ? <p className="fine-print" role="status">Last selected in this profile: {rememberedModel?.name ?? `Saved unavailable model: ${snapshot.lastModelSelection.modelId}`} / {snapshot.lastModelSelection.thinkingEffort ?? "provider default"} thinking.</p> :
+          {snapshot.lastModelSelection ? <p className="fine-print" role="status">Last selected in this profile: {rememberedModel?.name ?? `Saved unavailable model: ${snapshot.lastModelSelection.modelId}`} / {snapshot.lastModelSelection.modelId === "kupo" ?
+            `${kupoModes.find((mode) => mode.id === snapshot.lastModelSelection?.kupoMode)?.name ?? "Retained explicit policy"} mode` : `${snapshot.lastModelSelection.thinkingEffort ?? "provider default"} thinking`}.</p> :
             <p className="fine-print" role="status">No model is remembered in this profile. Choose a model explicitly; no model or provider will be guessed.</p>}
           <h3>Current-profile overrides</h3>
-          <label className="setting-field">Default model<select aria-label="Default model" value={!Object.hasOwn(draft.startup.profile, "modelId") ? "inherit" : draft.startup.profile.modelId ?? "none"} onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["modelId"]) : automaticDefaults({ modelId: event.target.value === "none" ? null : event.target.value })}>
+          <label className="setting-field">Default model<select aria-label="Default model" value={!Object.hasOwn(draft.startup.profile, "modelId") ? "inherit" : draft.startup.profile.modelId ?? "none"} onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["modelId"]) : automaticDefaults({ modelId: event.target.value === "none" ? null : event.target.value,
+            ...(event.target.value === "kupo" ? { kupoMode: draft.startup.profile.kupoMode ?? draft.startup.global.kupoMode ?? "balanced", modelOptions: {} } : {}) })}>
             <option value="inherit">Use shared global / last selected model</option><option value="none">No selected model</option>
             {defaultModelId && !defaultModel && <option value={defaultModelId}>Saved unavailable model: {defaultModelId}</option>}
             {snapshot.provider.models.map((model) => <option value={model.id} key={model.id}>{model.name}</option>)}
           </select></label>
-          <label className="setting-field">Default thinking effort<select aria-label="Default thinking effort" disabled={!defaultModel?.thinkingLevels?.length && !defaultEffort} value={defaultEffort ?? "default"} onChange={(event) => {
+          {defaultModel?.synthetic ? <label className="setting-field">Default Kupo mode<select aria-label="Default Kupo mode" disabled={saving} value={draft.startup.profile.kupoMode ?? "inherit"}
+            onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["kupoMode"]) : automaticDefaults({ kupoMode: parse(KupoModeSchema, event.target.value) }, ["modelOptions"])}>
+            <option value="inherit">Use shared global / last selected mode</option>{kupoModes.map((mode) => <option value={mode.id} key={mode.id}>{mode.name}</option>)}
+          </select></label> : <label className="setting-field">Default thinking effort<select aria-label="Default thinking effort" disabled={!defaultModel?.thinkingLevels?.length && !defaultEffort} value={defaultEffort ?? "default"} onChange={(event) => {
             const value = event.target.value;
             if (value === "default") automaticDefaults({ modelOptions: { thinkingEffort: undefined } });
             else {
@@ -542,7 +566,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             }
           }}>
             <option value="default">Provider default</option>{defaultEffort && !defaultModel?.thinkingLevels?.includes(defaultEffort) && <option value={defaultEffort} disabled>Saved unsupported effort: {defaultEffort}</option>}{defaultModel?.thinkingLevels?.map((effort) => <option value={effort} key={effort}>{effort}</option>)}
-          </select></label>
+          </select></label>}
           <SettingsHelp label="More about this setting" target={<label className="setting-field">Default response verbosity<select aria-label="Default response verbosity" value={draft.startup.profile.verbosity ?? "inherit"} onChange={(event) => event.target.value === "inherit" ? automaticDefaults({}, ["verbosity"]) : automaticDefaults({ verbosity: parse(VerbositySchema, event.target.value) })}>
             <option value="inherit">Use shared global ({draft.startup.global.verbosity ?? "balanced"})</option>
             <option value="dry">Dry</option><option value="minimal">Minimal</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option>
@@ -632,6 +656,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} onChange={(event) => change("interactions", { ...draft.interactions, confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionDetach !== false} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionDetach: event.target.checked })} />Confirm before detaching a child session</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.nativeRetryRestaging === true} onChange={(event) => change("interactions", { ...draft.interactions, nativeRetryRestaging: event.target.checked })} />Allow exact private-snapshot restaging for native model retries</label>
+          <p className="fine-print">Off by default. Requires verified original guest cleanup and unchanged request, profile, Env and current permissions. Never captures changed live source or replays tools, Git or unknown work.</p>
+          <label className="setting-field">Scheduling in an idle chat<select value={draft.interactions.idleScheduleAction ?? "ask"} onChange={(event) => change("interactions", { ...draft.interactions, idleScheduleAction: parse(SettingsSchema.properties.interactions.properties.idleScheduleAction, event.target.value) })}>
+            <option value="ask">Ask whether to send now</option><option value="send">Send now without asking</option><option value="schedule">Open scheduling without asking</option>
+          </select></label>
           <button type="button" onClick={() => void reset("interactions")} aria-label="Restore defaults for confirmations">Restore defaults</button></>}
         {tab === "systemPrompt" && <><SettingsHelp label="More about this setting" target={<h2>System prompt</h2>}>These are Moguri's actual model instructions, not a desktop-only copy. Edits apply to new turns; running turns keep their recorded instruction snapshot.</SettingsHelp>
           <Alert as="p" tone="warning" className="settings-warning">{SYSTEM_PROMPT_WARNING}</Alert>

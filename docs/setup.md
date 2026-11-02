@@ -1,9 +1,200 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **81**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **85**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Model recovery and scheduled prompts
+
+Qualifying transient model failures share one recovery cycle per profile.
+Rounds target all eligible failed sessions after **30 seconds**, all again at
+**90 seconds**, then the oldest currently failed prompt at **120** and **180
+seconds**. A complete successful response with valid recorded usage resets
+the cycle. Launch/command acknowledgement, first output and unknown usage do
+not. Busy, stopped, archived/deleted, changed-scope or unsafe/partial work is
+not duplicated. Missed rounds are recorded, never replayed as a burst.
+
+The primary composer button becomes a two-arrow **Retry last model request**
+action only for the last eligible failure. Click or Enter retries its retained
+request without sending or clearing a newer draft. TUI also exposes **F10** and
+its Retry hit target; CLI uses `moguri session retry --session ID`. Manual Retry
+does not reset the countdown unless its response succeeds. Exhaustion keeps
+a failed state and red X without further automatic attempts.
+
+Earlier tools, hooks, Git, installs and publications are not rerun. Existing
+unknown charges stay held and each retry gets a new actual-call reservation.
+Stop cancels automatic recovery. Root/policy/model/authorization changes
+require new reviewed intent, not an account, provider, model or Env fallback.
+Local and pinned SSH continuation are qualified. Native failures that roll back
+the private workspace stay **blocked for inspection/preparation**; automatic
+native root-transfer continuation is not implemented. Retry cannot acknowledge
+that source review or create a different stage on the user's behalf.
+
+Use **Cmd/Ctrl+Enter** on an ordinary idle prompt to schedule it. Moguri first
+asks whether to send now; **Don't ask me again** remembers the selected action
+for this profile. Choosing Schedule offers **5, 10, 30 or 60 minutes**, or a
+custom local date/time. DST gaps are rejected, and repeated wall times offer
+their exact UTC occurrences. Restore the choice under **Settings /
+Confirmations / Scheduling in an idle chat**.
+
+Scheduled content is an unsent-looking ghost, not ordinary model history.
+Hover or keyboard focus exposes **Send now**; **Automations / Scheduled prompts**
+shows the same original input. TUI uses **F9** or the Automations tab. Timer and
+Send now claim at most once through the existing queue. New drafts/attachments
+remain independent. Overdue prompts send once after restart only when captured
+controls and current policy still permit them. Stop pauses undispatched schedules;
+archive cancels them. Cancel never stops a different admitted turn.
+
+CLI: `moguri scheduled list`, `moguri scheduled create TIMING.json --session ID`,
+`moguri scheduled send-now ID` and `moguri scheduled cancel ID`. Creation consumes
+only the exact existing saved draft, not a file of replacement prompt text.
+Active-turn Queue/Steer/Interrupt and ordinary held slash commands are unchanged.
+An idle unprepared Sandbox session can capture its complete owned private source
+under the existing explicitly enabled managed all-root policy before creating
+the ghost. This preparation is model-free: original command/draft/scope intent
+precedes copy, and no model turn or history is created. Stop, changed scope/draft
+or failed preparation preserves input without admitting a ghost. Verified ready
+stages may be reused; failed/rolled-back stages cannot be restored or transferred
+by scheduling. Disabled managed preparation remains a visible setup gate, never
+a base-checkout fallback.
+
+## Kupo modes, evidence and context
+
+Selecting automatic Kupo exposes **Balanced**, **Savings** and **Performance**
+instead of thinking effort. TUI uses **F11**; CLI uses `moguri session kupo-mode
+balanced|savings|performance --session ID`. Fixed models retain their separate
+effort/context controls. Old explicit Single/Compound policies and legacy
+automatic selections are not silently upgraded.
+
+Balanced may use declared capabilities without invented quality scores.
+Savings requires fresh reviewed non-frontier profiles, excludes xhigh/max and
+prefers eligible execution-host local models. Performance requires actual
+xhigh/max transport support and reviewed frontier evidence for substantive work;
+lower-effort aliases or unknown classes cannot qualify it. No hosted API fee
+does not erase tokens, configured rates, unknown accounting or actual costs.
+
+**Settings / Kupo routing / Review model evaluations and reference prices**
+prepares an exact user-reviewed source profile. Supply genuine source text,
+normalized observations, observation/expiry dates, limitations, a comparable
+evaluation-set digest, cost class and reference prices. Then acknowledge that
+exact source and save the complete policy. This is not a paid benchmark,
+calibration, proof of independence, billed price or permission.
+
+Cascade requires comparable reviewed capability dominance and nondecreasing
+reference price. Critique additionally requires a reviewed different-lineage
+pair in the same reviewed cost class. Advanced `automaticLimits` bound repeats
+and complete UTF-8 result bytes. Every new-mode revision/escalation is reviewed
+again; exhaustion cannot accept unreviewed output or proposed tools.
+
+Each selected model uses its genuine maximum qualified context. **Enable
+automatic Kupo compaction** is off by default and is an explicit policy choice.
+It permits bounded metered tool-less summaries of complete older text, keeping
+recent complete turns and original sources. Images are not silently compacted
+or dropped. Read original public history through `read_tool_result action=history`,
+admitted documents through `list_documents`, and original operations through
+`read_tool_result action=list`. The Context review panel shows the actual policy
+actor, model and retained summary, and can restore original history without
+replaying work or resetting charges.
+
+Finite automatic **Local, SSH and native** work requires the existing enabled, bounded
+wind-down model and complete role reservations. Every prospective role and
+escaped-result input is held atomically before the first proposal; transfers
+bind actual model starts. Only undispatched holds release after their owner
+ends. Unknown calls remain held, and stricter policy still wins.
+SSH/native metadata finishing runs on the original selected-boundary parent,
+never a controller model. It is not task completion, source acceptance or an
+automatic Git checkpoint. Protocol86 separately binds actual-user source
+acceptance and reviewed Git publication to the original SSH peer, or to the
+original Local repository after native-source acceptance. That disclosed
+native-model/Local-Git boundary also requires current Local allowed-env policy.
+Neither metadata, a model answer nor a generic inspection acknowledgement
+supplies those approvals.
+Sandbox must use the current exact
+worker/distribution qualification, not historical bytes or installed SendBox
+0.2.3. No personal model inference or sign-in is used to qualify this slice.
+
+Protocol84 appends independent recovery, scheduling and Kupo-mode markers while
+preserving genuine combined80/81/82/83 history, ciphertext and receipts.
+Protocol85 transactionally adds `scheduled_native_preparation_schema`,
+`owned_model_transport_schema` and `transport_finishing_schema` from genuine84,
+without rewriting the original delivered `d6aeae4` installer or its evidence.
+See the [original recovery contract](architecture/recovery-scheduling-kupo.md)
+and [owned transport continuation](architecture/owned-model-transports.md).
+Protocol86 transactionally adds `native_retry_restaging_schema` and
+`transport_checkpoint_schema` from genuine85. It preserves the protocol84
+`d6aeae4` DMG and every original84/85 distribution and receipt.
+
+### Exact native retry and transport checkpoint review
+
+**Settings / Confirmations / Allow exact private-snapshot restaging for native
+model retries** is off by default. Enabling it allows only a new qualified
+request's complete byte-verified signed private after-snapshot, with its exact
+original model/request/profile/Env and verified guest absence. Live checkout
+changes are never recaptured, prior tools/Git never replay, and unknown charges
+remain held. A changed root, authorization, permission, unsupported layout or
+incomplete snapshot blocks retry. Stop during preparation remains stopped
+across restart without another guest or model call.
+
+In **Settings / Candidates / Budget wind-down checkpoints**, select the original
+idle source chat. For SSH, select exact paths, **Review peer source**, inspect
+any original quarantined work and explicitly **Resume after source inspection**
+when needed, then separately **Accept peer source**. Only afterward review the
+new peer branch, base, files/modes, message and Git confirmation. All Git executes
+at the original pinned SSH root; the Local checkout is never substituted.
+
+For native work, first publish exact native output through its existing separate
+source review. Select only completed publications from that finishing execution.
+The later checkpoint review explicitly creates a new Local Git branch at the
+original source repository, not in the guest. Sandbox-only policy blocks this
+Local-Git action. Both paths preserve the actual source HEAD/index and unrelated
+staged files; they never checkout, push, merge, delete a branch or start another
+model.
+
+A partial attempted publication retains its exact writer/root and independent
+report across restart. **Inspect original checkpoint effects** is read-only and
+verifies authenticated peer receipts where applicable, the current ref/blobs,
+source bytes/modes and original HEAD/index. Separate **Acknowledge original
+writer inspection** settles only that known ended writer. Job/task status stays
+partial, Stop remains recorded and model charges remain unchanged. Missing
+terminal receipts, changed refs/source and unknown cleanup stay blocked. A
+generic Resume, archive or report deletion cannot erase this writer.
+
+The [protocol86 contract](architecture/native-retry-checkpoints.md) records
+the exact scope, migrations and qualification; Jev's unavailable enforceable
+output/accounting wire remains a separate upstream gate.
+
+Final protocol86 qualification at executable source `286b047`: the complete
+corrected native-enabled source sweep passes **2,155**, skips **2**, fails **0**
+out of **2,157**; the two conditional physical source gates also pass separately.
+Complete hidden desktop passes **315**, skips **2**, fails **0** out of **317**;
+actual packaged CLI/native/SSH checks pass **7/7**. Build, types, independently
+packed install/runtime and root/consumer audits pass with zero vulnerabilities.
+The failed predecessor sweeps, exact current eight-gate native receipt, original
+`d6aeae4` DMG and separate new development installer are preserved in the
+[qualification record](architecture/native-retry-checkpoints.md#final-source-and-physical-qualification).
+
+## Selected-boundary bounded decisions
+
+Configure **Settings / Decision providers** with an explicit `bounded-model`
+and a genuinely available model at the session's Env, positive complete output
+bound, deadline and separate technical/steering delegation. Fixed models and
+Kupo share the same actual parent, actor and all-role ledger. SSH/native private
+calls run tool-less inside that original pinned worker/guest; they are not
+rootless OS processes, a second executor or a Local fallback.
+
+**Artifacts / Decision-provider observations** shows the real Env, execution,
+model step and `owned-role-acknowledged` cleanup. That proves only private-role
+release, not parent/guest exit. Stop cancels only that private call; the original
+question still needs its real answer. Missing terminal release may require
+stopping the known parent and stays unconfirmed rather than answering.
+Restart and explicit inspection can reconcile exact late raw results/charges
+without changing terminal work, cleanup, source acceptance or human answers.
+Unknown usage remains held; failed source writes never create a success receipt.
+
+Jev/System One still has no enforceable upstream output-token/accounting
+contract. Selecting Jev preserves that explicit unavailable reason; it does not
+select this bounded generative alternative, install a provider or lift a cap.
 
 ## Work-item comments and repository scripts
 
@@ -106,7 +297,7 @@ combined80's six original markers, ciphertext, receipts or unknown charges.
 
 ## Saved turn and usage information
 
-The model button opens **Model**, **Effort**, and **Context window** rows with
+The model button opens **Model**, fixed-model **Effort** or **Kupo mode**, and **Context window** rows with
 side menus. Kupo is in the model list; its adjacent information button explains
 unavailability without enabling it or substituting another model. Only the
 selected model's qualified options are offered, and changes save through the
@@ -3851,6 +4042,31 @@ and a diagnostic `service.log`. Connection tokens and OAuth credentials are
 never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
+
+Cold startup waits up to 60 seconds for the authenticated service, including
+encrypted-history replay and recovery. Large retained stores can take longer
+than ten seconds and must not be reported as failed while still initializing.
+An exited launch reports its exit code/signal and exact private `service.log`
+path. A competing client that lost the writer lock still waits for the actual
+authenticated owner. A readiness deadline never kills that owner, resets the
+store or starts an automatic replacement; inspect the log and reconnect after
+the service reports ready.
+
+The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
+the independent packed SDK/install/audit and seven hidden packaged startup,
+shutdown and CLI checks (one unpackaged-only case remains skipped).
+An actual eleven-second startup preserves the generated encrypted draft:
+11,407 ms through the independently installed SDK and 11,936 ms through the
+new app's bundled Node/SDK. No personal state is used by those checks, and
+the qualified native payload hashes are unchanged. These focused results do
+not relabel the earlier full-suite record.
+
+The separate ad-hoc development installer is
+`release/qualification-builds/startup-5d34148/Moguri-0.30.0-alpha.1-macos-arm64.dmg`,
+790,482,149 bytes, SHA-256
+`cc45aa47a61de638875218d1b7be17de6482b08d14027ab63db6fd37db1867d9`.
+Its disk-image integrity passes; it is not notarized. The original `d6aeae4`
+and prior protocol86 `286b047` installers remain byte-identical.
 
 Protocol/database version 18 preserves earlier state through transactional
 migrations. Payloads and blob grants use independent profile/project/session

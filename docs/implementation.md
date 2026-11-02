@@ -212,6 +212,38 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > ownership, source publication and budget accounting remain separate.
 > This is the supported macOS slice, not Linux or the completed roadmap.
 
+> Protocol84 adds owner-requested
+> [current-profile model recovery, scheduled prompts and Kupo modes](architecture/recovery-scheduling-kupo.md)
+> through the same service/SDK/worker. Recovery uses the exact 30/90/120/180
+> deadline sequence, reset only by a complete metered recovered response.
+> Scheduling owns unsent ghost input and one-at-most queue admission. Automatic
+> Kupo selects supported effort/max context for Balanced/Savings/Performance;
+> frontier/cost/evaluation classes need actual source review. Bounded
+> re-review, explicitly enabled text compaction and complete finite Local role
+> holds preserve originals, unknown charges and ordinary permissions.
+> Fixed-model controls and previous explicit selections remain independent.
+> Missing System One and Remote/native wind-down qualification stays blocked;
+> no source review, classifier advice or generated fixture is a quality,
+> independence, permission or whole-milestone guarantee.
+
+> Protocol85 adds [owned model transports](architecture/owned-model-transports.md)
+> to the same draft/source authority. Idle native scheduling can prepare complete
+> owned source model-free before ghost admission under the existing explicit
+> managed policy. Bounded-model technical/steering decisions and finite metadata
+> finishing execute inside the actual selected SSH/native parent, with exact
+> role/transport receipts, holds, cancellation and terminal late-data recovery.
+> They cannot replay effects, transfer roots, grant source acceptance or adopt
+> Local Git. This is the protocol85 boundary, not a whole-milestone completion.
+>
+> Protocol86's [snapshot retries and transport checkpoints](architecture/native-retry-checkpoints.md)
+> implement the user's confirmed off-by-default original-snapshot restaging
+> policy and separate accepted-work reviews. Remote Git executes on the original
+> pinned peer. Native-model output needs its existing separate source acceptance
+> followed by a disclosed new Local branch at the original repository, subject
+> to Local policy. Partial publication retains its writer/report until fresh
+> actual-user effect inspection; its job, cancellation and charges do not become
+> successful or free. Jev's unavailable output/accounting wire remains distinct.
+
 ## Why Moguri
 
 Current coding agents optimize individual conversations. Real software work spans repositories, worktrees, issues, pull requests, background processes, CI runs, decisions, and many resumable agent sessions.
