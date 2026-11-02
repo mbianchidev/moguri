@@ -9,6 +9,7 @@ export function CodeChangePane({ sdk, session, snapshot, onDirty, chooseSession 
   const actual = selected && urls.includes(selected) ? selected : urls[0] ?? null;
   return <section aria-label="Session code change" data-session-id={session.id}>
     <h2>Code change{urls.length > 1 ? ` (${urls.length} PRs)` : ""}</h2>
+    {!actual && <p>This session has no linked pull request. Select or create one using its exact repository and account.</p>}
     {urls.length > 1 && <label className="setting-field">Associated pull request<select aria-label="Associated pull request" value={actual ?? ""}
       onChange={(event) => setSelected(event.target.value)}>{urls.map((url) => <option key={url} value={url}>{url}</option>)}</select></label>}
     <SessionGitHub sdk={sdk} session={session} snapshot={snapshot} kind="pull" selectedUrl={actual} onDirty={onDirty} chooseSession={chooseSession} />

@@ -49,7 +49,7 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
   const inspection = data?.action === "inspect" ? data : null;
   const question = inspection?.question && actual?.pendingQuestionId === inspection.question.id ? snapshot.questions.find((question) => question.id === inspection.question?.id && question.status === "open") : undefined;
   const approval = inspection?.approval && actual?.pendingApproval?.id === inspection.approval.id ? actual.pendingApproval : null;
-  return <details className="coordination-panel"><summary>Session messages and dependencies</summary>
+  return <details className="coordination-panel"><summary aria-description="Review session messages, context grants and task dependencies">Session coordination</summary>
     <p className="fine-print">Live access uses the original root-bound grant, not sidebar nesting. Side chats remain read-only. Messages retain the actual sender and do not start a paid reply.</p>
     <div className="button-row">
       <label>Coordination target<select aria-label="Coordination target" value={target?.id ?? ""} disabled={dirty || !peers.length} onChange={(event) => setSelected(event.target.value)}>

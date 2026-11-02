@@ -595,8 +595,10 @@ function SessionIndicators({ indicator }: { indicator: ReturnType<typeof session
   };
   const name = names[indicator.kind];
   return <span className="session-indicators">
-    {name && <span className="session-mark" data-session-state={indicator.kind} role="img" aria-label={indicator.label} title={indicator.label}><Icon name={name} /></span>}
-    {indicator.prUrl && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img"
+    {name && <span className={`session-mark${indicator.kind === "merged" ? " session-pr-icon" : ""}`} data-session-state={indicator.kind} role="img"
+      aria-label={`${indicator.kind === "merged" && indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.label}`} title={indicator.label}><Icon name={name} />
+      {indicator.kind === "merged" && indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
+    {indicator.prUrl && indicator.kind !== "merged" && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img"
       aria-label={`${indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.prLabel}`} title={indicator.prLabel}><Icon name="PR" />
       {indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
   </span>;

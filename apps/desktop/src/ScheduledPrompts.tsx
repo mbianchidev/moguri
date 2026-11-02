@@ -100,7 +100,7 @@ export function GhostPrompts({ sdk, session, snapshot, run }: { sdk: MoguriSdk; 
 export function ScheduledPromptsPanel({ sdk, snapshot, run, openSession }: { sdk: MoguriSdk; snapshot: Snapshot; run: Run; openSession: (id: string) => void }) {
   const prompts = snapshot.scheduledPrompts.filter((prompt) => ["scheduled", "blocked", "queued"].includes(prompt.status))
     .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt) || a.id.localeCompare(b.id));
-  return <section className="scheduled-prompts-panel" aria-label="Scheduled prompts"><header><Icon name="Clock" /><h2>Automations</h2></header>
+  return <section className="scheduled-prompts-panel" aria-label="Scheduled prompts"><header><Icon name="Clock" /><h2>Automation actions</h2></header>
     <p className="fine-print">Automations are actions Moguri can run for you, not just prompts. This checkpoint supports one-time scheduled prompts; other action types are not available yet.</p>
     <h3>Scheduled prompts</h3><p className="fine-print">Unsent prompts in this profile. Timers belong to Moguri, not this window.</p>
     {!prompts.length && <p>No scheduled prompts. Use Cmd/Ctrl+Enter in an idle chat to schedule one.</p>}

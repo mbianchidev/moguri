@@ -786,7 +786,8 @@ function Timeline({ session, snapshot, run, client, modal, label = "Session tran
       const first = messages[0]?.role === "user" ? messages[0] : null;
       const operations = entries.filter((entry) => entry.turnId === turnId && entry.kind !== "model");
       const parts: Array<{ sequence: number; message?: PublicMessage; operation?: ActivityEntry }> = [
-        ...messages.filter((message) => message.id !== first?.id && message.role !== "tool").map((message) => ({ sequence: positions.get(message.id) ?? Number.MAX_SAFE_INTEGER, message })),
+        ...messages.filter((message) => message.id !== first?.id && (message.role !== "tool" || message.attachments?.length))
+          .map((message) => ({ sequence: positions.get(message.id) ?? Number.MAX_SAFE_INTEGER, message })),
         ...operations.map((operation) => ({ sequence: operation.sequence, operation })),
       ];
       parts.sort((a, b) => a.sequence - b.sequence || Number(Boolean(b.operation)) - Number(Boolean(a.operation)));

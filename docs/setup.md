@@ -3573,7 +3573,7 @@ offered as usable without fine-tuning; do not interpret this as 22 verified
 languages or 40 ready languages.
 
 **Enable voice dictation** downloads the sole pinned Moguri-managed model after
-license/runtime review. **Disable and delete managed voice model** cancels and
+license/runtime review. Turning it off cancels and
 joins this profile's voice work, closes its recognizer and removes only that
 owned model/staging. Enabling again downloads it again if missing. It never
 deletes user-selected external models or another app's weights. A shared
@@ -3607,7 +3607,7 @@ extra SDK conversation refresh. Its input-free audio processor and local
 recognizer prepare in advance while voice is enabled, before live microphone
 capture, and connect immediately so
 the opening audio is not lost during worklet startup or permission-release IPC.
-No microphone standby is implicit. **Keep microphone ready while this composer
+No microphone standby is implicit. **Prepare microphone while a composer
 is focused** separately consents to visible device readiness, without recording
 until activation. Disable, focus/ownership loss, sleep and cancellation close
 standby. First-time OS authorization still requires the user; wait for the

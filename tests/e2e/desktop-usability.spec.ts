@@ -243,6 +243,8 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   await sdk.voice.download(true);
   await expect.poll(() => sdk.getState().snapshot?.jobs.findLast((job) => job.kind === "voice.download")?.status).toBe("completed");
+  const settings = sdk.settings.get()!;
+  await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, pushToTalk: true } }, settings.revision);
   const app = await launch(fixture.directory);
   const dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller);
   let release = () => {};
@@ -290,7 +292,7 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
     prefixArgs.push("--exit-signal", "SIGTERM");
     await fixture.service.controller.platform.voice.close();
     await page.keyboard.down("Control"); await page.keyboard.down("Space");
-    try { await expect(page.getByRole("alert")).toContainText("SIGTERM"); }
+    try { await expect(page.getByRole("alert").filter({ hasText: "Generated native capture failed" })).toContainText("SIGTERM"); }
     finally { await page.keyboard.up("Space"); await page.keyboard.up("Control"); }
     await expect(prompt).toHaveValue("Generated original draft. Generated local dictation.");
     expect(fixture.requests.length).toBe(0);

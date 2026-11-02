@@ -220,7 +220,7 @@ test("native click/type/wait/screenshot use the exact Browser owner and deliver 
     const bytes = Buffer.from(result.content.data, "base64");
     expect(bytes.subarray(1, 4).toString()).toBe("PNG");
     expect((await sharp(bytes).metadata()).width).toBeGreaterThan(200);
-    await expect(owned.page.getByRole("button", { name: `Preview attachment ${attachment.path}`, exact: true })).toBeVisible();
+    await expect(owned.page.locator(".message.assistant").getByRole("button", { name: `Preview attachment ${attachment.path}`, exact: true })).toBeVisible();
     expect(owned.fixture.requests.length).toBe(2);
     expect(JSON.stringify(owned.fixture.requests)).not.toContain(bytes.toString("base64"));
   } finally { sdk.disconnect(); await owned.close(); }
