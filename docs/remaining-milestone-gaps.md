@@ -1,9 +1,11 @@
 # First-milestone gap handoff
 
-Current protocol85 continuation and its remaining implementation/user-review/
-upstream gates are in [owned model transports](architecture/owned-model-transports.md).
-That selected-boundary scheduling/decision/finishing slice does not close
-automatic native rollback restaging, Jev or Remote/native accepted-work Git.
+Current protocol86 snapshot retry and separately reviewed transport checkpoints
+are in [the exact retry/checkpoint contract](architecture/native-retry-checkpoints.md).
+The preceding selected-boundary scheduling/decision/finishing slice is retained
+in [owned model transports](architecture/owned-model-transports.md).
+Jev's real bounded output/accounting contract, live model source review and the
+wider roadmap remain separate from those implementation-owned paths.
 The historical handoff and starting-point estimate below remain original.
 
 Historical issue-17 source continuation: model windows/scoped paste, native

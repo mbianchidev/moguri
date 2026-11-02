@@ -233,9 +233,16 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > finishing execute inside the actual selected SSH/native parent, with exact
 > role/transport receipts, holds, cancellation and terminal late-data recovery.
 > They cannot replay effects, transfer roots, grant source acceptance or adopt
-> Local Git. Jev's unavailable output/accounting wire, the held native rollback
-> restaging policy and Remote/native accepted-work checkpoint integration remain
-> separate gates; none is counted as completed by a version or generated test.
+> Local Git. This is the protocol85 boundary, not a whole-milestone completion.
+>
+> Protocol86's [snapshot retries and transport checkpoints](architecture/native-retry-checkpoints.md)
+> implement the user's confirmed off-by-default original-snapshot restaging
+> policy and separate accepted-work reviews. Remote Git executes on the original
+> pinned peer. Native-model output needs its existing separate source acceptance
+> followed by a disclosed new Local branch at the original repository, subject
+> to Local policy. Partial publication retains its writer/report until fresh
+> actual-user effect inspection; its job, cancellation and charges do not become
+> successful or free. Jev's unavailable output/accounting wire remains distinct.
 
 ## Why Moguri
 

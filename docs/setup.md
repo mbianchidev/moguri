@@ -104,8 +104,12 @@ bind actual model starts. Only undispatched holds release after their owner
 ends. Unknown calls remain held, and stricter policy still wins.
 SSH/native metadata finishing runs on the original selected-boundary parent,
 never a controller model. It is not task completion, source acceptance or an
-automatic Git checkpoint. Remote/native accepted-work Git integration remains
-unimplemented; Local helpers cannot adopt those reports or roots.
+automatic Git checkpoint. Protocol86 separately binds actual-user source
+acceptance and reviewed Git publication to the original SSH peer, or to the
+original Local repository after native-source acceptance. That disclosed
+native-model/Local-Git boundary also requires current Local allowed-env policy.
+Neither metadata, a model answer nor a generic inspection acknowledgement
+supplies those approvals.
 Sandbox must use the current exact
 worker/distribution qualification, not historical bytes or installed SendBox
 0.2.3. No personal model inference or sign-in is used to qualify this slice.
@@ -117,6 +121,48 @@ Protocol85 transactionally adds `scheduled_native_preparation_schema`,
 without rewriting the original delivered `d6aeae4` installer or its evidence.
 See the [original recovery contract](architecture/recovery-scheduling-kupo.md)
 and [owned transport continuation](architecture/owned-model-transports.md).
+Protocol86 transactionally adds `native_retry_restaging_schema` and
+`transport_checkpoint_schema` from genuine85. It preserves the protocol84
+`d6aeae4` DMG and every original84/85 distribution and receipt.
+
+### Exact native retry and transport checkpoint review
+
+**Settings / Confirmations / Allow exact private-snapshot restaging for native
+model retries** is off by default. Enabling it allows only a new qualified
+request's complete byte-verified signed private after-snapshot, with its exact
+original model/request/profile/Env and verified guest absence. Live checkout
+changes are never recaptured, prior tools/Git never replay, and unknown charges
+remain held. A changed root, authorization, permission, unsupported layout or
+incomplete snapshot blocks retry. Stop during preparation remains stopped
+across restart without another guest or model call.
+
+In **Settings / Candidates / Budget wind-down checkpoints**, select the original
+idle source chat. For SSH, select exact paths, **Review peer source**, inspect
+any original quarantined work and explicitly **Resume after source inspection**
+when needed, then separately **Accept peer source**. Only afterward review the
+new peer branch, base, files/modes, message and Git confirmation. All Git executes
+at the original pinned SSH root; the Local checkout is never substituted.
+
+For native work, first publish exact native output through its existing separate
+source review. Select only completed publications from that finishing execution.
+The later checkpoint review explicitly creates a new Local Git branch at the
+original source repository, not in the guest. Sandbox-only policy blocks this
+Local-Git action. Both paths preserve the actual source HEAD/index and unrelated
+staged files; they never checkout, push, merge, delete a branch or start another
+model.
+
+A partial attempted publication retains its exact writer/root and independent
+report across restart. **Inspect original checkpoint effects** is read-only and
+verifies authenticated peer receipts where applicable, the current ref/blobs,
+source bytes/modes and original HEAD/index. Separate **Acknowledge original
+writer inspection** settles only that known ended writer. Job/task status stays
+partial, Stop remains recorded and model charges remain unchanged. Missing
+terminal receipts, changed refs/source and unknown cleanup stay blocked. A
+generic Resume, archive or report deletion cannot erase this writer.
+
+The [protocol86 contract](architecture/native-retry-checkpoints.md) records
+the exact scope, migrations and qualification; Jev's unavailable enforceable
+output/accounting wire remains a separate upstream gate.
 
 ## Selected-boundary bounded decisions
 
