@@ -874,6 +874,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .project-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-color { display: inline-flex; flex-shrink: 0; }
 .session-row.selected { background: var(--selected); border-radius: 5px; }
+.inline-session-rename { width: 100%; min-width: 0; padding: 4px; }
+.inline-session-rename > div { display: flex; align-items: center; gap: 3px; }
+.inline-session-rename input { flex: 1; min-width: 0; width: 100%; padding: 7px 5px; }
+.inline-session-rename .icon-button { min-width: 28px; min-height: 32px; width: 28px; padding: 3px; }
 .session-row.selected .session-link { color: var(--selection-text); }
 .session-link > svg { width: 12px; height: 12px; color: var(--muted); }
 .project-actions { flex-shrink: 0; width: 28px; min-height: 32px; padding: 0; }
