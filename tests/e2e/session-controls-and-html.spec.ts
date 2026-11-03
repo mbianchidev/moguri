@@ -34,23 +34,28 @@ test("stable IDs and mentions use reviewed context; project bulk attach/detach/a
     expect(f.requests).toHaveLength(0);
     const navigation = page.getByRole("navigation", { name: "Projects and sessions" });
     const select = async (names: string[]) => {
-      await navigation.getByRole("button", { name: /^Project actions for / }).click();
-      await page.getByRole("menuitem", { name: "Select sessions", exact: true }).click();
-      for (const name of names) await navigation.getByLabel(`Select session ${name}`, { exact: true }).check();
+      await navigation.getByRole("button", { name: names[0]!, exact: true }).click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Select", exact: true }).click();
+      for (const name of names.slice(1)) await navigation.getByRole("button", { name, exact: true }).click();
+      await expect(navigation.locator('input[type="checkbox"]')).toHaveCount(0);
+    };
+    const bulkAction = async (name: string) => {
+      await navigation.locator('.session-row[data-session-selected="true"] .session-link').first().click({ button: "right" });
+      await page.getByRole("menuitem", { name, exact: true }).click();
     };
     await select(["Generated bulk A", "Generated bulk B"]);
-    await navigation.getByRole("button", { name: "Attach selected", exact: true }).click();
+    await bulkAction("Attach to session (2)");
     const attach = page.getByRole("dialog", { name: "attach selected sessions", exact: true });
     await attach.getByLabel("Bulk attachment target", { exact: true }).selectOption(f.sessionId);
     await attach.getByRole("button", { name: "Apply to selected sessions", exact: true }).click();
     await expect.poll(() => sdk.sessions.get(a)?.parentSessionId).toBe(f.sessionId);
     await expect.poll(() => sdk.sessions.get(b)?.parentSessionId).toBe(f.sessionId);
     await select(["Generated bulk A", "Generated bulk B"]);
-    await navigation.getByRole("button", { name: "Detach selected", exact: true }).click();
+    await bulkAction("Detach (2)");
     await page.getByRole("dialog", { name: "detach selected sessions", exact: true }).getByRole("button", { name: "Apply to selected sessions", exact: true }).click();
     await expect.poll(() => sdk.sessions.get(a)?.parentSessionId ?? null).toBe(null);
     await select(["Generated bulk A", "Generated bulk B"]);
-    await navigation.getByRole("button", { name: "Archive selected", exact: true }).click();
+    await bulkAction("Archive (2)");
     const archive = page.getByRole("dialog", { name: "archive selected sessions", exact: true });
     await archive.getByRole("checkbox", { name: "Do not ask me again for multiple archiving", exact: true }).check();
     await archive.getByRole("button", { name: "Apply to selected sessions", exact: true }).click();
@@ -58,7 +63,7 @@ test("stable IDs and mentions use reviewed context; project bulk attach/detach/a
     await expect.poll(() => sdk.settings.get()?.values.retention.confirmBulkArchive).toBe(false);
     const d = (await sdk.sessions.create(projectId, "Generated deletion D")).id!, e = (await sdk.sessions.create(projectId, "Generated deletion E")).id!;
     await select(["Generated deletion D", "Generated deletion E"]);
-    await navigation.getByRole("button", { name: "Delete selected", exact: true }).click();
+    await bulkAction("Delete (2)");
     const deletion = page.getByRole("dialog", { name: "delete selected sessions", exact: true });
     await deletion.getByRole("checkbox", { name: "I confirm permanent deletion of this exact selected set.", exact: true }).check();
     await deletion.getByRole("checkbox", { name: "Do not ask me again for multiple deletion", exact: true }).check();

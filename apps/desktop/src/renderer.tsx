@@ -4,6 +4,7 @@ import { MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import "./styles.css";
 
 const root = createRoot(document.getElementById("root")!);
+root.render(<main className="startup-screen" role="status"><h1>Moguri</h1><p>Opening your workspace...</p></main>);
 try {
   const connection = await window.moguri.connection();
   const profileId = await window.moguri.profile();

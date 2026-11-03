@@ -141,8 +141,10 @@ test("quitting during connection admission waits for that exact service and does
   }), nativeProcess = app.process();
   try {
     await expect.poll(() => entered).toBe(true);
+    const startup = await app.firstWindow();
+    await expect(startup.getByRole("status")).toContainText("Opening your workspace");
     const closing = app.waitForEvent("close");
-    await app.evaluate(({ app, BrowserWindow }) => { if (BrowserWindow.getAllWindows().length) throw new Error("A generated startup window appeared before admission."); app.quit(); });
+    await app.evaluate(({ app, BrowserWindow }) => { if (BrowserWindow.getAllWindows().length !== 1) throw new Error("The generated startup window is missing or duplicated."); app.quit(); });
     gate.resolve(); await closing; await closed.promise;
     expect(stops).toBe(1); expect(lateClient).toBe(false);
     await expect.poll(async () => {

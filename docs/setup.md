@@ -4209,6 +4209,30 @@ The new cut also passes the complete local unit/native-TUI sweep (2,195 passed,
 packed SDK and actual-package/update-consumer checks. No failures or cancelled
 checks were relabeled as success; physical-native skips remain unqualified.
 
+### Responsive startup and session navigation
+
+The subsequent protocol-89 follow-up addresses repeated global/profile JSON
+scans, not by increasing timeouts or discarding history. Its atomic
+`event_read_indexes_schema` migration adds profile/sequence and type/sequence
+indexes without rewriting schema-88 ciphertext, keys, grants or receipts.
+Opening against a healthy older service requires the existing explicit
+authenticated restart review, preserving user terminals while interrupting
+active agent work.
+
+The app shows its startup window before service/profile recovery, keeping
+opening/error state visible. Timed-out read-only health probes may retry within
+the operation's existing deadline, but mutations and lifecycle requests are
+never replayed. Cancel quit after failed shutdown restores an accessible window
+bound to the original owner, without adopting or starting another service.
+
+Use the **+** beside **Chats** for a new chat. Right-click a session and choose
+**Select**, then click or use Space/Enter on other sessions. Highlighted rows
+are the selected set; there are no row checkboxes. Right-click a highlighted
+row for counted actions such as **Archive (4)**. Escape or **Done selecting**
+leaves selection. Existing policy, child-tree reviews, cancellation and retention
+guarantees remain; destructive review dialogs still require their real
+confirmations. See the [responsiveness contract and measurements](architecture/startup-responsiveness.md).
+
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
 shutdown and CLI checks (one unpackaged-only case remains skipped).

@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, readConnection, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -30,6 +30,8 @@ let closeRequested = false;
 let serviceStoppedForRestart = false;
 let updateTimer: ReturnType<typeof setInterval> | undefined;
 let updateNoticed: string | null = null;
+const nativeReady = Promise.withResolvers<void>();
+void nativeReady.promise.catch(() => console.error("Native startup did not complete; the startup window retains its connection diagnostic."));
 const audioGranted = () => {
   const grant = audioGrant, state = attentionClient?.getState();
   return Boolean(grant && grant.profileId === activeProfileId && grant.epoch === profileEpoch && Date.now() < grant.expires &&
@@ -72,6 +74,8 @@ else {
   void app.whenReady().then(async () => {
     let connecting: Promise<Connection> | undefined;
     let connectedOwner: { directory: string; connection: Connection } | undefined;
+    let reopenOwner: typeof connectedOwner;
+    let nativeInitialized = false;
     let shutdownTask: Promise<void> | undefined, exitAllowed = false;
     const shutdown = () => {
       if (shutdownTask) return;
@@ -87,16 +91,28 @@ else {
         shutdownTask = undefined;
         const message = error instanceof Error ? error.message : "The original Moguri service did not confirm shutdown. No unknown process was signalled.";
         console.error("Moguri app shutdown is unconfirmed:", message);
-        if (process.env.MOGURI_TEST_WINDOW === "hidden") return;
+        const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
+        if (hidden && process.env.MOGURI_TEST_SHUTDOWN_FAILURE !== "cancel") return;
         try {
-          const choice = await dialog.showMessageBox({
+          const choice = hidden ? { response: 1 } : await dialog.showMessageBox({
             type: "error", title: "Moguri is still shutting down", message,
             detail: "Moguri was not marked closed. Its original service/cleanup state is retained; no new service was started and no data was deleted.",
             buttons: ["Retry shutdown", "Cancel quit"], defaultId: 0, cancelId: 1, noLink: true,
           });
           if (choice.response === 0) shutdown();
-          else closeRequested = false;
-        } catch (notificationError) { console.error("Shutdown failure notification could not be shown; the original service remains retained:", notificationError instanceof Error ? notificationError.message : "native notification failed"); }
+          else {
+            const recoveryEpoch = profileEpoch;
+            closeRequested = false; reopenOwner = connectedOwner;
+            if (!mainWindow || mainWindow.isDestroyed()) await createWindow();
+            if (nativeInitialized && profileEpoch === recoveryEpoch) {
+              const original = reopenOwner;
+              if (original && JSON.stringify(await readConnection(original.directory)) !== JSON.stringify(original.connection)) throw new Error("The original service changed before cancelled-quit recovery. No different owner was adopted.");
+              await activateProfile(activeProfileId);
+              if (original && JSON.stringify(await readConnection(original.directory)) !== JSON.stringify(original.connection)) throw new Error("The original service changed during cancelled-quit recovery. No different owner was adopted.");
+              reopenOwner = undefined;
+            }
+          }
+        } catch (notificationError) { console.error("Shutdown recovery or notification failed; the original service remains retained:", notificationError instanceof Error ? notificationError.message : "native recovery failed"); }
       });
     };
     app.on("before-quit", (event) => {
@@ -109,8 +125,8 @@ else {
     const connect = async () => {
       if (maintenancePending || closeRequested) throw new Error("App shutdown or original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
       connecting ??= (async () => {
-        const directory = stateDirectory();
-        connection = await ensureConnection({
+        const original = reopenOwner, directory = original?.directory ?? stateDirectory();
+        const selectedConnection = original ? await readConnection(directory) : await ensureConnection({
           stateDir: directory, explicitStateDir: Boolean(process.env.MOGURI_STATE_DIR && process.env.MOGURI_STATE_DIR_EXPLICIT !== "0"),
           runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs"),
           confirmUpgrade: async (review) => {
@@ -127,14 +143,46 @@ else {
             return choice.response === 0;
           },
         });
+        if (original && JSON.stringify(selectedConnection) !== JSON.stringify(original.connection)) throw new Error("The captured service changed while quit was cancelled. No different owner was adopted or started.");
+        connection = selectedConnection;
         connectedOwner = { directory, connection: { ...connection } };
         return { ...connection, baseUrl: "moguri://app" };
       })().finally(() => { connecting = undefined; });
       return connecting;
     };
+    const rendererRoot = join(app.getAppPath(), "dist", "desktop", "renderer");
+    protocol.handle("moguri", async (request) => {
+      const url = new URL(request.url);
+      if (url.hostname !== "app") return new Response("Unknown Moguri origin.", { status: 403 });
+      if (url.pathname.startsWith("/v1/")) {
+        if (!connection) return Response.json({ error: { code: "starting", message: "The original service is not connected yet." } }, { status: 503 });
+        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/command-receipt", "/v1/query", "/v1/query-cancel", "/v1/terminal", "/v1/voice", "/v1/application", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
+        const profileId = request.headers.get("X-Moguri-Profile") ?? PROFILE_ID;
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) return new Response("Profile scope denied.", { status: 403 });
+        return fetch(`${connection.baseUrl}${url.pathname}`, {
+          method: request.method,
+          headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json", "X-Moguri-Profile": profileId,
+            ...(request.headers.get("X-Moguri-Query-Id") ? { "X-Moguri-Query-Id": request.headers.get("X-Moguri-Query-Id")! } : {}) },
+          ...(request.method === "POST" ? { body: await request.text() } : {}),
+          signal: AbortSignal.any([request.signal, AbortSignal.timeout(url.pathname === "/v1/query" ? QUERY_TIMEOUT_MS + QUERY_REPLY_GRACE_MS : 20_000)]),
+        });
+      }
+      const path = resolve(rendererRoot, `.${decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname)}`);
+      if (!path.startsWith(rendererRoot + sep)) return new Response("Path denied.", { status: 403 });
+      try {
+        const bytes = await readFile(path);
+        const mime: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".wasm": "application/wasm" };
+        return new Response(bytes, { headers: { "Content-Type": mime[extname(path)] ?? "application/octet-stream", "X-Content-Type-Options": "nosniff" } });
+      } catch { return new Response("Moguri asset missing. Rebuild the app.", { status: 404 }); }
+    });
+    ipcMain.handle("moguri:connection", async (event) => { trusted(event); await nativeReady.promise; return connect(); });
+    app.on("activate", () => { if (!mainWindow && !closeRequested && !maintenancePending) void createWindow(); });
+    const openingWindow = createWindow();
+    void openingWindow.catch((error: unknown) => console.error("Initial window loading ended:", error instanceof Error ? error.message : "inspect native startup"));
+    if (closeRequested) throw new Error("Initial workspace opening was cancelled by quit. Reopen Moguri after its original shutdown settles.");
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
     await connect();
-    if (closeRequested) return;
+    if (closeRequested) throw new Error("Initial workspace opening was cancelled by quit. Reopen Moguri after its original shutdown settles.");
     const applyApplicationPreferences = async () => {
       const scoped = attentionClient, epoch = profileEpoch;
       if (!scoped) throw new Error("The actual profile is not connected to the application store.");
@@ -217,31 +265,6 @@ else {
       return profileId;
     };
     await activateProfile(activeProfileId);
-    const rendererRoot = join(app.getAppPath(), "dist", "desktop", "renderer");
-    protocol.handle("moguri", async (request) => {
-      const url = new URL(request.url);
-      if (url.hostname !== "app") return new Response("Unknown Moguri origin.", { status: 403 });
-      if (url.pathname.startsWith("/v1/")) {
-        if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/command-receipt", "/v1/query", "/v1/query-cancel", "/v1/terminal", "/v1/voice", "/v1/application", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
-        const profileId = request.headers.get("X-Moguri-Profile") ?? PROFILE_ID;
-        if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) return new Response("Profile scope denied.", { status: 403 });
-        return fetch(`${connection.baseUrl}${url.pathname}`, {
-          method: request.method,
-          headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json", "X-Moguri-Profile": profileId,
-            ...(request.headers.get("X-Moguri-Query-Id") ? { "X-Moguri-Query-Id": request.headers.get("X-Moguri-Query-Id")! } : {}) },
-          ...(request.method === "POST" ? { body: await request.text() } : {}),
-          signal: AbortSignal.any([request.signal, AbortSignal.timeout(url.pathname === "/v1/query" ? QUERY_TIMEOUT_MS + QUERY_REPLY_GRACE_MS : 20_000)]),
-        });
-      }
-      const path = resolve(rendererRoot, `.${decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname)}`);
-      if (!path.startsWith(rendererRoot + sep)) return new Response("Path denied.", { status: 403 });
-      try {
-        const bytes = await readFile(path);
-        const mime: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".wasm": "application/wasm" };
-        return new Response(bytes, { headers: { "Content-Type": mime[extname(path)] ?? "application/octet-stream", "X-Content-Type-Options": "nosniff" } });
-      } catch { return new Response("Moguri asset missing. Rebuild the app.", { status: 404 }); }
-    });
-    ipcMain.handle("moguri:connection", async (event) => { trusted(event); return connect(); });
     ipcMain.handle("moguri:application-preferences", async (event) => { trusted(event); return applyApplicationPreferences(); });
     const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
     const cliInstallation = new CliInstallation(
@@ -512,7 +535,7 @@ else {
       if (audioGrant?.id === id) audioGrant = null;
     });
     powerMonitor.on("suspend", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });
-    const createWindow = async () => {
+    async function createWindow() {
       mainWindow = new BrowserWindow({
         title: "Moguri", width: 1440, height: 940, minWidth: 840, minHeight: 620,
         show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#141922",
@@ -542,8 +565,9 @@ else {
         void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });
       mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });
       await mainWindow.loadURL("moguri://app/");
-    };
-    await createWindow();
+    }
+    nativeInitialized = true; nativeReady.resolve();
+    await openingWindow;
     if (closeRequested) return;
     const checkUpdates = async () => {
       const scoped = attentionClient;
@@ -557,12 +581,11 @@ else {
       void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error));
       updateTimer = setInterval(() => { void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error)); }, 4 * 60 * 60_000);
     }
-    app.on("activate", () => { if (!mainWindow && !closeRequested && !maintenancePending) void createWindow(); });
   }).catch((error: unknown) => {
+    nativeReady.reject(error);
     if (error instanceof ServiceUpgradeCancelled || closeRequested) { app.quit(); return; }
     console.error("Moguri desktop startup failed:", error instanceof Error ? error.message : "Unknown startup error.");
     if (process.env.MOGURI_TEST_WINDOW !== "hidden") dialog.showErrorBox("Moguri could not start", error instanceof Error ? error.message : "Inspect the service log.");
-    app.quit();
   });
   app.on("will-quit", () => { clearInterval(updateTimer); tray?.destroy(); tray = null; });
 }
