@@ -4167,17 +4167,36 @@ The log is append-only across launches. A nearby protocol-88 ready line or
 missing-module error. The generated reproduction establishes the path and
 absent-registry bugs, not the provenance of those separate personal log lines.
 See the [entrypoint/ownership recovery contract and qualification](architecture/cli-launcher.md#packaged-service-entrypoint-and-ownership-recovery).
-The corrected `fbe7650` development installer is
-`release/qualification-builds/service-recovery-fbe7650/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
-It is ad-hoc-signed, not notarized or installed automatically. The earlier
-`603847d` installer was superseded after the broader source sweep caught an
-admission-fence regression; do not install that historical cut as the repair.
-Exact hashes, packed/actual-app checks and remaining qualification limits are in the
+The `fbe7650` development installer repaired the missing-entrypoint and registry
+errors but was superseded for the subsequently reproduced large-history
+negotiation failure. The earlier `603847d` installer was also superseded after
+the broader sweep caught an admission-fence regression. Neither historical
+artifact should be treated as the final no-window repair. Exact hashes,
+packed/actual-app checks and remaining qualification limits are in the
 [delivery record](architecture/cli-launcher.md#service-recovery-delivery-qualification).
 The corrected cut passes the complete local unit/native-TUI sweep (2,191 passed,
 29 skipped), complete hidden desktop sweep (323 passed, four skipped), fresh
 independently installed packed SDK and actual-package/update-consumer checks.
 Skipped physical-native gates and notarization are not implied by those passes.
+
+### Protocol negotiation did not complete
+
+This is the event-client handshake, separate from finding or starting the
+service. It can prevent the desktop window from being created even after the
+service is healthy. The failure was reproduced from the `fbe7650` app with
+generated retained history: after successfully reading its snapshot, the client
+unnecessarily replayed all earlier events from zero, repeatedly filled the
+event output buffer, and exhausted its normal ten-second handshake window.
+
+The follow-up repair resumes from the accepted snapshot's exact sequence while
+still receiving events committed before the socket authenticates. It does not
+raise the timeout, reset/truncate history or replay prompts/tools. Install that
+corrected client instead of retrying the superseded DMG or deleting state.
+The cursor repair works with the existing healthy protocol-88 service; it does
+not itself require an interrupting service restart.
+Persistent failures now include the observed event-close diagnostic; verify the
+matching app/service and selected profile rather than assuming every timeout
+means slow startup. See the [retained-history negotiation record](architecture/cli-launcher.md#retained-history-negotiation-follow-up).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
