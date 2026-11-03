@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { MoguriSdk, PROTOCOL_VERSION, type StoredEvent } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
@@ -109,6 +109,8 @@ test("failed owned cleanup blocks app exit and a later Quit retries the same ser
 
 test("quitting during connection admission waits for that exact service and does not open a late window or leave it running", async () => {
   const fixture = await setupFixture(), gate = Promise.withResolvers<void>(); let entered = false, stops = 0, lateClient = false;
+  const closed = Promise.withResolvers<void>();
+  void closed.promise.catch((error: unknown) => console.error("Generated admission-owner cleanup failed:", error instanceof Error ? error.message : "inspect generated registry/lock"));
   const server = createServer((request, response) => {
     if (!["/v1/health", "/v1/lifecycle"].includes(request.url ?? "")) { lateClient = true; response.writeHead(404).end(); return; }
     expect(request.headers.authorization).toBe(`Bearer ${fixture.service.connection.token}`);
@@ -116,13 +118,21 @@ test("quitting during connection admission waits for that exact service and does
       entered = true; void gate.promise.then(() => response.end(JSON.stringify({ pid: process.pid, protocolVersion: PROTOCOL_VERSION }))); return;
     }
     if (request.url === "/v1/lifecycle") {
-      stops++; response.once("finish", () => { void fixture.service.close(); });
+      stops++; response.once("finish", () => {
+        void (async () => {
+          await unlink(join(fixture.directory, "state", "connection.json"));
+          await unlink(join(fixture.directory, "state", "service.lock"));
+          server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve()));
+        })().then(() => closed.resolve(), closed.reject);
+      });
       response.end(JSON.stringify({ accepted: true, pid: process.pid })); return;
     }
     response.writeHead(404).end();
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const address = server.address(); if (!address || typeof address === "string") throw new Error("Generated admission endpoint failed.");
+  await fixture.service.close();
+  await writeFile(join(fixture.directory, "state", "service.lock"), JSON.stringify({ pid: process.pid }), { mode: 0o600 });
   await writeFile(join(fixture.directory, "state", "connection.json"), JSON.stringify({ ...fixture.service.connection,
     baseUrl: `http://127.0.0.1:${address.port}`, wsUrl: `ws://127.0.0.1:${address.port}/v1/events` }), { mode: 0o600 });
   const app = await electron.launch({
@@ -133,7 +143,7 @@ test("quitting during connection admission waits for that exact service and does
     await expect.poll(() => entered).toBe(true);
     const closing = app.waitForEvent("close");
     await app.evaluate(({ app, BrowserWindow }) => { if (BrowserWindow.getAllWindows().length) throw new Error("A generated startup window appeared before admission."); app.quit(); });
-    gate.resolve(); await closing;
+    gate.resolve(); await closing; await closed.promise;
     expect(stops).toBe(1); expect(lateClient).toBe(false);
     await expect.poll(async () => {
       try { await readFile(join(fixture.directory, "state", "connection.json")); return true; }

@@ -4106,7 +4106,9 @@ Default retains its legacy namespace. Create an explicit UUID profile for
 account separation instead of pointing another service at the same database.
 
 The service writes `state.sqlite`, WAL files, `connection.json`, `service.lock`
-and a diagnostic `service.log`. Connection tokens and OAuth credentials are
+and a diagnostic `service.log`. Dead-writer reclamation may briefly retain a
+private `service.lock.recovery` claim; interrupted cleanup remains explicit,
+not permission to delete it. Connection tokens and OAuth credentials are
 never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
@@ -4119,6 +4121,52 @@ path. A competing client that lost the writer lock still waits for the actual
 authenticated owner. A readiness deadline never kills that owner, resets the
 store or starts an automatic replacement; inspect the log and reconnect after
 the service reports ready.
+
+### Missing packaged service or connection metadata
+
+`Cannot find module '.../Moguri.app/Contents/Resources/app/service.mjs'`
+was reproduced as a compiled-client path bug: an inlined SDK resolved its
+service relative to the CLI instead of `dist/sdk/node.mjs`. The distributed
+entrypoint is `Contents/Resources/app/dist/service.mjs`. A longer timeout,
+copied/symlinked `service.mjs`, another app or a development-checkout fallback
+does not repair that installation.
+
+Install the corrected matching app/build first. If its location changed, use
+**Settings > General > Command line** in that actual app to review removal and
+reinstallation of the managed command. Then explicitly restart through that
+matching command:
+
+```bash
+moguri service restart
+```
+
+For the matching source checkout, build it first, then use
+`node bin/moguri.mjs service restart`. The corrected restart verifies its actual
+service/runtime before interrupting anything. It can start a never-started or
+already-stopped service when connection, writer lock and recovery claim are
+all absent, rather than returning raw `lstat(connection.json)` ENOENT.
+
+**Restart interrupts active agent/tool work.** Saved drafts, unclaimed held
+queues, artifacts, original receipts and unknown charges remain; authenticated
+user terminals reattach without input replay. The command succeeds only after
+the replacement is authenticated and ready, not when shutdown is accepted.
+An acknowledgement failure may mean the original service already started
+stopping; it does not trigger an automatic retry or a second writer.
+
+A missing connection with a retained writer lock/recovery claim, an altered
+registry, rejected authentication or failed cleanup stays **unconfirmed**.
+Preserve the exact original files and inspect the reported `service.log`;
+do not delete/reset the database, keys, connection record, terminal broker or
+cleanup claim, recreate metadata by hand, or kill a guessed PID. `service info`
+can normally auto-start a service and is not a read-only diagnostic command.
+Keep any shared diagnostic excerpt bounded/redacted; never share connection
+tokens or credentials.
+
+The log is append-only across launches. A nearby protocol-88 ready line or
+`sandbox_setup_cancelled` does not prove which earlier attempt emitted a
+missing-module error. The generated reproduction establishes the path and
+absent-registry bugs, not the provenance of those separate personal log lines.
+See the [entrypoint/ownership recovery contract and qualification](architecture/cli-launcher.md#packaged-service-entrypoint-and-ownership-recovery).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
