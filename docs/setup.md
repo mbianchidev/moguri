@@ -4197,6 +4197,12 @@ not itself require an interrupting service restart.
 Persistent failures now include the observed event-close diagnostic; verify the
 matching app/service and selected profile rather than assuming every timeout
 means slow startup. See the [retained-history negotiation record](architecture/cli-launcher.md#retained-history-negotiation-follow-up).
+The separately qualified development installer containing this cursor repair is
+`release/qualification-builds/service-negotiation-2be78d1/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It is ad-hoc-signed, not notarized or installed automatically. The actual
+packaged desktop opens the generated 62.8-MB retained-history fixture without
+deleting history or increasing the negotiation timeout; exact artifact hashes
+and limits are in the [installer record](architecture/cli-launcher.md#retained-history-development-installer).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
