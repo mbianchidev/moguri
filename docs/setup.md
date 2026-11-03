@@ -4232,6 +4232,14 @@ row for counted actions such as **Archive (4)**. Escape or **Done selecting**
 leaves selection. Existing policy, child-tree reviews, cancellation and retention
 guarantees remain; destructive review dialogs still require their real
 confirmations. See the [responsiveness contract and measurements](architecture/startup-responsiveness.md).
+The corrected development image is
+`release/qualification-builds/responsive-startup-18bd457/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It is ad-hoc-signed, not notarized or installed automatically. Use this cut,
+not the earlier 88 or intermediate `f7a6ca0` images. Protocol-89 upgrade uses
+the explicit terminal-preserving restart review; active agent work can be
+interrupted, while saved input, unknown charges and authenticated user PTYs
+remain. Exact hashes, packaged finite-policy interaction measurements and fresh
+native qualification are in the [delivery record](architecture/startup-responsiveness.md#delivery-qualification).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
