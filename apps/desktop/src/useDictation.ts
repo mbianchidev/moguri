@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { parseShortcut, shortcutMatches, shortcutModifiersHeld, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { parseShortcut, shortcutMatches, shortcutModifiersHeld, voiceShortcutMode, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { captureBrowserAudio, prepareBrowserAudio, prepareBrowserMicrophone, type BrowserAudioPreparation, type BrowserMicrophonePreparation } from "./browser-audio.ts";
 import { SpeechCaptureController } from "./dictation.ts";
 
@@ -80,7 +80,7 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const voiceEnabled = snapshot.settings.values.voice.enabled !== false;
   const connected = sdk.getState().status === "connected", enabled = options.shortcuts && options.active !== false && voiceEnabled;
   const shortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
-  const pushToTalk = snapshot.settings.values.voice.pushToTalk === true;
+  const pushToTalk = voiceShortcutMode(snapshot.settings.values.voice) === "hold";
   useEffect(() => {
     if (voiceEnabled && connected && options.active !== false && sessionId && ["idle", "failed"].includes(state.phase)) driver.warm();
     return () => { void driver.close()?.catch((error: unknown) => console.error("Original audio warm-up cleanup failed:", error instanceof Error ? error.message : "unconfirmed graph cleanup")); };

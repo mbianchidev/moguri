@@ -4,7 +4,7 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
-Protocol 87's [session-controls and interactive-tool slice](architecture/session-controls-and-tools.md)
+Protocol 88's [session-controls and interactive-tool slice](architecture/session-controls-and-tools.md)
 exposes actual IDs and reviewed context mentions, exact success-only task
 dependencies, scoped peer messages, project-local priority/pinning/bulk actions,
 multiple verified PR associations and actual CI/review panes. Explicit voice

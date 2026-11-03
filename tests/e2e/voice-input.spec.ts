@@ -14,7 +14,7 @@ const launch = (directory: string) => electron.launch({
   args: [...process.env.MOGURI_TEST_APP ? [] : ["."], "--use-fake-device-for-media-stream"],
   env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
 });
-async function speechFixture(args: string[] = [], pushToTalk = true) {
+async function speechFixture(args: string[] = [], shortcutMode?: "hold" | "toggle") {
   const weights = Buffer.from("generated browser PCM recognizer weights");
   const fixture = await setupFixture({ platform: { speech: {
     executable: process.execPath, prefixArgs: [resolve("tests/fixtures/fake-speech.mjs"), ...args],
@@ -23,16 +23,17 @@ async function speechFixture(args: string[] = [], pushToTalk = true) {
   } } });
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   await sdk.jobs.wait((await sdk.voice.download(true)).id!);
-  if (pushToTalk) {
+  if (shortcutMode) {
     const settings = sdk.settings.get()!;
-    await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, pushToTalk: true } }, settings.revision);
+    await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, shortcutMode } }, settings.revision);
   }
   return { fixture, sdk };
 }
 
-test("tapping default Ctrl+Space survives cold admission and records after release instead of cancelling startup", async () => {
-  const { fixture, sdk } = await speechFixture(["--listener-delay", "300", "--buffered-ready"], false), app = await launch(fixture.directory);
+test("default Ctrl+Space is held push-to-talk despite the obsolete false button preference and survives cold admission", async () => {
+  const { fixture, sdk } = await speechFixture(["--listener-delay", "300", "--buffered-ready"]), app = await launch(fixture.directory);
   expect(sdk.settings.get()!.values.voice.pushToTalk).toBe(false);
+  expect(sdk.settings.get()!.values.voice.shortcutMode).toBeUndefined();
   const capture = fixture.service.controller.platform.captureVoice.bind(fixture.service.controller.platform);
   const gate = Promise.withResolvers<void>(); let entered = false;
   fixture.service.controller.platform.captureVoice = async (request) => {
@@ -41,14 +42,15 @@ test("tapping default Ctrl+Space survives cold admission and records after relea
   };
   try {
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true }), microphone = page.locator(".composer-mic");
+    await expect(microphone).toHaveAttribute("title", /Hold .*for push-to-talk/);
     await prompt.fill("Generated original unsent draft."); await prompt.focus();
-    await page.keyboard.press("Control+Space");
+    await page.keyboard.down("Control"); await page.keyboard.down("Space");
     await expect.poll(() => entered).toBe(true);
     gate.resolve();
     await expect(microphone).toHaveAttribute("aria-pressed", "true");
     await expect(prompt).toHaveValue(/Generated original unsent draft\. Generated/);
     await expect(page.getByRole("alert").filter({ hasText: "Recording stopped before the microphone was ready" })).toHaveCount(0);
-    await page.keyboard.press("Control+Space");
+    await page.keyboard.up("Space"); await page.keyboard.up("Control");
     await expect(prompt).toHaveValue("Generated original unsent draft. Generated local dictation.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
@@ -56,8 +58,59 @@ test("tapping default Ctrl+Space survives cold admission and records after relea
   } finally { gate.resolve(); await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("only an explicit shortcut toggle choice survives key release and remains selected after renderer reload", async () => {
+  const { fixture, sdk } = await speechFixture([], "toggle"), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true }), microphone = page.locator(".composer-mic");
+    await expect(microphone).toHaveAttribute("title", /Press .*again to finish/);
+    await prompt.focus();
+    await page.keyboard.press("Control+Space");
+    await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    await expect(prompt).toHaveValue(/Generated/);
+    await page.keyboard.press("Control+Space");
+    await expect(prompt).toHaveValue("Generated local dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    await page.reload();
+    await expect(page.locator(".composer-mic")).toHaveAttribute("title", /Press .*again to finish/);
+    expect(sdk.settings.get()!.values.voice.shortcutMode).toBe("toggle");
+    expect(sdk.settings.get()!.values.voice.pushToTalk).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("the shortcut setting saves an explicit mode without changing the microphone button or its legacy preference", async () => {
+  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    const hold = page.getByLabel("Hold dictation shortcut to talk", { exact: true });
+    await expect(hold).toBeChecked();
+    expect(sdk.settings.get()!.values.voice.shortcutMode).toBeUndefined();
+    await hold.uncheck();
+    await expect.poll(() => sdk.settings.get()!.values.voice.shortcutMode).toBe("toggle");
+    expect(sdk.settings.get()!.values.voice.pushToTalk).toBe(false);
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    const microphone = page.locator(".composer-mic");
+    await expect(microphone).toHaveAttribute("title", /Click to record; click again to confirm.*Press .*again to finish/);
+    await microphone.click(); await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    await microphone.click();
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await expect(hold).not.toBeChecked();
+    await hold.check();
+    await expect.poll(() => sdk.settings.get()!.values.voice.shortcutMode).toBe("hold");
+    expect(sdk.settings.get()!.values.voice.pushToTalk).toBe(false);
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await expect(microphone).toHaveAttribute("title", /Hold .*for push-to-talk/);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("consented focused standby reuses one generated microphone and disable closes tracks and removes the model", async () => {
-  const { fixture, sdk } = await speechFixture([], false);
+  const { fixture, sdk } = await speechFixture([], "toggle");
   const settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, standby: true } }, settings.revision);
   const app = await launch(fixture.directory);

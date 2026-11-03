@@ -1586,8 +1586,10 @@ dialog. It never immediately relaunches a replacement. Both confirmation
 preferences are available under **Settings > Confirmations**, including reset
 to the default of asking.
 
-Desktop **Ctrl+Space** taps to start and taps again to finish by default.
-Optional **Hold shortcut to talk** selects held press/release. Words stream
+Desktop **Ctrl+Space** is held push-to-talk by default: hold to record and
+release to finish. Uncheck **Hold shortcut to talk** only to explicitly select
+shortcut toggle mode. The microphone button remains click-record/click-confirm.
+Words stream
 into the current draft without an Insert step or prompt submission.
 Device-aware browser capture stays local, using 16-kHz PCM. Surrounding typing
 is preserved; overlapping edits stop insertion instead of overwriting text.
@@ -3596,10 +3598,11 @@ and audio fingerprints do not enter durable events, command receipts or model
 context. Private crash staging is removed before another capture; unknown or
 changed staging entries are retained and block capture with a diagnostic.
 
-**Tap Ctrl+Space, wait for Recording, speak, tap again.** Recognized words
+**Hold Ctrl+Space, wait for Recording, speak, release.** Recognized words
 appear directly in the owning main or side-chat textbox. Finish flushes the
 original buffer and replaces its provisional text once; it never sends a chat
-message. **Hold shortcut to talk** explicitly selects press/release instead.
+message. **Hold shortcut to talk** is on by default; unchecking it explicitly
+selects tap-to-start/tap-to-finish for the shortcut only.
 Terminals, dialogs and unrelated composers do not acquire its capture.
 Voice/Accessibility settings share an editable shortcut.
 Recording no longer waits for an unrelated draft-save acknowledgement or an
@@ -3616,8 +3619,9 @@ recording highlight if permission or device startup is pending.
 confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
 a click-owned recording does not stop that recording. Space/Enter on the focused
 button also use two separate activations, not press/release. Legacy saved
-`voice.pushToTalk` values select only the optional held shortcut, never this
-button. A stale shortcut
+`voice.pushToTalk` button values are preserved but do not select shortcut mode.
+Protocol 88 stores only an explicit `voice.shortcutMode:"hold"|"toggle"` choice;
+an absent mode stays held PTT without rewriting old preferences. A stale shortcut
 release cannot finish a later recording. The microphone icon stays visible and highlights while the
 owning capture records, including activation through the keyboard shortcut.
 Cold-start progress distinguishes model preparation from ready streaming.
