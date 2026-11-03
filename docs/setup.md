@@ -4167,10 +4167,12 @@ The log is append-only across launches. A nearby protocol-88 ready line or
 missing-module error. The generated reproduction establishes the path and
 absent-registry bugs, not the provenance of those separate personal log lines.
 See the [entrypoint/ownership recovery contract and qualification](architecture/cli-launcher.md#packaged-service-entrypoint-and-ownership-recovery).
-The earlier `603847d` development installer was superseded after the broader
-source sweep caught an admission-fence regression. Do not treat that historical
-artifact as the final repair. Exact hashes, packed/actual-app checks and
-remaining qualification limits are in the
+The corrected `fbe7650` development installer is
+`release/qualification-builds/service-recovery-fbe7650/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It is ad-hoc-signed, not notarized or installed automatically. The earlier
+`603847d` installer was superseded after the broader source sweep caught an
+admission-fence regression; do not install that historical cut as the repair.
+Exact hashes, packed/actual-app checks and remaining qualification limits are in the
 [delivery record](architecture/cli-launcher.md#service-recovery-delivery-qualification).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
