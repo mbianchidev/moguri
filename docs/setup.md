@@ -4174,9 +4174,10 @@ the broader sweep caught an admission-fence regression. Neither historical
 artifact should be treated as the final no-window repair. Exact hashes,
 packed/actual-app checks and remaining qualification limits are in the
 [delivery record](architecture/cli-launcher.md#service-recovery-delivery-qualification).
-The corrected cut passes the complete local unit/native-TUI sweep (2,191 passed,
-29 skipped), complete hidden desktop sweep (323 passed, four skipped), fresh
-independently installed packed SDK and actual-package/update-consumer checks.
+That earlier `fbe7650` cut passed the complete local unit/native-TUI sweep
+(2,191 passed, 29 skipped), hidden desktop sweep (323 passed, four skipped),
+independent packed SDK and actual-package/update-consumer checks, but those
+runs did not include the subsequently reproduced large retained-history case.
 Skipped physical-native gates and notarization are not implied by those passes.
 
 ### Protocol negotiation did not complete
@@ -4203,6 +4204,10 @@ It is ad-hoc-signed, not notarized or installed automatically. The actual
 packaged desktop opens the generated 62.8-MB retained-history fixture without
 deleting history or increasing the negotiation timeout; exact artifact hashes
 and limits are in the [installer record](architecture/cli-launcher.md#retained-history-development-installer).
+The new cut also passes the complete local unit/native-TUI sweep (2,195 passed,
+29 skipped), complete hidden desktop sweep (323 passed, four skipped), independent
+packed SDK and actual-package/update-consumer checks. No failures or cancelled
+checks were relabeled as success; physical-native skips remain unqualified.
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
