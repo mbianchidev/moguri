@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability } from "../../../packages/sdk/src/index.ts";
+import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -54,6 +54,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const [slashOption, setSlashOption] = useState(0), slashList = useRef<HTMLDivElement>(null), slashListId = useId();
   const decisions = useDecisionStatus(client, session, snapshot, menu === "autonomy" || session.controls.autonomy === "Autopilot Max");
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
+  const literalMentions = useRef<{ text: string; ids: Set<string> }>({ text: "", ids: new Set() });
+  const mentionPending = useRef(false);
   const [contextReview, setContextReview] = useState(false);
   const [scheduleReview, setScheduleReview] = useState<"ask" | "schedule" | null>(null);
   const [heldPending, setHeldPending] = useState(false);
@@ -76,7 +78,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const nativeStage = snapshot.sandboxWorkspaces?.find((value) => value.id === session.sandboxWorkspaceId && value.sessionId === session.id);
   const automaticNative = snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces;
   const needsNativeStage = session.controls.env === "Sandbox" && nativeStage?.status !== "ready" && !automaticNative;
-  const dictation = useDictation(client, session, snapshot, { shortcuts: true,
+  const dictation = useDictation(client, session, snapshot, { shortcuts: true, globalShortcut: inputLabel === "Prompt",
     beforeStart: () => {
       dictated.current?.close();
       dictated.current = editor.startDictation(input.current?.selectionStart, input.current?.selectionEnd);
@@ -201,7 +203,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const attachSession = (sourceId: string) => capture(async () => {
     const state = client.getState().snapshot, source = state?.sessions.find((value) => value.id === sourceId);
-    if (!source || source.status === "archived" || source.id === session.id) throw new Error("Choose another active session in this profile. No content was attached.");
+    if (!source || source.id === session.id) throw new Error("Choose another retained session in this profile. No content was attached.");
     await reviewAttachment({ kind: "session", sourceSessionId: source.id, preview: (await client.attachments.sessionPreview(session.id, source.id)).preview });
   });
   const removeAttachment = async (id: string) => {
@@ -211,6 +213,17 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const submit = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
     if (heldPending || resumePending.current || retryPending.current) return;
+    if (!answering && !isSlash && !failedRequest && (hold || !needsResume)) {
+      const text = editor.getState().text;
+      if (literalMentions.current.text !== text) literalMentions.current = { text, ids: new Set() };
+      const ids = new Set(text.match(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/gi)?.map((id) => id.toLowerCase()) ?? []);
+      const source = snapshot.sessions.find((source) => source.id !== session.id && ids.has(source.id.toLowerCase()) &&
+        !literalMentions.current.ids.has(source.id) && !editor.getState().attachments.some((attachment) => attachment.kind === "session" && attachment.source.location === source.id));
+      if (source) {
+        if (!mentionPending.current) { mentionPending.current = true; void attachSession(source.id).finally(() => { mentionPending.current = false; }); }
+        return;
+      }
+    }
     if (failedRequest && !isSlash && !hold) {
       if (!canRetry) return;
       retryPending.current = true; setRetrying(true);
@@ -361,6 +374,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "transcribing" ? "Flushing the original local audio buffer. Inserted words are preserved." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
     {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.state.error}</Alert>}
+    {dictation.standbyReady && <p className="composer-voice-status fine-print" role="status">Microphone ready in this focused composer. Standby is enabled; no audio is being recorded.</p>}
+    {dictation.preparationError && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.preparationError}</Alert>}
     {voiceOutcome?.status === "failed" && <Alert as="p" className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</Alert>}
     {transcript && transcript.id !== insertedTranscript && !voiceFinalizing && <div className="composer-transcript"><Icon name="Mic" /><div className="composer-transcript-text"><strong>Dictation ready</strong>
       {transcriptPreview?.error ? <Alert as="p" className="inline-error" role="alert">{transcriptPreview.error}</Alert> : <p aria-label="Dictation transcript">{transcriptPreview?.text ?? "Loading the local transcript..."}</p>}</div>
@@ -403,8 +418,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}
         <DictationButton state={dictation.state} recording={Boolean(voiceJob)}
           label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"}
-          disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived"}
-          title={`Click to record; click again to confirm. ${voiceShortcut === "none" ? "No push-to-talk shortcut is assigned." : `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.`}`}
+          disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived" || snapshot.settings.values.voice.enabled === false}
+          title={snapshot.settings.values.voice.enabled === false ? "Enable local dictation in Settings / Voice, after reviewing its model license." : `Click to record; click again to confirm. ${voiceShortcut === "none" ? "No push-to-talk shortcut is assigned." : voiceShortcutMode(snapshot.settings.values.voice) === "hold" ?
+            `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.` : `Press ${shortcutLabel(voiceShortcut)} to record; press again to finish.`}`}
           toggle={() => void dictate()} />
         <div className="composer-send-group">
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
@@ -418,7 +434,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <span className="sr-only" role="status">{status}</span>
     </div>
-    {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => setAttachmentReview(null)} />}
+    {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => {
+      if (attachmentReview.kind === "session") literalMentions.current.ids.add(attachmentReview.sourceSessionId);
+      setAttachmentReview(null);
+    }} />}
     {contextReview && <ContextCompactionReview sdk={client} session={session} snapshot={snapshot} close={() => { setContextReview(false); document.getElementById(`prompt-${session.id}`)?.focus(); }} />}
     {scheduleReview && <SchedulePromptDialog sdk={client} session={session} editor={editor} initial={scheduleReview} close={() => setScheduleReview(null)} />}
   </form>;
@@ -533,7 +552,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       </div>;
     })}</div>
     </ModelSubmenu>
-    {current?.synthetic ? <ModelSubmenu label="Kupo mode" text="Mode" value={snapshot.settings.values.kupo.workflow !== "auto" ? "Retained explicit policy" : session.controls.kupoMode ? kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name : "Legacy / choose a mode"}
+    {current?.synthetic ? <ModelSubmenu label="Kupo effort" text="Effort" value={snapshot.settings.values.kupo.workflow !== "auto" ? "Retained explicit policy" : session.controls.kupoMode ? kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name : "Legacy / choose an effort"}
       open={submenu === "mode"} disabled={locked || snapshot.settings.values.kupo.workflow !== "auto"} toggle={() => setSubmenu(submenu === "mode" ? null : "mode")} close={() => setSubmenu(null)}>
       {!modeChoices.length && !modeError && <p role="status">Reading shared mode readiness...</p>}
       {kupoModes.map((mode) => {
@@ -543,7 +562,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
           onClick={() => { if (!unavailable) void chooseMode(mode.id); }}><span>{mode.name}<small>{mode.description}</small></span>{session.controls.kupoMode === mode.id && <Icon name="Check" />}</button>
           <InfoTip label={`About ${mode.name} readiness`}>{choice?.reason ?? (modeError || "Readiness is not yet known. No model was admitted.")}</InfoTip></div>;
       })}
-      <p className="fine-print">Effort is selected per actual model. Context uses its genuine maximum. Source reviews do not grant permissions or prove quality. Autonomous compaction, finite automatic wind-down and missing System One transports stay unavailable.</p>
+      <p className="fine-print">Kupo effort selects Balanced, Savings or Performance routing. It is not a model's thinking effort. Each admitted role keeps its actual supported effort, context and metered budget. Source reviews and mode choices do not grant permissions or prove quality.</p>
       {modeError && <Alert as="p" className="inline-error" role="alert">{modeError}</Alert>}
     </ModelSubmenu> : <ModelSubmenu label="Thinking effort" text="Effort" value={current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
       open={submenu === "effort"} disabled={locked || !current?.thinkingLevels?.length && !staleEffort} toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>

@@ -223,8 +223,7 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     });
     expect(overlapping).toBe(false);
     await page.keyboard.press("Escape");
-    await composer.getByRole("button", { name: "Start local dictation", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText(/model|download/i);
+    await expect(composer.getByRole("button", { name: "Start local dictation", exact: true })).toBeDisabled();
     expect(fixture.service.controller.snapshot().jobs.some((job) => job.kind === "voice.record")).toBe(false);
     expect(failures).toEqual([]);
   } finally { await app.close(); await fixture.close(); }

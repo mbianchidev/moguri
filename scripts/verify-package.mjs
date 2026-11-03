@@ -32,6 +32,7 @@ assert.match(execFileSync(join(root, "dist", "moguri"), ["--help"], { encoding: 
 await access(join(root, "dist", "remote-bridge.mjs"));
 if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(root, "dist", path));
 if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));
+if (PROTOCOL_VERSION >= 87) execFileSync(node, [resolve("tests/fixtures/installed-session-controls.mjs"), root], { stdio: "inherit", timeout: 60_000 });
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
@@ -508,7 +509,7 @@ try {
       assert.equal(JSON.parse((await client.artifacts.export(staged.candidate.id)).export.text).schemaVersion, Array.isArray(client.getState().snapshot.candidateOwners) ? 10 : 2);
       client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready();
       const raw = new DatabaseSync(join(temporary, "state", "state.sqlite"));
-      try { raw.prepare("DELETE FROM receipts WHERE profile_id=? AND id=?").run("default", commandId); } finally { raw.close(); }
+      try { raw.exec("PRAGMA busy_timeout=5000"); raw.prepare("DELETE FROM receipts WHERE profile_id=? AND id=?").run("default", commandId); } finally { raw.close(); }
       await writeFile(join(directory, "candidate.txt"), "Generated later actual-packaged user edit.\n");
       assert.equal((await client.command(command, commandId)).id, staged.candidate.id);
       assert.equal(await readFile(join(directory, "candidate.txt"), "utf8"), "Generated later actual-packaged user edit.\n");

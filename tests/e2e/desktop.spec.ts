@@ -238,7 +238,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await categories.getByRole("button", { name: "Skill gateway", exact: true }).click();
     await expect(page.getByLabel("Allow model-proposed skills, scripts and style knowledge for human review")).not.toBeChecked();
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Download model once", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "About supported dictation languages", exact: true }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("tooltip")).toContainText("NVIDIA documents 40 locales:");

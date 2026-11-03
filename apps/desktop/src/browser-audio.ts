@@ -4,18 +4,61 @@ import type { CaptureLease, CaptureRecorder } from "./dictation.ts";
 export interface MicrophoneChoice { id: string; label: string }
 const active = (signal: AbortSignal) => signal.throwIfAborted();
 const stopTracks = (stream: MediaStream | undefined) => { for (const track of stream?.getTracks() ?? []) track.stop(); };
+const microphoneConstraints = (deviceId: string): MediaStreamConstraints => {
+  if (deviceId !== "default" && !navigator.mediaDevices.getSupportedConstraints().deviceId) throw new Error("This audio engine cannot enforce exact device selection. No default microphone was opened.");
+  return { audio: { ...(deviceId === "default" ? {} : { deviceId: { exact: deviceId } }), channelCount: { ideal: 1 } }, video: false };
+};
+const checkMicrophone = (stream: MediaStream, deviceId: string) => {
+  const tracks = stream.getAudioTracks();
+  if (tracks.length !== 1 || stream.getVideoTracks().length || tracks[0]?.readyState !== "live" ||
+    deviceId !== "default" && tracks[0]?.getSettings().deviceId !== deviceId) throw new Error("The audio stream did not match the exact selected microphone. No input was substituted.");
+};
+export interface BrowserMicrophonePreparation {
+  claim(profileId: string, sessionId: string, deviceId: string, signal: AbortSignal): Promise<MediaStream>;
+  close(): Promise<void>;
+}
+export async function prepareBrowserMicrophone(profileId: string, sessionId: string, deviceId: string, signal: AbortSignal): Promise<BrowserMicrophonePreparation> {
+  let permission: string | undefined, stream: MediaStream | undefined, transferred = false;
+  const close = async () => {
+    signal.removeEventListener("abort", abort);
+    if (!transferred) stopTracks(stream);
+    const owned = permission; permission = undefined;
+    if (owned) await window.moguri.releaseAudioPermission(owned);
+  };
+  const abort = () => { void close().catch((error: unknown) => console.error("Original standby microphone cleanup failed:", error instanceof Error ? error.message : "unconfirmed cleanup")); };
+  signal.addEventListener("abort", abort, { once: true });
+  try {
+    active(signal);
+    permission = await window.moguri.audioPermission({ profileId, sessionId, purpose: "standby" }); active(signal);
+    stream = await navigator.mediaDevices.getUserMedia(microphoneConstraints(deviceId)); active(signal);
+    checkMicrophone(stream, deviceId);
+    return { close, claim: async (profile, session, device, captureSignal) => {
+      active(signal); active(captureSignal);
+      if (transferred || profile !== profileId || session !== sessionId || device !== deviceId || !stream) throw new Error("This standby microphone belongs to another exact composer/device or capture. No stream was borrowed.");
+      checkMicrophone(stream, deviceId);
+      const owned = permission; permission = undefined;
+      if (owned) await window.moguri.releaseAudioPermission(owned);
+      active(signal); active(captureSignal);
+      transferred = true; signal.removeEventListener("abort", abort);
+      return stream;
+    } };
+  } catch (error) { await close(); throw error; }
+}
 export interface BrowserAudioPreparation {
   readonly signal: AbortSignal;
   readonly context: AudioContext;
   readonly ready: Promise<void>;
+  claim(signal: AbortSignal): void;
   close(): Promise<void>;
 }
 export function prepareBrowserAudio(signal: AbortSignal): BrowserAudioPreparation {
   active(signal);
   const context = new AudioContext({ sampleRate: SPEECH_SAMPLE_RATE, latencyHint: "interactive" });
-  let closing: Promise<void> | undefined;
+  let closing: Promise<void> | undefined, preparationError: unknown;
+  let capture: AbortSignal | undefined;
   const close = () => {
     signal.removeEventListener("abort", abort);
+    capture?.removeEventListener("abort", abort);
     return closing ??= context.state === "closed" ? Promise.resolve() : context.close();
   };
   const abort = () => { void close().catch((error: unknown) => console.error("Prepared audio processor cleanup failed:", error instanceof Error ? error.message : "unconfirmed context cleanup")); };
@@ -26,9 +69,16 @@ export function prepareBrowserAudio(signal: AbortSignal): BrowserAudioPreparatio
     active(signal);
   })();
   void ready.catch((error: unknown) => {
+    preparationError = error;
     if (!signal.aborted) console.error("Local audio processor preparation failed:", error instanceof Error ? error.message : "unavailable capture processor");
+    void close().catch((error: unknown) => console.error("Failed audio graph cleanup is unconfirmed:", error instanceof Error ? error.message : "unavailable context cleanup"));
   });
-  return { signal, context, ready, close };
+  return { signal, context, ready, close, claim: (owner) => {
+    active(signal); active(owner);
+    if (preparationError) throw preparationError;
+    if (capture && capture !== owner || closing || context.state === "closed") throw new Error("The prepared audio graph already belongs to another or closed capture. No graph was borrowed.");
+    if (!capture) { capture = owner; capture.addEventListener("abort", abort, { once: true }); }
+  } };
 }
 export async function listMicrophones(profileId: string, signal: AbortSignal): Promise<MicrophoneChoice[]> {
   let permission: string | undefined, stream: MediaStream | undefined;
@@ -43,8 +93,8 @@ export async function listMicrophones(profileId: string, signal: AbortSignal): P
 }
 
 export async function captureBrowserAudio(profileId: string, sessionId: string, lease: CaptureLease, deviceId: string, signal: AbortSignal, failed: (error: Error) => void,
-  received?: (samples: Float32Array) => void, preparation = prepareBrowserAudio(signal)): Promise<CaptureRecorder> {
-  if (preparation.signal !== signal) throw new Error("The prepared audio processor belongs to another capture. No microphone or processing context was borrowed.");
+  received?: (samples: Float32Array) => void, preparation = prepareBrowserAudio(signal), microphone?: BrowserMicrophonePreparation): Promise<CaptureRecorder> {
+  preparation.claim(signal);
   const context = preparation.context;
   let permission: string | undefined, stream: MediaStream | undefined;
   let source: MediaStreamAudioSourceNode | undefined, node: AudioWorkletNode | undefined, mute: GainNode | undefined;
@@ -91,13 +141,13 @@ export async function captureBrowserAudio(profileId: string, sessionId: string, 
     };
     mute = context.createGain(); mute.gain.value = 0;
     node.connect(mute); mute.connect(context.destination);
+    if (microphone) stream = await microphone.claim(profileId, sessionId, deviceId, signal);
     permission = await window.moguri.audioPermission({ profileId, sessionId, jobId: lease.id, purpose: "capture" }); active(signal);
-    if (deviceId !== "default" && !navigator.mediaDevices.getSupportedConstraints().deviceId) throw new Error("This audio engine cannot enforce exact device selection. No default microphone was opened.");
     await context.resume(); active(signal);
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { ...(deviceId === "default" ? {} : { deviceId: { exact: deviceId } }), channelCount: { ideal: 1 } }, video: false });
+    stream ??= await navigator.mediaDevices.getUserMedia(microphoneConstraints(deviceId));
     active(signal);
     const tracks = stream.getAudioTracks();
-    if (tracks.length !== 1 || stream.getVideoTracks().length || deviceId !== "default" && tracks[0]?.getSettings().deviceId !== deviceId) throw new Error("The audio stream did not match the exact selected microphone. No input was substituted.");
+    checkMicrophone(stream, deviceId);
     for (const track of tracks) track.addEventListener("ended", disconnected, { once: true });
     source = context.createMediaStreamSource(stream);
     source.connect(node);

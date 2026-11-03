@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import type { CoordinationRead, CoordinationResponse, MoguriSdk, Session, Snapshot, SessionContextInput } from "../../../packages/sdk/src/index.ts";
+import type { CoordinationRead, CoordinationResponse, MoguriSdk, Session, Snapshot, SessionContextInput, SessionWaitPreview } from "../../../packages/sdk/src/index.ts";
 import { QuestionCard } from "./QuestionCard.tsx";
 import { Alert } from "./Alert.tsx";
 
 type Review = Extract<CoordinationResponse, { type: "coordination.preview" }>;
 export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onDirty?: (dirty: boolean) => void }) {
   const links = snapshot.coordinationLinks.filter((link) => link.parentId === session.id || link.childId === session.id);
-  const peers = snapshot.sessions.filter((peer) => links.some((link) => peer.id === (link.parentId === session.id ? link.childId : link.parentId)));
+  const peers = snapshot.sessions.filter((peer) => peer.id !== session.id);
   const [selected, setSelected] = useState(""), [text, setText] = useState(""), [busy, setBusy] = useState(false), [questionDirty, setQuestionDirty] = useState(false);
   const [error, setError] = useState(""), [status, setStatus] = useState("");
-  const target = peers.find((peer) => peer.id === selected) ?? peers[0], key = JSON.stringify([sdk.profileId, session.id, target?.id]);
+  const target = peers.find((peer) => peer.id === selected) ?? peers.find((peer) => links.some((link) => link.parentId === peer.id || link.childId === peer.id));
+  const key = JSON.stringify([sdk.profileId, session.id, target?.id]);
+  const [waitReview, setWaitReview] = useState<{ key: string; preview: SessionWaitPreview } | null>(null);
   const [result, setResult] = useState<{ key: string; data: CoordinationRead } | null>(null), [review, setReview] = useState<{ key: string; value: Review } | null>(null);
   const current = useRef(key), pending = useRef(false); current.current = key;
   const data = result?.key === key ? result.data : null, grant = review?.key === key ? review.value : null;
@@ -22,7 +24,7 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
     const close = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", close); return () => window.removeEventListener("beforeunload", close);
   }, [dirty]);
-  useEffect(() => { setError(""); setStatus(""); setReview(null); }, [key]);
+  useEffect(() => { setError(""); setStatus(""); setReview(null); setWaitReview(null); }, [key]);
   const perform = async (operation: () => Promise<void>) => {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError(""); setStatus("");
@@ -47,11 +49,11 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
   const inspection = data?.action === "inspect" ? data : null;
   const question = inspection?.question && actual?.pendingQuestionId === inspection.question.id ? snapshot.questions.find((question) => question.id === inspection.question?.id && question.status === "open") : undefined;
   const approval = inspection?.approval && actual?.pendingApproval?.id === inspection.approval.id ? actual.pendingApproval : null;
-  return <details className="coordination-panel"><summary>Main and child sessions</summary>
+  return <details className="coordination-panel"><summary aria-description="Review session messages, context grants and task dependencies">Session coordination</summary>
     <p className="fine-print">Live access uses the original root-bound grant, not sidebar nesting. Side chats remain read-only. Messages retain the actual sender and do not start a paid reply.</p>
     <div className="button-row">
       <label>Coordination target<select aria-label="Coordination target" value={target?.id ?? ""} disabled={dirty || !peers.length} onChange={(event) => setSelected(event.target.value)}>
-        {!peers.length && <option value="">No granted relationship</option>}{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.title} / {peer.kind} / {peer.status}</option>)}</select></label>
+        <option value="">Choose an exact session</option>{peers.map((peer) => <option key={peer.id} value={peer.id}>{peer.title} / {peer.id} / {peer.status}</option>)}</select></label>
       {writable && <button type="button" disabled={dirty} onClick={() => void perform(async () => { const created = await sdk.sessions.spawn(session.id, "agent"); if (created.id) setSelected(created.id); setStatus("Agent child created with Manual autonomy. No task was started."); })}>New agent child</button>}
     </div>
     {target && <>
@@ -60,12 +62,19 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
         <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: "transcript", targetSessionId: target.id }))}>Read public transcript</button>
         <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: "inbox" }))}>Read inbox</button>
         {session.createdParentSessionId && <button type="button" disabled={busy} onClick={() => void perform(() => read({ action: "snapshot" }))}>Read captured main context</button>}
-        {parent && <button type="button" disabled={busy} onClick={() => void perform(async () => { const captured = key, value = await sdk.coordination.preview(session.id, target.id); if (current.current === captured) setReview({ key: captured, value }); })}>Review coordination grant</button>}
+        <button type="button" disabled={busy} onClick={() => void perform(async () => { const captured = key, value = await sdk.coordination.preview(session.id, target.id); if (current.current === captured) setReview({ key: captured, value }); })}>Review coordination grant</button>
+        <button type="button" disabled={busy || Boolean(session.turnId) || !target.turnId && !target.queue.length} onClick={() => void perform(async () => {
+          const captured = key, value = await sdk.sessions.waitPreview(session.id, target.id); if (current.current === captured) setWaitReview({ key: captured, preview: value.preview });
+        })}>Review wait for session</button>
       </div>
       {grant && <section aria-label="Coordination grant review"><p>Exact captured profile, environment and roots:</p><pre tabIndex={0}>{JSON.stringify({ parent: grant.parentBinding, child: grant.childBinding }, null, 2)}</pre>
+        {grant.kind === "peer" && <p>This grants only reviewed public context and advisory messages, not dispatch, stop, answers, permissions or filesystem access.</p>}
         <button type="button" disabled={busy} onClick={() => void perform(async () => {
           await sdk.coordination.grant(session.id, target.id, grant.digest, !grant.link?.enabled, true); setReview(null); setStatus(grant.link?.enabled ? "Coordination revoked. Existing messages remain retained." : "Coordination granted to these exact reviewed roots.");
         })}>{grant.link?.enabled ? "Revoke coordination" : "Grant reviewed coordination"}</button></section>}
+      {waitReview?.key === key && <section aria-label="Session dependency review"><p>Wait for this exact {waitReview.preview.task.kind}: <code>{waitReview.preview.task.id}</code> in <code>{waitReview.preview.targetSessionId}</code>.</p>
+        <p>Only successful completion releases this dependency. Failure, removal or changed ownership stays paused. Held prompts still need explicit release.</p>
+        <button type="button" disabled={busy} onClick={() => void perform(async () => { await sdk.sessions.waitFor(waitReview.preview, true); setWaitReview(null); setStatus("Dependency retained for the exact captured task. No work was started."); })}>Wait for this task to succeed</button></section>}
       {inspection && <section aria-label="Coordinated session state"><p><strong>{inspection.title}</strong>: {inspection.status} / {inspection.mode} / {inspection.env}. {inspection.queued} queued.</p>
         {inspection.lastError && <Alert as="p" className="inline-error" role="alert">{inspection.lastError}</Alert>}
         {inspection.plan && <><strong>{inspection.plan.title}</strong><ol>{inspection.plan.steps.map((step, index) => <li key={index}>{step.status}: {step.text}</li>)}</ol><p className="fine-print">Model-authored progress, not task acceptance or permission.</p></>}
@@ -89,6 +98,12 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
       </div>
       <p className="fine-print">Dispatch queues metered child work under its existing model, budget, environment and approvals. It never answers a question, approves an operation or changes autonomy.</p>
     </>}
+    {session.wait && <section aria-label="Current session dependency"><p>Dependency: {session.wait.status} / <code>{session.wait.targetSessionId}</code> / {session.wait.task.kind} <code>{session.wait.task.id}</code></p>
+      {session.wait.diagnostic && <Alert as="p" role="status">{session.wait.diagnostic}</Alert>}
+      {["waiting", "blocked"].includes(session.wait.status) && <button type="button" disabled={busy} onClick={() => void perform(async () => {
+        await sdk.sessions.cancelWait(session.id, session.wait!.id, session.wait!.revision); setStatus("Dependency removed. Held prompts and current admission gates are unchanged.");
+      })}>Remove this dependency</button>}
+    </section>}
     {busy && <p role="status">Waiting for the original session operation...</p>}{status && <Alert as="p" role="status">{status}</Alert>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </details>;
 }

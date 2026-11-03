@@ -184,6 +184,48 @@ test("approved browser tools navigate, inspect, fill, click and press keys in th
   } finally { sdk.disconnect(); await owned.close(); }
 });
 
+test("native click/type/wait/screenshot use the exact Browser owner and deliver genuine PNGs in chat", async () => {
+  const capture: NonNullable<GeneratedProviderOptions["toolCall"]> = { name: "take_screenshot", args: {} };
+  const owned = await browserFixture({ toolCall: capture }), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  try {
+    await sdk.sessions.autonomy(owned.fixture.sessionId, "Autopilot");
+    await owned.fixture.configure();
+    await owned.page.getByRole("switch", { name: "Agent browser control", exact: true }).click();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    const controlId = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId!, expectedUrl = owned.url;
+    const run = async (name: string, args: Record<string, unknown>) => {
+      const tool = (await sdk.tools.catalog(owned.fixture.sessionId, name)).tools.find((tool) => tool.name === name);
+      if (!tool) throw new Error(`The actual native ${name} schema is missing.`);
+      const job = await sdk.jobs.wait((await sdk.tools.execute(owned.fixture.sessionId, name, args, tool.schemaDigest)).id!);
+      expect(job.status, job.error ?? `Original ${name} failed.`).toBe("completed");
+      return job;
+    };
+    const first = snapshotData((await callBrowser(owned, sdk, "browser_snapshot", { controlId }, "policy")).text);
+    await run("type", { controlId, expectedUrl, snapshotId: first.snapshotId, ref: first.element("textbox", "Generated text"), text: "Generated native tool text" });
+    const current = snapshotData((await callBrowser(owned, sdk, "browser_snapshot", { controlId }, "policy")).text);
+    await run("click", { controlId, expectedUrl, snapshotId: current.snapshotId, ref: current.element("button", "Apply generated text") });
+    await run("wait", { controlId, expectedUrl, milliseconds: 40 });
+    await run("take_screenshot", { controlId, expectedUrl });
+    const userOutput = owned.fixture.session().messages.flatMap((message) => message.attachments ?? []).find((attachment) => attachment.kind === "image");
+    expect(userOutput?.source.kind).toBe("user-tool-output");
+    capture.args = { controlId, expectedUrl };
+    await owned.fixture.send("Generated owned Browser screenshot.");
+    await owned.fixture.terminal();
+    const response = owned.fixture.session().messages.findLast((message) => message.role === "assistant" && message.attachments?.some((attachment) => attachment.kind === "image"));
+    const attachment = response?.attachments?.find((attachment) => attachment.kind === "image");
+    expect(attachment?.source.kind).toBe("model-tool-output");
+    if (!attachment) throw new Error("The original model response has no retained screenshot.");
+    const result = await sdk.attachments.read(owned.fixture.sessionId, attachment.id);
+    if (result.content.kind !== "image") throw new Error("The original screenshot has no actual image delivery.");
+    const bytes = Buffer.from(result.content.data, "base64");
+    expect(bytes.subarray(1, 4).toString()).toBe("PNG");
+    expect((await sharp(bytes).metadata()).width).toBeGreaterThan(200);
+    await expect(owned.page.locator(".message.assistant").getByRole("button", { name: `Preview attachment ${attachment.path}`, exact: true })).toBeVisible();
+    expect(owned.fixture.requests.length).toBe(2);
+    expect(JSON.stringify(owned.fixture.requests)).not.toContain(bytes.toString("base64"));
+  } finally { sdk.disconnect(); await owned.close(); }
+});
+
 test("turning off during navigation cancels with a partial result and a fresh enable never replays old authority", async () => {
   const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
   try {

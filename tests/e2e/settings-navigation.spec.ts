@@ -99,7 +99,7 @@ test("legacy global preferences restore without losing widths and an attached PR
     await expect(page.getByRole("separator", { name: "Resize projects sidebar", exact: true })).toHaveAttribute("aria-valuenow", "248");
     await expect(page.getByRole("separator", { name: "Resize session sidebar", exact: true })).toHaveAttribute("aria-valuenow", "416");
     await prompt.fill("/pr"); await page.getByRole("button", { name: "Run command", exact: true }).click();
-    await expect(sidebar.getByRole("heading", { name: "Connected PR", exact: true })).toBeVisible();
+    await expect(sidebar.getByRole("heading", { name: "Code change", exact: true })).toBeVisible();
     await expect(sidebar).toContainText(url); await expect(rail.getByRole("button")).toHaveCount(9);
     await expect(rail.getByRole("button", { name: "Code change", exact: true })).toHaveAttribute("aria-pressed", "true");
     await sidebar.getByRole("button", { name: "Hide session sidebar", exact: true }).click();

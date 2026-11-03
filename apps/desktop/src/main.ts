@@ -7,11 +7,12 @@ import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureConnection, loadNotificationSoundFile, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
-import { browserUrl, GLOBAL_PROFILE_ID, isRecord, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
+import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
+import { HtmlPreviewHost } from "./html-preview.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
@@ -20,7 +21,8 @@ let mainWindow: BrowserWindow | null = null;
 let attentionClient: MoguriSdk | undefined;
 let activeProfileId = process.env.MOGURI_PROFILE_ID ?? PROFILE_ID;
 let profileEpoch = 0;
-let audioGrant: { id: string; profileId: string; epoch: number; expires: number; sessionId: string | null; jobId: string | null } | null = null;
+const htmlPreview = new HtmlPreviewHost();
+let audioGrant: { id: string; profileId: string; epoch: number; expires: number; sessionId: string | null; jobId: string | null; purpose: "capture" | "devices" | "standby" } | null = null;
 let audioPending = false;
 let tray: Tray | null = null;
 let maintenancePending = false;
@@ -31,7 +33,9 @@ let updateNoticed: string | null = null;
 const audioGranted = () => {
   const grant = audioGrant, state = attentionClient?.getState();
   return Boolean(grant && grant.profileId === activeProfileId && grant.epoch === profileEpoch && Date.now() < grant.expires &&
-    state?.status === "connected" && (!grant.jobId || state.snapshot?.jobs.some((job) => job.id === grant.jobId && job.sessionId === grant.sessionId && job.kind === "voice.capture" && job.status === "running")));
+    state?.status === "connected" && (grant.purpose !== "standby" || state.snapshot?.settings.values.voice.enabled !== false &&
+      state.snapshot?.settings.values.voice.standby && state.snapshot.sessions.some((session) => session.id === grant.sessionId && session.status !== "archived")) &&
+    (!grant.jobId || state.snapshot?.jobs.some((job) => job.id === grant.jobId && job.sessionId === grant.sessionId && job.kind === "voice.capture" && job.status === "running")));
 };
 const banners = new Map<string, Notification>();
 let preview: { view: WebContentsView; storage: Electron.Session; profileId: string; sessionId: string; url: string; host?: SessionBrowserHost; registration?: Promise<void> } | null = null;
@@ -315,7 +319,7 @@ else {
       trusted(event);
       if (profileId === undefined) return activeProfileId;
       if (typeof profileId !== "string") throw new Error("An explicit profile ID is required.");
-      hidePreview(); return activateProfile(profileId);
+      hidePreview(); await htmlPreview.close(); return activateProfile(profileId);
     });
     ipcMain.handle("moguri:choose-project", async (event, purpose: unknown) => {
       trusted(event);
@@ -459,23 +463,36 @@ else {
       if (preview !== owned || !owned.host) throw new Error("The original browser closed before control changed.");
       return owned.host.control(enabled);
     });
+    ipcMain.handle("moguri:html-preview", async (event, raw: unknown, profileId: unknown) => {
+      trusted(event);
+      const window = mainWindow, sdk = attentionClient, epoch = profileEpoch;
+      if (!window || !sdk || profileId !== activeProfileId || sdk.profileId !== profileId) throw new Error("The original HTML profile/window is no longer active. No page was shown.");
+      const input = parse(HtmlPreviewInputSchema, raw);
+      if (input.type === "hide") { await htmlPreview.hide(sdk.profileId, input); return; }
+      await htmlPreview.show(window, sdk, input, () => mainWindow === window && attentionClient === sdk && profileEpoch === epoch && !maintenancePending);
+    });
     ipcMain.handle("moguri:audio-permission", async (event, input: unknown) => {
       trusted(event);
-      if (!isRecord(input) || input.profileId !== activeProfileId || !["capture", "devices"].includes(String(input.purpose)) ||
+      if (!isRecord(input) || input.profileId !== activeProfileId || !["capture", "devices", "standby"].includes(String(input.purpose)) ||
         Object.keys(input).some((key) => !["profileId", "purpose", "sessionId", "jobId"].includes(key)) ||
-        input.purpose === "devices" && (input.sessionId !== undefined || input.jobId !== undefined)) throw new Error("Choose an explicit audio-only action in the active profile.");
+        input.purpose === "devices" && (input.sessionId !== undefined || input.jobId !== undefined) ||
+        input.purpose === "standby" && input.jobId !== undefined) throw new Error("Choose an explicit audio-only action in the active profile.");
       if (audioPending) throw new Error("Another explicitly owned audio permission request is still pending.");
       audioPending = true;
       try {
       const scoped = attentionClient, epoch = profileEpoch;
       if (!scoped) throw new Error("The actual profile is not connected.");
       await scoped.refresh();
-      const validCapture = () => input.purpose === "devices" || typeof input.sessionId === "string" && typeof input.jobId === "string" &&
+      const generated = process.env.MOGURI_TEST_WINDOW === "hidden" && app.commandLine.hasSwitch("use-fake-device-for-media-stream");
+      const validCapture = () => input.purpose === "devices" || input.purpose === "standby" ?
+        input.purpose === "devices" || typeof input.sessionId === "string" && (generated || mainWindow?.isFocused()) &&
+          scoped.getState().snapshot?.settings.values.voice.enabled !== false && scoped.getState().snapshot?.settings.values.voice.standby === true &&
+          scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId && session.status !== "archived") :
+        typeof input.sessionId === "string" && typeof input.jobId === "string" &&
         scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId && session.status !== "archived") &&
         scoped.getState().snapshot?.jobs.some((job) => job.id === input.jobId && job.sessionId === input.sessionId && job.kind === "voice.capture" && job.status === "running");
       if (attentionClient !== scoped || epoch !== profileEpoch || !validCapture()) throw new Error("The original audio owner changed. No microphone access was granted.");
       if (audioGranted()) throw new Error("Another explicit microphone permission request is still owned. Finish or cancel it first.");
-      const generated = process.env.MOGURI_TEST_WINDOW === "hidden" && app.commandLine.hasSwitch("use-fake-device-for-media-stream");
       if (process.env.MOGURI_TEST_WINDOW === "hidden" && !generated) throw new Error("Hidden audio checks require Chromium's generated media device. No real microphone permission was requested.");
       const needsPrompt = !generated && process.platform === "darwin" && systemPreferences.getMediaAccessStatus("microphone") !== "granted";
       const allowed = !needsPrompt || await systemPreferences.askForMediaAccess("microphone");
@@ -484,7 +501,8 @@ else {
       if (event.sender !== mainWindow?.webContents || attentionClient !== scoped || epoch !== profileEpoch || !validCapture()) throw new Error("Audio permission finished for a stale owner. No late microphone was opened.");
       const id = randomUUID();
       audioGrant = { id, profileId: activeProfileId, epoch, expires: Date.now() + 30_000,
-        sessionId: input.purpose === "capture" ? String(input.sessionId) : null, jobId: input.purpose === "capture" ? String(input.jobId) : null };
+        sessionId: input.purpose === "devices" ? null : String(input.sessionId), jobId: input.purpose === "capture" ? String(input.jobId) : null,
+        purpose: input.purpose === "capture" ? "capture" : input.purpose === "standby" ? "standby" : "devices" };
       return id;
       } finally { audioPending = false; }
     });
@@ -520,7 +538,9 @@ else {
         });
         if (choice === 1) event.preventDefault();
       });
-      mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null; });
+      mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null;
+        void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });
+      mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });
       await mainWindow.loadURL("moguri://app/");
     };
     await createWindow();

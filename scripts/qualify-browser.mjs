@@ -7,7 +7,7 @@ export async function qualifyBrowser({ packageRoot, directory }) {
   const root = resolve(packageRoot), started = performance.now(), stateDir = join(directory, "state");
   await mkdir(directory, { recursive: true });
   const { createRuntime } = await import(pathToFileURL(join(root, "dist/sdk/node.mjs")).href);
-  const { MoguriSdk, BROWSER_MCP_TOOLS } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
+  const { MoguriSdk, BROWSER_MCP_TOOLS, PROTOCOL_VERSION } = await import(pathToFileURL(join(root, "dist/sdk/index.mjs")).href);
   let calls = 0, runtime, sdk;
   const provider = {
     state: { status: "disconnected", models: [], login: null, diagnostic: null },
@@ -24,7 +24,7 @@ export async function qualifyBrowser({ packageRoot, directory }) {
     assert.equal(before.available, false); assert.equal(before.controlId, null);
     const found = await sdk.query({ type: "mcp.tools", sessionId: session.id, serverId: "builtin", query: "navigate", offset: 0 });
     assert.ok(found.tools.some((tool) => tool.name === "browser_navigate"));
-    assert.equal(BROWSER_MCP_TOOLS.length, 6);
+    assert.equal(BROWSER_MCP_TOOLS.length, PROTOCOL_VERSION >= 87 ? 8 : 6);
     await sdk.browser.host.attach(owner); await sdk.browser.host.control(owner, 1, true);
     const enabled = (await sdk.browser.state(session.id)).browser.controlId; assert.ok(enabled);
     const poll = await sdk.browser.host.poll(owner, "https://example.invalid/generated-installed", "Generated installed browser");

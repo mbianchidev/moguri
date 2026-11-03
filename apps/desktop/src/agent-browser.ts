@@ -239,6 +239,27 @@ export class SessionBrowserHost {
       this.guard(request, signal);
       await this.cdp("Page.setInterceptFileChooserDialog", { enabled: true });
       this.guard(request, signal);
+      if (request.tool === "browser_wait") {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(done, Number(request.arguments.milliseconds));
+          const abort = () => { clearTimeout(timer); signal.removeEventListener("abort", abort); reject(signal.reason); };
+          function done() { signal.removeEventListener("abort", abort); resolve(); }
+          signal.addEventListener("abort", abort, { once: true });
+          if (signal.aborted) abort();
+        });
+        this.guard(request, signal);
+        if (this.contents.getURL() !== request.arguments.expectedUrl) throw new Error("The original page changed during the wait. No replacement page was adopted.");
+        return { text: JSON.stringify({ waitedMilliseconds: request.arguments.milliseconds, url: this.contents.getURL() }), outcome: "completed" };
+      }
+      if (request.tool === "browser_screenshot") {
+        const epoch = this.pageEpoch, image = await this.contents.capturePage();
+        this.guard(request, signal);
+        if (epoch !== this.pageEpoch || this.contents.getURL() !== request.arguments.expectedUrl) throw new Error("The original screenshot page changed. No stale image was delivered.");
+        const bytes = image.toPNG();
+        if (!bytes.length || bytes.length > 8 * 1024 * 1024) throw new Error("The page screenshot is empty or exceeds 8 MiB. No desktop capture or truncated image was substituted.");
+        return { text: JSON.stringify({ captured: "exact Browser page", bytes: bytes.length, url: this.contents.getURL(), delivery: "chat response; not implicit model context" }), outcome: "completed",
+          deliveries: [{ kind: "image", name: "Browser screenshot", data: bytes.toString("base64") }] };
+      }
       if (request.tool === "browser_snapshot") return { text: await this.snapshot(request, signal), outcome: "completed" };
       if (request.tool === "browser_navigate") {
         const url = browserUrl(String(request.arguments.url));

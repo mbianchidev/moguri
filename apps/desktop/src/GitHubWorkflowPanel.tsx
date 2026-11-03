@@ -125,6 +125,8 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     switch (resource) {
       case "issues": case "pulls": case "releases": input = { resource, ...gh }; break;
       case "issue": case "pull": case "reviews": case "comments": case "review-comments": case "threads": input = { resource, ...gh, number: positive(number, "issue/PR number") }; break;
+      case "files": input = { resource, ...gh, number: positive(number, "issue/PR number"), headSha }; break;
+      case "jobs": input = { resource, ...gh, runId: positive(runId, "workflow run ID"), headSha }; break;
       case "checks": input = { resource, ...gh, headSha }; break;
       case "runs": input = { resource, ...gh, ...(headSha ? { headSha } : {}) }; break;
       case "run": case "logs": input = { resource, ...gh, runId: positive(runId, "workflow run ID") }; break;
@@ -189,7 +191,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       </>}
       {kind === "github.pr.merge" && <label className="setting-field"><span id={`${uid}-merge-method`}>Explicit merge method</span><select aria-labelledby={`${uid}-merge-method`} value={mergeMethod} onChange={(event) => setMergeMethod(event.target.value as typeof mergeMethod)}><option value="merge">Merge commit</option><option value="squash">Squash</option><option value="rebase">GitHub rebase merge</option></select></label>}
       {(kind === "github.release.update" || kind === "github.release.publish" || resource === "release") && <label className="setting-field">Exact release ID<SettingsInput type="number" min={1} value={releaseId} onChange={(event) => setReleaseId(event.target.value)} /></label>}
-      {(kind === "github.ci.watch" || resource === "checks" || resource === "runs") && <label className="setting-field">Exact CI head SHA<SettingsInput value={headSha} onChange={(event) => setHeadSha(event.target.value)} /></label>}
+      {(kind === "github.ci.watch" || ["checks", "runs", "files", "jobs"].includes(resource)) && <label className="setting-field">{resource === "files" ? "Exact PR head SHA" : "Exact CI head SHA"}<SettingsInput value={headSha} onChange={(event) => setHeadSha(event.target.value)} /></label>}
       {kind === "github.ci.watch" && <label className="setting-field">Bounded CI deadline (seconds, at most 1800)<SettingsInput type="number" min={1} max={1800} value={seconds} onChange={(event) => setSeconds(event.target.value)} /></label>}
       <button disabled={!(kind === "github.ci.watch" ? allowed : canWrite)} onClick={() => void run("Reviewing exact Git/GitHub intent", async (isCurrent) => {
         const result = await api.preview(requiredScope(), action()); if (isCurrent()) { setPreview({ value: result.preview, scope: scopeKey }); setConfirmations([]); }
@@ -214,9 +216,9 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     </section>}
     <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs and releases</summary>
       <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
-        {["issues", "issue", "pulls", "pull", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
+        {["issues", "issue", "pulls", "pull", "files", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "jobs", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
       </select></label>} descriptionFirst>Read-only, bounded pages. Enter the explicit repository/account above. No endpoint editor, account substitution or implicit refresh.</SettingsHelp>
-      {(resource === "run" || resource === "logs") && <label className="setting-field">Exact workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
+      {(resource === "run" || resource === "jobs" || resource === "logs") && <label className="setting-field">Exact workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
       <button disabled={Boolean(busy) || !allowed || !repository || !account} onClick={() => void browse()}>Read GitHub page</button>
       {browsed?.scope === scopeKey && <><p className="fine-print">{browsed.result.warning} Page {browsed.result.page}.</p>
         {browsed.result.items.map((item) => <details key={`${item.kind}-${item.nodeId ?? item.id}`}><summary>{item.number ? `#${item.number} ` : ""}{item.title || item.kind} / {item.state} {item.conclusion}</summary>
