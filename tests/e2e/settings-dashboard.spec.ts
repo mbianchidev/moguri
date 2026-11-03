@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { profileFixture } from "../fixtures/profiles.ts";
-import { focusByKeyboard, openSettingsSection } from "./navigation.ts";
+import { focusByKeyboard, openSettingsSection, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Settings and Dashboard use generated hidden macOS windows.");
@@ -161,6 +161,7 @@ test("private update setup exposes supported owner/Contents prefill and disclose
   const fixture = await setupFixture(), app = await launch(join(fixture.directory, "state"));
   try {
     const page = await app.firstWindow();
+    await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler("moguri:open-external");
       ipcMain.handle("moguri:open-external", (_event, url: string) => { process.env.MOGURI_GENERATED_UPDATE_URL = url; });

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
+import { waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -68,6 +69,7 @@ test("copy icons acknowledge only completed clipboard writes and surface failure
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
+    await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }, expected) => {
       const gate = Promise.withResolvers<void>();
       ipcMain.once("generated-copy-release", () => gate.resolve());

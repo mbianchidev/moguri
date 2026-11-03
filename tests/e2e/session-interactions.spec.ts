@@ -285,7 +285,8 @@ test("native rows reorder siblings, explicit menus attach, and reviewed drags de
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === third.id)?.parentSessionId ?? null).toBeNull();
     await link.focus(); await page.keyboard.press("Shift+F10");
     const menu = page.getByRole("menu", { name: "Actions for Generated drag third", exact: true });
-    await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();
+    await expect(menu.getByRole("menuitem", { name: "Select", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown"); await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowDown"); await expect(menu.getByRole("menuitem", { name: "Pin", exact: true })).toBeFocused();
     await page.keyboard.press("Escape"); await expect(link).toBeFocused();
     await link.press("Shift+F10"); await expect(menu.getByRole("menuitem", { name: "Move down", exact: true })).toHaveCount(0);

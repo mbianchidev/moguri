@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native chat activity is qualified on macOS.");
@@ -21,6 +22,7 @@ test("desktop expands original operations and public reasoning, copies only the 
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler("moguri:copy-text");
       ipcMain.handle("moguri:copy-text", (_event, value: unknown) => {
