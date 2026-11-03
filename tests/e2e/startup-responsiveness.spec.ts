@@ -5,7 +5,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { startService } from "../../apps/service/src/server.ts";
 import { EventStore } from "../../apps/service/src/store.ts";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { GLOBAL_PROFILE_ID, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
 
@@ -20,7 +20,13 @@ test("the startup window appears before service recovery and new-chat clicks set
   const events = generatedResponsiveHistory(f.sessionId, f.session().projectId);
   await f.service.close();
   const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
-  try { store.commit(events); } finally { store.close(); }
+  try {
+    store.commit(events);
+    const global = store.view(GLOBAL_PROFILE_ID);
+    try { global.commit([{ event_type: "global.budget_changed", profile_id: GLOBAL_PROFILE_ID,
+      payload: { revision: 1, limit: { basis: "estimate", tokens: 1_000_000_000 } } }]); }
+    finally { global.close(); }
+  } finally { store.close(); }
   let preparing = false;
   const provider = { state: f.provider.state, onChange: () => {}, refresh: async () => { preparing = true; await gate.promise; },
     login: () => { throw new Error("Personal authorization is forbidden in generated startup checks."); },
@@ -56,7 +62,7 @@ test("the startup window appears before service recovery and new-chat clicks set
       timings.push(performance.now() - click);
     }
     console.log(JSON.stringify({ primitive: "desktop-end-to-end-new-chat", retainedSessions: 61, retainedEvents: events.length,
-      historyBytes: Buffer.byteLength(JSON.stringify(events)), firstWindowMs, completeStartupMs, clickToAcknowledgedVisibleChatMs: timings, modelCalls: 0 }));
+      historyBytes: Buffer.byteLength(JSON.stringify(events)), finiteGlobalPolicy: true, firstWindowMs, completeStartupMs, clickToAcknowledgedVisibleChatMs: timings, modelCalls: 0 }));
     expect(timings.every((ms) => ms < 1000)).toBe(true);
     const count = sdk.getState().snapshot!.sessions.length;
     await create.evaluate((button) => { if (!(button instanceof HTMLButtonElement)) throw new Error("The generated new-chat action is not a native button."); button.click(); button.click(); });
