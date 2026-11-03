@@ -97,18 +97,26 @@ export async function captureBrowserAudio(profileId: string, sessionId: string, 
   preparation.claim(signal);
   const context = preparation.context;
   let permission: string | undefined, stream: MediaStream | undefined;
+  let permissionRelease: Promise<void> | undefined;
   let source: MediaStreamAudioSourceNode | undefined, node: AudioWorkletNode | undefined, mute: GainNode | undefined;
   let error: Error | null = null, ready = false, finished = false, stopped = false, finalizing: Promise<Float32Array> | undefined;
   const started = Promise.withResolvers<void>(), ended = Promise.withResolvers<void>(), chunks: Float32Array[] = [];
   let samples = 0, startup: ReturnType<typeof setTimeout> | undefined, finalization: ReturnType<typeof setTimeout> | undefined;
+  const releasePermission = (): Promise<void> => {
+    if (permissionRelease) return permissionRelease;
+    if (!permission) return Promise.resolve();
+    const original = permission;
+    permissionRelease = window.moguri.releaseAudioPermission(original).then(() => { if (permission === original) permission = undefined; })
+      .catch((failure: unknown) => { permissionRelease = undefined; throw failure; });
+    return permissionRelease;
+  };
   const clearAudio = () => { for (const chunk of chunks) chunk.fill(0); chunks.length = 0; samples = 0; };
   const close = async () => {
     stopped = true; clearTimeout(startup); clearTimeout(finalization);
     signal.removeEventListener("abort", abort);
     for (const track of stream?.getTracks() ?? []) track.removeEventListener("ended", disconnected);
     stopTracks(stream); source?.disconnect(); node?.disconnect(); mute?.disconnect(); node?.port.close();
-    const id = permission; permission = undefined;
-    await Promise.all([preparation.close(), id ? window.moguri.releaseAudioPermission(id) : undefined]);
+    await Promise.all([preparation.close(), releasePermission()]);
   };
   const fail = (value: Error) => {
     if (error || stopped) return;
@@ -130,7 +138,7 @@ export async function captureBrowserAudio(profileId: string, sessionId: string, 
     node.port.onmessage = (event: MessageEvent<unknown>) => {
       if (stopped || !isRecord(event.data)) return;
       if (event.data.type === "ready") { ready = true; clearTimeout(startup); started.resolve(); }
-      else if (event.data.type === "done") { finished = true; ended.resolve(); }
+      else if (event.data.type === "done") { finished = true; started.resolve(); ended.resolve(); }
       else if (event.data.type === "pcm") {
         if (!(event.data.samples instanceof ArrayBuffer) || event.data.samples.byteLength % 4) { fail(new Error("The local PCM capture returned an invalid sample frame.")); return; }
         const chunk = new Float32Array(event.data.samples);
@@ -152,10 +160,13 @@ export async function captureBrowserAudio(profileId: string, sessionId: string, 
     source = context.createMediaStreamSource(stream);
     source.connect(node);
     startup = setTimeout(() => fail(new Error("No microphone PCM frames arrived within five seconds. Check the selected input and OS audio access.")), 5000);
-    await window.moguri.releaseAudioPermission(permission); permission = undefined;
-    await started.promise; active(signal);
-    if (error || !ready) throw error ?? new Error("The local microphone never produced an audio frame.");
+    const acknowledged = (async () => {
+      await releasePermission(); await started.promise; active(signal);
+      if (error || !ready) throw error ?? new Error("The local microphone never produced an audio frame.");
+    })();
+    void acknowledged.catch((failure: unknown) => { if (!signal.aborted) fail(failure instanceof Error ? failure : new Error("Microphone readiness was not acknowledged.")); });
     return {
+      ready: acknowledged,
       finish: () => finalizing ??= (async () => {
         if (!finished) { node!.port.postMessage({ type: "finish" }); finalization = setTimeout(() => fail(new Error("The local audio processor did not acknowledge its original flush.")), 2000); }
         await ended.promise; active(signal);

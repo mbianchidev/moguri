@@ -415,6 +415,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .composer-model-button { display: block; max-width: 100%; min-width: 0; padding: 5px 7px; font-size: 11px; }
 .composer-model-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composer-mic.recording { color: var(--danger); background: var(--error-bg); }
+.composer-mic[data-armed="true"]:not(.recording) { border-color: var(--accent); color: var(--accent); }
 .composer-voice-status { margin: 0; padding: 8px 12px; border-top: 1px solid var(--soft-line); overflow-wrap: anywhere; }
 .composer-transcript { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: var(--muted); font-size: 11px; border-top: 1px solid var(--soft-line); }
 .composer-transcript-text { flex: 1; min-width: 0; }

@@ -1,7 +1,7 @@
 import { encodeSpeechPcm, encodeSpeechWav } from "../../../packages/sdk/src/index.ts";
 
 export interface CaptureLease { id: string; token: string }
-export interface CaptureRecorder { finish(): Promise<Float32Array>; discard(): Promise<void> }
+export interface CaptureRecorder { ready?: Promise<void>; finish(): Promise<Float32Array>; discard(): Promise<void> }
 export interface CapturePorts {
   begin(signal: AbortSignal): Promise<CaptureLease>;
   acquire(lease: CaptureLease, deviceId: string, signal: AbortSignal, failed: (error: Error) => void, received: (samples: Float32Array) => void): Promise<CaptureRecorder>;
@@ -91,15 +91,18 @@ export class SpeechCaptureController {
         void this.failed(owner, error).catch((error: unknown) => console.error("Original microphone cleanup failed:", error instanceof Error ? error.message : "unconfirmed capture cleanup"));
       }, (samples) => this.receive(owner, samples));
       if (this.owner !== owner || owner.abort.signal.aborted) { await this.cleanup(owner); return; }
-      this.publish("recording");
       if (this.ports.read) { this.read(owner); this.progress = setInterval(() => this.read(owner), 250); }
       this.deadline = setTimeout(() => { void this.finish().catch((error: unknown) => console.error("Bounded microphone stop failed:", error instanceof Error ? error.message : "unconfirmed finalization")); }, 120_000);
-    } catch (error) { await this.failed(owner, error); }
+      await owner.recorder.ready;
+      if (owner.finalizing) { await owner.finalizing; return; }
+      if (this.owner !== owner || owner.abort.signal.aborted) { await this.cleanup(owner); return; }
+      this.publish("recording");
+    } catch (error) { if (owner.finalizing) await owner.finalizing; else await this.failed(owner, error); }
   }
   async finish(gesture?: symbol): Promise<void> {
     const owner = this.owner;
     if (!owner || gesture !== undefined && owner.gesture !== gesture) return;
-    if (this.state.phase === "starting") return this.cancel("Recording stopped before the microphone was ready. No audio was captured. Wait for Recording before speaking.", gesture);
+    if (this.state.phase === "starting" && !owner.recorder) return this.cancel("Recording stopped before the microphone was ready. No audio was captured. Wait for Recording before speaking.", gesture);
     if (owner.finalizing) return owner.finalizing;
     const recorder = owner.recorder, lease = owner.lease;
     if (!recorder || !lease) return;

@@ -3610,11 +3610,23 @@ extra SDK conversation refresh. Its input-free audio processor and local
 recognizer prepare in advance while voice is enabled, before live microphone
 capture, and connect immediately so
 the opening audio is not lost during worklet startup or permission-release IPC.
+The dictation feature defaults on, preserving explicit saved off choices. No
+microphone opens or model weights download merely because it is enabled.
 No microphone standby is implicit. **Prepare microphone while a composer
 is focused** separately consents to visible device readiness, without recording
 until activation. Disable, focus/ownership loss, sleep and cancellation close
 standby. First-time OS authorization still requires the user; wait for the
-recording highlight if permission or device startup is pending.
+recording highlight if permission or device startup is pending. Standby marks
+the microphone icon/accessible description instead of repeating an armed
+notice in every chat.
+Already acquired physical capture is now distinct from its readiness
+acknowledgement. Releasing while that acknowledgement is pending flushes the
+actual opening PCM and final transcript rather than discarding words. Partial
+text can update while readiness settles. Releasing before hardware exists
+still cannot recover uncaptured speech or start a late microphone. Streaming
+dictation does not create a WAV file; its owned buffers are wiped. Batch WAV
+spools remain transient and are removed after use, with failed cleanup retained
+explicitly.
 **The microphone button is not push-to-talk:** click once to record and again to
 confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
 a click-owned recording does not stop that recording. Space/Enter on the focused

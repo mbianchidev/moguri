@@ -13,6 +13,7 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const standby = useRef<BrowserMicrophonePreparation | undefined>(undefined);
   const standbyPending = useRef<Promise<BrowserMicrophonePreparation> | undefined>(undefined);
   const [standbyReady, setStandbyReady] = useState(false), [preparationError, setPreparationError] = useState("");
+  const [readinessDiagnostic, setReadinessDiagnostic] = useState<string | null>(null);
   const driver = useMemo(() => {
     const id = () => { if (!sessionId) throw new Error("Choose an actual chat before dictating. No hidden session was created."); return sessionId; };
     let preparation: BrowserAudioPreparation | undefined, warmed: BrowserAudioPreparation | undefined;
@@ -92,7 +93,11 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
     if (!voiceEnabled || !connected || options.active === false || lifecycle?.kind === "voice.download" && lifecycle.status !== "completed") return;
     let current = true;
     setPreparationError("");
-    void sdk.voice.prepare().then(async (result) => {
+    void sdk.voice.status().then(async ({ voice }) => {
+      if (!current) return;
+      if (!voice.runtimeReady || !voice.modelReady) { setReadinessDiagnostic(voice.diagnostic); return; }
+      setReadinessDiagnostic(null);
+      const result = await sdk.voice.prepare();
       if (!result.id) return;
       const job = await sdk.jobs.wait(result.id, { timeoutMs: 180_000 });
       if (job.status !== "completed") throw new Error(job.error ?? `Local recognizer preparation ${job.status}. No microphone or cloud fallback was used.`);
@@ -151,7 +156,7 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); if (held) void cancel("The voice shortcut was interrupted before release. Raw audio was discarded; inserted words were preserved.", held); };
   }, [enabled, connected, session?.status, sessionId, controller, shortcut, pushToTalk, options.globalShortcut, start, finish, cancel, toggle]);
-  return { state, start, finish, cancel, toggle, standbyReady, preparationError };
+  return { state, start, finish, cancel, toggle, standbyReady, preparationError, readinessDiagnostic };
 }
 
 export function useDictationTranscript(sdk: MoguriSdk, sessionId: string | undefined, jobId: string | undefined) {

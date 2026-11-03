@@ -374,7 +374,6 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "transcribing" ? "Flushing the original local audio buffer. Inserted words are preserved." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
     {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.state.error}</Alert>}
-    {dictation.standbyReady && <p className="composer-voice-status fine-print" role="status">Microphone ready in this focused composer. Standby is enabled; no audio is being recorded.</p>}
     {dictation.preparationError && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.preparationError}</Alert>}
     {voiceOutcome?.status === "failed" && <Alert as="p" className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</Alert>}
     {transcript && transcript.id !== insertedTranscript && !voiceFinalizing && <div className="composer-transcript"><Icon name="Mic" /><div className="composer-transcript-text"><strong>Dictation ready</strong>
@@ -416,10 +415,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}
-        <DictationButton state={dictation.state} recording={Boolean(voiceJob)}
+        <DictationButton state={dictation.state} recording={Boolean(voiceJob)} armed={dictation.standbyReady}
           label={voiceFinalizing ? "Finalizing local dictation" : voicePreparing ? "Cancel local dictation setup" : voiceJob || dictation.state.phase === "starting" ? "Stop local dictation" : "Start local dictation"}
           disabled={voiceFinalizing || dictation.state.cleanupPending || dictation.state.phase === "transcribing" || !connected || session.status === "archived" || snapshot.settings.values.voice.enabled === false}
-          title={snapshot.settings.values.voice.enabled === false ? "Enable local dictation in Settings / Voice, after reviewing its model license." : `Click to record; click again to confirm. ${voiceShortcut === "none" ? "No push-to-talk shortcut is assigned." : voiceShortcutMode(snapshot.settings.values.voice) === "hold" ?
+          title={snapshot.settings.values.voice.enabled === false ? "Enable local dictation in Settings / Voice, after reviewing its model license." : dictation.readinessDiagnostic ? `Set up local dictation in Settings / Voice. ${dictation.readinessDiagnostic}` : `Click to record; click again to confirm. ${voiceShortcut === "none" ? "No push-to-talk shortcut is assigned." : voiceShortcutMode(snapshot.settings.values.voice) === "hold" ?
             `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.` : `Press ${shortcutLabel(voiceShortcut)} to record; press again to finish.`}`}
           toggle={() => void dictate()} />
         <div className="composer-send-group">

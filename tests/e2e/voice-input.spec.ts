@@ -127,7 +127,8 @@ test("consented focused standby reuses one generated microphone and disable clos
       };
     });
     await prompt.focus();
-    await expect(page.getByRole("status").filter({ hasText: "Microphone ready in this focused composer" })).toBeVisible();
+    await expect(microphone).toHaveAttribute("data-armed", "true");
+    await expect(page.getByText("Microphone ready in this focused composer. Standby is enabled; no audio is being recorded.", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => Reflect.get(window, "generatedStandbyCalls"))).toBe(1);
     expect(fixture.service.controller.snapshot().jobs.some((job) => job.kind === "voice.capture")).toBe(false);
     await page.keyboard.press("Control+Space");
