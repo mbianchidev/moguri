@@ -4174,6 +4174,10 @@ It is ad-hoc-signed, not notarized or installed automatically. The earlier
 admission-fence regression; do not install that historical cut as the repair.
 Exact hashes, packed/actual-app checks and remaining qualification limits are in the
 [delivery record](architecture/cli-launcher.md#service-recovery-delivery-qualification).
+The corrected cut passes the complete local unit/native-TUI sweep (2,191 passed,
+29 skipped), complete hidden desktop sweep (323 passed, four skipped), fresh
+independently installed packed SDK and actual-package/update-consumer checks.
+Skipped physical-native gates and notarization are not implied by those passes.
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
