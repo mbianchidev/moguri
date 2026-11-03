@@ -43,6 +43,11 @@ test("the startup window appears before service recovery and new-chat clicks set
     const firstWindowMs = performance.now() - began;
     expect(firstWindowMs).toBeLessThan(1500);
     expect(await page.getByRole("navigation", { name: "Projects and sessions" }).count()).toBe(0);
+    await expect(page.getByRole("status")).toContainText("Waiting for the local service");
+    const waiting = await page.evaluate(() => window.moguri.startupStatus());
+    expect(waiting.phase).toBe("service");
+    expect(waiting.totalMs).toBeGreaterThanOrEqual(waiting.elapsedMs);
+    expect(JSON.stringify(waiting)).not.toContain(f.retentionKey.toString("hex"));
     gate.resolve(); runtime = await starting;
     await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeVisible();
     sdk = await new MoguriSdk(runtime.connection).ready();
@@ -50,6 +55,7 @@ test("the startup window appears before service recovery and new-chat clicks set
     const chats = navigation.getByRole("region", { name: "Chats", exact: true });
     const create = chats.locator("header").getByRole("button", { name: "New chat", exact: true });
     await expect(create).toBeEnabled();
+    expect((await page.evaluate(() => window.moguri.startupStatus())).phase).toBe("ready");
     const completeStartupMs = performance.now() - coldStarted;
     expect(completeStartupMs).toBeLessThan(3000);
     const timings: number[] = [];

@@ -4225,6 +4225,24 @@ the operation's existing deadline, but mutations and lifecycle requests are
 never replayed. Cancel quit after failed shutdown restores an accessible window
 bound to the original owner, without adopting or starting another service.
 
+The opening screen reports the current desktop phase and elapsed time:
+waiting for the local service, profile connection, application preferences or
+native control preparation. This is diagnostic progress, not successful
+readiness or permission to mutate before authentication.
+
+After Send clears the composer, the original text stays visible as a local
+**Sending** row until the existing acknowledgement settles. It is explicitly
+not yet acknowledged, not another committed message or model request. Held
+prompts keep their separate Holding label. Failed or uncertain delivery keeps
+the original draft/recovery rules; it never silently resends.
+
+For remaining slow New chat/Send behaviour, use **Insights**, **Show recent
+event trace**, **Client request timings**, then **Copy client request timings**
+after the problem occurs. This payload-free copy includes desktop startup
+phases and the last 50 profile-client transport observations. Headers/body
+timings are not server CPU or model duration. Do not send a paid test prompt,
+delete state, clear keys or restart active work merely to collect diagnostics.
+
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows
 are the selected set; there are no row checkboxes. Right-click a highlighted

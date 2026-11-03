@@ -13,6 +13,7 @@ import { AttentionNotifier, notificationToneAllowed, type NotificationTone } fro
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
 import { HtmlPreviewHost } from "./html-preview.ts";
+import type { DesktopStartupPhase, DesktopStartupStatus } from "./bridge.d.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
@@ -31,6 +32,19 @@ let serviceStoppedForRestart = false;
 let updateTimer: ReturnType<typeof setInterval> | undefined;
 let updateNoticed: string | null = null;
 const nativeReady = Promise.withResolvers<void>();
+const startupBegan = performance.now();
+let startupPhase: DesktopStartupPhase = "window", startupPhaseBegan = startupBegan, startupFinished: number | undefined;
+const startupCompleted: DesktopStartupStatus["completed"] = [];
+const startupPhaseChanged = (phase: DesktopStartupPhase) => {
+  const now = performance.now();
+  startupCompleted.push({ phase: startupPhase, durationMs: now - startupPhaseBegan });
+  startupPhase = phase; startupPhaseBegan = now;
+  if (phase === "ready" || phase === "failed") startupFinished = now;
+};
+const startupStatus = (): DesktopStartupStatus => {
+  const now = startupFinished ?? performance.now();
+  return { phase: startupPhase, elapsedMs: now - startupPhaseBegan, totalMs: now - startupBegan, completed: structuredClone(startupCompleted) };
+};
 void nativeReady.promise.catch(() => console.error("Native startup did not complete; the startup window retains its connection diagnostic."));
 const audioGranted = () => {
   const grant = audioGrant, state = attentionClient?.getState();
@@ -176,11 +190,13 @@ else {
       } catch { return new Response("Moguri asset missing. Rebuild the app.", { status: 404 }); }
     });
     ipcMain.handle("moguri:connection", async (event) => { trusted(event); await nativeReady.promise; return connect(); });
+    ipcMain.handle("moguri:startup-status", (event) => { trusted(event); return startupStatus(); });
     app.on("activate", () => { if (!mainWindow && !closeRequested && !maintenancePending) void createWindow(); });
     const openingWindow = createWindow();
     void openingWindow.catch((error: unknown) => console.error("Initial window loading ended:", error instanceof Error ? error.message : "inspect native startup"));
     if (closeRequested) throw new Error("Initial workspace opening was cancelled by quit. Reopen Moguri after its original shutdown settles.");
     await mkdir(app.getPath("userData"), { recursive: true, mode: 0o700 });
+    startupPhaseChanged("service");
     await connect();
     if (closeRequested) throw new Error("Initial workspace opening was cancelled by quit. Reopen Moguri after its original shutdown settles.");
     const applyApplicationPreferences = async () => {
@@ -261,10 +277,13 @@ else {
           notification.show();
         }, (tone) => { void requestSound(scoped, epoch, tone.kind, tone.soundId, tone).catch((error: unknown) => soundError(profileId, error)); });
       });
+      if (startupPhase === "profile") startupPhaseChanged("preferences");
       await applyApplicationPreferences();
       return profileId;
     };
+    startupPhaseChanged("profile");
     await activateProfile(activeProfileId);
+    startupPhaseChanged("native");
     ipcMain.handle("moguri:application-preferences", async (event) => { trusted(event); return applyApplicationPreferences(); });
     const hidden = process.env.MOGURI_TEST_WINDOW === "hidden";
     const cliInstallation = new CliInstallation(
@@ -566,7 +585,7 @@ else {
       mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });
       await mainWindow.loadURL("moguri://app/");
     }
-    nativeInitialized = true; nativeReady.resolve();
+    nativeInitialized = true; startupPhaseChanged("ready"); nativeReady.resolve();
     await openingWindow;
     if (closeRequested) return;
     const checkUpdates = async () => {
@@ -582,6 +601,7 @@ else {
       updateTimer = setInterval(() => { void checkUpdates().catch((error: unknown) => soundError(activeProfileId, error)); }, 4 * 60 * 60_000);
     }
   }).catch((error: unknown) => {
+    startupPhaseChanged("failed");
     nativeReady.reject(error);
     if (error instanceof ServiceUpgradeCancelled || closeRequested) { app.quit(); return; }
     console.error("Moguri desktop startup failed:", error instanceof Error ? error.message : "Unknown startup error.");

@@ -319,6 +319,8 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .message time { color: var(--muted); font-size: 10px; }
 .message.user { padding: 16px 18px; background: var(--subtle); border-radius: 8px; }
 .message.user .markdown p { margin: 0; }
+.message.pending-input { border: 1px dashed var(--control-line); }
+.pending-input-text { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
 .conversation-turn { margin-bottom: 24px; }
 .response-turn { min-width: 0; }
 .session-activities, .activity-read-error { max-width: 76ch; margin-inline: auto; min-width: 0; }
