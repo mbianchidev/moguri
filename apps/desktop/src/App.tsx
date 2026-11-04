@@ -538,7 +538,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
     if (!await confirmTerminalNavigation()) return;
     if (!leaveSurface()) throw new Error("Save existing edits before starting a new chat.");
     await editor?.flush();
-    const result = await client.sessions.create(projectId, "New chat");
+    const result = await client.sessions.create(projectId);
     if (!result.id) throw new Error("The new chat was not acknowledged. Existing drafts are preserved.");
     selectMainSession(result.id, projectId); setArchived(false); setNavOpen(false); setBoardOpen(false); setSideSessionId(null); closeStart();
   };
@@ -808,6 +808,14 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
       {entries.filter((entry) => entry.turnId === null).map((entry) => <ActivityRow sdk={client} entry={entry} version={activity.activity?.sequence ?? 0} key={entry.id} />)}
       {!activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === null)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
     </section>}
+    {session.queue.filter((item) => item.delivery === "steer" && item.targetTurnId === session.turnId && !item.command).map((item) =>
+      <article className="message user pending-input" key={item.id} aria-label="Live message">
+        <header><strong>You</strong><span>Live input</span></header>
+        <p className="fine-print" role="status">Acknowledged. The agent will read this at its next safe boundary.</p>
+        <div className="pending-input-text">{item.text}</div>
+        {item.attachments.length > 0 && <div className="attachment-list">{item.attachments.map((attachment) =>
+          <span key={attachment.id}>{attachment.path}</span>)}</div>}
+      </article>)}
     {pendingInput && <article className="message user pending-input" aria-label="Pending message">
       <header><strong>You</strong><span>Not yet acknowledged</span></header>
       <p className="fine-print" role="status">{pendingInputStatus(pendingInput)} Awaiting service acknowledgement.</p>
@@ -832,7 +840,7 @@ function Queue({ session, command, client, modal }: { session: Session; command:
       setEditing(null);
     } catch (error) { setError(error instanceof Error ? error.message : "Queue edit failed. Your replacement text is preserved."); }
   };
-  return <section className="queue" aria-label="Message queue"><header><strong>Queued messages</strong><span>{session.queue.length} unclaimed</span>
+  return <section className="queue" aria-label="Message queue"><header><strong>{session.queue.some((item) => item.delivery === "steer" && item.targetTurnId === session.turnId) ? "Pending inputs" : "Queued messages"}</strong><span>{session.queue.length} unclaimed</span>
     {!session.turnId && session.queue.some((item) => item.delivery !== "steer") && <button className="quiet" onClick={() => void command({ type: "session.resume", sessionId: session.id })}>Resume queued work</button>}</header>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <ReorderList items={session.queue} scope={`${client.profileId}:queue:${session.id}`} label="Queued prompt order" name={(_item, index) => `queued message ${index + 1}`} disabled={editing !== null}

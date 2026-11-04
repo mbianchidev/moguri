@@ -4254,6 +4254,21 @@ after the problem occurs. This payload-free copy includes desktop startup
 phases and the last 50 profile-client transport observations. Headers/body
 timings are not server CPU or model duration. Do not send a paid test prompt,
 delete state, clear keys or restart active work merely to collect diagnostics.
+The protocol-90 build adds numeric service handling, desktop-proxy body/header
+waiting and event-loop-window spans to that same copy. A loop maximum describes
+the reported sampling window, not a proven cause of that individual request.
+Provider discovery can remain Connecting after authenticated service readiness;
+opening/creating a chat does not wait for it or authorize inference.
+
+Ordinary Enter/Send now uses the service-resolved live delivery mode during an
+active solver turn. Its acknowledged text stays visible until the next safe
+boundary without cancelling the current operation. Explicit Queue and
+Interrupt are still available; Cmd/Ctrl+Enter still holds the prompt.
+Double-click/F2/contextual Rename edits the name inline.
+New factory-named chats may receive one separately budgeted topic-summary call
+after their first reply. Configure it in **Settings / Providers / Chat names**;
+existing or explicitly named chats are not inferred to need naming.
+See the [exact naming lifecycle](architecture/chat-titles.md).
 
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows

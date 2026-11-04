@@ -14,6 +14,7 @@ import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
 import { HtmlPreviewHost } from "./html-preview.ts";
 import type { DesktopStartupPhase, DesktopStartupStatus } from "./bridge.d.ts";
+import { LoopDelay } from "../../service/src/loop-delay.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
@@ -86,6 +87,8 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on("second-instance", () => { mainWindow?.show(); mainWindow?.focus(); });
   void app.whenReady().then(async () => {
+    const responsiveness = new LoopDelay();
+    app.once("will-quit", () => responsiveness.close());
     let connecting: Promise<Connection> | undefined;
     let connectedOwner: { directory: string; connection: Connection } | undefined;
     let reopenOwner: typeof connectedOwner;
@@ -173,13 +176,29 @@ else {
         if (!["GET", "POST"].includes(request.method) || !["/v1/snapshot", "/v1/commands", "/v1/command-receipt", "/v1/query", "/v1/query-cancel", "/v1/terminal", "/v1/voice", "/v1/application", "/v1/health"].includes(url.pathname) || url.search) return new Response("Unsupported protocol route.", { status: 404 });
         const profileId = request.headers.get("X-Moguri-Profile") ?? PROFILE_ID;
         if (!/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) return new Response("Profile scope denied.", { status: 403 });
-        return fetch(`${connection.baseUrl}${url.pathname}`, {
-          method: request.method,
-          headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json", "X-Moguri-Profile": profileId,
-            ...(request.headers.get("X-Moguri-Query-Id") ? { "X-Moguri-Query-Id": request.headers.get("X-Moguri-Query-Id")! } : {}) },
-          ...(request.method === "POST" ? { body: await request.text() } : {}),
-          signal: AbortSignal.any([request.signal, AbortSignal.timeout(url.pathname === "/v1/query" ? QUERY_TIMEOUT_MS + QUERY_REPLY_GRACE_MS : 20_000)]),
-        });
+        const began = performance.now();
+        try {
+          const body = request.method === "POST" ? await request.text() : undefined;
+          const bodyMs = performance.now() - began, upstream = performance.now();
+          const response = await fetch(`${connection.baseUrl}${url.pathname}`, {
+            method: request.method,
+            headers: { Authorization: `Bearer ${connection.token}`, Origin: "moguri://app", "Content-Type": "application/json", "X-Moguri-Profile": profileId,
+              ...(request.headers.get("X-Moguri-Query-Id") ? { "X-Moguri-Query-Id": request.headers.get("X-Moguri-Query-Id")! } : {}) },
+            ...(body !== undefined ? { body } : {}),
+            signal: AbortSignal.any([request.signal, AbortSignal.timeout(url.pathname === "/v1/query" ? QUERY_TIMEOUT_MS + QUERY_REPLY_GRACE_MS : 20_000)]),
+            redirect: "error",
+          });
+          const headers = new Headers(response.headers);
+          headers.append("Server-Timing", `moguri-proxy-body;dur=${bodyMs.toFixed(3)}, moguri-proxy-headers;dur=${(performance.now() - upstream).toFixed(3)}${responsiveness.timing("proxy")}`);
+          return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+        } catch (error) {
+          if (!(error instanceof Error) || !["TypeError", "AbortError", "TimeoutError"].includes(error.name)) throw error;
+          console.error("Moguri service proxy did not acknowledge its original request:", error.name);
+          return Response.json({ error: { code: "request_failed",
+            message: "The original Moguri service transport did not acknowledge this request. No request was replayed or different owner selected. Check Client request timings and the original service log; a mutation may already have an outcome in its exact command receipt." } }, {
+            status: 502, headers: { "Server-Timing": `moguri-proxy-headers;dur=${(performance.now() - began).toFixed(3)}${responsiveness.timing("proxy")}` },
+          });
+        }
       }
       const path = resolve(rendererRoot, `.${decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname)}`);
       if (!path.startsWith(rendererRoot + sep)) return new Response("Path denied.", { status: 403 });

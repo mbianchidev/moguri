@@ -342,7 +342,19 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
-          <ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
+          <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
+          <h3>Chat names</h3>
+          <label className="setting-toggle"><input type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
+            setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
+          <label className="setting-field">Naming model<select aria-label="Chat naming model" value={draft.chatTitles?.modelId ?? ""} onChange={(event) =>
+            setDraft({ ...draft, chatTitles: { enabled: draft.chatTitles?.enabled !== false, modelId: event.target.value || null } })}>
+            <option value="">Automatic in the original Env</option>
+            {draft.chatTitles?.modelId && !snapshot.provider.models.some((model) => model.id === draft.chatTitles!.modelId) &&
+              <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
+            {snapshot.provider.models.filter((model) => !model.synthetic).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
+          </select></label>
+          <p className="fine-print">One tool-less, separately charged call after the first reply, using the first prompt's text. It prefers a configured loopback model, a current price estimate, then the actual solver model. Your Env, budget and chosen names are preserved. Legacy chats are not renamed; saving this setting does not run a model.</p>
+        </>}
         {tab === "accessibility" && <><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a qualified chord or enter one explicitly. Save applies only its field. Conflicting and protected editing/system chords are rejected; none disables an optional shortcut. Voice uses the same binding in both sections.</SettingsHelp><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>
 
           <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />

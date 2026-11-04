@@ -1,6 +1,6 @@
 import type { WebContents } from "electron";
 import { randomBytes, randomUUID } from "node:crypto";
-import { browserUrl, isRecord, validateBrowserArguments, webAccessAllows, type WebAccess, type BrowserRequest, type BrowserResult, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 
 const pointFunction = `function() {
   if (!(this instanceof HTMLElement) || !this.isConnected || this.closest('[inert]') || this.disabled) throw Error('The exact browser element is unavailable or disabled. Take a fresh snapshot.');
@@ -40,6 +40,7 @@ export class SessionBrowserHost {
   private guardedNetwork = false;
   private webAccess?: WebAccess;
   private networkDenied = new Set<string>();
+  private readonly connection: Connection;
   private readonly navigated = () => { this.pageEpoch++; this.clearRefs(); };
   private readonly debugMessage = (_event: Electron.Event, method: string) => {
     if (method !== "Page.javascriptDialogOpening" || !this.debuggerOwned || this.contents.isDestroyed()) return;
@@ -48,6 +49,7 @@ export class SessionBrowserHost {
   };
   private constructor(private sdk: MoguriSdk, sessionId: string, private contents: WebContents, private validOwner: () => boolean, private report: (message: string) => void) {
     this.owner = { sessionId, hostId: randomUUID(), lease: randomBytes(32).toString("hex") };
+    this.connection = { ...sdk.connection };
     contents.on("did-start-navigation", this.navigated);
     contents.debugger.on("message", this.debugMessage);
   }
@@ -81,6 +83,9 @@ export class SessionBrowserHost {
     return host;
   }
   private clearRefs(): void { this.snapshotId = null; this.refs.clear(); }
+  private sameConnection(): boolean {
+    return (["protocolVersion", "pid", "baseUrl", "wsUrl", "token", "storeId"] as const).every((key) => this.connection[key] === this.sdk.connection[key]);
+  }
   private revoke(): void {
     this.controlId = null; this.webAccess = undefined; this.clearRefs(); this.active?.abort.abort();
     if (!this.contents.isDestroyed()) {
@@ -90,6 +95,7 @@ export class SessionBrowserHost {
     this.debuggerOwned = false;
   }
   async control(enabled: boolean) {
+    if (!this.sameConnection()) throw new Error("The original browser service connection changed. No different lease or page was controlled.");
     if (enabled && !this.connected) throw new Error("The original browser host disconnected. Close and reopen the pane; no replacement or retry was inferred.");
     const sequence = ++this.sequence;
     this.revoke();
@@ -111,6 +117,7 @@ export class SessionBrowserHost {
     }
   }
   async navigateByUser(input: string): Promise<void> {
+    if (!this.sameConnection()) throw new Error("The original browser service connection changed. Reopen this exact pane before navigation; no other owner was adopted.");
     const url = browserUrl(input);
     if (this.controlId) await this.control(false);
     this.revoke();
@@ -127,10 +134,26 @@ export class SessionBrowserHost {
     await this.sdk.browser.host.detach(this.owner);
   }
   private async poll(): Promise<void> {
+    let failures = 0;
     try {
       while (!this.stopped && !this.contents.isDestroyed() && this.validOwner()) {
         const sequence = this.sequence;
-        const response = await this.sdk.browser.host.poll(this.owner, this.contents.getURL().slice(0, 4096), this.contents.getTitle().slice(0, 512));
+        if (!this.sameConnection()) throw new Error("The original browser service connection changed. Close and reopen this exact pane; no different owner was adopted.");
+        let response: Awaited<ReturnType<MoguriSdk["browser"]["host"]["poll"]>>;
+        try {
+          response = await this.sdk.browser.host.poll(this.owner, this.contents.getURL().slice(0, 4096), this.contents.getTitle().slice(0, 512));
+        } catch (error) {
+          const transient = error instanceof TypeError || error instanceof ClientError && ["request_failed", "query_timeout"].includes(error.code);
+          if (!transient || failures >= 2 || this.stopped || !this.validOwner() || !this.sameConnection()) throw error;
+          failures++; this.connected = false; this.revoke();
+          this.report("The original browser status poll failed. Agent access was revoked; only its exact read/lease will be recovered, not a browser action.");
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          if (this.stopped || !this.validOwner() || !this.sameConnection()) break;
+          await this.sdk.browser.host.control(this.owner, ++this.sequence, false);
+          continue;
+        }
+        if (!this.sameConnection()) throw new Error("The original browser service changed during its read. No new owner, result or control was adopted.");
+        failures = 0; this.connected = true;
         this.lastPoll = Date.now();
         if (this.stopped || !this.validOwner()) break;
         if (sequence === this.sequence && response.controlId !== this.controlId) this.revoke();
@@ -141,7 +164,10 @@ export class SessionBrowserHost {
           if (this.seenRequests.size > 256) this.seenRequests.delete(this.seenRequests.values().next().value!);
           const active = { id: request.id, abort: new AbortController() };
           this.active = active;
-          void this.execute(request, active.abort.signal).then((result) => this.sdk.browser.host.reply(this.owner, request.id, result))
+          void this.execute(request, active.abort.signal).then((result) => {
+            if (!this.sameConnection()) throw new Error("The original browser result lost its service owner. No different service received the result or replay.");
+            return this.sdk.browser.host.reply(this.owner, request.id, result);
+          })
             .catch((error: unknown) => this.report(`Browser result was not acknowledged; no replay: ${error instanceof Error ? error.message : "unknown result failure"}`))
             .finally(() => { if (this.active === active) this.active = undefined; });
         }
@@ -153,11 +179,11 @@ export class SessionBrowserHost {
   }
   private guard(request: BrowserRequest, signal: AbortSignal): void {
     signal.throwIfAborted();
-    if (this.stopped || !this.validOwner() || this.contents.isDestroyed() || !this.controlId || request.controlId !== this.controlId ||
+    if (this.stopped || !this.validOwner() || !this.sameConnection() || this.contents.isDestroyed() || !this.controlId || request.controlId !== this.controlId ||
       Date.now() - this.lastPoll > 8000) throw new Error("Browser control was revoked or its exact native owner changed.");
   }
   private async cdp(method: string, params: Record<string, unknown> = {}): Promise<unknown> {
-    if (this.stopped || !this.controlId || !this.validOwner() || this.contents.isDestroyed()) throw new Error("Browser control is off. No debug command was dispatched.");
+    if (this.stopped || !this.controlId || !this.validOwner() || !this.sameConnection() || this.contents.isDestroyed()) throw new Error("Browser control is off. No debug command was dispatched.");
     if (!this.debuggerOwned) {
       if (this.contents.debugger.isAttached()) throw new Error("This browser has another debugger owner. No existing debug session was adopted.");
       this.contents.debugger.attach("1.3"); this.debuggerOwned = true;

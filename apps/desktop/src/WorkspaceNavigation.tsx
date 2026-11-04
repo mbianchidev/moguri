@@ -50,7 +50,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   setupSandbox?: () => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
-  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; title: string; source: Session["titleSource"]; revision: Session["titleRevision"] } | null>(null);
   const renameFocus = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (renaming || !renameFocus.current) return;
@@ -148,7 +148,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const open = (value: Edit) => { if (allow()) setEdit(value); };
   const rename = (session: Session) => {
     if (!allow()) return;
-    setMenu(null); setRenaming({ id: session.id, title: session.title });
+    setMenu(null); setRenaming({ id: session.id, title: session.title, source: session.titleSource, revision: session.titleRevision });
   };
   const folder = (project: Project) => (snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id));
   const collapseGroupProjects = (group: NavigationFolder, collapsed: boolean) => {
@@ -367,7 +367,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === session.id ? null : value);
     }} onDrop={(event) => dropSession(event, session)}
     onContextMenu={(event) => { if (renaming?.id === session.id) return; event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu("session", session.id, anchor, event.clientX, event.clientY); }}>
-    {renaming?.id === session.id ? <InlineSessionRename sdk={sdk} id={session.id} original={renaming.title} close={() => {
+    {renaming?.id === session.id ? <InlineSessionRename sdk={sdk} id={session.id} original={renaming.title} source={renaming.source} titleRevision={renaming.revision} close={() => {
       renameFocus.current = session.id; setRenaming(null);
     }} /> : <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions. Drop on a session to attach; drop near its edges or use Alt+Up/Down to reorder siblings. Drag a child to a header to detach.`}
       aria-pressed={selecting ? selected : undefined} disabled={bulkBusy} aria-haspopup="menu" aria-expanded={menu?.kind === "session" && menu.id === session.id} aria-current={selectedId === session.id ? "page" : undefined}
@@ -655,7 +655,7 @@ function SessionIndicators({ indicator }: { indicator: ReturnType<typeof session
       {indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
   </span>;
 }
-function InlineSessionRename({ sdk, id, original, close }: { sdk: MoguriSdk; id: string; original: string; close: () => void }) {
+function InlineSessionRename({ sdk, id, original, source, titleRevision, close }: { sdk: MoguriSdk; id: string; original: string; source: Session["titleSource"]; titleRevision: Session["titleRevision"]; close: () => void }) {
   const [value, setValue] = useState(original), [saving, setSaving] = useState(false), [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null), pending = useRef(false);
   useLayoutEffect(() => { input.current?.focus(); input.current?.select(); }, []);
@@ -668,7 +668,8 @@ function InlineSessionRename({ sdk, id, original, close }: { sdk: MoguriSdk; id:
       for (let attempt = 0; ; attempt++) {
         const state = sdk.getState(), current = state.snapshot?.sessions.find((session) => session.id === id);
         if (state.status !== "connected" || !current) throw new Error("The original chat is unavailable. Your proposed name is preserved; no other chat was renamed.");
-        if (current.title !== original) throw new Error("Another client changed this chat's name. Your proposed name is preserved; review the new name before retrying.");
+        const generatedDuringEdit = source === "factory" && titleRevision !== undefined && current.titleSource === "model" && current.titleRevision === titleRevision + 1;
+        if (current.title !== original && !generatedDuringEdit) throw new Error("Another client changed this chat's name. Your proposed name is preserved; review the new name before retrying.");
         try { await sdk.sessions.rename(id, value, current.revision); break; }
         catch (failure) { if (attempt || !(failure instanceof ClientError && failure.code === "revision_conflict")) throw failure; }
       }
