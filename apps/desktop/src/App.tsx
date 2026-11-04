@@ -629,7 +629,7 @@ export function App({ client: initialClient }: { client: MoguriClient }) {
       <header className="session-header" data-session-id={session?.id}>
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
-        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session) : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}</span></div>
+        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session, 64, "New chat") : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}</span></div>
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">

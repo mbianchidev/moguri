@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { startService } from "../../apps/service/src/server.ts";
+import { ControlPlane } from "../../apps/service/src/controller.ts";
 import { EventStore } from "../../apps/service/src/store.ts";
 import { GLOBAL_PROFILE_ID, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
@@ -28,7 +29,12 @@ test("the startup window appears before service recovery and new-chat clicks set
     finally { global.close(); }
   } finally { store.close(); }
   let preparing = false;
-  const provider = { state: f.provider.state, onChange: () => {}, refresh: async () => { preparing = true; await gate.promise; },
+  const initialize = ControlPlane.prototype.initialize;
+  ControlPlane.prototype.initialize = async function() {
+    if (this.store.path === join(stateDir, "state.sqlite")) { preparing = true; await gate.promise; }
+    await initialize.call(this);
+  };
+  const provider = { state: f.provider.state, onChange: () => {}, refresh: () => f.provider.refresh(),
     login: () => { throw new Error("Personal authorization is forbidden in generated startup checks."); },
     cancel: () => f.provider.cancel(), logout: () => f.provider.logout(),
     prepare: (...input: Parameters<typeof f.provider.prepare>) => f.provider.prepare(...input) };
@@ -76,7 +82,7 @@ test("the startup window appears before service recovery and new-chat clicks set
     await expect(create).toBeEnabled();
     expect(sdk.sessions.get(f.sessionId)?.draft.text).toBe("Generated retained responsive draft.");
     expect(f.requests).toHaveLength(0);
-  } finally { gate.resolve(); sdk?.disconnect(); await app?.close(); runtime ??= await starting; await runtime.close(); await f.close(); }
+  } finally { gate.resolve(); ControlPlane.prototype.initialize = initialize; sdk?.disconnect(); await app?.close(); runtime ??= await starting; await runtime.close(); await f.close(); }
 });
 
 test("cancelling failed quit restores an accessible connected window without stopping or replacing its original owner", async () => {
