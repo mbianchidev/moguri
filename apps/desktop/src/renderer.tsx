@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { Alert } from "./Alert.tsx";
 import { MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import type { DesktopStartupPhase } from "./bridge.d.ts";
 import "./styles.css";
@@ -21,7 +22,7 @@ const progress = setInterval(() => {
       <p>{Math.floor((performance.now() - openingBegan) / 1000)} seconds opening this window</p></main>);
   }).catch((error: unknown) => {
     if (opening) root.render(<main className="startup-screen"><h1>Moguri</h1><p role="status">Opening your workspace...</p>
-      <p role="alert">Startup progress could not be read: {error instanceof Error ? error.message : "Native diagnostics are unavailable."}</p></main>);
+      <Alert as="p" role="alert">Startup progress could not be read: {error instanceof Error ? error.message : "Native diagnostics are unavailable."}</Alert></main>);
   }).finally(() => { progressPending = false; });
 }, 500);
 try {
