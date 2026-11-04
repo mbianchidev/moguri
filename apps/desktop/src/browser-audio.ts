@@ -17,7 +17,7 @@ export interface BrowserMicrophonePreparation {
   claim(profileId: string, sessionId: string, deviceId: string, signal: AbortSignal): Promise<MediaStream>;
   close(): Promise<void>;
 }
-export async function prepareBrowserMicrophone(profileId: string, sessionId: string, deviceId: string, signal: AbortSignal): Promise<BrowserMicrophonePreparation> {
+export async function prepareBrowserMicrophone(profileId: string, sessionId: string, deviceId: string, signal: AbortSignal): Promise<BrowserMicrophonePreparation | undefined> {
   let permission: string | undefined, stream: MediaStream | undefined, transferred = false;
   const close = async () => {
     signal.removeEventListener("abort", abort);
@@ -29,7 +29,9 @@ export async function prepareBrowserMicrophone(profileId: string, sessionId: str
   signal.addEventListener("abort", abort, { once: true });
   try {
     active(signal);
-    permission = await window.moguri.audioPermission({ profileId, sessionId, purpose: "standby" }); active(signal);
+    const grant = await window.moguri.audioPermission({ profileId, sessionId, purpose: "standby" });
+    permission = grant ?? undefined; active(signal);
+    if (grant === null) { await close(); return; }
     stream = await navigator.mediaDevices.getUserMedia(microphoneConstraints(deviceId)); active(signal);
     checkMicrophone(stream, deviceId);
     return { close, claim: async (profile, session, device, captureSignal) => {

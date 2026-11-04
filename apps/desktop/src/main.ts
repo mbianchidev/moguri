@@ -13,6 +13,7 @@ import { AttentionNotifier, notificationToneAllowed, type NotificationTone } fro
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
 import { HtmlPreviewHost } from "./html-preview.ts";
+import { microphonePermission } from "./microphone-permission.ts";
 import type { DesktopStartupPhase, DesktopStartupStatus } from "./bridge.d.ts";
 import { LoopDelay } from "../../service/src/loop-delay.ts";
 
@@ -47,10 +48,13 @@ const startupStatus = (): DesktopStartupStatus => {
   return { phase: startupPhase, elapsedMs: now - startupPhaseBegan, totalMs: now - startupBegan, completed: structuredClone(startupCompleted) };
 };
 void nativeReady.promise.catch(() => console.error("Native startup did not complete; the startup window retains its connection diagnostic."));
+const generatedAudio = () => process.env.MOGURI_TEST_WINDOW === "hidden" && app.commandLine.hasSwitch("use-fake-device-for-media-stream");
 const audioGranted = () => {
   const grant = audioGrant, state = attentionClient?.getState();
   return Boolean(grant && grant.profileId === activeProfileId && grant.epoch === profileEpoch && Date.now() < grant.expires &&
-    state?.status === "connected" && (grant.purpose !== "standby" || state.snapshot?.settings.values.voice.enabled !== false &&
+    state?.status === "connected" && (grant.purpose !== "standby" ||
+      (generatedAudio() || process.platform === "darwin" && systemPreferences.getMediaAccessStatus("microphone") === "granted") &&
+      state.snapshot?.settings.values.voice.enabled !== false &&
       state.snapshot?.settings.values.voice.standby && state.snapshot.sessions.some((session) => session.id === grant.sessionId && session.status !== "archived")) &&
     (!grant.jobId || state.snapshot?.jobs.some((job) => job.id === grant.jobId && job.sessionId === grant.sessionId && job.kind === "voice.capture" && job.status === "running")));
 };
@@ -538,15 +542,16 @@ else {
         Object.keys(input).some((key) => !["profileId", "purpose", "sessionId", "jobId"].includes(key)) ||
         input.purpose === "devices" && (input.sessionId !== undefined || input.jobId !== undefined) ||
         input.purpose === "standby" && input.jobId !== undefined) throw new Error("Choose an explicit audio-only action in the active profile.");
+      const purpose = input.purpose === "capture" ? "capture" : input.purpose === "standby" ? "standby" : "devices";
       if (audioPending) throw new Error("Another explicitly owned audio permission request is still pending.");
       audioPending = true;
       try {
       const scoped = attentionClient, epoch = profileEpoch;
       if (!scoped) throw new Error("The actual profile is not connected.");
       await scoped.refresh();
-      const generated = process.env.MOGURI_TEST_WINDOW === "hidden" && app.commandLine.hasSwitch("use-fake-device-for-media-stream");
-      const validCapture = () => input.purpose === "devices" || input.purpose === "standby" ?
-        input.purpose === "devices" || typeof input.sessionId === "string" && (generated || mainWindow?.isFocused()) &&
+      const generated = generatedAudio();
+      const validCapture = () => purpose === "devices" || purpose === "standby" ?
+        purpose === "devices" || typeof input.sessionId === "string" && (generated || mainWindow?.isFocused()) &&
           scoped.getState().snapshot?.settings.values.voice.enabled !== false && scoped.getState().snapshot?.settings.values.voice.standby === true &&
           scoped.getState().snapshot?.sessions.some((session) => session.id === input.sessionId && session.status !== "archived") :
         typeof input.sessionId === "string" && typeof input.jobId === "string" &&
@@ -555,15 +560,17 @@ else {
       if (attentionClient !== scoped || epoch !== profileEpoch || !validCapture()) throw new Error("The original audio owner changed. No microphone access was granted.");
       if (audioGranted()) throw new Error("Another explicit microphone permission request is still owned. Finish or cancel it first.");
       if (process.env.MOGURI_TEST_WINDOW === "hidden" && !generated) throw new Error("Hidden audio checks require Chromium's generated media device. No real microphone permission was requested.");
-      const needsPrompt = !generated && process.platform === "darwin" && systemPreferences.getMediaAccessStatus("microphone") !== "granted";
-      const allowed = !needsPrompt || await systemPreferences.askForMediaAccess("microphone");
-      if (!allowed) throw new Error("Microphone access was denied. The saved draft was not changed.");
-      if (needsPrompt) await scoped.refresh();
+      const permission = !generated && process.platform === "darwin" ? await microphonePermission(purpose, systemPreferences) :
+        { allowed: generated || purpose !== "standby", prompted: false };
+      if (!permission.allowed) {
+        if (purpose === "standby") return null;
+        throw new Error("Microphone access was denied. The saved draft was not changed.");
+      }
+      if (permission.prompted) await scoped.refresh();
       if (event.sender !== mainWindow?.webContents || attentionClient !== scoped || epoch !== profileEpoch || !validCapture()) throw new Error("Audio permission finished for a stale owner. No late microphone was opened.");
       const id = randomUUID();
       audioGrant = { id, profileId: activeProfileId, epoch, expires: Date.now() + 30_000,
-        sessionId: input.purpose === "devices" ? null : String(input.sessionId), jobId: input.purpose === "capture" ? String(input.jobId) : null,
-        purpose: input.purpose === "capture" ? "capture" : input.purpose === "standby" ? "standby" : "devices" };
+        sessionId: purpose === "devices" ? null : String(input.sessionId), jobId: purpose === "capture" ? String(input.jobId) : null, purpose };
       return id;
       } finally { audioPending = false; }
     });

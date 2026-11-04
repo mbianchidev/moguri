@@ -3614,8 +3614,12 @@ The dictation feature defaults on, preserving explicit saved off choices. No
 microphone opens or model weights download merely because it is enabled.
 No microphone standby is implicit. **Prepare microphone while a composer
 is focused** separately consents to visible device readiness, without recording
-until activation. Disable, focus/ownership loss, sleep and cancellation close
-standby. First-time OS authorization still requires the user; wait for the
+until activation, only when OS microphone access is already granted. Opening,
+switching or focusing chats never asks for microphone permission, even with
+saved standby enabled. Activate dictation or **Find microphones** to authorize
+access first; an ungranted or revoked permission leaves standby unarmed instead
+of opening a prompt or microphone. Disable, focus/ownership loss, sleep and
+cancellation close standby. First-time OS authorization still requires the user; wait for the
 recording highlight if permission or device startup is pending. Standby marks
 the microphone icon/accessible description instead of repeating an armed
 notice in every chat.

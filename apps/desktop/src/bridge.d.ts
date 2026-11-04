@@ -18,7 +18,8 @@ export interface DesktopBridge {
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
-  audioPermission(input: { profileId: string; purpose: "capture" | "devices" | "standby"; sessionId?: string; jobId?: string }): Promise<string>;
+  audioPermission(input: { profileId: string; purpose: "capture" | "devices"; sessionId?: string; jobId?: string }): Promise<string>;
+  audioPermission(input: { profileId: string; purpose: "standby"; sessionId: string }): Promise<string | null>;
   releaseAudioPermission(id: string): Promise<void>;
   onAudioStop(listener: () => void): () => void;
   chooseNotificationSound(profileId: string): Promise<{ name: string; audio: string } | null>;

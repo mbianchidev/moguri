@@ -85,6 +85,41 @@ test("default Ctrl+Space is held push-to-talk despite the obsolete false button 
   } finally { gate.resolve(); await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("configured dictation never requests microphone access just because a chat gains focus", async () => {
+  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await page.addInitScript(() => {
+      const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = async (input) => {
+        document.documentElement.dataset.focusMicrophones = String(Number(document.documentElement.dataset.focusMicrophones ?? "0") + 1);
+        return get(input);
+      };
+    });
+    await page.reload();
+    for (let index = 0; index < 3; index++) {
+      const created = await sdk.sessions.create(null, `Generated microphone focus chat ${index}`);
+      await page.locator(`.session-link[data-session-id="${created.id}"]`).click();
+      const prompt = page.getByLabel("Prompt", { exact: true });
+      await prompt.focus();
+      await expect(prompt).toBeFocused();
+      await page.locator(".composer-mic").focus();
+      await prompt.focus();
+      await expect(prompt).toBeFocused();
+      expect(await page.evaluate(() => Number(document.documentElement.dataset.focusMicrophones ?? "0"))).toBe(0);
+    }
+    expect(sdk.getState().snapshot?.jobs.some((job) => job.kind === "voice.capture")).toBe(false);
+    await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(await page.evaluate(() => Number(document.documentElement.dataset.focusMicrophones))).toBe(1);
+    await page.getByRole("button", { name: "Stop local dictation", exact: true }).click();
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("only an explicit shortcut toggle choice survives key release and remains selected after renderer reload", async () => {
   const { fixture, sdk } = await speechFixture([], "toggle"), app = await launch(fixture.directory);
   try {

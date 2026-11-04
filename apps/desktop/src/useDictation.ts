@@ -11,7 +11,7 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const transcript = useRef(options.onTranscript); transcript.current = options.onTranscript;
   const sessionId = session?.id;
   const standby = useRef<BrowserMicrophonePreparation | undefined>(undefined);
-  const standbyPending = useRef<Promise<BrowserMicrophonePreparation> | undefined>(undefined);
+  const standbyPending = useRef<Promise<BrowserMicrophonePreparation | undefined> | undefined>(undefined);
   const [standbyReady, setStandbyReady] = useState(false), [preparationError, setPreparationError] = useState("");
   const [readinessDiagnostic, setReadinessDiagnostic] = useState<string | null>(null);
   const [readiness, setReadiness] = useState<{ sdk: MoguriSdk; key: string; ready: boolean } | null>(null);
@@ -126,8 +126,8 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
       const promise = prepareBrowserMicrophone(sdk.profileId, sessionId, snapshot.settings.values.voice.inputDeviceId ?? "default", request.signal);
       standbyPending.current = promise;
       void promise.then(async (microphone) => {
-        if (disposed || preparing !== request || request.signal.aborted) { await microphone.close(); return; }
-        standby.current = microphone; preparing = undefined; standbyPending.current = undefined; setStandbyReady(true);
+        if (disposed || preparing !== request || request.signal.aborted) { await microphone?.close(); return; }
+        standby.current = microphone; preparing = undefined; standbyPending.current = undefined; setStandbyReady(Boolean(microphone));
       }).catch((error: unknown) => { if (standbyPending.current === promise) standbyPending.current = undefined; if (!request.signal.aborted && !disposed) setPreparationError(error instanceof Error ? error.message : "Standby microphone unavailable. No device was substituted."); });
     };
     document.addEventListener("focusin", focus); window.addEventListener("focus", focus); window.addEventListener("blur", release);
