@@ -36,6 +36,7 @@ if (PROTOCOL_VERSION >= 87) execFileSync(node, [resolve("tests/fixtures/installe
 const nodeSdk = await import(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href);
 if (typeof nodeSdk.restartMoguriService === "function") execFileSync(node, [resolve("tests/fixtures/installed-service-recovery.mjs"), root, app], { stdio: "inherit", timeout: 90_000 });
 if (PROTOCOL_VERSION >= 88) execFileSync(node, [resolve("tests/fixtures/installed-service-negotiation.mjs"), root, app], { stdio: "inherit", timeout: 45_000 });
+if (PROTOCOL_VERSION >= 90) execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-live-chat.mjs"), root], { stdio: "inherit", timeout: 90_000 });
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();

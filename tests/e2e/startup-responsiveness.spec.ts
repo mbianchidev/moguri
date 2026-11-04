@@ -8,7 +8,7 @@ import { ControlPlane } from "../../apps/service/src/controller.ts";
 import { EventStore } from "../../apps/service/src/store.ts";
 import { GLOBAL_PROFILE_ID, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
-import { generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
+import { generatedIssueRevisions, generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden desktop startup qualification is macOS-only.");
@@ -83,6 +83,49 @@ test("the startup window appears before service recovery and new-chat clicks set
     expect(sdk.sessions.get(f.sessionId)?.draft.text).toBe("Generated retained responsive draft.");
     expect(f.requests).toHaveLength(0);
   } finally { gate.resolve(); ControlPlane.prototype.initialize = initialize; sdk?.disconnect(); await app?.close(); runtime ??= await starting; await runtime.close(); await f.close(); }
+});
+
+test("issue-heavy authenticated startup and visible new-chat acknowledgement stay quick without an artificial recovery pause", async () => {
+  test.setTimeout(45_000);
+  const f = await setupFixture(), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
+  await f.service.close();
+  const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
+  try {
+    store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId)]);
+    const global = store.view(GLOBAL_PROFILE_ID);
+    try { global.commit([{ event_type: "global.budget_changed", profile_id: GLOBAL_PROFILE_ID,
+      payload: { revision: 1, limit: { basis: "estimate", tokens: 1_000_000_000 } } }]); }
+    finally { global.close(); }
+  } finally { store.close(); }
+  const initialize = ControlPlane.prototype.initialize;
+  let initializing = false;
+  ControlPlane.prototype.initialize = async function() {
+    if (this.store.path === join(stateDir, "state.sqlite")) initializing = true;
+    await initialize.call(this);
+  };
+  const began = performance.now(), starting = startService({ stateDir, provider: f.provider, retentionKey: f.retentionKey,
+    platform: { terminal: { defaultRoot: f.home, vault: f.terminalVault, executable: process.execPath, args: ["-e", "process.stdin.resume()"] } } });
+  let runtime: Awaited<ReturnType<typeof startService>> | undefined, app: Awaited<ReturnType<typeof electron.launch>> | undefined, sdk: MoguriSdk | undefined;
+  try {
+    await waitFor(() => initializing);
+    app = await electron.launch({ executablePath: executablePath(), args: args(), env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
+    const page = await app.firstWindow();
+    await expect(page.getByRole("navigation", { name: "Projects and sessions" })).toBeVisible();
+    const readyMs = performance.now() - began;
+    expect(readyMs).toBeLessThan(3000);
+    runtime = await starting; sdk = await new MoguriSdk(runtime.connection).ready();
+    expect(sdk.getState().snapshot?.issues).toHaveLength(100);
+    const create = page.getByRole("region", { name: "Chats", exact: true }).locator("header").getByRole("button", { name: "New chat", exact: true });
+    const click = performance.now(), count = sdk.getState().snapshot!.sessions.length;
+    await create.click();
+    await expect.poll(() => sdk!.getState().snapshot!.sessions.length).toBe(count + 1);
+    await expect(page.getByRole("heading", { name: "New chat", exact: true })).toBeVisible();
+    const acknowledgedMs = performance.now() - click;
+    expect(acknowledgedMs).toBeLessThan(1000);
+    console.log(JSON.stringify({ primitive: "desktop-issue-history-startup", retainedIssueRevisions: 25_000, currentIssues: 100,
+      completeUnpausedStartupMs: readyMs, clickToAcknowledgedVisibleChatMs: acknowledgedMs, modelCalls: f.requests.length }));
+    expect(f.requests).toHaveLength(0);
+  } finally { ControlPlane.prototype.initialize = initialize; sdk?.disconnect(); await app?.close(); runtime ??= await starting; await runtime.close(); await f.close(); }
 });
 
 test("cancelling failed quit restores an accessible connected window without stopping or replacing its original owner", async () => {

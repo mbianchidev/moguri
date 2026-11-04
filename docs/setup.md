@@ -4264,6 +4264,18 @@ the reported sampling window, not a proven cause of that individual request.
 Provider discovery can remain Connecting after authenticated service readiness;
 opening/creating a chat does not wait for it or authorize inference.
 
+The issue-history repair removes repeated processing of overwritten imported
+issue descriptions and redundant whole-profile startup reads. It preserves
+original history, source validation, encryption, receipts and budget policy.
+It changes service code without a protocol bump: a healthy older protocol-90
+service is deliberately reused until an **explicit matching-build restart**.
+After manually installing a corrected build, `moguri service restart` from its
+matching managed command loads that service code while preserving authenticated
+user terminals. It can interrupt active agent work; save/review that work first.
+The matching built-checkout entry is `node bin/moguri.mjs service restart`.
+Do not delete state or connection files, force an owner or repeat an uncertain
+mutation. See the [reproduction and retention guarantees](architecture/startup-responsiveness.md#issue-history-service-responsiveness).
+
 Ordinary Enter/Send now uses the service-resolved live delivery mode during an
 active solver turn. Its acknowledged text stays visible until the next safe
 boundary without cancelling the current operation. Explicit Queue and
