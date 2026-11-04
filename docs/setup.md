@@ -4277,16 +4277,21 @@ row for counted actions such as **Archive (4)**. Escape or **Done selecting**
 leaves selection. Existing policy, child-tree reviews, cancellation and retention
 guarantees remain; destructive review dialogs still require their real
 confirmations. See the [responsiveness contract and measurements](architecture/startup-responsiveness.md).
-The current submitted-input feedback and timing-diagnostic image is
-`release/qualification-builds/pending-input-37f674d/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
-It does not establish that the remaining live startup/New chat acknowledgement
-delay is fixed. It is ad-hoc-signed, not notarized or installed automatically.
-Earlier `18bd457`, 88 and intermediate `f7a6ca0` images remain historical cuts.
-Protocol-89 upgrade uses
-the explicit terminal-preserving restart review; active agent work can be
-interrupted, while saved input, unknown charges and authenticated user PTYs
-remain. Exact hashes, packaged finite-policy interaction measurements and fresh
-native qualification are in the [delivery records](architecture/startup-responsiveness.md#submitted-input-feedback-and-remaining-latency).
+The current interaction/recovery installer is
+`release/qualification-builds/interaction-2ef8968/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It repairs reproduced discovery, browser recovery, dictation and UI waiting
+paths, without claiming that the user's entire remaining live
+startup/New chat acknowledgement delay is isolated. It is ad-hoc-signed,
+not notarized or installed automatically. Earlier `37f674d`, `18bd457`, 88
+and intermediate `f7a6ca0` images remain separate historical cuts.
+Protocol-90 upgrade uses the explicit terminal-preserving restart review;
+active agent work can be interrupted, while saved input, unknown charges and
+authenticated user PTYs remain. Do not remove the connection file, keys or
+database to bypass failed ownership/cleanup checks. Actual frozen 88/89 upgrade
+fixtures preserve their original ciphertext and user terminal without input or
+model replay. Exact hashes, packaged finite-policy interaction measurements
+and fresh native qualification are in the
+[current delivery records](architecture/startup-responsiveness.md#protocol-90-interaction-follow-up).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
