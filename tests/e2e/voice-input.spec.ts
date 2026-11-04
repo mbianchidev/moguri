@@ -30,6 +30,33 @@ async function speechFixture(args: string[] = [], shortcutMode?: "hold" | "toggl
   return { fixture, sdk };
 }
 
+test("default-enabled but unconfigured dictation creates neither audio graphs nor microphone requests while opening chats", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await page.addInitScript(() => {
+      const increment = (key: string) => { document.documentElement.dataset[key] = String(Number(document.documentElement.dataset[key] ?? "0") + 1); };
+      window.AudioContext = new Proxy(window.AudioContext, { construct(target, args) { increment("audioGraphs"); return Reflect.construct(target, args); } });
+      const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = async (input) => { increment("mediaRequests"); return get(input); };
+    });
+    await page.reload();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    for (let index = 0; index < 3; index++) {
+      const created = await sdk.sessions.create(null, `Generated unconfigured voice chat ${index}`);
+      await page.locator(`.session-link[data-session-id="${created.id}"]`).click();
+      await expect(page.getByRole("button", { name: "Start local dictation", exact: true })).toHaveAttribute("title", /Set up local dictation/);
+      expect(await page.evaluate(() => ({ graphs: Number(document.documentElement.dataset.audioGraphs ?? 0),
+        microphones: Number(document.documentElement.dataset.mediaRequests ?? 0) }))).toEqual({ graphs: 0, microphones: 0 });
+    }
+    expect(sdk.settings.get()!.values.voice.enabled).toBe(true);
+    expect(sdk.getState().snapshot?.jobs.some((job) => job.kind === "voice.capture" || job.kind === "voice.prepare")).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("default Ctrl+Space is held push-to-talk despite the obsolete false button preference and survives cold admission", async () => {
   const { fixture, sdk } = await speechFixture(["--listener-delay", "300", "--buffered-ready"]), app = await launch(fixture.directory);
   expect(sdk.settings.get()!.values.voice.pushToTalk).toBe(false);
