@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { DesktopStartupPhase } from "./bridge.d.ts";
 import type { OpeningDraft, StartupView } from "./startup-cache.ts";
+import { Alert } from "./Alert.tsx";
 import mascot from "../../../assets/moguri.svg";
 
 const labels: Record<DesktopStartupPhase, string> = {
@@ -39,7 +40,7 @@ export function StartupWorkspace({ view, phase, error, cacheError, draft, change
       </div></header>
       <div className="opening-content">
         <p role="status">Opening your workspace... {labels[phase]}.</p>
-        {error && <p className="inline-error" role="alert">{error} Your local opening draft is still here; nothing was sent.</p>}
+        {error && <Alert as="p" className="inline-error" role="alert">{error} Your local opening draft is still here; nothing was sent.</Alert>}
         {cacheError && <p className="fine-print">{cacheError}</p>}
         <p className="fine-print">You can type while the backend loads. This draft stays in this window until its exact saved destination is verified.</p>
         {view && view.models.length > 0 && <details className="opening-models"><summary>Last known models and thinking efforts</summary>
