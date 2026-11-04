@@ -22,6 +22,11 @@ and actual profile. Cached names do not prove model availability, thinking
 support, permissions or budget. Live model discovery and the local service
 remain authoritative. See [the cache/readiness and conflict contract](architecture/startup-responsiveness.md#cache-first-desktop-opening).
 
+The development installer is ad-hoc signed, not notarized. Cached opening
+does not guarantee the first OS launch deadline; the measured
+[first-execution limitation](architecture/startup-responsiveness.md#first-ad-hoc-execution-remains-a-separate-limitation)
+remains disclosed.
+
 ## Session controls and interactive tools
 
 **Insights / Session details** shows the real stable session ID.
