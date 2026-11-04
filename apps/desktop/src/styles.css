@@ -467,6 +467,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 :is(.model-choice-row, .composer-option-row) { display: flex; align-items: center; }
 :is(.model-choice-row, .composer-option-row) > button { flex: 1; min-width: 0; }
 :is(.model-choice-row, .composer-option-row) > .setting-help { margin: 0; flex-shrink: 0; }
+.composer-option-row > .composer-env-settings { flex: 0 0 44px; min-height: 44px; opacity: 0; }
+.composer-option-row:hover > .composer-env-settings, .composer-option-row:focus-within > .composer-env-settings { opacity: 1; }
+@media (hover: none) { .composer-option-row > .composer-env-settings { opacity: 1; } }
 .model-tuning { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .model-tuning label { display: flex; flex-direction: column; gap: 7px; font-size: 11px; color: var(--muted); margin-bottom: 12px; }
 .model-tuning input, .model-tuning select { width: 100%; color: var(--text); font-size: 12px; }

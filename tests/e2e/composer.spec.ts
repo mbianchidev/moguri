@@ -173,7 +173,7 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
 
     await composer.getByRole("button", { name: "Execution environment", exact: true }).click();
     const env = page.getByRole("dialog", { name: "Execution environment", exact: true });
-    await expect(env.getByRole("button", { name: "Sandbox Not ready", exact: true })).toBeDisabled();
+    await expect(env.getByRole("button", { name: "Sandbox Set up SendBox", exact: true })).toBeEnabled();
     await expect(env.getByRole("button", { name: "Remote Not ready", exact: true })).toBeDisabled();
     await expect(env.locator('[data-icon="Box"]')).toHaveCount(1);
     await expect(env.locator('[data-icon="Globe"]')).toHaveCount(1);

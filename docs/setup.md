@@ -1014,15 +1014,22 @@ includes SendBox **0.2.4**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
 
-Open **Settings > Execution & permissions > SendBox**, choose **Review bundled
-setup**, review the actual version, image, workspace/network policy and install
-location, then choose **Enable Sandbox**. An already configured exact root-owned
+Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens
+**Set up SendBox** with its bundled defaults already prepared for review.
+Review the actual runtime and workspace/network policy, acknowledge it, then
+choose **Enable SendBox**. No configuration editor, paths, build or manual
+workspace preparation is required. An already configured exact root-owned
 0.2.4 installation can be reused. A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
 
-After qualification, select **Sandbox** in the composer and send normally.
+Only after qualification does the original chat switch to Sandbox. Send
+normally; later free chats and projects reuse the ready managed runtime.
+Cancelling setup preserves the draft and original Env. An interrupted or
+failed operation is not replayed or labeled ready. If another client changed
+the original session, setup may complete but Env selection requires a new
+explicit choice rather than overwriting that peer's revision.
 Managed engine qualification does not contact an unselected model provider;
 actual selected-provider access is checked before a turn's model admission.
 Private project/worktree copies are prepared automatically under ignore/folder
@@ -1071,6 +1078,21 @@ reinstalling it or draining saved queues. A changed Moguri worker requires its
 matching bundled setup review, not old manually copied image hashes. **Advanced
 manual configuration** and exact-file staging remain available for experts;
 old manual configurations do not silently gain the managed policy.
+
+Hover a Sandbox or Remote row in the Env menu, or focus it with the keyboard,
+to reveal its rightmost settings button. SendBox settings retain customization,
+advanced source preparation and original workspace/results inspection; Remote
+settings retain SSH configuration. Opening either button does not change Env
+or widen policy. Touch interfaces keep these actions visible.
+
+**Settings > Providers > Refresh available models** performs an on-demand
+refresh of enabled configured providers. Every desktop start also refreshes
+the current profile after the cached UI and authenticated SDK are available,
+including when reusing an existing service. This does not block New chat or
+draft acknowledgement, sign in, scan hosts, download weights or run inference.
+Concurrent refreshes share their original in-flight discovery; a later start
+still performs a new check. Failed providers remain unavailable with their
+actual diagnostic, never an old cached model or another provider substituted.
 
 CLI/TUI expose `/sandbox setup` and its exact confirmation command, plus
 `/sandbox updates`. Embeddings can explicitly provide the same distribution

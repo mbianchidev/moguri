@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
@@ -17,6 +17,7 @@ import { SchedulePromptDialog } from "./ScheduledPrompts.tsx";
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { isModelDiscoveryPending } from "./startup-cache.ts";
 
+const SandboxSetupDialog = lazy(() => import("./SandboxSetupDialog.tsx").then((module) => ({ default: module.SandboxSetupDialog })));
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
 const envIcon = { Local: "House", Sandbox: "Box", Remote: "Globe" } as const;
@@ -52,6 +53,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const input = useRef<HTMLTextAreaElement>(null), dictated = useRef<DraftDictation | null>(null);
   const [insertedTranscript, setInsertedTranscript] = useState<string | null>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
+  const [sandboxSetup, setSandboxSetup] = useState<{ revision: number } | null>(null);
   const [slashCatalog, setSlashCatalog] = useState<{ scope: string; entries: SlashSuggestion[]; error: string }>({ scope: "", entries: [], error: "" });
   const [slashOption, setSlashOption] = useState(0), slashList = useRef<HTMLDivElement>(null), slashListId = useId();
   const decisions = useDecisionStatus(client, session, snapshot, menu === "autonomy" || session.controls.autonomy === "Autopilot Max");
@@ -165,7 +167,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       input.current?.focus();
     });
   };
-  useEffect(() => { onMenuChange(menu !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null); return () => onMenuChange(false); }, [menu, attachmentReview, previewOpen, contextReview, scheduleReview, onMenuChange]);
+  useEffect(() => { onMenuChange(menu !== null || sandboxSetup !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null); return () => onMenuChange(false); }, [menu, sandboxSetup, attachmentReview, previewOpen, contextReview, scheduleReview, onMenuChange]);
   useEffect(() => { onPendingChange?.(configuring || heldPending || resuming || retrying); return () => onPendingChange?.(false); }, [configuring, heldPending, resuming, retrying, onPendingChange]);
   const adopt = async (saved: Session["draft"]) => {
     const text = editor.getState().text;
@@ -395,14 +397,19 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         </button>
         {item("env", "Execution environment", envIcon[session.controls.env], <><h2>Execution environment</h2>{snapshot.capabilities.map((capability) => {
           const policyBlocked = !snapshot.policy.allowedEnvs.includes(capability.env);
-          const groupUnavailable = Boolean(session.repositories && (capability.env === "Remote" || capability.env === "Sandbox" &&
-            !(snapshot.settings.values.sandboxManagement?.enabled && snapshot.settings.values.sandboxManagement.automaticWorkspaces)));
-          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={Boolean(session.turnId) || !capability.ready || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
-            title={groupUnavailable ? capability.env === "Remote" ? "Captured groups have no qualified SSH execution transport." : "Review managed automatic private workspaces in Sandbox settings first." : capability.reason} onClick={() => void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); })}>
-            <Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{policyBlocked ? "Blocked by policy" : groupUnavailable ? capability.env === "Remote" ? "Group transport not qualified" : "Managed group workspace setup required" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? session.repositories ? "Private copies of every captured repository" : "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>
+          const groupUnavailable = Boolean(session.repositories && capability.env === "Remote");
+          const setup = capability.env === "Sandbox" && (!capability.ready || Boolean(session.repositories && !automaticNative));
+          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={Boolean(session.turnId) || !connected || configuring || !capability.ready && !setup || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
+            title={groupUnavailable ? "Captured groups have no qualified SSH execution transport." : capability.reason} onClick={() => {
+              if (setup) { setMenu(null); setSandboxSetup({ revision: session.revision }); }
+              else void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); });
+            }}>
+            <Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{policyBlocked ? "Blocked by policy" : groupUnavailable ? "Group transport not qualified" : setup ? "Set up SendBox" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? session.repositories ? "Private copies of every captured repository" : automaticNative ? "Verified SendBox guest; workspaces managed" : "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>
             {policyBlocked && <PolicyHint label={`Why ${capability.env} is unavailable`} target="environments">Global execution policy excludes {capability.env}. Opening its setting does not widen policy, change this session's Env or restart work.</PolicyHint>}
+            {capability.env !== "Local" && <button type="button" className="icon-button quiet composer-env-settings" aria-label={capability.env === "Sandbox" ? "SendBox settings" : "Remote settings"}
+              title={capability.env === "Sandbox" ? "SendBox settings" : "Remote settings"} onClick={() => { setMenu(null); if (capability.env === "Sandbox") onSandbox(); else onRemote(); }}><Icon name="Settings" /></button>}
           </div>;
-        })}{session.repositories && <p>Captured groups support Local and reviewed managed Sandbox execution. Every workspace tool explicitly selects an original repository. There is no first/default or common-parent root, and SSH groups remain unqualified.</p>}<p>Remote transfers approved context to {snapshot.settings.values.remote?.name ?? "the configured SSH host"}. Sandbox uses a separately reviewed private stage and scoped model access, never a live source checkout. Missing readiness never falls back to Local; unavailable models are cleared, not substituted.</p><button type="button" className="quiet" onClick={() => { setMenu(null); onRemote(); }}>Remote SSH setup</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Sandbox qualification</button><button type="button" className="quiet" onClick={() => { setMenu(null); onSandbox(); }}>Native workspace and results</button></>)}
+        })}{session.repositories && <p>Captured groups support Local and reviewed managed Sandbox execution. Every workspace tool explicitly selects an original repository. There is no first/default or common-parent root, and SSH groups remain unqualified.</p>}</>)}
         <ComposerPopover name="model" label="Model" description={model?.name ?? (cachedModel ? `${cachedModel.name} (cached label; refreshing availability)` : session.controls.modelId) ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? cachedModel?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{!model && cachedModel ? " (refreshing)" : model?.synthetic && session.controls.kupoMode ? ` · ${kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name}` : session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
           <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
@@ -439,6 +446,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       </div>
       <span className="sr-only" role="status">{status}</span>
     </div>
+    {sandboxSetup && <Suspense fallback={<p role="status">Opening SendBox setup...</p>}><SandboxSetupDialog sdk={client} snapshot={snapshot} sessionId={session.id} expectedRevision={sandboxSetup.revision}
+      close={() => { setSandboxSetup(null); input.current?.form?.querySelector<HTMLButtonElement>('[data-composer-control="env"]')?.focus(); }} /></Suspense>}
     {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => {
       if (attachmentReview.kind === "session") literalMentions.current.ids.add(attachmentReview.sourceSessionId);
       setAttachmentReview(null);

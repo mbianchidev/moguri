@@ -158,6 +158,15 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [notice, updateNotice] = useState<{ text: string; info: boolean } | null>(null);
   const setNotice = useCallback((text: string | null, info = false) => updateNotice(text ? { text, info } : null), []);
   useEffect(() => {
+    let current = true;
+    if (!client.getState().snapshot?.provider.login) void client.models.refresh().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "The current profile's model availability could not be refreshed.";
+      console.error("Startup model refresh failed:", message);
+      if (current) setNotice(`${message} Inspect Providers settings; no sign-in, inference or substitute model was started.`);
+    });
+    return () => { current = false; };
+  }, [client, setNotice]);
+  useEffect(() => {
     const failed = (error: unknown) => setNotice(error instanceof Error ? error.message : "Notification audio failed. No alternate sound was substituted.");
     const audio = new NotificationAudio(failed);
     const stopAudio = window.moguri.onAudioStop(() => { void audio.close().catch(failed); });
