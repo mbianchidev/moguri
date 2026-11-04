@@ -4273,6 +4273,9 @@ After manually installing a corrected build, `moguri service restart` from its
 matching managed command loads that service code while preserving authenticated
 user terminals. It can interrupt active agent work; save/review that work first.
 The matching built-checkout entry is `node bin/moguri.mjs service restart`.
+Changed Sandbox worker bytes still require their existing explicit bundled
+setup review; an SSH peer requires its exact compatible worker/probe. Neither
+is permission to update another machine or fall back to Local.
 Do not delete state or connection files, force an owner or repeat an uncertain
 mutation. See the [reproduction and retention guarantees](architecture/startup-responsiveness.md#issue-history-service-responsiveness).
 
@@ -4294,12 +4297,13 @@ leaves selection. Existing policy, child-tree reviews, cancellation and retentio
 guarantees remain; destructive review dialogs still require their real
 confirmations. See the [responsiveness contract and measurements](architecture/startup-responsiveness.md).
 The current interaction/recovery installer is
-`release/qualification-builds/microphone-focus-20652da/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
-It repairs reproduced discovery, browser recovery, dictation and UI waiting
-paths, including the nonprompting chat-focus microphone check, without claiming
-that the user's entire remaining live
-startup/New chat acknowledgement delay is isolated. It is ad-hoc-signed,
-not notarized or installed automatically. Earlier `2ef8968`, `37f674d`, `18bd457`, 88
+`release/qualification-builds/service-responsiveness-e772707/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It repairs reproduced service stalls from retained issue imports as well as
+the earlier discovery, browser, dictation and UI paths. Generated actual-package
+measurements cover startup, create/draft/send/archive/delete and original
+receipts; personal live confirmation still requires installing it and explicitly
+restarting the matching service. It is ad-hoc-signed, not notarized or installed
+automatically. Earlier `20652da`, `2ef8968`, `37f674d`, `18bd457`, 88
 and intermediate `f7a6ca0` images remain separate historical cuts.
 Protocol-90 upgrade uses the explicit terminal-preserving restart review;
 active agent work can be interrupted, while saved input, unknown charges and
@@ -4308,7 +4312,7 @@ database to bypass failed ownership/cleanup checks. Actual frozen 88/89 upgrade
 fixtures preserve their original ciphertext and user terminal without input or
 model replay. Exact hashes, packaged finite-policy interaction measurements
 and fresh native qualification are in the
-[current delivery records](architecture/startup-responsiveness.md#microphone-focus-permission-follow-up).
+[current delivery records](architecture/startup-responsiveness.md#qualified-issue-history-delivery).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,
