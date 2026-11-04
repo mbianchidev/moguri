@@ -132,6 +132,53 @@ test("issue-heavy authenticated startup and visible new-chat acknowledgement sta
   } finally { ControlPlane.prototype.initialize = initialize; sdk?.disconnect(); await app?.close(); runtime ??= await starting; await runtime.close(); await f.close(); }
 });
 
+test("ordinary first Send acknowledges and renders the exact unsaved prompt within budget with mixed retained history", async () => {
+  test.setTimeout(60_000);
+  const f = await setupFixture({ responseMode: "text" }), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
+  await f.service.close();
+  const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
+  try { store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId)]); }
+  finally { store.close(); }
+  let runtime: Awaited<ReturnType<typeof startService>> | undefined, app: Awaited<ReturnType<typeof electron.launch>> | undefined, sdk: MoguriSdk | undefined;
+  try {
+    runtime = await startService({ stateDir, provider: f.provider, retentionKey: f.retentionKey,
+      platform: { terminal: { defaultRoot: f.home, vault: f.terminalVault, executable: process.execPath, args: ["-e", "process.stdin.resume()"] } } });
+    sdk = await new MoguriSdk(runtime.connection).ready();
+    const cases: Array<{ id: string; title: string; text: string }> = [];
+    for (let sample = 0; sample < LATENCY_SAMPLES; sample++) {
+      const title = `Generated first Send latency ${sample}`, created = await sdk.sessions.create(null, title);
+      if (!created.id) throw new Error("The generated first-Send session was not acknowledged.");
+      await sdk.sessions.selectModel(created.id, f.modelId);
+      cases.push({ id: created.id, title, text: `Generated exact unsaved first prompt ${sample}.` });
+    }
+    app = await electron.launch({ executablePath: executablePath(), args: args(), env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    const navigation = page.getByRole("navigation", { name: "Projects and sessions", exact: true }), samplesMs: number[] = [];
+    await navigation.getByRole("button", { name: "Show more chats", exact: true }).click();
+    for (const entry of cases) {
+      await navigation.getByRole("button", { name: entry.title, exact: true }).click();
+      await expect(page.getByRole("heading", { name: entry.title, exact: true })).toBeVisible();
+      await expect(page.locator(".composer-model-name")).not.toHaveText("Select model");
+      await expect(prompt).toBeEnabled();
+      await prompt.fill(entry.text);
+      const began = performance.now();
+      await prompt.press("Enter");
+      await expect(page.getByRole("article", { name: "User prompt", exact: true })).toContainText(entry.text);
+      await expect(page.getByRole("article", { name: "Pending message", exact: true })).toHaveCount(0);
+      await expect(prompt).toHaveValue("");
+      const elapsedMs = performance.now() - began;
+      samplesMs.push(elapsedMs);
+      console.log(JSON.stringify({ primitive: "desktop-ordinary-first-send-acknowledged-and-rendered", sample: samplesMs.length,
+        elapsedMs, retainedIssueRevisions: 25_000, retainedChats: 61, includesUnflushedDraft: true }));
+      assertOperationLatency("message.send", elapsedMs);
+      expect(sdk.sessions.get(entry.id)?.messages.filter((message) => message.role === "user" && message.text === entry.text)).toHaveLength(1);
+      await expect.poll(() => sdk!.sessions.get(entry.id)?.status).toBe("completed");
+      await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    }
+    expect(f.requests).toHaveLength(LATENCY_SAMPLES);
+  } finally { sdk?.disconnect(); await app?.close(); await runtime?.close(); await f.close(); }
+});
+
 test("cancelling failed quit restores an accessible connected window without stopping or replacing its original owner", async () => {
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const app = await electron.launch({ executablePath: executablePath(), args: args(),
@@ -177,7 +224,7 @@ test("cancelled quit cannot adopt or proxy through a replaced private registry o
     await app.evaluate(({ app }) => { setTimeout(() => app.quit(), 10); });
     const restored = await reopening;
     await expect(restored.getByRole("heading", { name: "Moguri could not connect", exact: true })).toBeVisible();
-    await expect(restored.locator(".startup-error")).toContainText("captured service changed");
+    await expect(restored.getByRole("alert")).toContainText("captured service changed");
     const health = await restored.evaluate(async () => { const response = await fetch("moguri://app/v1/health"); return { status: response.status, body: await response.json() }; });
     expect(health.status).toBe(200); expect(health.body.pid).toBe(f.service.connection.pid); expect(health.body.lifecycle).toBeNull();
     expect(foreignRequests).toBe(0);

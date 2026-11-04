@@ -1,5 +1,6 @@
 import type { ArtifactExport, BrowserState, Connection } from "../../../packages/protocol/src/index.ts";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
+import type { StartupContext } from "./startup-cache.ts";
 
 export type DesktopStartupPhase = "window" | "service" | "profile" | "preferences" | "native" | "ready" | "failed";
 export interface DesktopStartupStatus {
@@ -12,6 +13,7 @@ export interface DesktopBridge {
   previewHtml(input: import("../../../packages/sdk/src/index.ts").HtmlPreviewInput, profileId: string): Promise<void>;
   onHtmlDismiss(listener: (attachmentId: string) => void): () => void;
   connection(): Promise<Connection>;
+  startupContext(): Promise<StartupContext>;
   startupStatus(): Promise<DesktopStartupStatus>;
   profile(profileId?: string): Promise<string>;
   chooseProject(purpose?: "import" | "clone"): Promise<string | null>;

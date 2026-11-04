@@ -1,9 +1,26 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **87**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **90**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+### Opening and last-view restoration
+
+The desktop can show its last-view layout and cached model/effort labels
+while the original backend connects. You may type a temporary local draft;
+Send and hold remain unavailable until the real client is authenticated.
+That opening text is kept in this window's memory, not persisted as a
+plaintext transcript/draft cache. An exact unchanged empty saved draft is
+reconciled through the normal SDK; a changed/missing destination or peer
+draft stays preserved for explicit review instead of being overwritten or
+sent. Keep the window open until **Draft saved**, or explicitly discard
+unsaved text when closing.
+
+The last-session preference is bound to the canonical root, retained store
+and actual profile. Cached names do not prove model availability, thinking
+support, permissions or budget. Live model discovery and the local service
+remain authoritative. See [the cache/readiness and conflict contract](architecture/startup-responsiveness.md#cache-first-desktop-opening).
 
 ## Session controls and interactive tools
 

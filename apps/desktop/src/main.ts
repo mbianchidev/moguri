@@ -1,8 +1,8 @@
 import { app, BrowserWindow, Menu, nativeImage, Notification, Tray, WebContentsView, clipboard, dialog, ipcMain, powerMonitor, protocol, session as electronSession, shell, systemPreferences } from "electron";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
-import { mkdir, readFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureConnection, loadNotificationSoundFile, readConnection, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
@@ -94,6 +94,8 @@ else {
     const responsiveness = new LoopDelay();
     app.once("will-quit", () => responsiveness.close());
     let connecting: Promise<Connection> | undefined;
+    let openingDirectory: string | undefined;
+    const selectedDirectory = () => openingDirectory ??= stateDirectory();
     let connectedOwner: { directory: string; connection: Connection } | undefined;
     let reopenOwner: typeof connectedOwner;
     let nativeInitialized = false;
@@ -146,7 +148,7 @@ else {
     const connect = async () => {
       if (maintenancePending || closeRequested) throw new Error("App shutdown or original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
       connecting ??= (async () => {
-        const original = reopenOwner, directory = original?.directory ?? stateDirectory();
+        const original = reopenOwner, directory = original?.directory ?? selectedDirectory();
         const selectedConnection = original ? await readConnection(directory) : await ensureConnection({
           stateDir: directory, explicitStateDir: Boolean(process.env.MOGURI_STATE_DIR && process.env.MOGURI_STATE_DIR_EXPLICIT !== "0"),
           runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs"),
@@ -214,6 +216,25 @@ else {
     });
     ipcMain.handle("moguri:connection", async (event) => { trusted(event); await nativeReady.promise; return connect(); });
     ipcMain.handle("moguri:startup-status", (event) => { trusted(event); return startupStatus(); });
+    ipcMain.handle("moguri:startup-context", async (event) => {
+      trusted(event);
+      const directory = connectedOwner?.directory ?? selectedDirectory();
+      const profile = { profileId: activeProfileId, profileExplicit: Boolean(process.env.MOGURI_PROFILE_ID) };
+      let metadata;
+      try { metadata = await lstat(directory, { bigint: true }); }
+      catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") return { ...profile, scopeKey: null };
+        throw error;
+      }
+      const uid = process.getuid?.();
+      if (uid === undefined || !metadata.isDirectory() || metadata.isSymbolicLink() || metadata.uid !== BigInt(uid) || metadata.mode & 0o077n) {
+        throw new Error("The startup presentation root is not the selected private user-owned directory. No cached view was selected.");
+      }
+      const root = await realpath(directory), current = await lstat(root, { bigint: true });
+      if (current.dev !== metadata.dev || current.ino !== metadata.ino || !current.isDirectory() ||
+        current.uid !== BigInt(uid) || current.mode & 0o077n) throw new Error("The startup presentation root changed during inspection. No cached view was selected.");
+      return { ...profile, scopeKey: createHash("sha256").update(JSON.stringify([root, metadata.dev.toString(), metadata.ino.toString()])).digest("hex") };
+    });
     app.on("activate", () => { if (!mainWindow && !closeRequested && !maintenancePending) void createWindow(); });
     const openingWindow = createWindow();
     void openingWindow.catch((error: unknown) => console.error("Initial window loading ended:", error instanceof Error ? error.message : "inspect native startup"));
