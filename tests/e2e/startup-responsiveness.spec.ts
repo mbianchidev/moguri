@@ -9,6 +9,7 @@ import { EventStore } from "../../apps/service/src/store.ts";
 import { GLOBAL_PROFILE_ID, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedIssueRevisions, generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
+import { assertOperationLatency, LATENCY_SAMPLES } from "../fixtures/latency-budgets.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden desktop startup qualification is macOS-only.");
@@ -47,7 +48,7 @@ test("the startup window appears before service recovery and new-chat clicks set
     const page = await app.firstWindow();
     await expect(page.getByRole("status")).toContainText("Opening your workspace");
     const firstWindowMs = performance.now() - began;
-    expect(firstWindowMs).toBeLessThan(1500);
+    assertOperationLatency("startup.window", firstWindowMs);
     expect(await page.getByRole("navigation", { name: "Projects and sessions" }).count()).toBe(0);
     await expect(page.getByRole("status")).toContainText("Waiting for the local service");
     const waiting = await page.evaluate(() => window.moguri.startupStatus());
@@ -63,19 +64,19 @@ test("the startup window appears before service recovery and new-chat clicks set
     await expect(create).toBeEnabled();
     expect((await page.evaluate(() => window.moguri.startupStatus())).phase).toBe("ready");
     const completeStartupMs = performance.now() - coldStarted;
-    expect(completeStartupMs).toBeLessThan(3000);
+    assertOperationLatency("startup.ready", completeStartupMs);
     const timings: number[] = [];
-    for (let index = 0; index < 3; index++) {
+    for (let index = 0; index < LATENCY_SAMPLES; index++) {
       const count = sdk.getState().snapshot!.sessions.length, click = performance.now();
       await create.click();
       await expect.poll(() => sdk!.getState().snapshot!.sessions.length).toBe(count + 1);
       await expect(page.getByRole("heading", { name: "New chat", exact: true })).toBeVisible();
       await expect(create).toBeEnabled();
       timings.push(performance.now() - click);
+      assertOperationLatency("session.create", timings.at(-1)!);
     }
     console.log(JSON.stringify({ primitive: "desktop-end-to-end-new-chat", retainedSessions: 61, retainedEvents: events.length,
       historyBytes: Buffer.byteLength(JSON.stringify(events)), finiteGlobalPolicy: true, firstWindowMs, completeStartupMs, clickToAcknowledgedVisibleChatMs: timings, modelCalls: 0 }));
-    expect(timings.every((ms) => ms < 1000)).toBe(true);
     const count = sdk.getState().snapshot!.sessions.length;
     await create.evaluate((button) => { if (!(button instanceof HTMLButtonElement)) throw new Error("The generated new-chat action is not a native button."); button.click(); button.click(); });
     await expect.poll(() => sdk!.getState().snapshot!.sessions.length).toBe(count + 1);
@@ -112,18 +113,21 @@ test("issue-heavy authenticated startup and visible new-chat acknowledgement sta
     const page = await app.firstWindow();
     await expect(page.getByRole("navigation", { name: "Projects and sessions" })).toBeVisible();
     const readyMs = performance.now() - began;
-    expect(readyMs).toBeLessThan(3000);
+    assertOperationLatency("startup.ready", readyMs);
     runtime = await starting; sdk = await new MoguriSdk(runtime.connection).ready();
     expect(sdk.getState().snapshot?.issues).toHaveLength(100);
     const create = page.getByRole("region", { name: "Chats", exact: true }).locator("header").getByRole("button", { name: "New chat", exact: true });
-    const click = performance.now(), count = sdk.getState().snapshot!.sessions.length;
-    await create.click();
-    await expect.poll(() => sdk!.getState().snapshot!.sessions.length).toBe(count + 1);
-    await expect(page.getByRole("heading", { name: "New chat", exact: true })).toBeVisible();
-    const acknowledgedMs = performance.now() - click;
-    expect(acknowledgedMs).toBeLessThan(1000);
+    const samplesMs: number[] = [];
+    for (let sample = 0; sample < LATENCY_SAMPLES; sample++) {
+      const click = performance.now(), count = sdk.getState().snapshot!.sessions.length;
+      await create.click();
+      await expect.poll(() => sdk!.getState().snapshot!.sessions.length).toBe(count + 1);
+      await expect(page.getByRole("heading", { name: "New chat", exact: true })).toBeVisible();
+      samplesMs.push(performance.now() - click);
+      assertOperationLatency("session.create", samplesMs.at(-1)!);
+    }
     console.log(JSON.stringify({ primitive: "desktop-issue-history-startup", retainedIssueRevisions: 25_000, currentIssues: 100,
-      completeUnpausedStartupMs: readyMs, clickToAcknowledgedVisibleChatMs: acknowledgedMs, modelCalls: f.requests.length }));
+      completeUnpausedStartupMs: readyMs, clickToAcknowledgedVisibleChatMs: Math.max(...samplesMs), samplesMs, modelCalls: f.requests.length }));
     expect(f.requests).toHaveLength(0);
   } finally { ControlPlane.prototype.initialize = initialize; sdk?.disconnect(); await app?.close(); runtime ??= await starting; await runtime.close(); await f.close(); }
 });

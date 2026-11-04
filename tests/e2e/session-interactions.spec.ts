@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { compareSessions, isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { operationProjection } from "../../apps/service/src/operation-telemetry.ts";
 import { setupFixture } from "../fixture.ts";
+import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -100,8 +101,11 @@ test("project and project-free sessions rename inline without a dialog or changi
       await expect(form).toHaveCount(0); await expect(link).toBeFocused();
       expect(sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!.title).toBe(original.title);
       await link.dblclick(); await expect(name).toBeFocused(); await page.keyboard.insertText(entry.renamed);
+      const renamedAt = performance.now();
       await name.press("Enter");
       await expect.poll(() => sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)?.title).toBe(entry.renamed);
+      await expect(navigation.getByRole("button", { name: entry.renamed, exact: true })).toBeVisible();
+      assertOperationLatency("session.organize", performance.now() - renamedAt);
       const renamed = sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!;
       expect(renamed.projectId).toBe(original.projectId); expect(renamed.workspaceId).toBe(original.workspaceId);
       expect(renamed.controls).toEqual(original.controls); expect(renamed.draft).toEqual(original.draft);
@@ -138,7 +142,7 @@ test("inline rename preserves a proposed name across a peer conflict and submits
     await field.fill("Generated acknowledged inline name.");
     const began = performance.now(); await field.press("Enter");
     await expect(navigation.getByRole("button", { name: "Generated acknowledged inline name.", exact: true })).toBeVisible();
-    expect(performance.now() - began).toBeLessThan(750);
+    assertOperationLatency("session.organize", performance.now() - began);
     await expect(page.getByRole("dialog", { name: "Rename", exact: true })).toHaveCount(0);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
