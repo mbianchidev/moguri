@@ -85,6 +85,30 @@ test("default Ctrl+Space is held push-to-talk despite the obsolete false button 
   } finally { gate.resolve(); await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("native microphone permissions reject malformed purposes rather than treating them as device discovery", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    const rejected = await page.evaluate(async (profileId) => {
+      const results: boolean[] = [];
+      for (const purpose of [["standby"], ["devices"], null, {}, "generated-unknown-purpose"]) {
+        try {
+          const grant: unknown = await Reflect.apply(window.moguri.audioPermission, window.moguri, [{ profileId, purpose }]);
+          if (typeof grant === "string") await window.moguri.releaseAudioPermission(grant);
+          results.push(false);
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes("explicit audio-only action")) throw error;
+          results.push(true);
+        }
+      }
+      return results;
+    }, sdk.profileId);
+    expect(rejected).toEqual([true, true, true, true, true]);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("configured dictation never requests microphone access just because a chat gains focus", async () => {
   const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
   try {

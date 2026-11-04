@@ -538,11 +538,11 @@ else {
     });
     ipcMain.handle("moguri:audio-permission", async (event, input: unknown) => {
       trusted(event);
-      if (!isRecord(input) || input.profileId !== activeProfileId || !["capture", "devices", "standby"].includes(String(input.purpose)) ||
+      if (!isRecord(input) || input.profileId !== activeProfileId || input.purpose !== "capture" && input.purpose !== "devices" && input.purpose !== "standby" ||
         Object.keys(input).some((key) => !["profileId", "purpose", "sessionId", "jobId"].includes(key)) ||
         input.purpose === "devices" && (input.sessionId !== undefined || input.jobId !== undefined) ||
         input.purpose === "standby" && input.jobId !== undefined) throw new Error("Choose an explicit audio-only action in the active profile.");
-      const purpose = input.purpose === "capture" ? "capture" : input.purpose === "standby" ? "standby" : "devices";
+      const purpose = input.purpose;
       if (audioPending) throw new Error("Another explicitly owned audio permission request is still pending.");
       audioPending = true;
       try {
