@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability } from "../../../packages/sdk/src/index.ts";
+import { configuredReadinessModels, continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -18,6 +18,7 @@ import { StartupModelContext } from "./StartupModelContext.ts";
 import { isModelDiscoveryPending } from "./startup-cache.ts";
 
 const SandboxSetupDialog = lazy(() => import("./SandboxSetupDialog.tsx").then((module) => ({ default: module.SandboxSetupDialog })));
+const ModelReadinessView = lazy(() => import("./ModelReadinessView.tsx").then((module) => ({ default: module.ModelReadinessView })));
 type Menu = "attach" | "env" | "model" | "autonomy" | "budget" | "delivery";
 type Run = (operation: () => Promise<unknown>) => Promise<void>;
 const envIcon = { Local: "House", Sandbox: "Box", Remote: "Globe" } as const;
@@ -503,19 +504,32 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const [saving, setSaving] = useState(false);
   const [submenu, setSubmenu] = useState<"models" | "effort" | "context" | "mode" | null>(null);
   const [modeChoices, setModeChoices] = useState<KupoModeAvailability[]>([]), [modeError, setModeError] = useState("");
-  const modeScope = JSON.stringify([sdk.profileId, session.id, session.controls.env, session.controls.modelId, session.controls.kupoMode, snapshot.settings.revision, snapshot.policy.revision, snapshot.provider.models]);
+  const [poolControls, setPoolControls] = useState<KupoOptionsReport | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [inspectionId, setInspectionId] = useState<string | undefined>();
+  const inspectionControlId = useId();
+  const readinessModels = configuredReadinessModels(snapshot.provider.catalogue, session.controls.env);
+  const inspectedId = inspectionId ?? (readinessModels.some((model) => model.id === session.controls.modelId) ? session.controls.modelId ?? "" : "");
+  const inspectedModel = readinessModels.find((model) => model.id === inspectedId);
+  const modeScope = JSON.stringify([sdk.profileId, session.id, session.controls.env, session.controls.modelId, session.controls.kupoMode, session.controls.modelOptions, snapshot.settings.revision, snapshot.policy.revision, snapshot.provider.models]);
   useEffect(() => {
-    if (!current?.synthetic || snapshot.settings.values.kupo.workflow !== "auto") return;
+    setPoolControls(null);
+    if (!current?.synthetic) return;
     let active = true;
     setModeChoices([]); setModeError("");
-    void sdk.routing.modes(session.id).then(({ modes }) => { if (active) setModeChoices(modes); })
+    void Promise.all([snapshot.settings.values.kupo.workflow === "auto" ? sdk.routing.modes(session.id) : Promise.resolve({ modes: [] }),
+      sdk.routing.options(session.id)]).then(([{ modes }, { report }]) => {
+      if (active) { setModeChoices(modes); setPoolControls(report); }
+    })
       .catch((error: unknown) => { if (active) setModeError(error instanceof Error ? error.message : "Mode readiness could not be read. No option was guessed."); });
     return () => { active = false; };
   }, [sdk, modeScope]);
   const revision = useRef(session.revision);
-  const windows = current && !current.synthetic ? modelContextWindows(current) : null;
-  const staleWindow = Boolean(window && (!current || current.synthetic || !supportsModelContextWindow(current, Number(window))));
-  const staleEffort = Boolean(effort && !current?.thinkingLevels?.includes(effort));
+  const windows = current?.synthetic ? poolControls?.available ? poolControls.windows : null : current ? modelContextWindows(current) : null;
+  const staleWindow = Boolean(window && (current?.synthetic ? poolControls && (!poolControls.available || !poolControls.windows.values.includes(Number(window))) :
+    !current || !supportsModelContextWindow(current, Number(window))));
+  const thinkingLevels = current?.synthetic ? poolControls?.thinkingLevels ?? [] : current?.thinkingLevels ?? [];
+  const staleEffort = Boolean(effort && (current?.synthetic ? poolControls !== null && !thinkingLevels.includes(effort) : !thinkingLevels.includes(effort)));
   const contextChoices = windows?.values.slice() ?? [];
   if (window && !staleWindow && !contextChoices.includes(Number(window))) contextChoices.push(Number(window));
   contextChoices.sort((a, b) => b - a);
@@ -547,7 +561,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     finally { setSaving(false); onSaving(false); }
   };
   const locked = saving || pending || Boolean(session.turnId);
-  const effortChoices: Array<ThinkingEffort | ""> = ["", ...current?.thinkingLevels ?? []];
+  const effortChoices: Array<ThinkingEffort | ""> = ["", ...thinkingLevels];
   return <>{isModelDiscoveryPending(snapshot.provider) ? <p role="status">Refreshing current model availability. Cached labels do not enable a model call.</p> :
     snapshot.provider.status !== "connected" && <><p>Connect GitHub Copilot or configure a local model to use Kupo.</p><button type="button" onClick={onConnect}>Connect Copilot</button></>}
     {cachedModels.length > 0 && <details><summary>Last known models and thinking efforts</summary>
@@ -590,8 +604,16 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
     </ModelSubmenu>}
+    {current?.synthetic && <ModelSubmenu label="Role thinking override" text="Role thinking override"
+      value={effort ? effortLabel(effort) : "Workflow default"} open={submenu === "effort"} disabled={locked || !poolControls?.available || !thinkingLevels.length && !effort}
+      toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
+      {effortChoices.map((value) => <button key={value} type="button" role="menuitemradio" aria-checked={effort === value}
+        onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
+        <span>{value ? effortLabel(value) : "Workflow default"}</span>{effort === value && <Icon name="Check" />}</button>)}
+      <p className="fine-print">An explicit effort must fit every admitted role and workflow. Unsupported models are excluded before classification; no effort is silently clamped.</p>
+    </ModelSubmenu>}
     {session.controls.preferredThinkingEffort !== undefined && <p className="fine-print" role="status">
-      {effortLabel(session.controls.preferredThinkingEffort)} preference retained. {current?.synthetic ? "Kupo manages each role's effort." :
+      {effortLabel(session.controls.preferredThinkingEffort)} preference retained. {current?.synthetic ? effort ? "The exact pooled override is rechecked for each role." : "Kupo manages each role's effort." :
         !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :
           "This model has no adjustable thinking; the preference returns on a supporting model."}
     </p>}
@@ -600,10 +622,27 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
         onClick={() => { setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) }); }}>
         <span>{value === null ? "Model default" : `${count(value)} tokens`}</span>{window === (value?.toString() ?? "") && <Icon name="Check" />}</button>)}
+      {current?.synthetic && <p className="fine-print">Shared exact ceiling for the eligible pool, rechecked before every role. Default uses each model's qualified window; history and attachments are never truncated.</p>}
     </ModelSubmenu>
-    <details className="model-tuning"><summary>Model details and setup</summary>
+    {current?.synthetic && poolControls && !poolControls.available && <Alert as="p" className="inline-error" role="alert">{poolControls.diagnostic}
+      {Object.keys(session.controls.modelOptions ?? {}).length > 0 && <button type="button" disabled={locked} onClick={() => {
+        setWindow(""); setEffort(""); void save({});
+      }}>Clear pooled overrides</button>}
+    </Alert>}
+    <details className="model-tuning" onToggle={(event) => setDetailsOpen(event.currentTarget.open)}><summary>Model details and setup</summary>
       <p>Only qualified model options are offered. Counts are estimates; overfull context stops without truncating history. Kupo binds tuning to each actual approved role.</p>
       <ModelEvidencePanel sdk={sdk} model={current} scope={JSON.stringify([sdk.profileId, session.id, session.controls.env, current?.id])} remote={session.controls.env === "Remote"} />
+      {detailsOpen && readinessModels.length > 0 && <div className="setting-field">
+        <label htmlFor={inspectionControlId}>Inspect configured model without selecting it</label>
+        <select id={inspectionControlId} value={inspectedId} onChange={(event) => setInspectionId(event.target.value)}>
+          <option value="">Choose an exact configured model for inspection</option>
+          {readinessModels.map((model) => <option key={model.id} value={model.id}>{model.name} / {model.providerId}</option>)}
+        </select>
+      </div>}
+      {detailsOpen && inspectedModel && <Suspense fallback={<p role="status">Loading runtime-readiness controls...</p>}>
+        <ModelReadinessView sdk={sdk} session={session} model={inspectedModel} snapshot={snapshot} />
+      </Suspense>}
+      {detailsOpen && inspectedId && !inspectedModel && <Alert as="p" className="inline-error" role="alert">This exact inspection choice is no longer configured for this execution machine. Choose explicitly; no model or machine was substituted.</Alert>}
       <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>{snapshot.settings.values.kupo.workflow === "auto" ? "Kupo settings" : snapshot.settings.values.kupo.workflow === "compound" ? "kupo Compound settings" : "kupo Single settings"}</button>
     </details>
       {session.turnId && <p>Stop the active turn before changing model settings.</p>}

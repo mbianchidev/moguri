@@ -6,6 +6,9 @@ import { CandidateRoleProposalPanel } from "./CandidateRoleProposalPanel.tsx";
 import { CompoundPanel } from "./CompoundPanel.tsx";
 import { WinddownPanel } from "./WinddownPanel.tsx";
 import { Alert } from "./Alert.tsx";
+import { candidateRootBase, candidateRootLabel, type CandidateWorkspace } from "../../../packages/sdk/src/index.ts";
+import { CandidateWorkspacePanel } from "./CandidateWorkspacePanel.tsx";
+import { CandidateRecoveryPanel } from "./CandidateRecoveryPanel.tsx";
 
 interface DraftFile { path: string; baseDigest: string; baseText: string; text: string }
 const summaryDefault = "Review repository changes";
@@ -14,6 +17,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const [files, setFiles] = useState<DraftFile[]>([]), [fileIndex, setFileIndex] = useState(0), [draftScope, setDraftScope] = useState<string | null>(null);
   const [modelOrigin, setModelOrigin] = useState<string | CandidateRoleReference | undefined>(), [generationDirty, setGenerationDirty] = useState(false);
   const [compoundDirty, setCompoundDirty] = useState(false);
+  const [workspaceDirty, setWorkspaceDirty] = useState(false), [envStages, setEnvStages] = useState<CandidateWorkspace[]>([]);
   const [winddownDirty, setWinddownDirty] = useState(false);
   const [preview, setPreview] = useState<{ value: CandidateStagePreview; scope: string; sessionId: string; stageId: string } | null>(null);
   const [selectedId, setSelectedId] = useState(""), [document, setDocument] = useState<CandidateDocument | null>(null);
@@ -25,19 +29,21 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const cleanup = snapshot.candidateCleanups.find((cleanup) => cleanup.status !== "completed" &&
     (cleanup.targets.includes(selectedId) || cleanup.reason.kind === "session-delete" && cleanup.reason.sessionId === session?.id));
   const scope = JSON.stringify([sdk.profileId, session?.id, session?.projectId, session?.controls.env, session?.workspaceId, session?.mode, session?.pendingMode,
-    project?.path, configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, cleanup?.id, cleanup?.status]);
+    project?.path, configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, snapshot.settings.values.remote, snapshot.settings.values.sandbox, session?.sandboxWorkspaceId, cleanup?.id, cleanup?.status]);
   const actualScope = useRef(scope), generation = useRef(0), documentGeneration = useRef(0); actualScope.current = scope;
   const proposalEditor = useRef<HTMLTextAreaElement>(null);
   const changedScope = draftScope !== null && draftScope !== scope;
   const repositoryReady = eligibility?.scope === scope && eligibility.eligible;
-  const local = Boolean(repositoryReady && session?.projectId && session.controls.env === "Local" && snapshot.policy.allowedEnvs.includes("Local"));
-  const writable = local && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId;
+  const envReady = Boolean(repositoryReady && session?.projectId && snapshot.policy.allowedEnvs.includes(session.controls.env));
+  const local = session?.controls.env === "Local";
+  const writable = envReady && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId;
   const dirty = summary !== summaryDefault || files.some((file) => file.baseDigest === "absent" || file.text !== file.baseText);
-  const stages = snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session.workspaceId && workspace.status === "ready");
+  const stages = local ? snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session?.workspaceId && workspace.status === "ready").map((workspace) => ({ id: workspace.id, label: workspace.branch })) :
+    envStages.filter((workspace) => workspace.status === "ready").map((workspace) => ({ id: workspace.id, label: `${workspace.name} / ${workspace.boundary.env}` }));
   const candidates = snapshot.candidates.filter((candidate) => !session?.projectId || candidate.projectId === session.projectId || candidate.id === selectedId).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const artifact = snapshot.artifacts.find((artifact) => artifact.id === selectedId);
   const active = selected && ["staging", "applying"].includes(selected.status);
-  useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty || compoundDirty || winddownDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, compoundDirty, winddownDirty, onDirty]);
+  useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty || compoundDirty || winddownDirty || workspaceDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, compoundDirty, winddownDirty, workspaceDirty, onDirty]);
   useEffect(() => {
     let current = true;
     setEligibility(null);
@@ -64,7 +70,9 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   };
   const load = (fresh: boolean) => void run("Loading source", async (current) => {
     if (!session) return;
-    const value = fresh ? { path, text: "", digest: "absent" } : await sdk.workspaces.file(session.id, path);
+    const source = fresh ? null : (await sdk.candidates.source(session.id, [path])).files[0];
+    if (!fresh && (!source || source.text === null)) throw new Error("This original source file is absent. Add a new file explicitly; no different root was read.");
+    const value = fresh ? { path, text: "", digest: "absent" } : { path: source!.path, text: source!.text!, digest: source!.baseDigest };
     if (!current()) return;
     if (files.some((file) => file.path.normalize("NFC").toLowerCase() === value.path.normalize("NFC").toLowerCase())) throw new Error("This file is already in the proposal. Select it below instead of adding an alias.");
     setFiles([...files, { path: value.path, baseDigest: value.digest, baseText: value.text, text: value.text }]); setFileIndex(files.length);
@@ -72,7 +80,8 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   });
   const draft = (): CandidatePatch => ({ kind: "patch", summary, edits: files.map(({ path, baseDigest, text }) => ({ path, baseDigest, text })) });
   const reset = () => { generation.current++; setFiles([]); setFileIndex(0); setDraftScope(null); setPreview(null); setStageId(""); setSummary(summaryDefault); setError(""); setModelOrigin(undefined); };
-  const sourceRoot = session?.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.path : project?.path;
+  const sourceRoot = session?.controls.env === "Sandbox" ? "/workspace" : session?.controls.env === "Remote" ? configuration?.values.remotePath ?? undefined :
+    session?.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.path : project?.path;
   const loadModelProposal = (document: CandidateDocument, sources: Array<{ path: string; baseDigest: string; text: string | null }>, origin: string | CandidateRoleReference) => {
     if (!writable || dirty || !session || document.source.root !== sourceRoot || document.source.projectId !== session.projectId ||
       document.source.workspaceId !== session.workspaceId || !document.stage.workspaceId) throw new Error("Keep the exact compatible Local source and discard/copy unsaved edits before loading a model proposal.");
@@ -101,25 +110,27 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
       <option value="">Choose a retained proposal</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / {candidate.status}</option>)}
     </select></label>} descriptionFirst>Candidates and generation proposals are permanently deleted with their originating session or after fresh verification that their exact linked PR merged. Archiving alone preserves them. Ordinary artifacts, applied code, worktrees and PRs keep their own lifecycle.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
-    {!local && <Alert as="p" tone="warning" className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Creation requires an explicit Local Git-backed project session. Verifying the exact repository; no previous root is inherited."} Retained proposals remain readable.</Alert>}
+    {!envReady && <Alert as="p" tone="warning" className="settings-warning">{eligibility?.scope === scope && eligibility.diagnostic || "Verifying the exact selected Env/source and readiness. No previous root, controller Git or Local fallback is inherited."} Retained proposals remain readable.</Alert>}
     {cleanup && <Alert as="p" className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>Candidate cleanup {cleanup.status}. {cleanup.diagnostic ?? "Settling exact owned work before deletion."} Deletion is not complete; retained proposals remain inspectable.</Alert>}
-    {local && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
+    {envReady && !writable && <p className="fine-print">Finish owned work and use an agent-mode session before editing. Read-only and side-session restrictions stay enforced.</p>}
     {changedScope && <Alert as="p" tone="warning" className="settings-warning">The source scope changed. Your unsaved proposal is preserved, but cannot be staged into another root. Copy it or explicitly discard and reload.</Alert>}
-    <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} repositoryReady={Boolean(repositoryReady)} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
+    <CandidateWorkspacePanel sdk={sdk} session={session} scope={scope} writable={Boolean(writable && !busy)} onWorkspaces={setEnvStages} onDirty={setWorkspaceDirty} />
+    <CandidateRecoveryPanel sdk={sdk} session={session} scope={scope} />
+    <CompoundPanel sdk={sdk} snapshot={snapshot} session={session} envStages={envStages} repositoryReady={Boolean(repositoryReady)} draftDirty={dirty || generationDirty || Boolean(busy)} onDirty={setCompoundDirty} onSelectCandidate={setSelectedId} />
     <WinddownPanel sdk={sdk} snapshot={snapshot} session={session} onDirty={setWinddownDirty} />
     <CandidateGenerationPanel sdk={sdk} snapshot={snapshot} session={session} stageId={stageId} files={files.map(({ path, baseDigest }) => ({ path, baseDigest }))}
-      scope={scope} sourceRoot={sourceRoot} writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty} loadedGenerationId={typeof modelOrigin === "string" ? modelOrigin : undefined} onDirty={setGenerationDirty} onLoad={loadGenerated} />
+      scope={scope} sourceRoot={sourceRoot} writable={Boolean(local && writable && !busy && !changedScope)} draftDirty={dirty} loadedGenerationId={typeof modelOrigin === "string" ? modelOrigin : undefined} onDirty={setGenerationDirty} onLoad={loadGenerated} />
     <CandidateRoleProposalPanel sdk={sdk} snapshot={snapshot} session={session} scope={scope} sourceRoot={sourceRoot}
-      writable={Boolean(writable && !busy && !changedScope)} draftDirty={dirty || generationDirty}
+      writable={Boolean(local && writable && !busy && !changedScope)} draftDirty={dirty || generationDirty}
       loadedSequenceId={typeof modelOrigin === "object" ? modelOrigin.roleSequenceId : undefined} onLoad={loadRole} />
     <details className="candidate-section" open={!selectedId}>
       <summary>Draft a proposal</summary>
       <label className="setting-field">Summary<SettingsInput aria-label="Candidate summary" value={summary} maxLength={1200} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setSummary(event.target.value); if (draftScope === null) setDraftScope(scope); setPreview(null); setModelOrigin(undefined); }} /></label>
       {modelOrigin && <p className="fine-print">Canonical model proposal loaded. Review staging before any write; changing its summary/files clears verified model attribution.</p>}
-      <label className="setting-field">Staging worktree<select aria-label="Candidate staging worktree" value={stageId} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setStageId(event.target.value); setPreview(null); setModelOrigin(undefined); }}>
-        <option value="">Choose a separate owned worktree</option>{stages.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.branch}</option>)}
+      <label className="setting-field">{local ? "Staging worktree" : "Staging resource"}<select aria-label={local ? "Candidate staging worktree" : "Candidate staging resource"} value={stageId} disabled={Boolean(busy) || changedScope || !writable} onChange={(event) => { setStageId(event.target.value); setPreview(null); setModelOrigin(undefined); }}>
+        <option value="">Choose a separate owned stage</option>{stages.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.label}</option>)}
       </select></label>
-      <p className="fine-print">The service checks clean state and the exact source HEAD on preview. Create/select a new worktree explicitly with Project settings or <code>/workspace create BRANCH</code>; no branch is created here.</p>
+      <p className="fine-print">The service checks clean state and the exact original Env/base. {local ? <>Create/select a Local worktree explicitly with Project settings or <code>/workspace create BRANCH</code>.</> : "Use the separately reviewed owned Env resources above."} No branch is silently created or adopted.</p>
       <label className="setting-field">File path<SettingsInput aria-label="Candidate file path" value={path} disabled={Boolean(busy) || changedScope || !writable} placeholder="src/example.ts" onChange={(event) => setPath(event.target.value)} /></label>
       <div className="button-row"><button disabled={Boolean(busy) || changedScope || !writable || !path.trim() || files.length >= 20} onClick={() => load(false)}>Load source file</button>
         <button disabled={Boolean(busy) || changedScope || !writable || !path.trim() || files.length >= 20} onClick={() => load(true)}>Add new file</button></div>
@@ -146,18 +157,19 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
         })} aria-label="Stage reviewed proposal">Stage</button>
         <button disabled={Boolean(busy) || !files.length && !changedScope && !dirty} onClick={reset} aria-label="Discard local proposal">Discard</button></div>
       {preview && preview.scope === scope && <div className="candidate-binding" aria-label="Exact staging preview">
-        <p className="fine-print path">Local source: {preview.value.document.source.root}<br />Owned stage: {preview.value.document.stage.root}</p>
+        <p className="fine-print path">{candidateRootLabel(preview.value.document.source)}<br />Source: {preview.value.document.source.root}<br />Owned stage: {preview.value.document.stage.root}</p>
         {preview.value.warning && <Alert as="p" tone="warning" className="settings-warning">{preview.value.warning}</Alert>}
-        <p className="fine-print">{preview.value.document.patch.edits.length} exact files / base <code>{preview.value.document.source.head.slice(0, 12)}</code>. Staging does not accept or apply them.</p>
+        <p className="fine-print">{preview.value.document.patch.edits.length} exact files / base <code>{candidateRootBase(preview.value.document.source).slice(0, 12)}</code>. Staging does not accept or apply them.</p>
       </div>}
     </details>
     {selected && <div className="candidate-section" aria-label="Retained candidate outcome">
       <header className="panel-toolbar"><strong>{selected.status === "staged" ? "Proposed, not accepted" : selected.status === "applied" ? "Applied reviewed files" : `Candidate ${selected.status}`}</strong>
         {active && <button disabled={stopping} onClick={() => { setStopping(true); void sdk.candidates.stop(selected.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not confirmed.")).finally(() => setStopping(false)); }}>{stopping ? "Requesting stop..." : `Stop ${selected.status === "staging" ? "staging" : "application"}`}</button>}
       </header>
-      <p className="fine-print path">Local source: {selected.source.branch} / base <code>{selected.source.head.slice(0, 12)}</code></p>
+      <p className="fine-print path">{candidateRootLabel(selected.source)}</p>
+      {selected.source.env === "Sandbox" && <Alert as="p" tone="warning">Application changes only the original owned private native snapshot. It does not accept or publish into the live Local repository; that remains a separate native-publication review.</Alert>}
       {selected.originSessionId === null && <p className="fine-print">Legacy origin ownership is unknown. This proposal is not assigned to the current session; its report can be deleted explicitly in Artifacts.</p>}
-      <details open={selected.status === "partial"}><summary>Captured Local source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage branch: {selected.stage.branch}</p></details>
+      <details open={selected.status === "partial"}><summary>Captured {selected.source.env} source and stage</summary><p className="fine-print path">Source: {selected.source.root}<br />Owned stage: {selected.stage.root}<br />Stage: {candidateRootLabel(selected.stage)}</p></details>
       <p className="fine-print">{selected.compoundOrigin ? "Derived from an actual public compound role. Inspect the separate retained workflow for actual tests and critic observations; provenance is not quality or source acceptance." : selected.roleOrigin ? "Derived from the exact final retained model role. Its independent origin is not quality or acceptance." : selected.generationId ? "Derived from its canonical model generation. Model provenance is not acceptance." : artifact?.sources[0]?.actor === "unknown" ? "Imported proposal; authorship is unverified." : "Retained source provenance is independent of acceptance."} {selected.acceptance ? "Accepted by the actual user. No commit or push was performed." : "No source acceptance is recorded."}</p>
       {selected.stopRequested && <p className="fine-print">Owned stop was requested; the actual outcome is {selected.status}.</p>}
       {selected.diagnostic && <Alert as="p" className={selected.status === "partial" ? "settings-warning" : "inline-error"} role="alert">{selected.diagnostic}</Alert>}

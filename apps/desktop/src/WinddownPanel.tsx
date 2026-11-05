@@ -1,6 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, WinddownResponse } from "../../../packages/sdk/src/index.ts";
+import { isLocalCandidateRecord } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<WinddownResponse, { type: "winddown.read" }>;
@@ -27,7 +28,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
   const acceptedRemote = record?.version !== 1 && record?.remoteAcceptance;
   const publications = native ? snapshot.sandboxPublications?.filter((publication) => publication.status === "completed" &&
     publication.acceptance.actor === "user" && publication.sourceSessionId === record.sessionId && publication.executionId === record.transport?.executionId) ?? [] : [];
-  const candidates = snapshot.candidates.filter((candidate) => candidate.status === "applied" && candidate.acceptance?.actor === "user" &&
+  const candidates = snapshot.candidates.filter(isLocalCandidateRecord).filter((candidate) => candidate.status === "applied" && candidate.acceptance?.actor === "user" &&
     candidate.projectId === record?.projectId && candidate.source.workspaceId === record?.workspaceId && candidate.source.root === record?.source?.root);
   const fields = JSON.stringify([candidateIds, nativeIds, sourcePaths, branch, message]);
   const dirty = (candidateIds.length > 0 || nativeIds.length > 0 || sourcePaths.length > 0 || branch.length > 0 || message !== "chore: checkpoint explicitly accepted work") && fields !== baseline;
