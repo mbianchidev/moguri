@@ -45,7 +45,7 @@ export function RepositoryRemotePanel({ sdk, project, snapshot, upstream, disabl
         <dt>Old explicit push URL</dt><dd>{preview.document.remoteChange.pushUrls.join(", ") || "Uses fetch URL"}</dd>
         <dt>New fetch and push URL</dt><dd>{preview.document.remoteChange.url}</dd>
         <dt>Shared config</dt><dd className="path">{preview.document.remoteChange.config.path}</dd></dl>
-      <h4>Affected linked worktrees</h4><ul>{preview.document.remoteChange.worktrees.map((root) => <li className="path" key={root.root}>{root.root}
+      <h4>Affected linked worktrees</h4><ul>{preview.document.remoteChange.worktrees.map((root) => <li className="path" key={root.root}><span>{root.root}</span>
         <small>Effective fetch: {root.nextFetchUrl}<br />Effective push: {root.nextPushUrl}</small></li>)}</ul>
       {preview.document.warnings.map((warning, index) => <p className="fine-print" key={index}>{warning}</p>)}
       {preview.document.confirmations.map((text) => <label className="check-setting" key={text}><SettingsInput type="checkbox" checked={confirmations.includes(text)}

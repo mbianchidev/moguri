@@ -53,6 +53,8 @@ svg { flex-shrink: 0; }
 .repository-import-list small { color: var(--muted); line-height: 1.5; }
 .repository-remote { border-top: 1px solid var(--line); padding-top: 10px; min-width: 0; }
 .repository-remote fieldset { display: flex; flex-direction: column; gap: 10px; border: 0; padding: 0; min-width: 0; }
+.repository-remote li + li { margin-top: 12px; }
+.repository-remote li small { display: block; color: var(--muted); margin-top: 4px; }
 .github-picker, .session-github, .github-create, .github-write-review { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .session-github { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
 .github-picker .setting-field, .github-create .setting-field { margin: 0; min-width: 0; }
