@@ -20,7 +20,7 @@ const { generatedRemoteGithub } = await tsImport("../tests/fixtures/remote-githu
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
 const root = join(app, "Contents", "Resources", "app");
-for (const path of [".moguri", ".native", ".impeccable", ".copilot", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
+for (const path of [".moguri", ".native", ".impeccable", ".copilot", ".test-output", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
 const node = join(root, "node_modules", "node", "bin", "node");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inherit" });
 const { PROTOCOL_VERSION, BROWSER_MCP_TOOLS, defaultSettings } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
@@ -34,6 +34,10 @@ if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.
 if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));
 if (PROTOCOL_VERSION >= 87) execFileSync(node, [resolve("tests/fixtures/installed-session-controls.mjs"), root], { stdio: "inherit", timeout: 60_000 });
 const nodeSdk = await import(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href);
+if (PROTOCOL_VERSION >= 92) {
+  execFileSync(node, [resolve("tests/fixtures/installed-milestone-models.mjs"), root], { stdio: "inherit", timeout: 45_000 });
+  execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-candidate-transports.mjs"), root], { stdio: "inherit", timeout: 75_000 });
+}
 if (typeof nodeSdk.restartMoguriService === "function") execFileSync(node, [resolve("tests/fixtures/installed-service-recovery.mjs"), root, app], { stdio: "inherit", timeout: 90_000 });
 if (PROTOCOL_VERSION >= 88) execFileSync(node, [resolve("tests/fixtures/installed-service-negotiation.mjs"), root, app], { stdio: "inherit", timeout: 45_000 });
 if (PROTOCOL_VERSION >= 90) execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-live-chat.mjs"), root], { stdio: "inherit", timeout: 90_000 });
