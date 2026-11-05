@@ -9,6 +9,8 @@ const bridge: DesktopBridge = {
     return () => ipcRenderer.removeListener("moguri:html-dismiss", receive);
   },
   connection: () => ipcRenderer.invoke("moguri:connection"),
+  startupContext: () => ipcRenderer.invoke("moguri:startup-context"),
+  startupStatus: () => ipcRenderer.invoke("moguri:startup-status"),
   profile: (profileId) => ipcRenderer.invoke("moguri:profile", profileId),
   chooseProject: (purpose) => ipcRenderer.invoke("moguri:choose-project", purpose),
   chooseFile: (path) => ipcRenderer.invoke("moguri:choose-file", path),

@@ -1,9 +1,31 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **87**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **90**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+### Opening and last-view restoration
+
+The desktop can show its last-view layout and cached model/effort labels
+while the original backend connects. You may type a temporary local draft;
+Send and hold remain unavailable until the real client is authenticated.
+That opening text is kept in this window's memory, not persisted as a
+plaintext transcript/draft cache. An exact unchanged empty saved draft is
+reconciled through the normal SDK; a changed/missing destination or peer
+draft stays preserved for explicit review instead of being overwritten or
+sent. Keep the window open until **Draft saved**, or explicitly discard
+unsaved text when closing.
+
+The last-session preference is bound to the canonical root, retained store
+and actual profile. Cached names do not prove model availability, thinking
+support, permissions or budget. Live model discovery and the local service
+remain authoritative. See [the cache/readiness and conflict contract](architecture/startup-responsiveness.md#cache-first-desktop-opening).
+
+The development installer is ad-hoc signed, not notarized. Cached opening
+does not guarantee the first OS launch deadline; the measured
+[first-execution limitation](architecture/startup-responsiveness.md#first-ad-hoc-execution-remains-a-separate-limitation)
+remains disclosed.
 
 ## Session controls and interactive tools
 
@@ -991,16 +1013,34 @@ On supported Apple-silicon macOS with Apple Containerization available, the app
 includes SendBox **0.2.4**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
+The installer also carries the pinned public Apple init image used by the
+qualified Apple Containerization 0.10.0 runtime. It is imported with the worker
+archive, rather than downloading a large missing prerequisite inside the
+first guest's startup deadline. Its redistribution notice is included.
 
-Open **Settings > Execution & permissions > SendBox**, choose **Review bundled
-setup**, review the actual version, image, workspace/network policy and install
-location, then choose **Enable Sandbox**. An already configured exact root-owned
+The first-use UI and complete archive are implemented, but current physical
+requalification still catches intermittent SendBox guest-supervisor startup
+failure before readiness. Earlier successful project/free-chat cases do not
+qualify every later launch. See the [current evidence and remaining native
+gate](architecture/managed-sandbox.md#current-verification-and-unresolved-native-startup);
+an enabled setting or admitted setup job is not a ready runtime.
+
+Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens
+**Set up SendBox** with its bundled defaults already prepared for review.
+Review the actual runtime and workspace/network policy, acknowledge it, then
+choose **Enable SendBox**. No configuration editor, paths, build or manual
+workspace preparation is required. An already configured exact root-owned
 0.2.4 installation can be reused. A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
 
-After qualification, select **Sandbox** in the composer and send normally.
+Only after qualification does the original chat switch to Sandbox. Send
+normally; later free chats and projects reuse the ready managed runtime.
+Cancelling setup preserves the draft and original Env. An interrupted or
+failed operation is not replayed or labeled ready. If another client changed
+the original session, setup may complete but Env selection requires a new
+explicit choice rather than overwriting that peer's revision.
 Managed engine qualification does not contact an unselected model provider;
 actual selected-provider access is checked before a turn's model admission.
 Private project/worktree copies are prepared automatically under ignore/folder
@@ -1049,6 +1089,21 @@ reinstalling it or draining saved queues. A changed Moguri worker requires its
 matching bundled setup review, not old manually copied image hashes. **Advanced
 manual configuration** and exact-file staging remain available for experts;
 old manual configurations do not silently gain the managed policy.
+
+Hover a Sandbox or Remote row in the Env menu, or focus it with the keyboard,
+to reveal its rightmost settings button. SendBox settings retain customization,
+advanced source preparation and original workspace/results inspection; Remote
+settings retain SSH configuration. Opening either button does not change Env
+or widen policy. Touch interfaces keep these actions visible.
+
+**Settings > Providers > Refresh available models** performs an on-demand
+refresh of enabled configured providers. Every desktop start also refreshes
+the current profile after the cached UI and authenticated SDK are available,
+including when reusing an existing service. This does not block New chat or
+draft acknowledgement, sign in, scan hosts, download weights or run inference.
+Concurrent refreshes share their original in-flight discovery; a later start
+still performs a new check. Failed providers remain unavailable with their
+actual diagnostic, never an old cached model or another provider substituted.
 
 CLI/TUI expose `/sandbox setup` and its exact confirmation command, plus
 `/sandbox updates`. Embeddings can explicitly provide the same distribution
@@ -2196,12 +2251,25 @@ Saved prompt settings are unchanged; running turns keep their captured prompt.
 
 ### Terminal navigation and shared themes
 
-The original JRPG-style TUI uses double-line menus and an abstract crystal
-cursor, without franchise assets. Click **Current session**, **Sessions**,
-**Work items** or **Code requests** in a mouse-reporting terminal. The same
-routes are `/session`, `/sessions`, `/work-items` and `/code-requests`.
+The chat-first TUI keeps the header and five navigation targets to one row
+each, with a compact session list and an input that grows as you type. The
+accent rail marks your prompt without framing every message. Click
+**Current session**, **Sessions**, **Work items**, **Code requests** or
+**Automations** in a mouse-reporting terminal; narrow terminals use
+**Chat**, **Chats**, **Work**, **Code** and **Auto**. The corresponding
+slash routes remain `/session`, `/sessions`, `/work-items` and `/code-requests`;
+**F9** opens Automations.
 Selecting a tab saves the current draft; it does not send it, answer a question,
 approve a tool or fetch GitHub metadata.
+
+Assistant replies render Markdown, with plain-text code blocks rather than
+language-driven downloads. Completed tool results take one row until expanded
+with the mouse, **F2** or `/details`. Failed, stopped, partial and unconfirmed
+outcomes remain visible. Folding changes only the view, not retained messages
+or model context. The normal view labels its latest-150-message limit;
+**F2** or `/details` exposes the full retained conversation without truncating
+long individual messages. **PgUp/PgDn** scroll history without editing or sending
+the draft. **F3** or **latest** returns to following new output.
 
 **Tab** focuses navigation. **Up/Down** chooses a tab and **Enter** opens it.
 **Left** closes the sidebar and **Right** opens it only in navigation focus.
@@ -2723,8 +2791,9 @@ desktop use it for every capability, not separate client-specific versions.
 `node bin/moguri.mjs --help` lists CLI commands; `status` exposes project/session
 IDs. A normal installation also provides `moguri`.
 
-Desktop starts **dark**, with an original minimal face-and-bat-wing mascot
-shared with the TUI loading ASCII. **Settings / Appearance** selects Dark,
+Desktop starts **dark**, with Moguri's original minimal face-and-bat-wing mascot.
+The TUI uses a compact text wordmark instead of a loading splash.
+**Settings / Appearance** selects Dark,
 Light or System. **Settings / System prompt** and TUI **Ctrl+G** expose the
 actual instructions, a breakage warning and restore defaults. Prompt edits need
 explicit acknowledgement, apply to new turns and cannot override permissions.
@@ -3610,11 +3679,27 @@ extra SDK conversation refresh. Its input-free audio processor and local
 recognizer prepare in advance while voice is enabled, before live microphone
 capture, and connect immediately so
 the opening audio is not lost during worklet startup or permission-release IPC.
+The dictation feature defaults on, preserving explicit saved off choices. No
+microphone opens or model weights download merely because it is enabled.
 No microphone standby is implicit. **Prepare microphone while a composer
 is focused** separately consents to visible device readiness, without recording
-until activation. Disable, focus/ownership loss, sleep and cancellation close
-standby. First-time OS authorization still requires the user; wait for the
-recording highlight if permission or device startup is pending.
+until activation, only when OS microphone access is already granted. Opening,
+switching or focusing chats never asks for microphone permission, even with
+saved standby enabled. Activate dictation or **Find microphones** to authorize
+access first; an ungranted or revoked permission leaves standby unarmed instead
+of opening a prompt or microphone. Disable, focus/ownership loss, sleep and
+cancellation close standby. First-time OS authorization still requires the user; wait for the
+recording highlight if permission or device startup is pending. Standby marks
+the microphone icon/accessible description instead of repeating an armed
+notice in every chat.
+Already acquired physical capture is now distinct from its readiness
+acknowledgement. Releasing while that acknowledgement is pending flushes the
+actual opening PCM and final transcript rather than discarding words. Partial
+text can update while readiness settles. Releasing before hardware exists
+still cannot recover uncaptured speech or start a late microphone. Streaming
+dictation does not create a WAV file; its owned buffers are wiped. Batch WAV
+spools remain transient and are removed after use, with failed cleanup retained
+explicitly.
 **The microphone button is not push-to-talk:** click once to record and again to
 confirm. Releasing it, moving the pointer, or pressing the voice shortcut during
 a click-owned recording does not stop that recording. Space/Enter on the focused
@@ -4106,7 +4191,9 @@ Default retains its legacy namespace. Create an explicit UUID profile for
 account separation instead of pointing another service at the same database.
 
 The service writes `state.sqlite`, WAL files, `connection.json`, `service.lock`
-and a diagnostic `service.log`. Connection tokens and OAuth credentials are
+and a diagnostic `service.log`. Dead-writer reclamation may briefly retain a
+private `service.lock.recovery` claim; interrupted cleanup remains explicit,
+not permission to delete it. Connection tokens and OAuth credentials are
 never printed in logs or put in URLs. State is migrated transactionally;
 upgrading must never require deleting it. Do not edit the database while the
 service owns it.
@@ -4119,6 +4206,182 @@ path. A competing client that lost the writer lock still waits for the actual
 authenticated owner. A readiness deadline never kills that owner, resets the
 store or starts an automatic replacement; inspect the log and reconnect after
 the service reports ready.
+
+### Missing packaged service or connection metadata
+
+`Cannot find module '.../Moguri.app/Contents/Resources/app/service.mjs'`
+was reproduced as a compiled-client path bug: an inlined SDK resolved its
+service relative to the CLI instead of `dist/sdk/node.mjs`. The distributed
+entrypoint is `Contents/Resources/app/dist/service.mjs`. A longer timeout,
+copied/symlinked `service.mjs`, another app or a development-checkout fallback
+does not repair that installation.
+
+Install the corrected matching app/build first. If its location changed, use
+**Settings > General > Command line** in that actual app to review removal and
+reinstallation of the managed command. Then explicitly restart through that
+matching command:
+
+```bash
+moguri service restart
+```
+
+For the matching source checkout, build it first, then use
+`node bin/moguri.mjs service restart`. The corrected restart verifies its actual
+service/runtime before interrupting anything. It can start a never-started or
+already-stopped service when connection, writer lock and recovery claim are
+all absent, rather than returning raw `lstat(connection.json)` ENOENT.
+
+**Restart interrupts active agent/tool work.** Saved drafts, unclaimed held
+queues, artifacts, original receipts and unknown charges remain; authenticated
+user terminals reattach without input replay. The command succeeds only after
+the replacement is authenticated and ready, not when shutdown is accepted.
+An acknowledgement failure may mean the original service already started
+stopping; it does not trigger an automatic retry or a second writer.
+
+A missing connection with a retained writer lock/recovery claim, an altered
+registry, rejected authentication or failed cleanup stays **unconfirmed**.
+Preserve the exact original files and inspect the reported `service.log`;
+do not delete/reset the database, keys, connection record, terminal broker or
+cleanup claim, recreate metadata by hand, or kill a guessed PID. `service info`
+can normally auto-start a service and is not a read-only diagnostic command.
+Keep any shared diagnostic excerpt bounded/redacted; never share connection
+tokens or credentials.
+
+The log is append-only across launches. A nearby protocol-88 ready line or
+`sandbox_setup_cancelled` does not prove which earlier attempt emitted a
+missing-module error. The generated reproduction establishes the path and
+absent-registry bugs, not the provenance of those separate personal log lines.
+See the [entrypoint/ownership recovery contract and qualification](architecture/cli-launcher.md#packaged-service-entrypoint-and-ownership-recovery).
+The `fbe7650` development installer repaired the missing-entrypoint and registry
+errors but was superseded for the subsequently reproduced large-history
+negotiation failure. The earlier `603847d` installer was also superseded after
+the broader sweep caught an admission-fence regression. Neither historical
+artifact should be treated as the final no-window repair. Exact hashes,
+packed/actual-app checks and remaining qualification limits are in the
+[delivery record](architecture/cli-launcher.md#service-recovery-delivery-qualification).
+That earlier `fbe7650` cut passed the complete local unit/native-TUI sweep
+(2,191 passed, 29 skipped), hidden desktop sweep (323 passed, four skipped),
+independent packed SDK and actual-package/update-consumer checks, but those
+runs did not include the subsequently reproduced large retained-history case.
+Skipped physical-native gates and notarization are not implied by those passes.
+
+### Protocol negotiation did not complete
+
+This is the event-client handshake, separate from finding or starting the
+service. It can prevent the desktop window from being created even after the
+service is healthy. The failure was reproduced from the `fbe7650` app with
+generated retained history: after successfully reading its snapshot, the client
+unnecessarily replayed all earlier events from zero, repeatedly filled the
+event output buffer, and exhausted its normal ten-second handshake window.
+
+The follow-up repair resumes from the accepted snapshot's exact sequence while
+still receiving events committed before the socket authenticates. It does not
+raise the timeout, reset/truncate history or replay prompts/tools. Install that
+corrected client instead of retrying the superseded DMG or deleting state.
+The cursor repair works with the existing healthy protocol-88 service; it does
+not itself require an interrupting service restart.
+Persistent failures now include the observed event-close diagnostic; verify the
+matching app/service and selected profile rather than assuming every timeout
+means slow startup. See the [retained-history negotiation record](architecture/cli-launcher.md#retained-history-negotiation-follow-up).
+The separately qualified development installer containing this cursor repair is
+`release/qualification-builds/service-negotiation-2be78d1/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It is ad-hoc-signed, not notarized or installed automatically. The actual
+packaged desktop opens the generated 62.8-MB retained-history fixture without
+deleting history or increasing the negotiation timeout; exact artifact hashes
+and limits are in the [installer record](architecture/cli-launcher.md#retained-history-development-installer).
+The new cut also passes the complete local unit/native-TUI sweep (2,195 passed,
+29 skipped), complete hidden desktop sweep (323 passed, four skipped), independent
+packed SDK and actual-package/update-consumer checks. No failures or cancelled
+checks were relabeled as success; physical-native skips remain unqualified.
+
+### Responsive startup and session navigation
+
+The subsequent protocol-89 follow-up addresses repeated global/profile JSON
+scans, not by increasing timeouts or discarding history. Its atomic
+`event_read_indexes_schema` migration adds profile/sequence and type/sequence
+indexes without rewriting schema-88 ciphertext, keys, grants or receipts.
+Opening against a healthy older service requires the existing explicit
+authenticated restart review, preserving user terminals while interrupting
+active agent work.
+
+The app shows its startup window before service/profile recovery, keeping
+opening/error state visible. Timed-out read-only health probes may retry within
+the operation's existing deadline, but mutations and lifecycle requests are
+never replayed. Cancel quit after failed shutdown restores an accessible window
+bound to the original owner, without adopting or starting another service.
+
+The opening screen reports the current desktop phase and elapsed time:
+waiting for the local service, profile connection, application preferences or
+native control preparation. This is diagnostic progress, not successful
+readiness or permission to mutate before authentication.
+
+After Send clears the composer, the original text stays visible as a local
+**Sending** row until the existing acknowledgement settles. It is explicitly
+not yet acknowledged, not another committed message or model request. Held
+prompts keep their separate Holding label. Failed or uncertain delivery keeps
+the original draft/recovery rules; it never silently resends.
+
+For remaining slow New chat/Send behaviour, use **Insights**, **Show recent
+event trace**, **Client request timings**, then **Copy client request timings**
+after the problem occurs. This payload-free copy includes desktop startup
+phases and the last 50 profile-client transport observations. Headers/body
+timings are not server CPU or model duration. Do not send a paid test prompt,
+delete state, clear keys or restart active work merely to collect diagnostics.
+The protocol-90 build adds numeric service handling, desktop-proxy body/header
+waiting and event-loop-window spans to that same copy. A loop maximum describes
+the reported sampling window, not a proven cause of that individual request.
+Provider discovery can remain Connecting after authenticated service readiness;
+opening/creating a chat does not wait for it or authorize inference.
+
+The issue-history repair removes repeated processing of overwritten imported
+issue descriptions and redundant whole-profile startup reads. It preserves
+original history, source validation, encryption, receipts and budget policy.
+It changes service code without a protocol bump: a healthy older protocol-90
+service is deliberately reused until an **explicit matching-build restart**.
+After manually installing a corrected build, `moguri service restart` from its
+matching managed command loads that service code while preserving authenticated
+user terminals. It can interrupt active agent work; save/review that work first.
+The matching built-checkout entry is `node bin/moguri.mjs service restart`.
+Changed Sandbox worker bytes still require their existing explicit bundled
+setup review; an SSH peer requires its exact compatible worker/probe. Neither
+is permission to update another machine or fall back to Local.
+Do not delete state or connection files, force an owner or repeat an uncertain
+mutation. See the [reproduction and retention guarantees](architecture/startup-responsiveness.md#issue-history-service-responsiveness).
+
+Ordinary Enter/Send now uses the service-resolved live delivery mode during an
+active solver turn. Its acknowledged text stays visible until the next safe
+boundary without cancelling the current operation. Explicit Queue and
+Interrupt are still available; Cmd/Ctrl+Enter still holds the prompt.
+Double-click/F2/contextual Rename edits the name inline.
+New factory-named chats may receive one separately budgeted topic-summary call
+after their first reply. Configure it in **Settings / Providers / Chat names**;
+existing or explicitly named chats are not inferred to need naming.
+See the [exact naming lifecycle](architecture/chat-titles.md).
+
+Use the **+** beside **Chats** for a new chat. Right-click a session and choose
+**Select**, then click or use Space/Enter on other sessions. Highlighted rows
+are the selected set; there are no row checkboxes. Right-click a highlighted
+row for counted actions such as **Archive (4)**. Escape or **Done selecting**
+leaves selection. Existing policy, child-tree reviews, cancellation and retention
+guarantees remain; destructive review dialogs still require their real
+confirmations. See the [responsiveness contract and measurements](architecture/startup-responsiveness.md).
+The current interaction/recovery installer is
+`release/qualification-builds/service-responsiveness-e772707/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+It repairs reproduced service stalls from retained issue imports as well as
+the earlier discovery, browser, dictation and UI paths. Generated actual-package
+measurements cover startup, create/draft/send/archive/delete and original
+receipts; personal live confirmation still requires installing it and explicitly
+restarting the matching service. It is ad-hoc-signed, not notarized or installed
+automatically. Earlier `20652da`, `2ef8968`, `37f674d`, `18bd457`, 88
+and intermediate `f7a6ca0` images remain separate historical cuts.
+Protocol-90 upgrade uses the explicit terminal-preserving restart review;
+active agent work can be interrupted, while saved input, unknown charges and
+authenticated user PTYs remain. Do not remove the connection file, keys or
+database to bypass failed ownership/cleanup checks. Actual frozen 88/89 upgrade
+fixtures preserve their original ciphertext and user terminal without input or
+model replay. Exact hashes, packaged finite-policy interaction measurements
+and fresh native qualification are in the
+[current delivery records](architecture/startup-responsiveness.md#qualified-issue-history-delivery).
 
 The startup follow-up at `5d34148` passes 19 focused source checks, build/types,
 the independent packed SDK/install/audit and seven hidden packaged startup,

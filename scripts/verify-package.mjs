@@ -33,6 +33,10 @@ await access(join(root, "dist", "remote-bridge.mjs"));
 if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(root, "dist", path));
 if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));
 if (PROTOCOL_VERSION >= 87) execFileSync(node, [resolve("tests/fixtures/installed-session-controls.mjs"), root], { stdio: "inherit", timeout: 60_000 });
+const nodeSdk = await import(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href);
+if (typeof nodeSdk.restartMoguriService === "function") execFileSync(node, [resolve("tests/fixtures/installed-service-recovery.mjs"), root, app], { stdio: "inherit", timeout: 90_000 });
+if (PROTOCOL_VERSION >= 88) execFileSync(node, [resolve("tests/fixtures/installed-service-negotiation.mjs"), root, app], { stdio: "inherit", timeout: 45_000 });
+if (PROTOCOL_VERSION >= 90) execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-live-chat.mjs"), root], { stdio: "inherit", timeout: 90_000 });
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
@@ -442,7 +446,7 @@ try {
         const runtime = rss([child.pid, owner.pid]), userPrograms = rss(consoles.map((terminal) => terminal.pid));
         const desktopMiB = electronKiB / 1024, moguriMiB = (electronKiB + runtime.kib) / 1024;
         console.log(JSON.stringify({ qualification: "actual-packaged-user-consoles", tabs, owners: consoleSdk.getState().snapshot.terminalOwners.filter((owner) => owner.status === "running").length,
-          desktopMiB, moguriMiB, electron: metrics.map((metric) => ({ pid: metric.pid, type: metric.type, mib: metric.memory.workingSetSize / 1024 })), runtime: runtime.processes,
+          desktopMiB, moguriMiB, electron: metrics.map((metric) => ({ pid: metric.pid, type: metric.type, name: metric.name, mib: metric.memory.workingSetSize / 1024 })), runtime: runtime.processes,
           userProgramsMiB: userPrograms.kib / 1024, desktopBudgetMiB: 600, budgetScope: "Electron shell aggregate, matching scripts/spikes.mjs; control-plane/broker and combined totals reported separately" }));
         assert.ok(desktopMiB < 600, `Actual packaged desktop working set ${desktopMiB.toFixed(2)} MiB exceeded the 600-MiB Electron-shell budget.`);
       };

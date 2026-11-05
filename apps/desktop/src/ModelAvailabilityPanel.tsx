@@ -3,7 +3,7 @@ import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 
-type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string };
+type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string } | { kind: "refresh" };
 export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
   sdk: MoguriSdk; snapshot: Snapshot; disabled: boolean; onBusy: (busy: boolean) => void;
 }) {
@@ -12,15 +12,19 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
   useEffect(() => () => onBusy(false), [onBusy]);
   const run = async (next: AvailabilityChange, action: () => Promise<unknown>) => {
     if (pending.current) return;
-    pending.current = true; setChange(next); onBusy(true); setError("");
+    pending.current = true; setChange(next); if (next.kind !== "refresh") onBusy(true); setError("");
     try { await action(); }
     catch (error) { setError(error instanceof Error ? error.message : "The model preference was not acknowledged. Inspect the saved state before retrying."); }
-    finally { pending.current = false; setChange(null); onBusy(false); }
+    finally { pending.current = false; setChange(null); if (next.kind !== "refresh") onBusy(false); }
   };
   if (!catalogue) return <p role="status">Waiting for this profile's authoritative provider inventory. No default models were substituted.</p>;
   const providerName = (id?: string) => catalogue.providers.find((provider) => provider.id === id)?.name ?? id ?? "Unknown provider";
   const models = catalogue.models.filter((model) => fuzzyMatch(search, `${model.name} ${model.apiModelId} ${model.offerings.map((entry) => providerName(entry.model.providerId)).join(" ")}`));
   return <section className="model-availability" aria-label="Provider and model availability">
+    <button type="button" disabled={disabled || busy} aria-label="Refresh available models" onClick={() => void run({ kind: "refresh" }, () => sdk.models.refresh())}>
+      {change?.kind === "refresh" ? "Refreshing models..." : "Refresh available models"}
+    </button>
+    <p className="fine-print">Available models refresh when the app opens. Refresh here after changing your provider account or running models; no sign-in or inference is started.</p>
     <SettingsHelp label="About provider availability" target={<h3>Generative providers</h3>}>These preferences belong to this profile. Disabling a provider retains its login and configuration but blocks new model selections and admissions. Existing calls keep their actual outcome and charges. Enabling never signs in or starts inference.</SettingsHelp>
     <div className="model-provider-list">{catalogue.providers.map((provider) => <div className="model-provider-row" key={provider.id}>
       <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
@@ -32,7 +36,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
     <SettingsHelp label="About selectable models" target={<h3>Enabled models and sources</h3>}>Only enabled, available, selected sources appear in model pickers or work through /model and routing. Exact matching upstream IDs share one row; choose one provider when multiple sources offer that ID. A saved source never silently changes when unavailable. These declarations are not model-family, independence or quality proof.</SettingsHelp>
     <label className="setting-field">Search models<SettingsInput type="search" aria-label="Search model availability" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Model, ID or provider" /></label>
     <p className="fine-print">{catalogue.models.filter((model) => model.diagnostic === null).length} selectable / {catalogue.models.length} known model{catalogue.models.length === 1 ? "" : "s"}.</p>
-    <p className="fine-print" role="status" aria-label="Model availability saving">{busy ? "Saving availability..." : "Changes save automatically."}</p>
+    <p className="fine-print" role="status" aria-label="Model availability saving">{change?.kind === "refresh" ? "Refreshing available models..." : busy ? "Saving availability..." : "Changes save automatically."}</p>
     {models.map((model) => <div className="model-availability-row" role="group" aria-label={`Model ${model.apiModelId}`} key={model.apiModelId}>
       <div><strong>{model.name}</strong><code>{model.apiModelId}</code>{model.diagnostic && <small>{model.diagnostic}</small>}</div>
       {model.offerings.length > 1 || model.sourceModelId && !model.offerings.some((entry) => entry.model.id === model.sourceModelId) ?

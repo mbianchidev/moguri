@@ -342,7 +342,19 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
-          <ProviderConnect provider={snapshot.provider} client={sdk} run={run} /></>}
+          <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
+          <h3>Chat names</h3>
+          <label className="setting-toggle"><input type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
+            setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
+          <label className="setting-field">Naming model<select aria-label="Chat naming model" value={draft.chatTitles?.modelId ?? ""} onChange={(event) =>
+            setDraft({ ...draft, chatTitles: { enabled: draft.chatTitles?.enabled !== false, modelId: event.target.value || null } })}>
+            <option value="">Automatic in the original Env</option>
+            {draft.chatTitles?.modelId && !snapshot.provider.models.some((model) => model.id === draft.chatTitles!.modelId) &&
+              <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
+            {snapshot.provider.models.filter((model) => !model.synthetic).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
+          </select></label>
+          <p className="fine-print">One tool-less, separately charged call after the first reply, using the first prompt's text. It prefers a configured loopback model, a current price estimate, then the actual solver model. Your Env, budget and chosen names are preserved. Legacy chats are not renamed; saving this setting does not run a model.</p>
+        </>}
         {tab === "accessibility" && <><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a qualified chord or enter one explicitly. Save applies only its field. Conflicting and protected editing/system chords are rejected; none disables an optional shortcut. Voice uses the same binding in both sections.</SettingsHelp><p>Shortcuts respect composition and text editing. Terminal input belongs to its focused console, not the chat.</p>
 
           <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />
@@ -778,7 +790,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <p className="fine-print">Disable closes this profile's owned voice work and deletes the sole Moguri-managed model. Enable downloads that pinned model again. The official model file is shared across profiles; external model files and other profiles' running work are never deleted or cancelled.</p>
           <label className="check-setting"><SettingsInput type="checkbox" aria-label="Prepare microphone while composer is focused" checked={Boolean(draft.voice.standby)} disabled={saving || committed.voice.enabled === false}
             onChange={(event) => automatic("voice", { standby: event.target.checked })} />Prepare microphone while a composer is focused</label>
-          <p className="fine-print">Explicit standby consent opens the selected microphone only in the focused composer, without recording. A visible ready notice appears. Focus loss, switching owner/profile, sleep or disable closes it. Without standby, the input-free audio graph and local recognizer are prepared in advance.</p>
+          <p className="fine-print">Explicit standby consent opens the selected microphone only in the focused composer, without recording, if OS access is already granted. Focusing a chat never asks for microphone permission; activate dictation or Find microphones to authorize access first. The microphone icon marks readiness without adding a notice to every chat. Focus loss, switching owner/profile, sleep or disable closes it. Dictation is enabled by default, but no microphone opens or weights download until their explicit actions; unavailable models do not start preparation jobs.</p>
           <SettingsHelp label="More about this setting" target={<h3>Microphone and activation</h3>}>Device discovery is explicit and briefly opens audio solely to read permitted microphone labels, then stops it. Recording uses exact device selection and browser-normalized local 16-kHz PCM, never an ignored native CLI device flag.<br /><br />Microphone access is user-initiated and may require OS permission. Recording is bounded to two minutes. A conflicting draft is preserved rather than overwritten.</SettingsHelp>
           <div className="button-row"><button type="button" disabled={devicesBusy || Boolean(activeVoice)} onClick={() => {
             const request = new AbortController(); deviceRequest.current = request; setDevicesBusy(true);

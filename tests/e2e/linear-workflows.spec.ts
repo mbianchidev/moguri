@@ -19,7 +19,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     });
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    await expect(page.getByRole("heading", { name: "New session", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Linear workflows", exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Linear workflows", exact: true });

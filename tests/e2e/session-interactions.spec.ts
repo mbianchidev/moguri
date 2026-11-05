@@ -5,6 +5,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { compareSessions, isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { operationProjection } from "../../apps/service/src/operation-telemetry.ts";
 import { setupFixture } from "../fixture.ts";
+import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -76,7 +77,7 @@ test("closed Ghostty terminals disappear from the selector without erasing retai
   } finally { gate.resolve(); await app.close(); await fixture.close(); }
 });
 
-test("double-clicking project and project-free sessions opens rename without changing their workspace or draft", async () => {
+test("project and project-free sessions rename inline without a dialog or changing their workspace or draft", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const chat = await sdk.sessions.create(null, "Generated project-free rename");
   const cases = [
@@ -86,21 +87,25 @@ test("double-clicking project and project-free sessions opens rename without cha
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), navigation = page.getByRole("navigation", { name: "Projects and sessions" });
-    const dialog = page.getByRole("dialog", { name: "Rename", exact: true }), name = dialog.getByRole("textbox", { name: "Name", exact: true });
+    const form = page.getByRole("form", { name: "Rename chat inline", exact: true }), name = form.getByRole("textbox", { name: "Chat name", exact: true });
     for (const entry of cases) {
       const original = sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!;
       const link = navigation.getByRole("button", { name: original.title, exact: true });
       await link.click();
       await expect(page.getByRole("heading", { name: original.title, exact: true })).toBeVisible();
-      await expect(dialog).toHaveCount(0);
+      await expect(form).toHaveCount(0);
       await link.dblclick();
+      await expect(page.getByRole("dialog", { name: "Rename", exact: true })).toHaveCount(0);
       await expect(name).toHaveValue(original.title); await expect(name).toBeFocused();
       await name.fill("Generated cancelled rename"); await name.press("Escape");
-      await expect(dialog).toHaveCount(0); await expect(link).toBeFocused();
+      await expect(form).toHaveCount(0); await expect(link).toBeFocused();
       expect(sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!.title).toBe(original.title);
       await link.dblclick(); await expect(name).toBeFocused(); await page.keyboard.insertText(entry.renamed);
-      await dialog.getByRole("button", { name: "Save", exact: true }).click();
+      const renamedAt = performance.now();
+      await name.press("Enter");
       await expect.poll(() => sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)?.title).toBe(entry.renamed);
+      await expect(navigation.getByRole("button", { name: entry.renamed, exact: true })).toBeVisible();
+      assertOperationLatency("session.organize", performance.now() - renamedAt);
       const renamed = sdk.getState().snapshot!.sessions.find((session) => session.id === entry.id)!;
       expect(renamed.projectId).toBe(original.projectId); expect(renamed.workspaceId).toBe(original.workspaceId);
       expect(renamed.controls).toEqual(original.controls); expect(renamed.draft).toEqual(original.draft);
@@ -109,9 +114,36 @@ test("double-clicking project and project-free sessions opens rename without cha
     await link.press("Shift+F10");
     await page.getByRole("menu").getByRole("menuitem", { name: "Rename", exact: true }).click();
     await expect(name).toHaveValue(cases[1]!.renamed);
-    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    await form.getByRole("button", { name: "Cancel chat rename", exact: true }).click();
     await page.reload();
     for (const entry of cases) await expect(navigation.getByRole("button", { name: entry.renamed, exact: true })).toBeVisible();
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("inline rename preserves a proposed name across a peer conflict and submits a fresh exact title quickly", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), navigation = page.getByRole("navigation", { name: "Projects and sessions", exact: true });
+    const original = fixture.session().title;
+    await navigation.getByRole("button", { name: original, exact: true }).focus();
+    await page.keyboard.press("F2");
+    const form = navigation.getByRole("form", { name: "Rename chat inline", exact: true }), field = form.getByLabel("Chat name", { exact: true });
+    await expect(field).toBeFocused();
+    await field.fill("Generated preserved proposed name.");
+    await sdk.sessions.rename(fixture.sessionId, "Generated peer name.");
+    await form.getByRole("button", { name: "Save chat name", exact: true }).click();
+    await expect(form.getByRole("alert")).toContainText("Another client changed");
+    await expect(field).toHaveValue("Generated preserved proposed name.");
+    expect(fixture.session().title).toBe("Generated peer name.");
+    await field.press("Escape");
+    const peer = navigation.getByRole("button", { name: "Generated peer name.", exact: true });
+    await expect(peer).toBeFocused(); await peer.press("F2");
+    await field.fill("Generated acknowledged inline name.");
+    const began = performance.now(); await field.press("Enter");
+    await expect(navigation.getByRole("button", { name: "Generated acknowledged inline name.", exact: true })).toBeVisible();
+    assertOperationLatency("session.organize", performance.now() - began);
+    await expect(page.getByRole("dialog", { name: "Rename", exact: true })).toHaveCount(0);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
@@ -285,7 +317,8 @@ test("native rows reorder siblings, explicit menus attach, and reviewed drags de
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === third.id)?.parentSessionId ?? null).toBeNull();
     await link.focus(); await page.keyboard.press("Shift+F10");
     const menu = page.getByRole("menu", { name: "Actions for Generated drag third", exact: true });
-    await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();
+    await expect(menu.getByRole("menuitem", { name: "Select", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown"); await expect(menu.getByRole("menuitem", { name: "Rename", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowDown"); await expect(menu.getByRole("menuitem", { name: "Pin", exact: true })).toBeFocused();
     await page.keyboard.press("Escape"); await expect(link).toBeFocused();
     await link.press("Shift+F10"); await expect(menu.getByRole("menuitem", { name: "Move down", exact: true })).toHaveCount(0);

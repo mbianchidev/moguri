@@ -70,7 +70,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
   }
 });
 
-test("actual bundled UI enables Sandbox and sends without any file preview while retaining exact guest approvals", async () => {
+for (const projectFree of [false, true]) test(`actual first-use SendBox sends in ${projectFree ? "a root-less chat" : "a project"} without settings or a file preview`, async () => {
   const configuration = await nativeConfiguration(), distribution = process.env.MOGURI_SANDBOX_DISTRIBUTION;
   test.skip(!configuration || !distribution, "Explicit current native and bundled-distribution receipts are required.");
   test.setTimeout(120_000);
@@ -80,28 +80,23 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
   const { sdk, service, provider, project } = fixture;
   const settings = structuredClone(sdk.settings.get()!); settings.values.sandbox = fixture.reviewedConfiguration;
   await sdk.settings.update(settings.values, settings.revision);
-  const bound = await sdk.command({ type: "project.add", path: project }), created = await sdk.sessions.create(bound.id!);
+  const bound = projectFree ? null : await sdk.command({ type: "project.add", path: project });
+  const created = await sdk.sessions.create(bound?.id ?? null);
   const session = () => service.controller.snapshot().sessions.find((value) => value.id === created.id)!;
   await sdk.sessions.configure(created.id!, { ...session().controls, modelId: provider.modelId });
   const app = await launch(fixture.state); let passed = false;
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
-    const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
-    await panel.getByRole("button", { name: "Review bundled setup", exact: true }).click();
-    const review = panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
-    await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
-    await review.getByRole("button", { name: "Enable Sandbox", exact: true }).click();
-    await expect(panel.getByRole("status").filter({ hasText: "Setup completed" })).toBeVisible({ timeout: 30_000 });
-    await expect.poll(() => sdk.settings.get()?.revision).toBe(service.controller.snapshot().settings.revision);
-    const reviewedSettings = structuredClone(sdk.settings.get()!);
-    reviewedSettings.values.sandbox.qualification!.allowedDomains.push("*.generated-tools.test");
-    await sdk.settings.update(reviewedSettings.values, reviewedSettings.revision); await sdk.sandbox.probe();
-    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await page.locator(`.session-link[data-session-id="${created.id}"]`).click();
     await page.getByRole("button", { name: "Execution environment", exact: true }).click();
-    await page.getByRole("dialog", { name: "Execution environment", exact: true }).getByRole("button", { name: /^Sandbox Verified SendBox/ }).click();
+    await page.getByRole("dialog", { name: "Execution environment", exact: true }).getByRole("button", { name: /^Sandbox / }).click();
+    const setup = page.getByRole("dialog", { name: "Set up SendBox", exact: true });
+    const review = setup.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
+    await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
+    await review.getByRole("button", { name: "Enable SendBox", exact: true }).click();
+    await expect.poll(() => session().controls.env, { timeout: 30_000 }).toBe("Sandbox");
+    await expect(setup).toBeHidden();
     await page.getByLabel("Prompt", { exact: true }).fill("generated native write");
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: /^Review a private native workspace/ })).toHaveCount(0);
@@ -109,9 +104,14 @@ test("actual bundled UI enables Sandbox and sends without any file preview while
     await expect.poll(() => session().status, { timeout: 30_000 }).toBe("completed");
     expect(session().pendingApproval).toBeNull();
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
-    expect((await sdk.workspaces.file(created.id!, "fixture.txt")).text).toBe("generated native replacement\n");
+    if (projectFree) {
+      expect(service.controller.snapshot().sandboxExecutions![0]?.root).toBeNull();
+      expect(service.controller.snapshot().sandboxExecutions![0]?.sourceRoot).toBeNull();
+      expect(session().projectId).toBeNull();
+      expect(session().homeRoot?.root).toBe(fixture.home);
+    } else expect((await sdk.workspaces.file(created.id!, "fixture.txt")).text).toBe("generated native replacement\n");
     expect(service.controller.snapshot().sandboxWorkspaces![0]?.preparation?.kind).toBe("automatic");
-    expect(service.controller.snapshot().sandboxExecutions![0]?.networkScope?.allowedDomains).toContain("*.generated-tools.test");
+    expect(service.controller.snapshot().sandboxExecutions![0]?.networkScope?.allowedDomains).toContain("api.individual.githubcopilot.com");
     await openSettingsSection(page, "Sandbox");
     const retained = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     await expect(retained).toContainText("shared-cloud");

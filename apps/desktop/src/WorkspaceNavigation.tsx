@@ -1,7 +1,7 @@
 import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ClientError, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
-import type { ArtifactMaterialization } from "../../../packages/sdk/src/index.ts";
+import type { ArtifactMaterialization, BulkSessionAction } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
 import { useSessionActions, type SessionActionOwner } from "./SessionActions.tsx";
@@ -12,7 +12,7 @@ import { Alert } from "./Alert.tsx";
 import { BulkSessionActions } from "./BulkSessionActions.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
-type EditKind = "rename" | "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
+type EditKind = "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
 interface Edit { kind: EditKind; project?: Project; session?: Session; folder?: NavigationFolder; projects?: { projectId: string; revision: number }[]; anchor?: HTMLElement }
 interface NavigationMenu { kind: "project" | "session" | "folder"; id: string; x: number; y: number; anchor: HTMLElement; trigger: HTMLElement | null }
 const projectColors = [
@@ -38,10 +38,11 @@ const dropEdge = (element: HTMLElement, y: number): "before" | "after" | "inside
   const bounds = element.getBoundingClientRect(), ratio = (y - bounds.top) / bounds.height;
   return ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
 };
-export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, openKanban, settings, terminal, modal, allow, prepareSession,
+export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, startChat, openKanban, settings, terminal, modal, allow, prepareSession,
   sessionActionRequest, onSessionActionRequestHandled, setupSandbox }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
+  startChat: () => Promise<void>;
   openKanban: (projectId: string) => Promise<void>;
   modal: (open: boolean) => void; allow: () => boolean; terminal?: (projectId: string) => void;
   prepareSession?: (id: string) => Promise<void>;
@@ -49,14 +50,37 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   setupSandbox?: () => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; title: string; source: Session["titleSource"]; revision: Session["titleRevision"] } | null>(null);
+  const renameFocus = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (renaming || !renameFocus.current) return;
+    const target = Array.from(document.querySelectorAll<HTMLButtonElement>(".session-link")).find((element) => element.dataset.sessionId === renameFocus.current);
+    if (target) { target.focus(); renameFocus.current = null; }
+  }, [renaming, snapshot.sessions]);
   const openPolicy = useContext(PolicyNavigationContext);
   const editFocus = useRef<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [selection, setSelection] = useState<{ projectId: string | null; ids: string[] } | null>(null);
+  const [bulkRequest, setBulkRequest] = useState<{ action: BulkSessionAction; nonce: number } | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false), [creatingChat, setCreatingChat] = useState(false);
+  const bulkNonce = useRef(0), creating = useRef(false);
   const priority = (a: Session, b: Session) => compareSessionPriority(a, b, snapshot);
   const bulk = (projectId: string | null) => selection?.projectId === projectId &&
-    <BulkSessionActions sdk={sdk} snapshot={snapshot} ids={selection.ids} clear={() => setSelection(null)} prepare={prepareSession} modal={modal} />;
+    <BulkSessionActions sdk={sdk} snapshot={snapshot} ids={selection.ids} clear={() => { setSelection(null); setBulkRequest(null); }} prepare={prepareSession} modal={modal}
+      request={bulkRequest} busyChanged={setBulkBusy} />;
+  const toggleSelection = (session: Session) => {
+    if (bulkBusy || actions.busy || ordering) return;
+    if (selection && selection.projectId !== session.projectId) { setError("Select sessions from one project or Chats group at a time."); return; }
+    if (selection && !selection.ids.includes(session.id) && selection.ids.length >= 100) { setError("Select at most 100 sessions for one reviewed action."); return; }
+    setBulkRequest(null);
+    setSelection((current) => ({ projectId: session.projectId, ids: current?.ids.includes(session.id) ? current.ids.filter((id) => id !== session.id) : [...current?.ids ?? [], session.id] }));
+  };
+  useEffect(() => {
+    if (!selection) return;
+    const escape = (event: KeyboardEvent) => { if (!event.defaultPrevented && event.key === "Escape" && !bulkBusy) { setSelection(null); setBulkRequest(null); } };
+    window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
+  }, [selection, bulkBusy]);
   const matches = useMemo(() => {
     if (!search.trim()) return null;
     const values = new Map(snapshot.sessions.map((session) => [session.id, session]));
@@ -119,9 +143,13 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     if (anchor.isConnected) anchor.focus();
   }, [edit]);
   useEffect(() => { if (menu && !(menu.kind === "project" ? snapshot.projects : menu.kind === "folder" ? snapshot.projectFolders : snapshot.sessions).some((entry) => entry.id === menu.id)) setMenu(null); }, [menu, snapshot.projects, snapshot.projectFolders, snapshot.sessions]);
-  useEffect(() => { modal(Boolean(edit || menu || foldersMenu || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, menu, foldersMenu, actions.reviewing, actions.busy, modal]);
+  useEffect(() => { modal(Boolean(edit || renaming || menu || foldersMenu || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, renaming, menu, foldersMenu, actions.reviewing, actions.busy, modal]);
   const run = async (operation: () => Promise<unknown>) => { setError(""); try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Workspace action failed."); } };
   const open = (value: Edit) => { if (allow()) setEdit(value); };
+  const rename = (session: Session) => {
+    if (!allow()) return;
+    setMenu(null); setRenaming({ id: session.id, title: session.title, source: session.titleSource, revision: session.titleRevision });
+  };
   const folder = (project: Project) => (snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id));
   const collapseGroupProjects = (group: NavigationFolder, collapsed: boolean) => {
     const state = sdk.getState().snapshot, currentGroup = state?.profileId === sdk.profileId && state.projectFolders.find((value) => value.id === group.id);
@@ -316,8 +344,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const renderSession = (session: Session, depth: number) => {
     const indicator = sessionIndicator(session, snapshot);
     const unread = unreadSession(session, snapshot);
-    return <div className={`session-row ${session.id === selectedId ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
-    draggable={!actions.busy && !ordering && !selection} onDragStart={(event) => {
+    const selecting = selection?.projectId === session.projectId, selected = selecting ? selection.ids.includes(session.id) : session.id === selectedId;
+    return <div className={`session-row ${selected ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} data-session-selected={selecting ? String(selected) : undefined} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
+    draggable={!actions.busy && !ordering && !selection && !renaming} onDragStart={(event) => {
       if (!allow() || orderPending.current) { event.preventDefault(); return; }
       dragging.current = { source: position(session), siblings: siblings(session).map(position), profileId: sdk.profileId };
       event.dataTransfer.setData(SESSION_DRAG, JSON.stringify({ profileId: sdk.profileId, sessionId: session.id })); event.dataTransfer.effectAllowed = "copyMove"; setMenu(null);
@@ -337,24 +366,26 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     }} onDragLeave={(event) => {
       if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === session.id ? null : value);
     }} onDrop={(event) => dropSession(event, session)}
-    onContextMenu={(event) => { event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu("session", session.id, anchor, event.clientX, event.clientY); }}>
-    {selection?.projectId === session.projectId && <label className="session-selection"><input type="checkbox" aria-label={`Select session ${session.title}`}
-      checked={selection.ids.includes(session.id)} disabled={actions.busy || ordering} onChange={(event) => {
-        const checked = event.target.checked;
-        setSelection((current) => current?.projectId === session.projectId ? { ...current, ids: checked ?
-          [...new Set([...current.ids, session.id])] : current.ids.filter((id) => id !== session.id) } : current);
-      }} /></label>}
-    <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions. Drop on a session to attach; drop near its edges or use Alt+Up/Down to reorder siblings. Drag a child to a header to detach.`}
-      aria-haspopup="menu" aria-expanded={menu?.kind === "session" && menu.id === session.id} aria-current={selectedId === session.id ? "page" : undefined} onClick={() => void chooseSession(session.id)} title={session.title}
-      onDoubleClick={(event) => { event.preventDefault(); open({ kind: "rename", session }); }}
+    onContextMenu={(event) => { if (renaming?.id === session.id) return; event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu("session", session.id, anchor, event.clientX, event.clientY); }}>
+    {renaming?.id === session.id ? <InlineSessionRename sdk={sdk} id={session.id} original={renaming.title} source={renaming.source} titleRevision={renaming.revision} close={() => {
+      renameFocus.current = session.id; setRenaming(null);
+    }} /> : <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions. Drop on a session to attach; drop near its edges or use Alt+Up/Down to reorder siblings. Drag a child to a header to detach.`}
+      aria-pressed={selecting ? selected : undefined} disabled={bulkBusy} aria-haspopup="menu" aria-expanded={menu?.kind === "session" && menu.id === session.id} aria-current={selectedId === session.id ? "page" : undefined}
+      onClick={(event) => selection || event.metaKey || event.ctrlKey ? toggleSelection(session) : void chooseSession(session.id)} title={session.title}
+      onDoubleClick={(event) => { event.preventDefault(); if (!selection) rename(session); }}
       onKeyDown={(event) => {
-        if (event.altKey && ["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); void moveSession(session, event.key === "ArrowUp" ? -1 : 1); return; }
+        if (event.key === "F2" && !selection) { event.preventDefault(); rename(session); return; }
+        if (event.altKey && ["ArrowUp", "ArrowDown"].includes(event.key)) {
+          event.preventDefault();
+          if (selection) { setNavigationStatus("Finish selecting before reordering a session."); return; }
+          void moveSession(session, event.key === "ArrowUp" ? -1 : 1); return;
+        }
         if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return;
         event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("session", session.id, event.currentTarget, bounds.right, bounds.top);
       }}>
       <span className="status-dot session-status-dot" data-session-state={indicator.kind} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
         {session.status === "waiting_input" && <small title="Needs attention">Needs attention</small>}</span><SessionIndicators indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
-    </button>
+    </button>}
   </div>;
   };
   const renderProject = (project: Project) => {
@@ -442,6 +473,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const folderMenu = menu?.kind === "folder" ? snapshot.projectFolders.find((folder) => folder.id === menu.id) : undefined;
   const menuProject = snapshot.projects.find((project) => project.id === menuSession?.projectId);
   const menuUnread = menuSession ? unreadSession(menuSession, snapshot) : false;
+  const contextSelection = menuSession && selection?.ids.includes(menuSession.id) ? selection.ids.map((id) => snapshot.sessions.find((session) => session.id === id)) : [];
+  const contextBulk = contextSelection.length > 1;
+  const requestBulk = (action: BulkSessionAction) => { setBulkRequest({ action, nonce: ++bulkNonce.current }); closeMenu(); };
   return <><div className="project-list" aria-busy={busy || actions.busy || ordering}>
     <div className="workspace-navigation-tools"><label className="workspace-session-search"><Icon name="Search" /><input type="search" aria-label="Search sessions" placeholder="Search sessions" value={search}
       onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); } }} /></label>
@@ -453,7 +487,12 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     {(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
     <p className="sr-only" role="status" aria-atomic="true">{navigationStatus}</p>
     <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
-      <button type="button" className="icon-button" aria-label="Select chats" disabled={actions.busy} onClick={() => setSelection({ projectId: null, ids: [] })}><Icon name="Check" /></button></header>{bulk(null)}{generalTree(null)}</section>
+      <button type="button" className="icon-button" aria-label="New chat" title="New chat" aria-busy={creatingChat}
+        disabled={busy || actions.busy || bulkBusy || creatingChat || archived || sdk.getState().status !== "connected"} onClick={() => {
+          if (creating.current) return;
+          creating.current = true; setCreatingChat(true);
+          void run(async () => { await startChat(); setSelection(null); setBulkRequest(null); }).finally(() => { creating.current = false; setCreatingChat(false); });
+        }}><Icon name="Plus" /></button></header>{bulk(null)}{generalTree(null)}</section>
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
       <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)}><summary onClick={(event) => {
@@ -490,7 +529,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" onClick={() => settings(projectMenu.id)}><Icon name="Settings" />Settings</button>
     <button role="menuitem" onClick={() => void toggleKanban(projectMenu)}><Icon name="Plan" />{kanbanPreferences(snapshot.boards.find((board) => board.projectId === projectMenu.id) ?? defaultBoard(projectMenu.id)).visible ? "Hide Kanban" : "Show Kanban"}</button>
     {terminal && <button role="menuitem" onClick={() => terminal(projectMenu.id)}><Icon name="Terminal" />Open project terminal</button>}
-    <button role="menuitem" onClick={() => { setSelection({ projectId: projectMenu.id, ids: [] }); setCollapsedProjects((current) => { const next = new Set(current); next.delete(projectMenu.id); return next; }); closeMenu(); }}><Icon name="Check" />Select sessions</button>
+    <button role="menuitem" onClick={() => { setSelection({ projectId: projectMenu.id, ids: [] }); setBulkRequest(null); setCollapsedProjects((current) => { const next = new Set(current); next.delete(projectMenu.id); return next; }); closeMenu(); }}><Icon name="Check" />Select sessions</button>
     <button role="menuitem" onClick={() => void run(async () => { const info = await sdk.projects.git(projectMenu.id, false); if (!info.repository) throw new Error("This attached folder has no supported GitHub upstream."); await window.moguri.openExternal(info.repository); })}><Icon name="PR" />Open in GitHub</button>
     <button role="menuitem" onClick={() => open({ kind: "new-group", project: projectMenu })}><Icon name="Group" />New session group</button>
     <button role="menuitem" onClick={() => open({ kind: "folder", project: projectMenu })}><Icon name="Files" />Move to folder</button>
@@ -518,7 +557,19 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" onClick={() => void ungroup(folderMenu)}><Icon name="Group" />Ungroup</button>
   </WorkspaceContextMenu>}
   {menu && menuSession && <WorkspaceContextMenu label={`Actions for ${menuSession.title}`} point={menu} close={closeMenu}>
-    <button role="menuitem" onClick={() => open({ kind: "rename", project: menuProject, session: menuSession })}><Icon name="Edit" />Rename</button>
+    {contextBulk ? <>
+      <button role="menuitem" disabled={bulkBusy || contextSelection.some((session) => !session || session.parentSessionId || session.turnId || session.kind === "subagent")}
+        onClick={() => requestBulk("attach")}><Icon name="Link" />Attach to session ({contextSelection.length})</button>
+      <button role="menuitem" disabled={bulkBusy || contextSelection.some((session) => !session?.parentSessionId || session.turnId || session.kind === "subagent")}
+        onClick={() => requestBulk("detach")}><Icon name="Back" />Detach ({contextSelection.length})</button>
+      <button role="menuitem" disabled={bulkBusy || contextSelection.some((session) => !session || session.status === "archived")}
+        onClick={() => requestBulk("archive")}><Icon name="Down" />Archive ({contextSelection.length})</button>
+      <button role="menuitem" className="danger" disabled={bulkBusy || contextSelection.some((session) => !session)}
+        onClick={() => requestBulk("delete")}><Icon name="Trash" />Delete ({contextSelection.length})</button>
+      <button role="menuitem" disabled={bulkBusy} onClick={() => { setSelection(null); setBulkRequest(null); }}><Icon name="Close" />Done selecting</button>
+    </> : <>
+    <button role="menuitem" disabled={bulkBusy} onClick={() => { setSelection({ projectId: menuSession.projectId, ids: [menuSession.id] }); setBulkRequest(null); closeMenu(); }}><Icon name="Check" />Select</button>
+    <button role="menuitem" onClick={() => rename(menuSession)}><Icon name="Edit" />Rename</button>
     <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name={menuSession.pinned ? "PinOff" : "Pin"} />{menuSession.pinned ? "Unpin" : "Pin"}</button>
     <button role="menuitem" onClick={() => void run(async () => {
       const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];
@@ -529,8 +580,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" disabled={Boolean(menuSession.turnId) || menuSession.kind === "subagent"} onClick={() => open({ kind: "attach", project: menuProject, session: menuSession })}><Icon name="Link" />Attach to session</button>
     {menuSession.parentSessionId && <button role="menuitem" disabled={Boolean(menuSession.turnId) || menuSession.kind === "subagent"} onClick={() => actions.request(menuSession, "detach")}><Icon name="Back" />Detach</button>}
     <button role="menuitem" disabled={menuSession.mode !== "agent" || menuSession.kind !== "agent"} onClick={() => void run(async () => { const result = await sdk.sessions.spawn(menuSession.id, "agent"); await chooseSession(result.id!); })}><Icon name="Plus" />Subsession</button>
-    <button role="menuitem" onClick={() => menuSession.status === "archived" ? void run(() => sdk.command({ type: "session.restore", sessionId: menuSession.id })) : actions.request(menuSession, "archive")}><Icon name="Down" />{menuSession.status === "archived" ? "Unarchive" : "Archive"}</button>
-    <button role="menuitem" className="danger" onClick={() => actions.request(menuSession, "delete")}><Icon name="Trash" />Delete</button>
+    <button role="menuitem" onClick={() => menuSession.status === "archived" ? void run(() => sdk.command({ type: "session.restore", sessionId: menuSession.id })) : actions.request(menuSession, "archive")}><Icon name="Down" />{menuSession.status === "archived" ? "Unarchive" : "Archive"}{contextSelection.length === 1 ? " (1)" : ""}</button>
+    <button role="menuitem" className="danger" onClick={() => actions.request(menuSession, "delete")}><Icon name="Trash" />Delete{contextSelection.length === 1 ? " (1)" : ""}</button>
+    </>}
   </WorkspaceContextMenu>}
   {actions.dialog}
   {edit && <NavigationDialog key={`${edit.kind}-${edit.session?.id ?? edit.project?.id ?? edit.folder?.id}`} edit={edit} sdk={sdk} snapshot={snapshot} close={() => {
@@ -603,13 +655,44 @@ function SessionIndicators({ indicator }: { indicator: ReturnType<typeof session
       {indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
   </span>;
 }
+function InlineSessionRename({ sdk, id, original, source, titleRevision, close }: { sdk: MoguriSdk; id: string; original: string; source: Session["titleSource"]; titleRevision: Session["titleRevision"]; close: () => void }) {
+  const [value, setValue] = useState(original), [saving, setSaving] = useState(false), [error, setError] = useState("");
+  const input = useRef<HTMLInputElement>(null), pending = useRef(false);
+  useLayoutEffect(() => { input.current?.focus(); input.current?.select(); }, []);
+  const save = async () => {
+    if (pending.current) return;
+    if (value === original) { close(); return; }
+    if (!value.trim()) { setError("Give this chat a nonempty name."); input.current?.focus(); return; }
+    pending.current = true; setSaving(true); setError("");
+    try {
+      for (let attempt = 0; ; attempt++) {
+        const state = sdk.getState(), current = state.snapshot?.sessions.find((session) => session.id === id);
+        if (state.status !== "connected" || !current) throw new Error("The original chat is unavailable. Your proposed name is preserved; no other chat was renamed.");
+        const generatedDuringEdit = source === "factory" && titleRevision !== undefined && current.titleSource === "model" && current.titleRevision === titleRevision + 1;
+        if (current.title !== original && !generatedDuringEdit) throw new Error("Another client changed this chat's name. Your proposed name is preserved; review the new name before retrying.");
+        try { await sdk.sessions.rename(id, value, current.revision); break; }
+        catch (failure) { if (attempt || !(failure instanceof ClientError && failure.code === "revision_conflict")) throw failure; }
+      }
+      close();
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "The name was not acknowledged. Your edit is preserved."); }
+    finally { pending.current = false; setSaving(false); }
+  };
+  return <form className="inline-session-rename" aria-label="Rename chat inline" onSubmit={(event) => { event.preventDefault(); void save(); }}
+    onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); if (!pending.current) close(); } }}>
+    <div><input ref={input} aria-label="Chat name" maxLength={128} value={value} disabled={saving} onChange={(event) => setValue(event.target.value)} />
+      <button type="submit" className="icon-button" aria-label="Save chat name" disabled={saving}><Icon name="Check" /></button>
+      <button type="button" className="icon-button" aria-label="Cancel chat rename" disabled={saving} onClick={close}><Icon name="Close" /></button></div>
+    {saving && <span className="fine-print" role="status">Saving name...</span>}
+    {error && <Alert as="p" role="alert">{error}</Alert>}
+  </form>;
+}
 function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }: { edit: Edit; sdk: MoguriSdk; snapshot: Snapshot; close: () => void; chooseSession: (id: string) => Promise<void>; detach: (session: Session) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(edit.kind === "color" ?
     (snapshot.projectConfigurations.find((entry) => entry.projectId === edit.project!.id) ?? defaultProjectConfiguration(edit.project!.id)).color :
     edit.kind === "folder-color" ? groupColor(edit.folder!) :
-    edit.kind === "rename" ? edit.session!.title : edit.kind === "relocate" ? edit.project!.path : edit.kind === "attach" ? edit.session!.parentSessionId ?? "" : "");
+    edit.kind === "relocate" ? edit.project!.path : edit.kind === "attach" ? edit.session!.parentSessionId ?? "" : "");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -626,21 +709,19 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
   };
   useEffect(() => {
     ref.current?.showModal();
-    if (edit.kind === "rename") { nameInput.current?.focus(); nameInput.current?.select(); }
   }, []);
   useEffect(() => { void loadArtifacts(); }, []);
   const destructive = edit.kind === "remove-project";
   const currentArtifacts = snapshot.artifacts.filter((artifact) => artifact.projectId === edit.project?.id);
   const staleArtifacts = edit.kind === "remove-project" && (!artifactPreview || currentArtifacts.length !== artifactPreview.artifacts.length || currentArtifacts.some((artifact) => !artifactPreview.artifacts.some((entry) => entry.id === artifact.id && entry.revision === artifact.revision)));
   const artifactChoiceMissing = edit.kind === "remove-project" && Boolean(artifactPreview?.artifacts.length) && (!artifactAction || artifactAction === "export" && !exportedDigest || artifactAction === "materialize" && (!materialized || materialized.setDigest !== artifactPreview?.digest));
-  const titles: Record<EditKind, string> = { rename: "Rename", attach: "Attach session", group: "Session group", "new-group": "New session group", folder: "Project folder", "new-folder": "New project folder", "merge-projects": "New project group", color: "Project color", "folder-color": "Project group color", pr: "Session from PR", work: "Session from work item", relocate: "Change attached folder", "remove-project": "Remove project" };
+  const titles: Record<EditKind, string> = { attach: "Attach session", group: "Session group", "new-group": "New session group", folder: "Project folder", "new-folder": "New project folder", "merge-projects": "New project group", color: "Project color", "folder-color": "Project group color", pr: "Session from PR", work: "Session from work item", relocate: "Change attached folder", "remove-project": "Remove project" };
   const submit = async () => {
     setBusy(true); setError("");
     try {
       const configuration = edit.project ? (await sdk.projects.configuration(edit.project.id)).configuration : null;
       const requiredProject = () => { if (!edit.project) throw new Error("This action needs a selected project."); return edit.project; };
       switch (edit.kind) {
-        case "rename": await sdk.sessions.rename(edit.session!.id, value); break;
         case "attach":
           if (!value && edit.session!.parentSessionId) { detach(edit.session!); return; }
           await sdk.sessions.organize(edit.session!.id, { parentSessionId: value || null }); break;

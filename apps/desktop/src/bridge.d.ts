@@ -1,16 +1,27 @@
 import type { ArtifactExport, BrowserState, Connection } from "../../../packages/protocol/src/index.ts";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
+import type { StartupContext } from "./startup-cache.ts";
 
+export type DesktopStartupPhase = "window" | "service" | "profile" | "preferences" | "native" | "ready" | "failed";
+export interface DesktopStartupStatus {
+  phase: DesktopStartupPhase;
+  elapsedMs: number;
+  totalMs: number;
+  completed: Array<{ phase: DesktopStartupPhase; durationMs: number }>;
+}
 export interface DesktopBridge {
   previewHtml(input: import("../../../packages/sdk/src/index.ts").HtmlPreviewInput, profileId: string): Promise<void>;
   onHtmlDismiss(listener: (attachmentId: string) => void): () => void;
   connection(): Promise<Connection>;
+  startupContext(): Promise<StartupContext>;
+  startupStatus(): Promise<DesktopStartupStatus>;
   profile(profileId?: string): Promise<string>;
   chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
-  audioPermission(input: { profileId: string; purpose: "capture" | "devices" | "standby"; sessionId?: string; jobId?: string }): Promise<string>;
+  audioPermission(input: { profileId: string; purpose: "capture" | "devices"; sessionId?: string; jobId?: string }): Promise<string>;
+  audioPermission(input: { profileId: string; purpose: "standby"; sessionId: string }): Promise<string | null>;
   releaseAudioPermission(id: string): Promise<void>;
   onAudioStop(listener: () => void): () => void;
   chooseNotificationSound(profileId: string): Promise<{ name: string; audio: string } | null>;

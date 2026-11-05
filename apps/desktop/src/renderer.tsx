@@ -1,15 +1,78 @@
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App.tsx";
-import { MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { StartupWorkspace } from "./StartupWorkspace.tsx";
+import { readStartupProfile, readStartupView, type OpeningDraft, type StartupView } from "./startup-cache.ts";
+import type { AppProps } from "./App.tsx";
+import type { MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { DesktopStartupPhase } from "./bridge.d.ts";
 import "./styles.css";
 
 const root = createRoot(document.getElementById("root")!);
-try {
-  const connection = await window.moguri.connection();
-  const profileId = await window.moguri.profile();
-  const client = new MoguriSdk(connection, () => window.moguri.connection(), profileId);
-  root.render(<App client={client} />);
-  await client.connect();
-} catch (error) {
-  root.render(<main className="startup-error"><h1>Moguri could not connect</h1><p>{error instanceof Error ? error.message : "Inspect the local service log, then reopen Moguri."}</p></main>);
+function DesktopStartup() {
+  const [view, setView] = useState<StartupView | null>(null);
+  const [draft, setDraft] = useState<OpeningDraft | null>(null);
+  const [phase, setPhase] = useState<DesktopStartupPhase>("window");
+  const [error, setError] = useState<string | null>(null), [cacheError, setCacheError] = useState<string | null>(null);
+  const [live, setLive] = useState<{ App: ComponentType<AppProps>; client: MoguriSdk; scopeKey: string | null; view: StartupView | null } | null>(null);
+  const draftRef = useRef(draft); draftRef.current = draft;
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (draftRef.current?.text) { event.preventDefault(); event.returnValue = ""; } };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, []);
+  useEffect(() => {
+    let active = true, failed = false, client: MoguriSdk | undefined;
+    const begin = async () => {
+      const context = await window.moguri.startupContext();
+      let profileId = context.profileId, cached: StartupView | null = null;
+      try {
+        profileId = readStartupProfile(localStorage, context);
+        cached = context.scopeKey ? readStartupView(localStorage, context.scopeKey, profileId) : null;
+      } catch (error) {
+        console.error("Moguri startup presentation cache is unavailable:", error instanceof Error ? error.message : "invalid cache");
+        if (active) setCacheError("The last-known view cache is unavailable. Live data will be loaded without replacing your local draft.");
+      }
+      if (!active) return;
+      setView(cached);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      const sdk = await import("../../../packages/sdk/src/index.ts");
+      const [{ App }, ready] = await Promise.all([import("./App.tsx"), (async () => {
+        const connection = await window.moguri.connection();
+        if (!active || failed) return null;
+        const selected = await window.moguri.profile();
+        if (profileId !== selected) await window.moguri.profile(profileId);
+        if (!active || failed) return null;
+        client = new sdk.MoguriSdk(connection, () => window.moguri.connection(), profileId);
+        await client.ready();
+        if (!active || failed) { client.disconnect(); return null; }
+        return client;
+      })()]);
+      if (!active || !ready) return;
+      const liveContext = await window.moguri.startupContext();
+      if (!active) { ready.disconnect(); return; }
+      const matching = cached && cached.scopeKey === liveContext.scopeKey && cached.storeId === ready.connection.storeId && cached.profileId === ready.profileId ? cached : null;
+      if (cached && !matching) console.error("The cached startup view belongs to different retained state. Its draft was not rebound.");
+      setLive({ App, client: ready, scopeKey: liveContext.scopeKey, view: matching });
+    };
+    void begin().catch((error: unknown) => {
+      failed = true; client?.disconnect();
+      if (active) { setPhase("failed"); setError(error instanceof Error ? error.message : "Inspect the original service log; no request was replayed."); }
+    });
+    return () => { active = false; client?.disconnect(); };
+  }, []);
+  useEffect(() => {
+    if (live || error) return;
+    let active = true, pending = false;
+    const progress = setInterval(() => {
+      if (pending) return; pending = true;
+      void window.moguri.startupStatus().then((status) => { if (active) setPhase(status.phase); })
+        .catch((error: unknown) => { console.error("Startup progress is unavailable:", error instanceof Error ? error.message : "native diagnostics failed"); })
+        .finally(() => { pending = false; });
+    }, 500);
+    return () => { active = false; clearInterval(progress); };
+  }, [live, error]);
+  return live ? <live.App client={live.client} startupScope={live.scopeKey} startupView={live.view} openingDraft={draft}
+    onOpeningDraftHandled={(id) => setDraft((current) => current?.id === id ? null : current)} /> :
+    <StartupWorkspace view={view} phase={phase} error={error} cacheError={cacheError} draft={draft} change={setDraft} />;
 }
+root.render(<DesktopStartup />);

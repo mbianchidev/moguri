@@ -30,6 +30,33 @@ async function speechFixture(args: string[] = [], shortcutMode?: "hold" | "toggl
   return { fixture, sdk };
 }
 
+test("default-enabled but unconfigured dictation creates neither audio graphs nor microphone requests while opening chats", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await page.addInitScript(() => {
+      const increment = (key: string) => { document.documentElement.dataset[key] = String(Number(document.documentElement.dataset[key] ?? "0") + 1); };
+      window.AudioContext = new Proxy(window.AudioContext, { construct(target, args) { increment("audioGraphs"); return Reflect.construct(target, args); } });
+      const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = async (input) => { increment("mediaRequests"); return get(input); };
+    });
+    await page.reload();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    for (let index = 0; index < 3; index++) {
+      const created = await sdk.sessions.create(null, `Generated unconfigured voice chat ${index}`);
+      await page.locator(`.session-link[data-session-id="${created.id}"]`).click();
+      await expect(page.getByRole("button", { name: "Start local dictation", exact: true })).toHaveAttribute("title", /Set up local dictation/);
+      expect(await page.evaluate(() => ({ graphs: Number(document.documentElement.dataset.audioGraphs ?? 0),
+        microphones: Number(document.documentElement.dataset.mediaRequests ?? 0) }))).toEqual({ graphs: 0, microphones: 0 });
+    }
+    expect(sdk.settings.get()!.values.voice.enabled).toBe(true);
+    expect(sdk.getState().snapshot?.jobs.some((job) => job.kind === "voice.capture" || job.kind === "voice.prepare")).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("default Ctrl+Space is held push-to-talk despite the obsolete false button preference and survives cold admission", async () => {
   const { fixture, sdk } = await speechFixture(["--listener-delay", "300", "--buffered-ready"]), app = await launch(fixture.directory);
   expect(sdk.settings.get()!.values.voice.pushToTalk).toBe(false);
@@ -56,6 +83,65 @@ test("default Ctrl+Space is held push-to-talk despite the obsolete false button 
     expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
     expect(fixture.requests).toHaveLength(0);
   } finally { gate.resolve(); await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("native microphone permissions reject malformed purposes rather than treating them as device discovery", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    const rejected = await page.evaluate(async (profileId) => {
+      const results: boolean[] = [];
+      for (const purpose of [["standby"], ["devices"], null, {}, "generated-unknown-purpose"]) {
+        try {
+          const grant: unknown = await Reflect.apply(window.moguri.audioPermission, window.moguri, [{ profileId, purpose }]);
+          if (typeof grant === "string") await window.moguri.releaseAudioPermission(grant);
+          results.push(false);
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes("explicit audio-only action")) throw error;
+          results.push(true);
+        }
+      }
+      return results;
+    }, sdk.profileId);
+    expect(rejected).toEqual([true, true, true, true, true]);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("configured dictation never requests microphone access just because a chat gains focus", async () => {
+  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await page.addInitScript(() => {
+      const get = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = async (input) => {
+        document.documentElement.dataset.focusMicrophones = String(Number(document.documentElement.dataset.focusMicrophones ?? "0") + 1);
+        return get(input);
+      };
+    });
+    await page.reload();
+    for (let index = 0; index < 3; index++) {
+      const created = await sdk.sessions.create(null, `Generated microphone focus chat ${index}`);
+      await page.locator(`.session-link[data-session-id="${created.id}"]`).click();
+      const prompt = page.getByLabel("Prompt", { exact: true });
+      await prompt.focus();
+      await expect(prompt).toBeFocused();
+      await page.locator(".composer-mic").focus();
+      await prompt.focus();
+      await expect(prompt).toBeFocused();
+      expect(await page.evaluate(() => Number(document.documentElement.dataset.focusMicrophones ?? "0"))).toBe(0);
+    }
+    expect(sdk.getState().snapshot?.jobs.some((job) => job.kind === "voice.capture")).toBe(false);
+    await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(await page.evaluate(() => Number(document.documentElement.dataset.focusMicrophones))).toBe(1);
+    await page.getByRole("button", { name: "Stop local dictation", exact: true }).click();
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("only an explicit shortcut toggle choice survives key release and remains selected after renderer reload", async () => {
@@ -127,7 +213,8 @@ test("consented focused standby reuses one generated microphone and disable clos
       };
     });
     await prompt.focus();
-    await expect(page.getByRole("status").filter({ hasText: "Microphone ready in this focused composer" })).toBeVisible();
+    await expect(microphone).toHaveAttribute("data-armed", "true");
+    await expect(page.getByText("Microphone ready in this focused composer. Standby is enabled; no audio is being recorded.", { exact: true })).toHaveCount(0);
     expect(await page.evaluate(() => Reflect.get(window, "generatedStandbyCalls"))).toBe(1);
     expect(fixture.service.controller.snapshot().jobs.some((job) => job.kind === "voice.capture")).toBe(false);
     await page.keyboard.press("Control+Space");

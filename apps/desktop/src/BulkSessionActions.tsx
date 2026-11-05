@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { sessionSubtree, type BulkSessionAction, type BulkSessionInput, type BulkSessionPreview, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
-export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal }: {
+export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, request, busyChanged }: {
   sdk: MoguriSdk; snapshot: Snapshot; ids: string[]; clear: () => void;
   prepare?: (id: string) => Promise<void>; modal: (open: boolean) => void;
+  request?: { action: BulkSessionAction; nonce: number } | null; busyChanged?: (busy: boolean) => void;
 }) {
   const selected = ids.map((id) => snapshot.sessions.find((session) => session.id === id));
   const allDetached = selected.every((session) => session && !session.parentSessionId);
@@ -12,6 +13,7 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal }
   const [input, setInput] = useState<BulkSessionInput | null>(null), [preview, setPreview] = useState<BulkSessionPreview | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [remember, setRemember] = useState(false), [confirmed, setConfirmed] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null), cancel = useRef<HTMLButtonElement>(null), generation = useRef(0), pending = useRef(false), preparing = useRef(false);
+  const handled = useRef<number | null>(null);
   const original = input?.sessionIds ?? [], originalSet = new Set(original);
   const descendants = [...new Map(original.flatMap((id) => sessionSubtree(snapshot.sessions, id)).map((session) => [session.id, session])).values()]
     .filter((session) => !originalSet.has(session.id));
@@ -24,6 +26,7 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal }
     return !session || session.revision !== source.revision || session.parentSessionId !== source.parentSessionId || session.status !== source.status;
   }));
   useEffect(() => { modal(Boolean(input || busy)); return () => modal(false); }, [input, busy, modal]);
+  useEffect(() => { busyChanged?.(Boolean(input || busy)); return () => busyChanged?.(false); }, [input, busy, busyChanged]);
   useEffect(() => { if (input && !dialog.current?.open) { dialog.current?.showModal(); cancel.current?.focus(); } }, [Boolean(input)]);
   useEffect(() => {
     if (!input || input.action === "attach" && !input.targetSessionId || needsChoice && !input.children) { setPreview(null); return; }
@@ -67,13 +70,14 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal }
     } catch (error) { setError(error instanceof Error ? error.message : "The original selection could not be prepared. Saved drafts were preserved."); }
     finally { preparing.current = false; setBusy(false); }
   };
+  useEffect(() => {
+    if (!request || handled.current === request.nonce) return;
+    handled.current = request.nonce;
+    void begin(request.action);
+  }, [request]);
   return <section className="bulk-session-actions" aria-label="Selected session actions">
-    <p role="status">{ids.length} selected in this project. Pins override priority; stored order breaks priority ties.</p>
+    <p role="status">{ids.length} selected. Right-click a highlighted session for actions.</p>
     <div className="button-row">
-      <button type="button" disabled={busy || ids.length < 2 || !allDetached} onClick={() => void begin("attach")}>Attach selected</button>
-      <button type="button" disabled={busy || ids.length < 2 || !allAttached} onClick={() => void begin("detach")}>Detach selected</button>
-      <button type="button" disabled={busy || ids.length < 2 || selected.some((session) => !session || session.status === "archived")} onClick={() => void begin("archive")}>Archive selected</button>
-      <button type="button" className="danger" disabled={busy || ids.length < 2} onClick={() => void begin("delete")}>Delete selected</button>
       <button type="button" disabled={busy} onClick={clear}>Done selecting</button>
     </div>
     {!allAttached && !allDetached && <p className="fine-print">Attach/detach needs all selected sessions in the same attachment state.</p>}

@@ -24,4 +24,5 @@ test("settings search combines category and control aliases without reading user
   assert.deepEqual(ids("input device"), ["providers", "permissions", "sendbox", "skills", "voice"]);
   assert.deepEqual(ids("zzzzzzzz-no-such-setting"), []);
   assert.ok(ids("voice").includes("voice"));
+  assert.ok(ids("chat naming").includes("providers"));
 });

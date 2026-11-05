@@ -11,8 +11,10 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const transcript = useRef(options.onTranscript); transcript.current = options.onTranscript;
   const sessionId = session?.id;
   const standby = useRef<BrowserMicrophonePreparation | undefined>(undefined);
-  const standbyPending = useRef<Promise<BrowserMicrophonePreparation> | undefined>(undefined);
+  const standbyPending = useRef<Promise<BrowserMicrophonePreparation | undefined> | undefined>(undefined);
   const [standbyReady, setStandbyReady] = useState(false), [preparationError, setPreparationError] = useState("");
+  const [readinessDiagnostic, setReadinessDiagnostic] = useState<string | null>(null);
+  const [readiness, setReadiness] = useState<{ sdk: MoguriSdk; key: string; ready: boolean } | null>(null);
   const driver = useMemo(() => {
     const id = () => { if (!sessionId) throw new Error("Choose an actual chat before dictating. No hidden session was created."); return sessionId; };
     let preparation: BrowserAudioPreparation | undefined, warmed: BrowserAudioPreparation | undefined;
@@ -81,18 +83,26 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
   const connected = sdk.getState().status === "connected", enabled = options.shortcuts && options.active !== false && voiceEnabled;
   const shortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
   const pushToTalk = voiceShortcutMode(snapshot.settings.values.voice) === "hold";
+  const lifecycle = snapshot.jobs.findLast((job) => ["voice.download", "voice.disable"].includes(job.kind));
+  const readinessKey = JSON.stringify([snapshot.settings.values.voice.backend, lifecycle?.id, lifecycle?.status]);
   useEffect(() => {
-    if (voiceEnabled && connected && options.active !== false && sessionId && ["idle", "failed"].includes(state.phase)) driver.warm();
+    if (voiceEnabled && connected && options.active !== false && sessionId && readiness?.sdk === sdk && readiness.key === readinessKey &&
+      readiness.ready && ["idle", "failed"].includes(state.phase)) driver.warm();
     return () => { void driver.close()?.catch((error: unknown) => console.error("Original audio warm-up cleanup failed:", error instanceof Error ? error.message : "unconfirmed graph cleanup")); };
-  }, [driver, connected, options.active, sessionId, state.phase, voiceEnabled]);
+  }, [driver, connected, options.active, sessionId, state.phase, voiceEnabled, sdk, readiness, readinessKey]);
   useEffect(() => { if (!voiceEnabled) void cancel("Voice dictation was disabled. Raw audio was discarded; inserted words were preserved."); }, [voiceEnabled, cancel]);
   useEffect(() => { if (!connected) void cancel("The original control plane disconnected. Microphone capture stopped; inserted words were preserved."); }, [connected, cancel]);
-  const lifecycle = snapshot.jobs.findLast((job) => ["voice.download", "voice.disable"].includes(job.kind));
   useEffect(() => {
     if (!voiceEnabled || !connected || options.active === false || lifecycle?.kind === "voice.download" && lifecycle.status !== "completed") return;
     let current = true;
     setPreparationError("");
-    void sdk.voice.prepare().then(async (result) => {
+    setReadiness({ sdk, key: readinessKey, ready: false });
+    void sdk.voice.status().then(async ({ voice }) => {
+      if (!current) return;
+      setReadiness({ sdk, key: readinessKey, ready: voice.runtimeReady && voice.modelReady });
+      if (!voice.runtimeReady || !voice.modelReady) { setReadinessDiagnostic(voice.diagnostic); return; }
+      setReadinessDiagnostic(null);
+      const result = await sdk.voice.prepare();
       if (!result.id) return;
       const job = await sdk.jobs.wait(result.id, { timeoutMs: 180_000 });
       if (job.status !== "completed") throw new Error(job.error ?? `Local recognizer preparation ${job.status}. No microphone or cloud fallback was used.`);
@@ -116,8 +126,8 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
       const promise = prepareBrowserMicrophone(sdk.profileId, sessionId, snapshot.settings.values.voice.inputDeviceId ?? "default", request.signal);
       standbyPending.current = promise;
       void promise.then(async (microphone) => {
-        if (disposed || preparing !== request || request.signal.aborted) { await microphone.close(); return; }
-        standby.current = microphone; preparing = undefined; standbyPending.current = undefined; setStandbyReady(true);
+        if (disposed || preparing !== request || request.signal.aborted) { await microphone?.close(); return; }
+        standby.current = microphone; preparing = undefined; standbyPending.current = undefined; setStandbyReady(Boolean(microphone));
       }).catch((error: unknown) => { if (standbyPending.current === promise) standbyPending.current = undefined; if (!request.signal.aborted && !disposed) setPreparationError(error instanceof Error ? error.message : "Standby microphone unavailable. No device was substituted."); });
     };
     document.addEventListener("focusin", focus); window.addEventListener("focus", focus); window.addEventListener("blur", release);
@@ -151,7 +161,7 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
     window.addEventListener("keydown", down); window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); if (held) void cancel("The voice shortcut was interrupted before release. Raw audio was discarded; inserted words were preserved.", held); };
   }, [enabled, connected, session?.status, sessionId, controller, shortcut, pushToTalk, options.globalShortcut, start, finish, cancel, toggle]);
-  return { state, start, finish, cancel, toggle, standbyReady, preparationError };
+  return { state, start, finish, cancel, toggle, standbyReady, preparationError, readinessDiagnostic };
 }
 
 export function useDictationTranscript(sdk: MoguriSdk, sessionId: string | undefined, jobId: string | undefined) {

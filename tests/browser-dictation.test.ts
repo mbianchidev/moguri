@@ -118,6 +118,36 @@ test("streaming captures deliver partial text while held and finish once even wh
   } finally { controller.dispose(); }
 });
 
+test("release flushes an already acquired microphone while readiness acknowledgement is still pending", async () => {
+  const ready = Promise.withResolvers<void>(), partial = Promise.withResolvers<void>(), updates: Array<{ text: string; final: boolean }> = [];
+  let acquired = false, finishes = 0, cancellations = 0, appended = 0;
+  const controller = new SpeechCaptureController({
+    begin: async () => ({ id: "generated-opening-pcm", token: "generated-opening-lease" }),
+    acquire: async (_lease, _device, _signal, _failed, received) => {
+      acquired = true; received(new Float32Array(1600).fill(0.1));
+      return { ready: ready.promise, finish: async () => { finishes++; ready.resolve(); return new Float32Array(); }, discard: async () => {} };
+    },
+    upload: async () => { throw new Error("Opening PCM must not become a second batch upload."); },
+    append: async () => { appended++; }, read: async () => ({ text: "Generated opening words", revision: 1 }),
+    finishStream: async () => "Generated opening words.",
+    changed: (_lease, text, final) => { updates.push({ text, final }); if (!final) partial.resolve(); },
+    cancel: async () => { cancellations++; },
+  });
+  try {
+    const starting = controller.start("generated-device");
+    while (!acquired) await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(controller.getState().phase, "starting");
+    await partial.promise;
+    assert.deepEqual(updates.at(-1), { text: "Generated opening words", final: false });
+    await controller.finish(); await starting;
+    assert.equal(finishes, 1); assert.equal(appended, 1); assert.equal(cancellations, 0);
+    assert.deepEqual(updates.at(-1), { text: "Generated opening words.", final: true });
+    assert.equal(controller.getState().phase, "idle");
+    assert.equal(controller.getState().error, null);
+  } finally { ready.resolve(); controller.dispose(); }
+});
+
 test("a stale poll rejection cannot cancel the original buffer while its final receipt is pending", async () => {
   const poll = Promise.withResolvers<{ text: string; revision: number }>(), final = Promise.withResolvers<string>();
   const updates: Array<{ text: string; final: boolean }> = [];

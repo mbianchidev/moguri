@@ -35,7 +35,7 @@ const paths = await packager({
 const app = resolve(paths[0], "Moguri.app");
 await access(join(app, "Contents", "Resources", "app", "dist", "moguri"), constants.X_OK);
 const nativeRoot = join(app, "Contents", "Resources", "moguri-native"); await mkdir(nativeRoot);
-for (const path of ["manifest.json", native.distribution.vendor.installer.path, native.distribution.worker.archive.path, "SendBox.LICENSE"]) {
+for (const path of ["manifest.json", native.distribution.vendor.installer.path, native.distribution.worker.archive.path, "SendBox.LICENSE", "AppleContainerization.LICENSE"]) {
   await copyFile(join(native.root, path), join(nativeRoot, path));
   await chmod(join(nativeRoot, path), 0o644);
 }

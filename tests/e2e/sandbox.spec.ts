@@ -131,7 +131,9 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await expect.poll(() => session().status).toBe("completed");
     expect(session().pendingApproval).toBeNull();
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
-    expect(session().usage.map((usage) => usage.totalTokens)).toEqual([42, 42, 42]);
+    expect(session().usage.filter((usage) => usage.role === "solver").map((usage) => usage.totalTokens)).toEqual([42, 42, 42]);
+    await expect.poll(() => session().usage.filter((usage) => usage.role === "title").map((usage) => usage.totalTokens)).toEqual([42]);
+    expect(session().usage.map((usage) => usage.role)).toEqual(["solver", "solver", "solver", "title"]);
     await openSettingsSection(page, "Sandbox");
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${Buffer.byteLength("generated native replacement\n")} bytes`, { exact: true }).click();

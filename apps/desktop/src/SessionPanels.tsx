@@ -154,6 +154,7 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
 export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [url, setUrl] = useState(session.browserUrl ?? "");
   const [error, setError] = useState("");
+  const [statusError, setStatusError] = useState("");
   const [browser, setBrowser] = useState<BrowserState | null>(null);
   const [enabled, setEnabled] = useState(false);
   const latest = useRef(session); latest.current = session;
@@ -192,11 +193,12 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
       try {
         const { browser } = await sdk.browser.state(session.id);
         if (!disposed) {
+          setStatusError("");
           setBrowser(browser);
           if (!controlPending.current) setEnabled(Boolean(browser.controlId));
           if (!urlDirty.current && browser.url && browser.url !== "about:blank") setUrl(browser.url);
         }
-      } catch (error) { if (!disposed) { setEnabled(false); setError(error instanceof Error ? error.message : "Browser authority could not be read."); } }
+      } catch (error) { if (!disposed) { setEnabled(false); setStatusError(error instanceof Error ? error.message : "Browser authority could not be read."); } }
       finally { polling = false; }
     };
     updateHost.current = () => void update();
@@ -235,7 +237,7 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
     <span>{enabled ? "Agent can use this page" : "Agent access off"}</span></div>
     <form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => { urlDirty.current = true; setUrl(event.target.value); }} />
     <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!activeUrl} onClick={() => void window.moguri.openExternal(activeUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
-    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    {(error || statusError) && <Alert as="p" className="inline-error" role="alert">{error || statusError}</Alert>}
     <div ref={host} className="browser-host">{!session.browserUrl && <p>Enter a preview URL. This isolated view has no Moguri bridge, account cookies, filesystem access or automatic model context.</p>}</div>
     <p className="terminal-boundary">{enabled ? "Approved browser tools can read and control this page. Turn off Agent control to revoke access immediately." :
       session.controls.env === "Local" ? "Isolated web preview. Agent access is off until you enable it; tool approvals still apply." : "Local preview only. Agent browser control is unavailable in Sandbox and Remote; no Local fallback."}</p>

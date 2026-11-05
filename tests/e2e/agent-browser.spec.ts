@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import sharp from "sharp";
-import { MoguriSdk, isRecord } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, MoguriError, isRecord } from "../../packages/sdk/src/index.ts";
 import { setupFixture, type GeneratedProviderOptions } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -148,6 +148,36 @@ test("the session browser has a sliding agent access toggle with native button k
     await toggle.click();
     await expect(toggle).not.toBeChecked();
   } finally { await owned.close(); }
+});
+
+test("one failed original host poll revokes agent access but recovers the same native owner without replaying an action", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  const query = owned.fixture.service.controller.platform.query.bind(owned.fixture.service.controller.platform);
+  let failed = false, recoveryReads = 0;
+  try {
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click(); await expect(toggle).toBeChecked();
+    const original = await owned.app.evaluate(({ webContents }, url) => webContents.getAllWebContents().find((contents) => contents.getURL() === url)?.id, owned.url);
+    owned.fixture.service.controller.platform.query = async (...args: Parameters<typeof query>) => {
+      if (args[0].type === "browser.host.poll") {
+        if (!failed) { failed = true; throw new MoguriError("request_failed", "Generated original browser poll transport failed.", 503); }
+        recoveryReads++;
+      }
+      return query(...args);
+    };
+    await expect.poll(() => failed).toBe(true);
+    await expect(toggle).not.toBeChecked();
+    await expect.poll(() => recoveryReads).toBeGreaterThan(0);
+    await expect(toggle).toBeEnabled();
+    await toggle.click(); await expect(toggle).toBeChecked();
+    const state = (await sdk.browser.state(owned.fixture.sessionId)).browser;
+    expect(state.controlId).not.toBeNull();
+    const snapshot = await callBrowser(owned, sdk, "browser_snapshot", { controlId: state.controlId });
+    expect(snapshot.job.status).toBe("completed");
+    expect(await owned.app.evaluate(({ webContents }, url) => webContents.getAllWebContents().find((contents) => contents.getURL() === url)?.id, owned.url)).toBe(original);
+    expect(owned.fixture.requests).toHaveLength(0);
+    expect(owned.requests.filter((path) => path === "/")).toHaveLength(1);
+  } finally { owned.fixture.service.controller.platform.query = query; sdk.disconnect(); await owned.close(); }
 });
 
 test("approved browser tools navigate, inspect, fill, click and press keys in the existing pane", async () => {

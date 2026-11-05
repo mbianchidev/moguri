@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { cloneRepositoryFixture } from "../fixtures/clone-repository.ts";
-import { openModelChoices } from "./navigation.ts";
+import { openModelChoices, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -183,6 +183,7 @@ test("cancelling an actual clone in Start preserves the partial destination and 
   try {
     source.hold();
     const page = await app.firstWindow(), before = fixture.service.controller.snapshot().sessions.length;
+    await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }, path) => { ipcMain.removeHandler("moguri:choose-project"); ipcMain.handle("moguri:choose-project", () => path); }, fixture.directory);
     await page.getByRole("button", { name: "New", exact: true }).click();
     const start = page.getByRole("dialog", { name: "New", exact: true });

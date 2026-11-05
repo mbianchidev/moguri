@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { setupFixture } from "../fixture.ts";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { focusByKeyboard } from "./navigation.ts";
+import { focusByKeyboard, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The desktop experience is qualified on macOS.");
@@ -60,6 +60,7 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
 
   try {
     const page = await app.firstWindow();
+    await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler("moguri:copy-text");
       ipcMain.handle("moguri:copy-text", (_event, text: string) => { process.env.MOGURI_GENERATED_COPY = text; });
@@ -103,6 +104,7 @@ test("clicked icon tooltips leave with the pointer without stealing focus or bre
   });
   try {
     const page = await app.firstWindow(), settings = page.getByRole("button", { name: "Settings", exact: true });
+    await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler("moguri:copy-text");
       ipcMain.handle("moguri:copy-text", (_event, text: string) => { process.env.MOGURI_GENERATED_COPY = text; });
