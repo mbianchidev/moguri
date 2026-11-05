@@ -4,6 +4,7 @@ import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSett
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
+import { RepositoryRemotePanel } from "./RepositoryRemotePanel.tsx";
 import { Alert } from "./Alert.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
@@ -17,6 +18,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const [busy, setBusy] = useState(false);
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [boardDirty, setBoardDirty] = useState(false);
+  const [remoteDirty, setRemoteDirty] = useState(false);
   const [repositories, setRepositories] = useState<ProjectRepositoryLayout | null>(null);
   const presentation = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id);
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(values) !== JSON.stringify(committed);
@@ -47,7 +49,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "The actual repository layout could not be verified. No upstream control was enabled."); } });
     return () => { current = false; };
   }, [sdk, project.id, project.path, available, JSON.stringify(presentation.values.deniedFolders)]);
-  useEffect(() => { onDirty(dirty || busy || boardDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, onDirty]);
+  useEffect(() => { onDirty(dirty || busy || boardDirty || remoteDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, remoteDirty, onDirty]);
   const committedRevision = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id)?.revision ?? 0;
   useEffect(() => {
     if (available && loaded && !ownSave.current && committedRevision !== revision) {
@@ -125,6 +127,8 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <p className="fine-print">{repositories?.diagnostic ?? "Verifying the bounded Local repository layout before exposing an upstream control."}{repositories?.complete && repositories.roots.length === 1 ? ` Actual repository: ${repositories.roots[0]}. This preference never rebinds the session's root.` : " An upstream control requires exactly one verified repository, including nested roots."}</p>
     <label className="setting-field">Branch name pattern<SettingsInput value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     {saveButton("repo", "Save repository settings")}
+    <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={committed.repo.upstream}
+      disabled={!available || !loaded || dirty || busy} onDirty={setRemoteDirty} />
     <p className="fine-print">Placeholders: {"{slug}"} and {"{id}"}. Binding a PR or creating a session does not silently change this folder's checkout.</p>
     <SettingsHelp label="More about this setting" target={<label className="setting-field">GitHub read access<select aria-label="GitHub read access" value={values.repo.githubAccess} onChange={(event) => automatic("repo", { githubAccess: event.target.value === "gh-cli" ? "gh-cli" : "public" })}><option value="public">Public API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>}>Repository attribution uses the selected session's Local or pinned SSH account. Its review shows the actual host before lookup. Linked-PR observation and client attachments remain control-plane reads.</SettingsHelp>
     <SettingsHelp label="More about this setting" target={<h3>New-session defaults</h3>}>Overrides profile/global preferences for new sessions only. Existing sessions keep their saved controls and source snapshot; policy still wins.</SettingsHelp>{json("defaults", "Project startup control overrides")}

@@ -1,11 +1,77 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **90**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **91**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
-### Opening and last-view restoration
+## Importing repositories and changing a remote
+
+Open **Settings / Repositories**, paste one HTTPS/SSH repository URL per line
+(ordinary `-`, `*`, `+` and numbered lists also work), and choose an existing
+Local parent folder. **Preview repository import** shows every normalized URL,
+absolute destination, duplicate, existing registration and matching checkout.
+Host/namespace-qualified folder names keep repositories with identical names
+separate. Correct invalid/conflicting entries, review the complete set, then
+choose **Import reviewed repositories**.
+
+The service owns one sequential batch with retained per-repository progress.
+**Cancel repository import** stops remaining dispatches, preserves successful
+registrations and keeps any partial directories for inspection. Reopening
+Settings or reconnecting shows the original batch; restart and lost receipts
+never replay an import. Existing matching checkouts are only registered, not
+fetched or overwritten. A retained uncertain destination is not assumed absent.
+Uninspected partial entries retain their writer boundary. After inspecting the
+original files and possible processes, explicitly acknowledge that exact entry
+to release its hold. Acknowledgement is not cleanup proof, success or a retry.
+
+Cloning uses existing SSH keys and known-hosts verification, never an implicit
+GitHub/Copilot login or credential copy. HTTPS authentication failures,
+private/unavailable repositories and moved URLs are explicit failures. Supply
+the current URL after a move; automatic HTTP redirects, hooks, filters,
+submodules and lifecycle scripts are disabled. The existing five-minute
+per-repository process safety deadline is unchanged. This flow is explicitly
+Local and remains blocked when policy forbids Local execution.
+
+Under **Settings / Project / Repository / Change remote URL**, enter the
+configured remote name and its new credential-free HTTPS/SSH URL. Review the
+old fetch/explicit push URLs, canonical common Git config and **all affected
+linked worktrees**, then confirm the exact change. Existing branches, index,
+dirty files, unrelated remotes and original PR/candidate sources are preserved.
+There is no fetch, push, authentication or SSH/Sandbox root substitution.
+Ambiguous URL rewrites, worktree overrides, stale review and active owners
+block the change rather than choosing an alternative config.
+Existing same-repository HTTPS-to-SSH rewrites remain usable: review each
+worktree's displayed **Effective fetch** and **Effective push** destinations.
+
+Future Git/GitHub views use the new URL and a freshly verified account. Old
+reviews/metadata are invalidated; remembered Local command/Git approvals scoped
+to affected projects/sessions need fresh approval. Global policy remains
+authoritative. A partial remote change is inspectable through retained Git
+history, never automatically retried or labeled restored.
+
+The same SDK powers CLI/TUI:
+
+```sh
+moguri project import-preview repositories.txt --root /absolute/parent
+moguri project import repositories.txt --root /absolute/parent --digest REVIEW_SHA --confirm-review
+moguri project imports
+moguri project import-wait BATCH_ID
+moguri project import-read BATCH_ID
+moguri project import-stop BATCH_ID
+moguri project remote-preview PROJECT_ID origin https://github.com/new-owner/repository.git
+moguri project remote-set PROJECT_ID origin https://github.com/new-owner/repository.git --digest REVIEW_SHA --confirmations 'EXACT_CONFIRMATIONS_JSON' --confirm-write
+```
+
+In the TUI use `/repositories preview {"text":"URL\nURL","parent":"/absolute/parent"}`
+then `/repositories import SHA confirm-reviewed INPUT_JSON`; `list`, `read ID`
+and `stop ID confirm-stop` inspect/control the same batch. `/git remote-preview
+{"remote":"origin","url":"URL"}` and `/git remote-set confirm-write
+{"action":{"kind":"git.remote.set","remote":"origin","url":"URL"},"expectedDigest":"SHA","confirmations":[...]}` use the selected exact Local session root.
+The [repository-management contract](architecture/repository-management.md)
+records protocol-91 migration, ownership and recovery boundaries.
+
+## Opening and last-view restoration
 
 The desktop can show its last-view layout and cached model/effort labels
 while the original backend connects. You may type a temporary local draft;

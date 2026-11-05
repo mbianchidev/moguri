@@ -7,7 +7,8 @@ import { Alert } from "./Alert.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.read" }>;
 type Browse = Extract<GithubResponse, { type: "github.browse" }>;
-const actions: Array<[GithubAction["kind"], string]> = [
+type PanelAction = Exclude<GithubAction["kind"], "git.remote.set">;
+const actions: Array<[PanelAction, string]> = [
   ["git.branch.create", "Create exact local branch"], ["git.branch.rename", "Rename current branch"], ["git.switch", "Switch to existing local branch"],
   ["git.stage", "Stage exact files"], ["git.unstage", "Unstage exact files"], ["git.commit", "Commit selected staged paths"],
   ["git.revert", "Roll back current commit with a new revert commit"],
@@ -23,7 +24,7 @@ const actions: Array<[GithubAction["kind"], string]> = [
 export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: MoguriSdk; project?: Project | null; session?: Session; snapshot: Snapshot }) {
   const uid = useId();
   const api = useMemo(() => createGithubApi(sdk), [sdk]);
-  const [kind, setKind] = useState<GithubAction["kind"]>("git.push");
+  const [kind, setKind] = useState<PanelAction>("git.push");
   const [repository, setRepository] = useState(""), [account, setAccount] = useState(""), [remote, setRemote] = useState("origin");
   const [branch, setBranch] = useState(""), [force, setForce] = useState(false), [onto, setOnto] = useState("");
   const [checkout, setCheckout] = useState(false), [pathsText, setPathsText] = useState("");
@@ -43,6 +44,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const [selectedId, setSelectedId] = useState(""), [read, setRead] = useState<Read | null>(null), [busy, setBusy] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [inspectionReviewed, setInspectionReviewed] = useState(false);
   const pending = useRef(false), generation = useRef(0), resultHeading = useRef<HTMLHeadingElement>(null), focusResult = useRef(false);
+  const inferred = useRef({ repository: "", account: "", base: "", head: "", branch: "" });
   const configuration = snapshot.projectConfigurations.find((value) => value.projectId === project?.id);
   const scope: GithubScope | null = project ? { env: "Local", projectId: project.id, ...(session?.workspaceId ? { workspaceId: session.workspaceId } : {}), ...(session ? { sessionId: session.id } : {}) } : null;
   const requiredScope = (): GithubScope => { if (!scope) throw new Error("Choose an explicit Local project for new Git/GitHub work. Retained inspection needs no source root."); return scope; };
@@ -57,14 +59,19 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   useEffect(() => {
     if (!allowed || !scope) return;
     let current = true;
+    const previous = inferred.current;
     void api.project(scope).then((value) => {
       if (!current) return;
-      setRepository((previous) => previous || value.repository); setAccount((previous) => previous || value.account);
-      setBase((previous) => previous || value.defaultBranch); setHead((previous) => previous || (value.branch === "(detached)" ? "" : value.branch));
-      setBranch((previous) => previous || (value.branch === "(detached)" ? "" : value.branch));
+      const branch = value.branch === "(detached)" ? "" : value.branch;
+      setRepository((current) => !current || current === previous.repository ? value.repository : current);
+      setAccount((current) => !current || current === previous.account ? value.account : current);
+      setBase((current) => !current || current === previous.base ? value.defaultBranch : current);
+      setHead((current) => !current || current === previous.head ? branch : current);
+      setBranch((current) => !current || current === previous.branch ? branch : current);
+      inferred.current = { repository: value.repository, account: value.account, base: value.defaultBranch, head: branch, branch };
     }).catch((error: unknown) => { if (current) setNotice(`GitHub defaults unavailable: ${error instanceof Error ? error.message : "check the exact upstream and CLI account"}. Explicit Git-only inputs remain available.`); });
     return () => { current = false; };
-  }, [api, allowed, project?.id, session?.id, session?.workspaceId]);
+  }, [api, allowed, project?.id, session?.id, session?.workspaceId, configuration?.revision]);
   const selected = records.find((value) => value.id === selectedId), value = read?.operation.id === selected?.id && read?.operation.revision === selected?.revision ? read : null;
   const numbered = ["github.issue.update", "github.issue.comment", "github.pr.update", "github.pr.comment", "github.pr.merge",
     "github.review.submit", "github.review.reply", "github.review.resolve", "github.comment.update", "github.comment.delete"].includes(kind);
@@ -139,7 +146,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     {!allowed && <Alert as="p" tone="warning" className="settings-warning">New work requires an explicitly allowed Local project. No Remote/Sandbox fallback or inherited root. Independently retained inspection remains available without a source project.</Alert>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<Alert as="p" role="status">{busy || notice}</Alert>
     <fieldset disabled={Boolean(busy)} style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}><legend>Exact operation inputs</legend>
-      <label className="setting-field"><span id={`${uid}-operation`}>Git/GitHub operation</span><select aria-labelledby={`${uid}-operation`} value={kind} onChange={(event) => setKind(event.target.value as GithubAction["kind"])}>{actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="setting-field"><span id={`${uid}-operation`}>Git/GitHub operation</span><select aria-labelledby={`${uid}-operation`} value={kind} onChange={(event) => setKind(event.target.value as PanelAction)}>{actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <div className="generation-review">
         <label className="setting-field">GitHub repository (owner/name)<SettingsInput value={repository} onChange={(event) => setRepository(event.target.value)} /></label>
         <label className="setting-field">Explicit controller gh login<SettingsInput value={account} onChange={(event) => setAccount(event.target.value)} autoComplete="off" /></label>

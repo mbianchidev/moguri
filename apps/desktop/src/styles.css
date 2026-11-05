@@ -47,6 +47,12 @@ svg { flex-shrink: 0; }
 .quiet { color: var(--muted); }
 .icon-button { padding: 6px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .button-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.repository-import-list { display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow: auto; padding: 8px 8px 8px 28px; }
+.repository-import-list li { overflow-wrap: anywhere; }
+.repository-import-list .path, .repository-import-list small { display: block; margin-top: 4px; }
+.repository-import-list small { color: var(--muted); line-height: 1.5; }
+.repository-remote { border-top: 1px solid var(--line); padding-top: 10px; min-width: 0; }
+.repository-remote fieldset { display: flex; flex-direction: column; gap: 10px; border: 0; padding: 0; min-width: 0; }
 .github-picker, .session-github, .github-create, .github-write-review { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .session-github { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 14px; }
 .github-picker .setting-field, .github-create .setting-field { margin: 0; min-width: 0; }
