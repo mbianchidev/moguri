@@ -187,7 +187,7 @@ test("a policy explanation offers real keyboard navigation to its exact setting 
     await page.keyboard.press("Shift+Tab"); await expect(hint).not.toBeVisible(); await expect(why).toBeFocused();
     await page.keyboard.press("Enter"); await expect(policyLink).toBeFocused();
     await page.keyboard.press("Tab"); await expect(hint).not.toBeVisible();
-    await expect(page.getByRole("button", { name: "Remote SSH setup", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Sandbox Set up SendBox", exact: true })).toBeFocused();
     await why.focus(); await page.keyboard.press("Enter"); await expect(policyLink).toBeFocused();
     await page.keyboard.press("Escape"); await expect(hint).not.toBeVisible(); await expect(why).toBeFocused();
     await why.click(); await expect(hint).toBeVisible(); await page.mouse.move(2, 2); await expect(hint).not.toBeVisible();
