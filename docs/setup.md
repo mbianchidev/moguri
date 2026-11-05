@@ -2251,12 +2251,25 @@ Saved prompt settings are unchanged; running turns keep their captured prompt.
 
 ### Terminal navigation and shared themes
 
-The original JRPG-style TUI uses double-line menus and an abstract crystal
-cursor, without franchise assets. Click **Current session**, **Sessions**,
-**Work items** or **Code requests** in a mouse-reporting terminal. The same
-routes are `/session`, `/sessions`, `/work-items` and `/code-requests`.
+The chat-first TUI keeps the header and five navigation targets to one row
+each, with a compact session list and an input that grows as you type. The
+accent rail marks your prompt without framing every message. Click
+**Current session**, **Sessions**, **Work items**, **Code requests** or
+**Automations** in a mouse-reporting terminal; narrow terminals use
+**Chat**, **Chats**, **Work**, **Code** and **Auto**. The corresponding
+slash routes remain `/session`, `/sessions`, `/work-items` and `/code-requests`;
+**F9** opens Automations.
 Selecting a tab saves the current draft; it does not send it, answer a question,
 approve a tool or fetch GitHub metadata.
+
+Assistant replies render Markdown, with plain-text code blocks rather than
+language-driven downloads. Completed tool results take one row until expanded
+with the mouse, **F2** or `/details`. Failed, stopped, partial and unconfirmed
+outcomes remain visible. Folding changes only the view, not retained messages
+or model context. The normal view labels its latest-150-message limit;
+**F2** or `/details` exposes the full retained conversation without truncating
+long individual messages. **PgUp/PgDn** scroll history without editing or sending
+the draft. **F3** or **latest** returns to following new output.
 
 **Tab** focuses navigation. **Up/Down** chooses a tab and **Enter** opens it.
 **Left** closes the sidebar and **Right** opens it only in navigation focus.
@@ -2778,8 +2791,9 @@ desktop use it for every capability, not separate client-specific versions.
 `node bin/moguri.mjs --help` lists CLI commands; `status` exposes project/session
 IDs. A normal installation also provides `moguri`.
 
-Desktop starts **dark**, with an original minimal face-and-bat-wing mascot
-shared with the TUI loading ASCII. **Settings / Appearance** selects Dark,
+Desktop starts **dark**, with Moguri's original minimal face-and-bat-wing mascot.
+The TUI uses a compact text wordmark instead of a loading splash.
+**Settings / Appearance** selects Dark,
 Light or System. **Settings / System prompt** and TUI **Ctrl+G** expose the
 actual instructions, a breakage warning and restore defaults. Prompt edits need
 explicit acknowledgement, apply to new turns and cannot override permissions.
