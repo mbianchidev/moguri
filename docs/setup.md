@@ -1013,6 +1013,10 @@ On supported Apple-silicon macOS with Apple Containerization available, the app
 includes SendBox **0.2.4**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
+The installer also carries the pinned public Apple init image used by the
+qualified Apple Containerization 0.10.0 runtime. It is imported with the worker
+archive, rather than downloading a large missing prerequisite inside the
+first guest's startup deadline. Its redistribution notice is included.
 
 Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens
 **Set up SendBox** with its bundled defaults already prepared for review.
