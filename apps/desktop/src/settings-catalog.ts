@@ -3,6 +3,7 @@ import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
 export const SETTINGS_GROUPS = [
   { label: "General", items: [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart" },
+    { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization" },
   ] },
   { label: "Models", items: [
     { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection", aliases: ["chat topic naming", "small local naming model"] },
