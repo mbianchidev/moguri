@@ -4618,8 +4618,9 @@ fixtures, including Copilot device-flow behavior. They neither authenticate a
 personal account nor establish live Copilot entitlement. Linux CI checks the
 portable foundation, with macOS-only operational tests skipped.
 
-Portable model-ledger/candidate/title tests explicitly use generated,
-per-controller Node-supervision facts. These do not enable production Local
+Portable tests use the shared generated fixture's explicit, per-controller
+Node-supervision facts; real-platform cases select `nodePrimitives: false`.
+These do not enable production Local
 execution on Linux or qualify a native guest. Real platform refusal is tested
 separately. Owned fixture startup has bounded readiness, stderr draining,
 caller cancellation and exact-child exit checks; failed setup closes acquired
