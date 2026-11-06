@@ -4618,6 +4618,15 @@ fixtures, including Copilot device-flow behavior. They neither authenticate a
 personal account nor establish live Copilot entitlement. Linux CI checks the
 portable foundation, with macOS-only operational tests skipped.
 
+Portable model-ledger/candidate/title tests explicitly use generated,
+per-controller Node-supervision facts. These do not enable production Local
+execution on Linux or qualify a native guest. Real platform refusal is tested
+separately. Owned fixture startup has bounded readiness, stderr draining,
+caller cancellation and exact-child exit checks; failed setup closes acquired
+services/providers without hiding unconfirmed cleanup. Main-only CI uses the
+same complete source inventory with immediate TAP failure diagnostics. See
+[the CI ownership evidence](architecture/milestone-completion.md#ci-continuation-and-generated-fixture-ownership).
+
 ```bash
 npm run package:mac
 ```
