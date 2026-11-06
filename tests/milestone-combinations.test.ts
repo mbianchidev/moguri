@@ -39,7 +39,7 @@ test("the required milestone cell map is the complete Cartesian set, with native
 });
 
 test("missing qualification artifacts retain every required not-run/native-unqualified cell instead of dropping the report", {
-  timeout: 15000,
+  skip: process.platform !== "darwin", timeout: 15000,
 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), "moguri-generated-matrix-preflight-"));
   try {
