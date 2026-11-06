@@ -1,12 +1,12 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { activeCompound, COMPOUND_EVIDENCE_WARNING, type CompoundInput, type CompoundResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeCompound, candidateRootBase, candidateRootLabel, COMPOUND_EVIDENCE_WARNING, type CandidateWorkspace, type CompoundInput, type CompoundResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<CompoundResponse, { type: "compound.read" }>;
 type Preview = Extract<CompoundResponse, { type: "compound.preview" }>["preview"];
-export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDirty, onDirty, onSelectCandidate }: {
-  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; repositoryReady: boolean; draftDirty: boolean; onDirty: (dirty: boolean) => void; onSelectCandidate: (id: string) => void;
+export function CompoundPanel({ sdk, snapshot, session, envStages = [], repositoryReady, draftDirty, onDirty, onSelectCandidate }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; envStages?: CandidateWorkspace[]; repositoryReady: boolean; draftDirty: boolean; onDirty: (dirty: boolean) => void; onSelectCandidate: (id: string) => void;
 }) {
   const [task, setTask] = useState(""), [plan, setPlan] = useState(""), [architecture, setArchitecture] = useState("");
   const [paths, setPaths] = useState(""), [newPaths, setNewPaths] = useState(""), [draftId, setDraftId] = useState(""), [alternateId, setAlternateId] = useState(""), [scriptId, setScriptId] = useState("");
@@ -28,11 +28,12 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
   const selected = workflows.find((workflow) => workflow.id === selectedId) ?? (!selectedId ? workflows.find((workflow) => workflow.sessionId === session?.id) : undefined);
   const value = read && selected && read.workflow.id === selected.id && read.workflow.revision === selected.revision ? read : null;
   const review = value?.pendingValidation;
-  const local = Boolean(repositoryReady && session?.projectId && session.controls.env === "Local" && session.controls.modelId === "kupo" &&
-    snapshot.settings.values.kupo.enabled && snapshot.settings.values.kupo.workflow === "compound" && snapshot.policy.allowedEnvs.includes("Local"));
+  const local = Boolean(repositoryReady && session?.projectId && session.controls.modelId === "kupo" &&
+    snapshot.settings.values.kupo.enabled && snapshot.settings.values.kupo.workflow === "compound" && snapshot.policy.allowedEnvs.includes(session.controls.env));
   const writable = local && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId && !draftDirty;
   const ownRunning = Boolean(selected && session && selected.sessionId === session.id && selected.id === session.turnId && activeCompound(selected));
-  const stages = snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session?.workspaceId && workspace.status === "ready");
+  const stages = session?.controls.env === "Local" ? snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session?.workspaceId && workspace.status === "ready").map((stage) => ({ id: stage.id, label: stage.branch })) :
+    envStages.filter((stage) => stage.status === "ready").map((stage) => ({ id: stage.id, label: `${stage.name} / ${stage.boundary.env}` }));
   useEffect(() => { onDirty(dirty || Boolean(busy)); return () => onDirty(false); }, [dirty, busy, onDirty]);
   useEffect(() => { setPreview(null); setCostReviewed(false); }, [inputScope]);
   useEffect(() => { setTestReviewed(false); }, [selected?.id, selected?.revision, snapshot.settings.permissionRevision, snapshot.policy.revision]);
@@ -62,12 +63,12 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
     setInputOwner(null); setBaseline(""); setPreview(null); setCostReviewed(false); setError("");
   };
   return <section className="candidate-section" aria-label="Public compound workflows" aria-busy={Boolean(busy)}>
-    <SettingsHelp label="More about this setting" target={<h2>Reviewed Cascade / Critique</h2>}>Local host commands are not sandboxed. Detached/reparented containment remains unproven. Exact project-test approval and source application are separate decisions.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>Reviewed Cascade / Critique</h2>}>Roles and reviewed project scripts execute on the selected Env. Local/SSH commands do not imply OS isolation. Sandbox uses its original owned private snapshot, never controller Git. Exact project-test approval and source application are separate decisions.</SettingsHelp>
     <p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
 
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     {busy && <p className="fine-print" role="status">{busy}</p>}
-    {!local && <Alert as="p" tone="warning" className="settings-warning">Configure an explicitly reviewed Compound routing policy, then select kupo in a Local project agent. This panel never changes Env, model, autonomy or budgets for you.</Alert>}
+    {!local && <Alert as="p" tone="warning" className="settings-warning">Configure an explicitly reviewed Compound routing policy and qualified owned stages on the selected Env, then select kupo. Readiness failures block execution; this panel never changes Env, model, autonomy or budgets for you.</Alert>}
     {changedOwner && <Alert as="p" tone="warning" className="settings-warning">The source owner changed. Your unsaved task remains visible, but cannot be sent into another project. Copy it or explicitly discard before starting a new review.</Alert>}
     <SettingsHelp label="More about this setting" target={<details open={!selected || dirty}>
       <summary>Prepare exact compound input</summary>
@@ -76,18 +77,24 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
       <label className="setting-field">Reviewed request architecture, if supplied<SettingsTextarea aria-label="Compound request architecture" value={architecture} disabled={Boolean(busy) || !writable || changedOwner} maxLength={8192} onChange={(event) => edit(() => setArchitecture(event.target.value))} /></label>
       <label className="setting-field">Existing source files, one exact relative path per line<SettingsTextarea aria-label="Compound source paths" value={paths} disabled={Boolean(busy) || !writable || changedOwner} spellCheck={false} onChange={(event) => edit(() => setPaths(event.target.value))} /></label>
       <label className="setting-field">Explicitly new files, one relative path per line<SettingsTextarea aria-label="Compound new paths" value={newPaths} disabled={Boolean(busy) || !writable || changedOwner} spellCheck={false} onChange={(event) => edit(() => setNewPaths(event.target.value))} /></label>
-      <label className="setting-field">Draft worktree<select aria-label="Compound draft worktree" value={draftId} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setDraftId(event.target.value))}>
-        <option value="">Choose a separate clean owned worktree</option>{stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.branch}</option>)}</select></label>
-      <label className="setting-field">Alternate / revision worktree<select aria-label="Compound alternate worktree" value={alternateId} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setAlternateId(event.target.value))}>
-        <option value="">Choose another clean owned worktree</option>{stages.map((stage) => <option key={stage.id} value={stage.id} disabled={stage.id === draftId}>{stage.branch}</option>)}</select></label>
+      <label className="setting-field">Draft stage<select aria-label={session?.controls.env === "Local" ? "Compound draft worktree" : "Compound draft stage"} value={draftId} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setDraftId(event.target.value))}>
+        <option value="">Choose a separate clean owned stage</option>{stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select></label>
+      <label className="setting-field">Alternate / revision stage<select aria-label={session?.controls.env === "Local" ? "Compound alternate worktree" : "Compound alternate stage"} value={alternateId} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setAlternateId(event.target.value))}>
+        <option value="">Choose another clean owned stage</option>{stages.map((stage) => <option key={stage.id} value={stage.id} disabled={stage.id === draftId}>{stage.label}</option>)}</select></label>
       <label className="setting-field">Configured project validation script<select aria-label="Compound validation script" value={scriptId} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setScriptId(event.target.value))}>
         <option value="">Choose an exact user-configured project script</option>{configuration?.values.scripts.map((script) => <option key={script.id} value={script.id}>{script.name}</option>)}</select></label>
       <label className="setting-field">Test deadline in milliseconds<SettingsInput aria-label="Compound test deadline" type="number" min={100} max={120000} value={timeout} disabled={Boolean(busy) || !writable || changedOwner} onChange={(event) => edit(() => setTimeout(event.target.value))} /></label>
       <div className="button-row"><button disabled={Boolean(busy) || !writable || changedOwner || !task.trim() || !draftId || !alternateId || draftId === alternateId || !scriptId || !paths && !newPaths}
         onClick={() => void run("Reviewing exact compound input", async (current) => {
           if (!session) throw new Error("Choose the exact source session before reviewing a workflow.");
-          const files = [];
-          for (const path of paths.split(/\r?\n/).filter((path) => path.length)) files.push({ path, baseDigest: (await sdk.workspaces.file(session.id, path)).digest });
+          const selectedPaths = paths.split(/\r?\n/).filter((path) => path.length), files: Array<{ path: string; baseDigest: string }> = [];
+          if (selectedPaths.length) {
+            const source = await sdk.candidates.source(session.id, selectedPaths);
+            for (const file of source.files) {
+              if (file.text === null) throw new Error("An existing source path is absent on the selected Env. Review it as a new file explicitly; no different root was read.");
+              files.push({ path: file.path, baseDigest: file.baseDigest });
+            }
+          }
           for (const path of newPaths.split(/\r?\n/).filter((path) => path.length)) files.push({ path, baseDigest: "absent" });
           const input: CompoundInput = { sessionId: session.id, draftWorkspaceId: draftId, alternateWorkspaceId: alternateId, input: { task, files },
             requestPlan: plan || null, requestArchitecture: architecture || null, validationScriptId: scriptId, validationTimeoutMs: Number(timeout) };
@@ -96,7 +103,7 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
         })} aria-label="Review compound input">Review</button>
         <button disabled={Boolean(busy) || !dirty && !changedOwner} onClick={reset} aria-label="Discard compound input">Discard</button></div>
       {preview && preview.scope === inputScope && <section className="candidate-binding" aria-label="Exact compound input review">
-        <p className="fine-print path">Source: {preview.value.document.source.root}<br />Draft: {preview.value.document.draft.root.root}<br />Alternate: {preview.value.document.alternate.root.root}<br />HEAD: {preview.value.document.source.head}</p>
+        <p className="fine-print path">{candidateRootLabel(preview.value.document.source)}<br />Source: {preview.value.document.source.root}<br />Draft: {preview.value.document.draft.root.root}<br />Alternate: {preview.value.document.alternate.root.root}<br />Exact base: {candidateRootBase(preview.value.document.source)}</p>
 
         {preview.value.document.task.files.map((file) => <details key={file.path} open><summary className="path">{file.path} / base {file.baseDigest}</summary><pre className="workspace-file-content">{file.text ?? "(Reviewed new file)"}</pre></details>)}
         <SettingsHelp label="More about this setting" target={<details><summary>Exact eligible routes, role bounds and system instructions</summary><pre>{JSON.stringify(preview.value.document, null, 2)}</pre></details>} descriptionFirst>8-KiB role results, 16-KiB complete validation context. All-role usage is metered; estimates are not exact billing. No file, test or source application is approved here.</SettingsHelp>
@@ -108,7 +115,7 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
           setSelectedId(created.id); setBaseline(fields);
         })} aria-label="Start reviewed compound">Start</button>
       </section>}
-    </details>}>At most 20 paths. Selected bases must match the committed clean stages. Original composer drafts, attachments and held prompts are not consumed or implicitly included. Create worktrees and configure scripts explicitly in Project settings.</SettingsHelp>
+    </details>}>At most 20 paths. Selected bases must match the exact clean reviewed stage base. Original composer drafts, attachments and held prompts are not consumed or implicitly included. Create the actual Env resources and configure scripts explicitly.</SettingsHelp>
     <label className="setting-field">Retained compound workflow<select aria-label="Retained compound workflow" value={selected?.id ?? ""} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       {!workflows.length && <option value="">No retained public workflows</option>}{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{snapshot.artifacts.find((artifact) => artifact.id === workflow.id)?.name ?? workflow.id} / {workflow.status}</option>)}</select></label>
     {value && <div className="candidate-section">
@@ -126,7 +133,7 @@ export function CompoundPanel({ sdk, snapshot, session, repositoryReady, draftDi
         <h4>Plan</h4><pre>{review.document.proposal.plan}</pre><h4>Architecture</h4><pre>{review.document.proposal.architecture}</pre>
         <p className="fine-print path">Source unchanged: {review.document.source.root}<br />Owned candidate: {review.document.stage.root}</p>
         {review.document.proposal.patch.edits.map((edit) => <details key={edit.path} open><summary>{edit.path} / original base {edit.baseDigest}</summary><pre>{edit.text}</pre></details>)}
-        <Alert as="p" tone="warning" className="settings-warning">This executes project code on the Local host, not in Sandbox. No automatic dependency install. Hard denials and folder restrictions still win.</Alert>
+        <Alert as="p" tone="warning" className="settings-warning">This executes project code on {review.document.stage.env === "Sandbox" ? "the actual native guest's private candidate snapshot, not the live Local repository" : review.document.stage.env === "Remote" ? "the original pinned SSH peer, not the controller; SSH is not OS isolation" : "the Local host, not in Sandbox"}. No automatic dependency install. Hard denials and folder restrictions still win.</Alert>
         <pre>{review.document.command}</pre><p className="fine-print">Deadline: {review.document.timeoutMs} ms. Only these bytes and this exact configured command are proposed. Passing tests and critic advice do not accept source changes.</p>
         <label className="check-setting"><SettingsInput aria-label="Reviewed compound staging and test" type="checkbox" checked={testReviewed} disabled={Boolean(busy) || !ownRunning} onChange={(event) => setTestReviewed(event.target.checked)} />I reviewed the exact candidate bytes, owned root and host command. Approve this staging/test only, not source application.</label>
         <div className="button-row"><button className="primary" disabled={Boolean(busy) || !ownRunning || !testReviewed} onClick={() => void run("Approving exact staging and project tests", async () => {

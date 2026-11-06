@@ -30,7 +30,7 @@ const paths = await packager({
   extendInfo: { NSMicrophoneUsageDescription: "Moguri records speech only when you start dictation. Audio is transcribed locally and is never sent to an ASR cloud." },
   platform: "darwin", arch: "arm64", electronVersion, overwrite: true, prune: true,
   asar: false,
-  ignore: [/^\/(?:\.git|\.moguri|\.native|\.impeccable|\.copilot|release|tests|test-results|playwright-report|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS)\.md$/],
+  ignore: [/^\/(?:\.git|\.moguri|\.native|\.impeccable|\.copilot|\.test-output|release|tests|test-results|playwright-report|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS)\.md$/],
 });
 const app = resolve(paths[0], "Moguri.app");
 await access(join(app, "Contents", "Resources", "app", "dist", "moguri"), constants.X_OK);

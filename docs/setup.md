@@ -1,9 +1,79 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **91**. Upgrades preserve existing
+Current service/SDK/desktop protocol is **92**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Runtime readiness and exact pooled controls
+
+Open **Model / Model details and setup** to inspect an exact configured model
+without selecting it. Unavailable configured endpoints remain inspectable;
+disabled providers still need an explicit user enable action. Choose
+**Local runtime and hardware readiness / Refresh readiness** for bounded
+execution-machine facts. The default is informational. Required preflight
+rejects missing/incompatible/unknown runtime, model and supplied requirement
+evidence; it does not change model availability or policy.
+
+**Settings / Models / Configured local models / Local model endpoints** accepts
+the existing reviewed JSON configuration. An endpoint may add
+`"runtime":{"kind":"llama-cpp","executablePath":"/absolute/llama-cli","modelPath":"/absolute/model.gguf"}`.
+Its model entries may add provenance-bearing `requirements` for OS, ABI,
+runtime version/build, model format/size, RAM, same-device VRAM/driver and
+filesystem space. See the [complete configuration and evidence
+contract](architecture/model-readiness.md). Configuration never installs or
+starts that runtime, scans PATH/hosts or downloads model weights.
+
+Version observation is separate: **Review runtime version command** shows exact
+fixed argv, SHA-256, filesystem identity and owner bindings. Only
+**Approve once and read version** retains the actual-user review and attempts
+it. Root-owned non-writable executable/ancestor and byte/owner checks still
+apply; a user-writable binary stays metadata-only. Ollama/DS4 switches are
+unqualified, and capacity/performance estimates remain explicitly unknown.
+An ordinary refresh never reuses a saved approval or starts inference.
+
+CLI uses the same service:
+
+```sh
+moguri models catalogue
+moguri models readiness MODEL_ID --session SESSION_ID
+moguri models readiness MODEL_ID required --session SESSION_ID
+moguri models runtime-preview MODEL_ID --session SESSION_ID
+moguri models runtime-review MODEL_ID PREVIEW_DIGEST --session SESSION_ID --confirm-review
+moguri models runtime-probe MODEL_ID REVIEW_ID --session SESSION_ID
+```
+
+In the TUI use **Ctrl+M** for direct inspection or exact version review.
+Tab switches the scrollable preview and choices; cancellation is selected
+first. Shared `/model-readiness`, `/model-runtime-preview`,
+`/model-runtime-review` and `/model-runtime-probe` commands keep the same
+separate steps. A consumed attempt cannot replay after cancellation, restart
+or a lost result. Native inspection requires the original active qualified
+guest; it does not launch a new one or borrow controller hardware. Cancelling
+that query never stops the parent agent/guest.
+
+Kupo mode, **Role thinking override** and **Working context window** are
+separate controls. `/thinking LEVEL`, `/context-window TOKENS` and
+`routing.options` retain exact supported values, not silent clamps. Compound
+reports include the classifier and every eligible route role's real output
+bound. Its immutable source/stages/script preview must still fit all complete
+future role/test context and receive its separate actual-user review.
+
+Reviewed [candidate transports](architecture/candidate-transports.md) preserve
+Local v1 worktrees, create exact peer-owned SSH stages and model native stages
+as private snapshots, not Git checkouts. Actual tests/application stay on the
+selected boundary. Unconfirmed cleanup blocks profile-root reuse and proposal
+grant deletion, including after reload. V2 candidate exports use
+`moguri-artifacts` version11 with original transport events/result bytes;
+historical Local exports retain their version/meaning.
+
+Protocol92 installs `model_runtime_readiness_schema`, `kupo_options_schema`
+and `candidate_transports_schema`, each version1, atomically from genuine91.
+Canonical runtime-review/consumption and candidate workspace/transport events
+cannot be relabelled as older history. No state deletion is an upgrade step.
+The [released native runtime blocker](architecture/managed-sandbox.md#current-verification-and-unresolved-native-startup)
+still requires fresh exact-byte physical qualification; these mechanisms do
+not declare milestone1 or a signed/notarized public v1 complete.
 
 ## Importing repositories and changing a remote
 
@@ -2100,6 +2170,29 @@ actual held-write and native/restart checks pass. The failed sweep is not a pass
 The refreshed no-cache workload receipt is
 `sha256:b03ab376659754d5332cbab352ab3637bb8f6be9e7fc5ae1895a5be183c5e067`.
 This records that checkpoint, not public compound/Max completion.
+
+### Current source: reviewed candidate Env transports
+
+Protocol **92** adds the [candidate Env transport contract](architecture/candidate-transports.md):
+explicit owned peer staging worktrees, actual native-worker private snapshot
+mechanics, exact original-source reads and separately reviewed candidate/test/
+application actions. SDK, CLI/shared TUI slash and Candidate/Compound desktop
+surfaces retain actual Env/root/base/build information and readiness errors.
+Local v1 records, independent workspace retention and the earlier native-output
+to original-Local-Git checkpoint contract are preserved.
+
+Native physical candidate qualification remains **unavailable**: the pinned
+factory-resource workload is blocked by SendBox egress Meta DNS reply loss,
+as documented in [managed Sandbox](architecture/managed-sandbox.md).
+This does not authorize upstream changes, unreleased pins, egress expansion,
+deadline changes, Apple service restarts or controller execution. Default
+absence of a current native receipt is not a VM success. Generated loopback
+worker results qualify only the boundaries actually exercised, not all of
+milestone 1.
+
+The historical Local checkpoint below remains evidence for its original
+version and does not qualify these new Env transports or current native
+physical execution.
 
 ### Reviewed Local compound source checkpoint
 
@@ -4524,6 +4617,16 @@ TUI and hidden Electron tests drive actual clients against generated local HTTP
 fixtures, including Copilot device-flow behavior. They neither authenticate a
 personal account nor establish live Copilot entitlement. Linux CI checks the
 portable foundation, with macOS-only operational tests skipped.
+
+Portable tests use the shared generated fixture's explicit, per-controller
+Node-supervision facts; real-platform cases select `nodePrimitives: false`.
+These do not enable production Local
+execution on Linux or qualify a native guest. Real platform refusal is tested
+separately. Owned fixture startup has bounded readiness, stderr draining,
+caller cancellation and exact-child exit checks; failed setup closes acquired
+services/providers without hiding unconfirmed cleanup. Main-only CI uses the
+same complete source inventory with immediate TAP failure diagnostics. See
+[the CI ownership evidence](architecture/milestone-completion.md#ci-continuation-and-generated-fixture-ownership).
 
 ```bash
 npm run package:mac
