@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { execFile, execFileSync } from "node:child_process";
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { promisify } from "node:util";
+import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 import { KUPO_MODEL_ID, PROTOCOL_VERSION, type Controls } from "../packages/sdk/src/index.ts";
 import { frameDigest } from "../apps/service/src/worker-wire.ts";
 import { remoteRootLease } from "../apps/service/src/remote.ts";
 import { routedFixture } from "./fixtures/single-routing.ts";
 import { generatedDocx } from "./fixtures/documents.ts";
+import { initializeGeneratedRepository } from "./fixtures/git-project.ts";
 import { waitFor } from "./fixture.ts";
 import {
   configureMilestoneRouting, milestoneAxes, milestoneBudget, milestoneCellId, milestoneResponses, requiredMilestoneCells,
@@ -18,6 +22,9 @@ import {
 
 const cells = requiredMilestoneCells();
 const sourceCells = cells.filter((cell) => cell.env !== "Sandbox");
+const concurrency = 4, cellTimeout = 45000, setupTimeout = 15000;
+const actorGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.autonomy.length * milestoneAxes.budget.length;
+const sourceGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.window.length * milestoneAxes.effort.length * milestoneAxes.input.length;
 
 test("the required milestone cell map is the complete Cartesian set, with native-unqualified cells retained separately", () => {
   assert.equal(cells.length, 10080);
@@ -29,6 +36,37 @@ test("the required milestone cell map is the complete Cartesian set, with native
       assert.equal(cells.filter((cell) => cell[axis as keyof MilestoneCell] === value).length, cells.length / values.length);
     }
   }
+});
+
+test("missing qualification artifacts retain every required not-run/native-unqualified cell instead of dropping the report", {
+  timeout: 15000,
+}, async () => {
+  const directory = await mkdtemp(join(tmpdir(), "moguri-generated-matrix-preflight-"));
+  try {
+    await mkdir(join(directory, "dist/desktop/renderer/assets"), { recursive: true });
+    await writeFile(join(directory, "fixture.txt"), "Generated empty qualification root, never a release or model call.\n");
+    initializeGeneratedRepository(directory);
+    await assert.rejects(() => promisify(execFile)(process.execPath, [
+      "--import", pathToFileURL(resolve("node_modules/tsx/dist/loader.mjs")).href,
+      "--test", "--test-name-pattern", "^required Local/SSH source cells",
+      resolve("tests/milestone-combinations.test.ts"),
+    ], { cwd: directory, timeout: 10000, env: { ...process.env, NODE_TEST_CONTEXT: undefined } }), (error: unknown) => {
+      assert.ok(error instanceof Error && "code" in error && error.code === 1);
+      assert.ok("stdout" in error && typeof error.stdout === "string");
+      assert.match(error.stdout, /ENOENT/);
+      return true;
+    });
+    const report = JSON.parse(await readFile(join(directory, ".test-output/milestone-combinations/source-report.json"), "utf8"));
+    assert.equal(report.sourceStatus, "INCOMPLETE");
+    assert.equal(report.sourcePassed, 0);
+    assert.equal(report.nativeStatus, "UNQUALIFIED");
+    assert.equal(report.nativeUnqualified, 3360);
+    assert.match(report.diagnostic, /ENOENT/);
+    assert.deepEqual(report.identity.inputs, {});
+    assert.equal(report.cells.filter((cell: { outcome: string }) => cell.outcome === "not-run").length, 6720);
+    assert.equal(report.cells.filter((cell: { outcome: string }) => cell.outcome === "native-unqualified").length, 3360);
+    assert.equal(new Set(report.cells.map((cell: { id: string }) => cell.id)).size, 10080);
+  } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
 async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: { window?: number; question?: boolean; image?: boolean } = {}) {
@@ -219,10 +257,11 @@ test(`mixed approved image/document ${env}/${selection} context reaches every ac
 });
 
 test("every Local/SSH selection and cap preserves actual Manual/Guided/Autopilot answers or one bounded-model Max decision", {
-  skip: process.platform !== "darwin", concurrency: 4, timeout: 300000,
+  skip: process.platform !== "darwin", concurrency,
+  timeout: setupTimeout + actorGroupTimeout * Math.ceil(2 * milestoneAxes.selection.length / concurrency),
 }, async (t) => {
   await Promise.all((["Local", "Remote"] as const).flatMap((env) => milestoneAxes.selection.map((selection) =>
-    t.test(`${env}/${selection}`, { timeout: 240000 }, async (group) => {
+    t.test(`${env}/${selection}`, { timeout: actorGroupTimeout }, async (group) => {
       const fixture = await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
       try {
         await configureMilestoneRouting(fixture, selection);
@@ -235,7 +274,7 @@ test("every Local/SSH selection and cap preserves actual Manual/Guided/Autopilot
         }, settings.revision);
         for (const autonomy of milestoneAxes.autonomy) for (const budget of milestoneAxes.budget) {
           let passed = false;
-          await group.test(`${autonomy}/${budget}`, { timeout: 45000 }, async () => {
+          await group.test(`${autonomy}/${budget}`, { timeout: cellTimeout }, async () => {
             await runCell(fixture, { env, selection, autonomy, budget, window: "maximum", effort: "default", input: "text" }, { question: true });
             passed = true;
           });
@@ -277,28 +316,30 @@ test(`configured ${env}/${selection} retains approved image/document drafts when
 });
 
 test("required Local/SSH source cells execute every independent control/input combination through the service and SDK", {
-  skip: process.platform !== "darwin", concurrency: 4, timeout: 7200000,
+  skip: process.platform !== "darwin", concurrency, timeout: 7200000,
 }, async (t) => {
   const groups = [...new Set(sourceCells.map((cell) => `${cell.env}/${cell.selection}/${cell.autonomy}/${cell.budget}`))];
   const completed = new Map<string, Awaited<ReturnType<typeof runCell>>>();
   const failed = new Map<string, string>(), completedGroups = new Set<string>();
-  const paths = ["package.json", "package-lock.json", "scripts/worker-image/Containerfile",
-    "apps/service/src/worker.ts", "apps/service/src/remote-bridge.ts", "dist/worker.mjs", "dist/remote-bridge.mjs",
-    "apps/desktop/src/BudgetControls.tsx", "apps/desktop/src/SettingsPanel.tsx",
-    "dist/mcp-worker.mjs", "dist/data-worker.mjs", "dist/service.mjs", "dist/cli.mjs", "dist/tui.mjs",
-    "dist/sdk/runtime.mjs", "dist/sdk/index.mjs", "dist/desktop/main.mjs", "dist/desktop/renderer/index.html",
-    ...(await readdir("dist/desktop/renderer/assets")).sort().map((name) => `dist/desktop/renderer/assets/${name}`),
-    "tests/fixtures/single-routing.ts", "tests/fixtures/milestone-combinations.ts", "tests/milestone-combinations.test.ts",
-    "tests/tui-milestone-combinations.test.ts", "tests/e2e/milestone-combinations.spec.ts"];
-  const identity = {
+  const identity: { commit: string; dirtyAtStart: boolean; protocol: number; node: string; inputs: Record<string, string> } = {
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     dirtyAtStart: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()),
     protocol: PROTOCOL_VERSION, node: process.version,
-    inputs: Object.fromEntries(await Promise.all(paths.map(async (path) => [path, createHash("sha256").update(await readFile(path)).digest("hex")]))),
+    inputs: {},
   };
   const startedAt = new Date().toISOString();
+  let diagnostic: string | null = null;
   try {
-    await Promise.all(groups.map((group) => t.test(group, { timeout: 750000 }, async (groupTest) => {
+    const paths = ["package.json", "package-lock.json", "scripts/worker-image/Containerfile",
+      "apps/service/src/worker.ts", "apps/service/src/remote-bridge.ts", "dist/worker.mjs", "dist/remote-bridge.mjs",
+      "apps/desktop/src/BudgetControls.tsx", "apps/desktop/src/SettingsPanel.tsx",
+      "dist/mcp-worker.mjs", "dist/data-worker.mjs", "dist/service.mjs", "dist/cli.mjs", "dist/tui.mjs",
+      "dist/runtime.mjs", "dist/sdk/index.mjs", "dist/desktop/main.mjs", "dist/desktop/renderer/index.html",
+      ...(await readdir("dist/desktop/renderer/assets")).sort().map((name) => `dist/desktop/renderer/assets/${name}`),
+      "tests/fixtures/single-routing.ts", "tests/fixtures/milestone-combinations.ts", "tests/milestone-combinations.test.ts",
+      "tests/tui-milestone-combinations.test.ts", "tests/e2e/milestone-combinations.spec.ts"];
+    identity.inputs = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, createHash("sha256").update(await readFile(path)).digest("hex")])));
+    await Promise.all(groups.map((group) => t.test(group, { timeout: sourceGroupTimeout }, async (groupTest) => {
       const required = sourceCells.filter((cell) => `${cell.env}/${cell.selection}/${cell.autonomy}/${cell.budget}` === group);
       const first = required[0]!;
       assert.ok(first.env !== "Sandbox");
@@ -309,7 +350,7 @@ test("required Local/SSH source cells execute every independent control/input co
         assert.deepEqual(model.thinkingLevels, milestoneAxes.effort.filter((effort) => effort !== "default"));
         for (const cell of required) {
           let passed = false;
-          await groupTest.test(milestoneCellId(cell), { timeout: 45000 }, async () => {
+          await groupTest.test(milestoneCellId(cell), { timeout: cellTimeout }, async () => {
             try {
               const result = await runCell(fixture, cell);
               assert.equal(completed.has(result.id), false);
@@ -328,17 +369,20 @@ test("required Local/SSH source cells execute every independent control/input co
     assert.deepEqual([...completed.keys()].sort(), sourceCells.map(milestoneCellId).sort());
     assert.equal(completed.size, 6720);
     assert.equal(completedGroups.size, groups.length);
+  } catch (error) {
+    diagnostic = error instanceof Error ? error.message : String(error);
+    throw error;
   } finally {
     const report = {
       version: 1, identity, startedAt, finishedAt: new Date().toISOString(),
-      sourceStatus: completed.size === sourceCells.length && completedGroups.size === groups.length ? "PASS" : "INCOMPLETE",
+      sourceStatus: completed.size === sourceCells.length && completedGroups.size === groups.length ? "PASS" : "INCOMPLETE", diagnostic,
       nativeStatus: "UNQUALIFIED", nativeImage: null, nativePhysicalReceipt: null,
       required: cells.length, sourcePassed: completed.size, nativeUnqualified: 3360,
       cells: cells.map((cell) => completed.get(milestoneCellId(cell)) ?? {
         id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-unqualified" :
           failed.has(milestoneCellId(cell)) ? "source-failed" : "not-run",
         diagnostic: cell.env === "Sandbox" ? "Released SendBox Meta-DNS prerequisite and fresh exact-current physical receipts remain required." :
-          failed.get(milestoneCellId(cell)) ?? "Required source cell did not complete; no qualification inferred.",
+          failed.get(milestoneCellId(cell)) ?? diagnostic ?? "Required source cell did not complete; no qualification inferred.",
       }),
     };
     const directory = ".test-output/milestone-combinations";

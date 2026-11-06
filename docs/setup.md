@@ -15,6 +15,10 @@ from physical native acceptance. Released SendBox 0.2.4's Meta-DNS prerequisite,
 fresh current-protocol guest/control/network/cleanup/loss/recovery evidence and
 account-blocked main CI remain visible gates. Neither issue #38 nor Milestone 1
 is accepted by a source test count or a historical receipt.
+Fresh macOS source-test environments also require the matching installed
+Chromium revision: run `npm exec -- playwright install chromium` explicitly
+after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
+Moguri's app/tools still never download a browser or substitute an executable.
 
 ## Retained pull-request CI watches
 
