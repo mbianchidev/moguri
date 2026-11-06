@@ -1,4 +1,72 @@
-# First-milestone gap handoff
+# First-milestone acceptance and roadmap
+
+## Merged-code audit, 2026-11-06
+
+The current baseline is merged main
+[`812e335`](https://github.com/mbianchidev/moguri/commit/812e33526e432fb92b580956f97f8c2bf269e002),
+including [#51](https://github.com/mbianchidev/moguri/pull/51), protocol **92**
+and **0.31.0-alpha.1**. Its executable/test cut is `81dec6a`; the subsequent
+qualification notes and merge do not change those executable bytes.
+The [exact completion record](architecture/milestone-completion.md#final-frozen-ciruntime-cut)
+contains the complete macOS source result (2,455 passes, 29 explicit skips),
+owned Linux source result (1,604 passes, 831 explicit skips), installed SDK
+and packaged application evidence. These are local generated results, not
+GitHub-hosted CI, Linux release support or current physical SendBox acceptance.
+
+| Area | Current status |
+| --- | --- |
+| Shared clients, durable sessions and controls | Implemented, including drafts/queues, profiles, independent artifacts, managed worktrees, original terminal ownership and restart/migration coverage. |
+| Model windows and long pastes | Implemented: maximum/half or actual provider windows, exact scoped files for pastes over 50 lines, and preservation of unsupported context. |
+| Automatic Kupo and budgets | Implemented: Single/Cascade/Critique, exact pooled window/effort, all-role token/USD holds, selected-boundary finishing and separately reviewed checkpoints. [#36](https://github.com/mbianchidev/moguri/issues/36) is complete. |
+| Runtime/hardware readiness | Implemented and merged in #51, with one-use actual-user executable review and honest unknown capacity. [#37](https://github.com/mbianchidev/moguri/issues/37) is complete. |
+| Reviewed candidate transports | Local v1 and pinned-SSH/native-private v2 staging, tests and separately accepted application are implemented. Native physical qualification remains a separate gate. |
+| Required combinations and native acceptance | [#38](https://github.com/mbianchidev/moguri/issues/38) remains open. Six explicit Local/SSH finite-routing cases are not the complete required cross-product; fresh exact-worker guest/control/network/cleanup evidence is still missing. |
+| Final integrated acceptance | [#17](https://github.com/mbianchidev/moguri/issues/17) remains open. Do not rebuild merged features or replace missing physical/hosted evidence with passing fixtures. |
+
+The latest main CI
+[run 42183960883](https://github.com/mbianchidev/moguri/actions/runs/42183960883)
+failed **before either OS job started any step**. Both check annotations report
+failed account payments or an insufficient spending limit. The account owner
+must resolve that GitHub billing/eligibility gate before a fresh authorized
+main-CI run can qualify the build. The earlier six-hour cancellation and its
+now-merged fixture/runtime repairs remain distinct historical evidence.
+CI still runs only on pushes to `main`; a working-branch PR with no checks
+is not green CI.
+
+Released SendBox 0.2.4's documented Meta-DNS prerequisite and fresh physical
+qualification of the exact current worker remain unresolved. Producer images
+and earlier physical receipts cannot qualify changed native payloads.
+No host fallback, broader egress, personal authorization or upstream change
+is implied. Real Jev's missing enforceable wire stays blocked; Laya remains
+optional. Development packaging is ad-hoc signed, not notarized.
+
+## Ordered remaining roadmap
+
+The live parent is [#39](https://github.com/mbianchidev/moguri/issues/39).
+Ordering does not authorize implementation or turn optional features into
+first-milestone prerequisites.
+
+| Order | Remaining work |
+| --- | --- |
+| 1. First-milestone acceptance | #38 exact required combination/native evidence; #17 criterion-by-criterion integrated acceptance and real hosted CI eligibility. |
+| 2. Existing integrations and everyday workflows | #45 remaining applicable skills controls; #7 durable PR-watch association/freshness/notifications; #9 cross-repository GitHub My Work inbox; #23 opt-in OTLP export; #13 per-turn rewind; #12 actual Stainless integration. |
+| 3. Distribution and documentation | #26 Homebrew cask and install/update ownership; #14 landing/downloads/user/developer site. Publication/access, licensing and signing remain explicit decisions. |
+| 4. Optional providers and automation | #34 Laya; #6 recurring/declarative workflows; #8 dependency roundups; #10 continuous personas; #11 specialized presets; #46 Slack mentions. Existing one-time scheduled prompts are not a recurring workflow engine. |
+
+The [#22 Rust feasibility study](https://github.com/mbianchidev/moguri/issues/22)
+is complete, with its source and reproduction harness retained at `d8a3c9c`
+on the separately named prototype branch. Closing the investigation does not
+authorize production adoption. Any future Rust change still needs an explicit
+decision, current-protocol parity, ADRs and a feature-equivalent value/release
+comparison. No Rust rewrite is a current milestone blocker.
+
+## Historical handoff
+
+Everything below preserves the original pre-merge handoff and starting-point
+estimate. Its PR states, gaps and SendBox 0.2.3 request are historical, not the
+current backlog. The merged-code status above and canonical
+[milestone criteria](implementation.md#milestone-acceptance-criteria) take
+precedence; no new numeric completion estimate is inferred.
 
 Current protocol86 snapshot retry and separately reviewed transport checkpoints
 are in [the exact retry/checkpoint contract](architecture/native-retry-checkpoints.md).
@@ -38,10 +106,11 @@ The implementation specification's
 remain authoritative. Audit executable behavior before implementing a gap:
 many limitations in the earlier gap table have already been addressed.
 
-## Committed baseline, not remaining implementation
+## Historical committed baseline
 
-The current implementation is on draft [PR #5](https://github.com/mbianchidev/moguri/pull/5),
-not merged into `main` at this handoff. The implementation checkpoint is
+At the original handoff, implementation was on draft
+[PR #5](https://github.com/mbianchidev/moguri/pull/5), not merged into `main`.
+The implementation checkpoint was
 `6e84af318517d41629b33243ceb87682f2c22843`; this document is a subsequent
 documentation-only commit. Preserve the committed implementation in the fresh
 session rather than rebuilding it from the documentation-only default branch.
@@ -57,7 +126,7 @@ advice exist; private owned roles, canonical proposals, metadata inspection and
 declared output contracts are not public compound orchestration or Max.
 See [setup](setup.md) for exact implemented and unavailable behavior.
 
-## First-milestone acceptance gaps
+## Historical first-milestone acceptance gaps
 
 | Area | Remaining work and acceptance evidence |
 | --- | --- |
@@ -70,7 +139,7 @@ See [setup](setup.md) for exact implemented and unavailable behavior.
 | Cancellation and final hardening | Complete or explicitly report inability to stop the whole owned process tree, including detached/reparented descendants. Exercise concurrent clients, stale approvals/decisions, stop and policy-revocation races, failed cancellation/cleanup, actual controller/guest/SSH loss, migrations, corrupted state, storage pressure, provider outages and plugin incompatibility. Unknown or partial work must not become successful. |
 | Cross-client and durable regression | Revalidate every changed path across SDK, CLI, actual TUI and desktop. Preserve drafts/held queues, distinct Queue/Steer/Interrupt behavior, source-independent artifacts, managed worktree ownership, profile isolation, exact accounting categories and original terminal owners. Every durable change needs migration and restart/no-replay coverage; never require deleting user state. |
 
-## User-reported app requirements
+## Historical user-reported app requirements
 
 ### Model context-window choices
 
