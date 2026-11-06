@@ -15,6 +15,13 @@ from physical native acceptance. Released SendBox 0.2.4's Meta-DNS prerequisite,
 fresh current-protocol guest/control/network/cleanup/loss/recovery evidence and
 account-blocked main CI remain visible gates. Neither issue #38 nor Milestone 1
 is accepted by a source test count or a historical receipt.
+The final clean `5051b6f` qualification completes **6,720 Local/SSH source
+cells**, the full **10,538-pass** source suite, **376-pass** hidden desktop
+suite, independently installed SDK and the actual ad-hoc package. All
+**3,360 native cells remain unqualified**. The fresh development DMG is under
+`release/qualification-builds/milestone93-d7f6648/`; its exact digest, producer
+image and retained report are in the linked map. It is not a native-qualified
+or notarized release.
 Fresh macOS source-test environments also require the matching installed
 Chromium revision: run `npm exec -- playwright install chromium` explicitly
 after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
