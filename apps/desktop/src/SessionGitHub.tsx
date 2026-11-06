@@ -94,7 +94,12 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
       <div className="button-row"><button type="button" disabled={busy || !selection.item.url} onClick={() => void run(async () => { await window.moguri.openExternal(selection.item.url!); })}>Open in GitHub</button>
         <button type="button" disabled={busy || selection.item.url === bound || kind === "pull" && sessionPullRequestUrls(session, snapshot).includes(selection.item.url ?? "")} onClick={() => void run(async () => { await attach(selection.item.url!); setNotice(`Linked ${label} #${selection.item.number}. Original PR associations and cleanup provenance were preserved; no checkout or model call was started.`); })}>{selection.item.url === bound || kind === "pull" && sessionPullRequestUrls(session, snapshot).includes(selection.item.url ?? "") ? "Linked to this session" : "Link to this session"}</button>
         <button type="button" disabled={busy} onClick={() => void run(async () => { const started = await sdk.github.startSession(scope, selection.source, selection.digest); await chooseSession(started.id!); })}>Start session from {label}</button></div>
-      {kind === "pull" && <PullRequestPane key={JSON.stringify([selection.source, selection.item.headSha, selection.binding])} sdk={sdk} scope={scope} session={session} snapshot={snapshot} selection={selection} />}
+      {kind === "pull" && <PullRequestPane key={JSON.stringify([selection.source, selection.item.headSha, selection.binding])} sdk={sdk} scope={scope} session={session} snapshot={snapshot} selection={selection}
+        reloadSource={async () => {
+          const captured = scopeKey, fresh = await sdk.github.source(scope, selection.source);
+          if (current.current !== captured) throw new Error("The selected session/root changed during PR reload. No replacement view was adopted.");
+          setSelection({ ...selection, ...fresh });
+        }} />}
     </article>}
     {creating && <form className="github-create" aria-label={`Create ${label}`} onSubmit={(event) => { event.preventDefault(); void run(async (isCurrent) => {
       const value = await sdk.github.preview(scope, operation()); if (isCurrent()) setReview(value.preview);

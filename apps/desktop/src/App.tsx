@@ -369,7 +369,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (!target) throw new Error("This session was removed.");
     selectMainSession(id, target.projectId); setBoardOpen(target.purpose === "kanban"); setNavOpen(false); setSideSessionId(null);
     if (target.unread) await client.sessions.organize(id, { unread: false });
-    const attention = client.getState().snapshot?.attention.filter((entry) => entry.sessionId === id && !entry.acknowledged).map((entry) => entry.id) ?? [];
+    const attention = client.getState().snapshot?.attention.filter((entry) => entry.sessionId === id && !entry.acknowledged && entry.reason !== "ci").map((entry) => entry.id) ?? [];
     if (attention.length) await client.attention.acknowledge(attention.slice(-100));
   });
   const openKanban = (id: string) => run(async () => {

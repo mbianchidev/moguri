@@ -220,10 +220,18 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
       ready = true; runtimeMs = value.runtimeMs;
     });
     child.send({ type: "configure", provider: f.provider.state, retentionKey: f.retentionKey.toString("hex") });
+    const lockPath = join(stateDir, "service.lock");
     await expect.poll(async () => {
       if (processOwner.exitCode !== null) throw new Error("The generated cold service exited before publishing its owned lock.");
-      try { const file = await readPrivateServiceFile(join(stateDir, "service.lock")); return file.text ? JSON.parse(file.text).pid : null; }
-      catch (error) { if (error instanceof Error && "code" in error && error.code === "ENOENT") return null; throw error; }
+      try { const file = await readPrivateServiceFile(lockPath); return file.text ? JSON.parse(file.text).pid : null; }
+      catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") return null;
+        if (error instanceof Error && error.message === `Moguri service metadata at ${lockPath} changed during inspection. No different owner was adopted.`) {
+          console.log("Generated cold lock is still being published; await the exact owned child without accepting this changed file.");
+          return null;
+        }
+        throw error;
+      }
     }).toBe(child.pid);
     const launchBegan = performance.now();
     app = await launch(f.directory);

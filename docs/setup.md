@@ -1,9 +1,63 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **92**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **93**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Retained pull-request CI watches
+
+In **Code change / Actions**, **Review exact CI watch** binds the selected
+PR, numeric controller `gh` account, profile, canonical project/worktree root
+and exact head. It also works for a picker-selected PR before linking it to
+the session. Confirm the original review to start one bounded read-only watch.
+Opening another pane, switching PRs or reopening the app discovers retained
+state; it never restarts polling. Concurrent views reuse the same admitted
+watch rather than starting duplicate pollers.
+
+The pane shows the original watch ID/status, last refresh, exact observed
+head, complete observation count and original check/run links. Failure
+annotations also explain startup/billing/runner failures with no job log.
+Queued, running, no-checks, skipped, neutral, cancelled, timed-out and unknown
+results are not successful CI. A watch deadline does not cancel or time out
+GitHub's workflow. Observed success is not merge clearance.
+
+Changed heads and closed PRs make old results historical. **Reload selected
+PR** and a fresh review are required for new work; another account/root or
+lost access is never silently adopted. **Cancel original CI watch** stops
+only Moguri's owned polling. Failed or unconfirmed process cleanup stays
+partial, including after actual controller loss. A separately reviewed new
+read preserves the old partial report and requires its explicit inspection
+confirmation; it does not resume or certify cleanup of the old attempt.
+
+CI attention names its actual PR/head and original terminal operation.
+Opening the conversation alone does not mark that CI notice read. Explicit
+**Mark read** never answers a question, approves a tool, reruns CI or changes
+the report. Existing in-app/OS/content-preview settings apply; OS banners
+remain factory-off and generic by default.
+
+```sh
+moguri github ci --session SESSION_ID
+moguri github ci-preview 123 --session SESSION_ID
+moguri github read WATCH_ID
+moguri github stop WATCH_ID
+```
+
+Omit the PR number only when the session has exactly one linked PR from its
+actual project. Shared TUI `/github ci [PR_NUMBER]` and
+`/github ci-preview [PR_NUMBER]` use the same SDK. Starting a reviewed watch
+uses the existing exact `github execute` API and original confirmation list;
+preview/read commands alone cannot dispatch polling or a model.
+
+This is the explicit **Local controller-account** surface. Remote/Sandbox
+cannot borrow a Local root/account. Historical head-only watches remain
+independently readable but are not attached to a PR by guessing from its SHA.
+Protocol93 adds `github_pr_ci_watch_schema=1` atomically to genuine92 state.
+The [contract and qualification](architecture/github-workflows.md#pr-bound-retained-watches-protocol-93)
+preserve original encrypted history, grants, receipts and unknown ownership.
+The last delivered DMG below remains its separately qualified protocol92
+build; source/API changes do not relabel its archive bytes or qualify a new
+native workload.
 
 ## Runtime readiness and exact pooled controls
 
@@ -4676,6 +4730,60 @@ For a trusted build whose source and archive identity you have verified,
 see [macOS launch troubleshooting](../README.md#macos-launch-troubleshooting).
 These are manual, app-specific steps, never global Gatekeeper disabling or
 permission to bypass malware warnings.
+
+### Local rebuild of merged main, 2026-11-06
+
+The newly generated **0.31.0-alpha.1 / protocol 92** macOS arm64 app is built
+from merged `812e33526e432fb92b580956f97f8c2bf269e002`, including #51. Worker,
+bridge and TUI SHA-256 values match the recorded `81dec6a` executable cut.
+The [roadmap reconciliation](remaining-milestone-gaps.md#merged-code-audit-2026-11-06)
+does not add an API, event, dependency or migration.
+
+Output directory: `release/qualification-builds/release-812e335-20261106/`.
+The app is at
+`builds.noindex/0.31.0-alpha.1/Moguri-darwin-arm64/Moguri.app` within that
+directory. This rebuild has new archive/bundle identities; it does not replace
+the original qualification receipts or claim their earlier bytes were rebuilt.
+The user confirmed previous DMGs were already removed; this work leaves one
+new DMG and does not delete unrelated apps, archives or source workspaces.
+
+| Artifact | Exact identity |
+| --- | --- |
+| `Moguri-0.31.0-alpha.1-macos-arm64.dmg` | 890,584,831 bytes; SHA-256 `130293e707f4f26d4822328ea16beb79c7ddbdb321a35fcfb7bb58e2aadc1850` |
+| `Moguri-0.31.0-alpha.1-macos-arm64.zip` | 874,584,538 bytes; SHA-512 `f49b28ead7f4377893512ecedc3a4686994b2c50e7c552d1732f197d4f7f0a369f8ef26f76f86211c4082f273c17e4ad6f8452f2744239bd3bb4558552049f6e` |
+| Canonical signed bundle | SHA-512 `a696ba4e26583ceb1984b9887af12d6342221c8f716ceae5b05cbd05cf4966a3cd04e8dccc51686fff7d376fdfdef51e29ca27ce6faaa32e7bdf9e76b9ca8138` |
+
+Fresh locked install, source build/type checks and dependency audit pass with
+zero vulnerabilities. The actual new app passes the complete package verifier:
+signature/mascot, pinned Node, CLI/TUI/SDK/worker, generated startup/restart,
+retained drafts/queues/artifacts/keys, exact PTY ownership and installed
+readiness/candidate/role paths. Its 62.8-MB negotiation is 29.28 ms, hidden
+startup 623.26 ms and 25,000-issue-history restart 1,991.96 ms; every one of the
+18 acknowledgement samples passes its original bound. Electron shell memory
+is 551.11 MiB for one console and 560.64 MiB for four against 600 MiB, with
+runtime/broker/user-program totals kept separate.
+
+The actual ZIP/manifest passes the production update consumer. Read-only DMG
+verification passes native Finder geometry, icons/background and exact signed
+bundle equality; `hdiutil verify` also passes. The independently installed
+packed SDK passes all entrypoints/declarations and its actual worker,
+readiness/pool, SSH candidate and recovery checks, with zero consumer
+vulnerabilities. Consumer installation still reports upstream
+`whatwg-encoding@3.1.1` and `node-domexception@1.0.0` deprecation warnings;
+the independent audit is clean and no warning is suppressed.
+No fresh complete source or whole desktop sweep is claimed;
+those existing exact-cut results remain in
+[the completion record](architecture/milestone-completion.md#final-frozen-ciruntime-cut).
+
+The fresh **no-cache producer-only** Linux arm64 image is
+`docker.io/library/moguri-worker@sha256:713b3a7f6a1bc690ae19f956f102d719296e076768f8441ffd6f0896adef9809`.
+Pinned SendBox 0.2.4 and Apple init/distribution integrity checks pass for
+packaging, not physical guest/network/cleanup acceptance. The app remains
+ad-hoc signed and not notarized. No personal app, authorization page or
+microphone was opened; no model weights were downloaded and no SendBox agent
+workload or personal inference ran.
+The separate SendBox Meta-DNS/physical gates and real main-CI account
+eligibility failure remain open in #17/#38.
 
 <a id="development-029-owned-role-contracts"></a>
 ### Current qualified 0.29.0-alpha.1 checkpoint

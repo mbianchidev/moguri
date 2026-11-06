@@ -4,6 +4,14 @@
 
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
+The [2026-11-06 merged-code audit](remaining-milestone-gaps.md#merged-code-audit-2026-11-06)
+reconciles protocol 92 / #51 with the live [roadmap #39](https://github.com/mbianchidev/moguri/issues/39).
+Runtime readiness, pooled Kupo controls, candidate transports and the final
+implementation-owned source checks are delivered, not pending draft work.
+Exact native physical acceptance and the current GitHub CI account-eligibility
+gate remain open. The criteria below are unchanged; future workflows and
+distribution do not silently become milestone requirements.
+
 Protocol 88's [session-controls and interactive-tool slice](architecture/session-controls-and-tools.md)
 exposes actual IDs and reviewed context mentions, exact success-only task
 dependencies, scoped peer messages, project-local priority/pinning/bulk actions,

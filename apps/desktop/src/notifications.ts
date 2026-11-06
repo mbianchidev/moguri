@@ -13,6 +13,11 @@ export function notificationToneAllowed(snapshot: Snapshot, tone: NotificationTo
   if (tone.kind === "completed") return session.status === "completed" && !session.turnId && !session.queue.some((item) => !item.held && item.delivery !== "steer");
   const attention = snapshot.attention.find((entry) => entry.id === tone.attentionId && entry.sessionId === session.id);
   if (!attention || attention.source !== "state" || !attention.active || attention.acknowledged) return false;
+  if (attention.reason === "ci") {
+    const operation = snapshot.githubOperations.find((operation) => operation.id === attention.messageId);
+    return Boolean(operation?.ci && operation.originSessionId === session.id && operation.status !== "running" &&
+      operation.revision === attention.operationRevision);
+  }
   if (attention.reason === "failed") return !session.turnId && ["failed", "partial"].includes(session.status);
   return Boolean(session.turnId && (attention.reason === "approval" && session.pendingApproval?.id === attention.messageId ||
     attention.reason === "question" && snapshot.questions.some((question) => question.id === attention.messageId && question.id === session.pendingQuestionId && question.status === "open" && question.turnId === session.turnId)));
@@ -39,8 +44,11 @@ export class AttentionNotifier {
       if (notificationToneAllowed(snapshot, tone, focused)) play?.(tone);
       if (!snapshot.settings.values.notifications.os || focused || !attention.active || attention.acknowledged) continue;
       const session = snapshot.sessions.find((session) => session.id === attention.sessionId);
-      const generic = attention.kind === "question" ? "A session may be asking a question." : attention.kind === "done" ? "Agent done and waiting." : attention.reason === "approval" ? "A session needs your approval." : "Work needs inspection.";
-      show({ id: attention.id, sessionId: attention.sessionId, kind: attention.kind, title: "Moguri", body: snapshot.settings.values.notifications.previewContent && session ? `${bounded(session.title, 100)}: ${bounded(session.messages.findLast((message) => message.role === "assistant")?.text ?? generic, 160)}` : generic });
+      const operation = attention.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === attention.messageId) : undefined;
+      const generic = attention.reason === "ci" ? "A PR CI watch needs inspection." : attention.kind === "question" ? "A session may be asking a question." : attention.kind === "done" ? "Agent done and waiting." : attention.reason === "approval" ? "A session needs your approval." : "Work needs inspection.";
+      const preview = operation?.ci ? `PR #${operation.ci.target.number} at ${operation.ci.target.headSha.slice(0, 12)}: watch ${operation.status}, CI ${operation.ci.state ?? "unobserved"}.` :
+        session?.messages.findLast((message) => message.role === "assistant")?.text ?? generic;
+      show({ id: attention.id, sessionId: attention.sessionId, kind: attention.kind, title: "Moguri", body: snapshot.settings.values.notifications.previewContent && session ? `${bounded(session.title, 100)}: ${bounded(preview, 160)}` : generic });
     }
   }
 }
