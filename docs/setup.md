@@ -1,9 +1,63 @@
 # Setup and usage
 
-Current service/SDK/desktop protocol is **92**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **93**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Retained pull-request CI watches
+
+In **Code change / Actions**, **Review exact CI watch** binds the selected
+PR, numeric controller `gh` account, profile, canonical project/worktree root
+and exact head. It also works for a picker-selected PR before linking it to
+the session. Confirm the original review to start one bounded read-only watch.
+Opening another pane, switching PRs or reopening the app discovers retained
+state; it never restarts polling. Concurrent views reuse the same admitted
+watch rather than starting duplicate pollers.
+
+The pane shows the original watch ID/status, last refresh, exact observed
+head, complete observation count and original check/run links. Failure
+annotations also explain startup/billing/runner failures with no job log.
+Queued, running, no-checks, skipped, neutral, cancelled, timed-out and unknown
+results are not successful CI. A watch deadline does not cancel or time out
+GitHub's workflow. Observed success is not merge clearance.
+
+Changed heads and closed PRs make old results historical. **Reload selected
+PR** and a fresh review are required for new work; another account/root or
+lost access is never silently adopted. **Cancel original CI watch** stops
+only Moguri's owned polling. Failed or unconfirmed process cleanup stays
+partial, including after actual controller loss. A separately reviewed new
+read preserves the old partial report and requires its explicit inspection
+confirmation; it does not resume or certify cleanup of the old attempt.
+
+CI attention names its actual PR/head and original terminal operation.
+Opening the conversation alone does not mark that CI notice read. Explicit
+**Mark read** never answers a question, approves a tool, reruns CI or changes
+the report. Existing in-app/OS/content-preview settings apply; OS banners
+remain factory-off and generic by default.
+
+```sh
+moguri github ci --session SESSION_ID
+moguri github ci-preview 123 --session SESSION_ID
+moguri github read WATCH_ID
+moguri github stop WATCH_ID
+```
+
+Omit the PR number only when the session has exactly one linked PR from its
+actual project. Shared TUI `/github ci [PR_NUMBER]` and
+`/github ci-preview [PR_NUMBER]` use the same SDK. Starting a reviewed watch
+uses the existing exact `github execute` API and original confirmation list;
+preview/read commands alone cannot dispatch polling or a model.
+
+This is the explicit **Local controller-account** surface. Remote/Sandbox
+cannot borrow a Local root/account. Historical head-only watches remain
+independently readable but are not attached to a PR by guessing from its SHA.
+Protocol93 adds `github_pr_ci_watch_schema=1` atomically to genuine92 state.
+The [contract and qualification](architecture/github-workflows.md#pr-bound-retained-watches-protocol-93)
+preserve original encrypted history, grants, receipts and unknown ownership.
+The last delivered DMG below remains its separately qualified protocol92
+build; source/API changes do not relabel its archive bytes or qualify a new
+native workload.
 
 ## Runtime readiness and exact pooled controls
 

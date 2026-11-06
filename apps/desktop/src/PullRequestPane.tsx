@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { githubSourceOwner, type GithubItem, type GithubPreview, type GithubResponse, type GithubScope, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { githubSourceOwner, type GithubItem, type GithubResponse, type GithubScope, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import type { GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
+import { PrCiWatch } from "./PrCiWatch.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.browse" }>;
 type Tab = "Files" | "Actions" | "Reviews";
-export function PullRequestPane({ sdk, scope, session, snapshot, selection }: {
-  sdk: MoguriSdk; scope: GithubScope; session: Session; snapshot: Snapshot; selection: GithubSelection;
+export function PullRequestPane({ sdk, scope, session, snapshot, selection, reloadSource }: {
+  sdk: MoguriSdk; scope: GithubScope; session: Session; snapshot: Snapshot; selection: GithubSelection; reloadSource: () => Promise<void>;
 }) {
   const head = selection.item.headSha, number = selection.item.number, { repository, account } = selection.source;
   const key = JSON.stringify([sdk.profileId, scope, selection.context.accountId, repository, number, head, githubSourceOwner(selection.binding)]);
@@ -15,9 +16,6 @@ export function PullRequestPane({ sdk, scope, session, snapshot, selection }: {
   const [tab, setTab] = useState<Tab>("Files"), [reviewResource, setReviewResource] = useState<"review-comments" | "reviews" | "threads">("review-comments");
   const [runId, setRunId] = useState<number | null>(null), [page, setPage] = useState<Read | null>(null);
   const [error, setError] = useState(""), [busy, setBusy] = useState(false), [logs, setLogs] = useState("");
-  const [review, setReview] = useState<GithubPreview | null>(null), [confirmations, setConfirmations] = useState<string[]>([]);
-  const [watchId, setWatchId] = useState(""), [watchResult, setWatchResult] = useState<Awaited<ReturnType<MoguriSdk["github"]["read"]>> | null>(null);
-  const watch = snapshot.githubOperations.find((operation) => operation.id === watchId);
   const verify = async () => {
     const fresh = await sdk.github.source(scope, selection.source);
     if (fresh.accountId !== selection.context.accountId || fresh.item.headSha !== head ||
@@ -38,7 +36,7 @@ export function PullRequestPane({ sdk, scope, session, snapshot, selection }: {
     } catch (error) { if (token === generation.current && current.current === captured) { setPage(null); setError(error instanceof Error ? error.message : "PR observations unavailable. No successful or current state was inferred."); } }
     finally { if (token === generation.current) setBusy(false); }
   };
-  useEffect(() => { setPage(null); setReview(null); setConfirmations([]); void load(); return () => { generation.current++; }; }, [key, tab, reviewResource, runId]);
+  useEffect(() => { setPage(null); void load(); return () => { generation.current++; }; }, [key, tab, reviewResource, runId]);
   const operation = async (action: () => Promise<void>) => {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError("");
@@ -83,31 +81,7 @@ export function PullRequestPane({ sdk, scope, session, snapshot, selection }: {
       {page?.items.map(render)}
       {page?.nextPage && <button type="button" disabled={busy} onClick={() => void load(page.nextPage!)}>Next observation page</button>}
       {logs && <pre className="pr-run-logs">{logs}</pre>}
-      {tab === "Actions" && head && <section className="pr-ci-watch"><h3>Watch CI at this exact head</h3>
-        <p className="fine-print">Bounded to two minutes. No model call, rerun, account switch, push or merge. A changed PR head is stale, not silently adopted.</p>
-        <button type="button" disabled={busy || watch?.status === "running"} onClick={() => void operation(async () => {
-          const captured = key; await verify();
-          const result = await sdk.github.preview(scope, { kind: "github.ci.watch", repository, account, headSha: head, timeoutMs: 120000, pollMs: 2000 });
-          if (current.current === captured) { setReview(result.preview); setConfirmations([]); }
-        })}>Review exact CI watch</button>
-        {review && <><p className="fine-print path">{review.document.accountId} / {review.document.root.root} / {head}</p>
-          {review.document.confirmations.map((text) => <label className="check-setting" key={text}><input type="checkbox" checked={confirmations.includes(text)} disabled={busy}
-            onChange={(event) => setConfirmations((values) => event.target.checked ? [...values, text] : values.filter((value) => value !== text))} />{text}</label>)}
-          <button type="button" disabled={busy || review.document.confirmations.some((text) => !confirmations.includes(text))} onClick={() => void operation(async () => {
-            const captured = key; await verify(); const started = await sdk.github.execute(review, review.document.confirmations, true);
-            if (!started.id) throw new Error("The exact CI watcher was not acknowledged. Inspect retained workflow history.");
-            setWatchId(started.id); setReview(null);
-            void sdk.github.wait(started.id, { timeoutMs: 135000, pollMs: 500 }).then(async (observed) => {
-              await verify(); if (current.current === captured) setWatchResult(observed);
-            }).catch((error: unknown) => {
-              const message = error instanceof Error ? error.message : "The original CI watch is unavailable or stale.";
-              if (current.current === captured) setError(message); else console.error("Original PR CI watch:", message);
-            });
-          })}>Start exact-head watch</button></>}
-        {watchId && <p role="status">Watch {watch?.status ?? "unobserved"} / {watchId}. {watch?.diagnostic}</p>}
-        {watch?.status === "running" && <button type="button" onClick={() => void operation(() => sdk.github.cancel(watchId).then(() => {}))}>Cancel original CI watch</button>}
-        {watchResult?.result?.ci && <p role="status">CI: {watchResult.result.ci.state}{watchResult.result.ci.deadlineReached ? " / deadline reached" : ""} / {watchResult.result.ci.items.length} actual observations at {watchResult.result.ci.headSha}.</p>}
-      </section>}
+      {tab === "Actions" && head && <PrCiWatch sdk={sdk} scope={scope} snapshot={snapshot} selection={selection} reloadSource={reloadSource} />}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       <p className="fine-print">Read-only observations through this profile's exact GitHub CLI account. Review state and CI are not permissions or a merge decision. No alternate repository/fork CI is fetched automatically.</p>
     </div>

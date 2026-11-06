@@ -92,6 +92,22 @@ export function AttentionPanel({ sdk, snapshot, chooseSession }: { sdk: MoguriSd
   const active = snapshot.attention.filter((entry) => entry.active).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const read = async (id: string) => { try { await sdk.attention.acknowledge([id]); } catch (error) { setError(error instanceof Error ? error.message : "Read acknowledgement failed."); } };
   return <section aria-label="Attention list"><h2>Needs your attention</h2>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length && <p className="fine-print">No pending attention. Read acknowledgement never answers a question or approves a tool.</p>}
-    {active.map((entry) => { const session = snapshot.sessions.find((session) => session.id === entry.sessionId); return <article className={`attention-item ${entry.acknowledged ? "read" : "unread"}`} key={entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} /><div><button className="quiet" onClick={() => void chooseSession(entry.sessionId)}>{session?.title ?? "Session removed"}</button><p>{entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p><small>{new Date(entry.createdAt).toLocaleString()}</small></div>{!entry.acknowledged && <button className="icon-button" aria-label={`Mark attention read ${entry.id}`} title="Mark read, not resolved" onClick={() => void read(entry.id)}><Icon name="Check" /></button>}</article>; })}
+    {active.map((entry) => {
+      const session = snapshot.sessions.find((session) => session.id === entry.sessionId);
+      const operation = entry.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === entry.messageId) : undefined;
+      return <article className={`attention-item ${entry.acknowledged ? "read" : "unread"}`} key={entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
+        <div><button className="quiet" onClick={() => void chooseSession(entry.sessionId)}>{session?.title ?? "Session removed"}</button>
+          <p>{operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
+            entry.reason === "ci" ? "Original CI report unavailable; no replacement result was inferred." :
+            entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>
+          {operation?.ci && <button type="button" className="quiet" onClick={() => {
+            const target = operation.ci!.target;
+            void window.moguri.openExternal(`https://github.com/${target.repository}/pull/${target.number}`)
+              .catch((error: unknown) => setError(error instanceof Error ? error.message : "The original PR link could not be opened."));
+          }}>Open original PR</button>}
+          <small>{new Date(entry.createdAt).toLocaleString()}</small>
+        </div>{!entry.acknowledged && <button className="icon-button" aria-label={`Mark attention read ${entry.id}`} title="Mark read, not resolved" onClick={() => void read(entry.id)}><Icon name="Check" /></button>}
+      </article>;
+    })}
   </section>;
 }
