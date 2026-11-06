@@ -5,6 +5,17 @@ history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
 
+## First-milestone combination qualification
+
+The [required combination and native-gate map](architecture/milestone-combination-matrix.md)
+defines all Local/SSH/Sandbox control/input cells, actual-user and accounting
+criteria, reproduction commands and exact report identities. Local/SSH
+generated source execution and real TUI/hidden-desktop interaction are separate
+from physical native acceptance. Released SendBox 0.2.4's Meta-DNS prerequisite,
+fresh current-protocol guest/control/network/cleanup/loss/recovery evidence and
+account-blocked main CI remain visible gates. Neither issue #38 nor Milestone 1
+is accepted by a source test count or a historical receipt.
+
 ## Retained pull-request CI watches
 
 In **Code change / Actions**, **Review exact CI watch** binds the selected
