@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { execFile, execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
@@ -24,7 +24,16 @@ const cells = requiredMilestoneCells();
 const sourceCells = cells.filter((cell) => cell.env !== "Sandbox");
 const concurrency = 4, cellTimeout = 45000, setupTimeout = 15000;
 const actorGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.autonomy.length * milestoneAxes.budget.length;
-const sourceGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.window.length * milestoneAxes.effort.length * milestoneAxes.input.length;
+const sourceGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.window.length * milestoneAxes.input.length;
+let documentCapture = Promise.resolve();
+
+async function captureDocument(fixture: MilestoneFixture, sessionId: string, path: string) {
+  const previous = documentCapture, release = Promise.withResolvers<void>();
+  documentCapture = release.promise;
+  await previous;
+  try { return await fixture.sdk.attachments.document(sessionId, path); }
+  finally { release.resolve(); }
+}
 
 test("the required milestone cell map is the complete Cartesian set, with native-unqualified cells retained separately", () => {
   assert.equal(cells.length, 10080);
@@ -92,7 +101,7 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   if (cell.input === "document") {
     documentPath = join(fixture.directory, "generated-matrix.docx");
     await writeFile(documentPath, generatedDocx());
-    documentId = (await fixture.sdk.attachments.document(sessionId, documentPath)).id!;
+    documentId = (await captureDocument(fixture, sessionId, documentPath)).id!;
   }
   const observed = milestoneResponses(fixture, cell, documentId, options.question);
   const admittedDraft = session().draft;
@@ -318,7 +327,8 @@ test(`configured ${env}/${selection} retains approved image/document drafts when
 test("required Local/SSH source cells execute every independent control/input combination through the service and SDK", {
   skip: process.platform !== "darwin", concurrency, timeout: 7200000,
 }, async (t) => {
-  const groups = [...new Set(sourceCells.map((cell) => `${cell.env}/${cell.selection}/${cell.autonomy}/${cell.budget}`))];
+  const groupId = (cell: MilestoneCell) => `${cell.env}/${cell.selection}/${cell.autonomy}/${cell.budget}/${cell.effort}`;
+  const groups = [...new Set(sourceCells.map(groupId))];
   const completed = new Map<string, Awaited<ReturnType<typeof runCell>>>();
   const failed = new Map<string, string>(), completedGroups = new Set<string>();
   const identity: { commit: string; dirtyAtStart: boolean; protocol: number; node: string; inputs: Record<string, string> } = {
@@ -328,8 +338,14 @@ test("required Local/SSH source cells execute every independent control/input co
     inputs: {},
   };
   const startedAt = new Date().toISOString();
+  const directory = ".test-output/milestone-combinations", runId = startedAt.replace(/\D/g, "");
+  const journalPath = join(directory, `source-progress-${runId}.jsonl`);
+  let journalWrites = Promise.resolve();
+  const journal = (entry: object) => journalWrites = journalWrites.then(() => appendFile(journalPath, `${JSON.stringify(entry)}\n`));
   let diagnostic: string | null = null;
   try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(journalPath, `${JSON.stringify({ version: 1, startedAt, sourceStatus: "RUNNING", nativeStatus: "UNQUALIFIED", axes: milestoneAxes })}\n`, { flag: "wx" });
     const paths = ["package.json", "package-lock.json", "scripts/worker-image/Containerfile",
       "apps/service/src/worker.ts", "apps/service/src/remote-bridge.ts", "dist/worker.mjs", "dist/remote-bridge.mjs",
       "apps/desktop/src/BudgetControls.tsx", "apps/desktop/src/SettingsPanel.tsx",
@@ -339,8 +355,9 @@ test("required Local/SSH source cells execute every independent control/input co
       "tests/fixtures/single-routing.ts", "tests/fixtures/milestone-combinations.ts", "tests/milestone-combinations.test.ts",
       "tests/tui-milestone-combinations.test.ts", "tests/e2e/milestone-combinations.spec.ts"];
     identity.inputs = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, createHash("sha256").update(await readFile(path)).digest("hex")])));
+    await journal({ type: "identity", identity });
     await Promise.all(groups.map((group) => t.test(group, { timeout: sourceGroupTimeout }, async (groupTest) => {
-      const required = sourceCells.filter((cell) => `${cell.env}/${cell.selection}/${cell.autonomy}/${cell.budget}` === group);
+      const required = sourceCells.filter((cell) => groupId(cell) === group);
       const first = required[0]!;
       assert.ok(first.env !== "Sandbox");
       const fixture = await routedFixture({ env: first.env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
@@ -354,16 +371,19 @@ test("required Local/SSH source cells execute every independent control/input co
             try {
               const result = await runCell(fixture, cell);
               assert.equal(completed.has(result.id), false);
+              await journal({ type: "cell", result });
               completed.set(result.id, result);
               passed = true;
             } catch (error) {
               failed.set(milestoneCellId(cell), error instanceof Error ? error.message : String(error));
+              await journal({ type: "cell", result: { id: milestoneCellId(cell), outcome: "source-failed", diagnostic: failed.get(milestoneCellId(cell)) } });
               throw error;
             }
           });
           assert.ok(passed, `Required cell did not pass; remaining group cells are not qualification: ${milestoneCellId(cell)}`);
         }
       } finally { await fixture.close(); }
+      await journal({ type: "group-cleanup-confirmed", group });
       completedGroups.add(group);
     })));
     assert.deepEqual([...completed.keys()].sort(), sourceCells.map(milestoneCellId).sort());
@@ -377,7 +397,7 @@ test("required Local/SSH source cells execute every independent control/input co
       version: 1, identity, startedAt, finishedAt: new Date().toISOString(),
       sourceStatus: completed.size === sourceCells.length && completedGroups.size === groups.length ? "PASS" : "INCOMPLETE", diagnostic,
       nativeStatus: "UNQUALIFIED", nativeImage: null, nativePhysicalReceipt: null,
-      required: cells.length, sourcePassed: completed.size, nativeUnqualified: 3360,
+      required: cells.length, sourcePassed: completed.size, nativeUnqualified: 3360, journalPath,
       cells: cells.map((cell) => completed.get(milestoneCellId(cell)) ?? {
         id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-unqualified" :
           failed.has(milestoneCellId(cell)) ? "source-failed" : "not-run",
@@ -385,10 +405,9 @@ test("required Local/SSH source cells execute every independent control/input co
           failed.get(milestoneCellId(cell)) ?? diagnostic ?? "Required source cell did not complete; no qualification inferred.",
       }),
     };
-    const directory = ".test-output/milestone-combinations";
     await mkdir(directory, { recursive: true });
     const content = `${JSON.stringify(report, null, 2)}\n`;
-    await writeFile(join(directory, `source-report-${startedAt.replace(/\D/g, "")}.json`), content, { flag: "wx" });
+    await writeFile(join(directory, `source-report-${runId}.json`), content, { flag: "wx" });
     await writeFile(join(directory, "source-report.json.tmp"), content);
     await rename(join(directory, "source-report.json.tmp"), join(directory, "source-report.json"));
   }
