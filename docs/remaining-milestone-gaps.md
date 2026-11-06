@@ -46,10 +46,20 @@ The live parent is [#39](https://github.com/mbianchidev/moguri/issues/39).
 Ordering does not authorize implementation or turn optional features into
 first-milestone prerequisites.
 
+The next feasible Local task, [#7](https://github.com/mbianchidev/moguri/issues/7),
+now has complete protocol93 source in [draft #52](https://github.com/mbianchidev/moguri/pull/52)
+at `c3f3164`: retained PR-bound watches, deduplicated admission, original
+observations/diagnostics, actual-controller-loss recovery and notifications
+across SDK/CLI/TUI/desktop. All 2,490 executed source cases, the independently
+installed packed SDK and the fresh 365-flow desktop suite pass. This is
+unmerged source completion, not main delivery, current native qualification
+or a replacement DMG. The [exact qualification](architecture/github-workflows.md#protocol93-qualification)
+keeps the first desktop fixture failure and its narrow correction separate.
+
 | Order | Remaining work |
 | --- | --- |
 | 1. First-milestone acceptance | #38 exact required combination/native evidence; #17 criterion-by-criterion integrated acceptance and real hosted CI eligibility. |
-| 2. Existing integrations and everyday workflows | #45 remaining applicable skills controls; #7 durable PR-watch association/freshness/notifications; #9 cross-repository GitHub My Work inbox; #23 opt-in OTLP export; #13 per-turn rewind; #12 actual Stainless integration. |
+| 2. Existing integrations and everyday workflows | #45 remaining applicable skills controls; #9 cross-repository GitHub My Work inbox; #23 opt-in OTLP export; #13 per-turn rewind; #12 actual Stainless integration. #7's implementation is complete in the draft above. |
 | 3. Distribution and documentation | #26 Homebrew cask and install/update ownership; #14 landing/downloads/user/developer site. Publication/access, licensing and signing remain explicit decisions. |
 | 4. Optional providers and automation | #34 Laya; #6 recurring/declarative workflows; #8 dependency roundups; #10 continuous personas; #11 specialized presets; #46 Slack mentions. Existing one-time scheduled prompts are not a recurring workflow engine. |
 
