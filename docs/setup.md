@@ -66,8 +66,15 @@ suite, independently installed SDK and the actual ad-hoc package. All
 `release/qualification-builds/milestone93-d7f6648/`; its exact digest, producer
 image and retained report are in the linked map. It is not a native-qualified
 or notarized release. Those immutable receipts do not qualify changed
-protocol94 worker/app bytes; the linked map records fresh follow-up evidence
-and still-open native/hosted gates separately.
+protocol94 worker/app bytes. The
+[new frozen protocol94 qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
+at clean `07087bf` independently passes all **6,720 Local/SSH cells**,
+**10,562 source checks**, **382 hidden desktop flows**, the installed SDK,
+actual packaged runtime and **17 actual packaged desktop checks**. Its new
+verified development DMG is
+`release/qualification-builds/milestone94-07087bf/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+Physical native and hosted gates remain open. SendBox's DNS repair merged, but
+the latest released dependency is still the pre-repair 0.2.4 byte set.
 Fresh macOS source-test environments also require the matching installed
 Chromium revision: run `npm exec -- playwright install chromium` explicitly
 after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.

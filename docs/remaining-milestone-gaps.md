@@ -20,7 +20,14 @@ adds authenticated exact-project search, fresh tool-call identity normalization
 and approval/composer controls. Protocol93's completed Local/SSH receipts remain
 historical; the [cell map](architecture/milestone-combination-matrix.md#user-directed-protocol94-follow-up)
 records new-byte qualification separately. The native and hosted acceptance
-requirements are not reduced by these fixes.
+requirements are not reduced by these fixes. The new clean `07087bf`
+[frozen qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
+passes all 6,720 Local/SSH cells, 10,562 source checks, 382 hidden desktop
+flows, the independent installed SDK, actual new package and 17 packaged
+desktop flows. Every one of 3,360 native cells remains explicitly unqualified.
+[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80)
+merged its source repair, but no post-repair release was available;
+remaining N0 is released-byte qualification, not an unmerged draft.
 
 | Area | Current status |
 | --- | --- |
