@@ -7,6 +7,31 @@ import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer menus use generated hidden macOS windows.");
+test("Guardrails and decision settings sit beside their autonomy choices and settings never select a mode", async () => {
+  const fixture = await setupFixture(), app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), original = fixture.session().controls.autonomy;
+    await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
+    const menu = page.getByRole("dialog", { name: "Autonomy level", exact: true });
+    const autopilot = menu.getByRole("button", { name: /^Autopilot Automatically approve/ });
+    const max = menu.getByRole("button", { name: /^Autopilot Max / });
+    const guardrails = menu.getByRole("button", { name: "Guardrails", exact: true }), decisions = menu.getByRole("button", { name: "Decision provider settings", exact: true });
+    expect(await autopilot.evaluate((button) => button.parentElement?.querySelector('[aria-label="Guardrails"]') !== null)).toBe(true);
+    expect(await max.evaluate((button) => button.parentElement?.querySelector('[aria-label="Decision provider settings"]') !== null)).toBe(true);
+    await expect(max).toBeDisabled(); await expect(decisions).toBeEnabled();
+    const selectionBox = await autopilot.boundingBox(), settingBox = await guardrails.boundingBox();
+    expect(selectionBox).not.toBeNull(); expect(settingBox).not.toBeNull();
+    expect(settingBox!.x).toBeGreaterThanOrEqual(selectionBox!.x + selectionBox!.width);
+    await guardrails.focus(); await page.keyboard.press("Enter");
+    await expect(page.getByRole("heading", { name: "Guardrails and tool guidance", exact: true })).toBeVisible();
+    expect(fixture.session().controls.autonomy).toBe(original);
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    await page.getByRole("button", { name: "Autonomy level", exact: true }).click(); await decisions.click();
+    await expect(page.getByRole("heading", { name: "Decision providers and Local Max", exact: true })).toBeVisible();
+    expect(fixture.session().controls.autonomy).toBe(original); expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
 test("the model control opens cascading model, effort and context menus with exact supported options and Kupo's unavailable explanation", async () => {
   const fixture = await setupFixture({ reasoning: true, contextWindow: 32768 });
   await fixture.configure();

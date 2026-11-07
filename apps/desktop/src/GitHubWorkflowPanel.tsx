@@ -32,6 +32,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const [tag, setTag] = useState(""), [target, setTarget] = useState(""), [annotated, setAnnotated] = useState(true), [message, setMessage] = useState("");
   const [deleteLocation, setDeleteLocation] = useState<"local" | "remote">("local");
   const [number, setNumber] = useState(""), [title, setTitle] = useState(""), [body, setBody] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editTitle, setEditTitle] = useState(false), [editBody, setEditBody] = useState(false), [state, setState] = useState<"" | "open" | "closed">("");
   const [base, setBase] = useState(""), [head, setHead] = useState(""), [draft, setDraft] = useState(true), [prerelease, setPrerelease] = useState(false);
   const [headRepository, setHeadRepository] = useState("");
@@ -130,6 +131,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     const gh = { repository, account, page, perPage: 20 };
     let input: GithubBrowse;
     switch (resource) {
+      case "search": input = { resource, ...gh, query: searchQuery }; break;
       case "issues": case "pulls": case "releases": input = { resource, ...gh }; break;
       case "issue": case "pull": case "reviews": case "comments": case "review-comments": case "threads": input = { resource, ...gh, number: positive(number, "issue/PR number") }; break;
       case "files": input = { resource, ...gh, number: positive(number, "issue/PR number"), headSha }; break;
@@ -223,8 +225,9 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     </section>}
     <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs and releases</summary>
       <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
-        {["issues", "issue", "pulls", "pull", "files", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "jobs", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
+        {["search", "issues", "issue", "pulls", "pull", "files", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "jobs", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
       </select></label>} descriptionFirst>Read-only, bounded pages. Enter the explicit repository/account above. No endpoint editor, account substitution or implicit refresh.</SettingsHelp>
+      {resource === "search" && <label className="setting-field">Issue and PR search terms<SettingsInput value={searchQuery} maxLength={2000} placeholder="is:issue is:open (UI OR UX OR redesign OR polish)" onChange={(event) => setSearchQuery(event.target.value)} /></label>}
       {(resource === "run" || resource === "jobs" || resource === "logs") && <label className="setting-field">Exact workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
       <button disabled={Boolean(busy) || !allowed || !repository || !account} onClick={() => void browse()}>Read GitHub page</button>
       {browsed?.scope === scopeKey && <><p className="fine-print">{browsed.result.warning} Page {browsed.result.page}.</p>

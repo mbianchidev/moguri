@@ -14,6 +14,14 @@ owned Linux source result (1,604 passes, 831 explicit skips), installed SDK
 and packaged application evidence. These are local generated results, not
 GitHub-hosted CI, Linux release support or current physical SendBox acceptance.
 
+The user-directed protocol94 GitHub/input follow-up is a distinct source cut.
+Its [contract](architecture/session-github-workflows.md#protocol94-github-and-input-follow-up)
+adds authenticated exact-project search, fresh tool-call identity normalization
+and approval/composer controls. Protocol93's completed Local/SSH receipts remain
+historical; the [cell map](architecture/milestone-combination-matrix.md#user-directed-protocol94-follow-up)
+records new-byte qualification separately. The native and hosted acceptance
+requirements are not reduced by these fixes.
+
 | Area | Current status |
 | --- | --- |
 | Shared clients, durable sessions and controls | Implemented, including drafts/queues, profiles, independent artifacts, managed worktrees, original terminal ownership and restart/migration coverage. |

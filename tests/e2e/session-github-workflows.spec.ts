@@ -198,3 +198,28 @@ test("approval scopes persist across turns, Autopilot explicitly enables unatten
     expect(fixture.service.controller.snapshot().settings.values.permissions.tools).toEqual(policy);
   } finally { await close(app); await fixture.close(); }
 });
+
+test("the main approval menu offers a real profile-wide command family without absorbing compound commands", async () => {
+  const fixture = await setupFixture({ respond: (_request, index) => index % 2 === 1 ?
+    { tool: { name: "run_command", args: { command: index === 1 ? "printf 'Generated family first'" : index === 3 ? "printf 'Generated family second'" : "printf 'Generated compound' && printf 'Generated other command'", timeoutMs: 2000 } } } :
+    { text: "Generated command inspected." } });
+  await fixture.configure(); await reviewNativeTools(fixture, ["run_command"]);
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), approval = page.getByRole("region", { name: "Tool approval", exact: true });
+    await fixture.send("Generated first family approval."); await expect(approval).toBeVisible();
+    const scope = approval.getByLabel("Approval scope", { exact: true });
+    await scope.selectOption({ label: "This family of commands: printf (across this profile)" });
+    await expect(approval.getByLabel("Command matching", { exact: true })).toHaveValue("family");
+    await approval.getByRole("button", { name: "Always approve printf", exact: true }).click();
+    await fixture.terminal();
+    const remembered = fixture.service.controller.snapshot().settings.values.permissions.remembered!;
+    expect(remembered).toHaveLength(1); expect(remembered[0]!.scope.kind).toBe("global");
+    expect(remembered[0]!.target).toEqual({ kind: "command", command: "printf", match: "family" });
+    await fixture.send("Generated remembered family."); await fixture.terminal(); await expect(approval).not.toBeVisible();
+    await fixture.send("Generated compound needs separate review."); await expect(approval).toBeVisible();
+    await expect(scope.locator("option", { hasText: "This family of commands" })).toHaveCount(0);
+    await approval.getByRole("button", { name: "Deny", exact: true }).click(); await fixture.terminal();
+    expect(fixture.service.controller.events(0).filter((event) => event.event_type === "tool.started")).toHaveLength(2);
+  } finally { await close(app); await fixture.close(); }
+});

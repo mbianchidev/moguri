@@ -8,6 +8,61 @@ import { chooseContextWindow, chooseThinkingEffort, finishIdleSchedule, openMode
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer execution is qualified on macOS.");
+test("one Enter captures the native text even when its content-change notification has not reached the editor", async () => {
+  const fixture = await setupFixture({ responseMode: "text" });
+  await fixture.configure();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true }), text = "Generated single-Enter native input.";
+    await expect(prompt).toHaveValue(""); await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await prompt.evaluate((element, text) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      if (!setter) throw new Error("The generated textarea has no native value setter.");
+      setter.call(element, text);
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+    }, text);
+    await expect.poll(() => fixture.requests.length).toBe(1);
+    await expect.poll(() => fixture.session().status).toBe("completed");
+    const turns = fixture.service.controller.events(0).filter((event) => event.event_type === "turn.started");
+    expect(turns).toHaveLength(1); expect(turns[0]!.event_type === "turn.started" && turns[0]!.payload.item.text).toBe(text);
+    await expect(prompt).toHaveValue(""); await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("a single native Enter runs a fresh slash command and active autosave never consumes the ordinary send keystroke", async () => {
+  const fixture = await setupFixture({ responseMode: "text" });
+  await fixture.configure();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  const dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller), gate = Promise.withResolvers<void>();
+  let saving = false;
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    await expect(prompt).toHaveValue("");
+    await prompt.evaluate((element) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      if (!setter) throw new Error("The generated textarea has no native value setter.");
+      setter.call(element, "/rename Generated native Enter command");
+      element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+    });
+    await expect.poll(() => fixture.session().title).toBe("Generated native Enter command");
+    await expect(prompt).toHaveValue(""); expect(fixture.requests).toHaveLength(0);
+    fixture.service.controller.dispatch = async (...args: Parameters<typeof dispatch>) => {
+      const request: unknown = args[0];
+      if (isRecord(request) && isRecord(request.command) && request.command.type === "draft.save") { saving = true; await gate.promise; }
+      return dispatch(...args);
+    };
+    const text = "Generated one Enter during active autosave.";
+    await prompt.fill(text); await expect.poll(() => saving).toBe(true);
+    await prompt.press("Enter"); gate.resolve();
+    await expect.poll(() => fixture.session().status).toBe("completed");
+    expect(fixture.requests).toHaveLength(1);
+    expect(fixture.session().messages.find((message) => message.role === "user")?.text).toBe(text);
+    await expect(prompt).toHaveValue(""); await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+  } finally { gate.resolve(); fixture.service.controller.dispatch = dispatch; await app.close(); await fixture.close(); }
+});
 test("model dropdown keeps preferred Max through High fallback and restores it until the user explicitly changes effort", async () => {
   const fixture = await setupFixture({ reasoning: true, contextWindow: 32768 }), original = fixture.provider.state.models[0]!;
   const maximum = { ...original, id: "gpt-generated-max", apiModelId: "gpt-generated-max", name: "Generated GPT Max", thinkingLevels: ["low", "high", "max"] as const };

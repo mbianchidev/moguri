@@ -2,10 +2,29 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { githubServiceFixture } from "../github-workflows-fixture.ts";
+import { githubApplicationFixture, githubServiceFixture } from "../github-workflows-fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The hidden native desktop Git checkpoint is qualified on macOS.");
+test("desktop authenticated search uses the exact project account and shows a complete source page without writes", async () => {
+  const f = await githubApplicationFixture(), app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: f.stateDir, MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
+    await page.getByText("Advanced reviewed Git and GitHub operations", { exact: true }).click();
+    const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
+    await expect(panel.getByLabel("GitHub repository (owner/name)", { exact: true })).toHaveValue("generated-owner/fixture");
+    await panel.getByText("Read GitHub issues, PRs, reviews, checks, runs, logs and releases", { exact: true }).click();
+    await panel.getByLabel("GitHub resource", { exact: true }).selectOption("search");
+    await panel.getByLabel("Issue and PR search terms", { exact: true }).fill("is:issue is:open (UI OR UX OR redesign OR polish)");
+    await panel.getByRole("button", { name: "Read GitHub page", exact: true }).click();
+    await expect(panel.getByText("#7 Generated issue / open", { exact: true })).toBeVisible();
+    expect(f.calls.filter((call) => call.path.startsWith("search/issues?"))).toHaveLength(1);
+    expect(f.writes()).toEqual({ issues: 0, pulls: 0 }); expect(f.session().turnId).toBeNull();
+  } finally { await app.close(); await f.close(); }
+});
 test("desktop exact Git review invalidates edits, separately confirms main push, and shares independently retained tag results with the SDK", async () => {
   const f = await githubServiceFixture();
   let app: ElectronApplication | undefined;
