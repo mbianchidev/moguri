@@ -19,6 +19,7 @@ import { SandboxPanel } from "./SandboxPanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
 import { Dashboard } from "./Dashboard.tsx";
+import { MyWorkFiltersSchema, parse, type MyWorkFilters } from "../../../packages/sdk/src/index.ts";
 import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 import { NotificationAudio } from "./notification-audio.ts";
 import { ApprovalActions } from "./ApprovalActions.tsx";
@@ -146,6 +147,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [layout] = useState(savedLayout);
   const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) || resourceSettings(layout.panel) ? "Insights" : layout.panel === "PR" ? "Code change" : layout.panel);
   const [globalView, setGlobalView] = useState<GlobalView | null>(isGlobalPanel(layout.panel) ? layout.panel : null);
+  const [inboxItemId, setInboxItemId] = useState<string | null>(null), [inboxFilters, setInboxFilters] = useState<MyWorkFilters | undefined>();
   const [globalSessionId, setGlobalSessionId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(layout.open);
   const [panelMaximized, setPanelMaximized] = useState(layout.maximized);
@@ -182,6 +184,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [boardOpen, setBoardOpen] = useState(false);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
+  const panelDirtyRef = useRef(false);
+  const reportPanelDirty = useCallback((dirty: boolean) => { panelDirtyRef.current = dirty; setPanelDirty(dirty); }, []);
   const questionDirty = useRef(false);
   const questionDirtyChanged = useCallback((dirty: boolean) => { questionDirty.current = dirty; }, []);
   const [nativeModal, setNativeModal] = useState(false);
@@ -300,7 +304,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   }, [JSON.stringify(snapshot?.settings.values.appearance)]);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (panelDirty || settingsUnsaved || profilePending || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
+      if (panelDirtyRef.current || settingsUnsaved || profilePending || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
     };
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
@@ -318,7 +322,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const command = (command: Command) => run(() => client.command(command));
   const canChangePanel = () => {
     if (switchingProfile.current) { setNotice("A profile switch is in progress. Existing work stays in its original profile."); return false; }
-    if (!settingsUnsaved && !panelDirty) return true;
+    if (!settingsUnsaved && !panelDirtyRef.current) return true;
     setNotice("Save your edit or reload committed values before navigating. Your edit is preserved.");
     return false;
   };
@@ -369,7 +373,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (!target) throw new Error("This session was removed.");
     selectMainSession(id, target.projectId); setBoardOpen(target.purpose === "kanban"); setNavOpen(false); setSideSessionId(null);
     if (target.unread) await client.sessions.organize(id, { unread: false });
-    const attention = client.getState().snapshot?.attention.filter((entry) => entry.sessionId === id && !entry.acknowledged && entry.reason !== "ci").map((entry) => entry.id) ?? [];
+    const attention = client.getState().snapshot?.attention.filter((entry) => entry.sessionId === id && !entry.acknowledged && entry.reason !== "ci" && entry.reason !== "my-work").map((entry) => entry.id) ?? [];
     if (attention.length) await client.attention.acknowledge(attention.slice(-100));
   });
   const openKanban = (id: string) => run(async () => {
@@ -408,6 +412,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       const restored = next.getState().snapshot?.sessions.find((session) => session.id === (targetSessionId ?? remembered?.session?.id));
       setSelectedId(restored?.id ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(restored?.status === "archived"); setSettingsTab(null); setPolicyFocus(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
       setPalette(false); setCommandOutput(null); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
+      setInboxItemId(null); setInboxFilters(undefined);
+      return next;
     } catch (error) { next?.disconnect(); throw error; }
     finally { switchingProfile.current = false; setBusy(false); setProfilePending(false); }
   };
@@ -415,6 +421,19 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (profileId === client.profileId) void chooseSession(id);
     else void openProfile(profileId, id).catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Notification profile could not be opened."));
   }), [chooseSession, client.profileId]);
+  const openInbox = (id: string) => {
+    if (!canNavigate()) return;
+    setInboxItemId(id); setInboxFilters({ itemId: id, state: "all" }); openGlobal("Dashboard", null);
+  };
+  useEffect(() => window.moguri.onNavigateWork((id, profileId) => {
+    void (async () => {
+      if (profileId !== client.profileId) {
+        const target = await openProfile(profileId);
+        if (!target || target.profileId !== profileId) return;
+        setInboxItemId(id); setInboxFilters({ itemId: id, state: "all" }); setGlobalSessionId(null); setGlobalView("Dashboard");
+      } else openInbox(id);
+    })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The exact notification profile/item could not be opened."));
+  }), [client.profileId, openProfile]);
   const chooseProject = (id: string | null) => {
     if (!canNavigate()) return;
     if (boardOpen && id === projectId) { setBoardOpen(false); return; }
@@ -467,6 +486,10 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       if (result.name === "session") { if (!leaveSurface()) throw new Error("Save or reload the current edit before returning to the original conversation."); return; }
       if (result.name === "work-items") { await showPanel("Work item"); return; }
       if (result.name === "code-requests") { await showPanel("Code change"); return; }
+      if (result.name === "my-work") {
+        if (!canNavigate()) throw new Error("Save/discard the current edit before opening the inbox.");
+        setInboxItemId(null); setInboxFilters(parse(MyWorkFiltersSchema, JSON.parse(result.argument))); openGlobal("Dashboard", null); return;
+      }
       if (result.name === "sidebar") {
         if (result.argument && !["open", "close"].includes(result.argument)) throw new Error("Use /sidebar [open|close].");
         if (result.argument === "close" || !result.argument && panelVisible) hidePanel();
@@ -577,6 +600,10 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           if (result.name === "session") return shell.dataset.sessionId === context.sessionId && !document.querySelector(".settings-layout, .global-page");
           if (result.name === "sessions") return shell.classList.contains("nav-open") && Boolean(document.querySelector('.nav-tabs button[aria-pressed="true"]')?.textContent?.includes("Sessions"));
           if (result.name === "sidebar") return shell.classList.contains("context-open") === sidebarOpen;
+          if (result.name === "my-work") {
+            const inbox = document.querySelector<HTMLElement>(".my-work-inbox[data-ready='true']");
+            return Boolean(inbox && inbox.dataset.filters === result.argument);
+          }
           const target = result.name === "work-items" ? "Work item" : result.name === "code-requests" ? "Code change" : null;
           return target !== null && shell.classList.contains("context-open") && document.querySelector<HTMLElement>("#session-sidebar")?.dataset.sessionPanel === target;
         }
@@ -604,6 +631,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     void client.commands.attach("desktop", {
       panel: apply, session: apply, profiles: apply, profile: apply, copy: apply, export: apply, "artifact-editor": apply, "continue-work": apply,
       "client-view:session": apply, "client-view:sessions": apply, "client-view:work-items": apply, "client-view:code-requests": apply, "client-view:sidebar": apply, "client-view:archive": apply,
+      "client-view:my-work": apply,
     }, { canApply: (execution) => !closed && (commandUi.current?.canApply(execution) ?? false), onError: (error) => setNotice(error.message) })
       .then((value) => { attached = value; if (closed) return value.dispose(); commandAttachment.current = value; })
       .catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The original queued UI client could not attach."));
@@ -717,7 +745,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           <button className="quiet" onClick={() => { setOpeningReview(null); onOpeningDraftHandled?.(openingReview.id); }}>Discard opening draft</button></div>
       </section>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={openProfile} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -729,7 +757,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           </select></label>}
         </header>
         <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} /> :
-          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} />}
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
         </div>
       </section> : <>
       <header className="session-header" data-session-id={session?.id}>
@@ -752,7 +780,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         <button className="icon-button" aria-label={panelMaximized ? "Restore session sidebar" : "Maximize session sidebar"} title={panelMaximized ? "Restore split view" : "Expand over chat; keep navigation visible"} onClick={() => { if (canChangePanel()) setPanelMaximized((value) => !value); }}><Icon name={panelMaximized ? "Minimize" : "Maximize"} /></button>
         <button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}><Icon name="PanelRight" /></button></header>
       <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>
-        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={setPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === panel && terminalIntent.sessionId === session?.id} onTerminalOpeningHandled={() => terminalOpeningHandled(panel, session?.id ?? null)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && !commandOutput && panelVisible} />}
+        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === panel && terminalIntent.sessionId === session?.id} onTerminalOpeningHandled={() => terminalOpeningHandled(panel, session?.id ?? null)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && !commandOutput && panelVisible} />}
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
@@ -977,18 +1005,19 @@ function ClientDiagnostics({ client }: { client: MoguriClient }) {
     <CopyButton label="Copy client request timings" text={text} /><pre>{text}</pre>
   </details>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, initialWorkItemId, initialWorkFilters, chooseWork }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; onTerminalOpeningHandled?: () => void;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void;
   setupSandbox: () => void; openSettings: (tab: SettingsTab) => void;
+  initialWorkItemId?: string | null; initialWorkFilters?: MyWorkFilters; chooseWork?: (id: string) => void;
 }) {
   const [trace, setTrace] = useState(false);
-  if (panel === "Dashboard" && snapshot) return <Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} />;
+  if (panel === "Dashboard" && snapshot) return <Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} initialItemId={initialWorkItemId} initialFilters={initialWorkFilters} onDirty={onDirty} />;
   if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} onAutoStartHandled={onTerminalOpeningHandled} /></Suspense>;
-  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} />;
+  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} />;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path, session.homeRoot,

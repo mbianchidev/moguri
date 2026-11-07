@@ -315,7 +315,11 @@ else {
           const notification = new Notification({ title: banner.title, body: banner.body, silent: true });
           banners.set(banner.id, notification);
           if (banners.size > 100) { const oldest = banners.keys().next().value!; banners.get(oldest)?.close(); banners.delete(oldest); }
-          notification.on("click", () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId, profileId); });
+          notification.on("click", () => {
+            mainWindow?.show(); mainWindow?.focus();
+            if (banner.itemId) mainWindow?.webContents.send("moguri:navigate-work", banner.itemId, profileId);
+            else if (banner.sessionId) mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId, profileId);
+          });
           notification.on("close", () => banners.delete(banner.id));
           notification.on("failed", (_event, error) => { banners.delete(banner.id); console.error("Moguri OS notification failed:", error); });
           notification.show();

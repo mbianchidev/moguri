@@ -668,7 +668,7 @@ Capture enough data to answer:
 
 The graphic dashboard has four pages:
 
-- **My work:** current open, in-progress and completed sessions, grouped by project with observed activity and session statistics.
+- **My work:** the configured cross-repository GitHub attention inbox plus current open, in-progress and completed sessions, grouped by project with observed activity and session statistics. PR/review/CI/thread state, original heads, source freshness/failures and exact related session navigation share the service/SDK event authority. Explicit refresh and notification read acknowledgement are read-only; scoped follow-up, GitHub writes and permissions remain separate.
 - **Usage:** token/call graphs with per-project and per-model breakdowns, retaining unknown reports and all model roles.
 - **Cost:** USD estimate graphs by project/model, keeping captured estimates, holds, provider reports and bills distinct.
 - **Velocity:** experimental observed completions, timing and actual user interventions, with comparisons to a previous equal window, never invented productivity gains.
@@ -678,6 +678,10 @@ dates initialized to the trailing year. Original detailed accounting remains
 available behind disclosure controls. The executable slice is documented in
 [workspace experience](architecture/workspace-experience.md); the broader
 detail inventory below does not claim every metric is qualified.
+The [My Work contract](architecture/my-work.md) defines protocol95's explicit
+configured-source refresh, count-checked pagination, retained CI watch reuse,
+partial/no-replay recovery and independent account/profile/root boundaries.
+It does not depend on a recurring scheduler.
 
 Detailed dashboard inventory:
 

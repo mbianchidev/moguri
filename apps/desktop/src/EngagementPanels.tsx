@@ -87,7 +87,7 @@ function ConfigurationReview({ sdk, id, close }: { sdk: MoguriSdk; id: string; c
     </>}
   </dialog>;
 }
-export function AttentionPanel({ sdk, snapshot, chooseSession }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
+export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void }) {
   const [error, setError] = useState("");
   const active = snapshot.attention.filter((entry) => entry.active).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const read = async (id: string) => { try { await sdk.attention.acknowledge([id]); } catch (error) { setError(error instanceof Error ? error.message : "Read acknowledgement failed."); } };
@@ -95,9 +95,12 @@ export function AttentionPanel({ sdk, snapshot, chooseSession }: { sdk: MoguriSd
     {active.map((entry) => {
       const session = snapshot.sessions.find((session) => session.id === entry.sessionId);
       const operation = entry.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === entry.messageId) : undefined;
+      const work = entry.myWork ? snapshot.myWorkRefreshes.find((refresh) => refresh.id === entry.myWork?.refreshId)?.attention.find((value) => value.itemId === entry.messageId) : undefined;
       return <article className={`attention-item ${entry.acknowledged ? "read" : "unread"}`} key={entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
-        <div><button className="quiet" onClick={() => void chooseSession(entry.sessionId)}>{session?.title ?? "Session removed"}</button>
-          <p>{operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
+        <div><button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
+          if (work) chooseWork?.(work.itemId); else if (entry.sessionId) void chooseSession(entry.sessionId);
+        }}>{work ? `${work.repository}#${work.number}` : session?.title ?? "Session removed"}</button>
+          <p>{work ? `${work.categories.join(", ")} / original head ${work.headSha.slice(0, 12)}` : operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
             entry.reason === "ci" ? "Original CI report unavailable; no replacement result was inferred." :
             entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>
           {operation?.ci && <button type="button" className="quiet" onClick={() => {

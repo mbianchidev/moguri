@@ -40,5 +40,6 @@ export interface DesktopBridge {
   preview(input: { sessionId: string; url: string | null; reload?: boolean; bounds: { x: number; y: number; width: number; height: number } } | null, profileId: string, closingSessionId?: string): Promise<void>;
   browserControl(sessionId: string, enabled: boolean, profileId: string): Promise<BrowserState>;
   onNavigateSession(listener: (sessionId: string, profileId: string) => void): () => void;
+  onNavigateWork(listener: (itemId: string, profileId: string) => void): () => void;
 }
 declare global { interface Window { moguri: DesktopBridge } }

@@ -1,13 +1,23 @@
 import type { Attention, Snapshot, StoredEvent } from "../../../packages/protocol/src/index.ts";
 
-export interface Banner { id: string; sessionId: string; title: string; body: string; kind: Attention["kind"] }
+export interface Banner { id: string; sessionId: string | null; itemId?: string; title: string; body: string; kind: Attention["kind"] }
 export type NotificationTone = { sessionId: string; kind: "completed"; soundId: string } |
-  { sessionId: string; kind: "needs-input"; soundId: string; attentionId: string };
+  { sessionId: string | null; kind: "needs-input"; soundId: string; attentionId: string };
 const bounded = (text: string, limit: number) => Array.from(text.replace(/[\x00-\x1f\x7f]/g, " ")).slice(0, limit).join("");
 export function notificationToneAllowed(snapshot: Snapshot, tone: NotificationTone, focused: boolean): boolean {
   const preferences = snapshot.settings.values.notifications;
   const choice = (tone.kind === "completed" ? preferences.completedSound : preferences.needsInputSound) ?? { enabled: true, id: "default" };
   if (!choice.enabled || choice.id !== tone.soundId || focused && !(preferences.soundWhileFocused ?? true)) return false;
+  const inbox = tone.kind === "needs-input" ? snapshot.attention.find((entry) => entry.id === tone.attentionId &&
+    entry.reason === "my-work" && entry.sessionId === tone.sessionId) : undefined;
+  if (inbox) {
+    const refresh = snapshot.myWorkRefreshes.find((record) => record.id === inbox.myWork?.refreshId);
+    const summary = refresh?.attention.find((entry) => entry.itemId === inbox.messageId && entry.fingerprint === inbox.myWork?.fingerprint);
+    return Boolean(inbox.source === "state" && inbox.active && !inbox.acknowledged && summary &&
+      refresh?.status !== "running" && refresh?.revision === inbox.myWork?.revision &&
+      summary.sourceIds.some((id) => snapshot.myWorkSources.some((source) => source.id === id && source.enabled &&
+        source.binding.policyRevision === snapshot.policy.revision && source.binding.permissionRevision === snapshot.settings.permissionRevision)));
+  }
   const session = snapshot.sessions.find((session) => session.id === tone.sessionId);
   if (!session || session.kind === "subagent") return false;
   if (tone.kind === "completed") return session.status === "completed" && !session.turnId && !session.queue.some((item) => !item.held && item.delivery !== "steer");
@@ -45,10 +55,13 @@ export class AttentionNotifier {
       if (!snapshot.settings.values.notifications.os || focused || !attention.active || attention.acknowledged) continue;
       const session = snapshot.sessions.find((session) => session.id === attention.sessionId);
       const operation = attention.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === attention.messageId) : undefined;
-      const generic = attention.reason === "ci" ? "A PR CI watch needs inspection." : attention.kind === "question" ? "A session may be asking a question." : attention.kind === "done" ? "Agent done and waiting." : attention.reason === "approval" ? "A session needs your approval." : "Work needs inspection.";
-      const preview = operation?.ci ? `PR #${operation.ci.target.number} at ${operation.ci.target.headSha.slice(0, 12)}: watch ${operation.status}, CI ${operation.ci.state ?? "unobserved"}.` :
+      const summary = attention.myWork ? snapshot.myWorkRefreshes.find((record) => record.id === attention.myWork?.refreshId)?.attention.find((entry) => entry.itemId === attention.messageId) : undefined;
+      const generic = attention.reason === "my-work" ? "The GitHub inbox needs attention." : attention.reason === "ci" ? "A PR CI watch needs inspection." : attention.kind === "question" ? "A session may be asking a question." : attention.kind === "done" ? "Agent done and waiting." : attention.reason === "approval" ? "A session needs your approval." : "Work needs inspection.";
+      const preview = summary ? `${summary.repository}#${summary.number}: ${summary.categories.join(", ")}; head ${summary.headSha.slice(0, 12)}.` :
+        operation?.ci ? `PR #${operation.ci.target.number} at ${operation.ci.target.headSha.slice(0, 12)}: watch ${operation.status}, CI ${operation.ci.state ?? "unobserved"}.` :
         session?.messages.findLast((message) => message.role === "assistant")?.text ?? generic;
-      show({ id: attention.id, sessionId: attention.sessionId, kind: attention.kind, title: "Moguri", body: snapshot.settings.values.notifications.previewContent && session ? `${bounded(session.title, 100)}: ${bounded(preview, 160)}` : generic });
+      show({ id: attention.id, sessionId: attention.sessionId, ...(summary ? { itemId: summary.itemId } : {}), kind: attention.kind, title: "Moguri",
+        body: snapshot.settings.values.notifications.previewContent && (session || summary) ? `${session ? `${bounded(session.title, 100)}: ` : ""}${bounded(preview, 160)}` : generic });
     }
   }
 }
