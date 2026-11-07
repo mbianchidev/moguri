@@ -13,7 +13,7 @@ export function MyWorkInbox({ sdk, snapshot, connected, openSession, initialItem
   initialItemId?: string | null; initialFilters?: MyWorkFilters; projectId?: string; onDirty?: (dirty: boolean) => void;
 }) {
   const [filters, setFilters] = useState<MyWorkFilters>({}), [offset, setOffset] = useState(0), [reload, setReload] = useState(0);
-  const [result, setResult] = useState<{ sdk: MoguriSdk; key: string; value?: Inbox; error?: string } | null>(null);
+  const [result, setResult] = useState<{ sdk: MoguriSdk; selectionKey: string; key: string; value?: Inbox; error?: string } | null>(null);
   const [error, setError] = useState(""), [notice, setNotice] = useState(""), [busy, setBusy] = useState(false);
   const [configurationProject, setConfigurationProject] = useState(""), [workspace, setWorkspace] = useState("");
   const [preview, setPreview] = useState<MyWorkSourcePreview | null>(null), [followup, setFollowup] = useState<{ sourceId: string; value: Followup } | null>(null);
@@ -22,9 +22,13 @@ export function MyWorkInbox({ sdk, snapshot, connected, openSession, initialItem
   const heading = useRef<HTMLHeadingElement>(null), focused = useRef<string | null>(null);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const key = JSON.stringify([filters, offset, projectId, reload, connected, snapshot.myWorkSources,
+  const selectionKey = JSON.stringify([filters, offset, projectId, connected, snapshot.myWorkSources, snapshot.policy.revision,
+    snapshot.settings.permissionRevision, snapshot.projectConfigurations.map((value) => [value.projectId, value.revision])]);
+  const key = JSON.stringify([selectionKey, reload,
     snapshot.myWorkRefreshes.map((record) => [record.id, record.revision]), snapshot.githubOperations.map((record) => [record.id, record.revision])]);
-  const data = result?.sdk === sdk && result.key === key ? result.value : undefined;
+  const data = connected && result?.sdk === sdk && result.selectionKey === selectionKey ? result.value : undefined;
+  const updating = Boolean(data && result?.key !== key);
+  const refreshing = snapshot.myWorkRefreshes.find((record) => record.status === "running");
   const selected = data?.entries.find((entry) => entry.id === selectedId);
   useEffect(() => {
     if (!initialItemId && initialFilters === undefined) return;
@@ -34,10 +38,10 @@ export function MyWorkInbox({ sdk, snapshot, connected, openSession, initialItem
   }, [sdk, initialItemId, initialFilters]);
   useEffect(() => {
     const abort = new AbortController();
-    if (!connected) { setResult({ sdk, key, error: "This profile's inbox is unavailable while disconnected. No empty or clean result was substituted." }); return; }
+    if (!connected) { setResult({ sdk, selectionKey, key, error: "This profile's inbox is unavailable while disconnected. No empty or clean result was substituted." }); return; }
     void sdk.myWork.query({ ...filters, ...(projectId ? { projectId } : {}) }, { offset, signal: abort.signal })
-      .then((value) => { if (!abort.signal.aborted) setResult({ sdk, key, value }); })
-      .catch((error: unknown) => { if (!abort.signal.aborted) setResult({ sdk, key, error: error instanceof Error ? error.message : "Inbox observations are unavailable. No empty results were substituted." }); });
+      .then((value) => { if (!abort.signal.aborted) setResult({ sdk, selectionKey, key, value }); })
+      .catch((error: unknown) => { if (!abort.signal.aborted) setResult({ sdk, selectionKey, key, error: error instanceof Error ? error.message : "Inbox observations are unavailable. No empty results were substituted." }); });
     return () => abort.abort();
   }, [sdk, key]);
   useEffect(() => {
@@ -63,15 +67,16 @@ export function MyWorkInbox({ sdk, snapshot, connected, openSession, initialItem
   const currentSourceId = sourceId || (selected?.associations.length === 1 ? selected.associations[0]!.source.id : "");
   const related = selected?.associations.flatMap((association) => association.sessionIds.map((id) => ({ id, sourceId: association.source.id })))
     .filter((value, index, all) => all.findIndex((other) => other.id === value.id) === index) ?? [];
-  return <section className="my-work-inbox" aria-label="GitHub My Work inbox" data-ready={Boolean(data || result?.sdk === sdk && result.key === key && result.error)} data-filters={JSON.stringify(filters)}>
+  return <section className="my-work-inbox" aria-label="GitHub My Work inbox" data-ready={Boolean(!updating && data || result?.sdk === sdk && result.key === key && result.error)} data-filters={JSON.stringify(filters)}>
     <header className="my-work-heading"><div><h2>GitHub attention</h2><p className="fine-print">Explicitly configured repos and accounts in {snapshot.profile?.name ?? sdk.profileId}. Controller gh, not SSH credentials.</p></div>
-      <div className="button-row"><button type="button" disabled={!connected || busy || Boolean(data?.refreshing) || !sources.some((source) => source.enabled)}
+      <div className="button-row"><button type="button" disabled={!connected || busy || Boolean(refreshing) || !sources.some((source) => source.enabled)}
         onClick={() => void run(async () => { const result = await sdk.myWork.refresh(); setNotice(`Refresh admitted: ${result.id}. Observations and failures remain retained.`); })}>Refresh configured repos</button>
-        {data?.refreshing && <button type="button" disabled={busy} onClick={() => void run(async () => {
-          const id = data.refreshing!.id; await sdk.myWork.cancel(id); setNotice("Original refresh stopped. Retained partial observations remain; CI watches and GitHub jobs were not cancelled.");
+        {refreshing && <button type="button" disabled={busy} onClick={() => void run(async () => {
+          const id = refreshing.id; await sdk.myWork.cancel(id); setNotice("Original refresh stopped. Retained partial observations remain; CI watches and GitHub jobs were not cancelled.");
         })}>Stop inbox refresh</button>}</div>
     </header>
-    <p role="status" aria-atomic="true">{data?.refreshing ? `Refresh running / ${data.refreshing.id}` : data ? `Retained view read at ${at(data.observedAt)}. No recurring refresh.` : "Reading retained inbox observations..."}</p>
+    <p role="status" aria-atomic="true">{refreshing ? `Refresh running / ${refreshing.id}` : data ? `Retained view read at ${at(data.observedAt)}. No recurring refresh.` : "Reading retained inbox observations..."}</p>
+    {updating && <p role="status">Updating retained view. Previous observations remain visible; they are not proof of current CI.</p>}
     {notice && <p role="status">{notice}</p>}{error && <Alert as="p" role="alert">{error}</Alert>}
     {snapshot.myWorkRefreshes.filter((record) => record.cleanupUnconfirmed && !record.inspection).map((record) => <details className="github-write-review" key={record.id}>
       <summary>Unconfirmed original reader {record.id}</summary><p>{record.diagnostic}</p>

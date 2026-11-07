@@ -41,7 +41,12 @@ test("hidden desktop explicitly configures sources, aggregates categories and fi
     await expect.poll(() => f.service.controller.snapshot().myWorkRefreshes.at(-1)?.status).toBe("completed");
     await expect(inbox.locator(".my-work-card")).toHaveCount(2);
     const first = inbox.getByRole("button", { name: `Inspect ${f.first.repository}#11`, exact: true });
-    await focusByKeyboard(first); await first.press("Enter");
+    await focusByKeyboard(first);
+    await first.evaluate((node) => node.setAttribute("data-original-focus-node", "retained"));
+    const repeated = await f.sdk.myWork.refresh(); await f.sdk.myWork.wait(repeated.id!);
+    await expect(first).toHaveAttribute("data-original-focus-node", "retained");
+    await expect(first).toBeFocused();
+    await first.press("Enter");
     const detail = inbox.getByRole("region", { name: "My Work item details", exact: true });
     await expect(detail.getByRole("heading", { level: 3 })).toBeFocused();
     await expect(detail).toContainText("billing allowance"); await expect(detail).toContainText("Unresolved");
