@@ -2928,6 +2928,13 @@ consistent with provider-list changes. See the
 
 ## Local models and startup sources
 
+For the installed antirez/ds4 runtime with **DeepSeek V4.1 Flash 1017 Q2**,
+see the [qualified loopback setup and opt-in live probe](architecture/ds4-compatibility.md).
+The demonstrated path is the actual Moguri SDK/service/worker, including
+follow-up history, an approved generated-file write and cancellation, not a
+standalone model CLI response. No runtime/weights installation or personal
+profile change is part of that probe.
+
 **Settings / Local models** accepts explicit OpenAI-compatible base URLs and
 model IDs/context/output/image limits, for servers such as ds4, Ollama or
 llama.cpp. Start/configure the actual server yourself; Moguri does not download
