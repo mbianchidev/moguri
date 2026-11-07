@@ -402,8 +402,10 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .markdown h1, .markdown h2, .markdown h3 { font-size: 17px; margin: 24px 0 12px; letter-spacing: 0; }
 pre, code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12px; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: auto; line-height: 1.65; padding: 12px; background: var(--code); border-radius: 5px; margin: 10px 0; }
-.markdown pre { white-space: pre; }
+.markdown pre { position: relative; white-space: pre; padding-right: 44px; }
 .markdown :not(pre) > code { background: var(--code); padding: 2px 4px; border-radius: 3px; }
+.markdown .code-copy { display: inline-flex; width: 24px; height: 24px; margin-left: 5px; vertical-align: middle; }
+.markdown pre code .code-copy { position: absolute; top: 8px; right: 8px; margin: 0; background: var(--code); }
 .markdown table { border-collapse: collapse; font-size: 12px; max-width: 100%; display: block; overflow: auto; }
 .markdown th, .markdown td { border: 1px solid var(--line); padding: 7px 10px; }
 summary { font-size: 12px; line-height: 1.7; color: var(--muted); }

@@ -126,10 +126,12 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const resumeAction = needsResume && !retryAction && !isSlash && !held && !heldPending;
   const canRetry = connected && !busy && !configuring && !retrying && !voiceActive;
   const canResume = connected && !busy && !configuring && !resuming && session.status !== "archived";
-  const canQueue = connected && !busy && !configuring && !resuming && !retrying && !voiceActive && session.status !== "archived" && Boolean(draft.text.trim() || draft.attachments.length) && !draft.conflict;
-  const canSend = answering ? canQueue && Boolean(draft.text.trim()) && Boolean(question?.allowFreeform || question?.choices.includes(draft.text)) :
-    canQueue && snapshot.provider.status === "connected" && eligibleModel && !needsNativeStage && (session.controls.autonomy !== "Autopilot Max" || decisions.ready) &&
+  const canQueueDraft = (value: ReturnType<DraftEditor["getState"]>) => connected && !busy && !configuring && !resuming && !retrying && !voiceActive && session.status !== "archived" && Boolean(value.text.trim() || value.attachments.length) && !value.conflict && !value.pendingInput;
+  const canSendDraft = (value: ReturnType<DraftEditor["getState"]>) => question && (delivery === "queue" || delivery === "auto") && !value.text.startsWith("/") ?
+    canQueueDraft(value) && Boolean(value.text.trim()) && Boolean(question.allowFreeform || question.choices.includes(value.text)) :
+    canQueueDraft(value) && snapshot.provider.status === "connected" && eligibleModel && !needsNativeStage && (session.controls.autonomy !== "Autopilot Max" || decisions.ready) &&
     snapshot.policy.allowedEnvs.includes(session.controls.env) && Boolean(snapshot.capabilities.find((capability) => capability.env === session.controls.env)?.ready) && (!requiresImages || Boolean(model?.imageInput)) && !documentBlocked && (delivery === "queue" || delivery === "auto" || Boolean(session.turnId));
+  const canQueue = canQueueDraft(draft), canSend = canSendDraft(draft);
   const slashOpen = isSlash && !/\s/.test(draft.text);
   const slashScope = JSON.stringify([client.profileId, session.id, session.controls.env, snapshot.settings.revision, snapshot.registry.map((entry) => [entry.id, entry.revision])]);
   useEffect(() => {
@@ -219,8 +221,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const submit = (event?: FormEvent, hold = held) => {
     event?.preventDefault();
     if (heldPending || resumePending.current || retryPending.current) return;
+    const current = editor.getState(), text = current.text, isSlash = text.startsWith("/");
+    const answering = Boolean(question && (delivery === "queue" || delivery === "auto") && !isSlash);
+    const canQueue = canQueueDraft(current);
     if (!answering && !isSlash && !failedRequest && (hold || !needsResume)) {
-      const text = editor.getState().text;
       if (literalMentions.current.text !== text) literalMentions.current = { text, ids: new Set() };
       const ids = new Set(text.match(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/gi)?.map((id) => id.toLowerCase()) ?? []);
       const source = snapshot.sessions.find((source) => source.id !== session.id && ids.has(source.id.toLowerCase()) &&
@@ -259,8 +263,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     void run(async () => {
       try {
         if (answering && question && !hold) { await editor.flush(); return await client.questions.answerDraft(question.id, question.revision); }
-        if (!hold && session.projectId && (isSlash || delivery === "queue" || delivery === "auto" && !session.turnId) && continueWorkInput(draft.text)) return await onSlash(session, editor, draft.text);
-        if (isSlash) return await onSlash(session, editor, draft.text, hold);
+        if (!hold && session.projectId && (isSlash || delivery === "queue" || delivery === "auto" && !session.turnId) && continueWorkInput(text)) return await onSlash(session, editor, text);
+        if (isSlash) return await onSlash(session, editor, text, hold);
         return await editor.send(hold ? "queue" : delivery, hold);
       } finally { if (pendingHold) setHeldPending(false); }
     });
@@ -367,7 +371,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           const action = chatSubmission(event);
           if (!action) return;
           event.preventDefault();
-          if (isSlash || action === "hold" ? canQueue : retryAction ? canRetry : needsResume ? canResume : canSend) submit(undefined, action === "hold");
+          const text = event.currentTarget.value;
+          if (text !== draft.text && text !== editor.getState().text) editor.edit(text);
+          const current = editor.getState();
+          if (current.text.startsWith("/") || action === "hold" ? canQueueDraft(current) : failedRequest ? canRetry : needsResume ? canResume : canSendDraft(current)) submit(undefined, action === "hold");
         }
       }} />
     {suggestions.length > 0 && <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
@@ -419,11 +426,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
             decisions.ready ? "Automatic approvals plus bounded System One decisions" : decisions.reason;
           return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={configuring || Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void selectAutonomy(autonomy)}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
             {autonomy === "Autopilot Max" && !decisions.ready && <PolicyHint label="Why Autopilot Max is unavailable" target="decisions">{reason} Reviewing the actual decision configuration does not start inference or enable an unqualified transport.</PolicyHint>}
+            {autonomy === "Autopilot" && <button type="button" className="icon-button quiet composer-env-settings" aria-label="Guardrails" title="Guardrails" onClick={() => { setMenu(null); onGuardrails(); }}><Icon name="Settings" /></button>}
+            {autonomy === "Autopilot Max" && <button type="button" className="icon-button quiet composer-env-settings" aria-label="Decision provider settings" title="Decision provider settings" onClick={() => { setMenu(null); onDecisions(); }}><Icon name="Settings" /></button>}
           </div>;
         })}<p>Autopilot modes are unattended. Hard deny rules, read-only mode, environment policy and budgets still apply.</p>
           {snapshot.settings.values.permissions.defaultDecision === "deny" && <p>Automatic approvals cannot bypass the saved tool policy.<PolicyHint label="About automatic approval policy" target="tools">Default-deny and explicit deny rules remain authoritative. Changing autonomy or opening this setting does not remove a hard rule.</PolicyHint></p>}
           {["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) && !session.controls.automaticApprovals && <Alert as="p" tone="warning" className="settings-warning">This saved mode uses legacy bounded grants. Select it again to enable automatic approvals explicitly.</Alert>}
-          {decisions.error && <Alert as="p" className="inline-error" role="alert">{decisions.error}</Alert>}<button className="quiet" type="button" onClick={() => { setMenu(null); onGuardrails(); }}>Guardrails</button><button className="quiet" type="button" onClick={() => { setMenu(null); onDecisions(); }}>Decision provider settings</button></>)}
+          {decisions.error && <Alert as="p" className="inline-error" role="alert">{decisions.error}</Alert>}</>)}
       </div>
       <div className="composer-trailing">
         {item("budget", "Budget and usage", session.controls.budget.kind === "unlimited" && !hardBudget ? "Infinity" : "Dollar", <UsageMenu key={session.id} sdk={client} session={session} snapshot={snapshot} />)}

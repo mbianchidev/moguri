@@ -3,15 +3,31 @@
 ## Merged-code audit, 2026-11-06
 
 The current baseline is merged main
-[`812e335`](https://github.com/mbianchidev/moguri/commit/812e33526e432fb92b580956f97f8c2bf269e002),
-including [#51](https://github.com/mbianchidev/moguri/pull/51), protocol **92**
-and **0.31.0-alpha.1**. Its executable/test cut is `81dec6a`; the subsequent
-qualification notes and merge do not change those executable bytes.
+[`73821b7`](https://github.com/mbianchidev/moguri/commit/73821b7f77b29724027380c7e1ff3783ad731d26),
+including [#51](https://github.com/mbianchidev/moguri/pull/51) and
+[#52](https://github.com/mbianchidev/moguri/pull/52), protocol **93**
+and **0.31.0-alpha.1**. The preceding protocol92 executable/test cut is
+`81dec6a`; its later qualification notes did not change those earlier bytes.
 The [exact completion record](architecture/milestone-completion.md#final-frozen-ciruntime-cut)
 contains the complete macOS source result (2,455 passes, 29 explicit skips),
 owned Linux source result (1,604 passes, 831 explicit skips), installed SDK
 and packaged application evidence. These are local generated results, not
 GitHub-hosted CI, Linux release support or current physical SendBox acceptance.
+
+The user-directed protocol94 GitHub/input follow-up is a distinct source cut.
+Its [contract](architecture/session-github-workflows.md#protocol94-github-and-input-follow-up)
+adds authenticated exact-project search, fresh tool-call identity normalization
+and approval/composer controls. Protocol93's completed Local/SSH receipts remain
+historical; the [cell map](architecture/milestone-combination-matrix.md#user-directed-protocol94-follow-up)
+records new-byte qualification separately. The native and hosted acceptance
+requirements are not reduced by these fixes. The new clean `07087bf`
+[frozen qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
+passes all 6,720 Local/SSH cells, 10,562 source checks, 382 hidden desktop
+flows, the independent installed SDK, actual new package and 17 packaged
+desktop flows. Every one of 3,360 native cells remains explicitly unqualified.
+[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80)
+merged its source repair, but no post-repair release was available;
+remaining N0 is released-byte qualification, not an unmerged draft.
 
 | Area | Current status |
 | --- | --- |
@@ -20,11 +36,11 @@ GitHub-hosted CI, Linux release support or current physical SendBox acceptance.
 | Automatic Kupo and budgets | Implemented: Single/Cascade/Critique, exact pooled window/effort, all-role token/USD holds, selected-boundary finishing and separately reviewed checkpoints. [#36](https://github.com/mbianchidev/moguri/issues/36) is complete. |
 | Runtime/hardware readiness | Implemented and merged in #51, with one-use actual-user executable review and honest unknown capacity. [#37](https://github.com/mbianchidev/moguri/issues/37) is complete. |
 | Reviewed candidate transports | Local v1 and pinned-SSH/native-private v2 staging, tests and separately accepted application are implemented. Native physical qualification remains a separate gate. |
-| Required combinations and native acceptance | [#38](https://github.com/mbianchidev/moguri/issues/38) remains open. Six explicit Local/SSH finite-routing cases are not the complete required cross-product; fresh exact-worker guest/control/network/cleanup evidence is still missing. |
+| Required combinations and native acceptance | [#38](https://github.com/mbianchidev/moguri/issues/38) remains open. The [final exact cell/criterion map](architecture/milestone-combination-matrix.md#final-frozen-source-and-package-cut) records all 6,720 Local/SSH source cells passing at clean `5051b6f`, full source/client/installed-package evidence and 3,360 explicitly native-unqualified cells. Fresh physical guest/control/network/cleanup/loss/recovery and hosted CI remain open. |
 | Final integrated acceptance | [#17](https://github.com/mbianchidev/moguri/issues/17) remains open. Do not rebuild merged features or replace missing physical/hosted evidence with passing fixtures. |
 
 The latest main CI
-[run 42183960883](https://github.com/mbianchidev/moguri/actions/runs/42183960883)
+[run 42250298984](https://github.com/mbianchidev/moguri/actions/runs/42250298984)
 failed **before either OS job started any step**. Both check annotations report
 failed account payments or an insufficient spending limit. The account owner
 must resolve that GitHub billing/eligibility gate before a fresh authorized
@@ -47,19 +63,19 @@ Ordering does not authorize implementation or turn optional features into
 first-milestone prerequisites.
 
 The next feasible Local task, [#7](https://github.com/mbianchidev/moguri/issues/7),
-now has complete protocol93 source in [draft #52](https://github.com/mbianchidev/moguri/pull/52)
+now has complete protocol93 source in [merged #52](https://github.com/mbianchidev/moguri/pull/52)
 at `c3f3164`: retained PR-bound watches, deduplicated admission, original
 observations/diagnostics, actual-controller-loss recovery and notifications
 across SDK/CLI/TUI/desktop. All 2,490 executed source cases, the independently
 installed packed SDK and the fresh 365-flow desktop suite pass. This is
-unmerged source completion, not main delivery, current native qualification
-or a replacement DMG. The [exact qualification](architecture/github-workflows.md#protocol93-qualification)
+merged main delivery, not current native qualification or a replacement
+protocol93 DMG. The [exact qualification](architecture/github-workflows.md#protocol93-qualification)
 keeps the first desktop fixture failure and its narrow correction separate.
 
 | Order | Remaining work |
 | --- | --- |
 | 1. First-milestone acceptance | #38 exact required combination/native evidence; #17 criterion-by-criterion integrated acceptance and real hosted CI eligibility. |
-| 2. Existing integrations and everyday workflows | #45 remaining applicable skills controls; #9 cross-repository GitHub My Work inbox; #23 opt-in OTLP export; #13 per-turn rewind; #12 actual Stainless integration. #7's implementation is complete in the draft above. |
+| 2. Existing integrations and everyday workflows | #45 remaining applicable skills controls; #9 cross-repository GitHub My Work inbox; #23 opt-in OTLP export; #13 per-turn rewind; #12 actual Stainless integration. #7's implementation is delivered in merged #52. |
 | 3. Distribution and documentation | #26 Homebrew cask and install/update ownership; #14 landing/downloads/user/developer site. Publication/access, licensing and signing remain explicit decisions. |
 | 4. Optional providers and automation | #34 Laya; #6 recurring/declarative workflows; #8 dependency roundups; #10 continuous personas; #11 specialized presets; #46 Slack mentions. Existing one-time scheduled prompts are not a recurring workflow engine. |
 

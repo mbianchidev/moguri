@@ -78,6 +78,7 @@ test("copy icons acknowledge only completed clipboard writes and surface failure
         if (value !== expected) throw new Error("Generated copy received another source.");
         await gate.promise;
       });
+
     }, text);
     const copy = page.getByRole("button", { name: "Copy response", exact: true });
     await copy.click(); await expect(copy).toBeFocused(); await expect(copy.locator("svg")).toHaveAttribute("data-icon", "Copy");
@@ -93,6 +94,32 @@ test("copy icons acknowledge only completed clipboard writes and surface failure
     await expect(copy.locator("svg")).toHaveAttribute("data-icon", "Copy");
     expect(fixture.requests).toHaveLength(1);
   } finally { await app.evaluate(({ ipcMain }) => { ipcMain.emit("generated-copy-release"); }); await app.close(); await fixture.close(); }
+});
+
+test("inline paths and fenced Markdown have independent exact copy buttons without copying controls or opening linked snippets", async () => {
+  const path = "/generated/scripts/qualify.mjs", code = "node /generated/scripts/qualify.mjs\nprintf 'Generated exact output'\n";
+  const text = `Run \`${path}\`.\n\n\`\`\`sh\n${code}\`\`\`\n\n[\`${path}\`](https://example.invalid/generated-script)`;
+  const fixture = await setupFixture({ responseMode: "text", replyText: text });
+  await fixture.configure(); await fixture.send("Generated Markdown snippet request."); await fixture.terminal();
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(); await waitForWorkspace(page);
+    await app.evaluate(({ ipcMain }) => {
+      ipcMain.removeHandler("moguri:copy-text"); ipcMain.removeHandler("moguri:open-link");
+      const copies: string[] = [], links: string[] = [];
+      ipcMain.handle("moguri:copy-text", (_event, value: unknown) => { if (typeof value !== "string") throw new Error("Generated snippet is not text."); copies.push(value); });
+      ipcMain.handle("moguri:open-link", (_event, value: unknown) => { if (typeof value !== "string") throw new Error("Generated link is not text."); links.push(value); });
+      ipcMain.on("generated-snippet-observation", (_event, reply: (value: { copies: string[]; links: string[] }) => void) => reply({ copies, links }));
+    });
+    const response = page.locator(".message.assistant").last(), copies = response.getByRole("button", { name: "Copy code snippet", exact: true });
+    await expect(copies).toHaveCount(3);
+    await expect(response.locator("a button")).toHaveCount(0);
+    await copies.nth(0).click(); await copies.nth(1).click(); await copies.nth(2).focus(); await page.keyboard.press("Enter");
+    await expect(copies.nth(2).locator("svg")).toHaveAttribute("data-icon", "Check");
+    const values = await app.evaluate(({ ipcMain }) => new Promise<{ copies: string[]; links: string[] }>((resolve) => { ipcMain.emit("generated-snippet-observation", null, resolve); }));
+    expect(values).toEqual({ copies: [path, code, path], links: [] });
+    expect(fixture.requests).toHaveLength(1);
+  } finally { await app.close(); await fixture.close(); }
 });
 
 test("Kanban Add item aligns its plus with the label and still creates in the chosen phase", async () => {

@@ -1,9 +1,84 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **93**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **94**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## GitHub requests and composer controls
+
+GitHub CLI account access is separate from Copilot model login. Builtin
+`fetch_page` reads public pages anonymously; GitHub HTTP 422 can mean private
+repository access is unavailable or the search query is invalid, not a failed
+Copilot login. It never forwards credentials or resumes a partial request.
+On an explicitly allowed Local project, use
+`/github search is:issue is:open (UI OR UX OR redesign OR polish)`, the shared
+SDK search API, or the model's discovered `github_read` tool. The tool first
+discovers the actual project repository/account and then uses those exact
+identities. Remote/Sandbox cannot borrow the controller's login or root.
+Search pages reject incomplete/foreign results and the 1,000-result API ceiling
+instead of treating omitted results as a complete empty search.
+
+Fresh provider calls with absent, oversized, malformed or duplicate tool IDs
+receive bounded unique IDs before their first retained completion. Issue
+preview, approval, write intent and tool result then share one actual origin.
+Valid IDs and existing history are unchanged. Previously corrupt or partial
+operations remain inspectable; this fix neither repairs them by guessing nor
+replays an issue creation.
+
+The autonomy menu places **Guardrails** beside **Autopilot** and **Decision
+provider settings** beside **Autopilot Max**, including when Max needs setup.
+An explicit Autopilot selection automatically approves qualified tools and
+commands, even with ask rules. Hard denials, actual authentication, source
+qualification, read-only modes, Env policy and budgets still apply. Actual-user
+questions are not permission prompts. Retained legacy bounded selections still
+require explicit reselection; opening settings never changes autonomy.
+
+The main approval menu offers **This family of commands** across the active
+profile and selected Env. It does not cover another profile, shell composition,
+wrappers, substitutions or hard denials. Both clients retain the same actual
+user grant. Enter captures the current native editor text once, including
+while draft autosave is pending; Shift+Enter, Cmd/Ctrl+Enter, input method
+composition, conflict review and separate Resume/Retry actions retain their
+existing meanings. Inline and fenced Markdown code each has an independent
+copy button. Copy confirms only the exact snippet's successful clipboard
+write; linked snippets do not open their link when copied.
+
+Protocol94 adds typed search/read surfaces and advances only version metadata.
+No encrypted event, grant, receipt or saved source is rewritten. The
+[follow-up contract](architecture/session-github-workflows.md#protocol94-github-and-input-follow-up)
+keeps generated evidence separate from physical native and hosted-CI gates.
+
+## First-milestone combination qualification
+
+The [required combination and native-gate map](architecture/milestone-combination-matrix.md)
+defines all Local/SSH/Sandbox control/input cells, actual-user and accounting
+criteria, reproduction commands and exact report identities. Local/SSH
+generated source execution and real TUI/hidden-desktop interaction are separate
+from physical native acceptance. Released SendBox 0.2.4's Meta-DNS prerequisite,
+fresh current-protocol guest/control/network/cleanup/loss/recovery evidence and
+account-blocked main CI remain visible gates. Neither issue #38 nor Milestone 1
+is accepted by a source test count or a historical receipt.
+The preceding protocol93 clean `5051b6f` qualification completes **6,720 Local/SSH source
+cells**, the full **10,538-pass** source suite, **376-pass** hidden desktop
+suite, independently installed SDK and the actual ad-hoc package. All
+**3,360 native cells remain unqualified**. The fresh development DMG is under
+`release/qualification-builds/milestone93-d7f6648/`; its exact digest, producer
+image and retained report are in the linked map. It is not a native-qualified
+or notarized release. Those immutable receipts do not qualify changed
+protocol94 worker/app bytes. The
+[new frozen protocol94 qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
+at clean `07087bf` independently passes all **6,720 Local/SSH cells**,
+**10,562 source checks**, **382 hidden desktop flows**, the installed SDK,
+actual packaged runtime and **17 actual packaged desktop checks**. Its new
+verified development DMG is
+`release/qualification-builds/milestone94-07087bf/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
+Physical native and hosted gates remain open. SendBox's DNS repair merged, but
+the latest released dependency is still the pre-repair 0.2.4 byte set.
+Fresh macOS source-test environments also require the matching installed
+Chromium revision: run `npm exec -- playwright install chromium` explicitly
+after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
+Moguri's app/tools still never download a browser or substitute an executable.
 
 ## Retained pull-request CI watches
 

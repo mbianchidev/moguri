@@ -44,19 +44,26 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   const [dirty, setDirty] = useState(false), [accepted, setAccepted] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [winddown, setWinddown] = useState<Extract<WinddownResponse, { type: "winddown.status" }> | null>(null), [winddownError, setWinddownError] = useState("");
   const routed = scope === "session" && session?.controls.modelId === KUPO_MODEL_ID;
+  const winddownInputs = JSON.stringify([session?.controls, session?.projectId, session?.workspaceId, session?.homeRoot, session?.sandboxWorkspaceId,
+    snapshot.projects.find((project) => project.id === session?.projectId),
+    snapshot.projectConfigurations.find((configuration) => configuration.projectId === session?.projectId),
+    snapshot.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId),
+    snapshot.sandboxWorkspaces?.find((workspace) => workspace.id === session?.sandboxWorkspaceId),
+    snapshot.provider.models, snapshot.capabilities, snapshot.budgetPolicy, snapshot.globalBudgetPolicy, status]);
   useEffect(() => {
     let current = true; setWinddown(null); setWinddownError("");
     if (routed && session) void sdk.winddown.status(session.id).then((value) => { if (current) setWinddown(value); })
       .catch((error: unknown) => { if (current) setWinddownError(error instanceof Error ? error.message : "Actual reserved finishing readiness could not be read. No finite control was enabled."); });
     return () => { current = false; };
-  }, [sdk, routed, session?.id, session?.controls.env, snapshot.settings.revision, snapshot.policy.revision, snapshot.provider.models]);
+  }, [sdk, routed, session?.id, snapshot.settings.revision, snapshot.policy.revision, winddownInputs]);
   const base = useRef(revision);
-  const load = () => { setLimited(Boolean(current)); setTokens(String(current?.tokens ?? "")); setUsd(String(current?.usd ?? "")); base.current = revision; setDirty(false); setAccepted(false); setError(""); setNotice(""); };
-  useEffect(() => { if (revision <= base.current) return; if (!dirty && !saving) load(); else if (!saving) setError("Budget controls changed elsewhere. Your edit is preserved; reload before saving."); }, [revision, dirty, saving]);
+  const edited = useRef(false), committing = useRef(false);
+  const load = () => { setLimited(Boolean(current)); setTokens(String(current?.tokens ?? "")); setUsd(String(current?.usd ?? "")); base.current = revision; edited.current = false; setDirty(false); setAccepted(false); setError(""); setNotice(""); };
+  useEffect(() => { if (revision <= base.current) return; if (!edited.current && !committing.current) load(); else if (!committing.current) setError("Budget controls changed elsewhere. Your edit is preserved; reload before saving."); }, [revision, dirty, saving]);
   useEffect(() => { onDirty?.(dirty || saving); return () => onDirty?.(false); }, [dirty, saving, onDirty]);
-  const change = () => { setDirty(true); setAccepted(false); setNotice(""); };
+  const change = () => { edited.current = true; setDirty(true); setAccepted(false); setNotice(""); };
   const save = async () => {
-    setSaving(true); setError(""); setNotice("");
+    committing.current = true; setSaving(true); setError(""); setNotice("");
     try {
       if (!accepted) throw new Error("Accept the estimate-based accounting and interruption warning first.");
       let limit: BudgetLimit | null = null;
@@ -69,9 +76,9 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
       const result = scope === "global" ? await sdk.profiles.globalBudget(limit, base.current, true) : scope === "profile" ? await sdk.budgets.policy(limit, base.current, true) : session ?
         await sdk.sessions.configure(session.id, { ...session.controls, budget: limit ? { kind: "limited", ...limit } : { kind: "unlimited" } }, base.current) :
         (() => { throw new Error("Choose a session for this budget."); })();
-      base.current = result.revision!; setDirty(false); setAccepted(false); setNotice(scope === "global" ? "Global policy saved. Profile switching, source deletion and defaults cannot refund it." : scope === "profile" ? "Profile policy saved. Factory/default resets cannot remove it." : "Session budget saved. Existing usage was not reset.");
+      base.current = result.revision!; edited.current = false; setDirty(false); setAccepted(false); setNotice(scope === "global" ? "Global policy saved. Profile switching, source deletion and defaults cannot refund it." : scope === "profile" ? "Profile policy saved. Factory/default resets cannot remove it." : "Session budget saved. Existing usage was not reset.");
     } catch (error) { setError(error instanceof Error ? error.message : "Budget was not saved. No cap was silently lifted."); }
-    finally { setSaving(false); }
+    finally { committing.current = false; setSaving(false); }
   };
   const locked = disabled || saving || routed && !winddown?.ready || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
   const usdUnavailable = scope === "session" && (routed ? !winddown?.usdReady : !status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);

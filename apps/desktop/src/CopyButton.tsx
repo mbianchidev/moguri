@@ -32,7 +32,7 @@ export function CopyButton({ label, text, source, title = label, className = "",
   return <>
     <Tooltip content={feedback.copied ? "Copied" : title}><button type="button" className={`icon-button ${className}`} aria-label={label}
       disabled={disabled} aria-busy={feedback.pending || undefined} onClick={(event) => {
-        event.preventDefault(); void feedback.copy();
+        event.preventDefault(); event.stopPropagation(); void feedback.copy();
       }}><Icon name={feedback.copied ? "Check" : "Copy"} /></button></Tooltip>
     <span className="sr-only" role="status">{feedback.copied ? "Copied." : ""}</span>
     {feedback.error && <Alert as="span" className="inline-error" role="alert">{feedback.error}</Alert>}
