@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, readConnection, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -100,6 +100,7 @@ else {
     let openingDirectory: string | undefined;
     const selectedDirectory = () => openingDirectory ??= stateDirectory();
     let connectedOwner: { directory: string; connection: Connection } | undefined;
+    let connectedRootId: string | undefined;
     let reopenOwner: typeof connectedOwner;
     let nativeInitialized = false;
     let explicitQuitRequested = false;
@@ -185,9 +186,20 @@ else {
     const connect = async () => {
       if (maintenancePending || closeRequested) throw new Error("App shutdown or original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
       connecting ??= (async () => {
-        const original = reopenOwner ?? connectedOwner, directory = original?.directory ?? selectedDirectory();
-        const selectedConnection = original ? await readConnection(directory) : await serviceStartup!.connect();
+        const original = reopenOwner, directory = (original ?? connectedOwner)?.directory ?? selectedDirectory();
+        let selectedConnection: Connection;
+        if (original) selectedConnection = await readConnection(directory);
+        else if (connectedOwner) {
+          const review = await reviewServiceStartup(directory);
+          if (review.rootId !== connectedRootId) throw new Error("The established service root changed. No different root or owner was adopted.");
+          selectedConnection = await ensureConnection({ stateDir: directory, startupReview: review });
+          if (selectedConnection.storeId !== connectedOwner.connection.storeId) throw new Error("The established service store identity changed. No different history or profile was adopted.");
+        } else selectedConnection = await serviceStartup!.connect();
         if (original && JSON.stringify(selectedConnection) !== JSON.stringify(original.connection)) throw new Error("The captured service changed while quit was cancelled. No different owner was adopted or started.");
+        const review = await reviewServiceStartup(directory);
+        if (connectedRootId !== undefined && review.rootId !== connectedRootId ||
+          JSON.stringify(await readConnection(directory)) !== JSON.stringify(selectedConnection)) throw new Error("The service root or connection changed during authenticated admission. No different owner was adopted.");
+        connectedRootId ??= review.rootId;
         connection = selectedConnection;
         connectedOwner = { directory, connection: { ...connection } };
         return { ...connection, baseUrl: "moguri://app" };
