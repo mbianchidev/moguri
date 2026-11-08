@@ -1040,6 +1040,68 @@ unpriced calls and invoices stay distinct. CLI/TUI share
 `/dashboard work|usage|cost|velocity` and `moguri dashboard` projections; F7
 includes the shared overview.
 
+## Unified My Work
+
+**Dashboard / My work / GitHub attention** aggregates PRs, outstanding review
+requests, failed/cancelled/timed-out CI and unresolved/outdated review threads
+for explicitly configured repos/accounts. The active-session dashboard and
+Usage/Cost/Velocity pages are preserved. This is protocol95, not a new recurring
+scheduler or completion of the wider roadmap.
+
+Open **Configured repositories**, choose an actual project and optional Local
+worktree, then **Review inbox source**. Review its canonical root/upstream and
+numeric controller `gh` account before **Confirm read-only source**. Sources
+start empty; Moguri never scans unconfigured repositories, logs in, switches
+accounts or borrows Copilot/updater/SSH credentials. The displayed boundary is
+the Local controller's explicitly selected GitHub CLI account, not Remote or
+Sandbox execution. Inactive/revoked accounts are failed sources, not empty repos.
+Changed root/upstream/account/policy requires a new review.
+
+**Refresh configured repos** is an explicit retained read. Repository/account,
+category, PR state, freshness and text filters deduplicate each canonical PR
+while retaining separate original associations. **Reload retained view** and
+opening a PR only read retained state; neither starts/restarts a CI watch.
+Review requests come from actual User, Team, Bot, Mannequin and EnterpriseTeam
+objects; membership is not guessed. Comments never substitute for unresolved
+thread state. Complete observations older than five minutes are stale, and
+missing/partial pages or failed reads cannot become a clean inbox or passing CI.
+No checks, unknown conclusions and running/queued checks remain distinct.
+Original startup/billing/runner annotations remain inspectable even without logs.
+
+**Stop inbox refresh** cancels only its owned readers. Earlier evidence survives
+provider outages, source changes, cancellation and restart without replay.
+An unconfirmed original reader needs a separate exact inspection before a new
+overlapping refresh. **I inspected this original partial refresh** acknowledges
+only inspection; the original remains partial and cleanup stays unconfirmed.
+It never cancels another CI watch, reruns CI or grants permission.
+
+**Inspect** opens original PR/head/check/review/thread evidence and canonical
+links. Opening an exact related session does not send a prompt, answer a
+question or approve a tool. **Review scoped follow-up** selects its actual
+account/root and rereads the complete source; **Confirm idle follow-up session**
+creates an unsent draft under normal project controls/permissions without
+changing the checkout. Comments, thread resolution, requests for changes,
+push and merge still require their own authorization.
+**Mark inbox item read** is notification read acknowledgement, not resolution.
+Existing sound/banner/privacy preferences apply to source-bound inbox attention.
+
+```sh
+moguri my-work source PROJECT_ID
+moguri my-work configure PROJECT_ID --digest REVIEW_SHA --confirm-review
+moguri my-work refresh
+moguri my-work status
+moguri my-work query --filters '{"category":"failed-ci","state":"open"}'
+moguri my-work read REFRESH_ID SOURCE_ID
+moguri my-work stop REFRESH_ID
+```
+
+TUI has a **My Work** tab and `/my-work query FILTERS_JSON`, `status`, `refresh`,
+`source`, `configure SHA confirm-read-only`, `read`, `stop`, `inspect`,
+`navigate`, `followup` and separately confirmed `start`. Commands remain
+ordered service-owned input, not model text. CLI/SDK original reports remain
+available after source-session/project deletion. See the [SDK API](sdk.md#unified-my-work)
+and [ownership, bounds and qualification](architecture/my-work.md).
+
 Protocol 57 implements [session-owned candidate cleanup](architecture/candidate-cleanup.md).
 Permanent session deletion, whether manual or archived-session expiry, deletes
 all candidates and fixed-model generation proposals originating from that exact

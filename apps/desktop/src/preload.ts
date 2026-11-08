@@ -63,5 +63,13 @@ const bridge: DesktopBridge = {
     ipcRenderer.on("moguri:navigate-session", receive);
     return () => ipcRenderer.removeListener("moguri:navigate-session", receive);
   },
+  onNavigateWork: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, id: unknown, profileId: unknown) => {
+      if (typeof id === "string" && /^github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/[1-9]\d*$/.test(id) &&
+        typeof profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) listener(id, profileId);
+    };
+    ipcRenderer.on("moguri:navigate-work", receive);
+    return () => ipcRenderer.removeListener("moguri:navigate-work", receive);
+  },
 };
 contextBridge.exposeInMainWorld("moguri", bridge);
