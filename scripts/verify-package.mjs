@@ -34,6 +34,8 @@ if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.
 if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));
 if (PROTOCOL_VERSION >= 87) execFileSync(node, [resolve("tests/fixtures/installed-session-controls.mjs"), root], { stdio: "inherit", timeout: 60_000 });
 const nodeSdk = await import(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href);
+if (PROTOCOL_VERSION >= 96) execFileSync(node, [resolve("tests/fixtures/installed-service-startup.mjs"), root],
+  { stdio: "inherit", timeout: 90_000 });
 if (PROTOCOL_VERSION >= 92) {
   execFileSync(node, [resolve("tests/fixtures/installed-milestone-models.mjs"), root], { stdio: "inherit", timeout: 45_000 });
   execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-candidate-transports.mjs"), root], { stdio: "inherit", timeout: 75_000 });

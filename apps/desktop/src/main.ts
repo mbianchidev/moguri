@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, readConnection, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, loadNotificationSoundFile, readConnection, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -16,6 +16,7 @@ import { HtmlPreviewHost } from "./html-preview.ts";
 import { microphonePermission } from "./microphone-permission.ts";
 import type { DesktopStartupPhase, DesktopStartupStatus } from "./bridge.d.ts";
 import { LoopDelay } from "../../service/src/loop-delay.ts";
+import { DesktopServiceStartup } from "./service-startup.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 const require = createRequire(import.meta.url);
@@ -33,6 +34,7 @@ let closeRequested = false;
 let serviceStoppedForRestart = false;
 let updateTimer: ReturnType<typeof setInterval> | undefined;
 let updateNoticed: string | null = null;
+let serviceStartup: DesktopServiceStartup | undefined;
 const nativeReady = Promise.withResolvers<void>();
 const startupBegan = performance.now();
 let startupPhase: DesktopStartupPhase = "window", startupPhaseBegan = startupBegan, startupFinished: number | undefined;
@@ -45,7 +47,8 @@ const startupPhaseChanged = (phase: DesktopStartupPhase) => {
 };
 const startupStatus = (): DesktopStartupStatus => {
   const now = startupFinished ?? performance.now();
-  return { phase: startupPhase, elapsedMs: now - startupPhaseBegan, totalMs: now - startupBegan, completed: structuredClone(startupCompleted) };
+  return { phase: startupPhase, elapsedMs: now - startupPhaseBegan, totalMs: now - startupBegan, completed: structuredClone(startupCompleted),
+    ...(serviceStartup?.status() ?? { revision: 0, canReconnect: false, diagnostic: null }) };
 };
 void nativeReady.promise.catch(() => console.error("Native startup did not complete; the startup window retains its connection diagnostic."));
 const generatedAudio = () => process.env.MOGURI_TEST_WINDOW === "hidden" && app.commandLine.hasSwitch("use-fake-device-for-media-stream");
@@ -99,15 +102,30 @@ else {
     let connectedOwner: { directory: string; connection: Connection } | undefined;
     let reopenOwner: typeof connectedOwner;
     let nativeInitialized = false;
+    let explicitQuitRequested = false;
     let shutdownTask: Promise<void> | undefined, exitAllowed = false;
-    const shutdown = () => {
+    const shutdown = (reason: "quit" | "window") => {
       if (shutdownTask) return;
       closeRequested = true; clearInterval(updateTimer); audioGrant = null;
       attentionClient?.disconnect();
       shutdownTask = (async () => {
-        if (connecting) await connecting.catch((error: unknown) => console.error("Connection admission ended during app shutdown:", error instanceof Error ? error.message : "original connection did not complete"));
+        if (connecting && !connectedOwner) {
+          const original = await serviceStartup!.originalForShutdown();
+          connectedOwner = { directory: selectedDirectory(), connection: original };
+        } else if (connecting) await connecting;
         const owner = connectedOwner;
-        if (!serviceStoppedForRestart && owner) await stopMoguriService(owner.directory, { expectedConnection: owner.connection });
+        let keepRunning = false;
+        if (reason === "window" && !serviceStoppedForRestart && owner) {
+          const scoped = await new MoguriSdk(owner.connection, undefined, activeProfileId).ready();
+          try {
+            const { configuration } = await scoped.application.status();
+            if (typeof configuration.values.keepServiceOnWindowClose !== "boolean") throw new Error("The original service did not confirm its window-close preference. No background or shutdown outcome was assumed.");
+            keepRunning = configuration.values.keepServiceOnWindowClose;
+            if (JSON.stringify(await readConnection(owner.directory)) !== JSON.stringify(owner.connection)) throw new Error("The original service changed during window-close review. No different owner was adopted or stopped.");
+          } finally { scoped.disconnect(); }
+        }
+        if (!serviceStoppedForRestart && owner && !keepRunning) await stopMoguriService(owner.directory, { expectedConnection: owner.connection });
+        serviceStartup?.cancelAfterShutdown();
         for (const banner of banners.values()) banner.close(); banners.clear();
         exitAllowed = true; app.quit();
       })().catch(async (error: unknown) => {
@@ -122,10 +140,10 @@ else {
             detail: "Moguri was not marked closed. Its original service/cleanup state is retained; no new service was started and no data was deleted.",
             buttons: ["Retry shutdown", "Cancel quit"], defaultId: 0, cancelId: 1, noLink: true,
           });
-          if (choice.response === 0) shutdown();
+          if (choice.response === 0) shutdown(reason);
           else {
             const recoveryEpoch = profileEpoch;
-            closeRequested = false; reopenOwner = connectedOwner;
+            closeRequested = false; explicitQuitRequested = false; reopenOwner = connectedOwner;
             if (!mainWindow || mainWindow.isDestroyed()) await createWindow();
             if (nativeInitialized && profileEpoch === recoveryEpoch) {
               const original = reopenOwner;
@@ -140,32 +158,35 @@ else {
     };
     app.on("before-quit", (event) => {
       if (exitAllowed) return;
+      explicitQuitRequested = true;
       event.preventDefault();
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
-      else shutdown();
+      else shutdown("quit");
     });
-    app.on("window-all-closed", shutdown);
+    app.on("window-all-closed", () => shutdown(explicitQuitRequested ? "quit" : "window"));
+    serviceStartup = new DesktopServiceStartup((startupReview) => ensureConnection({
+      stateDir: selectedDirectory(), explicitStateDir: Boolean(process.env.MOGURI_STATE_DIR && process.env.MOGURI_STATE_DIR_EXPLICIT !== "0"),
+      runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs"),
+      ...(startupReview ? { startupReview } : {}),
+      confirmUpgrade: async (review) => {
+        if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+          if (!["confirm", "cancel"].includes(process.env.MOGURI_TEST_SERVICE_UPGRADE ?? "")) throw new Error("Hidden service upgrades require an explicit generated confirmation response. No personal service or native dialog was opened.");
+          return process.env.MOGURI_TEST_SERVICE_UPGRADE === "confirm";
+        }
+        const choice = await dialog.showMessageBox({
+          type: "question", title: "Update the Moguri background service",
+          message: `This app needs protocol ${review.requiredProtocol}, but the running service uses ${review.observedProtocol}.`,
+          detail: "Restart the exact authenticated background service to finish the upgrade. Running agent/tool work will stop with its actual partial outcome. History, profiles, budgets and independent artifacts are kept. User terminals are preserved without replaying input. Cancel leaves the old service unchanged.",
+          buttons: ["Restart service", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
+        });
+        return choice.response === 0;
+      },
+    }), waitForStartupService);
     const connect = async () => {
       if (maintenancePending || closeRequested) throw new Error("App shutdown or original store maintenance is pending. No stale root, automatic service start or profile rebind was attempted.");
       connecting ??= (async () => {
-        const original = reopenOwner, directory = original?.directory ?? selectedDirectory();
-        const selectedConnection = original ? await readConnection(directory) : await ensureConnection({
-          stateDir: directory, explicitStateDir: Boolean(process.env.MOGURI_STATE_DIR && process.env.MOGURI_STATE_DIR_EXPLICIT !== "0"),
-          runtime: require.resolve("node/bin/node"), servicePath: join(app.getAppPath(), "dist", "service.mjs"),
-          confirmUpgrade: async (review) => {
-            if (process.env.MOGURI_TEST_WINDOW === "hidden") {
-              if (!["confirm", "cancel"].includes(process.env.MOGURI_TEST_SERVICE_UPGRADE ?? "")) throw new Error("Hidden service upgrades require an explicit generated confirmation response. No personal service or native dialog was opened.");
-              return process.env.MOGURI_TEST_SERVICE_UPGRADE === "confirm";
-            }
-            const choice = await dialog.showMessageBox({
-              type: "question", title: "Update the Moguri background service",
-              message: `This app needs protocol ${review.requiredProtocol}, but the running service uses ${review.observedProtocol}.`,
-              detail: "Restart the exact authenticated background service to finish the upgrade. Running agent/tool work will stop with its actual partial outcome. History, profiles, budgets and independent artifacts are kept. User terminals are preserved without replaying input. Cancel leaves the old service unchanged.",
-              buttons: ["Restart service", "Cancel"], defaultId: 1, cancelId: 1, noLink: true,
-            });
-            return choice.response === 0;
-          },
-        });
+        const original = reopenOwner ?? connectedOwner, directory = original?.directory ?? selectedDirectory();
+        const selectedConnection = original ? await readConnection(directory) : await serviceStartup!.connect();
         if (original && JSON.stringify(selectedConnection) !== JSON.stringify(original.connection)) throw new Error("The captured service changed while quit was cancelled. No different owner was adopted or started.");
         connection = selectedConnection;
         connectedOwner = { directory, connection: { ...connection } };
@@ -216,6 +237,12 @@ else {
     });
     ipcMain.handle("moguri:connection", async (event) => { trusted(event); await nativeReady.promise; return connect(); });
     ipcMain.handle("moguri:startup-status", (event) => { trusted(event); return startupStatus(); });
+    ipcMain.handle("moguri:startup-reconnect", (event, revision: unknown) => {
+      trusted(event);
+      if (maintenancePending || closeRequested || typeof revision !== "number" || !Number.isSafeInteger(revision)) throw new Error("The current startup is not available for reconnect. No different root or owner was selected.");
+      serviceStartup!.reconnect(revision);
+      return { requested: true };
+    });
     ipcMain.handle("moguri:startup-context", async (event) => {
       trusted(event);
       const directory = connectedOwner?.directory ?? selectedDirectory();
@@ -622,6 +649,7 @@ else {
       mainWindow.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("moguri://app/")) event.preventDefault(); });
       mainWindow.webContents.on("will-prevent-unload", (event) => {
         if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+          explicitQuitRequested = false;
           console.error("Hidden generated window kept open for pending edits. No native confirmation dialog was opened.");
           return;
         }
@@ -630,6 +658,7 @@ else {
           buttons: ["Keep saving", "Discard unsaved edits"], defaultId: 0, cancelId: 0,
         });
         if (choice === 1) event.preventDefault();
+        else explicitQuitRequested = false;
       });
       mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null;
         void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });

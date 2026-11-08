@@ -9,9 +9,10 @@ const labels: Record<DesktopStartupPhase, string> = {
   profile: "Connecting the profile", preferences: "Reading application preferences",
   native: "Preparing native controls", ready: "Connecting the saved session", failed: "Startup did not complete",
 };
-export function StartupWorkspace({ view, phase, error, cacheError, draft, change }: {
+export function StartupWorkspace({ view, phase, error, cacheError, draft, change, unconfirmed = false, reconnect, reconnecting = false }: {
   view: StartupView | null; phase: DesktopStartupPhase; error: string | null; cacheError: string | null;
   draft: OpeningDraft | null; change: Dispatch<SetStateAction<OpeningDraft | null>>;
+  unconfirmed?: boolean; reconnect?: () => void; reconnecting?: boolean;
 }) {
   const cachedModel = view?.models.find((model) => model.id === view.session?.modelId);
   const update = (input: HTMLTextAreaElement) => {
@@ -35,12 +36,13 @@ export function StartupWorkspace({ view, phase, error, cacheError, draft, change
     </nav>
     <main className="main-pane">
       <header className="session-header"><div className="session-heading">
-        <h1>{error ? "Moguri could not connect" : view?.session ? "Last opened chat" : "Your workspace"}</h1>
+        <h1>{unconfirmed ? "Startup not yet confirmed" : error ? "Moguri could not connect" : view?.session ? "Last opened chat" : "Your workspace"}</h1>
         <span>{view ? "Last-known view. Live session and model availability are being verified." : "Your saved workspace is loading."}</span>
       </div></header>
       <div className="opening-content">
         <p role="status">Opening your workspace... {labels[phase]}.</p>
         {error && <Alert as="p" className="inline-error" role="alert">{error} Your local opening draft is still here; nothing was sent.</Alert>}
+        {reconnect && <button type="button" disabled={reconnecting} onClick={reconnect}>Reconnect to original service</button>}
         {cacheError && <p className="fine-print">{cacheError}</p>}
         <p className="fine-print">You can type while the backend loads. This draft stays in this window until its exact saved destination is verified.</p>
         {view && view.models.length > 0 && <details className="opening-models"><summary>Last known models and thinking efforts</summary>

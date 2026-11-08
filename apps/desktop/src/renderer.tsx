@@ -13,6 +13,8 @@ function DesktopStartup() {
   const [draft, setDraft] = useState<OpeningDraft | null>(null);
   const [phase, setPhase] = useState<DesktopStartupPhase>("window");
   const [error, setError] = useState<string | null>(null), [cacheError, setCacheError] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState<{ revision: number; diagnostic: string } | null>(null);
+  const [reconnecting, setReconnecting] = useState(false), [reconnectError, setReconnectError] = useState<string | null>(null);
   const [live, setLive] = useState<{ App: ComponentType<AppProps>; client: MoguriSdk; scopeKey: string | null; view: StartupView | null } | null>(null);
   const draftRef = useRef(draft); draftRef.current = draft;
   useEffect(() => {
@@ -65,14 +67,28 @@ function DesktopStartup() {
     let active = true, pending = false;
     const progress = setInterval(() => {
       if (pending) return; pending = true;
-      void window.moguri.startupStatus().then((status) => { if (active) setPhase(status.phase); })
+      void window.moguri.startupStatus().then((status) => {
+        if (!active) return;
+        setPhase(status.phase);
+        setWaiting(status.canReconnect && status.diagnostic ? { revision: status.revision, diagnostic: status.diagnostic } : null);
+      })
         .catch((error: unknown) => { console.error("Startup progress is unavailable:", error instanceof Error ? error.message : "native diagnostics failed"); })
         .finally(() => { pending = false; });
     }, 500);
     return () => { active = false; clearInterval(progress); };
   }, [live, error]);
+  const reconnect = async () => {
+    if (!waiting || reconnecting) return;
+    setReconnecting(true); setReconnectError(null);
+    try {
+      await window.moguri.reconnectStartup(waiting.revision);
+      setWaiting(null); setPhase("service");
+    } catch (error) { setReconnectError(error instanceof Error ? error.message : "The original service reconnect was not admitted. Your local draft is preserved."); }
+    finally { setReconnecting(false); }
+  };
   return live ? <live.App client={live.client} startupScope={live.scopeKey} startupView={live.view} openingDraft={draft}
     onOpeningDraftHandled={(id) => setDraft((current) => current?.id === id ? null : current)} /> :
-    <StartupWorkspace view={view} phase={phase} error={error} cacheError={cacheError} draft={draft} change={setDraft} />;
+    <StartupWorkspace view={view} phase={phase} error={error ?? reconnectError ?? waiting?.diagnostic ?? null} cacheError={cacheError} draft={draft} change={setDraft}
+      unconfirmed={Boolean(waiting && !error)} reconnect={waiting ? () => { void reconnect(); } : undefined} reconnecting={reconnecting} />;
 }
 root.render(<DesktopStartup />);

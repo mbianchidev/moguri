@@ -282,6 +282,21 @@ draft stays preserved for explicit review instead of being overwritten or
 sent. Keep the window open until **Draft saved**, or explicitly discard
 unsaved text when closing.
 
+An unconfirmed 60-second service startup now offers **Reconnect to original
+service** while keeping that same local draft and last-known view. Reconnect
+only retries authenticated readiness for the captured original owner; it does
+not start another service or send your text. Fatal initialization, authentication
+or changed-owner diagnostics still require inspection rather than a fallback.
+
+**General / Keep agents running when the last window closes** is on by default.
+Closing the last window quits the desktop while the same service, active agent
+work and user terminals continue in the background. Reopening reconnects to
+the ready service. **Quit Moguri** always stops the service and its known
+terminal groups; turn the setting off to stop them on window close too.
+Neither closing nor reconnecting dispatches a held queue or unsent draft.
+This root-owned preference is shared across profiles. Its protocol-96
+migration retains genuine protocol-95 inbox history and original state.
+
 The last-session preference is bound to the canonical root, retained store
 and actual profile. Cached names do not prove model availability, thinking
 support, permissions or budget. Live model discovery and the local service

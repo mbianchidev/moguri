@@ -8,6 +8,9 @@ export interface DesktopStartupStatus {
   elapsedMs: number;
   totalMs: number;
   completed: Array<{ phase: DesktopStartupPhase; durationMs: number }>;
+  revision: number;
+  canReconnect: boolean;
+  diagnostic: string | null;
 }
 export interface DesktopBridge {
   previewHtml(input: import("../../../packages/sdk/src/index.ts").HtmlPreviewInput, profileId: string): Promise<void>;
@@ -15,6 +18,7 @@ export interface DesktopBridge {
   connection(): Promise<Connection>;
   startupContext(): Promise<StartupContext>;
   startupStatus(): Promise<DesktopStartupStatus>;
+  reconnectStartup(revision: number): Promise<{ requested: true }>;
   profile(profileId?: string): Promise<string>;
   chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;

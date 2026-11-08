@@ -9,9 +9,11 @@ import { setupFixture } from "../fixture.ts";
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop service shutdown qualification is macOS-only.");
 
-test("closing the last desktop window stops its actual service and owned consoles before Electron exits", async () => {
+test("opting out of background work makes last-window close stop its actual service and owned consoles", async () => {
   const fixture = await setupFixture({ platform: { terminal: { executable: "/bin/sh", args: ["-c", "printf 'GENERATED_APP_CLOSE_READY\\n'; exec cat"] } } });
-  const sdk = await new MoguriSdk(fixture.service.connection).ready(), app = await electron.launch({
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.application.configure({ keepServiceOnWindowClose: false }, (await sdk.application.status()).configuration.revision);
+  const app = await electron.launch({
     executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
   });
