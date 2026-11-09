@@ -78,6 +78,8 @@ test("Project Settings changes a shared remote only after exact confirmation and
   try {
     app = await launch(f.directory);
     const linked = join(f.directory, "linked"); f.git(["worktree", "add", "-b", "generated-settings-linked", linked]);
+    // Seed the generated branch cache before exact config review, not during a workspace observer's later write.
+    f.git(["config", "branch.generated-settings-linked.vscode-merge-base", "origin/main"]);
     await writeFile(join(f.root, "fixture.txt"), "Generated Settings staged bytes.\n"); f.git(["add", "--", "fixture.txt"]);
     await writeFile(join(f.root, "fixture.txt"), "Generated Settings dirty bytes.\n");
     const before = await readFile(join(f.root, ".git", "index")), page = await app.firstWindow();
