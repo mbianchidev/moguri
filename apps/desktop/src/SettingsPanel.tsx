@@ -23,6 +23,7 @@ import { listMicrophones, type MicrophoneChoice } from "./browser-audio.ts";
 import { ShortcutEditor } from "./ShortcutEditor.tsx";
 import { NotificationSettings } from "./NotificationSettings.tsx";
 import { ApplicationSettings } from "./ApplicationSettings.tsx";
+import { OtlpSettings } from "./OtlpSettings.tsx";
 import { StorageSettings } from "./StorageSettings.tsx";
 import { UpdateSettings } from "./UpdateSettings.tsx";
 import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
@@ -59,6 +60,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [integrationDirty, setIntegrationDirty] = useState(false);
   const [soundsBusy, setSoundsBusy] = useState(false);
   const [applicationBusy, setApplicationBusy] = useState(false);
+  const [exportDirty, setExportDirty] = useState(false);
   const [storageBusy, setStorageBusy] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [modelsBusy, setModelsBusy] = useState(false);
@@ -140,7 +142,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
   const nonWebNestedDirty = projectDirty || repositoriesDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
   const otherNestedDirty = nonWebNestedDirty || webBusy || webDirty;
-  const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty;
+  const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty || exportDirty;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, tab]);
@@ -340,8 +342,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "artifacts" && <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setResourceDirty} onRequestHandled={onArtifactRequestHandled} />}
         {tab === "candidates" && <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} />}
         {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
-          <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><SettingsHelp label="About profiles" target={<h3>Profiles</h3>}>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</SettingsHelp>
-          <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
+          <OtlpSettings key={sdk.profileId} sdk={sdk} configuration={snapshot.telemetryExport} disabled={dirty || saving || otherNestedDirty || updateBusy || storageBusy} onDirty={setExportDirty} />
+          <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy || exportDirty} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><SettingsHelp label="About profiles" target={<h3>Profiles</h3>}>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</SettingsHelp>
+          <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || exportDirty} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
         {tab === "repositories" && <RepositoryImportPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} onDirty={setRepositoriesDirty}
           configureProject={(id) => {
             if (dirty || saving || nestedDirty) { setError("Finish or discard the current edit before choosing a project. No configuration target was changed."); return; }

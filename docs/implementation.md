@@ -663,6 +663,14 @@ Deleting a session does not delete its artifacts. Deleting a project containing 
 
 ### 7. Telemetry, cost control, and dashboard
 
+The bounded [protocol-97 OTLP slice](architecture/otlp-export.md) adds explicit
+profile-owned, metadata-only traces and canonical gauge export over existing
+records, off by default. SDK, CLI/TUI and desktop share exact destination/revision
+review and service-owned failure status. No separate accounting authority,
+content/log capture, automatic instrumentation, hosted destination or hidden
+credential/environment inheritance is introduced. Broader provider-internal
+instrumentation and unqualified process boundaries remain outside this cut.
+
 Capture enough data to answer:
 
 - what is running;

@@ -1,9 +1,44 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **96**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **97**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Metadata-only OpenTelemetry export
+
+Export is **off by default**, independently for each profile. Under
+**Settings / General / OpenTelemetry export**, choose an HTTPS collector
+origin or literal loopback HTTP such as `http://127.0.0.1:4318`, set the trace
+sampling ratio, then review and confirm the exact profile/destination.
+The same reviewed capability is available without a project, chat or model:
+
+```sh
+moguri telemetry otlp status
+moguri telemetry otlp review '{"enabled":true,"endpoint":"http://127.0.0.1:4318","samplingRatio":1}'
+moguri telemetry otlp apply 'ORIGINAL_REVIEW_JSON' confirm-reviewed
+```
+
+In the TUI use `/otlp status`, `/otlp review INPUT_JSON` and
+`/otlp apply ORIGINAL_REVIEW_JSON confirm-reviewed`. Copy the exact `review`
+object returned by the owning profile; another profile/revision/destination
+requires a new review. To disable, review `enabled:false` and apply that
+review. Editing/reviewing alone sends nothing to the collector.
+
+OTLP/HTTP JSON uses `/v1/traces` and `/v1/metrics`. This bounded first cut has
+no credential/header, custom-path, redirect, automatic-instrumentation or OTEL
+environment-variable support. A user-owned Collector can separately forward
+to authenticated backends. Only allowlisted metadata leaves the Local control
+plane, including accepted Remote/Sandbox records: no prompts, responses,
+reasoning, tool arguments/results, source/attachments, terminals, raw logs,
+paths, private names or credentials. Existing accounting remains authoritative;
+metrics are its canonical gauges, not a second accumulated ledger.
+
+Status exposes bounded queue/drop/failure counts and receiver acknowledgements,
+not proof that a backend stored/searches the data. There is no individual history
+backfill, disk spool or automatic retry; current aggregate gauges can include
+older canonical totals. Restart begins a fresh diagnostic epoch and cannot
+replay model/tool work. See the [limits, privacy, migration and Collector guide](architecture/otlp-export.md).
 
 ## GitHub requests and composer controls
 
@@ -4549,7 +4584,7 @@ are still unavailable, not mislabeled as human answers.
 | Ctrl+L / Ctrl+M | Copilot sign-in / model picker |
 | Cmd/Ctrl+Enter | Hold a prompt in the queue without starting work |
 | Shift+Cmd/Ctrl+Enter | Send now; settings editors still use Ctrl+Enter to save |
-| Ctrl+C | Stop active turn without closing the TUI |
+| Ctrl+C | Save drafts and leave this TUI; the shared service and agents keep running |
 | Ctrl+Y / Ctrl+D | Approve exact pending tool / deny |
 | Ctrl+V | Focus scrollable full approval arguments |
 | Ctrl+R / Ctrl+S | Reload saved draft / save or explicitly keep local draft |
@@ -4558,6 +4593,13 @@ are still unavailable, not mislabeled as human answers.
 | Ctrl+Space / F4 | Start-stop local dictation / explicitly insert completed transcript |
 | F5 / F7 / F8 | Retained documents / profile usage / isolated profile picker and metadata |
 | Esc / Ctrl+Q | Return to composer / save and leave |
+
+Typing exact `exit` or `/exit` and pressing Enter also saves and leaves, without
+a model turn. `/quit` remains available; `/stop` stops the active turn and holds
+undispatched prompts. Held exit input does not run. Failed saves refuse exit;
+unsaved editors and in-flight owned saves/clone/probe dialogs retain their
+existing cancellation/settlement guards. TUI exit disconnects only this client,
+unlike desktop **Quit Moguri**, which ordinarily stops its connected service.
 
 `/help` lists slash commands, including queue editing/reordering, `/steer`,
 `/interrupt`, `/attach`, `/resume`, `/archive`, `/restore` and `/policy`.
