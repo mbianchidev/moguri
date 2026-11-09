@@ -7,22 +7,31 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
   const [decisions, setDecisions] = useState<RewindFileDecision[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [read, setRead] = useState<Extract<CheckpointResponse, { type: "checkpoints.read" }> | null>(null), [prune, setPrune] = useState(false);
   const [inspection, setInspection] = useState<Extract<CheckpointResponse, { type: "rewind.inspect" }> | null>(null), [acknowledged, setAcknowledged] = useState(false);
+  const [capturePrune, setCapturePrune] = useState<string | null>(null);
   const generation = useRef(0);
+  const reviewAbort = useRef<AbortController | null>(null);
   const checkpoints = snapshot.checkpoints.filter((checkpoint) => checkpoint.sessionId === session.id).sort((a, b) => b.startSequence - a.startSequence);
   const rewinds = snapshot.rewinds.filter((record) => record.sessionId === session.id);
+  const captures = snapshot.checkpointCaptures.filter((capture) => capture.sessionId === session.id && !capture.forgotten &&
+    !checkpoints.some((checkpoint) => checkpoint.id === capture.checkpointId));
   const scope = JSON.stringify([sdk.profileId, session.id, session.revision, snapshot.policy.revision, snapshot.settings.permissionRevision]);
-  useEffect(() => { generation.current++; setPreview(null); setConfirmed(false); setDecisions([]); setInspection(null); setRead(null); }, [scope]);
-  useEffect(() => () => { generation.current++; }, []);
+  useEffect(() => { generation.current++; reviewAbort.current?.abort(new Error("The original review scope changed.")); setPreview(null); setConfirmed(false); setDecisions([]); setInspection(null); setRead(null); setCapturePrune(null); }, [scope]);
+  useEffect(() => () => { generation.current++; reviewAbort.current?.abort(new Error("The original review closed.")); }, []);
   const run = async (operation: (current: () => boolean) => Promise<void>) => {
     const token = ++generation.current; setBusy(true); setError("");
     try { await operation(() => generation.current === token); }
     catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "The exact rewind failed. Inspect its actual retained outcome; no rollback success was inferred."); }
     finally { setBusy(false); }
   };
-  const review = (checkpoint: TurnCheckpoint, mode: "conversation" | "workspace") => run(async (current) => {
-    const value = (await sdk.checkpoints.preview(session.id, checkpoint.id, mode)).preview;
-    if (current()) { setPreview(value); setConfirmed(false); setDecisions([]); }
-  });
+  const review = (checkpoint: TurnCheckpoint, mode: "conversation" | "workspace") => {
+    const abort = new AbortController(); reviewAbort.current = abort;
+    return run(async (current) => {
+      try {
+        const value = (await sdk.checkpoints.preview(session.id, checkpoint.id, mode, abort.signal)).preview;
+        if (current()) { setPreview(value); setConfirmed(false); setDecisions([]); }
+      } finally { if (reviewAbort.current === abort) reviewAbort.current = null; }
+    });
+  };
   const conflictsChosen = preview?.files.every((file) => !file.conflict || decisions.some((decision) => decision.root === file.root && decision.path === file.path)) ?? false;
   return <section className="script-reviews" aria-label="Checkpoints and rewind">
     <details><summary>Checkpoints and rewind ({checkpoints.length})</summary>
@@ -32,6 +41,14 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
         if (current()) { setPreview(null); setConfirmed(false); }
       })}>Stop owned work for rewind</button>
       {!checkpoints.length && <p>No provable checkpoints are retained. Earlier files were not reconstructed from the current checkout.</p>}
+      {captures.map((capture) => <article key={capture.id} aria-label={`Unadmitted capture ${capture.id}`}>
+        <h3>{capture.phase} capture: {capture.status}</h3>
+        <p className="fine-print">{capture.id} / {capture.storageBytes ?? 0} retained bytes. {capture.diagnostic}</p>
+        <label className="check-setting"><input type="checkbox" checked={capturePrune === capture.id} disabled={busy || capture.status === "capturing"}
+          onChange={(event) => setCapturePrune(event.target.checked ? capture.id : null)} />Remove only this reviewed capture's encrypted snapshot. Private stages, filesystem backups, history and accounting remain.</label>
+        <button type="button" disabled={busy || capturePrune !== capture.id || !["partial", "failed", "captured"].includes(capture.status)}
+          onClick={() => void run(async (current) => { await sdk.checkpoints.pruneCapture(session.id, capture.id, capture.revision); if (current()) setCapturePrune(null); })}>Prune reviewed unadmitted capture</button>
+      </article>)}
       {checkpoints.map((checkpoint) => <article key={checkpoint.id}>
         <h3>{checkpoint.summary || checkpoint.turnId}</h3>
         <p className="fine-print">{checkpoint.createdAt} / {checkpoint.env} / event {checkpoint.startSequence} / {checkpoint.terminal?.outcome ?? "turn not settled"} / {checkpoint.storageBytes} retained bytes</p>
@@ -48,7 +65,7 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
       {read && <div aria-label="Checkpoint scope">
         <p>Captured conversation messages: {read.state?.context.length ?? "unavailable"}. Draft, queue and controls are inspection-only and will not replace current values. Independent artifacts and accounting are never rolled back.</p>
         <pre>{JSON.stringify({ checkpoint: read.checkpoint.id, roots: read.before?.roots.map((root) => ({ root: root.binding, files: root.files.map(({ path, digest, bytes, mode }) => ({ path, digest, bytes, mode })), excluded: root.excluded, git: root.git })) }, null, 2)}</pre>
-        <label className="check-setting"><input type="checkbox" checked={prune} disabled={busy} onChange={(event) => setPrune(event.target.checked)} />Permanently remove this checkpoint's encrypted snapshots, not history, accounting, active context or displaced filesystem backups.</label>
+        <label className="check-setting"><input type="checkbox" checked={prune} disabled={busy} onChange={(event) => setPrune(event.target.checked)} />Permanently remove this checkpoint's encrypted snapshots, not history, accounting, active context, reviewed operation receipts/plans or displaced filesystem backups.</label>
         <button type="button" disabled={busy || !prune || !read.checkpoint.terminal} onClick={() => void run(async (current) => {
           await sdk.checkpoints.prune(session.id, read.checkpoint.id, read.checkpoint.revision);
           if (current()) { setRead(null); setPrune(false); }
@@ -87,7 +104,7 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
           if (current()) { setInspection(value); setAcknowledged(false); }
         })}>Inspect exact rewind effects</button>
       </article>)}
-      {inspection && <div aria-label="Actual rewind effects"><pre>{JSON.stringify(inspection.effects, null, 2)}</pre>
+      {inspection && <div aria-label="Actual rewind effects"><p>{inspection.diagnostic}</p><pre>{JSON.stringify(inspection.effects, null, 2)}</pre>
         {inspection.record.status === "partial" && inspection.record.quarantined && <>
           <p>This acknowledgement releases only this terminal operation's root quarantine. The rewind remains partial; nothing is replayed, refunded or labeled successful.</p>
           <label className="check-setting"><input type="checkbox" checked={acknowledged} disabled={busy} onChange={(event) => setAcknowledged(event.target.checked)} />I inspected these exact current files and retained displaced backups.</label>
@@ -99,6 +116,7 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
       </div>}
     </details>
     {busy && <p role="status">Checking or applying the exact reviewed rewind...</p>}
+    {busy && reviewAbort.current && <button type="button" onClick={() => reviewAbort.current?.abort(new Error("The actual user cancelled this exact rewind review."))}>Cancel current rewind review</button>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
   </section>;
 }

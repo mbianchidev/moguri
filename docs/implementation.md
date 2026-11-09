@@ -274,6 +274,17 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > to Local policy. Partial publication retains its writer/report until fresh
 > actual-user effect inspection; its job, cancellation and charges do not become
 > successful or free. Jev's unavailable output/accounting wire remains distinct.
+>
+> Protocol98 adds [per-turn checkpoints and reviewed rewind](architecture/skills-and-rewind.md)
+> as a separate capability, not a renaming of native retry or wind-down Git
+> checkpoints. It restores an exact active context branch and optionally
+> reviewed Local, pinned Remote or private Sandbox regular files, preserving
+> external edits, current Git intent, later history and spent/unknown budgets.
+> The same Local source-admission contract binds metadata, static dependencies,
+> publisher evidence, least privilege and actual-user revocation across clients.
+> Rewind never reactivates a revoked grant or obsolete policy. Native workspace
+> qualification does not qualify reviewed-script execution; that wider
+> skills-safety gate remains unavailable.
 
 ## Why Moguri
 
