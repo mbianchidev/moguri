@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { MoguriSdk, slashCommands } from "../../packages/sdk/src/index.ts";
-import { setupFixture } from "../fixture.ts";
+import { admitGeneratedSkill, setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer menus use generated hidden macOS windows.");
@@ -128,6 +128,8 @@ test("the scrollable slash list contains all builtins before skills, loads the e
   }
   const settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, skillSources: [{ id: "generated-ui-commands", name: "Generated UI commands", enabled: true, kind: "local", path: root }] }, settings.revision);
+  const selected = (await sdk.skills.find("generated-ui-command-9", { sessionId: fixture.sessionId })).skills[0]!;
+  await admitGeneratedSkill(sdk, fixture.sessionId, selected.id, selected.digest);
   const side = await sdk.sessions.side(fixture.sessionId);
   await sdk.command({ type: "draft.save", sessionId: side.id!, expectedRevision: 0, text: "Generated earlier side draft.", attachments: [] });
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],

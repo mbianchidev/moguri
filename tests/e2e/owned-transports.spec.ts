@@ -17,7 +17,10 @@ test("hidden desktop retains actual SSH Kupo decision Env, role acknowledgement 
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await f.send("generated structured question choices only with hidden desktop SSH ownership");
-    await expect.poll(() => f.service.controller.snapshot().decisions[0]?.status).toBe("applied");
+    await expect.poll(async () => JSON.stringify({ status: f.service.controller.snapshot().decisions[0]?.status,
+      session: f.session().status, diagnostic: f.session().lastError, queued: f.session().queue.length,
+      captures: f.service.controller.snapshot().checkpointCaptures.map((capture) => ({ phase: capture.phase, status: capture.status, diagnostic: capture.diagnostic })),
+      alerts: await page.getByRole("alert").allTextContents() })).toContain('"status":"applied"');
     await expect.poll(() => f.session().status).toBe("completed");
     await openSettingsSection(page, "Artifacts");
     const panel = page.getByRole("region", { name: "Decision-provider observations", exact: true });

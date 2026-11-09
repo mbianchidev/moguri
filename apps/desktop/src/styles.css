@@ -748,6 +748,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .dashboard-project li > span { white-space: nowrap; }
 .dashboard-details { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 8px; }
 .script-reviews { margin: 12px 24px; padding: 14px; border: 1px solid var(--control-line); border-radius: 8px; background: var(--surface); }
+.conversation-reviews { display: flex; flex-wrap: wrap; flex: 0 1 auto; gap: 4px; min-height: 0; max-height: min(34dvh, 360px); overflow: auto; margin: 4px clamp(10px, 2vw, 24px) 8px; }
+.conversation-reviews > .script-reviews { flex: 1 1 180px; min-width: 0; margin: 0; padding: 6px 10px; }
+.conversation-reviews > .script-reviews:has(details[open]) { flex-basis: 100%; }
 .script-reviews summary { cursor: pointer; font-size: 13px; font-weight: 600; }
 .script-reviews article { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 10px; }
 .script-reviews h3 { font-size: 13px; overflow-wrap: anywhere; }

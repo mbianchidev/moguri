@@ -51,8 +51,9 @@ export function ConversationNavigation({ entries, viewport, renderedFrom, label,
     const view = list.current, target = view?.querySelector<HTMLButtonElement>('button[aria-current="location"]');
     if (!view || !target) return;
     const bounds = view.getBoundingClientRect(), item = target.getBoundingClientRect();
-    if (item.top < bounds.top || item.height > bounds.height) view.scrollTop += item.top - bounds.top;
-    else if (item.bottom > bounds.bottom) view.scrollTop += item.bottom - bounds.bottom;
+    const inset = 2;
+    if (item.top < bounds.top + inset || item.height > bounds.height - inset * 2) view.scrollTop += item.top - bounds.top - inset;
+    else if (item.bottom > bounds.bottom - inset) view.scrollTop += item.bottom - bounds.bottom + inset;
   }, [active, expanded]);
   return <nav className={`turn-navigation${expanded ? " expanded" : ""}`} aria-label={label} data-compact={compact} onKeyDown={(event) => {
     if (event.key === "Escape" && expanded) { event.preventDefault(); setExpanded(false); toggle.current?.focus(); }
