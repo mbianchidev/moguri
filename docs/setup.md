@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **94**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **96**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -287,6 +287,16 @@ service** while keeping that same local draft and last-known view. Reconnect
 only retries authenticated readiness for the captured original owner; it does
 not start another service or send your text. Fatal initialization, authentication
 or changed-owner diagnostics still require inspection rather than a fallback.
+
+Before quitting or updating an older opening window, copy any still-unsaved
+local text to a safe location you choose. That RAM-only draft cannot survive
+closing the old window. Installing the new client does not authorize replacing
+an older running service: its existing exact-owner **Restart service** review
+remains required. The installed protocol-94 report's approximately 90-second
+initialization remains unreproduced; the repaired failure is its permanently
+rejected readiness/reconnect path, not a claimed generic cold-start cause.
+See the [frozen protocol-96 qualification](architecture/startup-responsiveness.md#frozen-protocol-96-delivery-qualification)
+for actual deadlines, warm reopening, migration and package evidence.
 
 **General / Keep agents running when the last window closes** is on by default.
 Closing the last window quits the desktop while the same service, active agent
@@ -1222,12 +1232,14 @@ the original service or inspect it before retrying; never delete the database,
 keys or session state as a workaround. CLI `moguri service restart` remains an
 explicit action against an authenticated responsive service.
 
-Closing the last desktop window, Cmd+Q and **Quit Moguri** wait for the exact
-connected service to shut down before Electron exits. Running model/tool work
-stops with its real outcome, and ordinary exit closes known user terminal groups
-across profiles. Saved history, profiles, artifacts and unknown budget holds
-remain. This is separate from explicit upgrade/update/storage restarts, which
-retain their reviewed terminal-preservation behavior.
+Cmd+Q and **Quit Moguri**, or last-window close with **Keep agents running when
+the last window closes** turned off, wait for the exact connected service to
+shut down before Electron exits. Running model/tool work stops with its real
+outcome, and ordinary stop closes known user terminal groups across profiles.
+With the default-on preference, accepted last-window close instead leaves that
+same service, work and terminals running. Saved history, profiles, artifacts
+and unknown budget holds remain in either case. Explicit upgrade/update/storage
+restarts retain their separate reviewed terminal-preservation behavior.
 
 Cancelling an unsaved-edit close leaves the service running. A changed owner or
 failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
