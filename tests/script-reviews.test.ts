@@ -7,6 +7,21 @@ import { isRecord, MoguriSdk } from "../packages/sdk/src/index.ts";
 import { startService } from "../apps/service/src/server.ts";
 import { waitFor } from "./fixture.ts";
 
+test("a legitimate script larger than 64 KiB reaches the actual assessment model as one complete exact source", { skip: process.platform !== "darwin" }, async () => {
+  const fixture = await scriptReviewFixture({ unsafe: true, sourcePadding: 96000 });
+  try {
+    await fixture.send("Generated larger complete-source review."); await fixture.terminal();
+    assert.equal(fixture.review()?.source.bytes, Buffer.byteLength(fixture.source));
+    assert.equal(fixture.review()?.advice?.verdict, "unsafe");
+    assert.ok(fixture.requests.some((request) => Array.isArray(request.messages) && request.messages.some((value: unknown) => {
+      if (!isRecord(value) || value.role !== "tool" || typeof value.content !== "string" || !value.content.startsWith("{")) return false;
+      const result: unknown = JSON.parse(value.content);
+      return isRecord(result) && result.complete === true && result.text === fixture.source;
+    })));
+    assert.equal(fixture.session().pendingApproval, null);
+  } finally { await fixture.close(); }
+});
+
 test("the owning agent receives the entire source and assesses it before normal Manual execution approval", { skip: process.platform !== "darwin" }, async () => {
   const fixture = await scriptReviewFixture();
   try {
