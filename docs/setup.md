@@ -1,9 +1,44 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **94**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **97**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Metadata-only OpenTelemetry export
+
+Export is **off by default**, independently for each profile. Under
+**Settings / General / OpenTelemetry export**, choose an HTTPS collector
+origin or literal loopback HTTP such as `http://127.0.0.1:4318`, set the trace
+sampling ratio, then review and confirm the exact profile/destination.
+The same reviewed capability is available without a project, chat or model:
+
+```sh
+moguri telemetry otlp status
+moguri telemetry otlp review '{"enabled":true,"endpoint":"http://127.0.0.1:4318","samplingRatio":1}'
+moguri telemetry otlp apply 'ORIGINAL_REVIEW_JSON' confirm-reviewed
+```
+
+In the TUI use `/otlp status`, `/otlp review INPUT_JSON` and
+`/otlp apply ORIGINAL_REVIEW_JSON confirm-reviewed`. Copy the exact `review`
+object returned by the owning profile; another profile/revision/destination
+requires a new review. To disable, review `enabled:false` and apply that
+review. Editing/reviewing alone sends nothing to the collector.
+
+OTLP/HTTP JSON uses `/v1/traces` and `/v1/metrics`. This bounded first cut has
+no credential/header, custom-path, redirect, automatic-instrumentation or OTEL
+environment-variable support. A user-owned Collector can separately forward
+to authenticated backends. Only allowlisted metadata leaves the Local control
+plane, including accepted Remote/Sandbox records: no prompts, responses,
+reasoning, tool arguments/results, source/attachments, terminals, raw logs,
+paths, private names or credentials. Existing accounting remains authoritative;
+metrics are its canonical gauges, not a second accumulated ledger.
+
+Status exposes bounded queue/drop/failure counts and receiver acknowledgements,
+not proof that a backend stored/searches the data. There is no individual history
+backfill, disk spool or automatic retry; current aggregate gauges can include
+older canonical totals. Restart begins a fresh diagnostic epoch and cannot
+replay model/tool work. See the [limits, privacy, migration and Collector guide](architecture/otlp-export.md).
 
 ## GitHub requests and composer controls
 
@@ -281,6 +316,31 @@ reconciled through the normal SDK; a changed/missing destination or peer
 draft stays preserved for explicit review instead of being overwritten or
 sent. Keep the window open until **Draft saved**, or explicitly discard
 unsaved text when closing.
+
+An unconfirmed 60-second service startup now offers **Reconnect to original
+service** while keeping that same local draft and last-known view. Reconnect
+only retries authenticated readiness for the captured original owner; it does
+not start another service or send your text. Fatal initialization, authentication
+or changed-owner diagnostics still require inspection rather than a fallback.
+
+Before quitting or updating an older opening window, copy any still-unsaved
+local text to a safe location you choose. That RAM-only draft cannot survive
+closing the old window. Installing the new client does not authorize replacing
+an older running service: its existing exact-owner **Restart service** review
+remains required. The installed protocol-94 report's approximately 90-second
+initialization remains unreproduced; the repaired failure is its permanently
+rejected readiness/reconnect path, not a claimed generic cold-start cause.
+See the [frozen protocol-96 qualification](architecture/startup-responsiveness.md#frozen-protocol-96-delivery-qualification)
+for actual deadlines, warm reopening, migration and package evidence.
+
+**General / Keep agents running when the last window closes** is on by default.
+Closing the last window quits the desktop while the same service, active agent
+work and user terminals continue in the background. Reopening reconnects to
+the ready service. **Quit Moguri** always stops the service and its known
+terminal groups; turn the setting off to stop them on window close too.
+Neither closing nor reconnecting dispatches a held queue or unsent draft.
+This root-owned preference is shared across profiles. Its protocol-96
+migration retains genuine protocol-95 inbox history and original state.
 
 The last-session preference is bound to the canonical root, retained store
 and actual profile. Cached names do not prove model availability, thinking
@@ -1207,12 +1267,14 @@ the original service or inspect it before retrying; never delete the database,
 keys or session state as a workaround. CLI `moguri service restart` remains an
 explicit action against an authenticated responsive service.
 
-Closing the last desktop window, Cmd+Q and **Quit Moguri** wait for the exact
-connected service to shut down before Electron exits. Running model/tool work
-stops with its real outcome, and ordinary exit closes known user terminal groups
-across profiles. Saved history, profiles, artifacts and unknown budget holds
-remain. This is separate from explicit upgrade/update/storage restarts, which
-retain their reviewed terminal-preservation behavior.
+Cmd+Q and **Quit Moguri**, or last-window close with **Keep agents running when
+the last window closes** turned off, wait for the exact connected service to
+shut down before Electron exits. Running model/tool work stops with its real
+outcome, and ordinary stop closes known user terminal groups across profiles.
+With the default-on preference, accepted last-window close instead leaves that
+same service, work and terminals running. Saved history, profiles, artifacts
+and unknown budget holds remain in either case. Explicit upgrade/update/storage
+restarts retain their separate reviewed terminal-preservation behavior.
 
 Cancelling an unsaved-edit close leaves the service running. A changed owner or
 failed/unconfirmed cleanup blocks successful exit and shows a retry error; the
@@ -4522,7 +4584,7 @@ are still unavailable, not mislabeled as human answers.
 | Ctrl+L / Ctrl+M | Copilot sign-in / model picker |
 | Cmd/Ctrl+Enter | Hold a prompt in the queue without starting work |
 | Shift+Cmd/Ctrl+Enter | Send now; settings editors still use Ctrl+Enter to save |
-| Ctrl+C | Stop active turn without closing the TUI |
+| Ctrl+C | Save drafts and leave this TUI; the shared service and agents keep running |
 | Ctrl+Y / Ctrl+D | Approve exact pending tool / deny |
 | Ctrl+V | Focus scrollable full approval arguments |
 | Ctrl+R / Ctrl+S | Reload saved draft / save or explicitly keep local draft |
@@ -4531,6 +4593,13 @@ are still unavailable, not mislabeled as human answers.
 | Ctrl+Space / F4 | Start-stop local dictation / explicitly insert completed transcript |
 | F5 / F7 / F8 | Retained documents / profile usage / isolated profile picker and metadata |
 | Esc / Ctrl+Q | Return to composer / save and leave |
+
+Typing exact `exit` or `/exit` and pressing Enter also saves and leaves, without
+a model turn. `/quit` remains available; `/stop` stops the active turn and holds
+undispatched prompts. Held exit input does not run. Failed saves refuse exit;
+unsaved editors and in-flight owned saves/clone/probe dialogs retain their
+existing cancellation/settlement guards. TUI exit disconnects only this client,
+unlike desktop **Quit Moguri**, which ordinarily stops its connected service.
 
 `/help` lists slash commands, including queue editing/reordering, `/steer`,
 `/interrupt`, `/attach`, `/resume`, `/archive`, `/restore` and `/policy`.

@@ -27,7 +27,11 @@ test("application, command-line and wrapped toggle explanations stay aligned wit
     const application = page.getByRole("region", { name: "Application preferences", exact: true });
     const command = page.getByRole("region", { name: "Command line installation", exact: true });
     const update = application.getByRole("switch", { name: "Automatically check and stage updates at app startup and every four hours", exact: true });
-    const help = application.getByRole("button", { name: "More about this setting", exact: true });
+    const title = application.getByRole("heading", { name: "Application", exact: true });
+    const titleHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("heading", { name: "Application", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
+    const updateHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("switch", { name: "Automatically check and stage updates at app startup and every four hours", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
+    const background = application.getByRole("switch", { name: "Keep agents running when the last window closes", exact: true });
+    const backgroundHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("switch", { name: "Keep agents running when the last window closes", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
     await expect(update).toBeEnabled();
     await page.locator(".settings-content").getByRole("heading", { name: "General", exact: true }).scrollIntoViewIfNeeded();
     await mkdir(".moguri/artifacts", { recursive: true });
@@ -35,16 +39,17 @@ test("application, command-line and wrapped toggle explanations stay aligned wit
     for (const width of [1200, 860]) {
       await app.evaluate(({ BrowserWindow }, width) => BrowserWindow.getAllWindows()[0]!.setSize(width, 900), width);
       await expect.poll(() => page.evaluate(() => innerWidth)).toBe(width);
-      await aligned(application.getByRole("heading", { name: "Application", exact: true }), help.nth(0));
+      await aligned(title, titleHelp);
       await aligned(command.getByRole("heading", { name: "Command line", exact: true }), command.getByRole("button", { name: "More about this setting", exact: true }));
-      await aligned(update, help.nth(1));
+      await aligned(background, backgroundHelp);
+      await aligned(update, updateHelp);
       const checked = await update.isChecked();
-      await help.nth(1).click();
+      await updateHelp.click();
       await expect(page.getByRole("tooltip")).toContainText("Installation and restart always require actual confirmation");
       await expect(update).toBeChecked({ checked });
-      await help.nth(1).focus(); await page.keyboard.press("Escape");
+      await updateHelp.focus(); await page.keyboard.press("Escape");
       await expect(page.getByRole("tooltip")).toHaveCount(0);
-      await expect(help.nth(1)).toBeFocused();
+      await expect(updateHelp).toBeFocused();
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     }
     await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Appearance", exact: true }).click();

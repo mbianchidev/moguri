@@ -20,16 +20,23 @@ export function ApplicationSettings({ sdk, revision, onBusy }: { sdk: MoguriSdk;
     if (!configuration || busy) return;
     setBusy(true); setError(""); setPending((current) => ({ ...current, [key]: value }));
     try {
-      await sdk.application.configure(key === "menuBar" ? { menuBar: value } : { automaticUpdates: value }, configuration.revision);
+      const changes: Partial<ApplicationPreferences> = { [key]: value };
+      await sdk.application.configure(changes, configuration.revision);
       setConfiguration((await sdk.application.status()).configuration);
-      if (key === "menuBar") await window.moguri.applyApplicationPreferences();
+      if (key !== "automaticUpdates") await window.moguri.applyApplicationPreferences();
       setPending((current) => { const { [key]: _, ...rest } = current; return rest; });
-    } catch (error) { setError(error instanceof Error ? error.message : "The menu-bar setting was not applied."); }
+    } catch (error) { setError(error instanceof Error ? error.message : "The application setting was not applied."); }
     finally { setBusy(false); }
   };
   return <><section aria-label="Application preferences">
     <SettingsHelp label="More about this setting" target={<h3>Application</h3>}>These preferences belong to this encrypted store and apply across profiles. Profile appearance and voice settings stay separate.</SettingsHelp>
     <label className="check-setting"><SettingsInput type="checkbox" checked={pending.menuBar ?? configuration?.values.menuBar ?? false} disabled={!configuration || busy} onChange={(event) => void preference("menuBar", event.target.checked)} />Show Moguri in the menu bar</label>
+    <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox"
+      checked={pending.keepServiceOnWindowClose ?? configuration?.values.keepServiceOnWindowClose ?? true} disabled={!configuration || busy}
+      onChange={(event) => void preference("keepServiceOnWindowClose", event.target.checked)} />Keep agents running when the last window closes</label>}>
+      Closing the last window quits the desktop but leaves the same service, active agent work and user terminals running. Reopening reconnects to that service.
+      Explicit Quit always stops the service and its known terminal groups. Disable this setting to stop them on window close too. It does not send drafts, resume held queues or grant permissions.
+    </SettingsHelp>
     <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={pending.automaticUpdates ?? configuration?.values.automaticUpdates ?? false} disabled={!configuration || busy} onChange={(event) => void preference("automaticUpdates", event.target.checked)} />Automatically check and stage updates at app startup and every four hours</label>}>Checks need the separate private-release credential below. Installation and restart always require actual confirmation; disabling checks affects future admissions, not already owned downloads.</SettingsHelp>
     {error && <><Alert as="p" className="inline-error" role="alert">{error}</Alert><button type="button" disabled={busy} onClick={() => {
       setBusy(true); void sdk.application.status().then(async (value) => { setConfiguration(value.configuration); await window.moguri.applyApplicationPreferences(); setPending({}); setError(""); })

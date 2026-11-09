@@ -169,6 +169,17 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > preserves Default identity/keys/receipts. Profile deletion/merge, native
 > Sandbox and routed decisions are not implied.
 
+> Protocol 96 adds [original-owner startup continuation and window-close
+> background work](architecture/startup-responsiveness.md#protocol-96-original-owner-readiness-and-background-window-close).
+> An unconfirmed readiness deadline keeps the local opening draft and requires
+> explicit reconnect to its captured authenticated owner; it never starts a
+> substitute service. The root-owned default-on window-close preference keeps
+> the same agent work and user terminals running after the desktop window
+> closes. Explicit Quit still stops the service, and an opt-out restores stop
+> on window close. Genuine protocol-95 inbox history, permissions and accounting
+> remain retained. This does not claim the original unreproduced 90-second
+> initialization delay or wider native/milestone gates are resolved.
+
 > Guided questions may now carry a bounded recommendation from the already
 > metered current solver response. It retains model provenance and still waits
 > for the actual user, who may choose differently. Tool advice binds the current
@@ -651,6 +662,14 @@ Retain whether the answer came from the user, the generative model, or a delegat
 Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, optionally commit that directory, or delete the artifacts.
 
 ### 7. Telemetry, cost control, and dashboard
+
+The bounded [protocol-97 OTLP slice](architecture/otlp-export.md) adds explicit
+profile-owned, metadata-only traces and canonical gauge export over existing
+records, off by default. SDK, CLI/TUI and desktop share exact destination/revision
+review and service-owned failure status. No separate accounting authority,
+content/log capture, automatic instrumentation, hosted destination or hidden
+credential/environment inheritance is introduced. Broader provider-internal
+instrumentation and unqualified process boundaries remain outside this cut.
 
 Capture enough data to answer:
 
