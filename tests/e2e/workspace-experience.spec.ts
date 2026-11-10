@@ -178,7 +178,7 @@ test("small real cost estimates remain graphically visible and saved skill folde
     await pages.getByRole("button", { name: "My work", exact: true }).click();
     await page.screenshot({ path: ".moguri/artifacts/workspace-my-work-dashboard.png", animations: "disabled" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Skill gateway", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Skills", exact: true }).click();
     const gateway = page.getByRole("region", { name: "Skill gateway settings", exact: true });
     await gateway.getByLabel("Skill source name", { exact: true }).fill("Generated desktop skills");
     await gateway.getByLabel("Skill source location", { exact: true }).fill(root);
@@ -216,7 +216,7 @@ test("cancelling skill discovery stops its download and releases the settings na
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    await categories.getByRole("button", { name: "Skill gateway", exact: true }).click();
+    await categories.getByRole("button", { name: "Skills", exact: true }).click();
     const gateway = page.getByRole("region", { name: "Skill gateway settings", exact: true });
     await gateway.getByRole("button", { name: "Find skills", exact: true }).click();
     await started.promise;

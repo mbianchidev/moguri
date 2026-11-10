@@ -1,90 +1,129 @@
 # First-milestone acceptance and roadmap
 
-## Merged-code audit, 2026-11-06
+## Merged-code audit, 2026-11-10
 
-The current baseline is merged main
-[`73821b7`](https://github.com/mbianchidev/moguri/commit/73821b7f77b29724027380c7e1ff3783ad731d26),
-including [#51](https://github.com/mbianchidev/moguri/pull/51) and
-[#52](https://github.com/mbianchidev/moguri/pull/52), protocol **93**
-and **0.31.0-alpha.1**. The preceding protocol92 executable/test cut is
-`81dec6a`; its later qualification notes did not change those earlier bytes.
-The [exact completion record](architecture/milestone-completion.md#final-frozen-ciruntime-cut)
-contains the complete macOS source result (2,455 passes, 29 explicit skips),
-owned Linux source result (1,604 passes, 831 explicit skips), installed SDK
-and packaged application evidence. These are local generated results, not
-GitHub-hosted CI, Linux release support or current physical SendBox acceptance.
+The audited main is
+[`2f6c4bc`](https://github.com/mbianchidev/moguri/commit/2f6c4bcfd2755725facdf4250941ac06e130a309),
+including merged [#60](https://github.com/mbianchidev/moguri/pull/60),
+protocol **99**, **0.32.0-alpha.1**. The unchanged
+[milestone criteria](implementation.md#milestone-acceptance-criteria), not a
+version, test total or closed issue, define acceptance.
 
-The user-directed protocol94 GitHub/input follow-up is a distinct source cut.
-Its [contract](architecture/session-github-workflows.md#protocol94-github-and-input-follow-up)
-adds authenticated exact-project search, fresh tool-call identity normalization
-and approval/composer controls. Protocol93's completed Local/SSH receipts remain
-historical; the [cell map](architecture/milestone-combination-matrix.md#user-directed-protocol94-follow-up)
-records new-byte qualification separately. The native and hosted acceptance
-requirements are not reduced by these fixes. The new clean `07087bf`
-[frozen qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
-passes all 6,720 Local/SSH cells, 10,562 source checks, 382 hidden desktop
-flows, the independent installed SDK, actual new package and 17 packaged
-desktop flows. Every one of 3,360 native cells remains explicitly unqualified.
-[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80)
-merged its source repair, but no post-repair release was available;
-remaining N0 is released-byte qualification, not an unmerged draft.
+The [current protocol99 evidence](architecture/session-inbox.md#final-qualification-2026-11-10-utc)
+names implementation/package cut `13fd073` and clean final test cut `c39995a`.
+Their runtime/package/script bytes are identical. Its full source, actual
+TUI, hidden desktop, packed SDK, installed app and ten feature-specific native
+gates are recorded separately, with exact artifacts and earlier failures.
+They are not hosted CI or the complete native/control matrix.
 
-| Area | Current status |
+The control-placement correction at
+[`ac15a9f`](https://github.com/mbianchidev/moguri/commit/ac15a9f83469ccbd0aa4b742c2105a034d733b36)
+is **on this branch, not yet merged main delivery**: source admission only in
+Settings / Skills, and checkpoints/rewind in the existing session prompt
+timeline sidebar. It preserves named skill-load activity, exact review and
+restoration authority, with no protocol/schema change. Its new client
+qualification does not relabel the older app/native receipts.
+
+## Delivered on main, not remaining implementation
+
+| Delivery | Current executable scope and evidence |
 | --- | --- |
-| Shared clients, durable sessions and controls | Implemented, including drafts/queues, profiles, independent artifacts, managed worktrees, original terminal ownership and restart/migration coverage. |
-| Model windows and long pastes | Implemented: maximum/half or actual provider windows, exact scoped files for pastes over 50 lines, and preservation of unsupported context. |
-| Automatic Kupo and budgets | Implemented: Single/Cascade/Critique, exact pooled window/effort, all-role token/USD holds, selected-boundary finishing and separately reviewed checkpoints. [#36](https://github.com/mbianchidev/moguri/issues/36) is complete. |
-| Runtime/hardware readiness | Implemented and merged in #51, with one-use actual-user executable review and honest unknown capacity. [#37](https://github.com/mbianchidev/moguri/issues/37) is complete. |
-| Reviewed candidate transports | Local v1 and pinned-SSH/native-private v2 staging, tests and separately accepted application are implemented. Native physical qualification remains a separate gate. |
-| Required combinations and native acceptance | [#38](https://github.com/mbianchidev/moguri/issues/38) remains open. The [final exact cell/criterion map](architecture/milestone-combination-matrix.md#final-frozen-source-and-package-cut) records all 6,720 Local/SSH source cells passing at clean `5051b6f`, full source/client/installed-package evidence and 3,360 explicitly native-unqualified cells. Fresh physical guest/control/network/cleanup/loss/recovery and hosted CI remain open. |
-| Final integrated acceptance | [#17](https://github.com/mbianchidev/moguri/issues/17) remains open. Do not rebuild merged features or replace missing physical/hosted evidence with passing fixtures. |
+| #51; closed #36/#37 | Shared runtime/hardware readiness, one-use reviewed executable probes, exact pooled window/effort, finite all-role reservations and reviewed Local/SSH/private-native candidates. Shared sessions, queues, profiles, independent artifacts, worktrees, typed context and Ghostty ownership already exist. |
+| #52; closed #7 | Retained exact-PR CI watches, deduplication, original observations, loss/restart recovery and notifications across SDK/CLI/TUI/desktop. [PR/CI contract](architecture/github-workflows.md#protocol93-qualification). |
+| #56; #38 is closed | Complete required Local/SSH source cell/criterion mapping, GitHub/input and control repairs. The [matrix](architecture/milestone-combination-matrix.md) retains all 10,080 nominal cells: 6,720 Local/SSH pass at the protocol99 test cut, while 3,360 native cells remain explicitly unqualified. #56 explicitly disclaims full/native acceptance; GitHub's closed issue state is not that acceptance. |
+| #57 | Narrow actual DS4/DeepSeek compatibility and cache-accounting evidence, not a general model-quality/capacity or all-Env claim. [Exact contract](architecture/ds4-compatibility.md). |
+| #58; closed #9 | Unified authorized cross-repository GitHub My Work inbox, distinct from the existing active-session dashboard and the session notification Inbox. Refresh is read-only and profile/account/repository-bound. [My Work contract](architecture/my-work.md). |
+| #59; selected #23 slice | Original-owner startup/reconnect, background-window lifecycle and opt-in metadata-only OTLP traces/metrics over control-plane records. Export is off by default; logs, content capture and peer/guest-internal auto-instrumentation are not implemented. [Startup](architecture/startup-responsiveness.md) and [OTLP](architecture/otlp-export.md). |
+| #60; closed #13 and selected #45 slice | Governed complete Local skill-source admission/provenance/least privilege/revocation, justified complete-source/envelope limits, per-turn checkpoints and reviewed Local/pinned-SSH/private-Sandbox rewind. Also actual named skill-load indicators, session Inbox and centered empty states. [Source/rewind](architecture/skills-and-rewind.md) and [Inbox/load](architecture/session-inbox.md) contracts. |
 
-The latest main CI
-[run 42250298984](https://github.com/mbianchidev/moguri/actions/runs/42250298984)
-failed **before either OS job started any step**. Both check annotations report
-failed account payments or an insufficient spending limit. The account owner
-must resolve that GitHub billing/eligibility gate before a fresh authorized
-main-CI run can qualify the build. The earlier six-hour cancellation and its
-now-merged fixture/runtime repairs remain distinct historical evidence.
-CI still runs only on pushes to `main`; a working-branch PR with no checks
-is not green CI.
+Closed #35 keeps its historical exact-artifact scope. Closed #22 is a completed
+Rust feasibility study, not production adoption; #1 is reference material.
+No closed implementation/research issue certifies first-milestone acceptance.
 
-Released SendBox 0.2.4's documented Meta-DNS prerequisite and fresh physical
-qualification of the exact current worker remain unresolved. Producer images
-and earlier physical receipts cannot qualify changed native payloads.
-No host fallback, broader egress, personal authorization or upstream change
-is implied. Real Jev's missing enforceable wire stays blocked; Laya remains
-optional. Development packaging is ad-hoc signed, not notarized.
+## Remaining first-milestone acceptance
+
+[#39](https://github.com/mbianchidev/moguri/issues/39) owns this checklist.
+[#17](https://github.com/mbianchidev/moguri/issues/17) is administratively
+consolidated into that parent as redundant tracking, **not completed milestone
+acceptance**. No actual gate is removed or silently narrowed:
+
+- [ ] Record final criterion-by-criterion integrated acceptance against the
+  unchanged specification, with exact source/builds, cross-client ownership,
+  failure/restart/migration and supported/unavailable outcomes.
+- [ ] Qualify the remaining required native/control/role/input combinations,
+  including current-policy and actual-human races, candidates, finishing,
+  cancellation failure, guest/control/SSH loss, late/unknown accounting,
+  receipts and no-replay recovery. Keep all 3,360 unqualified native cells
+  visible; accepted scope changes require an explicit product decision.
+- [ ] Restore account eligibility and record a fresh authorized hosted-main
+  CI pass. Generated/local source and package success cannot replace it.
+
+The latest main
+[run 42838925934](https://github.com/mbianchidev/moguri/actions/runs/42838925934),
+for `2f6c4bc`, failed on 2026-11-10 before either OS job ran a step.
+Both annotations still say recent payments failed or the spending limit
+needs increasing. This is a refreshed account-owned gate, not a diagnosis of
+an install/build/test failure. Separate notices mention macOS arm64 capacity
+and the Ubuntu 26 label migration. CI stays main-push-only; absent branch/PR
+checks are not green CI. No rerun, billing action or trigger change was made.
+
+### Native evidence is no longer a blanket startup blocker
+
+The protocol99 [exact physical receipt](architecture/session-inbox.md#exact-retained-identities)
+records all ten selected gates passing, including real provider/network checks,
+verified owned-guest teardown, retry/checkpoint behavior, three rewind scopes
+and a hidden packaged native restoration. It does **not** qualify every native
+matrix cell, arbitrary reviewed scripts or a different app/worker.
+This branch's rebuilt worker, bridge and MCP-worker SHA-256 values were checked
+against that receipt and match; the new desktop/service presentation cut still
+keeps its own identity and evidence.
+
+The old statement that the DNS repair is unreleased is obsolete:
+[SendBox v0.2.5](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.5)
+was published 2026-11-08 and includes
+[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80).
+Moguri still pins reviewed 0.2.4 bytes. No upgrade or fresh host/runtime probe
+was performed by this audit. Historical failed startup/DNS runs stay failed;
+neither their old universal-blocker wording nor a new upstream release replaces
+the current exact receipts or missing wider matrix evidence.
+
+Live provider/decision quality, calibrated independence/confidence and actual
+billed-cost evidence remain distinct from generated accounting. Jev's missing
+enforceable wire stays blocked; optional Laya is not a hidden milestone gate.
+Public signing/notarization/distribution decisions are also separate.
 
 ## Ordered remaining roadmap
 
-The live parent is [#39](https://github.com/mbianchidev/moguri/issues/39).
-Ordering does not authorize implementation or turn optional features into
-first-milestone prerequisites.
+Ordering is triage, not permission to implement or an invented dependency chain.
+Delivered #7/#9/#13/#36/#37/#38 do not reappear as new implementation work.
 
-The next feasible Local task, [#7](https://github.com/mbianchidev/moguri/issues/7),
-now has complete protocol93 source in [merged #52](https://github.com/mbianchidev/moguri/pull/52)
-at `c3f3164`: retained PR-bound watches, deduplicated admission, original
-observations/diagnostics, actual-controller-loss recovery and notifications
-across SDK/CLI/TUI/desktop. All 2,490 executed source cases, the independently
-installed packed SDK and the fresh 365-flow desktop suite pass. This is
-merged main delivery, not current native qualification or a replacement
-protocol93 DMG. The [exact qualification](architecture/github-workflows.md#protocol93-qualification)
-keeps the first desktop fixture failure and its narrow correction separate.
-
-| Order | Remaining work |
+| Order | Actual remaining scope |
 | --- | --- |
-| 1. First-milestone acceptance | #38 exact required combination/native evidence; #17 criterion-by-criterion integrated acceptance and real hosted CI eligibility. |
-| 2. Existing integrations and everyday workflows | #45 remaining applicable skills controls; #9 cross-repository GitHub My Work inbox; #23 opt-in OTLP export; #13 per-turn rewind; #12 actual Stainless integration. #7's implementation is delivered in merged #52. |
-| 3. Distribution and documentation | #26 Homebrew cask and install/update ownership; #14 landing/downloads/user/developer site. Publication/access, licensing and signing remain explicit decisions. |
-| 4. Optional providers and automation | #34 Laya; #6 recurring/declarative workflows; #8 dependency roundups; #10 continuous personas; #11 specialized presets; #46 Slack mentions. Existing one-time scheduled prompts are not a recurring workflow engine. |
+| 1. Acceptance | The three parent-owned acceptance items above, with the original native cell/gate definitions retained in the matrix. |
+| 2. Everyday UX and existing integrations | #53 design/UX polish, #55 default smart-compaction direction, #45 remaining applicable AST controls and real reviewed-script Sandbox execution, #23 scope beyond the delivered metadata exporter, #12 actual Stainless qualification. The focused placement fix does not implement the #53 redesign or #55 policy. |
+| 3. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. Repository visibility/access, license and signing/notarization need explicit decisions, not assumed publication. |
+| 4. Optional providers and automation | #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions and #54 GetMoshi integration. Existing one-time schedules and reviewed compaction are not those broader features. |
 
-The [#22 Rust feasibility study](https://github.com/mbianchidev/moguri/issues/22)
-is complete, with its source and reproduction harness retained at `d8a3c9c`
-on the separately named prototype branch. Closing the investigation does not
-authorize production adoption. Any future Rust change still needs an explicit
-decision, current-protocol parity, ADRs and a feature-equivalent value/release
-comparison. No Rust rewrite is a current milestone blocker.
+#23 remains open for its broader requested scope: do not claim that OTLP export
+is absent or implement a second ledger. Current export has no diagnostic-log
+signal, exporter credentials/custom headers, content capture or peer/guest
+internal propagation. Additional scope needs explicit privacy/transport review.
+
+#45 remains open, but its obsolete 64-KiB script ceiling and missing Local
+admission descriptions are not current gaps. Complete reviewed script source
+now permits 512 KiB with a 2-MiB escaped envelope and real next-model
+context/all-role-budget admission. Current [AST category boundaries](architecture/file-access.md#owasp-source-and-review-boundary)
+still disclose unqualified reviewed-script Sandbox execution, unsupported Remote
+skills/scripts, no semantic/malware scanner or external publisher PKI/global
+revocation infrastructure, and no whole-descendant Local isolation or blanket
+AST01-AST10 certification. Passing rewind/native gates does not authorize scripts.
+
+At the live read the repository is private, has no repository license and has
+no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,
+not notarized or public distribution. This audit opens no other-repository PR,
+changes no upstream dependency and makes no publication/installation decision.
+Future Rust adoption still requires explicit direction, current-protocol parity,
+ADRs and a feature-equivalent value/distribution comparison.
 
 ## Historical handoff
 

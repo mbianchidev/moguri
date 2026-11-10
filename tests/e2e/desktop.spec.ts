@@ -235,7 +235,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(page.getByRole("button", { name: /^grep_logs/ })).toBeVisible();
     await categories.getByRole("button", { name: "Subagents", exact: true }).click();
     await expect(page.getByLabel("Enable optional read-only subagents")).not.toBeChecked();
-    await categories.getByRole("button", { name: "Skill gateway", exact: true }).click();
+    await categories.getByRole("button", { name: "Skills", exact: true }).click();
     await expect(page.getByLabel("Allow model-proposed skills, scripts and style knowledge for human review")).not.toBeChecked();
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toBeDisabled();

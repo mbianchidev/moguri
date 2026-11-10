@@ -10,7 +10,7 @@ export function SkillAdmissionsPanel({ sdk, session, snapshot }: { sdk: MoguriSd
   const generation = useRef(0);
   const admissions = snapshot.skillAdmissions.filter((grant) => grant.sessionId === session.id);
   const scope = JSON.stringify([sdk.profileId, session.id, session.projectId, session.workspaceId, session.mode, session.controls.env,
-    snapshot.policy.revision, snapshot.settings.permissionRevision, admissions.filter((grant) => grant.state === "revoked").map((grant) => [grant.id, grant.revision])]);
+    snapshot.policy.revision, snapshot.settings.revision, snapshot.settings.permissionRevision, admissions.filter((grant) => grant.state === "revoked").map((grant) => [grant.id, grant.revision])]);
   useEffect(() => { generation.current++; setInspection(null); setReviewed(false); setSkills([]); }, [scope]);
   useEffect(() => () => { generation.current++; }, []);
   const run = async (operation: (current: () => boolean) => Promise<void>) => {

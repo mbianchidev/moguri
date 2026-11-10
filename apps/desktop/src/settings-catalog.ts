@@ -39,7 +39,7 @@ export const SETTINGS_GROUPS = [
   { label: "Instructions", items: [
     { id: "instructions", label: "User guidance", keywords: "global guidelines templates readme readiness issue PR tech stack bootstrap writing style contacts license AI policy documentation merge conflicts fixing CI planning feature debugging" },
     { id: "systemPrompt", label: "System prompt", keywords: "advanced protected model instructions" },
-    { id: "skills", label: "Skill gateway", keywords: "skills SKILL.md import guidelines folder remote repository archive MCP discovery" },
+    { id: "skills", label: "Skills", keywords: "skill gateway SKILL.md import guidelines folder remote repository archive MCP discovery source reviews admission" },
     { id: "knowledge", label: "Knowledge tiers", keywords: "Sky Terra Glacier instructions" },
     { id: "memory", label: "Repository memory", keywords: "index vectors context snippets symbols" },
   ] },

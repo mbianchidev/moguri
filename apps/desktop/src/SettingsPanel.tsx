@@ -33,6 +33,7 @@ import { ArtifactPanel } from "./ArtifactPanel.tsx";
 import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
+import { SkillAdmissionsPanel } from "./SkillAdmissionsPanel.tsx";
 import { KupoModelProfiles } from "./KupoModelProfiles.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
@@ -333,10 +334,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
       <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content"><fieldset className="settings-fields" disabled={saving && tab !== "voice"}>
-        {["artifacts", "candidates", "sendbox"].includes(tab) && <label className="setting-field">Source chat (optional)<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
+        {["artifacts", "candidates", "sendbox", "skills"].includes(tab) && <label className="setting-field">{tab === "skills" ? "Source chat for skill admission" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
           if (resourceDirty) { setError("Save or cancel the current resource edit before choosing another source chat."); return; }
           setResourceSessionId(event.target.value);
-        }}><option value="">Profile records</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
+        }}><option value="">{tab === "skills" ? "Choose a source chat" : "Profile records"}</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
           {snapshot.sessions.filter((value) => value.kind !== "subagent").map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
         </select></label>}
         {tab === "artifacts" && <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setResourceDirty} onRequestHandled={onArtifactRequestHandled} />}
@@ -756,8 +757,12 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.subagents.enabled} onChange={(event) => automatic("subagents", { enabled: event.target.checked })} />Enable optional read-only subagents</label>
           <label className="setting-field">Maximum parallel children<select aria-label="Maximum parallel children" value={draft.subagents.maxParallel} onChange={(event) => automatic("subagents", { maxParallel: Number(event.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
           <label className="setting-field">Read-only assignment<SettingsTextarea value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={!session || !input || !snapshot.settings.values.subagents.enabled} onClick={() => void run(() => sdk.subagents.run(session!.id, input))} aria-label="Run bounded subagent">Run</button></>}
-        {tab === "skills" && <SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => change("skillSources", sources)}
-          save={() => void save("skillSources")} dirty={sectionDirty("skillSources")} disabled={saving} onDirty={setIntegrationDirty} />}
+        {tab === "skills" && <><SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => change("skillSources", sources)}
+          save={() => void save("skillSources")} dirty={sectionDirty("skillSources")} disabled={saving} onDirty={setIntegrationDirty} />
+          {resourceSession ? <fieldset className="settings-fields" disabled={dirty || saving || integrationDirty}>
+            {(dirty || integrationDirty) && <p className="fine-print">Save or cancel source changes before reviewing session admission.</p>}
+            <SkillAdmissionsPanel key={`${sdk.profileId}:${resourceSession.id}`} sdk={sdk} session={resourceSession} snapshot={snapshot} />
+          </fieldset> : <p className="fine-print">Choose a source chat to review exact skill admission. No session or workspace is inferred.</p>}</>}
         {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <><h2>{tab === "skills" ? "Imported skills" : tab === "scripts" ? "Foundational and approved scripts" : "Plugins"}</h2>
           <p>{tab === "skills" ? "Import standard SKILL.md front matter and instructions. A skill grants no tool permissions." : tab === "scripts" ? "Built-in grep_logs, fetch_page, search_memory and memory_graph are exposed through the single internal MCP, without generated one-off scripts." : "Version-1 Moguri plugin manifests bundle declarative standard skills. Importing a plugin does not execute a JavaScript entrypoint or install dependencies."}</p>
           {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(() => tab === "skills" ? sdk.capabilities.importSkill(project!.id, input) : sdk.capabilities.importPlugin(project!.id, input))}>Import</button></>}
