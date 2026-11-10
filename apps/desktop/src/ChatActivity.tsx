@@ -111,7 +111,7 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
       {current && !localOutput && renderPart(state.output, "output")}
       {localOutput && !outputMatchesRetained && <p className="fine-print">Showing the exact tool result saved in this conversation. Separate retained source bytes are not fetched automatically.</p>}
       {!observed.hasOutput && <p className="fine-print">{running ? "No result has been observed yet." : "No readable result is retained for this operation."}</p>}
-      {["partial", "unconfirmed"].includes(observed.status) && <Alert as="p" className="settings-warning" role="alert">This result is partial or unconfirmed. Inspect it before explicitly choosing Resume; no continuation or cleanup success is implied.</Alert>}
+      {["partial", "unconfirmed"].includes(observed.status) && <Alert as="p" className="settings-warning" role="alert">This original operation remains partial or unconfirmed. The agent may continue inspecting retained output; genuinely uncertain effects or cleanup keep further writes fenced. A later response does not turn this operation into successful work.</Alert>}
       {observed.hasOutput && observed.outputBasis === "retained-tail" && <p className="fine-print">Bounded captured output tail, not complete process output. No final result has been retained.</p>}
       {entry.kind === "thought" && <p className="fine-print">Only provider-exposed reasoning. Request duration covers the whole model call; separate thought time is not reported.</p>}
       <footer className="activity-metrics">

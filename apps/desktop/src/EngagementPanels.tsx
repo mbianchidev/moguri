@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { inboxAttention, type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
+import { attentionDescription, attentionTypeLabels, AttentionFiltersSchema, filterInboxAttention, inboxAttention, parse, type AttentionFilters, type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
@@ -90,16 +90,18 @@ function ConfigurationReview({ sdk, id, close }: { sdk: MoguriSdk; id: string; c
 }
 export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void }) {
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState<AttentionFilters>({});
   const [deleting, setDeleting] = useState<string | null>(null);
   const container = useRef<HTMLElement>(null), heading = useRef<HTMLHeadingElement>(null), owner = useRef(sdk); owner.current = sdk;
   const active = inboxAttention(snapshot.attention);
+  const filtered = filterInboxAttention(snapshot, filters);
   const scriptSessions = new Set<string | null>();
-  const visible = active.filter((entry) => {
+  const visible = filtered.filter((entry) => {
     if (entry.reason !== "script-review") return true;
     if (scriptSessions.has(entry.sessionId)) return false;
     scriptSessions.add(entry.sessionId); return true;
   });
-  useEffect(() => { setError(""); setDeleting(null); }, [sdk]);
+  useEffect(() => { setError(""); setDeleting(null); setFilters({}); }, [sdk]);
   const read = async (ids: string[]) => {
     setError("");
     try { for (let offset = 0; offset < ids.length; offset += 100) await sdk.attention.acknowledge(ids.slice(offset, offset + 100)); }
@@ -120,15 +122,29 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { s
     } catch (error) { if (owner.current === sdk) setError(error instanceof Error ? error.message : "The notification was not deleted. Refresh Inbox."); }
     finally { if (owner.current === sdk) setDeleting(null); }
   };
-  return <section ref={container} aria-label="Inbox notifications"><h2 ref={heading} tabIndex={-1}>Needs your attention</h2>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length && <p className="fine-print">No notifications. Questions, approvals and completed work appear here. Reading or deleting never answers or approves.</p>}
+  return <section ref={container} aria-label="Inbox notifications"><h2 ref={heading} tabIndex={-1}>Needs your attention</h2>
+    <div className="inbox-filter-controls" aria-label="Notification filters">
+      <label className="setting-field">Search<input type="search" aria-label="Search notifications" maxLength={200} value={filters.query ?? ""}
+        placeholder="Search notifications" onChange={(event) => setFilters({ ...filters, query: event.target.value })} /></label>
+      <label className="setting-field">Type<select aria-label="Notification type" value={filters.type ?? "all"}
+        onChange={(event) => setFilters(parse(AttentionFiltersSchema, { ...filters, type: event.target.value }))}>
+        <option value="all">All types</option>{Object.entries(attentionTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}
+      </select></label>
+      <label className="setting-field">Read state<select aria-label="Notification read state" value={filters.state ?? "all"}
+        onChange={(event) => setFilters(parse(AttentionFiltersSchema, { ...filters, state: event.target.value }))}>
+        <option value="all">All notifications</option><option value="unread">Unread</option><option value="read">Read</option>
+      </select></label>
+      <button type="button" className="quiet" onClick={() => setFilters({})}>Clear filters</button>
+    </div>
+    <p className="fine-print" role="status">{filtered.length} of {active.length} notifications</p>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length ? <p className="fine-print">No notifications. Questions, approvals and completed work appear here. Reading or deleting never answers or approves.</p> :
+      !filtered.length && <p className="fine-print">No matching notifications. Clear the filters to see all pending work.</p>}
     {visible.map((entry) => {
       const session = snapshot.sessions.find((session) => session.id === entry.sessionId);
-      const group = entry.reason === "script-review" ? active.filter((other) => other.reason === "script-review" && other.sessionId === entry.sessionId) : [entry];
+      const group = entry.reason === "script-review" ? filtered.filter((other) => other.reason === "script-review" && other.sessionId === entry.sessionId) : [entry];
       const ids = group.map((other) => other.id);
       const operation = entry.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === entry.messageId) : undefined;
       const work = entry.myWork ? snapshot.myWorkRefreshes.find((refresh) => refresh.id === entry.myWork?.refreshId)?.attention.find((value) => value.itemId === entry.messageId) : undefined;
-      const question = entry.source === "state" && entry.reason === "question" && session?.pendingQuestionId === entry.messageId ?
-        snapshot.questions.find((question) => question.id === entry.messageId && question.sessionId === session.id && question.turnId === session.turnId && question.status === "open") : undefined;
       return <article className={`attention-item ${group.every((other) => other.acknowledged) ? "read" : "unread"}`} key={entry.reason === "script-review" ? `scripts:${entry.sessionId}` : entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
         <div><button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
           if (work) chooseWork?.(work.itemId); else if (entry.sessionId) void chooseSession(entry.sessionId);
@@ -137,9 +153,7 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { s
             reviewIds={group.flatMap((other) => other.messageId ? [other.messageId] : [])} onReviewed={() => requestAnimationFrame(() => {
               if (owner.current !== sdk) return;
               (container.current?.querySelector<HTMLButtonElement>(".script-reviews button") ?? heading.current)?.focus();
-            })} /> : <p>{work ? `${work.categories.join(", ")} / original head ${work.headSha.slice(0, 12)}` : operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
-            entry.reason === "ci" ? "Original CI report unavailable; no replacement result was inferred." :
-            question ? question.question : entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>}
+            })} /> : <p>{attentionDescription(entry, snapshot)}</p>}
           {operation?.ci && <button type="button" className="quiet" onClick={() => {
             const target = operation.ci!.target;
             void window.moguri.openExternal(`https://github.com/${target.repository}/pull/${target.number}`)

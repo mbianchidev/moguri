@@ -1,10 +1,11 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, WORKFLOW_GUIDANCE_FIELDS, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, WORKFLOW_GUIDANCE_FIELDS, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
 import { RepositoryRemotePanel } from "./RepositoryRemotePanel.tsx";
+import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
@@ -19,6 +20,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const [raw, setRaw] = useState<Record<string, string>>({});
   const [boardDirty, setBoardDirty] = useState(false);
   const [remoteDirty, setRemoteDirty] = useState(false);
+  const [trustBusy, setTrustBusy] = useState(false);
   const [repositories, setRepositories] = useState<ProjectRepositoryLayout | null>(null);
   const presentation = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id);
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(values) !== JSON.stringify(committed);
@@ -49,7 +51,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "The actual repository layout could not be verified. No upstream control was enabled."); } });
     return () => { current = false; };
   }, [sdk, project.id, project.path, available, JSON.stringify(presentation.values.deniedFolders)]);
-  useEffect(() => { onDirty(dirty || busy || boardDirty || remoteDirty); return () => onDirty(false); }, [dirty, busy, boardDirty, remoteDirty, onDirty]);
+  useEffect(() => { onDirty(dirty || busy || boardDirty || remoteDirty || trustBusy); return () => onDirty(false); }, [dirty, busy, boardDirty, remoteDirty, trustBusy, onDirty]);
   const committedRevision = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id)?.revision ?? 0;
   useEffect(() => {
     if (available && loaded && !ownSave.current && committedRevision !== revision) {
@@ -109,11 +111,11 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   };
   const canRun = session?.projectId === project.id && !dirty && !busy;
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
-    <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy} onClick={() => void save()}>Save</button></header>
+    <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy || trustBusy} onClick={() => void save()}>Save</button></header>
     {!available && discardUnavailable && <button type="button" disabled={busy} onClick={discardUnavailable}>Discard unavailable project edit</button>}
     {error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={!available || busy} onClick={() => void run(reload)}>Reload</button></div>}
     {!loaded && available && <p role="status">Loading committed project settings...</p>}
-    <fieldset className="project-settings-fields" disabled={!available || !loaded || busy}>
+    <fieldset className="project-settings-fields" disabled={!available || !loaded || busy || trustBusy}>
     <BoardSettings sdk={sdk} project={project} snapshot={snapshot} onDirty={setBoardDirty} />
     <SettingsHelp label="More about this setting" target={<h3>Project instruction overrides</h3>}>Unselected fields inherit this profile's global guidance. An empty explicit override disables that inherited field. Saving a field preserves other pending text and grants no tools.</SettingsHelp>
     {WORKFLOW_GUIDANCE_FIELDS.map(({ key, label }) => <div className="setting-editor" key={key}>
@@ -126,7 +128,20 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       <label className="setting-field">Main branch<SettingsInput value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
     <p className="fine-print">{repositories?.diagnostic ?? "Verifying the bounded Local repository layout before exposing an upstream control."}{repositories?.complete && repositories.roots.length === 1 ? ` Actual repository: ${repositories.roots[0]}. This preference never rebinds the session's root.` : " An upstream control requires exactly one verified repository, including nested roots."}</p>
     <label className="setting-field">Branch name pattern<SettingsInput value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
+    <div className="project-settings-grid">
+      <label className="setting-field">New Local Git tasks<select aria-label="Default project workspace" value={values.repo.workspaceMode ?? "worktree"}
+        onChange={(event) => automatic("repo", { workspaceMode: parse(ProjectWorkspaceModeSchema, event.target.value) })}>
+        <option value="worktree">Managed worktree (default)</option><option value="checkout">Original checkout (explicit opt-out)</option>
+      </select></label>
+      <label className="setting-field">Code-change completion<select aria-label="Default pull request workflow" value={values.repo.pullRequests ?? "draft"}
+        onChange={(event) => automatic("repo", { pullRequests: parse(ProjectPullRequestModeSchema, event.target.value) })}>
+        <option value="draft">Draft pull request (default)</option><option value="none">Only when explicitly requested</option>
+      </select></label>
+    </div>
+    <p className="fine-print">New Local Git tasks create owned worktrees before running. Existing sessions keep their exact root. PR guidance never grants publication, authentication or merge permission; ordinary approvals still apply.</p>
     {saveButton("repo", "Save repository settings")}
+    <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
+      disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />
     <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={committed.repo.upstream}
       disabled={!available || !loaded || dirty || busy} onDirty={setRemoteDirty} />
     <p className="fine-print">Placeholders: {"{slug}"} and {"{id}"}. Binding a PR or creating a session does not silently change this folder's checkout.</p>

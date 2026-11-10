@@ -550,7 +550,17 @@ coverage; never infer it from a model role or substitute an unavailable provider
 
 ### 2. Projects, work items, and worktrees
 
-A session can attach to an existing project worktree or request a new isolated worktree. Moguri records the relationship between the work item, branch, worktree, commits, and pull request without treating Git as the session database.
+New single-project Local Git sessions default to a service-owned isolated
+worktree, unless the actual user explicitly chooses the original checkout or
+configures that project preference. Existing conversations keep their root.
+Non-Git folders and unqualified multi-repository/transport boundaries cannot
+invent worktrees or silently fall back to another checkout. Moguri records the
+relationship between work item, branch, worktree, commits and PR without treating
+Git as the session database. Code changes normally target a draft PR unless the
+user opts out or a PR is clearly inapplicable; permissions remain separate.
+See [repository trust and workflow defaults](architecture/repository-workflow-defaults.md)
+for exact existing-script baseline trust, Inbox filters and honest partial-result
+continuation. Trust never grants execution approval or covers new/package code.
 
 Creating work items or sessions from GitHub issues or pull requests requires an installed and authorized GitHub integration or MCP. Linear and Jira entry points follow the same explicit connector model.
 

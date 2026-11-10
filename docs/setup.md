@@ -1,6 +1,6 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **99**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **101**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
@@ -19,6 +19,14 @@ also disappear. Read acknowledgement stays separate from resolution. The CLI
 uses `moguri inbox list`, `moguri inbox read ID`, and `moguri inbox delete ID`;
 the TUI uses `/inbox`, `/inbox read ID`, and `/inbox delete ID`.
 Existing `attention` commands remain compatible aliases.
+
+Search Inbox by original notification text, session title, question, script path
+or findings. **Type** selects model questions, tool approvals, errors, script
+reviews, completed work or the other recorded notification types. **Read state**
+selects read/unread items; **Clear filters** restores the complete list.
+Filtering never marks an item read or answers/approves it.
+CLI: `moguri inbox list --filters '{"query":"startup","type":"failed","state":"unread"}'`.
+TUI: `/inbox list {"query":"startup","type":"failed","state":"unread"}`.
 
 An agent must explicitly request `use_skill` loading before applying a skill's
 instructions. Discovery, diagnostic reads and source review do not count as
@@ -729,7 +737,8 @@ untrusted and cannot grant tools or override policy.
 
 Before curl/wget or running a repository script, the agent must inspect its
 **entire exact source** with `review_script`, from a permitted Local file/Home
-or an explicit public HTTPS raw URL. Public source reads need normal website
+or an explicit public HTTPS raw URL, unless that exact existing entrypoint is
+in your current trusted repository baseline described below. Public source reads need normal website
 approval. The agent reports encoded/obfuscated payloads, unexpected API calls
 and other unsafe/uncertain behavior before requesting execution. Only a source
 assessed safe can request `run_script` under the normal tool policy.
@@ -768,6 +777,64 @@ Existing pending assessments gain Inbox notifications on restart without
 reinspection, downloads or model calls. Explicitly restart
 an older service to load matching clients/workers. Old native worker
 qualification does not establish that new bytes are installed.
+
+## Repository trust and isolated task defaults
+
+Open **Settings / Project / Repository script trust**, choose **Review repo
+trust**, inspect the exact Local root, existing tracked script digests,
+dependency inputs and exclusions, then explicitly confirm **Trust existing repo
+scripts**. Unchanged baseline tests/scripts skip model assessment. **Revoke repo
+trust** blocks new trusted admissions, including execution approvals still
+waiting. Trust survives ordinary session deletion but stays within its exact
+profile/project and Git identity.
+
+New, modified, generated, downloaded and package-owned scripts do not inherit
+trust. Adding a commit cannot enlarge the baseline. Changed dependency manifests
+or lockfiles require full source review or a new explicit baseline decision.
+Symlink/private/unsupported/oversized paths are excluded, never truncated and
+silently trusted. This is entrypoint trust, not a transitive-code audit or OS
+isolation. Manual/Guided approvals, hard denials and managed-install safeguards
+remain authoritative.
+
+CLI/TUI: `moguri repo-trust preview --session ID` or `/repo-trust preview`.
+After reviewing that exact digest/revision, use `/repo-trust trust SHA REV
+confirm-existing`. Revoke with `/repo-trust revoke REV confirm-revoke`.
+CLI accepts the same arguments after `moguri repo-trust ... --session ID`.
+No model call, source execution or authentication starts when trust is saved.
+
+New **single-project Local Git chats default to managed worktrees**. The service
+retains the worktree/change-set/job/session binding atomically before creating
+the branch and checkout. Queued prompts and consoles wait for the real root.
+The original checkout, branch, index and unrelated edits stay untouched.
+Existing conversations keep their roots. Non-Git folders remain attached
+folders, without fabricated worktree/PR claims.
+
+**Settings / Project / New Local Git tasks** can explicitly opt future tasks
+into **Original checkout**. CLI supports `moguri session create --project ID
+--workspace-mode checkout`. Unqualified multi-repository automatic worktrees
+fail clearly rather than using original Git checkouts; choose one project or
+explicitly opt each member into an attached checkout. Remote/native boundaries
+remain separately qualified and never fall back to Local.
+
+For code changes, first-party agent guidance now targets a **draft PR by
+default**, unless you opt out or the task clearly makes no repository changes.
+**Code-change completion** can opt a project out. Existing exact source-bound
+PRs are reused, not duplicated or implicitly stacked. This is a workflow target,
+not publication, authentication, rebase or merge permission; blockers are
+reported rather than represented as completed PRs.
+
+Recoverable partial command results no longer force the agent to stop. If the
+qualified executor confirms its known process group stopped, the solver can
+continue under normal policy while retaining the original partial result.
+Unconfirmed effects instead allow inspection in an enforced **read-only
+recovery** boundary; writes remain fenced and the final outcome stays partial.
+Actual Stop, unknown accounting, exhausted budgets and root quarantine still
+win. Nothing replays the original tool or turns partial work into success.
+
+Protocol101 adds actual-user trust baselines, workflow-origin metadata and
+partial recovery through an atomic upgrade. Legacy roots, encrypted source,
+receipts, drafts and accounting are preserved. See the
+[shared authority and qualification contract](architecture/repository-workflow-defaults.md).
 
 ## Reliable session controls and built-in Git
 

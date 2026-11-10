@@ -12,6 +12,10 @@ export function SessionTerminal({ sdk, session, snapshot, active, visible, autoS
   const [repository, setRepository] = useState("");
   const root = session.repositories?.find((value) => value.projectId === repository)?.root.root;
   const user = useRef<HTMLButtonElement>(null), agent = useRef<HTMLButtonElement>(null);
+  const workspace = snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId);
+  if (workspace && workspace.status !== "ready") return <section className="session-terminal" aria-label="Preparing session console">
+    <p role="status">{workspace.status === "creating" ? "Preparing the owned worktree before opening its console." : workspace.diagnostic ?? "The original worktree is not ready. Inspect its actual job; no base console was opened."}</p>
+  </section>;
   return <section className="session-terminal">
     <div className="terminal-ownership" role="tablist" aria-label="Terminal ownership" onKeyDown={(event) => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;

@@ -675,6 +675,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   }, [nativeModal, terminalDismiss, composerMenuOpen, snapshot?.settings.values.shortcuts?.commands]);
   const chatContent = session && snapshot ? <>
     <HomeWriterReview key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} chooseSession={chooseSession} />
+    {activeWorkspace?.status === "creating" && <p className="fine-print" role="status">Preparing the isolated worktree. Queued prompts wait for its actual root; the original checkout is not used.</p>}
+    {session.toolRecovery?.turnId === session.turnId && <Alert as="p" tone="warning" role="status">The agent is continuing read-only recovery. An original tool still has unconfirmed effects or cleanup; further writes remain fenced.</Alert>}
     {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
       <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
         {continuedWork.diagnostic && <p>{continuedWork.diagnostic}</p>}</div>

@@ -785,6 +785,10 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .script-reviews pre { max-height: 320px; overflow: auto; font-size: 12px; }
 .settings-content .script-reviews { margin-inline: 0; overflow-wrap: anywhere; }
 .attention-item .script-reviews { margin: 10px 0; border: 0; padding: 0; background: transparent; }
+.inbox-filter-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-block: 18px; }
+.inbox-filter-controls .setting-field { margin: 0; min-width: 150px; }
+.inbox-filter-controls .setting-field:first-child { flex: 1 1 240px; }
+.inbox-filter-controls > button { min-height: 34px; }
 .skill-source { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .skill-source .check-setting { margin: 0; }.skill-source > code { grid-column: 1; overflow-wrap: anywhere; color: var(--muted); }
 .skill-source > button { grid-column: 2; grid-row: 1 / span 2; }
