@@ -5115,8 +5115,10 @@ packaging, not physical guest/network/cleanup acceptance. The app remains
 ad-hoc signed and not notarized. No personal app, authorization page or
 microphone was opened; no model weights were downloaded and no SendBox agent
 workload or personal inference ran.
-The separate SendBox Meta-DNS/physical gates and real main-CI account
-eligibility failure remain open in #17/#38.
+At that earlier cut, the SendBox Meta-DNS/physical and hosted-CI gates were
+tracked in #17/#38. Their current disposition and remaining parent-owned
+acceptance are in [the roadmap](remaining-milestone-gaps.md); those historical
+issue/release states are not current universal blockers.
 
 <a id="development-029-owned-role-contracts"></a>
 ### Current qualified 0.29.0-alpha.1 checkpoint
