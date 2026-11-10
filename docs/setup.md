@@ -1,9 +1,121 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **97**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **99**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Inbox and explicit skill loading
+
+**Inbox** is immediately after **Dashboard** in the left navigation. It
+replaces the titlebar bell and lists current questions, approvals, failures
+and completed work. Open a notification to return to its actual session, give
+the answer or approval there, then return to Inbox. Structured questions show
+their actual current text; heuristic question hints remain labelled possible.
+
+Use the trash action to delete just that notification. It never answers,
+approves, stops work or refunds a budget. A deleted session's notifications
+also disappear. Read acknowledgement stays separate from resolution. The CLI
+uses `moguri inbox list`, `moguri inbox read ID`, and `moguri inbox delete ID`;
+the TUI uses `/inbox`, `/inbox read ID`, and `/inbox delete ID`.
+Existing `attention` commands remain compatible aliases.
+
+An agent must explicitly request `use_skill` loading before applying a skill's
+instructions. Discovery, diagnostic reads and source review do not count as
+loads. A successful complete source load shows **Loaded skill** with its real
+name and a book icon in desktop/TUI chat, without starting an extra model call.
+All existing source-admission, permission and revocation gates still apply.
+The [shared Inbox/load contract](architecture/session-inbox.md) records the
+atomic genuine98 upgrade and the distinction between deletion and approval.
+
+## Local skill admission and per-turn rewind
+
+Discovery and diagnostic source reading do not admit instructions. In a Local
+conversation, open **Skill source admission**, choose **Find current skills**,
+then review the complete supported package, dependencies, exact version/root
+and provenance. An unverified Local/registry publisher needs an explicit
+acknowledgement; an HTTPS archive requires an independently user-pinned
+Ed25519 artifact signature. Neither a repository name nor a digest establishes
+publisher identity. Choose literal file paths, read-only or declared native-file
+access, and an expiry. The UI defaults to 24 hours; the service permits at most
+168 hours. Admission never grants a tool, authentication, user answer or hard
+policy exception.
+
+The CLI and TUI share the same review and revocation operations:
+
+```sh
+moguri skills find --session SESSION_ID
+moguri skills inspect SKILL_ID SOURCE_SHA256 --session SESSION_ID
+moguri skills audit --session SESSION_ID
+moguri skills revoke ADMISSION_ID REVISION confirm-revoke "Reviewed incident" --session SESSION_ID
+```
+
+In the TUI use `/skills inspect`, `/skills admit INSPECTION_SHA256
+confirm-reviewed ADMISSION_JSON`, `/skills audit` and `/skills revoke` with the
+same positional arguments. The JSON must include the exact inspected `skillId`
+and `expectedDigest`, publisher evidence, `access`, literal `paths` and
+`validHours`. Changed metadata, dependencies, source configuration, policy,
+root, expiry or revocation require fresh review. The outward
+`moguri_read_skill` MCP tool also requires this admission and records model
+consumption; it cannot approve itself. Diagnostic `skills read` remains a
+user-facing source preview, not model admission.
+
+Consumed guidance restricts subsequent model calls and tools in that active
+context. Its source restrictions only narrow current permissions. Disabling a
+source or revoking a grant blocks future use and dispatch, including an approval
+that was already waiting. It cannot retract text already delivered to a model
+or undo an already-running effect. A clean conversation branch or a new chat is
+required to stop carrying revoked/obsolete guidance; old grants never revive.
+Unsupported authority-bearing metadata and foreign compatibility declarations
+are rejected, not translated.
+
+**Checkpoints and rewind** lists real before-turn snapshots and actual terminal
+outcomes. Choose a checkpoint to rewind **before that turn**. Inspect its scope,
+then select conversation-only or workspace restoration. **Stop owned work for
+rewind** explicitly settles this session's work; it does not stop another
+session's writer or private console. The service refuses restoration while
+actual cleanup, a reader/writer, approval, question or eligible recovery remains
+unsettled. Review every external conflict as **Keep current file** or **Restore
+checkpoint; retain displaced file**, then confirm the exact preview.
+
+```sh
+moguri rewind list --session SESSION_ID
+moguri rewind read CHECKPOINT_ID --session SESSION_ID
+moguri rewind settle confirm-stop --session SESSION_ID
+moguri rewind preview CHECKPOINT_ID workspace --session SESSION_ID
+moguri rewind apply CHECKPOINT_ID workspace PREVIEW_SHA256 confirm-rewind \
+  '[{"root":"EXACT_REVIEWED_ROOT","path":"generated.txt","choice":"keep-current"}]' --session SESSION_ID
+moguri rewind inspect REWIND_ID --session SESSION_ID
+```
+
+The TUI uses `/rewind` with the same arguments; `conversation` replaces
+`workspace` for context-only review. Local restores preserve displaced inodes
+under the exact root's private `.moguri/rewinds` directory. SSH uses the exact
+pinned peer/root/build and a separate model-free journaled operation. Sandbox
+binds a fresh private stage from verified signed/current private data, retaining
+old stages and a backup; it never publishes to the Local source checkout.
+Current Git HEAD/index, unrelated dirty/untracked files, protected/ignored
+content, drafts, controls, independent artifacts and spent/unknown accounting
+are preserved. Current queues are held, not replayed. Later conversation history
+stays inspectable behind an append-only branch notice.
+
+Partial effects retain quarantine and original receipts. Inspect them before
+`/rewind acknowledge REWIND_ID REVISION EFFECT_SHA256 confirm-inspected`; actual
+worker/guest absence is required, and acknowledgement never changes a partial
+rewind into success. Explicit pruning removes only a reviewed encrypted snapshot:
+`/rewind prune CHECKPOINT_ID REVISION confirm-delete` or
+`/rewind prune-capture CAPTURE_ID REVISION confirm-delete`. Desktop exposes the
+same controls, including abandoned captures. Filesystem backups/private stages,
+ordinary artifacts and budget accounting are not deleted by snapshot pruning.
+
+The [scope, resource limits, source format and recovery contract](architecture/skills-and-rewind.md)
+distinguishes captured regular files from excluded secrets/control paths and
+unavailable historical data. No rewind undoes pushes, merges, deployments or
+external MCP effects. No tool or paid model call is replayed. The additive
+upgrade retains genuine95/96/97 markers and original ciphertext; earlier turns
+without captures remain explicitly unavailable. **Sandbox reviewed-script
+execution remains unqualified**, independently of workspace rewind and native
+worker qualification.
 
 ## Metadata-only OpenTelemetry export
 
@@ -3661,11 +3773,13 @@ backup instead of deleting state or forcing a stale writer.
 ## Attention and notifications
 
 Session indicators distinguish a possible question (`?`), pending approval/
-failed work (bell), and agent done/waiting. `/attention` or desktop's bell opens
-the shared list. `/attention read ID` marks it read, not resolved: it never
+failed work (bell), and agent done/waiting. `/inbox` or desktop's **Inbox** after
+Dashboard opens the shared list. `/inbox read ID` marks it read, not resolved: it never
 answers a question, approves a tool or restarts work. Question detection is a
 nonblocking final-text heuristic, not a model decision or structured user answer.
 Runnable follow-up work suppresses a premature done/waiting indicator.
+`/inbox delete ID` removes only the notification; the original pending work
+and session stay intact. The `attention` spelling remains an alias.
 
 **Settings / Notifications** defaults to in-app indicators on, OS banners off,
 content previews off. Optional background banners require the desktop to run,

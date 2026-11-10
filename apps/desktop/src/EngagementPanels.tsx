@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
+import { inboxAttention, type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -89,20 +89,43 @@ function ConfigurationReview({ sdk, id, close }: { sdk: MoguriSdk; id: string; c
 }
 export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void }) {
   const [error, setError] = useState("");
-  const active = snapshot.attention.filter((entry) => entry.active).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const read = async (id: string) => { try { await sdk.attention.acknowledge([id]); } catch (error) { setError(error instanceof Error ? error.message : "Read acknowledgement failed."); } };
-  return <section aria-label="Attention list"><h2>Needs your attention</h2>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length && <p className="fine-print">No pending attention. Read acknowledgement never answers a question or approves a tool.</p>}
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const container = useRef<HTMLElement>(null), heading = useRef<HTMLHeadingElement>(null), owner = useRef(sdk); owner.current = sdk;
+  const active = inboxAttention(snapshot.attention);
+  useEffect(() => { setError(""); setDeleting(null); }, [sdk]);
+  const read = async (id: string) => {
+    setError("");
+    try { await sdk.attention.acknowledge([id]); } catch (error) { if (owner.current === sdk) setError(error instanceof Error ? error.message : "Read acknowledgement failed."); }
+  };
+  const remove = async (id: string, button: HTMLButtonElement) => {
+    const buttons = [...container.current?.querySelectorAll<HTMLButtonElement>("[data-delete-notification]") ?? []];
+    const index = buttons.indexOf(button), focused = document.activeElement === button;
+    setError(""); setDeleting(id);
+    try {
+      await sdk.attention.delete([id]);
+      requestAnimationFrame(() => {
+        if (!focused || owner.current !== sdk || !container.current?.isConnected) return;
+        const remaining = container.current.querySelectorAll<HTMLButtonElement>("[data-delete-notification]");
+        const next = remaining[Math.min(index, remaining.length - 1)];
+        (next ?? heading.current)?.focus();
+      });
+    } catch (error) { if (owner.current === sdk) setError(error instanceof Error ? error.message : "The notification was not deleted. Refresh Inbox."); }
+    finally { if (owner.current === sdk) setDeleting(null); }
+  };
+  return <section ref={container} aria-label="Inbox notifications"><h2 ref={heading} tabIndex={-1}>Needs your attention</h2>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length && <p className="fine-print">No notifications. Questions, approvals and completed work appear here. Reading or deleting never answers or approves.</p>}
     {active.map((entry) => {
       const session = snapshot.sessions.find((session) => session.id === entry.sessionId);
       const operation = entry.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === entry.messageId) : undefined;
       const work = entry.myWork ? snapshot.myWorkRefreshes.find((refresh) => refresh.id === entry.myWork?.refreshId)?.attention.find((value) => value.itemId === entry.messageId) : undefined;
+      const question = entry.source === "state" && entry.reason === "question" && session?.pendingQuestionId === entry.messageId ?
+        snapshot.questions.find((question) => question.id === entry.messageId && question.sessionId === session.id && question.turnId === session.turnId && question.status === "open") : undefined;
       return <article className={`attention-item ${entry.acknowledged ? "read" : "unread"}`} key={entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
         <div><button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
           if (work) chooseWork?.(work.itemId); else if (entry.sessionId) void chooseSession(entry.sessionId);
         }}>{work ? `${work.repository}#${work.number}` : session?.title ?? "Session removed"}</button>
           <p>{work ? `${work.categories.join(", ")} / original head ${work.headSha.slice(0, 12)}` : operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
             entry.reason === "ci" ? "Original CI report unavailable; no replacement result was inferred." :
-            entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>
+            question ? question.question : entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>
           {operation?.ci && <button type="button" className="quiet" onClick={() => {
             const target = operation.ci!.target;
             void window.moguri.openExternal(`https://github.com/${target.repository}/pull/${target.number}`)
@@ -110,6 +133,8 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { s
           }}>Open original PR</button>}
           <small>{new Date(entry.createdAt).toLocaleString()}</small>
         </div>{!entry.acknowledged && <button className="icon-button" aria-label={`Mark attention read ${entry.id}`} title="Mark read, not resolved" onClick={() => void read(entry.id)}><Icon name="Check" /></button>}
+        <button type="button" className="icon-button" data-delete-notification={entry.id} disabled={deleting !== null} aria-label="Delete notification" title="Delete notification"
+          onClick={(event) => void remove(entry.id, event.currentTarget)}><Icon name="Trash" /></button>
       </article>;
     })}
   </section>;

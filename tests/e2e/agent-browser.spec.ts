@@ -1,7 +1,8 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { mkdir } from "node:fs/promises";
 import sharp from "sharp";
 import { MoguriSdk, MoguriError, isRecord } from "../../packages/sdk/src/index.ts";
 import { setupFixture, type GeneratedProviderOptions } from "../fixture.ts";
@@ -96,6 +97,7 @@ async function captureBrowserPane(owned: Awaited<ReturnType<typeof browserFixtur
   const scale = metadata.width / captured.width;
   const native = await sharp(page).resize(Math.round(captured.bounds.width * scale), Math.round(captured.bounds.height * scale)).png().toBuffer();
   expect((await sharp(native).stats()).channels.some((channel) => channel.stdev > 1)).toBe(true);
+  await mkdir(dirname(path), { recursive: true });
   await sharp(chrome).composite([{ input: native, left: Math.round(captured.bounds.x * scale), top: Math.round(captured.bounds.y * scale) }]).png().toFile(path);
 }
 

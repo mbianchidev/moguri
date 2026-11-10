@@ -44,7 +44,9 @@ test("desktop reviews an exact Remote grant, approves a provider-free SSH call a
     await page.locator(".tool-discovery-row").filter({ hasText: "grep_logs" }).click();
     await page.getByLabel("Exact MCP JSON arguments", { exact: true }).fill(JSON.stringify({ path: "fixture.txt", query: "remote source" }));
     await page.getByRole("button", { name: "Request in main session with exact arguments", exact: true }).click();
-    await expect.poll(() => f.session().pendingApproval?.call.name).toBe("mcp_gateway");
+    await expect.poll(async () => ({ approval: f.session().pendingApproval?.call.name, diagnostic: f.session().lastError,
+      captures: f.controller.snapshot().checkpointCaptures.map((capture) => ({ phase: capture.phase, status: capture.status, diagnostic: capture.diagnostic })),
+      alerts: await page.getByRole("alert").allTextContents() })).toMatchObject({ approval: "mcp_gateway" });
     expect(f.controller.snapshot().executions.length).toBe(0); expect(f.requests.length).toBe(0);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Approve this action", exact: true }).click();

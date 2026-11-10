@@ -53,9 +53,9 @@ test("CI attention names the original PR and stays unread when opening the conve
   const app = await electron.launch({ executablePath: require("electron"), args: ["."],
     env: { ...process.env, MOGURI_STATE_DIR: f.stateDir, MOGURI_TEST_WINDOW: "hidden" } });
   try {
-    const page = await app.firstWindow(), trigger = page.getByRole("button", { name: "Attention notifications", exact: true });
+    const page = await app.firstWindow(), trigger = page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Inbox", exact: true });
     await trigger.click();
-    const panel = page.getByRole("region", { name: "Attention list", exact: true });
+    const panel = page.getByRole("region", { name: "Inbox notifications", exact: true });
     await expect(panel).toContainText("PR #11");
     await expect(panel).toContainText("CI failure");
     await panel.getByRole("button", { name: f.session().title, exact: true }).click();

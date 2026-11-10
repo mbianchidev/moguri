@@ -23,7 +23,7 @@ test("left global resources and the nine right session panels remain separate wh
     expect(await rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
       .toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"]);
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations"]);
     await expect(rail.getByRole("button", { name: "Attention", exact: true })).toHaveCount(0);
     const navigation = page.getByRole("navigation", { name: "Projects and sessions" });
     await expect(navigation.getByRole("button", { name: "Manage profiles", exact: true })).toHaveCount(0);
@@ -59,8 +59,8 @@ test("left global resources and the nine right session panels remain separate wh
     await navigation.getByRole("button", { name: "Dashboard", exact: true }).click();
     await expect(page.getByRole("main").getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
     await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeHidden();
-    await page.getByRole("button", { name: "Attention notifications", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Attention list", exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Inbox", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Inbox notifications", exact: true })).toBeVisible();
     await rail.getByRole("button", { name: "Insights", exact: true }).click();
     await expect(page.getByRole("complementary", { name: "Session sidebar" })).toBeVisible();
     expect(fixture.requests.length).toBe(0);

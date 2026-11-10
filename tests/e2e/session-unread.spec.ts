@@ -53,7 +53,7 @@ test("unseen completion becomes bolder, reading it clears the emphasis and real 
     await waitFor(() => sdk.getState().snapshot!.attention.some((entry) => entry.sessionId === fixture.sessionId && entry.active && !entry.acknowledged));
     await expect(title).toHaveCSS("font-weight", "550"); await expect(background.locator(".unread-dot, .attention-unread-dot")).toHaveCount(0);
     await expect(background.getByRole("img", { name: "Session completed", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Attention notifications", exact: true }).locator(".attention-unread-dot")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Inbox", exact: true }).locator(".attention-unread-dot")).toBeVisible();
     await mkdir(".moguri/artifacts", { recursive: true });
     await page.screenshot({ path: ".moguri/artifacts/desktop-session-unread.png", animations: "disabled" });
     await background.click({ button: "right" });

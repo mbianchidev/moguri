@@ -113,8 +113,10 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   await fixture.sdk.command({ type: "message.send", sessionId, expectedRevision: admittedDraft.revision, delivery: "queue" });
   if (options.question && cell.autonomy !== "Autopilot Max") {
     const question = await waitFor(() => {
-      if (!session().turnId) throw new Error(`Required question ended before an actual answer: ${session().status}: ${session().lastError}; ${
+      if (fixture.service.controller.events(before).some((event) => event.session_id === sessionId && event.event_type === "turn.finished")) {
+        throw new Error(`Required question ended before an actual answer: ${session().status}: ${session().lastError}; ${
         JSON.stringify(session().messages.filter((message) => message.role === "tool"))}`);
+      }
       return fixture.service.controller.snapshot().questions.find((question) => question.sessionId === sessionId && question.status === "open");
     }, 15000);
     assert.equal(question.answer, null);

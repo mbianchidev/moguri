@@ -67,8 +67,8 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await prompt.fill("generated question"); await page.getByRole("button", { name: "Send", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().attention.some((entry) => entry.sessionId === meta.id && entry.active && entry.kind === "question")).toBe(true);
     await expect(page.locator(".session-row.selected").getByLabel("Possible question; no structured answer requested", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Attention notifications", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Attention list", exact: true })).toContainText("Possible question");
+    await page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Inbox", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Inbox notifications", exact: true })).toContainText("Possible question");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     await page.screenshot({ path: join(artifacts, "engagement-attention-compact.png") });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
