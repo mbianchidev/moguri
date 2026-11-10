@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { inboxAttention, type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
+import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
 
 export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialAll, chooseSession, modal }: {
   sdk: MoguriSdk; session?: Session; snapshot: Snapshot; allProjects: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void;
@@ -92,17 +93,24 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { s
   const [deleting, setDeleting] = useState<string | null>(null);
   const container = useRef<HTMLElement>(null), heading = useRef<HTMLHeadingElement>(null), owner = useRef(sdk); owner.current = sdk;
   const active = inboxAttention(snapshot.attention);
+  const scriptSessions = new Set<string | null>();
+  const visible = active.filter((entry) => {
+    if (entry.reason !== "script-review") return true;
+    if (scriptSessions.has(entry.sessionId)) return false;
+    scriptSessions.add(entry.sessionId); return true;
+  });
   useEffect(() => { setError(""); setDeleting(null); }, [sdk]);
-  const read = async (id: string) => {
+  const read = async (ids: string[]) => {
     setError("");
-    try { await sdk.attention.acknowledge([id]); } catch (error) { if (owner.current === sdk) setError(error instanceof Error ? error.message : "Read acknowledgement failed."); }
+    try { for (let offset = 0; offset < ids.length; offset += 100) await sdk.attention.acknowledge(ids.slice(offset, offset + 100)); }
+    catch (error) { if (owner.current === sdk) setError(error instanceof Error ? error.message : "Read acknowledgement failed."); }
   };
-  const remove = async (id: string, button: HTMLButtonElement) => {
+  const remove = async (ids: string[], button: HTMLButtonElement) => {
     const buttons = [...container.current?.querySelectorAll<HTMLButtonElement>("[data-delete-notification]") ?? []];
     const index = buttons.indexOf(button), focused = document.activeElement === button;
-    setError(""); setDeleting(id);
+    setError(""); setDeleting(ids[0]!);
     try {
-      await sdk.attention.delete([id]);
+      for (let offset = 0; offset < ids.length; offset += 100) await sdk.attention.delete(ids.slice(offset, offset + 100));
       requestAnimationFrame(() => {
         if (!focused || owner.current !== sdk || !container.current?.isConnected) return;
         const remaining = container.current.querySelectorAll<HTMLButtonElement>("[data-delete-notification]");
@@ -113,28 +121,34 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { s
     finally { if (owner.current === sdk) setDeleting(null); }
   };
   return <section ref={container} aria-label="Inbox notifications"><h2 ref={heading} tabIndex={-1}>Needs your attention</h2>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length && <p className="fine-print">No notifications. Questions, approvals and completed work appear here. Reading or deleting never answers or approves.</p>}
-    {active.map((entry) => {
+    {visible.map((entry) => {
       const session = snapshot.sessions.find((session) => session.id === entry.sessionId);
+      const group = entry.reason === "script-review" ? active.filter((other) => other.reason === "script-review" && other.sessionId === entry.sessionId) : [entry];
+      const ids = group.map((other) => other.id);
       const operation = entry.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === entry.messageId) : undefined;
       const work = entry.myWork ? snapshot.myWorkRefreshes.find((refresh) => refresh.id === entry.myWork?.refreshId)?.attention.find((value) => value.itemId === entry.messageId) : undefined;
       const question = entry.source === "state" && entry.reason === "question" && session?.pendingQuestionId === entry.messageId ?
         snapshot.questions.find((question) => question.id === entry.messageId && question.sessionId === session.id && question.turnId === session.turnId && question.status === "open") : undefined;
-      return <article className={`attention-item ${entry.acknowledged ? "read" : "unread"}`} key={entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
+      return <article className={`attention-item ${group.every((other) => other.acknowledged) ? "read" : "unread"}`} key={entry.reason === "script-review" ? `scripts:${entry.sessionId}` : entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
         <div><button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
           if (work) chooseWork?.(work.itemId); else if (entry.sessionId) void chooseSession(entry.sessionId);
         }}>{work ? `${work.repository}#${work.number}` : session?.title ?? "Session removed"}</button>
-          <p>{work ? `${work.categories.join(", ")} / original head ${work.headSha.slice(0, 12)}` : operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
+          {entry.reason === "script-review" && session ? <ScriptReviewsPanel sdk={sdk} session={session} snapshot={snapshot}
+            reviewIds={group.flatMap((other) => other.messageId ? [other.messageId] : [])} onReviewed={() => requestAnimationFrame(() => {
+              if (owner.current !== sdk) return;
+              (container.current?.querySelector<HTMLButtonElement>(".script-reviews button") ?? heading.current)?.focus();
+            })} /> : <p>{work ? `${work.categories.join(", ")} / original head ${work.headSha.slice(0, 12)}` : operation?.ci ? `PR #${operation.ci.target.number} / watch ${operation.status} / CI ${operation.ci.state ?? "unobserved"} / head ${operation.ci.target.headSha.slice(0, 12)}` :
             entry.reason === "ci" ? "Original CI report unavailable; no replacement result was inferred." :
-            question ? question.question : entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>
+            question ? question.question : entry.kind === "question" ? "Possible question" : entry.kind === "done" ? "Agent done and waiting" : entry.reason === "approval" ? "Exact tool approval needed" : "Inspect incomplete or failed work"}</p>}
           {operation?.ci && <button type="button" className="quiet" onClick={() => {
             const target = operation.ci!.target;
             void window.moguri.openExternal(`https://github.com/${target.repository}/pull/${target.number}`)
               .catch((error: unknown) => setError(error instanceof Error ? error.message : "The original PR link could not be opened."));
           }}>Open original PR</button>}
           <small>{new Date(entry.createdAt).toLocaleString()}</small>
-        </div>{!entry.acknowledged && <button className="icon-button" aria-label={`Mark attention read ${entry.id}`} title="Mark read, not resolved" onClick={() => void read(entry.id)}><Icon name="Check" /></button>}
+        </div>{group.some((other) => !other.acknowledged) && <button className="icon-button" aria-label={`Mark attention read ${entry.id}`} title="Mark read, not resolved" onClick={() => void read(ids)}><Icon name="Check" /></button>}
         <button type="button" className="icon-button" data-delete-notification={entry.id} disabled={deleting !== null} aria-label="Delete notification" title="Delete notification"
-          onClick={(event) => void remove(entry.id, event.currentTarget)}><Icon name="Trash" /></button>
+          onClick={(event) => void remove(ids, event.currentTarget)}><Icon name="Trash" /></button>
       </article>;
     })}
   </section>;

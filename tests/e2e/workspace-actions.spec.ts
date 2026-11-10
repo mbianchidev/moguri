@@ -96,10 +96,12 @@ test("copy icons acknowledge only completed clipboard writes and surface failure
   } finally { await app.evaluate(({ ipcMain }) => { ipcMain.emit("generated-copy-release"); }); await app.close(); await fixture.close(); }
 });
 
-test("inline paths and fenced Markdown have independent exact copy buttons without copying controls or opening linked snippets", async () => {
+test("inline code stays ordinary text while fenced Markdown alone has an explicit exact copy button", async () => {
   const path = "/generated/scripts/qualify.mjs", code = "node /generated/scripts/qualify.mjs\nprintf 'Generated exact output'\n";
   const text = `Run \`${path}\`.\n\n\`\`\`sh\n${code}\`\`\`\n\n[\`${path}\`](https://example.invalid/generated-script)`;
-  const fixture = await setupFixture({ responseMode: "text", replyText: text });
+  const thoughtCode = "const generated = true;\n";
+  const fixture = await setupFixture({ responseMode: "text", replyText: text, reasoning: true,
+    reasoningText: `Consider \`MoguriFlight\` and \`<use href>\` as ordinary inline examples.\n\n\`\`\`js\n${thoughtCode}\`\`\`` });
   await fixture.configure(); await fixture.send("Generated Markdown snippet request."); await fixture.terminal();
   const app = await launch(fixture.directory);
   try {
@@ -111,13 +113,23 @@ test("inline paths and fenced Markdown have independent exact copy buttons witho
       ipcMain.handle("moguri:open-link", (_event, value: unknown) => { if (typeof value !== "string") throw new Error("Generated link is not text."); links.push(value); });
       ipcMain.on("generated-snippet-observation", (_event, reply: (value: { copies: string[]; links: string[] }) => void) => reply({ copies, links }));
     });
-    const response = page.locator(".message.assistant").last(), copies = response.getByRole("button", { name: "Copy code snippet", exact: true });
-    await expect(copies).toHaveCount(3);
+    const response = page.locator(".message.assistant").last(), copies = response.getByRole("button", { name: "Copy code block", exact: true });
+    await expect(copies).toHaveCount(1);
     await expect(response.locator("a button")).toHaveCount(0);
-    await copies.nth(0).click(); await copies.nth(1).click(); await copies.nth(2).focus(); await page.keyboard.press("Enter");
-    await expect(copies.nth(2).locator("svg")).toHaveAttribute("data-icon", "Check");
+    const inline = response.locator("p > code");
+    await expect(inline.getByRole("button")).toHaveCount(0);
+    await inline.click();
+    await copies.focus(); await page.keyboard.press("Enter");
+    await expect(copies.locator("svg")).toHaveAttribute("data-icon", "Check");
+    const thought = page.locator("details.activity-thought");
+    await thought.locator("summary").press("Enter");
+    const inlineThought = thought.locator("p > code").first();
+    await expect(inlineThought.getByRole("button")).toHaveCount(0); await inlineThought.click();
+    const thoughtCopy = thought.getByRole("button", { name: "Copy code block", exact: true });
+    await expect(thoughtCopy.locator("svg")).toHaveAttribute("data-icon", "Copy");
+    await thoughtCopy.press("Enter");
     const values = await app.evaluate(({ ipcMain }) => new Promise<{ copies: string[]; links: string[] }>((resolve) => { ipcMain.emit("generated-snippet-observation", null, resolve); }));
-    expect(values).toEqual({ copies: [path, code, path], links: [] });
+    expect(values).toEqual({ copies: [code, thoughtCode], links: [] });
     expect(fixture.requests).toHaveLength(1);
   } finally { await app.close(); await fixture.close(); }
 });

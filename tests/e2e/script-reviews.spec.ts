@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scriptReviewFixture } from "../fixtures/script-review.ts";
-import { focusByKeyboard } from "./navigation.ts";
+import { focusByKeyboard, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop script review is qualified on macOS.");
@@ -17,8 +17,9 @@ test("unsafe findings require an explicit full-source user force and still canno
   try {
     const page = await app.firstWindow(), review = fixture.review()!, errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    await expect(page.getByRole("region", { name: "Repository script reviews", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Inbox", exact: true }).click();
     const panel = page.getByRole("region", { name: "Repository script reviews", exact: true });
-    await panel.locator("summary").press("Enter");
     await expect(panel).toContainText("Agent assessment: unsafe");
     const read = panel.getByRole("button", { name: `Read full script review ${review.id}`, exact: true });
     await focusByKeyboard(read); await page.keyboard.press("Enter");
@@ -31,15 +32,55 @@ test("unsafe findings require an explicit full-source user force and still canno
     await focusByKeyboard(checkbox); await page.keyboard.press("Space");
     await focusByKeyboard(force); await page.keyboard.press("Enter");
     const approval = page.getByRole("region", { name: "Tool approval", exact: true });
+    await expect.poll(() => fixture.review()?.force?.actor).toBe("user");
+    await expect(panel).toHaveCount(0);
+    await expect(access(join(fixture.project, "generated-script-result.txt"))).rejects.toMatchObject({ code: "ENOENT" });
+    await page.getByRole("navigation", { name: "Projects and sessions", exact: true }).getByRole("button", { name: fixture.session().title, exact: true }).click();
+    await expect(approval).toBeVisible();
     await expect(approval).toContainText("run_script");
     await expect(approval).toContainText("without sandbox isolation");
     await expect(approval.getByLabel("Tool matching", { exact: true })).toHaveCount(0);
-    await expect.poll(() => fixture.review()?.force?.actor).toBe("user");
-    await expect(access(join(fixture.project, "generated-script-result.txt"))).rejects.toMatchObject({ code: "ENOENT" });
     await approval.getByRole("button", { name: "Approve this action", exact: true }).click();
     await expect(async () => { expect(await readFile(join(fixture.project, "generated-script-result.txt"), "utf8")).toBe("GENERATED_FORCED_RUN"); }).toPass();
     await expect(approval).toHaveCount(0);
-    await expect(panel).toContainText("One original attempt is retained");
+    await expect.poll(() => Boolean(fixture.review()?.attempt)).toBe(true);
     expect(errors).toEqual([]);
   } finally { await app.close(); await fixture.close(); }
+});
+
+test("Inbox groups script assessments, collapses exact source and clears the group only after both explicit approvals", async () => {
+  const f = await scriptReviewFixture({ autopilot: true, findings: ["Generated descriptive observation: prints only the fixture marker."] });
+  await f.send("Generated first safe script."); await f.terminal();
+  f.resetReview(); await f.send("Generated second safe script."); await f.terminal();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), calls = f.requests.length;
+    await waitForWorkspace(page);
+    const reviews = f.service.controller.snapshot().scriptReviews.filter((review) => review.sessionId === f.sessionId);
+    expect(reviews).toHaveLength(2);
+    await expect(page.getByRole("region", { name: "Repository script reviews", exact: true })).toHaveCount(0);
+    const notification = f.service.controller.snapshot().attention.find((entry) => entry.reason === "script-review" && entry.messageId === reviews[0]!.id)!;
+    await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-inbox", id, "default"), notification.id);
+    const panel = page.getByRole("region", { name: "Repository script reviews", exact: true });
+    await expect(panel).toHaveCount(1); await expect(panel).toContainText("Repository script reviews (2)");
+    const first = reviews[0]!;
+    await panel.getByRole("button", { name: `Read full script review ${first.id}`, exact: true }).press("Enter");
+    const source = panel.getByLabel(`Complete reviewed script ${first.id}`, { exact: true });
+    await expect(source).toHaveText(f.source);
+    await panel.getByRole("button", { name: `Collapse script review ${first.id}`, exact: true }).press("Enter");
+    await expect(source).toHaveCount(0);
+    await panel.getByRole("button", { name: `Read full script review ${first.id}`, exact: true }).press("Enter");
+    await panel.getByRole("button", { name: `Approve script review ${first.id}`, exact: true }).press("Enter");
+    await expect(panel).toContainText("Repository script reviews (1)");
+    const second = reviews[1]!;
+    await panel.getByRole("button", { name: `Read full script review ${second.id}`, exact: true }).press("Enter");
+    await panel.getByRole("button", { name: `Approve script review ${second.id}`, exact: true }).press("Enter");
+    await expect(panel).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Needs your attention", exact: true })).toBeFocused();
+    await expect.poll(() => f.service.controller.snapshot().scriptReviews.filter((review) => review.approval?.actor === "user").length).toBe(2);
+    expect(f.requests).toHaveLength(calls);
+  } finally { await app.close(); await f.close(); }
 });

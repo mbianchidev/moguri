@@ -1,0 +1,62 @@
+import { _electron as electron, expect, test } from "@playwright/test";
+import { createRequire } from "node:module";
+import { join } from "node:path";
+import { setupFixture } from "../fixture.ts";
+
+const require = createRequire(import.meta.url);
+test.skip(process.platform !== "darwin", "Startup flight uses generated hidden macOS windows.");
+
+for (const reduced of [false, true]) test(`startup flight is playable without dispatching work${reduced ? " with reduced motion" : ""}`, async ({}, info) => {
+  const f = await setupFixture(), gate = Promise.withResolvers<void>();
+  const snapshot = f.service.profiles.snapshot.bind(f.service.profiles);
+  f.service.profiles.snapshot = async (...args: Parameters<typeof snapshot>) => { await gate.promise; return snapshot(...args); };
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.emulateMedia({ reducedMotion: reduced ? "reduce" : "no-preference" });
+    const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
+    const flap = opening.getByRole("button", { name: "Flap Moguri's wings", exact: true });
+    await expect(flap).toBeVisible();
+    await expect(opening).toHaveCSS("background-color", "rgb(0, 0, 0)");
+    await expect(opening.getByRole("navigation")).toHaveCount(0);
+    await expect(opening.getByRole("textbox", { name: "Opening prompt", exact: true })).not.toBeVisible();
+    await page.clock.install();
+    const avatar = opening.locator(".startup-flight-avatar");
+    const original = await avatar.evaluate((element) => getComputedStyle(element).transform);
+    await page.keyboard.press("Space"); await page.clock.runFor(100);
+    const score = opening.getByRole("heading", { name: /^Flight score: / });
+    await expect(score).not.toHaveAttribute("aria-label", "Flight score: 0");
+    const raised = await avatar.evaluate((element) => getComputedStyle(element).transform);
+    expect(raised === original).toBe(reduced);
+    const wing = opening.locator("#moguri-left-wing");
+    expect(await wing.evaluate((element) => getComputedStyle(element).animationName)).toBe(reduced ? "none" : "moguri-wing-flap");
+    await flap.press("Enter"); await page.clock.runFor(100);
+    await page.screenshot({ path: info.outputPath(reduced ? "startup-flight-reduced.png" : "startup-flight.png") });
+    await page.clock.runFor(2000);
+    const landedScore = await score.textContent();
+    await opening.getByText("Draft while waiting", { exact: true }).click();
+    const input = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
+    await input.fill("Generated startup draft"); await input.press("Space"); await page.clock.runFor(100);
+    await expect(input).toHaveValue("Generated startup draft ");
+    expect(await score.textContent()).toBe(landedScore);
+    expect(f.requests).toHaveLength(0);
+    expect(f.service.controller.snapshot().budgetEntries).toHaveLength(0);
+    await page.clock.resume(); gate.resolve();
+    await expect(opening).toHaveCount(0);
+    const review = page.getByRole("region", { name: "Opening draft review", exact: true });
+    await expect(review.getByRole("textbox", { name: "Unapplied opening draft", exact: true })).toHaveValue("Generated startup draft ");
+    await review.getByRole("button", { name: "Discard opening draft", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toBeVisible();
+    expect(f.requests).toHaveLength(0); expect(errors).toEqual([]);
+  } finally {
+    gate.resolve(); f.service.profiles.snapshot = snapshot;
+    await app.evaluate(({ BrowserWindow }) => { for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.removeAllListeners("will-prevent-unload"); window.webContents.on("will-prevent-unload", (event) => event.preventDefault());
+    } });
+    await app.close(); await f.close();
+  }
+});

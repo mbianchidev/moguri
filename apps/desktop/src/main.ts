@@ -357,6 +357,7 @@ else {
           notification.on("click", () => {
             mainWindow?.show(); mainWindow?.focus();
             if (banner.itemId) mainWindow?.webContents.send("moguri:navigate-work", banner.itemId, profileId);
+            else if (banner.inbox) mainWindow?.webContents.send("moguri:navigate-inbox", banner.id, profileId);
             else if (banner.sessionId) mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId, profileId);
           });
           notification.on("close", () => banners.delete(banner.id));
@@ -647,7 +648,7 @@ else {
     async function createWindow() {
       mainWindow = new BrowserWindow({
         title: "Moguri", width: 1440, height: 940, minWidth: 840, minHeight: 620,
-        show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#141922",
+        show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#000000",
         icon: join(app.getAppPath(), "dist", "branding", "moguri.png"),
         webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
       });

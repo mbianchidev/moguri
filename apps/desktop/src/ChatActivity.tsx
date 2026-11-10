@@ -100,7 +100,7 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
   };
   return <details className={`activity-row activity-${entry.kind} activity-status-${observed.status}`} data-activity-id={entry.id} data-kind={entry.kind} onToggle={(event) => setOpen(event.currentTarget.open)}>
     <summary><span className="activity-chevron"><Icon name="Down" /></span><Icon name={icons[entry.kind]} /><span className="activity-title">{entry.label}{entry.subject && <span className="activity-subject" title={entry.subject}>{entry.subject}</span>}</span>
-      {observed.status !== "completed" && <span className="activity-state">{observed.status.replaceAll("_", " ")}</span>}
+      {observed.status !== "completed" && <span className="activity-state">{observed.errorCode === "not_found" ? "Not Found" : observed.status.replaceAll("_", " ")}</span>}
     </summary>
     {open && <div className="activity-expansion">
       {state.loading && (needsArguments && !localArguments || needsOutput && !localOutput) && <p role="status">Reading additional retained data...</p>}

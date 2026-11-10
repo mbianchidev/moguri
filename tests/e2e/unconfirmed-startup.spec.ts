@@ -50,6 +50,7 @@ test("the real unconfirmed deadline preserves the local opening draft and reconn
     const page = await app.firstWindow();
     assertOperationLatency("startup.window", performance.now() - began);
     const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
+    await opening.getByText("Draft while waiting", { exact: true }).click();
     const input = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
     await expect(input).toBeEditable();
     await expect(opening).toContainText("Last opened chat");

@@ -50,6 +50,7 @@ for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`cach
     const began = performance.now();
     await page.reload({ waitUntil: "domcontentloaded" });
     const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
+    await opening.getByText("Draft while waiting", { exact: true }).click();
     const local = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
     await expect(local).toBeEditable({ timeout: 1500 });
     const interactiveMs = performance.now() - began;
@@ -119,6 +120,7 @@ test("a cache miss keeps early text unbound until the user chooses the live empt
   try {
     const page = await app.firstWindow(), opening = page.getByRole("region", { name: "Opening workspace", exact: true });
     const original = "Generated first-launch local draft with no cached destination.";
+    await opening.getByText("Draft while waiting", { exact: true }).click();
     await opening.getByRole("textbox", { name: "Opening prompt", exact: true }).fill(original);
     await expect(opening.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     expect(f.session().draft.text).toBe(""); expect(f.requests).toHaveLength(0);
@@ -237,6 +239,7 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
     app = await launch(f.directory);
     const page = await app.firstWindow(), opening = page.getByRole("region", { name: "Opening workspace", exact: true });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.setBackgroundThrottling(false));
+    await opening.getByText("Draft while waiting", { exact: true }).click();
     const local = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
     await expect(local).toBeEditable({ timeout: 1500 });
     await expect(opening).toContainText("Last opened chat");

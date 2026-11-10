@@ -425,8 +425,15 @@ records protocol-91 migration, ownership and recovery boundaries.
 
 ## Opening and last-view restoration
 
-The desktop can show its last-view layout and cached model/effort labels
-while the original backend connects. You may type a temporary local draft;
+The desktop opens to the original Moguri mascot on a black window while the
+original backend connects, not an incomplete workspace layout. Press **Space**
+or click the mascot to flap its wings, gain altitude and earn a score. The
+optional game makes no model call, changes no workspace state and never delays
+authenticated readiness. Reduced motion keeps the mascot still while scoring
+remains available.
+
+Open **Draft while waiting** to see cached model/effort labels and type a
+temporary local draft. Space inside that editor types normally, not a flap.
 Send and hold remain unavailable until the real client is authenticated.
 That opening text is kept in this window's memory, not persisted as a
 plaintext transcript/draft cache. An exact unchanged empty saved draft is
@@ -436,7 +443,7 @@ sent. Keep the window open until **Draft saved**, or explicitly discard
 unsaved text when closing.
 
 An unconfirmed 60-second service startup now offers **Reconnect to original
-service** while keeping that same local draft and last-known view. Reconnect
+service** while keeping that same local draft and captured destination. Reconnect
 only retries authenticated readiness for the captured original owner; it does
 not start another service or send your text. Fatal initialization, authentication
 or changed-owner diagnostics still require inspection rather than a fallback.
@@ -727,15 +734,25 @@ approval. The agent reports encoded/obfuscated payloads, unexpected API calls
 and other unsafe/uncertain behavior before requesting execution. Only a source
 assessed safe can request `run_script` under the normal tool policy.
 
-An unsafe assessment reports findings **without asking to execute**. In the
-conversation's **Repository script reviews**, choose **Read full source and
-review**. Only an explicit acknowledgement followed by **Force unsafe script
+Pending assessments appear as notifications in **Inbox**, grouped by their
+original chat, not as a panel below the conversation. Choose **Read full source
+and review** to expand one script; the same button can collapse it again.
+For a safe assessment, **Approve script review** clears that script's
+notification. Once every pending assessment is approved, the group disappears.
+Descriptive findings may accompany a safe verdict; a nonempty findings list
+does not itself mean unsafe. Approval records your exact reviewed revision and
+source digest, but does not run code, resume a model or grant execution.
+Reading, marking read or deleting a notification never approves its source.
+
+An unsafe assessment reports findings **without asking to execute**. Only an
+explicit acknowledgement followed by **Force unsafe script
 under normal policy** overrides that advisory. Manual/Guided execution approval
 is still required, and hard denials/read-only/root/source checks cannot be
 overridden. Agent assessments are not safety guarantees. Each review has at
 most one original execution attempt, with no automatic replay.
 
-CLI/TUI: `/script-review list`, `/script-review read ID`, or the explicit
+CLI/TUI: `/script-review list`, `/script-review read ID`,
+`/script-review approve ID REVIEW_REV SHA SESSION_REV confirm-reviewed`, or the explicit
 `/script-review force ID REVIEW_REV SHA SESSION_REV confirm-unsafe`.
 CLI also supports `moguri script-review ... --session ID`. Inspect the returned
 job/approval for its actual outcome. Private or oversized sources are blocked,
@@ -745,7 +762,10 @@ This does not isolate arbitrary approved shells, package-manager tasks,
 transitive scripts or external MCP services. See the
 [content-review contract](architecture/content-review.md).
 
-Protocol 83 migrates existing state without deleting it. Explicitly restart
+Protocol 100 adds exact user-review approval and typed file-failure metadata
+through an atomic upgrade, preserving the original protocol-83 review history.
+Existing pending assessments gain Inbox notifications on restart without
+reinspection, downloads or model calls. Explicitly restart
 an older service to load matching clients/workers. Old native worker
 qualification does not establish that new bytes are installed.
 
@@ -4856,7 +4876,8 @@ the operation's existing deadline, but mutations and lifecycle requests are
 never replayed. Cancel quit after failed shutdown restores an accessible window
 bound to the original owner, without adopting or starting another service.
 
-The opening screen reports the current desktop phase and elapsed time:
+The opening screen reports the current desktop phase; timing details remain
+available in Insights:
 waiting for the local service, profile connection, application preferences or
 native control preparation. This is diagnostic progress, not successful
 readiness or permission to mutate before authentication.
