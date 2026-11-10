@@ -48,7 +48,7 @@ test("unsafe findings require an explicit full-source user force and still canno
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("Inbox groups script assessments, collapses exact source and clears the group only after both explicit approvals", async () => {
+test("Inbox groups script assessments, collapses exact source and clears the group only after both explicit approvals", async ({}, info) => {
   const f = await scriptReviewFixture({ autopilot: true, findings: ["Generated descriptive observation: prints only the fixture marker."] });
   await f.send("Generated first safe script."); await f.terminal();
   f.resetReview(); await f.send("Generated second safe script."); await f.terminal();
@@ -67,9 +67,14 @@ test("Inbox groups script assessments, collapses exact source and clears the gro
     const panel = page.getByRole("region", { name: "Repository script reviews", exact: true });
     await expect(panel).toHaveCount(1); await expect(panel).toContainText("Repository script reviews (2)");
     const first = reviews[0]!;
-    await panel.getByRole("button", { name: `Read full script review ${first.id}`, exact: true }).press("Enter");
+    const read = panel.getByRole("button", { name: `Read full script review ${first.id}`, exact: true });
+    await expect(read).toHaveAttribute("aria-expanded", "false");
+    await expect(read).not.toHaveAttribute("aria-controls", /.+/);
+    await read.press("Enter");
     const source = panel.getByLabel(`Complete reviewed script ${first.id}`, { exact: true });
     await expect(source).toHaveText(f.source);
+    await expect(panel.getByRole("button", { name: `Collapse script review ${first.id}`, exact: true })).toHaveAttribute("aria-controls", `script-source-${first.id}`);
+    await page.screenshot({ path: info.outputPath("script-review-inbox.png"), animations: "disabled" });
     await panel.getByRole("button", { name: `Collapse script review ${first.id}`, exact: true }).press("Enter");
     await expect(source).toHaveCount(0);
     await panel.getByRole("button", { name: `Read full script review ${first.id}`, exact: true }).press("Enter");

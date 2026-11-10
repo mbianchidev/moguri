@@ -107,10 +107,10 @@ test("inline code stays ordinary text while fenced Markdown alone has an explici
   try {
     const page = await app.firstWindow(); await waitForWorkspace(page);
     await app.evaluate(({ ipcMain }) => {
-      ipcMain.removeHandler("moguri:copy-text"); ipcMain.removeHandler("moguri:open-link");
+      ipcMain.removeHandler("moguri:copy-text"); ipcMain.removeHandler("moguri:open-external");
       const copies: string[] = [], links: string[] = [];
       ipcMain.handle("moguri:copy-text", (_event, value: unknown) => { if (typeof value !== "string") throw new Error("Generated snippet is not text."); copies.push(value); });
-      ipcMain.handle("moguri:open-link", (_event, value: unknown) => { if (typeof value !== "string") throw new Error("Generated link is not text."); links.push(value); });
+      ipcMain.handle("moguri:open-external", (_event, value: unknown) => { if (typeof value !== "string") throw new Error("Generated link is not text."); links.push(value); });
       ipcMain.on("generated-snippet-observation", (_event, reply: (value: { copies: string[]; links: string[] }) => void) => reply({ copies, links }));
     });
     const response = page.locator(".message.assistant").last(), copies = response.getByRole("button", { name: "Copy code block", exact: true });
@@ -128,8 +128,20 @@ test("inline code stays ordinary text while fenced Markdown alone has an explici
     const thoughtCopy = thought.getByRole("button", { name: "Copy code block", exact: true });
     await expect(thoughtCopy.locator("svg")).toHaveAttribute("data-icon", "Copy");
     await thoughtCopy.press("Enter");
+    for (const control of [copies, thoughtCopy]) {
+      await expect(control.locator("svg")).toBeVisible();
+      const placement = await control.evaluate((button) => {
+        const block = button.closest("pre");
+        if (!block) throw new Error("The generated fenced-code control has no owning block.");
+        const box = block.getBoundingClientRect(), copy = button.getBoundingClientRect();
+        return { top: copy.top - box.top, right: box.right - copy.right };
+      });
+      expect(placement.top).toBeGreaterThanOrEqual(0); expect(placement.top).toBeLessThanOrEqual(12);
+      expect(placement.right).toBeGreaterThanOrEqual(0); expect(placement.right).toBeLessThanOrEqual(12);
+    }
+    await response.locator("a > code").click();
     const values = await app.evaluate(({ ipcMain }) => new Promise<{ copies: string[]; links: string[] }>((resolve) => { ipcMain.emit("generated-snippet-observation", null, resolve); }));
-    expect(values).toEqual({ copies: [code, thoughtCode], links: [] });
+    expect(values).toEqual({ copies: [code, thoughtCode], links: ["https://example.invalid/generated-script"] });
     expect(fixture.requests).toHaveLength(1);
   } finally { await app.close(); await fixture.close(); }
 });

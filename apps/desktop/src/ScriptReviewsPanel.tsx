@@ -27,7 +27,7 @@ export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReview
           <p>Agent assessment: <strong>{review.advice?.verdict ?? "Not assessed"}</strong>. {review.advice?.summary}</p>
           {review.advice?.findings.length ? <ul>{review.advice.findings.map((finding, index) => <li key={index}>{finding}</li>)}</ul> : null}
           <p className="fine-print path">SHA-256 {review.source.digest} / {review.source.bytes} bytes / {review.source.interpreter}</p>
-          <button type="button" disabled={busy} aria-expanded={Boolean(selected)} aria-controls={`script-source-${review.id}`} onClick={() => {
+          <button type="button" disabled={busy} aria-expanded={Boolean(selected)} aria-controls={selected ? `script-source-${review.id}` : undefined} onClick={() => {
             setConfirmed(false);
             if (selected) { setRead(null); return; }
             void run(async () => { const value = await sdk.scriptReviews.read(session.id, review.id); setRead({ sdk, value }); });
