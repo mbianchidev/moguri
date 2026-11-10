@@ -572,7 +572,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" onClick={() => rename(menuSession)}><Icon name="Edit" />Rename</button>
     <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name={menuSession.pinned ? "PinOff" : "Pin"} />{menuSession.pinned ? "Unpin" : "Pin"}</button>
     <button role="menuitem" onClick={() => void run(async () => {
-      const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];
+      const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.deleted && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];
       await sdk.sessions.organize(menuSession.id, { unread: !menuUnread });
       if (ids.length) await sdk.attention.acknowledge(ids.slice(-100));
     })}><Icon name="ReadOnly" />{menuUnread ? "Mark read" : "Mark unread"}</button>

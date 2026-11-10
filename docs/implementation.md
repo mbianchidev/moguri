@@ -180,6 +180,13 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > remain retained. This does not claim the original unreproduced 90-second
 > initialization delay or wider native/milestone gates are resolved.
 
+> Protocol99 adds the [session Inbox and explicit skill-load activity](architecture/session-inbox.md).
+> Inbox follows Dashboard and opens the exact source conversation for actual
+> answers/approvals. Notification read/deletion is independent from that work;
+> session deletion removes its notifications. Successful complete loads retain
+> named, source-bound book indicators across the shared SDK and clients.
+> Genuine98 ciphertext, checkpoint/source authority and accounting are preserved.
+
 > Guided questions may now carry a bounded recommendation from the already
 > metered current solver response. It retains model provenance and still waits
 > for the actual user, who may choose differently. Tool advice binds the current

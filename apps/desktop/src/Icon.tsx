@@ -56,6 +56,7 @@ const paths: Record<string, string> = {
   Minimize: "M21 3l-7 7m0-7v7h7M3 21l7-7m-7 0h7v7",
   Question: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 9a3 3 0 1 1 4 3c-1 .5-1 1-1 2m0 3h.01",
   Attention: "M6 9a6 6 0 0 1 12 0v6l3 3H3l3-3Zm4 12h4",
+  Inbox: "M3 4h18v16H3Zm0 10h5l2 3h4l2-3h5",
   Waiting: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 8v8m6-8v8",
   Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
   ModelGPT: "m7 3 10 0 5 9-5 9H7L2 12Zm1 5h8v8H8Zm4-5v5m0 8v5M2 12h6m8 0h6",

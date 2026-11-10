@@ -27,7 +27,7 @@ test("attachment menu matches the five-source layout, previews retained files/im
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
     await expect(rail.getByRole("button")).toHaveCount(9);
     expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"]);
-    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Suggestions", "Automations"]);
+    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations"]);
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated complete unsent prompt.");
     const path = join(fixture.directory, "generated-preview.txt"); await writeFile(path, "Generated immutable attached file.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);
@@ -59,7 +59,7 @@ test("attachment menu matches the five-source layout, previews retained files/im
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     const sideChat = rail.getByRole("button", { name: "Side chat", exact: true });
     await sideChat.scrollIntoViewIfNeeded(); await expect(sideChat).toBeInViewport();
-    await expect(page.getByRole("button", { name: "Attention notifications", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Inbox", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); await fixture.close(); }

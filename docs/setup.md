@@ -1,9 +1,32 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **98**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **99**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Inbox and explicit skill loading
+
+**Inbox** is immediately after **Dashboard** in the left navigation. It
+replaces the titlebar bell and lists current questions, approvals, failures
+and completed work. Open a notification to return to its actual session, give
+the answer or approval there, then return to Inbox. Structured questions show
+their actual current text; heuristic question hints remain labelled possible.
+
+Use the trash action to delete just that notification. It never answers,
+approves, stops work or refunds a budget. A deleted session's notifications
+also disappear. Read acknowledgement stays separate from resolution. The CLI
+uses `moguri inbox list`, `moguri inbox read ID`, and `moguri inbox delete ID`;
+the TUI uses `/inbox`, `/inbox read ID`, and `/inbox delete ID`.
+Existing `attention` commands remain compatible aliases.
+
+An agent must explicitly request `use_skill` loading before applying a skill's
+instructions. Discovery, diagnostic reads and source review do not count as
+loads. A successful complete source load shows **Loaded skill** with its real
+name and a book icon in desktop/TUI chat, without starting an extra model call.
+All existing source-admission, permission and revocation gates still apply.
+The [shared Inbox/load contract](architecture/session-inbox.md) records the
+atomic genuine98 upgrade and the distinction between deletion and approval.
 
 ## Local skill admission and per-turn rewind
 
@@ -3750,11 +3773,13 @@ backup instead of deleting state or forcing a stale writer.
 ## Attention and notifications
 
 Session indicators distinguish a possible question (`?`), pending approval/
-failed work (bell), and agent done/waiting. `/attention` or desktop's bell opens
-the shared list. `/attention read ID` marks it read, not resolved: it never
+failed work (bell), and agent done/waiting. `/inbox` or desktop's **Inbox** after
+Dashboard opens the shared list. `/inbox read ID` marks it read, not resolved: it never
 answers a question, approves a tool or restarts work. Question detection is a
 nonblocking final-text heuristic, not a model decision or structured user answer.
 Runnable follow-up work suppresses a premature done/waiting indicator.
+`/inbox delete ID` removes only the notification; the original pending work
+and session stay intact. The `attention` spelling remains an alias.
 
 **Settings / Notifications** defaults to in-app indicators on, OS banners off,
 content previews off. Optional background banners require the desktop to run,
