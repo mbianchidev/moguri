@@ -14,7 +14,8 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
   const rewinds = snapshot.rewinds.filter((record) => record.sessionId === session.id);
   const captures = snapshot.checkpointCaptures.filter((capture) => capture.sessionId === session.id && !capture.forgotten &&
     !checkpoints.some((checkpoint) => checkpoint.id === capture.checkpointId));
-  const scope = JSON.stringify([sdk.profileId, session.id, session.revision, snapshot.policy.revision, snapshot.settings.permissionRevision]);
+  const scope = JSON.stringify([sdk.profileId, session.id, session.revision, snapshot.policy.revision, snapshot.settings.permissionRevision,
+    checkpoints.map((checkpoint) => [checkpoint.id, checkpoint.revision])]);
   useEffect(() => { generation.current++; reviewAbort.current?.abort(new Error("The original review scope changed.")); setPreview(null); setConfirmed(false); setDecisions([]); setInspection(null); setRead(null); setCapturePrune(null); }, [scope]);
   useEffect(() => () => { generation.current++; reviewAbort.current?.abort(new Error("The original review closed.")); }, []);
   const run = async (operation: (current: () => boolean) => Promise<void>) => {
@@ -34,7 +35,7 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
   };
   const conflictsChosen = preview?.files.every((file) => !file.conflict || decisions.some((decision) => decision.root === file.root && decision.path === file.path)) ?? false;
   return <section className="script-reviews" aria-label="Checkpoints and rewind">
-    <details><summary>Checkpoints and rewind ({checkpoints.length})</summary>
+      <h3>Retained checkpoints ({checkpoints.length})</h3>
       <p className="fine-print">Restore active conversation context, optionally with reviewed workspace files. Later history and spent/unknown budgets remain. External effects such as pushes, merges, deployments and MCP calls are not undone.</p>
       <button type="button" disabled={busy} onClick={() => void run(async (current) => {
         await sdk.checkpoints.settle(session.id);
@@ -114,7 +115,6 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
           })}>Acknowledge terminal partial effects</button>
         </>}
       </div>}
-    </details>
     {busy && <p role="status">Checking or applying the exact reviewed rewind...</p>}
     {busy && reviewAbort.current && <button type="button" onClick={() => reviewAbort.current?.abort(new Error("The actual user cancelled this exact rewind review."))}>Cancel current rewind review</button>}
     {error && <Alert as="p" role="alert">{error}</Alert>}

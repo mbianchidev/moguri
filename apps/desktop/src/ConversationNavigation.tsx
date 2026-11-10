@@ -1,17 +1,20 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import type { ConversationNavigationEntry } from "../../../packages/sdk/src/index.ts";
+import type { ConversationNavigationEntry, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 import { Alert } from "./Alert.tsx";
+import { RewindPanel } from "./RewindPanel.tsx";
 
+type RewindScope = { sdk: MoguriSdk; session: Session; snapshot: Snapshot };
 const preview = (text: string) => {
   const value = text.replace(/\s+/g, " ").trim();
   const characters = Array.from(value);
   return characters.length > 120 ? `${characters.slice(0, 117).join("")}...` : value;
 };
-export function ConversationNavigation({ entries, viewport, renderedFrom, label, onNavigate }: {
+export function ConversationNavigation({ entries, viewport, renderedFrom, label, onNavigate, rewind, modal }: {
   entries: ConversationNavigationEntry[]; viewport: RefObject<HTMLDivElement | null>; renderedFrom: number; label: string;
   onNavigate: (entry: ConversationNavigationEntry) => void;
+  rewind?: RewindScope; modal: (open: boolean) => void;
 }) {
   const [compact, setCompact] = useState(true), [expanded, setExpanded] = useState(false), [selected, setSelected] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null), [pending, setPending] = useState<string | null>(null), [error, setError] = useState("");
@@ -73,8 +76,31 @@ export function ConversationNavigation({ entries, viewport, renderedFrom, label,
         </button>
       </Tooltip></li>;
     })}</ol>
+    {rewind && <CheckpointMenu {...rewind} modal={modal} />}
     {error && <Alert as="p" className="turn-navigation-error inline-error" role="alert">{error}</Alert>}
   </nav>;
+}
+
+function CheckpointMenu({ sdk, session, snapshot, modal }: RewindScope & { modal: (open: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const dialog = useRef<HTMLDialogElement>(null), trigger = useRef<HTMLButtonElement>(null), id = useId();
+  useEffect(() => {
+    if (!open) return;
+    modal(true); dialog.current?.showModal();
+    return () => modal(false);
+  }, [open, modal]);
+  const close = () => { setOpen(false); if (trigger.current?.isConnected) trigger.current.focus(); };
+  return <footer className="turn-checkpoints">
+    <Tooltip content="Checkpoints and rewind"><button ref={trigger} type="button" className="quiet turn-checkpoints-trigger" aria-label="Checkpoints and rewind"
+      aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} onClick={() => setOpen(true)}>
+      <Icon name="Clock" /><span>Checkpoints and rewind</span>
+    </button></Tooltip>
+    {open && <dialog ref={dialog} id={id} className="workspace-dialog checkpoint-dialog" aria-label="Checkpoints and rewind"
+      onKeyDown={(event) => event.stopPropagation()} onClose={close}>
+      <header><h2>Checkpoints and rewind</h2><button type="button" className="icon-button" aria-label="Close checkpoints and rewind" onClick={() => dialog.current?.close()}><Icon name="Close" /></button></header>
+      <RewindPanel sdk={sdk} session={session} snapshot={snapshot} />
+    </dialog>}
+  </footer>;
 }
 
 export function AnsweredQuestion({ entry }: { entry: Extract<ConversationNavigationEntry, { kind: "answer" }> }) {

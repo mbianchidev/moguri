@@ -32,8 +32,6 @@ import { ReorderList } from "./ReorderList.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
 import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
-import { RewindPanel } from "./RewindPanel.tsx";
-import { SkillAdmissionsPanel } from "./SkillAdmissionsPanel.tsx";
 import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 import { canApplyOpeningDraft, createStartupView, isModelDiscoveryPending, readStartupView, saveStartupView, type OpeningDraft, type StartupModel, type StartupView } from "./startup-cache.ts";
 import { StartupModelContext } from "./StartupModelContext.ts";
@@ -676,8 +674,6 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <Timeline key={JSON.stringify([client.profileId, session.id])} session={session} editor={editorFor(session)} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
     <div className="conversation-reviews">
       <ScriptReviewsPanel key={`scripts:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
-      <SkillAdmissionsPanel key={`skills:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
-      <RewindPanel key={`rewind:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     </div>
     {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
     {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
@@ -866,8 +862,8 @@ function CommandActivity({ sdk, session, snapshot, run, open }: { sdk: MoguriSdk
   </details></>;
 }
 
-function Timeline({ session, editor, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns" }: {
-  session: Session; editor: DraftEditor; snapshot: Snapshot; run: Run; client: MoguriClient; modal: (open: boolean) => void; label?: string; navigationLabel?: string;
+function Timeline({ session, editor, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns", rewind = true }: {
+  session: Session; editor: DraftEditor; snapshot: Snapshot; run: Run; client: MoguriClient; modal: (open: boolean) => void; label?: string; navigationLabel?: string; rewind?: boolean;
 }) {
   const pendingInput = useSyncExternalStore(editor.subscribe, () => editor.getState().pendingInput, () => editor.getState().pendingInput);
   const activity = useSessionActivity(client, session, snapshot);
@@ -967,7 +963,8 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
     </article>}
     <GhostPrompts sdk={client} session={session} snapshot={snapshot} run={run} />
   </div>
-  </div>{navigation.length > 0 && <ConversationNavigation entries={navigation} viewport={scroll} renderedFrom={start} label={navigationLabel} onNavigate={(entry) => {
+  </div>{(navigation.length > 0 || rewind) && <ConversationNavigation entries={navigation} viewport={scroll} renderedFrom={start} label={navigationLabel}
+    rewind={rewind ? { sdk: client, session, snapshot } : undefined} modal={modal} onNavigate={(entry) => {
     follow.current = false; setHistoryStart(Math.min(start, entry.messageIndex));
   }} />}</div>;
 }
@@ -1076,7 +1073,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} modal={modal} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty}
-    openSettings={openSettings} modal={modal} renderTranscript={(side) => <Timeline key={JSON.stringify([client.profileId, side.id])} session={side} editor={editorFor(side)} snapshot={snapshot} run={run} client={client} modal={modal} label="Side chat transcript" navigationLabel="Side chat turns" />}
+    openSettings={openSettings} modal={modal} renderTranscript={(side) => <Timeline key={JSON.stringify([client.profileId, side.id])} session={side} editor={editorFor(side)} snapshot={snapshot} run={run} client={client} modal={modal} label="Side chat transcript" navigationLabel="Side chat turns" rewind={false} />}
     renderQueue={(side) => <Queue session={side} command={(command) => run(() => client.command(command))} client={client} modal={modal} />} />;
   if ((panel === "Code change" || panel === "PR") && snapshot) return <CodeChangePane key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} chooseSession={chooseSession} />;
   if (panel === "Work item" && snapshot) return <section aria-label="Session work item" data-session-id={session.id}><p className="fine-print">{title(session)}</p><SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="issue" onDirty={onDirty} chooseSession={chooseSession} /></section>;

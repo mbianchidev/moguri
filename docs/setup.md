@@ -30,9 +30,12 @@ atomic genuine98 upgrade and the distinction between deletion and approval.
 
 ## Local skill admission and per-turn rewind
 
-Discovery and diagnostic source reading do not admit instructions. In a Local
-conversation, open **Skill source admission**, choose **Find current skills**,
-then review the complete supported package, dependencies, exact version/root
+Discovery and diagnostic source reading do not admit instructions. In desktop
+open **Settings / Skills**, select the actual **Source chat for skill admission**,
+then open **Skill source reviews** and choose **Find current skills**.
+There is no source-review management panel in chat. With no source chat selected,
+settings does not infer a session or workspace. For a Local source chat,
+review the complete supported package, dependencies, exact version/root
 and provenance. An unverified Local/registry publisher needs an explicit
 acknowledgement; an HTTPS archive requires an independently user-pinned
 Ed25519 artifact signature. Neither a repository name nor a digest establishes
@@ -69,8 +72,11 @@ required to stop carrying revoked/obsolete guidance; old grants never revive.
 Unsupported authority-bearing metadata and foreign compatibility declarations
 are rejected, not translated.
 
-**Checkpoints and rewind** lists real before-turn snapshots and actual terminal
-outcomes. Choose a checkpoint to rewind **before that turn**. Inspect its scope,
+The prompt timeline's session sidebar has a **Checkpoints and rewind** action.
+It opens the selected session's review dialog, not an inline conversation panel.
+Opening or closing it does not stop work, preview a restore or change authority.
+The dialog lists real before-turn snapshots and actual terminal outcomes.
+Choose a checkpoint to rewind **before that turn**. Inspect its scope,
 then select conversation-only or workspace restoration. **Stop owned work for
 rewind** explicitly settles this session's work; it does not stop another
 session's writer or private console. The service refuses restoration while
@@ -1166,7 +1172,7 @@ Moguri's application-state directory. Project User consoles use their actual bou
 Moguri worktree. Existing consoles retain their original root; missing or
 invalid HOME fails rather than selecting another directory.
 
-**Settings / Instructions / Skill gateway** accepts a local folder, a public
+**Settings / Instructions / Skills** accepts a local folder, a public
 GitHub repository root such as `https://github.com/owner/skills`, or a direct
 HTTPS `.zip` URL. Add a named source, save it, then **Find skills**. Nested
 `SKILL.md` files use standard YAML front matter. Every search/read rechecks
