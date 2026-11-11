@@ -1883,8 +1883,13 @@ actionable steps. Model checkmarks and estimates live there only, never above
 the textbox, and never prove acceptance or successful completion. An existing
 repository checklist does not become a task plan. **Open workspace plan file**
 still exposes the separately reviewed Local/SSH file editor and retained saves.
-Every actual model question offers **Other, please specify**, with an explicit
-text answer that neither consumes an unrelated draft nor grants tool permission.
+Every actual model question shows its offered answers as a vertical clickable
+list, scrollable when long. **Other** is an always-visible blank field: type an
+answer and press Enter to send it, or use its send icon. Shift+Enter adds a line;
+Cmd/Ctrl+Enter in this field does not answer or queue. The original model's
+Other labels use this field rather than another choice button. Failed saves
+preserve the text for retry. These answers neither consume an unrelated
+composer draft nor grant tool permission.
 
 New consoles use embedded Ghostty and the actual execution host's configured
 login shell, including the account shell when a desktop launch omitted SHELL.
@@ -4751,9 +4756,11 @@ accepted-work validation/commit and exact billing integration remain separate.
 
 The model's `ask_user` tool creates a real typed question with optional choices.
 This is distinct from a heuristic question badge. Desktop shows the exact
-question and offered answers; freeform input uses the existing saved composer,
-whose primary **Answer question** action atomically consumes only its text.
-Choosing an offered answer preserves unrelated draft text. In TUI, **F6**
+question with a scrollable list of offered answers; clicking one sends that
+choice immediately. Its blank **Other** field sends on Enter, including for
+choice-only questions. The ordinary saved composer remains available; its
+primary **Answer question** action atomically consumes only its own text.
+Choosing a list option or sending Other preserves unrelated draft text. In TUI, **F6**
 opens actual choices; Shift+Cmd/Ctrl+Enter answers from saved composer text.
 **Cmd/Ctrl+Enter always holds a queued prompt instead**, including while a
 question is waiting. `/question` inspects the actual pending state; explicit

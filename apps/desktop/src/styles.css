@@ -157,13 +157,15 @@ svg { flex-shrink: 0; }
 .candidate-panel .candidate-binding p { margin: 0; }
 .candidate-panel .candidate-file-review { margin-block: 12px; min-width: 0; }
 .candidate-panel pre { max-height: 260px; overflow: auto; background: var(--code); padding: 10px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 12px; }
-.user-question { margin: 12px 24px; padding: 16px; border: 1px solid var(--control-line); border-radius: 6px; background: var(--surface); max-height: min(280px, 38vh); overflow: hidden; flex-shrink: 0; display: flex; flex-direction: column; }
-.user-question h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 15px; flex-shrink: 0; }
+.user-question { margin: 12px 24px; padding: 12px; border: 1px solid var(--control-line); border-radius: 6px; background: var(--surface); max-height: min(420px, 50dvh); overflow: hidden; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.user-question h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; flex-shrink: 0; }
 .user-question .question-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
-.question-context { min-height: 48px; overflow: auto; }
-.question-choices { max-height: min(160px, 25vh); overflow: auto; flex-shrink: 0; }
-.user-question > .fine-print { flex-shrink: 0; }
-.user-question .button-row button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.question-context { min-height: 24px; max-height: min(104px, 16dvh); overflow: auto; flex-shrink: 1; }
+.question-context > .question-text { margin: 0; }
+.question-choices { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 3px; min-height: 0; max-height: min(200px, 28dvh); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; flex: 1 1 auto; }
+.question-choices > li { min-width: 0; flex-shrink: 0; }
+.question-choices button { width: 100%; padding: 8px 10px; white-space: normal; overflow-wrap: anywhere; text-align: left; line-height: 1.5; }
+.user-question > .fine-print, .user-question > .inline-error { flex-shrink: 0; margin: 0; }
 .muted, .fine-print { color: var(--muted); }
 .fine-print { font-size: 12px; line-height: 1.65; }
 .inline-error, .draft-error { color: var(--danger); font-size: 12px; line-height: 1.5; }
@@ -336,8 +338,9 @@ body:has(.opening-workspace), body:has(#root:empty) { background: #000; }
 .composer-stop:hover:not(:disabled) { color: var(--error-text); border-color: var(--danger); background: var(--error-bg); }
 .composer-mode { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; white-space: nowrap; font-size: 11px; }
 .composer-mode small { color: var(--muted); }
-.question-other { display: grid; gap: 7px; margin-top: 10px; }
-.question-other textarea { width: 100%; min-height: 76px; resize: vertical; font: inherit; }
+.question-other { display: grid; grid-template-columns: auto minmax(0, 1fr) 32px; align-items: center; gap: 8px; flex-shrink: 0; }
+.question-other > label { color: var(--muted); font-size: 12px; }
+.question-other textarea { width: 100%; min-width: 0; min-height: 36px; max-height: 96px; padding: 7px 9px; field-sizing: content; resize: none; font: inherit; line-height: 1.5; }
 .nav-toggle { display: none; }
 .notice { padding: 9px 20px; display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.5; background: var(--selected); color: var(--selection-text); }
 .notice > span { flex: 1; }
@@ -1209,7 +1212,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
   .session-empty p { font-size: 13px; line-height: 1.6; }
   .empty-contract { gap: 6px 12px; padding-top: 12px; }
   .composer > textarea { min-height: 72px; }
-  .user-question { max-height: min(240px, 32dvh); overflow: auto; }
+  .composer[data-question-pending] > textarea { min-height: 44px; max-height: 140px; padding: 9px 12px; }
+  .user-question { max-height: min(360px, 50dvh); }
+  .question-context { max-height: min(64px, 12dvh); }
   .queue { max-height: 20dvh; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }

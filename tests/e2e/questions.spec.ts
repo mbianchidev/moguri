@@ -93,3 +93,89 @@ test("desktop keeps queue-only shortcuts distinct from actual user answers and r
     expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
+
+test("long offered answers form one scrollable list and clicking a choice sends its exact text without consuming a saved prompt", async ({}, info) => {
+  const choices = Array.from({ length: 6 }, (_, index) =>
+    `Generated option ${index + 1}: Inspect the generated input, retain the original fixture unchanged, and report the exact reviewed result before making another independent change.`);
+  const fixture = await setupFixture({ questionChoices: [...choices, "Other", "Other, please specify"] });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure(); await fixture.send("generated structured question choices only");
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), card = page.getByRole("region", { name: "User question", exact: true });
+    await page.setViewportSize({ width: 840, height: 620 });
+    const list = card.getByRole("list", { name: "Offered answers", exact: true }), buttons = list.getByRole("button");
+    await expect(buttons).toHaveCount(choices.length);
+    await expect(card.getByRole("button", { name: "Other", exact: true })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Other, please specify", exact: true })).toHaveCount(0);
+    await expect(card.getByRole("textbox", { name: "Other answer", exact: true })).toHaveValue("");
+    const layout = await buttons.evaluateAll((entries) => entries.map((entry) => {
+      const { x, top, bottom } = entry.getBoundingClientRect(); return { x, top, bottom };
+    }));
+    for (let index = 1; index < layout.length; index++) {
+      expect(Math.abs(layout[index]!.x - layout[0]!.x)).toBeLessThanOrEqual(1);
+      expect(layout[index]!.top).toBeGreaterThanOrEqual(layout[index - 1]!.bottom);
+    }
+    expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight && element.clientHeight > 0)).toBe(true);
+    await page.getByRole("textbox", { name: "Prompt", exact: true }).fill("Generated unrelated saved prompt.");
+    await expect.poll(() => fixture.session().draft.text).toBe("Generated unrelated saved prompt.");
+    await buttons.first().focus();
+    for (let index = 1; index < choices.length; index++) await page.keyboard.press("Tab");
+    await expect(buttons.last()).toBeFocused();
+    await expect(buttons.last()).toBeInViewport({ ratio: 1 });
+    expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect(card.getByRole("textbox", { name: "Other answer", exact: true })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page.screenshot({ path: info.outputPath("question-answer-list.png"), animations: "disabled" });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await list.evaluate((element) => { element.scrollTop = 0; });
+    await card.screenshot({ path: info.outputPath("question-answer-list-wide.png"), animations: "disabled" });
+    const question = fixture.service.controller.snapshot().questions.find((question) => question.status === "open")!;
+    await buttons.last().click();
+    await expect(card).toHaveCount(0);
+    await fixture.terminal(); await sdk.refresh();
+    const answer = sdk.getState().snapshot!.questions.find((entry) => entry.id === question.id)!.answer;
+    expect(answer?.text).toBe(choices.at(-1)); expect(answer?.actor).toBe("user"); expect(answer?.other).toBeUndefined();
+    expect(fixture.session().draft.text).toBe("Generated unrelated saved prompt.");
+    expect(sdk.settings.get()!.values.permissions.tools).toEqual([]);
+    await expect(page.getByRole("form", { name: "Message composer" }).getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("Other starts blank, sends on plain Enter and preserves text for retry without answering on composition or queue shortcuts", async () => {
+  const fixture = await setupFixture({ questionChoices: [] }), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure(); await fixture.send("generated structured question");
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), card = page.getByRole("region", { name: "User question", exact: true });
+    const other = card.getByRole("textbox", { name: "Other answer", exact: true });
+    await expect(other).toHaveValue("");
+    await other.press("Enter");
+    expect(fixture.service.controller.snapshot().questions[0]?.status).toBe("open");
+    await other.fill("Generated explicit alternative.");
+    await other.press("Shift+Enter"); await other.pressSequentially("Generated second line.");
+    const text = "Generated explicit alternative.\nGenerated second line.";
+    await expect(other).toHaveValue(text);
+    await other.press("Meta+Enter"); await other.press("Control+Enter");
+    await other.dispatchEvent("keydown", { key: "Enter", code: "Enter", keyCode: 229, isComposing: true });
+    expect(fixture.service.controller.snapshot().questions[0]?.status).toBe("open");
+    expect(fixture.session().queue).toHaveLength(0); expect(fixture.requests).toHaveLength(1);
+    fixture.service.store.db.exec("CREATE TRIGGER generated_other_answer_failure BEFORE INSERT ON events WHEN json_extract(NEW.data,'$.event_type')='question.answered' BEGIN SELECT RAISE(ABORT,'Generated answer persistence failure'); END");
+    try {
+      await other.press("Enter");
+      await expect(card.getByRole("alert")).toBeVisible();
+      await expect(other).toBeEnabled(); await expect(other).toHaveValue(text);
+      expect(fixture.service.controller.snapshot().questions[0]?.status).toBe("open");
+      expect(fixture.requests).toHaveLength(1);
+    } finally { fixture.service.store.db.exec("DROP TRIGGER generated_other_answer_failure"); }
+    await other.press("Enter");
+    await expect(card).toHaveCount(0);
+    await fixture.terminal(); await sdk.refresh();
+    const answer = sdk.getState().snapshot!.questions[0]!.answer;
+    expect(answer?.text).toBe(text); expect(answer?.other).toBe(true); expect(answer?.actor).toBe("user");
+    expect(fixture.service.controller.events(0).filter((event) => event.event_type === "question.answered")).toHaveLength(1);
+    expect(sdk.settings.get()!.values.permissions.tools).toEqual([]);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
