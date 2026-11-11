@@ -1,6 +1,37 @@
 # First-milestone acceptance and roadmap
 
-## Merged-code audit, 2026-11-10
+## Acceptance continuation, 2026-11-11
+
+The starting merged main is
+[`13001b7`](https://github.com/mbianchidev/moguri/commit/13001b7e206211cc70b32639b155de0b064bf2e1),
+including #62, protocol101 / `0.32.0-alpha.1`. The unchanged milestone criteria
+still govern acceptance. The [current native record](architecture/milestone-combination-matrix.md#current-build-qualification-2026-11-11)
+preserves the initial ten-gate 0.2.4 pass, later startup failures and the
+subsequent reviewed 0.2.5 seven-pass/two-fail/one-skip outcome separately.
+All **3,360 nominal native cells remain unqualified**; neither source test
+counts nor a host installation reduces that set.
+
+The user selected Apple Container 1.7.1 and personally installed the reviewed
+SendBox bytes and matched trusted Apple CLI without agent-driven host/service
+changes. Actual compatible-backend support and newly reported Rust dependency
+repairs are being qualified in
+[mbianchidev/sendbox#85](https://github.com/mbianchidev/sendbox/pull/85).
+Compatible, patched released bytes and their exact new native receipts remain
+prerequisites, not completed main delivery or an inferred scope exclusion.
+
+This Moguri branch adds the complete physical cell runner and direct
+root-disclosure/pre-copy-inspection repairs. Its focused source/build/type and
+fresh packed external SDK checks pass, with zero npm vulnerabilities. Current
+host parsing is not native execution acceptance; original physical retry/
+rewind failures remain open. No reviewed-script Sandbox path or broader UI
+work is claimed by this acceptance continuation.
+
+The requested order remains acceptance under #39, reviewed Sandbox scripts
+under #45, then the explicit #53 interaction polish. The historical audit below
+keeps its original source/PR states and receipts; it is not the newer branch's
+delivery claim.
+
+## Historical merged-code audit, 2026-11-10
 
 The audited main is
 [`2f6c4bc`](https://github.com/mbianchidev/moguri/commit/2f6c4bcfd2755725facdf4250941ac06e130a309),

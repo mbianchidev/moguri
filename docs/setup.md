@@ -1612,11 +1612,12 @@ qualified Apple Containerization 0.10.0 runtime. It is imported with the worker
 archive, rather than downloading a large missing prerequisite inside the
 first guest's startup deadline. Its redistribution notice is included.
 
-The first-use UI and complete archive are implemented, but current physical
-requalification still catches intermittent SendBox guest-supervisor startup
-failure before readiness. Earlier successful project/free-chat cases do not
-qualify every later launch. See the [current evidence and remaining native
-gate](architecture/managed-sandbox.md#current-verification-and-unresolved-native-startup);
+The first-use UI and complete archive are implemented, but the selected Apple
+Container 1.7.1 host still needs compatible, security-patched released SendBox
+bytes and complete native qualification. Earlier 0.10.0 successes do not
+qualify that changed host or every later launch. See the
+[current host/release boundary](architecture/managed-sandbox.md#selected-apple-container-171-boundary)
+and [remaining native matrix](architecture/milestone-combination-matrix.md#current-build-qualification-2026-11-11);
 an enabled setting or admitted setup job is not a ready runtime.
 
 Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens

@@ -494,7 +494,8 @@ test("required native Sandbox cells execute every independent control/input comb
     await writeFile(journalPath, `${JSON.stringify({ version: 1, startedAt, nativeNominalStatus: "RUNNING", axes: milestoneAxes })}\n`, { flag: "wx" });
     const inputs = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
       "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile",
-      "tests/milestone-combinations.test.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-milestone-api.ts",
+      "tests/milestone-combinations.test.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
+      "tests/fixture.ts", "tests/fixtures/native-milestone-api.ts",
       "tests/fixtures/milestone-combinations.ts", "tests/fixtures/milestone-response.ts", "tests/fixtures/native-milestone-provider.mjs"];
     identity.inputs = Object.fromEntries(await Promise.all(inputs.map(async (path) =>
       [path, createHash("sha256").update(await readFile(path)).digest("hex")])));
