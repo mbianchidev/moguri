@@ -6,6 +6,92 @@ import { scriptReviewFixture } from "./fixtures/script-review.ts";
 import { isRecord, MoguriSdk } from "../packages/sdk/src/index.ts";
 import { startService } from "../apps/service/src/server.ts";
 import { waitFor } from "./fixture.ts";
+import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
+
+test("descriptive findings do not contradict an explicit safe full-source assessment", { skip: process.platform !== "darwin" }, async () => {
+  const findings = ["The generated script prints one fixture value and does not access the network."];
+  const fixture = await scriptReviewFixture({ findings });
+  try {
+    await fixture.send("Generated descriptive safe script findings.");
+    const result = await waitFor(() => fixture.service.controller.events(0).find((event) => event.event_type === "tool.completed" &&
+      event.payload.call.name === "review_script" && event.payload.call.arguments.action === "review"));
+    assert.ok(result.event_type === "tool.completed");
+    assert.equal(result.payload.isError, false, result.payload.text);
+    assert.deepEqual(fixture.review()?.advice?.findings, findings);
+    assert.equal(fixture.review()?.advice?.verdict, "safe");
+    await waitFor(() => fixture.session().pendingApproval?.call.name === "run_script");
+    await fixture.approve(false); await fixture.terminal();
+  } finally { await fixture.close(); }
+});
+
+test("safe review approval clears only its notification, preserves an exact pending execution and survives restart without replay", { skip: process.platform !== "darwin" }, async () => {
+  const f = await scriptReviewFixture();
+  let reopened: Awaited<ReturnType<typeof startService>> | undefined, sdk: MoguriSdk | undefined;
+  try {
+    await f.send("Generated safe assessment for explicit review approval.");
+    const approval = await waitFor(() => f.session().pendingApproval?.call.name === "run_script" && f.session().pendingApproval);
+    await f.sdk.refresh();
+    const review = f.review()!, calls = f.requests.length, notifications = f.sdk.attention.list().filter((entry) => entry.reason === "script-review");
+    assert.equal(notifications.length, 1);
+    const snapshot = f.service.controller.snapshot(), banners: Banner[] = [];
+    new AttentionNotifier(0).observe({ ...snapshot, settings: { ...snapshot.settings,
+      values: { ...snapshot.settings.values, notifications: { ...snapshot.settings.values.notifications, os: true, previewContent: false } } } },
+    f.service.controller.events(0), false, (banner) => banners.push(banner));
+    const banner = banners.find((entry) => entry.id === notifications[0]!.id);
+    assert.equal(banner?.inbox, true);
+    assert.equal(banner?.body, "Repository script assessments need your review.");
+    await f.sdk.attention.acknowledge([notifications[0]!.id]);
+    assert.equal(f.review()?.approval, undefined);
+    assert.equal(f.sdk.attention.list().filter((entry) => entry.reason === "script-review").length, 1);
+    const commandId = "generated-approve-safe-script";
+    await f.sdk.scriptReviews.approve(f.sessionId, review.id, review.source.digest, review.revision, f.session().revision, commandId);
+    assert.equal(f.review()?.approval?.actor, "user");
+    assert.equal(f.review()?.approval?.commandId, commandId);
+    assert.equal(f.review()?.revision, review.revision, "Review acknowledgement must not invalidate an admitted execution revision.");
+    assert.equal(f.session().pendingApproval?.id, approval.id);
+    assert.equal(f.sdk.attention.list().some((entry) => entry.reason === "script-review"), false);
+    assert.equal(f.requests.length, calls);
+    await f.sdk.approvals.respond(f.sessionId, approval.id, true);
+    assert.equal((await f.terminal()).status, "completed");
+    const original = structuredClone(f.review()!), totalCalls = f.requests.length;
+    f.sdk.disconnect(); await f.service.close();
+    reopened = await startService({ stateDir: join(f.directory, "state"), provider: f.provider, retentionKey: f.retentionKey });
+    sdk = await new MoguriSdk(reopened.connection).ready();
+    assert.deepEqual((await sdk.scriptReviews.read(f.sessionId, review.id)).review, original);
+    assert.equal(sdk.attention.list().some((entry) => entry.reason === "script-review"), false);
+    assert.equal(f.requests.length, totalCalls);
+  } finally { sdk?.disconnect(); await reopened?.close(); await f.close(); }
+});
+
+test("review approval rejects unsafe, changed, concurrent and unpersisted decisions without lifting execution policy", { skip: process.platform !== "darwin" }, async () => {
+  const unsafe = await scriptReviewFixture({ unsafe: true });
+  try {
+    await unsafe.send("Generated unsafe non-approval."); await unsafe.terminal();
+    const review = unsafe.review()!;
+    await assert.rejects(() => unsafe.sdk.scriptReviews.approve(unsafe.sessionId, review.id, review.source.digest, review.revision), /safe|force|exact/i);
+    assert.equal(unsafe.review()?.approval, undefined);
+    assert.equal(unsafe.session().pendingApproval, null);
+  } finally { await unsafe.close(); }
+  const f = await scriptReviewFixture({ autopilot: true });
+  try {
+    await f.send("Generated exact approval owner."); await f.terminal();
+    const review = f.review()!, calls = f.requests.length;
+    await writeFile(join(f.project, "generated-script.sh"), f.source + "# Generated changed bytes\n");
+    await assert.rejects(() => f.sdk.scriptReviews.approve(f.sessionId, review.id, review.source.digest, review.revision), /source|changed|bytes/i);
+    await writeFile(join(f.project, "generated-script.sh"), f.source);
+    f.service.store.db.exec("CREATE TRIGGER generated_approval_failure BEFORE INSERT ON events WHEN json_extract(NEW.data,'$.event_type')='script.review_approved' BEGIN SELECT RAISE(ABORT,'Generated approval persistence failure'); END");
+    await assert.rejects(() => f.sdk.scriptReviews.approve(f.sessionId, review.id, review.source.digest, review.revision));
+    f.service.store.db.exec("DROP TRIGGER generated_approval_failure");
+    assert.equal(f.review()?.approval, undefined);
+    await f.sdk.refresh();
+    assert.equal(f.sdk.attention.list().filter((entry) => entry.reason === "script-review").length, 1);
+    const sessionRevision = f.session().revision;
+    const results = await Promise.allSettled([1, 2].map(() => f.sdk.scriptReviews.approve(f.sessionId, review.id, review.source.digest, review.revision, sessionRevision)));
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    assert.equal(f.service.controller.events(0).filter((event) => event.event_type === "script.review_approved").length, 1);
+    assert.equal(f.requests.length, calls);
+  } finally { await f.close(); }
+});
 
 test("a legitimate script larger than 64 KiB reaches the actual assessment model as one complete exact source", { skip: process.platform !== "darwin" }, async () => {
   const fixture = await scriptReviewFixture({ unsafe: true, sourcePadding: 96000 });

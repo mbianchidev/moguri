@@ -280,7 +280,7 @@ test("blocked deletion opens the exact partial tool result for inspection withou
     const operation = page.getByRole("log", { name: "Session transcript", exact: true }).locator(".activity-row[data-kind='command']");
     await operation.locator("summary").click();
     await expect(operation.getByRole("region", { name: "Operation result", exact: true })).toContainText("Generated partial tool result.");
-    await expect(operation).toContainText("Inspect it before explicitly choosing Resume");
+    await expect(operation).toContainText("genuinely uncertain effects or cleanup keep further writes fenced");
     expect(sdk.getState().snapshot?.sessions.some((value) => value.id === session.id)).toBe(true);
     expect(fixture.service.controller.events(0).some((event) => event.event_type === "session.resumed" && event.session_id === session.id)).toBe(false);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
@@ -414,7 +414,7 @@ test("every model choice question has an explicit Other textbox that preserves t
     await fixture.configure(); await fixture.send("generated structured question choices only");
     const page = await app.firstWindow(), question = page.getByRole("region", { name: "User question", exact: true });
     await page.getByLabel("Prompt", { exact: true }).fill("Generated unrelated draft");
-    await question.getByRole("button", { name: "Other, please specify", exact: true }).click();
+    await expect(question.getByRole("textbox", { name: "Other answer", exact: true })).toHaveValue("");
     await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated distinct actual user choice");
     await question.getByRole("button", { name: "Send answer", exact: true }).click();
     await expect(question).toHaveCount(0);
@@ -435,7 +435,7 @@ test("question-only side chats expose the same explicit Other answer without cha
     await side.getByRole("textbox", { name: "Side question", exact: true }).fill("generated structured question choices only");
     await side.getByRole("button", { name: "Send", exact: true }).click();
     const question = side.getByRole("region", { name: "User question", exact: true });
-    await question.getByRole("button", { name: "Other, please specify", exact: true }).click();
+    await expect(question.getByRole("textbox", { name: "Other answer", exact: true })).toHaveValue("");
     await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated explicit side alternative");
     await question.getByRole("button", { name: "Send answer", exact: true }).click();
     await expect(question).toHaveCount(0);

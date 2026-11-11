@@ -31,6 +31,14 @@ const bridge: DesktopBridge = {
     ipcRenderer.on("moguri:notification-audio", receive);
     return () => ipcRenderer.removeListener("moguri:notification-audio", receive);
   },
+  onNavigateInbox: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, id: unknown, profileId: unknown) => {
+      if (typeof id === "string" && /^[A-Za-z0-9-]{1,128}$/.test(id) &&
+        typeof profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) listener(id, profileId);
+    };
+    ipcRenderer.on("moguri:navigate-inbox", receive);
+    return () => ipcRenderer.removeListener("moguri:navigate-inbox", receive);
+  },
   onNativeError: (listener) => {
     const receive = (_event: Electron.IpcRendererEvent, profileId: unknown, message: unknown) => { if (typeof profileId === "string" && typeof message === "string" && message.length <= 2048) listener(profileId, message); };
     ipcRenderer.on("moguri:native-error", receive);

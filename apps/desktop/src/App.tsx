@@ -31,7 +31,6 @@ import type { CommandClientAttachment, CommandExecution, CommandViewContext, Com
 import { ReorderList } from "./ReorderList.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
-import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
 import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 import { canApplyOpeningDraft, createStartupView, isModelDiscoveryPending, readStartupView, saveStartupView, type OpeningDraft, type StartupModel, type StartupView } from "./startup-cache.ts";
 import { StartupModelContext } from "./StartupModelContext.ts";
@@ -435,6 +434,18 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       } else openInbox(id);
     })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The exact notification profile/item could not be opened."));
   }), [client.profileId, openProfile]);
+  useEffect(() => window.moguri.onNavigateInbox((id, profileId) => {
+    void (async () => {
+      if (profileId === client.profileId && !canNavigate()) return;
+      const target = profileId === client.profileId ? client : await openProfile(profileId);
+      if (!target || target.profileId !== profileId) return;
+      if (!target.getState().snapshot?.attention.some((entry) => entry.id === id && entry.reason === "script-review")) {
+        throw new Error("The original script notification is unavailable in this profile. No different review was opened.");
+      }
+      if (target === client) openGlobal("Attention", null, true);
+      else { setGlobalSessionId(null); setGlobalView("Attention"); }
+    })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The original script notification could not be opened."));
+  }), [client, openProfile]);
   const chooseProject = (id: string | null) => {
     if (!canNavigate()) return;
     if (boardOpen && id === projectId) { setBoardOpen(false); return; }
@@ -664,6 +675,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   }, [nativeModal, terminalDismiss, composerMenuOpen, snapshot?.settings.values.shortcuts?.commands]);
   const chatContent = session && snapshot ? <>
     <HomeWriterReview key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} chooseSession={chooseSession} />
+    {activeWorkspace?.status === "creating" && <p className="fine-print" role="status">Preparing the isolated worktree. Queued prompts wait for its actual root; the original checkout is not used.</p>}
+    {session.toolRecovery?.turnId === session.turnId && <Alert as="p" tone="warning" role="status">The agent is continuing read-only recovery. An original tool still has unconfirmed effects or cleanup; further writes remain fenced.</Alert>}
     {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
       <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
         {continuedWork.diagnostic && <p>{continuedWork.diagnostic}</p>}</div>
@@ -672,9 +685,6 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       {continuedWork.prUrl && <button type="button" onClick={() => void run(async () => { await window.moguri.openExternal(continuedWork.prUrl!); })}>Open published PR</button>}
     </section>}
     <Timeline key={JSON.stringify([client.profileId, session.id])} session={session} editor={editorFor(session)} snapshot={snapshot} run={run} client={client} modal={setNativeModal} />
-    <div className="conversation-reviews">
-      <ScriptReviewsPanel key={`scripts:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
-    </div>
     {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
     {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
     {session.pendingApproval && <section className="approval" aria-label="Tool approval">
@@ -904,12 +914,12 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
       return visible.length ? <article className="message notice" key={`output-${message.id}`} aria-label="Original tool outputs">
         <header><strong>Tool outputs</strong><span>{message.outcome}</span></header>{renderOutputs(visible)}</article> : null;
     }
-    const hidden = message.role === "assistant" && !message.text && (message.toolCalls?.length || !message.outcome);
+    const hidden = message.role === "assistant" && !message.text.trim() && !outputs.length;
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
       aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
           {message.role !== "notice" && <CopyButton className="message-copy" title="Copy message" label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} text={message.text} />}</header>
-        <div className="markdown"><Suspense fallback={<p>{message.text || "Working..."}</p>}><RichMessage text={message.text || (message.outcome ? "No text response was returned." : "Working...")} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>
+        {message.text && <div className="markdown"><Suspense fallback={<p>{message.text}</p>}><RichMessage text={message.text} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><div className="reasoning markdown"><Suspense fallback={<p>{message.reasoning}</p>}><RichMessage text={message.reasoning} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
         {message.attachments?.filter((attachment): attachment is Extract<typeof attachment, { kind: "html" }> => attachment.kind === "html")
@@ -938,7 +948,7 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
           {messages.some((message) => message.role === "tool") && activity.loading && <p className="fine-print" role="status">Loading retained operations...</p>}
           {session.turnId === turnId && !activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === turnId)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
           {messages[0]?.turnId && <TurnActions sdk={client} sessionId={session.id} turnId={turnId} info={snapshot.sessionTelemetry?.[session.id]?.turns.find((info) => info.turnId === turnId)}
-            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text))} modal={modal} />}
+            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text.trim()))} modal={modal} />}
         </section>
       </div>;
     })}
