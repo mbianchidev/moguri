@@ -1604,7 +1604,7 @@ Historical source qualifications below are not relabeled as this integrated run.
 ## Managed SendBox
 
 On supported Apple-silicon macOS with Apple Containerization available, the app
-includes SendBox **0.2.4**, a versioned no-script installer, and a compatible
+includes reviewed SendBox **0.2.5**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
 The installer also carries the pinned public Apple init image used by the
@@ -1624,7 +1624,7 @@ Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens
 Review the actual runtime and workspace/network policy, acknowledge it, then
 choose **Enable SendBox**. No configuration editor, paths, build or manual
 workspace preparation is required. An already configured exact root-owned
-0.2.4 installation can be reused. A fresh installation requests your administrator
+0.2.5 installation can be reused. A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
@@ -1648,7 +1648,7 @@ Provider networking uses the actual prepared HTTPS endpoint, not an assumed
 canonical Copilot host. Managed policy resolves and allows its bounded public
 CNAME chain automatically, capturing the effective hosts with the original
 execution. No permanent historical grant or hardcoded alias is inferred.
-`github.com` and `api.github.com` are default tool grants. In SendBox 0.2.4,
+`github.com` and `api.github.com` are default tool grants. From SendBox 0.2.4,
 `github.com` also delegates GitHub Meta domains and IPv4/IPv6 CIDRs, including
 shared-cloud ranges, refreshed before readiness and hourly. This is broader than
 exact-host-only egress and can cover shared infrastructure; setup review states
@@ -1666,9 +1666,11 @@ additional wildcard is added automatically by Moguri. Per the owner's explicit
 choice, 0.2.4's default GitHub grant includes the disclosed Meta delegation.
 Selected-provider credentials and tool approvals remain separate.
 
-New factory defaults select 0.2.4. An explicitly saved 0.2.3 selection and its
-release/approval records remain unchanged; using the new bundle still requires
-review. See [the release pins and upgrade boundary](architecture/managed-sandbox.md#default-sendbox-024).
+New factory defaults select 0.2.5. Explicitly saved 0.2.3/0.2.4 selections and
+their release/approval records remain unchanged; using the new bundle still
+requires exact review and personal OS installation approval. The reviewed
+0.2.5 archive/installer is not yet a physical matrix pass. See
+[the current release review](architecture/managed-sandbox.md#reviewed-025-distribution-2026-11-11).
 
 **Check public SendBox releases** checks at startup and every four hours when
 enabled. **Check SendBox updates now** uses the same fixed public repository with
@@ -1706,7 +1708,7 @@ through the Node SDK; root/React entrypoints remain browser-safe. See the
 
 ### Reproducing exact native qualification
 
-The [current protocol82 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-82-command-and-tool-follow-up)
+The [historical protocol82 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-82-command-and-tool-follow-up)
 are separate from the [packaged combined80 cut](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up),
 historical 0.2.3/protocol76/77 runs and package-only verification. This cut
 includes actual two-root execution and separate source publication, not just
@@ -1718,11 +1720,11 @@ then use its printed directory and matching image receipt:
 node --import tsx scripts/qualify-sandbox.mjs \
   --distribution /absolute/path/to/current/distribution \
   --workload /absolute/path/to/current/distribution/image.json \
-  --archive .native/sendbox-distribution/0.2.4/sendbox-0.2.4-macos-arm64.tar.gz
+  --archive .native/sendbox-distribution/0.2.5/sendbox-0.2.5-macos-arm64.tar.gz
 ```
 
 Use the pinned Node 26.12.0 runtime. The harness requires an already approved
-exact installation at `/opt/moguri/sendbox/0.2.4` and running Apple
+exact installation at `/opt/moguri/sendbox/0.2.5` and running Apple
 Containerization on Apple-silicon macOS. An explicitly reviewed alternative
 canonical installation root can be supplied with `--installation-root`.
 It never installs components, approves macOS dialogs, forwards personal

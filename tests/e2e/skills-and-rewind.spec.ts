@@ -90,7 +90,7 @@ test("the actual private Sandbox guest rewinds through hidden desktop confirmati
   const distribution = process.env.MOGURI_SANDBOX_DISTRIBUTION;
   test.skip(process.arch !== "arm64" || !distribution, "Actual native desktop acceptance needs this checkout's explicit current distribution and verified installed runtime.");
   const verified = await readSandboxDistribution(distribution!, AbortSignal.timeout(30000));
-  const f = await nativeApiFixture(distributionConfiguration(verified.distribution, "/opt/moguri/sendbox/0.2.4"), { distribution });
+  const f = await nativeApiFixture(distributionConfiguration(verified.distribution), { distribution });
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined, passed = false;
   try {
     const settings = f.sdk.settings.get()!;

@@ -36,7 +36,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
-    await expect(panel).toContainText("0.2.4");
+    await expect(panel).toContainText(generated.distribution.vendor.version);
     await expect(page.getByLabel("SendBox configuration", { exact: true })).not.toBeVisible();
     await panel.getByRole("button", { name: "Review bundled setup", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
@@ -115,7 +115,7 @@ for (const projectFree of [false, true]) test(`actual first-use SendBox sends in
     await openSettingsSection(page, "Sandbox");
     const retained = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     await expect(retained).toContainText("shared-cloud");
-    await expect(retained).toContainText("0.2.4");
+    await expect(retained).toContainText(configuration.qualification!.release);
     await expect(retained).not.toContainText("Exact entries stay exact");
     expect(provider.requests.length).toBe(0); expect(errors).toEqual([]); passed = true;
   } finally { await app.close(); await fixture.close(passed); }
