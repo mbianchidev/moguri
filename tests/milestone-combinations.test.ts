@@ -169,6 +169,8 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
     assert.match(execution.planDigest!, /^[a-f0-9]{64}$/);
     assert.match(execution.signerFingerprint!, /^[a-f0-9]{64}$/);
     assert.equal(execution.workerOutcome, "completed");
+    assert.deepEqual(execution.config.qualification!.allowedDomains, ["api.githubcopilot.com"]);
+    assert.deepEqual(execution.networkScope?.allowedDomains, ["api.githubcopilot.com"]);
     assert.equal(await readFile(join(fixture.project, "fixture.txt"), "utf8"), "generated original\n");
     nativeReceipt = {
       executionId: execution.id, nativeSessionId: execution.nativeSessionId, image: execution.image,
@@ -176,6 +178,7 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
       signerFingerprint: execution.signerFingerprint, frameCursor: execution.lastSequence, journal: retained.journal,
       rootDigest: frameDigest(execution.stage.workspace), sourceRootDigest: frameDigest(execution.sourceRoot), inputDigest: execution.inputDigest,
       witnessSha256: createHash("sha256").update(witness.text).digest("hex"), guestPid: proof.pid, uid: proof.uid,
+      network: { kind: "provider-only-generated-inference", scope: execution.networkScope },
       sourceUnchanged: true, ownedGuestAbsent: true,
     };
   }
@@ -495,6 +498,7 @@ test("required native Sandbox cells execute every independent control/input comb
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     dirtyAtStart: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()),
     protocol: PROTOCOL_VERSION, node: process.version, image: native.image, qualification: native.qualification,
+    fixtureNetwork: { toolDomains: [], providerHosts: ["api.githubcopilot.com"], inference: "in-guest generated HTTP; real factory/cold network gates remain separate" },
     inputs: {} as Record<string, string>,
   };
   let writes = Promise.resolve(), diagnostic: string | null = null;

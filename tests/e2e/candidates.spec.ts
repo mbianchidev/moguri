@@ -2,11 +2,57 @@ import { openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
 import { candidateApiFixture } from "../fixtures/candidate-api.ts";
+import { PROTOCOL_VERSION, type CandidateTransportRecord } from "../../packages/sdk/src/index.ts";
+import { digest } from "../../apps/service/src/store.ts";
+import { startService } from "../../apps/service/src/server.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native candidate clients are qualified on macOS.");
+
+test("recovered partial peer status cannot masquerade as an acknowledged terminal frame", async () => {
+  const f = await candidateApiFixture(), id = randomUUID(), hash = "a".repeat(64), resultDigest = f.service.store.putBlob("Generated retained partial result.");
+  const initial: CandidateTransportRecord = { version: 1, id, ownerId: "generated-read", ownerKind: "read", profileId: "default",
+    sessionId: f.sessionId, projectId: f.session().projectId, operationDigest: hash, authorityDigest: hash,
+    boundary: { env: "Remote", sourceRoot: "/generated/original-peer", workerDigest: hash, configurationDigest: hash, peerDigest: hash },
+    launchJson: JSON.stringify({ kind: "Remote" }), observationJson: null, revision: 0, sequence: 0,
+    status: "running", resultDigest: null, stopRequested: false, terminalAcknowledged: false, cleanupConfirmed: false, diagnostic: null };
+  const partial = { ...initial, revision: 1, status: "partial" as const, sequence: 5, diagnostic: "Generated original terminal ACK was lost." };
+  const recovered: CandidateTransportRecord = { ...partial, revision: 2, sequence: 8, resultDigest, cleanupConfirmed: true,
+    recovery: { version: 1, actor: "user", commandId: randomUUID(), commandDigest: hash, inspectedAt: new Date().toISOString(),
+      evidence: { version: 1, fromSequence: 5, resultDigest,
+        journal: { runId: id, root: initial.boundary.sourceRoot, workerDigest: hash, protocol: PROTOCOL_VERSION, workerPid: 123,
+          acknowledged: 5, sequence: 8, status: "partial", cleanup: "owned-worker-stopped", proof: hash },
+        frames: [{ sequence: 6, digest: hash, kind: "candidate.complete" }, { sequence: 7, digest: hash, kind: "ack" },
+          { sequence: 8, digest: digest("Generated original partial terminal."), kind: "finished" }],
+        terminal: { source: "frame", originalAcknowledged: false, peerAcknowledged: true, outcome: "partial",
+          sequence: 8, digest: digest("Generated original partial terminal."), requestId: "generated-terminal" } } } };
+  for (const transport of [initial, partial, recovered]) f.service.store.commit([{ event_type: "candidate.transport_recorded",
+    profile_id: "default", project_id: f.session().projectId, session_id: f.sessionId, payload: { transport } }]);
+  const stateDir = dirname(f.service.store.path);
+  f.sdk.disconnect(); await f.service.close();
+  const service = await startService({ stateDir, provider: f.provider, retentionKey: f.retentionKey,
+    platform: { terminal: { defaultRoot: f.home, vault: f.terminalVault } } });
+  let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
+  try {
+    app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+      env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
+    const page = await app.firstWindow();
+    await openSettingsSection(page, "Candidates");
+    await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
+    const panel = page.getByRole("region", { name: "Original candidate transport recovery", exact: true });
+    await panel.getByLabel("Retained candidate transport", { exact: true }).selectOption(id);
+    await expect(panel).toContainText("Original controller terminal-ACK event: false");
+    await expect(panel).toContainText("Original peer status: partial");
+    await expect(panel).toContainText("Peer ACK cursor: 5/8");
+    await expect(panel).toContainText("Retained terminal frame: 8");
+    await expect(panel).not.toContainText("Original peer terminal ACK: true");
+    await expect(panel.getByRole("button", { name: "Reconcile original receipts read-only", exact: true })).toBeDisabled();
+    expect(service.controller.snapshot().budgetEntries).toHaveLength(0); expect(f.requests).toHaveLength(0);
+  } finally { try { await app?.close(); } finally { try { await service.close(); } finally { await f.close(); } } }
+});
 
 test("candidate creation stays disabled for plain folders and project-free chats after a Git project was selected", async () => {
   const f = await candidateApiFixture(), folder = join(f.directory, "generated-folder");

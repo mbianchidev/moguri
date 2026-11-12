@@ -94,33 +94,32 @@ acceptance**. No actual gate is removed or silently narrowed:
   CI pass. Generated/local source and package success cannot replace it.
 
 The latest main
-[run 42838925934](https://github.com/mbianchidev/moguri/actions/runs/42838925934),
-for `2f6c4bc`, failed on 2026-11-10 before either OS job ran a step.
+[run 42984028685](https://github.com/mbianchidev/moguri/actions/runs/42984028685),
+for `13001b7`, failed on 2026-11-11 before either OS job ran a step.
 Both annotations still say recent payments failed or the spending limit
 needs increasing. This is a refreshed account-owned gate, not a diagnosis of
 an install/build/test failure. Separate notices mention macOS arm64 capacity
 and the Ubuntu 26 label migration. CI stays main-push-only; absent branch/PR
 checks are not green CI. No rerun, billing action or trigger change was made.
 
-### Native evidence is no longer a blanket startup blocker
+### Current native evidence remains exact-build scoped
 
-The protocol99 [exact physical receipt](architecture/session-inbox.md#exact-retained-identities)
-records all ten selected gates passing, including real provider/network checks,
-verified owned-guest teardown, retry/checkpoint behavior, three rewind scopes
-and a hidden packaged native restoration. It does **not** qualify every native
-matrix cell, arbitrary reviewed scripts or a different app/worker.
-This branch's rebuilt worker, bridge and MCP-worker SHA-256 values were checked
-against that receipt and match; the new desktop/service presentation cut still
-keeps its own identity and evidence.
+The user installed independently verified, released
+[SendBox0.2.6](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.6).
+It includes matched Container1.7.1 support and patched host/guest dependencies.
+At clean `a91f8a9`, all ten protocol101 selected physical gates pass, including
+real cold provider/network policy, owned-guest teardown, retry/checkpoints,
+three rewind scopes and hidden desktop restoration. Historical failures retain
+their original outcomes; earlier reviewed0.2.5 bytes are not retroactively
+dependency-patched.
 
-The old statement that the DNS repair is unreleased is obsolete:
-[SendBox v0.2.5](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.5)
-was published 2026-11-08 and includes
-[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80).
-Moguri still pins reviewed 0.2.4 bytes. No upgrade or fresh host/runtime probe
-was performed by this audit. Historical failed startup/DNS runs stay failed;
-neither their old universal-blocker wording nor a new upstream release replaces
-the current exact receipts or missing wider matrix evidence.
+The separately approved [protocol102 native identity repair](architecture/candidate-transports.md#versioned-native-identity-repair)
+changes worker/bridge bytes. Its [current-image continuation](architecture/milestone-combination-matrix.md#protocol102-continuation-2026-11-12)
+passes focused actual native candidates, original rollback-journal recovery,
+real guest Cascade/Critique tests and every native TUI/desktop selection.
+Those are not all3,360 nominal cells, the full remaining loss/concurrency set,
+arbitrary reviewed scripts or a new ten-gate/final integrated receipt. Earlier
+protocol99/101 receipts cannot qualify changed102 bytes.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing

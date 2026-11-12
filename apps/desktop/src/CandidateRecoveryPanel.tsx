@@ -49,7 +49,9 @@ export function CandidateRecoveryPanel({ sdk, session, scope }: { sdk: MoguriSdk
         })}>Reconcile original receipts read-only</button></div>
     {selected && <div className="candidate-binding">
       <p className="fine-print path">{selected.boundary.env} / original root: {selected.boundary.sourceRoot}<br />Worker build: {selected.boundary.workerDigest}<br />Operation: {selected.status}. Cleanup: {selected.cleanupConfirmed ? "confirmed by retained owned-work evidence" : "unconfirmed; ownership remains quarantined"}.</p>
-      <p className="fine-print">Original controller terminal-ACK event: {String(selected.terminalAcknowledged)}. Original peer terminal ACK: {selected.recovery ? String(selected.recovery.evidence.terminal.peerAcknowledged) : "not reconciled"}.</p>
+      <p className="fine-print">Original controller terminal-ACK event: {String(selected.terminalAcknowledged)}. {selected.recovery ?
+        <>Original peer status: {selected.recovery.evidence.journal.status}. Peer ACK cursor: {selected.recovery.evidence.journal.acknowledged}/{selected.recovery.evidence.journal.sequence}.
+          {" "}Retained terminal frame: {selected.recovery.evidence.terminal.sequence ?? "not retained"}.</> : "Original peer status/ACK cursor: not reconciled."}</p>
       {selected.diagnostic && <Alert as="p" role="status">{selected.diagnostic}</Alert>}
       {!standalone(selected) && <p className="fine-print">This transport belongs to an original public compound parent. Standalone reconciliation cannot adopt its model/test or cleanup authority.</p>}
       {selected.recovery && <details><summary>Exact retained reconciliation evidence</summary><pre>{JSON.stringify(selected.recovery, null, 2)}</pre></details>}
