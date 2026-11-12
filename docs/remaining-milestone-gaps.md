@@ -127,6 +127,14 @@ Its487 observed passes are not accepted cells. The user-approved maintained
 PTY beta fixes the600-exit allocator regression; its changed dependency/image
 still requires the fresh complete nominal and final integrated receipts.
 
+The subsequent host-only echo repair is also not final acceptance: a fresh TUI
+case exposes independent guest-PTY restoration after the worker completed.
+The [nested terminal repair](architecture/milestone-combination-matrix.md#nested-private-terminal-repair-2026-11-12)
+preserves strict control rejection and requires new exact bridge/image evidence.
+The interrupted639 observed native cells qualify zero of the3,360 required
+cells. Original setup failures during an observed external Meta quota window
+and interrupted source invocations are retained, not relabeled green.
+
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing
 enforceable wire stays blocked; optional Laya is not a hidden milestone gate.
