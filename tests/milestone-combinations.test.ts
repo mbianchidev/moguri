@@ -18,7 +18,7 @@ import { nativeConfiguration } from "./fixtures/native-target.ts";
 import { nativeMilestoneFixture } from "./fixtures/native-milestone-api.ts";
 import { waitFor } from "./fixture.ts";
 import {
-  configureMilestoneRouting, milestoneAxes, milestoneBudget, milestoneCellId, milestoneResponses, requiredMilestoneCells,
+  configureMilestoneRouting, milestoneAxes, milestoneBudget, milestoneCellId, milestoneResponses, nativeMilestoneWitness, requiredMilestoneCells,
   type MilestoneCell, type MilestoneFixture,
 } from "./fixtures/milestone-combinations.ts";
 
@@ -148,8 +148,7 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
     const retained = (await fixture.sdk.sandbox.result(execution.id)).result;
     assert.ok(retained);
     assert.equal(retained.journal.status, "verified");
-    const witness = retained.files.find((file) => file.path === "generated-native-matrix.json");
-    assert.ok(witness);
+    const witness = await nativeMilestoneWitness(execution, retained);
     const proof: unknown = JSON.parse(witness.text);
     assert.ok(isRecord(proof) && Array.isArray(proof.calls));
     assert.equal(proof.platform, "linux");
@@ -177,7 +176,8 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
       workerDigest: execution.workerDigest, configurationDigest: execution.configDigest, planDigest: execution.planDigest,
       signerFingerprint: execution.signerFingerprint, frameCursor: execution.lastSequence, journal: retained.journal,
       rootDigest: frameDigest(execution.stage.workspace), sourceRootDigest: frameDigest(execution.sourceRoot), inputDigest: execution.inputDigest,
-      witnessSha256: createHash("sha256").update(witness.text).digest("hex"), guestPid: proof.pid, uid: proof.uid,
+      witnessSha256: witness.digest, witnessBytes: witness.bytes, witnessAuditDigest: witness.auditDigest, witnessAfterId: witness.afterId,
+      guestPid: proof.pid, uid: proof.uid,
       network: { kind: "provider-only-generated-inference", scope: execution.networkScope },
       sourceUnchanged: true, ownedGuestAbsent: true,
     };
@@ -301,6 +301,28 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   await fixture.sdk.sessions.delete(sessionId, true);
   return result;
 }
+
+test("native qualification reads an oversized original signed witness without relaxing user output limits", {
+  skip: !native, timeout: 90000,
+}, async () => {
+  assert.ok(native);
+  const fixture = await nativeMilestoneFixture(native);
+  try {
+    await configureMilestoneRouting(fixture, "cascade");
+    const { configuration } = await fixture.sdk.projects.configuration(fixture.session().projectId);
+    await fixture.sdk.projects.configure(configuration.projectId, { ...configuration.values,
+      instructions: "Generated qualification context; not permission or instructions to execute tools.\n".repeat(64) }, configuration.revision);
+    await runCell(fixture, { env: "Sandbox", selection: "cascade", autonomy: "Guided", budget: "unlimited",
+      window: "maximum", effort: "default", input: "document" });
+    const execution = fixture.service.controller.snapshot().sandboxExecutions![0]!;
+    const result = (await fixture.sdk.sandbox.result(execution.id)).result;
+    assert.ok(result);
+    assert.equal(result.files.some((file) => file.path === "generated-native-matrix.json"), false);
+    assert.ok(result.excluded.some((file) => file.path === "generated-native-matrix.json" && file.reason.includes("128-KiB")));
+    const witness = await nativeMilestoneWitness(execution, result);
+    assert.ok(witness.bytes > 128 * 1024 && witness.bytes <= 2 * 1024 * 1024);
+  } finally { await fixture.close(); }
+});
 
 for (const env of ["Local", "Remote", "Sandbox"] as const)
   for (const selection of milestoneAxes.selection)
@@ -507,7 +529,7 @@ test("required native Sandbox cells execute every independent control/input comb
     await mkdir(directory, { recursive: true });
     await writeFile(journalPath, `${JSON.stringify({ version: 1, startedAt, nativeNominalStatus: "RUNNING", axes: milestoneAxes })}\n`, { flag: "wx" });
     const inputs = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
-      "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile",
+      "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile", "apps/service/src/native-evidence.ts",
       "tests/milestone-combinations.test.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
       "tests/fixture.ts", "tests/fixtures/native-milestone-api.ts",
       "tests/fixtures/milestone-combinations.ts", "tests/fixtures/milestone-response.ts", "tests/fixtures/native-milestone-provider.mjs"];

@@ -139,6 +139,13 @@ The [terminal ACK ordering repair](architecture/milestone-combination-matrix.md#
 addresses the accepted reply releasing the peer before its durable ACK, without
 ignoring any unknown frame or changing authentication. Its fresh complete
 qualification remains separate from earlier passing feature-specific gates.
+The complete51fce72 source invocation now passes all6,720 Local/SSH nominal
+cells and its wider source suite. Its separate native harness correctly
+retains an oversized-proof assertion failure as unqualified: the unchanged
+128-KiB user output projection is not a qualification-proof reader. The
+[bounded original signed-proof correction](architecture/milestone-combination-matrix.md#complete-source-and-bounded-native-proofs-2026-11-12)
+changes only qualification/tests, not runtime bytes or publication policy, and
+still requires the fresh complete native set.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing
