@@ -134,6 +134,11 @@ preserves strict control rejection and requires new exact bridge/image evidence.
 The interrupted639 observed native cells qualify zero of the3,360 required
 cells. Original setup failures during an observed external Meta quota window
 and interrupted source invocations are retained, not relabeled green.
+The subsequent combined host/guest setup still exposes late controller packets.
+The [terminal ACK ordering repair](architecture/milestone-combination-matrix.md#terminal-ack-ordering-repair-2026-11-12)
+addresses the accepted reply releasing the peer before its durable ACK, without
+ignoring any unknown frame or changing authentication. Its fresh complete
+qualification remains separate from earlier passing feature-specific gates.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing
