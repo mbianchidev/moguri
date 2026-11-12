@@ -837,6 +837,12 @@ Hosted decision calls need their own approved data destination, scoped secret re
 
 ## Milestone acceptance criteria
 
+The protocol102 native candidate identity repair binds new v3 roots to their
+actual controller-private stage, with separately retained per-VM inode grants.
+Historical native v2 receipts remain inspectable, never silently relabeled or
+authorized for new effects. See the [versioned candidate transport contract](architecture/candidate-transports.md#versioned-native-identity-repair).
+The earlier protocol101 physical receipts do not qualify these changed workers.
+
 The first milestone is complete only when all of the following hold:
 
 - A session created in the TUI appears and can be controlled in the desktop app, and vice versa.

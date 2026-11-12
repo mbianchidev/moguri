@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import { execFile, execFileSync } from "node:child_process";
 import { appendFile, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
@@ -324,32 +324,42 @@ test(`mixed approved image/document ${env}/${selection} context reaches every ac
   } finally { await fixture.close(); }
 });
 
+async function actorGroup(group: TestContext, env: MilestoneCell["env"], selection: MilestoneCell["selection"]) {
+  const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
+    await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
+  try {
+    await configureMilestoneRouting(fixture, selection);
+    const settings = fixture.sdk.settings.get()!;
+    await fixture.sdk.settings.update({
+      ...settings.values, decisions: { ...settings.values.decisions, technicalQuestions: [{
+        id: "generated-matrix-technical", kind: "technical-choice", question: "Choose a generated matrix approach?",
+        choices: ["Generated first choice", "Generated second choice"],
+      }] },
+    }, settings.revision);
+    for (const autonomy of milestoneAxes.autonomy) for (const budget of milestoneAxes.budget) {
+      let passed = false;
+      await group.test(`${autonomy}/${budget}`, { timeout: cellTimeout }, async () => {
+        await runCell(fixture, { env, selection, autonomy, budget, window: "maximum", effort: "default", input: "text" }, { question: true });
+        passed = true;
+      });
+      assert.ok(passed, "A required actual-actor/cap case failed; no later group case is inferred successful.");
+    }
+  } finally { await fixture.close(); }
+}
+
 test("every Local/SSH selection and cap preserves actual Manual/Guided/Autopilot answers or one bounded-model Max decision", {
   skip: process.platform !== "darwin", concurrency,
   timeout: setupTimeout + actorGroupTimeout * Math.ceil(2 * milestoneAxes.selection.length / concurrency),
 }, async (t) => {
   await Promise.all((["Local", "Remote"] as const).flatMap((env) => milestoneAxes.selection.map((selection) =>
-    t.test(`${env}/${selection}`, { timeout: actorGroupTimeout }, async (group) => {
-      const fixture = await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
-      try {
-        await configureMilestoneRouting(fixture, selection);
-        const settings = fixture.sdk.settings.get()!;
-        await fixture.sdk.settings.update({
-          ...settings.values, decisions: { ...settings.values.decisions, technicalQuestions: [{
-            id: "generated-matrix-technical", kind: "technical-choice", question: "Choose a generated matrix approach?",
-            choices: ["Generated first choice", "Generated second choice"],
-          }] },
-        }, settings.revision);
-        for (const autonomy of milestoneAxes.autonomy) for (const budget of milestoneAxes.budget) {
-          let passed = false;
-          await group.test(`${autonomy}/${budget}`, { timeout: cellTimeout }, async () => {
-            await runCell(fixture, { env, selection, autonomy, budget, window: "maximum", effort: "default", input: "text" }, { question: true });
-            passed = true;
-          });
-          assert.ok(passed, "A required actual-actor/cap case failed; no later group case is inferred successful.");
-        }
-      } finally { await fixture.close(); }
-    }))));
+    t.test(`${env}/${selection}`, { timeout: actorGroupTimeout }, (group) => actorGroup(group, env, selection)))));
+});
+
+test("every native selection and cap preserves actual Manual/Guided/Autopilot answers or one bounded-model Max decision", {
+  skip: !native, concurrency: 2, timeout: setupTimeout + actorGroupTimeout * Math.ceil(milestoneAxes.selection.length / 2),
+}, async (t) => {
+  await Promise.all(milestoneAxes.selection.map((selection) =>
+    t.test(`Sandbox/${selection}`, { timeout: actorGroupTimeout }, (group) => actorGroup(group, "Sandbox", selection))));
 });
 
 for (const env of ["Local", "Remote"] as const) for (const selection of ["fixed", "automatic-single"] as const)
