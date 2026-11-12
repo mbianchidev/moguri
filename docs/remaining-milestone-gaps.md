@@ -14,10 +14,14 @@ counts nor a host installation reduces that set.
 The user selected Apple Container 1.7.1 and personally installed the reviewed
 SendBox bytes and matched trusted Apple CLI without agent-driven host/service
 changes. Actual compatible-backend support and newly reported Rust dependency
-repairs are being qualified in
+repairs were merged in
 [mbianchidev/sendbox#85](https://github.com/mbianchidev/sendbox/pull/85).
-Compatible, patched released bytes and their exact new native receipts remain
-prerequisites, not completed main delivery or an inferred scope exclusion.
+The user then directed use of published 0.2.6 and personally installed its
+reviewed side-by-side package. Exact hosted-workflow provenance, unchanged
+Ed25519 trust root, every signed guest artifact and patched release locks are
+verified; factory/producer/qualifier defaults now select 0.2.6 without changing
+saved older choices. Fresh current-payload native receipts remain prerequisites,
+not completed main delivery or an inferred scope exclusion.
 
 This Moguri branch adds the complete physical cell runner and direct
 root-disclosure/pre-copy-inspection repairs. Its focused source/build/type and

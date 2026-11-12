@@ -1604,7 +1604,7 @@ Historical source qualifications below are not relabeled as this integrated run.
 ## Managed SendBox
 
 On supported Apple-silicon macOS with Apple Containerization available, the app
-includes reviewed SendBox **0.2.5**, a versioned no-script installer, and a compatible
+includes reviewed SendBox **0.2.6**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
 The installer also carries the pinned public Apple init image used by the
@@ -1613,8 +1613,9 @@ archive, rather than downloading a large missing prerequisite inside the
 first guest's startup deadline. Its redistribution notice is included.
 
 The first-use UI and complete archive are implemented, but the selected Apple
-Container 1.7.1 host still needs compatible, security-patched released SendBox
-bytes and complete native qualification. Earlier 0.10.0 successes do not
+Container 1.7.1 host now has a separately reviewed compatible, security-patched
+SendBox release. Complete current-payload native qualification is still required.
+Earlier 0.10.0 successes do not
 qualify that changed host or every later launch. See the
 [current host/release boundary](architecture/managed-sandbox.md#selected-apple-container-171-boundary)
 and [remaining native matrix](architecture/milestone-combination-matrix.md#current-build-qualification-2026-11-11);
@@ -1625,7 +1626,9 @@ Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens
 Review the actual runtime and workspace/network policy, acknowledge it, then
 choose **Enable SendBox**. No configuration editor, paths, build or manual
 workspace preparation is required. An already configured exact root-owned
-0.2.5 installation can be reused. A fresh installation requests your administrator
+0.2.6 installation can be reused. Explicit older selections remain saved until
+separate review; they are not silently upgraded or accepted as current evidence.
+A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
 setup without a Local fallback.
