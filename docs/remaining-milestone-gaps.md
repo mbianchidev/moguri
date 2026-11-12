@@ -146,6 +146,9 @@ retains an oversized-proof assertion failure as unqualified: the unchanged
 [bounded original signed-proof correction](architecture/milestone-combination-matrix.md#complete-source-and-bounded-native-proofs-2026-11-12)
 changes only qualification/tests, not runtime bytes or publication policy, and
 still requires the fresh complete native set.
+Its next invocation exercises56 signed proofs above128KiB but retains a separate
+false-negative final-poll failure. The [bounded-poll repair](architecture/milestone-combination-matrix.md#final-bounded-poll-observation-2026-11-12)
+preserves every deadline and failed receipt; no partial native set is accepted.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing
