@@ -121,6 +121,12 @@ Those are not all3,360 nominal cells, the full remaining loss/concurrency set,
 arbitrary reviewed scripts or a new ten-gate/final integrated receipt. Earlier
 protocol99/101 receipts cannot qualify changed102 bytes.
 
+The subsequent clean102 ten-gate run passes, but the full nominal run exposes
+the [reviewed macOS PTY capacity defect](architecture/milestone-combination-matrix.md#reviewed-pty-capacity-repair-2026-11-12).
+Its487 observed passes are not accepted cells. The user-approved maintained
+PTY beta fixes the600-exit allocator regression; its changed dependency/image
+still requires the fresh complete nominal and final integrated receipts.
+
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing
 enforceable wire stays blocked; optional Laya is not a hidden milestone gate.

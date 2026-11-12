@@ -38,6 +38,7 @@ test("exhaustion retains the red X and an explicit keyboard retry while preservi
   for (const [delay, count] of [[30000, 2], [60000, 3], [30000, 4], [60000, 5]] as const) {
     clock.advanceBy(delay);
     await expect.poll(() => fixture.requests.length).toBe(count);
+    await fixture.terminal();
     await expect.poll(() => fixture.service.controller.snapshot().modelFailures[0]?.status).not.toBe("retrying");
   }
   const app = await electron.launch({ executablePath: require("electron"), args: ["."],
