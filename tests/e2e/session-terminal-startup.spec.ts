@@ -101,6 +101,7 @@ test("hidden Chats selection cannot arm a restored pane, but visible Chats navig
     await dashboard.click();
     await page.getByLabel("Prompt", { exact: true }).fill("Generated passive return cannot launch a console.");
     await expect.poll(() => sdk.getState().snapshot!.sessions.find((entry) => entry.id === chat.id)?.draft.text).toBe("Generated passive return cannot launch a console.");
+    await expect(page.getByRole("status").filter({ hasText: /^Draft saved$/ })).toHaveCount(1);
     expect(sdk.getState().snapshot!.terminals).toHaveLength(1);
     await navigation.getByRole("button", { name: fixture.session().title, exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.length).toBe(2);

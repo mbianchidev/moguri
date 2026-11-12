@@ -25,6 +25,7 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
     finally { setBusy(false); }
   };
   const review = (checkpoint: TurnCheckpoint, mode: "conversation" | "workspace") => {
+    setPreview(null); setConfirmed(false); setDecisions([]);
     const abort = new AbortController(); reviewAbort.current = abort;
     return run(async (current) => {
       try {

@@ -20,7 +20,14 @@ test.skip(process.platform !== "darwin", "Hidden desktop acceptance uses the qua
 test("Local workspace review rejects stale external edits and requires a fresh explicit conflict decision before preserving the displaced bytes", async ({}) => {
   const f = await setupFixture({ toolCall: { name: "write_file", args: { path: "fixture.txt", text: "Generated desktop owned write.", expectedDigest: digest("generated original\n") } } });
   await reviewNativeTools(f, ["write_file"]); await f.configure(); await f.send("Generated desktop workspace checkpoint."); await f.approve(); await f.terminal();
+  await waitFor(() => f.service.controller.snapshot().checkpoints[0]?.terminal?.afterDigest);
   await writeFile(join(f.project, "fixture.txt"), "Generated desktop external version.");
+  const checkpoints = f.service.controller.platform.checkpoints, query = checkpoints.query.bind(checkpoints), gate = Promise.withResolvers<void>();
+  let hold = false, entered = false;
+  checkpoints.query = async (input, signal) => {
+    if (hold && input.type === "rewind.preview") { hold = false; entered = true; await gate.promise; signal?.throwIfAborted(); }
+    return query(input, signal);
+  };
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
@@ -34,13 +41,17 @@ test("Local workspace review rejects stale external edits and requires a fresh e
     await confirm.click(); await expect(panel.getByRole("alert")).toContainText(/preview|changed|stale/i);
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe("Generated desktop newer external version.");
     expect(f.service.controller.snapshot().rewinds).toHaveLength(0);
-    await review.click(); await panel.getByRole("combobox", { name: "Rewind decision fixture.txt" }).selectOption("restore-checkpoint");
+    hold = true; await review.click(); await waitFor(() => entered);
+    await expect(panel.getByRole("region", { name: "Exact rewind preview", exact: true })).toHaveCount(0);
+    gate.resolve();
+    await expect(panel.getByRole("region", { name: "Exact rewind preview", exact: true })).toContainText(digest("Generated desktop newer external version."));
+    await panel.getByRole("combobox", { name: "Rewind decision fixture.txt" }).selectOption("restore-checkpoint");
     await panel.getByRole("checkbox", { name: "I reviewed this exact target and file decisions." }).check(); await confirm.click();
     await expect.poll(() => f.service.controller.snapshot().rewinds[0]?.status).toBe("completed");
     expect(await readFile(join(f.project, "fixture.txt"), "utf8")).toBe("generated original\n");
     const record = f.service.controller.snapshot().rewinds[0]!;
     expect(await readFile(record.files[0]!.backup!, "utf8")).toBe("Generated desktop newer external version.");
-  } finally { await app.close(); await f.close(); }
+  } finally { gate.resolve(); checkpoints.query = query; await app.close(); await f.close(); }
 });
 
 test("the hidden desktop restores the actual pinned SSH root without touching the controller checkout or starting another model", async ({}) => {
