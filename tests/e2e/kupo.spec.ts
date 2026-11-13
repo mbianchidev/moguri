@@ -44,8 +44,8 @@ test("the disconnected model dropdown always shows unavailable Kupo and its reas
     const kupo = models.getByRole("menuitemradio", { name: /^Kupo Unavailable/ });
     await expect(kupo).toBeVisible();
     await expect(kupo).toHaveAttribute("aria-disabled", "true");
-    await models.getByRole("button", { name: "Why Kupo is unavailable", exact: true }).hover();
-    await expect(page.getByRole("dialog", { name: "Why Kupo is unavailable", exact: true })).toContainText("No configured model");
+    await models.getByRole("button", { name: "Why Kupo is unavailable", exact: true }).click();
+    await expect(models.getByRole("region", { name: "Why Kupo is unavailable", exact: true })).toContainText("No configured model");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
 });

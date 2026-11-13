@@ -1836,8 +1836,12 @@ measurements are in [session ordering qualification](architecture/session-intera
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and
 read-only are a pen/book toggle immediately after the composer's **+** attachment
-button. Cmd/Ctrl+K still opens Commands,
-without a titlebar advertisement.
+button. Cmd/Ctrl+K opens Commands in the sidebar, without a titlebar
+advertisement or covering the chat. Env, Model, Autonomy, Budget, attachments,
+delivery and autocomplete choices also use that sidebar. Model, effort and
+context submenus expand inside it. Escape closes the current menu and returns
+to its original control; opening a menu preserves the prior sidebar and
+running consoles. Turn information expands directly beneath its response.
 
 During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
 action. A successful held submission restores Stop and preserves the running
@@ -1858,8 +1862,11 @@ an actual owned human-review wait without answering or approving it.
 
 The existing service continues service-capable commands after a client closes.
 Actual UI-only results wait for a compatible client and acknowledged view or
-user choice. The desktop Commands disclosure retains their separate responses
-and failures; they never become model messages. TUI shows the real response
+user choice. Desktop shows each retained command response and failure directly
+in conversation order, without a Commands tray or response dialog. Older
+responses can be loaded in the chat, and a failed response read can be retried
+without running the command again. They survive reload and never become model
+messages. TUI shows the real response
 without replacing a newer edit. Closing during an unacknowledged effect retains
 its partial outcome, not a replay.
 

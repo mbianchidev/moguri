@@ -35,6 +35,8 @@ import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 import { canApplyOpeningDraft, createStartupView, isModelDiscoveryPending, readStartupView, saveStartupView, type OpeningDraft, type StartupModel, type StartupView } from "./startup-cache.ts";
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { MAX_TEXT } from "../../../packages/protocol/src/core.ts";
+import { ChatMenuContext, SidebarMenu, type ChatMenu } from "./ChatMenus.tsx";
+import { CommandMessage } from "./CommandMessage.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
@@ -190,10 +192,18 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const questionDirtyChanged = useCallback((dirty: boolean) => { questionDirty.current = dirty; }, []);
   const [nativeModal, setNativeModal] = useState(false);
   const [composerMenuOpen, setComposerMenuOpen] = useState(false);
+  const [chatMenus, setChatMenus] = useState<ChatMenu[]>([]);
+  const [chatMenuTarget, setChatMenuTarget] = useState<HTMLDivElement | null>(null);
+  const registerChatMenu = useCallback((menu: ChatMenu) => {
+    setChatMenus((current) => [...current.filter((entry) => entry.id !== menu.id), menu]);
+    return () => setChatMenus((current) => current.filter((entry) => entry.id !== menu.id));
+  }, []);
+  const chatMenu = chatMenus.at(-1);
+  const menuHost = useMemo(() => ({ target: chatMenuTarget, activeId: chatMenu?.id ?? null, register: registerChatMenu }),
+    [chatMenuTarget, chatMenu?.id, registerChatMenu]);
   const [terminalDismiss, setTerminalDismiss] = useState<{ action: () => void; cancel?: () => void } | null>(null);
   const [terminalIntent, setTerminalIntent] = useState<{ panel: Panel; sessionId: string | null } | null>(null);
   const [sideSessionId, setSideSessionId] = useState<string | null>(null);
-  const [commandOutput, setCommandOutput] = useState<string | null>(null);
   const [continueChoice, setContinueChoice] = useState<{ review: ContinueWorkReview; editor: DraftEditor;
     queued?: { context: CommandViewContext; settle(outcome: CommandViewOutcome): void } } | null>(null);
   const [sessionActionRequest, setSessionActionRequest] = useState<{ sessionId: string; action: "archive"; nonce: number; owner?: SessionActionOwner } | null>(null);
@@ -203,7 +213,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const switchingProfile = useRef(false);
   const [profilePending, setProfilePending] = useState(false);
   const panelVisible = panelOpen && !settingsTab && !boardOpen && !globalView;
-  const leftMax = Math.max(180, Math.min(400, viewportWidth - 44 - 340 - (panelVisible ? 240 : 0)));
+  const contextVisible = panelVisible || Boolean(chatMenu), panelExpanded = panelVisible && panelMaximized && !chatMenu;
+  const leftMax = Math.max(180, Math.min(400, viewportWidth - 44 - 340 - (contextVisible ? 240 : 0)));
   const navWidth = Math.min(leftWidth, leftMax);
   const rightMax = Math.max(240, Math.min(640, viewportWidth - 44 - 340 - navWidth));
   const contextWidth = Math.min(rightWidth, rightMax);
@@ -221,6 +232,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (snapshot) for (const [id, editor] of editors.current) if (!snapshot.sessions.some((session) => session.id === id)) { editor.dispose(); editors.current.delete(id); }
   }, [snapshot]);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
+  const menuSession = snapshot?.sessions.find((entry) => entry.id === chatMenu?.sourceSessionId);
   const globalSession = snapshot?.sessions.find((session) => session.id === globalSessionId);
   const globalProject = snapshot?.projects.find((project) => project.id === globalSession?.projectId);
   const activeWorkspace = snapshot?.managedWorkspaces.find((workspace) => workspace.id === session?.workspaceId);
@@ -390,7 +402,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (globalView) beforeHidingTerminal(navigate); else navigate();
   };
   const openProfile = async (id: string, targetSessionId?: string) => {
-    if (!canNavigate() || nativeModal || terminalDismiss || commandOutput || palette || composerMenuOpen) throw new Error("Save/discard local edits and close dialogs before switching profiles.");
+    if (!canNavigate() || nativeModal || terminalDismiss || palette || composerMenuOpen || chatMenu) throw new Error("Save/discard local edits and close menus or dialogs before switching profiles.");
     if (snapshot?.jobs.some((job) => ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running")) throw new Error("Stop owned dictation before switching profiles. Audio is not moved to another profile.");
     if (!await confirmTerminalNavigation()) return;
     switchingProfile.current = true; setBusy(true); setProfilePending(true);
@@ -411,7 +423,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       }
       const restored = next.getState().snapshot?.sessions.find((session) => session.id === (targetSessionId ?? remembered?.session?.id));
       setSelectedId(restored?.id ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(restored?.status === "archived"); setSettingsTab(null); setPolicyFocus(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
-      setPalette(false); setCommandOutput(null); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
+      setPalette(false); setChatMenus([]); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
       setInboxItemId(null); setInboxFilters(undefined);
       return next;
     } catch (error) { next?.disconnect(); throw error; }
@@ -518,7 +530,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (result.kind === "profiles") { openSettings("general"); return; }
     if (result.kind === "profile") { await openProfile(result.profileId); return; }
     if (result.kind === "ok") { setNotice(result.message, true); return; }
-    if (result.kind === "text") { setCommandOutput(result.text); return; }
+    if (result.kind === "text") return;
     if (result.kind === "copy") { await window.moguri.copyText(result.text); setNotice("Copied.", true); return; }
     if (result.kind === "export") { const saved = await window.moguri.saveDocument(result.document); setNotice(saved ? `Export saved to ${saved.path}.` : "Export cancelled. Stored copies are unchanged.", true); return; }
     if (result.kind === "artifact-editor") {
@@ -536,7 +548,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     else if (result.panel === "Queue") {
       const queue = document.querySelector(".queue");
       if (queue) queue.scrollIntoView({ block: "nearest" });
-      else setCommandOutput("No undispatched prompts or commands remain in this session's queue.");
+      else setNotice("No undispatched prompts or commands remain in this session's queue.", true);
     }
     else await showPanel(result.panel);
   };
@@ -557,7 +569,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const commandUi = useRef<{ canApply(execution: CommandExecution): boolean; apply(context: CommandViewContext): Promise<CommandViewOutcome> } | null>(null);
   commandUi.current = {
     canApply: (execution) => execution.sessionId === selectedId && execution.profileId === client.profileId && !settingsTab && !settingsUnsaved && !panelDirty &&
-      !questionDirty.current && !switchingProfile.current && !profilePending && !nativeModal && !terminalDismiss && !startOpen && !palette && !commandOutput,
+      !questionDirty.current && !switchingProfile.current && !profilePending && !nativeModal && !terminalDismiss && !startOpen && !palette && !chatMenu,
     apply: async (context) => {
       context.signal.throwIfAborted();
       if (context.sdk !== client || context.sessionId !== selectedId || !canNavigate()) throw new Error("The original queued UI owner or its saved edit changed. No replacement conversation was used.");
@@ -620,8 +632,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           return target !== null && shell.classList.contains("context-open") && document.querySelector<HTMLElement>("#session-sidebar")?.dataset.sessionPanel === target;
         }
         if (result.kind !== "panel") return true;
-        if (result.panel === "Models") return Boolean(document.querySelector('.model-popover[role="dialog"]:popover-open'));
-        if (result.panel === "Queue") return Boolean(document.querySelector(".queue, .command-output"));
+        if (result.panel === "Models") return Boolean(document.querySelector('#session-sidebar .model-popover[role="dialog"]:not([hidden])'));
+        if (result.panel === "Queue") return Boolean(document.querySelector(".queue, .notice.info"));
         if (result.panel === "Settings") return Boolean(document.querySelector('[data-settings-tab="general"]'));
         const settings = resourceSettings(result.panel);
         if (settings) return Boolean(document.querySelector(`[data-settings-tab="${settings}"]`));
@@ -652,7 +664,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       if (attached) void attached.dispose().catch((error: unknown) => console.error("Queued UI detach remains unconfirmed:", error instanceof Error ? error.message : "original client cleanup failed"));
     };
   }, [client, status]);
-  useEffect(() => { commandAttachment.current?.wake(); }, [selectedId, settingsTab, settingsUnsaved, panelDirty, profilePending, nativeModal, terminalDismiss, startOpen, palette, commandOutput]);
+  useEffect(() => { commandAttachment.current?.wake(); }, [selectedId, settingsTab, settingsUnsaved, panelDirty, profilePending, nativeModal, terminalDismiss, startOpen, palette, chatMenu?.id]);
   const closeStart = () => { setStartOpen(false); document.querySelector<HTMLButtonElement>(".start-trigger")?.focus(); };
   const openStart = () => { if (canNavigate()) setStartOpen(true); };
   const startSession = async (projectId: string | null) => {
@@ -700,7 +712,6 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <ApprovalActions key={session.pendingApproval.id} sdk={client} session={session} busy={busy} run={run} />
     </section>}
     {session.queue.length > 0 && <Queue session={session} command={command} client={client} modal={setNativeModal} />}
-    <CommandActivity sdk={client} session={session} snapshot={snapshot} run={run} open={setCommandOutput} />
     {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />}
   </> : null;
   const applyOpeningDraft = () => run(async () => {
@@ -720,9 +731,9 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const presentationModels = status === "connected" && snapshot && isModelDiscoveryPending(snapshot.provider) &&
     cachedModels.profileId === client.profileId && cachedModels.storeId === client.connection.storeId ? cachedModels.models : [];
   const inboxUnread = Boolean(snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged));
-  return <StartupModelContext.Provider value={presentationModels}><PolicyNavigationContext.Provider value={openPolicy}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
+  return <ChatMenuContext.Provider value={menuHost}><StartupModelContext.Provider value={presentationModels}><PolicyNavigationContext.Provider value={openPolicy}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
     data-profile-id={client.profileId} data-session-id={selectedId ?? ""} data-side-session-id={sideSessionId ?? ""}
-    className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelVisible && panelMaximized ? "context-maximized" : ""}`}>
+    className={`app-shell ${navOpen ? "nav-open" : ""} ${contextVisible ? "context-open" : ""} ${panelExpanded ? "context-maximized" : ""}`}>
     <header className="titlebar">
       <div className="wordmark"><img className="brand-mascot" src={mascot} alt="" /><strong>moguri</strong><span className="alpha">alpha</span></div>
       <span className="titlebar-project">{globalView ? globalLabel(globalView) : project?.name ?? "Chats"}</span>
@@ -747,7 +758,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : "failed"}`} />Local service {status}</div>
       </div>
     </nav>
-    <main className="main-pane" inert={panelVisible && panelMaximized} style={panelVisible && panelMaximized ? { display: "none" } : undefined}>
+    <main className="main-pane" inert={panelExpanded} style={panelExpanded ? { display: "none" } : undefined}>
       {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
       {openingReview && <section className="opening-draft-review" aria-label="Opening draft review">
         <h2>Your opening draft needs review</h2><p>The exact destination or original draft save was not confirmed. Your text is retained here; startup did not send or queue it.</p>
@@ -770,7 +781,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           </select></label>}
         </header>
         <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} /> :
-          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !commandOutput} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal && !chatMenu} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
         </div>
       </section> : <>
       <header className="session-header" data-session-id={session?.id}>
@@ -787,26 +798,26 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         chatContent}
       </>}
     </main>
-    <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar" data-session-panel={panel} data-source-session-id={session?.id ?? ""}>
-      {!panelMaximized && <SidebarResizer side="right" value={contextWidth} min={240} max={rightMax} onChange={setRightWidth} controls="session-sidebar" />}
-      <header className="context-heading"><strong>{panel}</strong>
-        <button className="icon-button" aria-label={panelMaximized ? "Restore session sidebar" : "Maximize session sidebar"} title={panelMaximized ? "Restore split view" : "Expand over chat; keep navigation visible"} onClick={() => { if (canChangePanel()) setPanelMaximized((value) => !value); }}><Icon name={panelMaximized ? "Minimize" : "Maximize"} /></button>
-        <button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}><Icon name="PanelRight" /></button></header>
-      <div className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>
-        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === panel && terminalIntent.sessionId === session?.id} onTerminalOpeningHandled={() => terminalOpeningHandled(panel, session?.id ?? null)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && !commandOutput && panelVisible} />}
+    <aside id="session-sidebar" className="context-pane" aria-label="Session sidebar" data-session-panel={chatMenu ? "Menu" : panel} data-source-session-id={chatMenu?.sourceSessionId ?? session?.id ?? ""}>
+      {!panelExpanded && <SidebarResizer side="right" value={contextWidth} min={240} max={rightMax} onChange={setRightWidth} controls="session-sidebar" />}
+      <header className="context-heading"><strong>{chatMenu?.label ?? panel}</strong>
+        {!chatMenu && <button className="icon-button" aria-label={panelMaximized ? "Restore session sidebar" : "Maximize session sidebar"} title={panelMaximized ? "Restore split view" : "Expand over chat; keep navigation visible"} onClick={() => { if (canChangePanel()) setPanelMaximized((value) => !value); }}><Icon name={panelMaximized ? "Minimize" : "Maximize"} /></button>}
+        <button className="icon-button" aria-label={chatMenu ? `Close ${chatMenu.label}` : "Hide session sidebar"} title={chatMenu ? `Close ${chatMenu.label}` : "Hide session sidebar"} onClick={chatMenu?.close ?? hidePanel}><Icon name={chatMenu ? "Close" : "PanelRight"} /></button></header>
+      <div hidden={Boolean(chatMenu)} className={`context-content panel-${panel.toLowerCase().replaceAll(" ", "-")}`}>
+        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${panel}`} panel={panel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} visible={panelVisible && !chatMenu} terminalAutoStart={terminalIntent?.panel === panel && terminalIntent.sessionId === session?.id} onTerminalOpeningHandled={() => terminalOpeningHandled(panel, session?.id ?? null)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && !chatMenu && panelVisible} />}
       </div>
-      <footer className="context-footer">Bound to the main session</footer>
+      <div ref={setChatMenuTarget} hidden={!chatMenu} className="context-content chat-menu-host" />
+      <footer className="context-footer">{chatMenu ? chatMenu.sourceSessionId ? `Controls for ${menuSession ? title(menuSession, 48) : "the original chat"}` : "Workspace commands" : "Bound to the main session"}</footer>
     </aside>
     <nav className="panel-rail" aria-label="Sidebar panels" onScroll={() => setPanelTooltip(null)}>{panels.map((item) => {
-      const pressed = panelVisible && panel === item;
+      const pressed = panelVisible && !chatMenu && panel === item;
       return <button key={item} data-sidebar-panel={item} className={pressed ? "active" : ""} aria-label={item} aria-describedby={panelTooltip?.panel === item ? "sidebar-panel-tooltip" : undefined} aria-pressed={pressed} aria-expanded={pressed} aria-controls="session-sidebar"
       onMouseEnter={(event) => setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top })}
       onMouseLeave={() => setPanelTooltip(null)} onFocus={(event) => { if (event.currentTarget.matches(":focus-visible")) setPanelTooltip({ panel: item, top: event.currentTarget.getBoundingClientRect().top }); }} onBlur={() => setPanelTooltip(null)}
-      onClick={() => { if (pressed) hidePanel(); else void showPanel(item); }}><Icon name={item} /></button>;
+      onClick={() => { for (const menu of chatMenus.slice().reverse()) menu.close(); if (pressed) hidePanel(); else void showPanel(item); }}><Icon name={item} /></button>;
     })}</nav>
     {panelTooltip && <div id="sidebar-panel-tooltip" className="sidebar-tooltip" role="tooltip" style={{ top: Math.min(panelTooltip.top, window.innerHeight - 42) }}>{panelTooltip.panel}</div>}
     {terminalDismiss && <TerminalCloseReview sdk={client} cancel={() => { terminalDismiss.cancel?.(); setTerminalDismiss(null); }} confirm={() => { const { action } = terminalDismiss; setTerminalDismiss(null); action(); }} />}
-    {commandOutput && <CommandOutput text={commandOutput} close={() => setCommandOutput(null)} />}
     {continueChoice && <ContinueWorkDialog key={`${client.profileId}-${continueChoice.review.sessionId}-${"command" in continueChoice.review ? continueChoice.review.command.executionId : continueChoice.review.expectedRevision}`} sdk={client}
       editor={continueChoice.editor} review={continueChoice.review} close={() => {
         if (continueChoice.queued) continueChoice.queued.settle({ outcome: "cancelled", restoreInput: true, diagnostic: "The actual user cancelled this original continuation before choosing a route." });
@@ -819,7 +830,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         owned.settle({ outcome: "completed" });
       } : undefined} />}
     {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} /></Suspense>}
-    {palette && <CommandPalette close={() => setPalette(false)} actions={[
+    {palette && <CommandPalette sourceSessionId={session?.id} close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
       { name: "Connect GitHub Copilot", action: async () => openSettings("providers") },
       { name: "Show Insights and event trace", action: async () => { if (canNavigate()) beforeHidingTerminal(() => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); } }); } },
@@ -829,47 +840,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
     ]} />}
-  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</PolicyNavigationContext.Provider></StartupModelContext.Provider>;
-}
-
-function CommandActivity({ sdk, session, snapshot, run, open }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; run: Run; open(text: string): void }) {
-  const commands = snapshot.commandExecutions.filter((entry) => entry.sessionId === session.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
-  const [limit, setLimit] = useState(10);
-  const [summary, setSummary] = useState<{ key: string; text: string; failed: boolean } | null>(null);
-  const latest = commands[0], key = `${sdk.profileId}/${session.id}/${latest?.id}/${latest?.revision}/${latest?.resultDigest}`;
-  useEffect(() => {
-    let current = true;
-    const abort = new AbortController();
-    if (latest?.status === "completed" && latest.resultDigest) {
-      void sdk.commands.read(latest.id, abort.signal).then((retained) => {
-        if (!current || retained.execution.resultDigest !== latest.resultDigest) return;
-        const result = retained.result;
-        setSummary(result?.kind === "ok" ? { key, failed: false, text: result.message.length > 2000 ?
-          "Command completed. Read its full retained response below." : result.message } : null);
-      }).catch((error: unknown) => {
-        if (current) setSummary({ key, failed: true, text: error instanceof Error ? error.message : "The original command response could not be read. Its record was preserved." });
-      });
-    } else setSummary(null);
-    return () => { current = false; abort.abort(); };
-  }, [sdk, key]);
-  if (!commands.length) return null;
-  const active = commands.filter((entry) => ["running", "waiting-client", "claimed"].includes(entry.status));
-  const failed = latest && ["failed", "partial"].includes(latest.status);
-  return <>{failed ? <Alert as="p" className="inline-error" role="alert">{latest.diagnostic ?? "The original command did not complete. Read its retained record before resuming."}</Alert> :
-    summary?.key === key && <Alert as="p" className={summary.failed ? "inline-error" : "fine-print"} role={summary.failed ? "alert" : "status"}>{summary.text}</Alert>}
-    <details className="queue command-activity">
-    <summary>Commands <span role="status">{active.length ? `${active.length} waiting or running` : `${commands.length} retained`}</span></summary>
-    <ol aria-label="Retained command results">{commands.slice(0, limit).map((entry) => <li key={entry.id} className="queue-item">
-      <strong>/{entry.name}</strong><span className="queue-text">{entry.status === "waiting-client" ? `Waiting for a compatible ${entry.client} view` : entry.status}</span>
-      <button className="quiet" type="button" aria-label={`Read /${entry.name} command response`} onClick={() => void run(async () => {
-        const retained = await sdk.commands.read(entry.id), result = retained.result;
-        open(`${retained.item.text}\n\n${entry.status}${entry.diagnostic ? `\n${entry.diagnostic}` : ""}${result ? `\n\n${result.kind === "text" ? result.text : result.kind === "ok" ? result.message : JSON.stringify(result, null, 2)}` : ""}`);
-      })}>Read response</button>
-      {["running", "waiting-client", "claimed"].includes(entry.status) && <button className="quiet" type="button" onClick={() => void run(() => sdk.command({ type: "session.stop", sessionId: session.id }))}>Stop command</button>}
-      {entry.diagnostic && entry.status !== "waiting-client" && <span className="command-diagnostic">{entry.diagnostic}</span>}
-    </li>)}</ol>
-    {commands.length > limit && <button className="quiet" type="button" onClick={() => setLimit((value) => value + 10)}>Show more command results...</button>}
-  </details></>;
+  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</PolicyNavigationContext.Provider></StartupModelContext.Provider></ChatMenuContext.Provider>;
 }
 
 function Timeline({ session, editor, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns", rewind = true }: {
@@ -880,6 +851,9 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
   const scroll = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const [historyStart, setHistoryStart] = useState<number | null>(null);
+  const [commandLimit, setCommandLimit] = useState(10);
+  const commands = snapshot.commandExecutions.filter((entry) => entry.sessionId === session.id)
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt) || a.id.localeCompare(b.id));
   const start = historyStart ?? Math.max(0, session.messages.length - 150);
   const navigation = useMemo(() => conversationNavigation(snapshot, session.id), [snapshot.profileId, session.id, session.messages, snapshot.questions]);
   const promptAnchors = new Map(navigation.filter((entry) => entry.kind === "prompt").map((entry) => [entry.messageId, entry.id]));
@@ -898,12 +872,16 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
   }, [session.id]);
   useEffect(() => { if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; }, [session.messages.length, session.messages.at(-1)?.text, session.id]);
   const entries = activity.activity?.entries ?? [], positions = new Map(activity.activity?.messageOrder.map((entry) => [entry.id, entry.sequence]) ?? []);
-  const empty = session.messages.length === 0 && !pendingInput && entries.length === 0;
+  const empty = session.messages.length === 0 && !pendingInput && entries.length === 0 && commands.length === 0;
   const groups = new Map<string, PublicMessage[]>();
   for (const message of session.messages.slice(start)) {
     const key = message.turnId || `notice-${message.id}`, group = groups.get(key) ?? [];
     group.push(message); groups.set(key, group);
   }
+  const rows = [
+    ...[...groups].map(([turnId, messages]) => ({ kind: "turn" as const, id: `turn-${turnId}`, timestamp: messages[0]!.timestamp, turnId, messages })),
+    ...commands.slice(-commandLimit).map((execution) => ({ kind: "command" as const, id: `command-${execution.id}`, timestamp: execution.createdAt, execution })),
+  ].sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp) || a.id.localeCompare(b.id));
   const renderMessage = (message: PublicMessage) => {
     const outputs = message.attachments ?? [];
     const renderOutputs = (attachments = outputs) => attachments.map((attachment) => attachment.kind === "html" ?
@@ -930,9 +908,13 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
   return <div className="conversation-history"><div ref={scroll} className={`timeline${empty ? " timeline-empty" : ""}`} role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content} className="timeline-content">
     {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{session.controls.automaticApprovals && ["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
+    {commands.length > commandLimit && <button className="load-history" onClick={() => setCommandLimit((value) => value + 10)}>Show earlier command responses</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
     {activity.error && <Alert as="p" className="inline-error activity-read-error" role="alert">{activity.error}</Alert>}
-    {[...groups].map(([turnId, messages]) => {
+    {rows.map((row) => {
+      if (row.kind === "command") return <CommandMessage key={row.id} sdk={client} execution={row.execution}
+        stop={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))} />;
+      const { turnId, messages } = row;
       const first = messages[0]?.role === "user" ? messages[0] : null;
       const operations = entries.filter((entry) => entry.turnId === turnId && entry.kind !== "model");
       const parts: Array<{ sequence: number; message?: PublicMessage; operation?: ActivityEntry }> = [
@@ -948,7 +930,7 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
           {messages.some((message) => message.role === "tool") && activity.loading && <p className="fine-print" role="status">Loading retained operations...</p>}
           {session.turnId === turnId && !activity.error && <CurrentActivity entries={(activity.activity?.current ?? []).filter((entry) => entry.turnId === turnId)} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />}
           {messages[0]?.turnId && <TurnActions sdk={client} sessionId={session.id} turnId={turnId} info={snapshot.sessionTelemetry?.[session.id]?.turns.find((info) => info.turnId === turnId)}
-            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text.trim()))} modal={modal} />}
+            canCopy={messages.some((message) => message.role === "assistant" && Boolean(message.text.trim()))} />}
         </section>
       </div>;
     })}
@@ -1116,17 +1098,10 @@ function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel:
     <footer><button type="button" disabled={busy} onClick={() => ref.current?.close()}>Keep open</button><button className="primary" type="button" disabled={busy} onClick={() => void hide()}>Hide terminal</button></footer>
   </dialog>;
 }
-function CommandOutput({ text, close }: { text: string; close: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => { ref.current?.showModal(); }, []);
-  return <dialog ref={ref} className="workspace-dialog command-output" onClose={close} aria-label="Command response"><header><h2>Command response</h2><button className="icon-button" aria-label="Close command response" onClick={close}><Icon name="Close" /></button></header><pre>{text}</pre></dialog>;
-}
-function CommandPalette({ actions, close }: { actions: { name: string; action: () => Promise<void> }[]; close: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
+function CommandPalette({ actions, close, sourceSessionId }: { actions: { name: string; action: () => Promise<void> }[]; close: () => void; sourceSessionId?: string }) {
   const [query, setQuery] = useState("");
-  useEffect(() => { ref.current?.showModal(); }, []);
-  return <dialog ref={ref} className="command-palette" onClose={close}><header><label htmlFor="command-search">Commands</label><button className="quiet" onClick={() => ref.current?.close()}>Esc</button></header>
-    <input id="command-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a command..." />
+  return <SidebarMenu label="Commands" sourceSessionId={sourceSessionId} close={close} className="command-palette"><header><label htmlFor="command-search">Commands</label><kbd>Esc</kbd></header>
+    <input id="command-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a command..." />
     <div>{actions.filter((action) => action.name.toLowerCase().includes(query.toLowerCase())).map((action) => <button key={action.name} onClick={() => { close(); void action.action(); }}>{action.name}<span>&gt;</span></button>)}</div>
-  </dialog>;
+  </SidebarMenu>;
 }

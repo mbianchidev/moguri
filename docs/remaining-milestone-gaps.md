@@ -2,14 +2,17 @@
 
 ## Current acceptance status, 2026-11-13
 
-The branch-local runtime/build cut is `51fce72`; later changes are qualification
-fixtures and docs only. The complete source invocation passes **10,870 tests,
+The branch-local core runtime/build cut is `51fce72`. Its complete source invocation passes **10,870 tests,
 56 explicit Native skips, zero failures/cancellations**, including all **6,720
 Local/SSH nominal cells**. The user-reviewed complete-group method now verifies
 all **3,360 Native cells in 20 complete groups**, with exact matching core
 source/runtime/proof/accounting and owned cleanup. Together they cover every
 one of the **10,080 required IDs**. See the
 [exact current qualification](architecture/milestone-combination-matrix.md#current-qualification-2026-11-13).
+
+The later user-directed [inline command/sidebar menu slice](architecture/session-interactions.md#inline-command-responses-and-sidebar-menus)
+changes desktop assets, not the Native service/SDK/worker inputs. It keeps its
+fresh desktop validation separate from those earlier exact acceptance receipts.
 
 The original four-hour Native invocation remains **INCOMPLETE**, not a newly
 passing whole run. Its partial groups are excluded; the remaining two groups
@@ -21,7 +24,7 @@ delivery or a release/distribution claim.
 account-blocked before job steps, and the implementation remains in draft
 [#65](https://github.com/mbianchidev/moguri/pull/65). Optional Apple tracing and
 packaged-app CLI installation keep their disclosed separate scope. #45 reviewed
-Sandbox scripts and #53 sidebar/game polish remain pending behind acceptance.
+Sandbox scripts and the remaining #53 sidebar/search/game polish stay pending.
 No tests were removed.
 
 ## Historical acceptance continuation, 2026-11-11
@@ -32,7 +35,7 @@ including #62, protocol101 / `0.32.0-alpha.1`. The unchanged milestone criteria
 still govern acceptance. The [current native record](architecture/milestone-combination-matrix.md#current-build-qualification-2026-11-11)
 preserves the initial ten-gate 0.2.4 pass, later startup failures and the
 subsequent reviewed 0.2.5 seven-pass/two-fail/one-skip outcome separately.
-At that original cut, all **3,360 nominal native cells remained unqualified**; neither source test
+At that original cut, All **3,360 nominal native cells remained unqualified**; neither source test
 counts nor a host installation reduces that set.
 
 The user selected Apple Container 1.7.1 and personally installed the reviewed
