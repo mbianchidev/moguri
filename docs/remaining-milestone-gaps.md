@@ -149,6 +149,9 @@ still requires the fresh complete native set.
 Its next invocation exercises56 signed proofs above128KiB but retains a separate
 false-negative final-poll failure. The [bounded-poll repair](architecture/milestone-combination-matrix.md#final-bounded-poll-observation-2026-11-12)
 preserves every deadline and failed receipt; no partial native set is accepted.
+A later distinct30-second settlement phase cap interrupted the next attempt.
+The user [approved using only the remaining existing45-second cell budget](architecture/milestone-combination-matrix.md#reviewed-native-cell-budget-allocation-2026-11-12),
+with client/model/VM/whole-run limits unchanged; a fresh complete set is required.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing

@@ -83,6 +83,7 @@ test("missing qualification artifacts retain every required not-run/native-unqua
 });
 
 async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: { window?: number; question?: boolean; image?: boolean } = {}) {
+  const cellDeadline = Date.now() + cellTimeout;
   const contextWindow = options.window ?? (cell.window === "maximum" ? 32768 : 16384);
   const modelOptions: Controls["modelOptions"] = {
     contextWindow, ...(cell.effort === "default" ? {} : { thinkingEffort: cell.effort }),
@@ -131,7 +132,8 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
     }
     await fixture.sdk.questions.answer(question.id, question.choices[0]!, question.revision);
   }
-  await waitFor(() => !session().turnId && ["completed", "failed", "stopped", "partial"].includes(session().status), 30000).catch((error: unknown) => {
+  await waitFor(() => !session().turnId && ["completed", "failed", "stopped", "partial"].includes(session().status),
+    cell.env === "Sandbox" ? Math.max(0, cellDeadline - Date.now()) : 30000).catch((error: unknown) => {
     const snapshot = fixture.service.controller.snapshot();
     throw new Error(`Required cell ${milestoneCellId(cell)} did not settle: ${JSON.stringify({
       directory: fixture.directory, status: session().status, error: session().lastError, approval: session().pendingApproval,
