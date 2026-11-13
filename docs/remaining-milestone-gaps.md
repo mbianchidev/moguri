@@ -152,6 +152,11 @@ preserves every deadline and failed receipt; no partial native set is accepted.
 A later distinct30-second settlement phase cap interrupted the next attempt.
 The user [approved using only the remaining existing45-second cell budget](architecture/milestone-combination-matrix.md#reviewed-native-cell-budget-allocation-2026-11-12),
 with client/model/VM/whole-run limits unchanged; a fresh complete set is required.
+That original run reaches the four-hour bound without assertion failure before
+cancellation. The user [approved complete-group coverage](architecture/milestone-combination-matrix.md#reviewed-complete-group-coverage-2026-11-13):
+retain its18 complete groups, freshly qualify the other two whole groups, and
+validate all20 exact receipts. Partial groups and the original INCOMPLETE report
+are never upgraded.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing

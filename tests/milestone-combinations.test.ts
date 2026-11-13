@@ -26,6 +26,8 @@ const cells = requiredMilestoneCells();
 const sourceCells = cells.filter((cell) => cell.env !== "Sandbox");
 const nativeCells = cells.filter((cell) => cell.env === "Sandbox");
 const native = await nativeConfiguration(true);
+const nativeGroups = process.env.MOGURI_NATIVE_GROUPS;
+const nativeGroupMode = nativeGroups !== undefined;
 const concurrency = 4, cellTimeout = 45000, setupTimeout = 15000;
 const actorGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.autonomy.length * milestoneAxes.budget.length;
 const sourceGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.window.length * milestoneAxes.input.length;
@@ -326,6 +328,31 @@ test("native qualification reads an oversized original signed witness without re
   } finally { await fixture.close(); }
 });
 
+test("reviewed native groups reject partial-cell and duplicate selections before creating a qualification journal", {
+  skip: !native, timeout: 15000,
+}, async () => {
+  const directory = ".test-output/milestone-combinations";
+  await mkdir(directory, { recursive: true });
+  const before = (await readdir(directory)).filter((name) => name.startsWith("native-progress-")).sort();
+  for (const [selection, diagnostic] of [
+    [["critique/Autopilot/unlimited"], /Select only exact whole native groups/],
+    [["critique/Autopilot", "critique/Autopilot"], /Duplicate group selection/],
+    [[], /Select only exact whole native groups/],
+  ] as const) {
+    await assert.rejects(() => promisify(execFile)(process.execPath, [
+      "--import", pathToFileURL(resolve("node_modules/tsx/dist/loader.mjs")).href,
+      "--test", "--test-name-pattern", "^reviewed native Sandbox groups execute",
+      resolve("tests/milestone-combinations.test.ts"),
+    ], { timeout: 10000, env: { ...process.env, NODE_TEST_CONTEXT: undefined, MOGURI_NATIVE_GROUPS: JSON.stringify(selection) } }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error && "code" in error && error.code === 1);
+      assert.ok("stdout" in error && typeof error.stdout === "string");
+      assert.match(error.stdout, diagnostic); return true;
+    });
+  }
+  assert.deepEqual((await readdir(directory)).filter((name) => name.startsWith("native-progress-")).sort(), before);
+});
+
 for (const env of ["Local", "Remote", "Sandbox"] as const)
   for (const selection of milestoneAxes.selection)
     test(`exact arbitrary ${env}/${selection} window and genuine effort traverse the owning worker without changing capacity`, {
@@ -509,12 +536,22 @@ test("required Local/SSH source cells execute every independent control/input co
   }
 });
 
-test("required native Sandbox cells execute every independent control/input combination on the exact owned guest", {
+test(nativeGroupMode ? "reviewed native Sandbox groups execute every whole-group combination on the exact owned guest" :
+  "required native Sandbox cells execute every independent control/input combination on the exact owned guest", {
   skip: !native, concurrency: 2, timeout: 14_400_000,
 }, async (t) => {
   assert.ok(native);
   const groupId = (cell: MilestoneCell) => `${cell.selection}/${cell.autonomy}`;
-  const groups = [...new Set(nativeCells.map(groupId))], completedGroups = new Set<string>();
+  const allGroups = [...new Set(nativeCells.map(groupId))];
+  let groups = allGroups;
+  if (nativeGroupMode) {
+    const requested: unknown = JSON.parse(nativeGroups);
+    assert.ok(Array.isArray(requested) && requested.length > 0 &&
+      requested.every((group: unknown) => typeof group === "string" && allGroups.includes(group)), "Select only exact whole native groups.");
+    assert.equal(new Set(requested).size, requested.length, "Duplicate group selection cannot qualify repeated work.");
+    groups = allGroups.filter((group) => requested.includes(group));
+  }
+  const requiredCells = nativeCells.filter((cell) => groups.includes(groupId(cell))), completedGroups = new Set<string>();
   const completed = new Map<string, Awaited<ReturnType<typeof runCell>>>(), failed = new Map<string, string>();
   const startedAt = new Date().toISOString(), runId = startedAt.replace(/\D/g, "");
   const directory = ".test-output/milestone-combinations", journalPath = join(directory, `native-progress-${runId}.jsonl`);
@@ -522,6 +559,7 @@ test("required native Sandbox cells execute every independent control/input comb
     commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
     dirtyAtStart: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()),
     protocol: PROTOCOL_VERSION, node: process.version, image: native.image, qualification: native.qualification,
+    scope: { kind: nativeGroupMode ? "reviewed-whole-groups" : "whole-matrix", groups, wholeRequired: nativeCells.length },
     fixtureNetwork: { toolDomains: [], providerHosts: ["api.githubcopilot.com"], inference: "in-guest generated HTTP; real factory/cold network gates remain separate" },
     inputs: {} as Record<string, string>,
   };
@@ -529,7 +567,8 @@ test("required native Sandbox cells execute every independent control/input comb
   const journal = (entry: object) => writes = writes.then(() => appendFile(journalPath, `${JSON.stringify(entry)}\n`));
   try {
     await mkdir(directory, { recursive: true });
-    await writeFile(journalPath, `${JSON.stringify({ version: 1, startedAt, nativeNominalStatus: "RUNNING", axes: milestoneAxes })}\n`, { flag: "wx" });
+    await writeFile(journalPath, `${JSON.stringify({ version: 1, startedAt,
+      ...(nativeGroupMode ? { nativeGroupStatus: "RUNNING" } : { nativeNominalStatus: "RUNNING" }), axes: milestoneAxes })}\n`, { flag: "wx" });
     const inputs = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
       "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile", "apps/service/src/native-evidence.ts",
       "tests/milestone-combinations.test.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
@@ -538,7 +577,7 @@ test("required native Sandbox cells execute every independent control/input comb
     identity.inputs = Object.fromEntries(await Promise.all(inputs.map(async (path) =>
       [path, createHash("sha256").update(await readFile(path)).digest("hex")])));
     await journal({ type: "identity", identity });
-    await Promise.all(groups.map((group) => t.test(group, { timeout: 60_000 + nativeCells.length / groups.length * cellTimeout }, async (groupTest) => {
+    await Promise.all(groups.map((group) => t.test(group, { timeout: 60_000 + nativeCells.length / allGroups.length * cellTimeout }, async (groupTest) => {
       const required = nativeCells.filter((cell) => groupId(cell) === group), first = required[0]!;
       const fixture = await nativeMilestoneFixture(native);
       try {
@@ -564,7 +603,7 @@ test("required native Sandbox cells execute every independent control/input comb
       await journal({ type: "group-cleanup-confirmed", group });
       completedGroups.add(group);
     })));
-    assert.deepEqual([...completed.keys()].sort(), nativeCells.map(milestoneCellId).sort());
+    assert.deepEqual([...completed.keys()].sort(), requiredCells.map(milestoneCellId).sort());
     assert.equal(completedGroups.size, groups.length);
     for (const [path, digest] of Object.entries(identity.inputs)) {
       assert.equal(createHash("sha256").update(await readFile(path)).digest("hex"), digest, `Native qualification inputs changed: ${path}`);
@@ -574,13 +613,17 @@ test("required native Sandbox cells execute every independent control/input comb
     throw error;
   } finally {
     const qualified = new Map(diagnostic === null ? completed : []);
-    for (const cell of nativeCells) if (!completedGroups.has(groupId(cell))) qualified.delete(milestoneCellId(cell));
+    for (const cell of requiredCells) if (!completedGroups.has(groupId(cell))) qualified.delete(milestoneCellId(cell));
     const report = {
       version: 1, identity, startedAt, finishedAt: new Date().toISOString(), diagnostic, journalPath,
-      nativeNominalStatus: qualified.size === nativeCells.length ? "PASS" : "INCOMPLETE",
-      required: nativeCells.length, nativePassed: qualified.size, nativeObservedPassed: completed.size, nativeUnqualified: nativeCells.length - qualified.size,
+      ...(nativeGroupMode ? { format: "moguri-native-group-qualification", wholeMatrixQualified: false,
+        groupStatus: qualified.size === requiredCells.length ? "PASS" : "INCOMPLETE", selectedGroups: groups,
+        groupPassed: qualified.size, groupObservedPassed: completed.size, groupUnqualified: requiredCells.length - qualified.size } :
+        { nativeNominalStatus: qualified.size === nativeCells.length ? "PASS" : "INCOMPLETE",
+          nativePassed: qualified.size, nativeObservedPassed: completed.size, nativeUnqualified: nativeCells.length - qualified.size }),
+      required: requiredCells.length,
       qualification: "Actual current guest with generated inference. Failure/ownership gates, clients, hosted CI and live model quality remain separate.",
-      cells: nativeCells.map((cell) => qualified.get(milestoneCellId(cell)) ?? {
+      cells: requiredCells.map((cell) => qualified.get(milestoneCellId(cell)) ?? {
         ...completed.get(milestoneCellId(cell)),
         id: milestoneCellId(cell), outcome: failed.has(milestoneCellId(cell)) ? "native-failed" : "native-unqualified",
         diagnostic: completed.has(milestoneCellId(cell)) ? "The original cell was observed, but its complete group/cleanup did not qualify." :
@@ -589,8 +632,9 @@ test("required native Sandbox cells execute every independent control/input comb
     };
     await writes;
     const content = `${JSON.stringify(report, null, 2)}\n`;
-    await writeFile(join(directory, `native-report-${runId}.json`), content, { flag: "wx" });
-    await writeFile(join(directory, "native-report.json.tmp"), content);
-    await rename(join(directory, "native-report.json.tmp"), join(directory, "native-report.json"));
+    const name = nativeGroupMode ? "native-group-report" : "native-report";
+    await writeFile(join(directory, `${name}-${runId}.json`), content, { flag: "wx" });
+    await writeFile(join(directory, `${name}.json.tmp`), content);
+    await rename(join(directory, `${name}.json.tmp`), join(directory, `${name}.json`));
   }
 });
