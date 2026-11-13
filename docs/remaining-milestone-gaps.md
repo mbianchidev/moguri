@@ -1,6 +1,77 @@
 # First-milestone acceptance and roadmap
 
-## Merged-code audit, 2026-11-10
+## Current acceptance status, 2026-11-13
+
+At the pre-security-update core runtime/build cut `51fce72`, the complete source invocation passes **10,870 tests,
+56 explicit Native skips, zero failures/cancellations**, including all **6,720
+Local/SSH nominal cells**. The user-reviewed complete-group method now verifies
+all **3,360 Native cells in 20 complete groups on the old `6a0b...` image**, with exact matching core
+source/runtime/proof/accounting and owned cleanup. Together they cover every
+one of that cut's **10,080 required IDs**. See the
+[exact current qualification](architecture/milestone-combination-matrix.md#current-qualification-2026-11-13).
+
+The later user-directed [inline command/sidebar menu slice](architecture/session-interactions.md#inline-command-responses-and-sidebar-menus)
+changes desktop assets, not the Native service/SDK/worker inputs. It keeps its
+fresh desktop validation separate from those earlier exact acceptance receipts.
+The user also approved the minimal [compatible MCP security lock updates](architecture/lean-tooling.md#compatible-mcp-dependency-security-updates-2026-11-13).
+They change the dependency input cut, not compiled Native core code. Older
+qualified guest bytes remain unpatched; newly produced patched guest images
+require their own reviewed qualification before release.
+The user approved a new generated patched image (`a204...`): all ten selected
+physical gates and all five Native desktop control patterns now pass, alongside
+the current full desktop **416-pass/11-skip** suite and zero root/consumer
+advisories. Its full **3,360 new-image cells remain unqualified**; the older
+complete-group artifact is not relabeled or reused across the new lock/image.
+
+The original four-hour Native invocation remains **INCOMPLETE**, not a newly
+passing whole run. Its partial groups are excluded; the remaining two groups
+have a fresh complete receipt. Original failed/cancelled work and unknown
+accounting remain retained. This is branch qualification, not merged main
+delivery or a release/distribution claim.
+
+**Milestone 1 is not accepted:** fresh authorized hosted-main CI is still
+account-blocked before job steps, and the implementation remains in draft
+[#65](https://github.com/mbianchidev/moguri/pull/65). Optional Apple tracing and
+packaged-app CLI installation keep their disclosed separate scope. #45 reviewed
+Sandbox scripts and the remaining #53 sidebar/search/game polish stay pending.
+No tests were removed.
+
+## Historical acceptance continuation, 2026-11-11
+
+The starting merged main is
+[`13001b7`](https://github.com/mbianchidev/moguri/commit/13001b7e206211cc70b32639b155de0b064bf2e1),
+including #62, protocol101 / `0.32.0-alpha.1`. The unchanged milestone criteria
+still govern acceptance. The [current native record](architecture/milestone-combination-matrix.md#current-build-qualification-2026-11-11)
+preserves the initial ten-gate 0.2.4 pass, later startup failures and the
+subsequent reviewed 0.2.5 seven-pass/two-fail/one-skip outcome separately.
+At that original cut, All **3,360 nominal native cells remained unqualified**; neither source test
+counts nor a host installation reduces that set.
+
+The user selected Apple Container 1.7.1 and personally installed the reviewed
+SendBox bytes and matched trusted Apple CLI without agent-driven host/service
+changes. Actual compatible-backend support and newly reported Rust dependency
+repairs were merged in
+[mbianchidev/sendbox#85](https://github.com/mbianchidev/sendbox/pull/85).
+The user then directed use of published 0.2.6 and personally installed its
+reviewed side-by-side package. Exact hosted-workflow provenance, unchanged
+Ed25519 trust root, every signed guest artifact and patched release locks are
+verified; factory/producer/qualifier defaults now select 0.2.6 without changing
+saved older choices. Fresh current-payload native receipts remain prerequisites,
+not completed main delivery or an inferred scope exclusion.
+
+This Moguri branch adds the complete physical cell runner and direct
+root-disclosure/pre-copy-inspection repairs. Its focused source/build/type and
+fresh packed external SDK checks pass, with zero npm vulnerabilities. Current
+host parsing is not native execution acceptance; original physical retry/
+rewind failures remain open. No reviewed-script Sandbox path or broader UI
+work is claimed by this acceptance continuation.
+
+The requested order remains acceptance under #39, reviewed Sandbox scripts
+under #45, then the explicit #53 interaction polish. The historical audit below
+keeps its original source/PR states and receipts; it is not the newer branch's
+delivery claim.
+
+## Historical merged-code audit, 2026-11-10
 
 The audited main is
 [`2f6c4bc`](https://github.com/mbianchidev/moguri/commit/2f6c4bcfd2755725facdf4250941ac06e130a309),
@@ -47,45 +118,88 @@ No closed implementation/research issue certifies first-milestone acceptance.
 consolidated into that parent as redundant tracking, **not completed milestone
 acceptance**. No actual gate is removed or silently narrowed:
 
-- [ ] Record final criterion-by-criterion integrated acceptance against the
+- [x] Record branch-local criterion-by-criterion integrated qualification against the
   unchanged specification, with exact source/builds, cross-client ownership,
   failure/restart/migration and supported/unavailable outcomes.
-- [ ] Qualify the remaining required native/control/role/input combinations,
+- [x] Qualify the branch's required native/control/role/input combinations,
   including current-policy and actual-human races, candidates, finishing,
   cancellation failure, guest/control/SSH loss, late/unknown accounting,
-  receipts and no-replay recovery. Keep all 3,360 unqualified native cells
-  visible; accepted scope changes require an explicit product decision.
+  receipts and no-replay recovery. The reviewed complete-group artifact covers
+  all 3,360 IDs; original incomplete reports and partial groups remain
+  unqualified, and no required cell is dropped.
+- [ ] Qualify the complete required matrix for the newly approved patched
+  worker image. Its selected physical/client gates do not transfer the
+  previous image's 3,360-cell artifact across a changed dependency payload.
 - [ ] Restore account eligibility and record a fresh authorized hosted-main
   CI pass. Generated/local source and package success cannot replace it.
 
 The latest main
-[run 42838925934](https://github.com/mbianchidev/moguri/actions/runs/42838925934),
-for `2f6c4bc`, failed on 2026-11-10 before either OS job ran a step.
+[run 42984028685](https://github.com/mbianchidev/moguri/actions/runs/42984028685),
+for `13001b7`, failed on 2026-11-11 before either OS job ran a step.
 Both annotations still say recent payments failed or the spending limit
 needs increasing. This is a refreshed account-owned gate, not a diagnosis of
 an install/build/test failure. Separate notices mention macOS arm64 capacity
 and the Ubuntu 26 label migration. CI stays main-push-only; absent branch/PR
 checks are not green CI. No rerun, billing action or trigger change was made.
 
-### Native evidence is no longer a blanket startup blocker
+### Native evidence chronology remains exact-build scoped
 
-The protocol99 [exact physical receipt](architecture/session-inbox.md#exact-retained-identities)
-records all ten selected gates passing, including real provider/network checks,
-verified owned-guest teardown, retry/checkpoint behavior, three rewind scopes
-and a hidden packaged native restoration. It does **not** qualify every native
-matrix cell, arbitrary reviewed scripts or a different app/worker.
-This branch's rebuilt worker, bridge and MCP-worker SHA-256 values were checked
-against that receipt and match; the new desktop/service presentation cut still
-keeps its own identity and evidence.
+The user installed independently verified, released
+[SendBox0.2.6](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.6).
+It includes matched Container1.7.1 support and patched host/guest dependencies.
+At clean `a91f8a9`, all ten protocol101 selected physical gates pass, including
+real cold provider/network policy, owned-guest teardown, retry/checkpoints,
+three rewind scopes and hidden desktop restoration. Historical failures retain
+their original outcomes; earlier reviewed0.2.5 bytes are not retroactively
+dependency-patched.
 
-The old statement that the DNS repair is unreleased is obsolete:
-[SendBox v0.2.5](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.5)
-was published 2026-11-08 and includes
-[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80).
-Moguri still pins reviewed 0.2.4 bytes. No upgrade or fresh host/runtime probe
-was performed by this audit. Historical failed startup/DNS runs stay failed;
-neither their old universal-blocker wording nor a new upstream release replaces
-the current exact receipts or missing wider matrix evidence.
+The separately approved [protocol102 native identity repair](architecture/candidate-transports.md#versioned-native-identity-repair)
+changes worker/bridge bytes. Its [current-image continuation](architecture/milestone-combination-matrix.md#protocol102-continuation-2026-11-12)
+passes focused actual native candidates, original rollback-journal recovery,
+real guest Cascade/Critique tests and every native TUI/desktop selection.
+Those are not all3,360 nominal cells, the full remaining loss/concurrency set,
+arbitrary reviewed scripts or a new ten-gate/final integrated receipt. Earlier
+protocol99/101 receipts cannot qualify changed102 bytes.
+
+The subsequent clean102 ten-gate run passes, but the full nominal run exposes
+the [reviewed macOS PTY capacity defect](architecture/milestone-combination-matrix.md#reviewed-pty-capacity-repair-2026-11-12).
+Its487 observed passes are not accepted cells. The user-approved maintained
+PTY beta fixes the600-exit allocator regression; its changed dependency/image
+still requires the fresh complete nominal and final integrated receipts.
+
+The subsequent host-only echo repair is also not final acceptance: a fresh TUI
+case exposes independent guest-PTY restoration after the worker completed.
+The [nested terminal repair](architecture/milestone-combination-matrix.md#nested-private-terminal-repair-2026-11-12)
+preserves strict control rejection and requires new exact bridge/image evidence.
+The interrupted639 observed native cells qualify zero of the3,360 required
+cells. Original setup failures during an observed external Meta quota window
+and interrupted source invocations are retained, not relabeled green.
+The subsequent combined host/guest setup still exposes late controller packets.
+The [terminal ACK ordering repair](architecture/milestone-combination-matrix.md#terminal-ack-ordering-repair-2026-11-12)
+addresses the accepted reply releasing the peer before its durable ACK, without
+ignoring any unknown frame or changing authentication. Its fresh complete
+qualification remains separate from earlier passing feature-specific gates.
+The complete51fce72 source invocation now passes all6,720 Local/SSH nominal
+cells and its wider source suite. Its separate native harness correctly
+retains an oversized-proof assertion failure as unqualified: the unchanged
+128-KiB user output projection is not a qualification-proof reader. The
+[bounded original signed-proof correction](architecture/milestone-combination-matrix.md#complete-source-and-bounded-native-proofs-2026-11-12)
+changes only qualification/tests, not runtime bytes or publication policy, and
+still requires the fresh complete native set.
+Its next invocation exercises56 signed proofs above128KiB but retains a separate
+false-negative final-poll failure. The [bounded-poll repair](architecture/milestone-combination-matrix.md#final-bounded-poll-observation-2026-11-12)
+preserves every deadline and failed receipt; no partial native set is accepted.
+A later distinct30-second settlement phase cap interrupted the next attempt.
+The user [approved using only the remaining existing45-second cell budget](architecture/milestone-combination-matrix.md#reviewed-native-cell-budget-allocation-2026-11-12),
+with client/model/VM/whole-run limits unchanged; a fresh complete set is required.
+That original run reaches the four-hour bound without assertion failure before
+cancellation. The user [approved complete-group coverage](architecture/milestone-combination-matrix.md#reviewed-complete-group-coverage-2026-11-13):
+retain its18 complete groups, freshly qualify the other two whole groups, and
+validate all20 exact receipts. Partial groups and the original INCOMPLETE report
+are never upgraded.
+The fresh two-group invocation and strict merger now pass; the
+[current coverage artifact](architecture/milestone-combination-matrix.md#current-qualification-2026-11-13)
+verifies all3,360 cells while retaining that original INCOMPLETE whole report.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing

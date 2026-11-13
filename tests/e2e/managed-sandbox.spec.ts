@@ -36,7 +36,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
-    await expect(panel).toContainText("0.2.4");
+    await expect(panel).toContainText(generated.distribution.vendor.version);
     await expect(page.getByLabel("SendBox configuration", { exact: true })).not.toBeVisible();
     await panel.getByRole("button", { name: "Review bundled setup", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
@@ -80,6 +80,7 @@ for (const projectFree of [false, true]) test(`actual first-use SendBox sends in
   const { sdk, service, provider, project } = fixture;
   const settings = structuredClone(sdk.settings.get()!); settings.values.sandbox = fixture.reviewedConfiguration;
   await sdk.settings.update(settings.values, settings.revision);
+  expect((await sdk.sandbox.setup.review()).review.administratorRequired).toBe(false);
   const bound = projectFree ? null : await sdk.command({ type: "project.add", path: project });
   const created = await sdk.sessions.create(bound?.id ?? null);
   const session = () => service.controller.snapshot().sessions.find((value) => value.id === created.id)!;
@@ -110,12 +111,17 @@ for (const projectFree of [false, true]) test(`actual first-use SendBox sends in
       expect(session().projectId).toBeNull();
       expect(session().homeRoot?.root).toBe(fixture.home);
     } else expect((await sdk.workspaces.file(created.id!, "fixture.txt")).text).toBe("generated native replacement\n");
-    expect(service.controller.snapshot().sandboxWorkspaces![0]?.preparation?.kind).toBe("automatic");
+    const snapshot = service.controller.snapshot(), execution = snapshot.sandboxExecutions![0]!;
+    const workspace = snapshot.sandboxWorkspaces!.find((entry) => entry.id === session().sandboxWorkspaceId), owner = workspace?.preparation;
+    if (owner?.version !== 4) throw new Error("The generated first-use turn has no exact v4 admission owner.");
+    expect(owner.kind).toBe("turn-admission"); expect(owner.source.kind).toBe("queue");
+    expect(snapshot.checkpointCaptures.find((entry) => entry.id === owner.captureId)).toMatchObject({ turnId: execution.turnId, status: "consumed" });
+    expect(execution.workspaceId).toBe(workspace!.id);
     expect(service.controller.snapshot().sandboxExecutions![0]?.networkScope?.allowedDomains).toContain("api.individual.githubcopilot.com");
     await openSettingsSection(page, "Sandbox");
     const retained = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     await expect(retained).toContainText("shared-cloud");
-    await expect(retained).toContainText("0.2.4");
+    await expect(retained).toContainText(configuration.qualification!.release);
     await expect(retained).not.toContainText("Exact entries stay exact");
     expect(provider.requests.length).toBe(0); expect(errors).toEqual([]); passed = true;
   } finally { await app.close(); await fixture.close(passed); }

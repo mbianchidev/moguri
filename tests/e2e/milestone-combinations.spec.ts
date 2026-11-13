@@ -1,21 +1,26 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { KUPO_MODEL_ID } from "../../packages/sdk/src/index.ts";
 import { reviewNativeTools } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { generatedDocx } from "../fixtures/documents.ts";
-import { configureMilestoneRouting, milestoneAxes, milestoneResponses } from "../fixtures/milestone-combinations.ts";
+import { configureMilestoneRouting, milestoneAxes, milestoneCellId, milestoneCalls, milestoneResponses } from "../fixtures/milestone-combinations.ts";
+import { nativeConfiguration } from "../fixtures/native-target.ts";
+import { nativeMilestoneFixture } from "../fixtures/native-milestone-api.ts";
 import { chooseContextWindow } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Required client combinations use a generated hidden macOS app, not physical native qualification.");
 
-for (const env of ["Local", "Remote"] as const) for (const selection of milestoneAxes.selection)
+const native = await nativeConfiguration(true);
+for (const env of ["Local", "Remote", "Sandbox"] as const) for (const selection of milestoneAxes.selection)
 test(`desktop ${env}/${selection} preserves its document draft while configuring exact controls and separately approving the selected tool`, async () => {
+  test.skip(env === "Sandbox" && !native, "This client needs exact reviewed native installation/current payload receipts.");
   test.setTimeout(45000);
-  const fixture = await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
+  const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
+    await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
   try {
     await configureMilestoneRouting(fixture, selection);
@@ -24,10 +29,11 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await reviewNativeTools(fixture, ["read_document"]);
     app = await electron.launch({
       executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
-      env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+      env: { ...process.env, MOGURI_STATE_DIR: dirname(fixture.service.store.path), MOGURI_TEST_WINDOW: "hidden" },
     });
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
-    const text = "Generated real desktop matrix document question.";
+    const cell = { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "document" } as const;
+    const text = `Generated real desktop matrix document question. ${milestoneCellId(cell)}`;
     await prompt.fill(text);
     const path = join(fixture.directory, "generated-desktop-matrix.docx");
     await writeFile(path, generatedDocx());
@@ -36,9 +42,7 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await page.getByRole("dialog", { name: "Attach", exact: true }).getByRole("button", { name: /^Local file/ }).click();
     await expect(page.getByRole("button", { name: "Preview document generated-desktop-matrix.docx", exact: true })).toBeVisible();
     const documentId = fixture.session().draft.attachments.find((attachment) => attachment.kind === "document")!.id;
-    const observed = milestoneResponses(fixture, {
-      env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "document",
-    }, documentId);
+    const observed = milestoneResponses(fixture, cell, documentId);
     await page.getByRole("button", { name: /^Model:/ }).click();
     await chooseContextWindow(page, "16,384 tokens");
     const label = selection === "fixed" ? "Thinking effort" : "Role thinking override";
@@ -68,8 +72,9 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await page.getByRole("button", { name: "Approve this action", exact: true }).click();
     await expect.poll(() => fixture.session().status).toBe("completed");
     await expect(page.getByText("Generated selected milestone response.", { exact: true })).toBeVisible();
-    expect(observed.every((call) => call.request.reasoning_effort === "high")).toBe(true);
-    expect((await fixture.sdk.budgets.status(fixture.sessionId)).status.totals.knownReportedTokens).toBe(observed.length * 42);
+    const calls = await milestoneCalls(fixture, observed);
+    expect(calls.length > 0 && calls.every((call) => call.request.reasoning_effort === "high")).toBe(true);
+    expect((await fixture.sdk.budgets.status(fixture.sessionId)).status.totals.knownReportedTokens).toBe(calls.length * 42);
     expect(fixture.session().controls.env).toBe(env);
     expect(fixture.service.controller.events(0).filter((event) => event.event_type === "tool.decided" && event.payload.actor === "user")).toHaveLength(1);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();

@@ -1,6 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 
@@ -44,8 +45,9 @@ test("service-only command completion and failure are visible without moving foc
     const retained = (await sdk.commands.read(entry.id)).result;
     expect(retained?.kind).toBe("ok");
     if (retained?.kind !== "ok") throw new Error("Generated settings command lost its actual retained confirmation.");
-    await expect(page.getByRole("status").filter({ hasText: retained.message })).toBeVisible();
-    await expect(input).toBeFocused(); await expect(page.getByRole("dialog", { name: "Command output", exact: true })).toHaveCount(0);
+    const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    await expect(transcript.getByRole("article", { name: "Command /theme", exact: true })).toContainText(retained.message);
+    await expect(input).toBeFocused(); await expect(page.getByRole("dialog", { name: "Command response", exact: true })).toHaveCount(0);
     await input.fill("/model generated-unavailable-model"); await input.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "model")?.status).toBe("failed");
     const failed = fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "model")!;
@@ -71,7 +73,7 @@ test("Cmd/Ctrl+Enter holds even yolo without running it or requiring a selected 
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("queued views acknowledge actual desktop navigation and retain service responses outside model messages", async () => {
+test("queued views acknowledge navigation and retain inline responses through reload without model messages or replay", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), input = page.getByRole("textbox", { name: "Prompt", exact: true });
@@ -87,12 +89,91 @@ test("queued views acknowledge actual desktop navigation and retain service resp
     }
     await input.fill("/help"); await input.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "help")?.status).toBe("completed");
-    await page.getByText("Commands", { exact: false }).filter({ has: page.getByRole("status") }).click();
-    await page.getByRole("button", { name: "Read /help command response" }).click();
-    await expect(page.getByRole("dialog", { name: "Command response" })).toContainText("/yolo");
-    await page.getByRole("button", { name: "Close command response" }).click();
+    const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    await expect(transcript.getByRole("article", { name: "Command /help", exact: true })).toContainText("/yolo");
+    await expect(transcript.getByRole("article", { name: "Command /sidebar", exact: true })).toHaveCount(2);
+    await expect(page.getByRole("list", { name: "Retained command results", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Command response", exact: true })).toHaveCount(0);
+    const retained = fixture.service.controller.snapshot().commandExecutions.map(({ id, status, resultDigest }) => ({ id, status, resultDigest }));
+    await page.reload();
+    await expect(transcript.getByRole("article", { name: "Command /help", exact: true })).toContainText("/yolo");
+    await expect(transcript.getByRole("article", { name: /^Command \// })).toHaveCount(retained.length);
+    expect(fixture.service.controller.snapshot().commandExecutions.map(({ id, status, resultDigest }) => ({ id, status, resultDigest }))).toEqual(retained);
     expect(fixture.requests).toHaveLength(0); expect(fixture.session().messages).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
+});
+
+test("command responses keep their conversation position between prompts after reload", async () => {
+  const fixture = await setupFixture({ responseMode: "text" });
+  await fixture.configure();
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), input = page.getByRole("textbox", { name: "Prompt", exact: true });
+    await input.fill("Generated prompt before the command."); await input.press("Enter");
+    await expect.poll(() => fixture.requests.length).toBe(1); await fixture.terminal();
+    await input.fill("/defaults"); await input.press("Enter");
+    await expect.poll(() => fixture.service.controller.snapshot().commandExecutions[0]?.status).toBe("completed");
+    await input.fill("Generated prompt after the command."); await input.press("Enter");
+    await expect.poll(() => fixture.requests.length).toBe(2); await fixture.terminal();
+    const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    const verifyOrder = async () => {
+      await expect(transcript.getByRole("article", { name: "Command /defaults", exact: true })).toBeVisible();
+      const articles = await transcript.getByRole("article").allTextContents();
+      const before = articles.findIndex((text) => text.includes("Generated prompt before the command."));
+      const command = articles.findIndex((text) => text.includes("/defaults"));
+      const after = articles.findIndex((text) => text.includes("Generated prompt after the command."));
+      expect(before).toBeGreaterThanOrEqual(0); expect(command).toBeGreaterThan(before); expect(after).toBeGreaterThan(command);
+    };
+    await verifyOrder(); await page.reload(); await verifyOrder();
+    expect(fixture.requests).toHaveLength(2);
+    expect(fixture.session().messages.some((message) => message.text.startsWith("/defaults"))).toBe(false);
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("late command reads stay in their source chat and failed reads retry without replaying the command", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.sessions.rename(fixture.sessionId, "Generated command source");
+  const other = await sdk.sessions.create(null, "Generated command destination"), gate = Promise.withResolvers<void>();
+  const query = fixture.service.controller.platform.query.bind(fixture.service.controller.platform);
+  let held = true, reads = 0, fail = false;
+  fixture.service.controller.platform.query = async (input) => {
+    if (input.type === "slash.read") {
+      const entry = fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.id === input.executionId);
+      if (entry?.sessionId === fixture.sessionId) {
+        reads++;
+        if (held) await gate.promise;
+        if (fail) throw new Error("Generated saved command response read failed.");
+      }
+    }
+    return query(input);
+  };
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), input = page.getByRole("textbox", { name: "Prompt", exact: true });
+    await input.fill("/defaults"); await input.press("Enter");
+    await expect.poll(() => reads).toBeGreaterThan(0);
+    const entry = fixture.service.controller.snapshot().commandExecutions[0]!;
+    held = false; const saved = await sdk.commands.read(entry.id); held = true;
+    if (saved.result?.kind !== "text") throw new Error("Generated defaults lost its retained text response.");
+    await page.locator(".session-link").filter({ hasText: "Generated command destination" }).click();
+    held = false; gate.resolve();
+    const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    await expect(transcript.getByRole("article", { name: "Command /defaults", exact: true })).toHaveCount(0);
+    await expect(page.locator(".app-shell")).toHaveAttribute("data-session-id", other.id!);
+    fail = true;
+    await page.locator(".session-link").filter({ hasText: "Generated command source" }).click();
+    const response = transcript.getByRole("article", { name: "Command /defaults", exact: true });
+    await expect(response.getByRole("alert")).toContainText("The operation failed. Check local paths, permissions and service diagnostics");
+    fail = false;
+    await response.getByRole("button", { name: "Read saved response again", exact: true }).click();
+    await expect(response).toContainText(saved.result.text);
+    expect(fixture.service.controller.snapshot().commandExecutions).toHaveLength(1);
+    expect(fixture.service.controller.snapshot().commandExecutions[0]?.resultDigest).toBe(entry.resultDigest);
+    expect(fixture.requests).toHaveLength(0);
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    await mkdir(".moguri/artifacts", { recursive: true });
+    await page.screenshot({ path: ".moguri/artifacts/chat-command-inline.png" });
+  } finally { held = false; gate.resolve(); fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("the actual queued continuation dialog chooses its original input without consuming another client's newer draft", async () => {

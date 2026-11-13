@@ -131,36 +131,31 @@ export function CurrentActivity({ entries, hasMore = false }: { entries: Activit
     {(running.length > 1 || hasMore) && <small>{running.length}{hasMore ? "+" : ""} concurrent</small>}<time role="timer" aria-live="off" aria-label="Elapsed operation time">{activityDuration(elapsed)}</time>
   </div>;
 }
-export function TurnActions({ sdk, sessionId, turnId, info, canCopy, modal }: {
+export function TurnActions({ sdk, sessionId, turnId, info, canCopy }: {
   sdk: MoguriSdk; sessionId: string; turnId: string; info: TurnInfo | undefined; canCopy: boolean;
-  modal: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null), panel = useRef<HTMLElement>(null);
   const panelId = useId();
   const error = info && (info.sessionId !== sessionId || info.turnId !== turnId) ? "Saved turn information belongs to another source. No data was substituted." : "";
-  useEffect(() => { if (open) modal(true); return () => { if (open) modal(false); }; }, [open, modal]);
   useEffect(() => {
     const element = panel.current, anchor = button.current;
     if (!open || !element || !anchor) return;
-    element.showPopover(); element.focus({ preventScroll: true });
-    const position = () => {
-      const bounds = anchor.getBoundingClientRect(), size = element.getBoundingClientRect();
-      element.style.left = `${Math.max(8, Math.min(innerWidth - size.width - 8, bounds.left))}px`;
-      element.style.top = `${Math.max(8, Math.min(innerHeight - size.height - 8, bounds.top - size.height - 7))}px`;
+    element.focus({ preventScroll: true });
+    element.scrollIntoView({ block: "nearest" });
+    return () => {
+      if (anchor.isConnected && (element.contains(document.activeElement) || document.activeElement === document.body)) anchor.focus({ preventScroll: true });
     };
-    const observer = new ResizeObserver(position); observer.observe(element); position();
-    window.addEventListener("resize", position); window.addEventListener("scroll", position, true);
-    return () => { observer.disconnect(); if (element.matches(":popover-open")) element.hidePopover(); window.removeEventListener("resize", position); window.removeEventListener("scroll", position, true); };
   }, [open]);
   const tokens = (value: number | null, known = 0, estimate?: number | null) => value === null ?
     estimate !== null && estimate !== undefined ? `~${estimate.toLocaleString()}` : known > 0 ? `${known.toLocaleString()} known + unknown` : "Not reported" : value.toLocaleString();
-  return <footer className="turn-actions" aria-label="Response actions">
+  return <><footer className="turn-actions" aria-label="Response actions">
     <CopyButton label="Copy response" disabled={!canCopy} source={`${sdk.profileId}:${sessionId}:${turnId}`} text={() => sdk.activity.response(sessionId, turnId)} />
-    <button ref={button} className="icon-button" type="button" title="Turn information" aria-label="Turn information" aria-haspopup="dialog" aria-controls={open ? panelId : undefined} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="Info" /></button>
-    {open && <div ref={panel} id={panelId} tabIndex={-1} className="turn-info-popover" popover="auto" role="dialog" aria-label="Turn information" onToggle={(event) => {
-      if (event.newState === "closed") { setOpen(false); button.current?.focus(); }
-    }}>
+    <button ref={button} className="icon-button" type="button" title="Turn information" aria-label="Turn information" aria-controls={open ? panelId : undefined} aria-expanded={open} onClick={() => setOpen((value) => !value)}><Icon name="Info" /></button>
+  </footer>
+    {open && <section ref={panel} id={panelId} tabIndex={-1} className="turn-info" aria-label="Turn information" onKeyDown={(event) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setOpen(false); button.current?.focus(); }
+    }}><header><strong>Turn information</strong><button type="button" className="icon-button" aria-label="Close turn information" onClick={() => { setOpen(false); button.current?.focus(); }}><Icon name="Close" /></button></header>
       {error ? <Alert as="p" className="inline-error" role="alert">{error}</Alert> : !info ? <p role="status">No original telemetry was recorded for this turn.</p> : <>
         <dl><dt>{info.models.length > 1 ? "Models" : "Model"}</dt><dd>{info.models.length ? [...new Set(info.models.map((model) => model.modelId))].join(", ") : "Not observed"}</dd>
           <dt>Est. USD</dt><dd>{estimatedCost(info.usage, info.estimate)}</dd>
@@ -176,6 +171,5 @@ export function TurnActions({ sdk, sessionId, turnId, info, canCopy, modal }: {
           <dt>Reasoning tokens</dt><dd>Not separately reported</dd>
         </dl><p className="fine-print">Original model/context evidence and complete owning-turn accounting. Values prefixed with ~ use retained input and visible-output estimates, not provider reports. Estimated USD is not a bill or AI-credit balance; missing cache telemetry stays unknown.</p></details>
       </>}
-    </div>}
-  </footer>;
+    </section>}</>;
 }

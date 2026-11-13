@@ -65,7 +65,7 @@ test("desktop expands original operations and public reasoning, copies only the 
     await sdk.sessions.modelOptions(fixture.sessionId, { contextWindow: 16384 }, fixture.session().revision);
     const infoButton = response.getByRole("button", { name: "Turn information", exact: true });
     await infoButton.focus(); await page.keyboard.press("Enter");
-    const info = page.getByRole("dialog", { name: "Turn information", exact: true });
+    const info = response.getByRole("region", { name: "Turn information", exact: true });
     await expect(info).toBeFocused();
     await expect(info).toContainText(fixture.modelId);
     await expect(info).toContainText("60 in / 24 out");
@@ -85,7 +85,13 @@ test("desktop expands original operations and public reasoning, copies only the 
     await expect(budget.getByRole("meter", { name: "Estimated context window", exact: true })).toHaveAttribute("max", "16384");
     await expect(budget.getByRole("button", { name: "View usage and limits...", exact: true })).toBeVisible();
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
-    await expect.poll(async () => (await budget.boundingBox())!.height).toBeLessThan(400);
+    const sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
+    await expect(sidebar.getByRole("dialog", { name: "Budget and usage", exact: true })).toBeVisible();
+    await expect(page.getByRole("form", { name: "Message composer", exact: true })).toBeVisible();
+    const sidebarBounds = await sidebar.boundingBox(), budgetBounds = await budget.boundingBox();
+    expect(budgetBounds!.x).toBeGreaterThanOrEqual(sidebarBounds!.x);
+    expect(budgetBounds!.x + budgetBounds!.width).toBeLessThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
+    expect(budgetBounds!.y + budgetBounds!.height).toBeLessThanOrEqual(sidebarBounds!.y + sidebarBounds!.height);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.screenshot({ path: resolve(".moguri/artifacts/chat-activity-budget.png") });
     await budget.getByRole("button", { name: "View usage and limits...", exact: true }).click();
@@ -122,7 +128,7 @@ test("current operation has a wall timer, respects reduced motion, and disappear
     await sdk.command({ type: "session.stop", sessionId: fixture.sessionId }); await fixture.terminal();
     await expect(operation).toHaveCount(0);
     await transcript.getByRole("button", { name: "Turn information", exact: true }).click();
-    const info = page.getByRole("dialog", { name: "Turn information", exact: true });
+    const info = transcript.getByRole("region", { name: "Turn information", exact: true });
     await info.getByText("Original turn details", { exact: true }).click();
     await expect(info).toContainText("stopped");
     expect(fixture.requests.length).toBe(1);
@@ -146,10 +152,10 @@ test("saved original turn information never leaks into another session or starts
     const page = await app.firstWindow(), transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     await page.locator(".session-link").filter({ hasText: "Generated activity first" }).click();
     await transcript.getByRole("button", { name: "Turn information", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Turn information", exact: true })).toContainText(fixture.modelId);
+    await expect(transcript.getByRole("region", { name: "Turn information", exact: true })).toContainText(fixture.modelId);
     await page.locator(".session-link").filter({ hasText: "Generated activity second" }).click();
     await expect(page.locator(".session-link[aria-current='page']")).toHaveAttribute("title", "Generated activity second");
-    await expect(page.getByRole("dialog", { name: "Turn information", exact: true })).toHaveCount(0);
+    await expect(transcript.getByRole("region", { name: "Turn information", exact: true })).toHaveCount(0);
     await expect(transcript.locator(".conversation-turn")).toHaveCount(0);
     await expect(transcript).not.toContainText("Generated Copilot response");
     expect((await sdk.activity.list(second.id!)).activity.entries).toEqual([]);

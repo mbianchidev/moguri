@@ -82,10 +82,14 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     await expect(right).toHaveAttribute("aria-valuenow", "360");
     const before = Number(await left.getAttribute("aria-valuenow"));
     await page.getByRole("button", { name: "Execution environment", exact: true }).click();
-    const environment = page.getByRole("dialog", { name: "Execution environment", exact: true }), anchor = (await environment.boundingBox())!.x;
+    const sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
+    const environment = sidebar.getByRole("dialog", { name: "Execution environment", exact: true });
+    await expect(environment).toBeVisible();
     await left.focus(); await left.press("ArrowRight");
     await expect(left).toHaveAttribute("aria-valuenow", String(before + 16));
-    await expect.poll(async () => (await environment.boundingBox())?.x).toBeCloseTo(anchor + 16, 1);
+    const menuBounds = await environment.boundingBox(), sidebarBounds = await sidebar.boundingBox();
+    expect(menuBounds!.x).toBeGreaterThanOrEqual(sidebarBounds!.x);
+    expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
     await page.keyboard.press("Escape");
     const box = (await right.boundingBox())!, initial = Number(await right.getAttribute("aria-valuenow"));
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { createHash } from "node:crypto";
 import { execFile, execFileSync } from "node:child_process";
 import { appendFile, mkdir, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
@@ -8,20 +8,26 @@ import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
-import { KUPO_MODEL_ID, PROTOCOL_VERSION, type Controls } from "../packages/sdk/src/index.ts";
+import { isRecord, KUPO_MODEL_ID, PROTOCOL_VERSION, type Controls } from "../packages/sdk/src/index.ts";
 import { frameDigest } from "../apps/service/src/worker-wire.ts";
 import { remoteRootLease } from "../apps/service/src/remote.ts";
 import { routedFixture } from "./fixtures/single-routing.ts";
 import { generatedDocx } from "./fixtures/documents.ts";
 import { initializeGeneratedRepository } from "./fixtures/git-project.ts";
+import { nativeConfiguration } from "./fixtures/native-target.ts";
+import { nativeMilestoneFixture } from "./fixtures/native-milestone-api.ts";
 import { waitFor } from "./fixture.ts";
 import {
-  configureMilestoneRouting, milestoneAxes, milestoneBudget, milestoneCellId, milestoneResponses, requiredMilestoneCells,
+  configureMilestoneRouting, milestoneAxes, milestoneBudget, milestoneCellId, milestoneResponses, nativeMilestoneWitness, requiredMilestoneCells,
   type MilestoneCell, type MilestoneFixture,
 } from "./fixtures/milestone-combinations.ts";
 
 const cells = requiredMilestoneCells();
 const sourceCells = cells.filter((cell) => cell.env !== "Sandbox");
+const nativeCells = cells.filter((cell) => cell.env === "Sandbox");
+const native = await nativeConfiguration(true);
+const nativeGroups = process.env.MOGURI_NATIVE_GROUPS;
+const nativeGroupMode = nativeGroups !== undefined;
 const concurrency = 4, cellTimeout = 45000, setupTimeout = 15000;
 const actorGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.autonomy.length * milestoneAxes.budget.length;
 const sourceGroupTimeout = setupTimeout + cellTimeout * milestoneAxes.window.length * milestoneAxes.input.length;
@@ -79,6 +85,7 @@ test("missing qualification artifacts retain every required not-run/native-unqua
 });
 
 async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: { window?: number; question?: boolean; image?: boolean } = {}) {
+  const cellDeadline = Date.now() + cellTimeout;
   const contextWindow = options.window ?? (cell.window === "maximum" ? 32768 : 16384);
   const modelOptions: Controls["modelOptions"] = {
     contextWindow, ...(cell.effort === "default" ? {} : { thinkingEffort: cell.effort }),
@@ -90,7 +97,7 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   const sessionId = created.id!;
   const session = () => fixture.service.controller.snapshot().sessions.find((value) => value.id === sessionId)!;
   await fixture.sdk.sessions.autonomy(sessionId, cell.autonomy);
-  const text = `Generated original required cell ${milestoneCellId(cell)}.`;
+  const text = `Generated original required cell ${milestoneCellId(cell)}.${options.question ? " Generated actual-question case." : ""}`;
   await fixture.sdk.command({ type: "draft.save", sessionId, expectedRevision: session().draft.revision, text, attachments: [] });
   let documentId: string | undefined;
   let documentPath: string | undefined;
@@ -127,8 +134,58 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
     }
     await fixture.sdk.questions.answer(question.id, question.choices[0]!, question.revision);
   }
-  await waitFor(() => !session().turnId && ["completed", "failed", "stopped", "partial"].includes(session().status), 30000);
+  await waitFor(() => !session().turnId && ["completed", "failed", "stopped", "partial"].includes(session().status),
+    cell.env === "Sandbox" ? Math.max(0, cellDeadline - Date.now()) : 30000).catch((error: unknown) => {
+    const snapshot = fixture.service.controller.snapshot();
+    throw new Error(`Required cell ${milestoneCellId(cell)} did not settle: ${JSON.stringify({
+      directory: fixture.directory, status: session().status, error: session().lastError, approval: session().pendingApproval,
+      tools: session().messages.filter((message) => message.role === "tool"),
+      executions: snapshot.sandboxExecutions?.filter((value) => value.sessionId === sessionId).map(({ id, status, diagnostic, cleanup }) => ({ id, status, diagnostic, cleanup })),
+      calls: snapshot.budgetEntries.filter((entry) => entry.sessionId === sessionId).map(({ role, status }) => ({ role, status })),
+    })}`, { cause: error });
+  });
   assert.equal(session().status, "completed", `${milestoneCellId(cell)}: ${session().lastError ?? ""}`);
+  let nativeReceipt: Record<string, unknown> | null = null;
+  if (cell.env === "Sandbox") {
+    const execution = await waitFor(() => fixture.service.controller.snapshot().sandboxExecutions?.find((value) =>
+      value.sessionId === sessionId && value.cleanup === "owned-guest-stopped" && !fixture.service.controller.sandbox.owns(value.id)), 15000);
+    const retained = (await fixture.sdk.sandbox.result(execution.id)).result;
+    assert.ok(retained);
+    assert.equal(retained.journal.status, "verified");
+    const witness = await nativeMilestoneWitness(execution, retained);
+    const proof: unknown = JSON.parse(witness.text);
+    assert.ok(isRecord(proof) && Array.isArray(proof.calls));
+    assert.equal(proof.platform, "linux");
+    assert.ok(Number.isSafeInteger(proof.uid) && Number(proof.uid) > 0);
+    assert.ok(Number.isSafeInteger(proof.pid) && Number(proof.pid) > 0);
+    assert.equal(proof.runId, execution.id);
+    assert.equal(observed.length, 0, "Controller inference is never a substitute for guest-owned calls.");
+    assert.equal(fixture.requests.length, 0);
+    assert.equal(fixture.solver.requests.length, 0);
+    for (const call of proof.calls) {
+      assert.ok(isRecord(call) && typeof call.modelId === "string" && isRecord(call.request));
+      observed.push({ modelId: call.modelId, request: call.request });
+    }
+    assert.equal(execution.workerDigest, native!.qualification!.workerDigest);
+    assert.equal(execution.image, native!.image);
+    assert.match(execution.nativeSessionId!, /^[a-f0-9]{32}$/);
+    assert.match(execution.planDigest!, /^[a-f0-9]{64}$/);
+    assert.match(execution.signerFingerprint!, /^[a-f0-9]{64}$/);
+    assert.equal(execution.workerOutcome, "completed");
+    assert.deepEqual(execution.config.qualification!.allowedDomains, ["api.githubcopilot.com"]);
+    assert.deepEqual(execution.networkScope?.allowedDomains, ["api.githubcopilot.com"]);
+    assert.equal(await readFile(join(fixture.project, "fixture.txt"), "utf8"), "generated original\n");
+    nativeReceipt = {
+      executionId: execution.id, nativeSessionId: execution.nativeSessionId, image: execution.image,
+      workerDigest: execution.workerDigest, configurationDigest: execution.configDigest, planDigest: execution.planDigest,
+      signerFingerprint: execution.signerFingerprint, frameCursor: execution.lastSequence, journal: retained.journal,
+      rootDigest: frameDigest(execution.stage.workspace), sourceRootDigest: frameDigest(execution.sourceRoot), inputDigest: execution.inputDigest,
+      witnessSha256: witness.digest, witnessBytes: witness.bytes, witnessAuditDigest: witness.auditDigest, witnessAfterId: witness.afterId,
+      guestPid: proof.pid, uid: proof.uid,
+      network: { kind: "provider-only-generated-inference", scope: execution.networkScope },
+      sourceUnchanged: true, ownedGuestAbsent: true,
+    };
+  }
   const state = fixture.service.controller.snapshot();
   const entries = state.budgetEntries.filter((entry) => entry.sessionId === sessionId);
   const firstRoles = cell.selection === "fixed" || cell.selection === "automatic-single" ? ["solver"] :
@@ -190,6 +247,9 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   for (const call of observed.filter((call) => call.modelId === fixture.solverId)) {
     assert.doesNotMatch(JSON.stringify(call.request), /GENERATED_MATRIX_ROUTER_REASON_NOT_SOLVER_CONTEXT/);
   }
+  if (cell.env === "Sandbox") for (const call of observed) {
+    assert.equal(JSON.stringify(call.request).includes(fixture.project), false, "A controller source path cannot become guest model context.");
+  }
   if (documentId) {
     assert.doesNotMatch(JSON.stringify(observed[0]!.request), /GENERATED_DOCUMENT_SECRET/);
     assert.ok(documentPath);
@@ -228,71 +288,132 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   }
   const execution = fixture.service.controller.snapshot().executions.find((value) => value.sessionId === sessionId);
   const result = {
-    id: milestoneCellId(cell), outcome: "source-pass" as const, controls: session().controls, roles,
+    id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-pass" as const : "source-pass" as const, controls: session().controls, roles,
     calls: observed.length, reportedTokens: roles.length * 42, billedUsd: status.totals.billedUsd,
     models: entries.map((entry) => ({ role: entry.role, modelId: entry.modelId, providerId: entry.providerId,
       apiModelId: entry.apiModelId, inputEstimate: entry.inputEstimate, outputLimit: entry.outputLimit,
       reportedTokens: entry.reportedTokens, planId: entry.planId })),
-    profileId: state.profileId, rootDigest: frameDigest(cell.env === "Remote" ? execution!.workspace :
+    profileId: state.profileId, rootDigest: nativeReceipt?.rootDigest ?? frameDigest(cell.env === "Remote" ? execution!.workspace :
       state.projects.find((project) => project.id === session().projectId)!.path),
     peerDigest: execution ? frameDigest(execution.target.hostKey) : null,
     targetDigest: execution?.configDigest ?? null,
     rootLease: execution ? remoteRootLease(execution.target, execution.workspace) : null,
-    workerDigest: execution?.workerDigest ?? null, cleanup: execution?.cleanup ?? "authoritative-local-turn-settled",
+    workerDigest: nativeReceipt?.workerDigest ?? execution?.workerDigest ?? null,
+    cleanup: nativeReceipt ? "owned-guest-stopped" : execution?.cleanup ?? "authoritative-local-turn-settled",
+    ...(nativeReceipt ? { nativeReceipt } : {}),
   };
   await fixture.sdk.sessions.delete(sessionId, true);
   return result;
 }
 
-for (const env of ["Local", "Remote"] as const)
+test("native qualification reads an oversized original signed witness without relaxing user output limits", {
+  skip: !native, timeout: 90000,
+}, async () => {
+  assert.ok(native);
+  const fixture = await nativeMilestoneFixture(native);
+  try {
+    await configureMilestoneRouting(fixture, "cascade");
+    const { configuration } = await fixture.sdk.projects.configuration(fixture.session().projectId);
+    await fixture.sdk.projects.configure(configuration.projectId, { ...configuration.values,
+      instructions: "Generated qualification context; not permission or instructions to execute tools.\n".repeat(64) }, configuration.revision);
+    await runCell(fixture, { env: "Sandbox", selection: "cascade", autonomy: "Guided", budget: "unlimited",
+      window: "maximum", effort: "default", input: "document" });
+    const execution = fixture.service.controller.snapshot().sandboxExecutions![0]!;
+    const result = (await fixture.sdk.sandbox.result(execution.id)).result;
+    assert.ok(result);
+    assert.equal(result.files.some((file) => file.path === "generated-native-matrix.json"), false);
+    assert.ok(result.excluded.some((file) => file.path === "generated-native-matrix.json" && file.reason.includes("128-KiB")));
+    const witness = await nativeMilestoneWitness(execution, result);
+    assert.ok(witness.bytes > 128 * 1024 && witness.bytes <= 2 * 1024 * 1024);
+  } finally { await fixture.close(); }
+});
+
+test("reviewed native groups reject partial-cell and duplicate selections before creating a qualification journal", {
+  skip: !native, timeout: 15000,
+}, async () => {
+  const directory = ".test-output/milestone-combinations";
+  await mkdir(directory, { recursive: true });
+  const before = (await readdir(directory)).filter((name) => name.startsWith("native-progress-")).sort();
+  for (const [selection, diagnostic] of [
+    [["critique/Autopilot/unlimited"], /Select only exact whole native groups/],
+    [["critique/Autopilot", "critique/Autopilot"], /Duplicate group selection/],
+    [[], /Select only exact whole native groups/],
+  ] as const) {
+    await assert.rejects(() => promisify(execFile)(process.execPath, [
+      "--import", pathToFileURL(resolve("node_modules/tsx/dist/loader.mjs")).href,
+      "--test", "--test-name-pattern", "^reviewed native Sandbox groups execute",
+      resolve("tests/milestone-combinations.test.ts"),
+    ], { timeout: 10000, env: { ...process.env, NODE_TEST_CONTEXT: undefined, MOGURI_NATIVE_GROUPS: JSON.stringify(selection) } }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error && "code" in error && error.code === 1);
+      assert.ok("stdout" in error && typeof error.stdout === "string");
+      assert.match(error.stdout, diagnostic); return true;
+    });
+  }
+  assert.deepEqual((await readdir(directory)).filter((name) => name.startsWith("native-progress-")).sort(), before);
+});
+
+for (const env of ["Local", "Remote", "Sandbox"] as const)
   for (const selection of milestoneAxes.selection)
     test(`exact arbitrary ${env}/${selection} window and genuine effort traverse the owning worker without changing capacity`, {
-      skip: process.platform !== "darwin", timeout: 45000,
+      skip: process.platform !== "darwin" || env === "Sandbox" && !native, timeout: 90000,
     }, async () => {
-      const fixture = await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
+      const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
+        await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
       try {
         await configureMilestoneRouting(fixture, selection);
         await runCell(fixture, { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "text" }, { window: 24577 });
       } finally { await fixture.close(); }
     });
 
-for (const env of ["Local", "Remote"] as const) for (const selection of milestoneAxes.selection)
+for (const env of ["Local", "Remote", "Sandbox"] as const) for (const selection of milestoneAxes.selection)
 test(`mixed approved image/document ${env}/${selection} context reaches every actual role without a path or body fallback`, {
-  skip: process.platform !== "darwin", timeout: 45000,
+  skip: process.platform !== "darwin" || env === "Sandbox" && !native, timeout: 90000,
 }, async () => {
-  const fixture = await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
+  const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
+    await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
   try {
     await configureMilestoneRouting(fixture, selection);
     await runCell(fixture, { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "document" }, { image: true });
   } finally { await fixture.close(); }
 });
 
+async function actorGroup(group: TestContext, env: MilestoneCell["env"], selection: MilestoneCell["selection"]) {
+  const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
+    await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
+  try {
+    await configureMilestoneRouting(fixture, selection);
+    const settings = fixture.sdk.settings.get()!;
+    await fixture.sdk.settings.update({
+      ...settings.values, decisions: { ...settings.values.decisions, technicalQuestions: [{
+        id: "generated-matrix-technical", kind: "technical-choice", question: "Choose a generated matrix approach?",
+        choices: ["Generated first choice", "Generated second choice"],
+      }] },
+    }, settings.revision);
+    for (const autonomy of milestoneAxes.autonomy) for (const budget of milestoneAxes.budget) {
+      let passed = false;
+      await group.test(`${autonomy}/${budget}`, { timeout: cellTimeout }, async () => {
+        await runCell(fixture, { env, selection, autonomy, budget, window: "maximum", effort: "default", input: "text" }, { question: true });
+        passed = true;
+      });
+      assert.ok(passed, "A required actual-actor/cap case failed; no later group case is inferred successful.");
+    }
+  } finally { await fixture.close(); }
+}
+
 test("every Local/SSH selection and cap preserves actual Manual/Guided/Autopilot answers or one bounded-model Max decision", {
   skip: process.platform !== "darwin", concurrency,
   timeout: setupTimeout + actorGroupTimeout * Math.ceil(2 * milestoneAxes.selection.length / concurrency),
 }, async (t) => {
   await Promise.all((["Local", "Remote"] as const).flatMap((env) => milestoneAxes.selection.map((selection) =>
-    t.test(`${env}/${selection}`, { timeout: actorGroupTimeout }, async (group) => {
-      const fixture = await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
-      try {
-        await configureMilestoneRouting(fixture, selection);
-        const settings = fixture.sdk.settings.get()!;
-        await fixture.sdk.settings.update({
-          ...settings.values, decisions: { ...settings.values.decisions, technicalQuestions: [{
-            id: "generated-matrix-technical", kind: "technical-choice", question: "Choose a generated matrix approach?",
-            choices: ["Generated first choice", "Generated second choice"],
-          }] },
-        }, settings.revision);
-        for (const autonomy of milestoneAxes.autonomy) for (const budget of milestoneAxes.budget) {
-          let passed = false;
-          await group.test(`${autonomy}/${budget}`, { timeout: cellTimeout }, async () => {
-            await runCell(fixture, { env, selection, autonomy, budget, window: "maximum", effort: "default", input: "text" }, { question: true });
-            passed = true;
-          });
-          assert.ok(passed, "A required actual-actor/cap case failed; no later group case is inferred successful.");
-        }
-      } finally { await fixture.close(); }
-    }))));
+    t.test(`${env}/${selection}`, { timeout: actorGroupTimeout }, (group) => actorGroup(group, env, selection)))));
+});
+
+test("every native selection and cap preserves actual Manual/Guided/Autopilot answers or one bounded-model Max decision", {
+  skip: !native, concurrency: 2, timeout: setupTimeout + actorGroupTimeout * Math.ceil(milestoneAxes.selection.length / 2),
+}, async (t) => {
+  await Promise.all(milestoneAxes.selection.map((selection) =>
+    t.test(`Sandbox/${selection}`, { timeout: actorGroupTimeout }, (group) => actorGroup(group, "Sandbox", selection))));
 });
 
 for (const env of ["Local", "Remote"] as const) for (const selection of ["fixed", "automatic-single"] as const)
@@ -403,7 +524,7 @@ test("required Local/SSH source cells execute every independent control/input co
       cells: cells.map((cell) => completed.get(milestoneCellId(cell)) ?? {
         id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-unqualified" :
           failed.has(milestoneCellId(cell)) ? "source-failed" : "not-run",
-        diagnostic: cell.env === "Sandbox" ? "Released SendBox Meta-DNS prerequisite and fresh exact-current physical receipts remain required." :
+        diagnostic: cell.env === "Sandbox" ? "This source-only report cannot substitute for the independent exact-current physical native matrix." :
           failed.get(milestoneCellId(cell)) ?? diagnostic ?? "Required source cell did not complete; no qualification inferred.",
       }),
     };
@@ -412,5 +533,108 @@ test("required Local/SSH source cells execute every independent control/input co
     await writeFile(join(directory, `source-report-${runId}.json`), content, { flag: "wx" });
     await writeFile(join(directory, "source-report.json.tmp"), content);
     await rename(join(directory, "source-report.json.tmp"), join(directory, "source-report.json"));
+  }
+});
+
+test(nativeGroupMode ? "reviewed native Sandbox groups execute every whole-group combination on the exact owned guest" :
+  "required native Sandbox cells execute every independent control/input combination on the exact owned guest", {
+  skip: !native, concurrency: 2, timeout: 14_400_000,
+}, async (t) => {
+  assert.ok(native);
+  const groupId = (cell: MilestoneCell) => `${cell.selection}/${cell.autonomy}`;
+  const allGroups = [...new Set(nativeCells.map(groupId))];
+  let groups = allGroups;
+  if (nativeGroupMode) {
+    const requested: unknown = JSON.parse(nativeGroups);
+    assert.ok(Array.isArray(requested) && requested.length > 0 &&
+      requested.every((group: unknown) => typeof group === "string" && allGroups.includes(group)), "Select only exact whole native groups.");
+    assert.equal(new Set(requested).size, requested.length, "Duplicate group selection cannot qualify repeated work.");
+    groups = allGroups.filter((group) => requested.includes(group));
+  }
+  const requiredCells = nativeCells.filter((cell) => groups.includes(groupId(cell))), completedGroups = new Set<string>();
+  const completed = new Map<string, Awaited<ReturnType<typeof runCell>>>(), failed = new Map<string, string>();
+  const startedAt = new Date().toISOString(), runId = startedAt.replace(/\D/g, "");
+  const directory = ".test-output/milestone-combinations", journalPath = join(directory, `native-progress-${runId}.jsonl`);
+  const identity = {
+    commit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+    dirtyAtStart: Boolean(execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()),
+    protocol: PROTOCOL_VERSION, node: process.version, image: native.image, qualification: native.qualification,
+    scope: { kind: nativeGroupMode ? "reviewed-whole-groups" : "whole-matrix", groups, wholeRequired: nativeCells.length },
+    fixtureNetwork: { toolDomains: [], providerHosts: ["api.githubcopilot.com"], inference: "in-guest generated HTTP; real factory/cold network gates remain separate" },
+    inputs: {} as Record<string, string>,
+  };
+  let writes = Promise.resolve(), diagnostic: string | null = null;
+  const journal = (entry: object) => writes = writes.then(() => appendFile(journalPath, `${JSON.stringify(entry)}\n`));
+  try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(journalPath, `${JSON.stringify({ version: 1, startedAt,
+      ...(nativeGroupMode ? { nativeGroupStatus: "RUNNING" } : { nativeNominalStatus: "RUNNING" }), axes: milestoneAxes })}\n`, { flag: "wx" });
+    const inputs = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
+      "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile", "apps/service/src/native-evidence.ts",
+      "tests/milestone-combinations.test.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
+      "tests/fixture.ts", "tests/fixtures/native-milestone-api.ts",
+      "tests/fixtures/milestone-combinations.ts", "tests/fixtures/milestone-response.ts", "tests/fixtures/native-milestone-provider.mjs"];
+    identity.inputs = Object.fromEntries(await Promise.all(inputs.map(async (path) =>
+      [path, createHash("sha256").update(await readFile(path)).digest("hex")])));
+    await journal({ type: "identity", identity });
+    await Promise.all(groups.map((group) => t.test(group, { timeout: 60_000 + nativeCells.length / allGroups.length * cellTimeout }, async (groupTest) => {
+      const required = nativeCells.filter((cell) => groupId(cell) === group), first = required[0]!;
+      const fixture = await nativeMilestoneFixture(native);
+      try {
+        await configureMilestoneRouting(fixture, first.selection);
+        for (const cell of required) {
+          let passed = false;
+          await groupTest.test(milestoneCellId(cell), { timeout: cellTimeout }, async () => {
+            try {
+              const result = await runCell(fixture, cell);
+              assert.equal(completed.has(result.id), false);
+              await journal({ type: "cell", result });
+              completed.set(result.id, result);
+              passed = true;
+            } catch (error) {
+              failed.set(milestoneCellId(cell), error instanceof Error ? error.message : String(error));
+              await journal({ type: "cell", result: { id: milestoneCellId(cell), outcome: "native-failed", diagnostic: failed.get(milestoneCellId(cell)) } });
+              throw error;
+            }
+          });
+          assert.ok(passed, `Required native cell failed; remaining group cells stay unqualified: ${milestoneCellId(cell)}`);
+        }
+      } finally { await fixture.close(); }
+      await journal({ type: "group-cleanup-confirmed", group });
+      completedGroups.add(group);
+    })));
+    assert.deepEqual([...completed.keys()].sort(), requiredCells.map(milestoneCellId).sort());
+    assert.equal(completedGroups.size, groups.length);
+    for (const [path, digest] of Object.entries(identity.inputs)) {
+      assert.equal(createHash("sha256").update(await readFile(path)).digest("hex"), digest, `Native qualification inputs changed: ${path}`);
+    }
+  } catch (error) {
+    diagnostic = error instanceof Error ? error.message : String(error);
+    throw error;
+  } finally {
+    const qualified = new Map(diagnostic === null ? completed : []);
+    for (const cell of requiredCells) if (!completedGroups.has(groupId(cell))) qualified.delete(milestoneCellId(cell));
+    const report = {
+      version: 1, identity, startedAt, finishedAt: new Date().toISOString(), diagnostic, journalPath,
+      ...(nativeGroupMode ? { format: "moguri-native-group-qualification", wholeMatrixQualified: false,
+        groupStatus: qualified.size === requiredCells.length ? "PASS" : "INCOMPLETE", selectedGroups: groups,
+        groupPassed: qualified.size, groupObservedPassed: completed.size, groupUnqualified: requiredCells.length - qualified.size } :
+        { nativeNominalStatus: qualified.size === nativeCells.length ? "PASS" : "INCOMPLETE",
+          nativePassed: qualified.size, nativeObservedPassed: completed.size, nativeUnqualified: nativeCells.length - qualified.size }),
+      required: requiredCells.length,
+      qualification: "Actual current guest with generated inference. Failure/ownership gates, clients, hosted CI and live model quality remain separate.",
+      cells: requiredCells.map((cell) => qualified.get(milestoneCellId(cell)) ?? {
+        ...completed.get(milestoneCellId(cell)),
+        id: milestoneCellId(cell), outcome: failed.has(milestoneCellId(cell)) ? "native-failed" : "native-unqualified",
+        diagnostic: completed.has(milestoneCellId(cell)) ? "The original cell was observed, but its complete group/cleanup did not qualify." :
+          failed.get(milestoneCellId(cell)) ?? diagnostic ?? "Required physical cell did not complete; no qualification inferred.",
+      }),
+    };
+    await writes;
+    const content = `${JSON.stringify(report, null, 2)}\n`;
+    const name = nativeGroupMode ? "native-group-report" : "native-report";
+    await writeFile(join(directory, `${name}-${runId}.json`), content, { flag: "wx" });
+    await writeFile(join(directory, `${name}.json.tmp`), content);
+    await rename(join(directory, `${name}.json.tmp`), join(directory, `${name}.json`));
   }
 });
