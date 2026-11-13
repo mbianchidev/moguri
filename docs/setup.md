@@ -435,10 +435,14 @@ records protocol-91 migration, ownership and recovery boundaries.
 
 The desktop opens to the original Moguri mascot on a black window while the
 original backend connects, not an incomplete workspace layout. Press **Space**
-or click the mascot to flap its wings, gain altitude and earn a score. The
-optional game makes no model call, changes no workspace state and never delays
-authenticated readiness. Reduced motion keeps the mascot still while scoring
-remains available.
+or click the playfield to start flapping. The score is in the upper-left corner.
+Keep flapping to avoid falling, dodge the lightly spaced random clouds and
+collect gold stars for **50 bonus points** each. Falling or hitting a cloud ends
+the round and freezes its score; **Space**, **Enter** on **Play again**, or a
+click starts a fresh round. The optional game makes no model call, changes no
+workspace state and never delays authenticated readiness. Reduced motion
+disables decorative wing animation; essential flight and obstacle positions
+remain visible so collisions match what you see.
 
 Open **Draft while waiting** to see cached model/effort labels and type a
 temporary local draft. Space inside that editor types normally, not a flap.
