@@ -2,12 +2,12 @@
 
 ## Current acceptance status, 2026-11-13
 
-The branch-local core runtime/build cut is `51fce72`. Its complete source invocation passes **10,870 tests,
+At the pre-security-update core runtime/build cut `51fce72`, the complete source invocation passes **10,870 tests,
 56 explicit Native skips, zero failures/cancellations**, including all **6,720
 Local/SSH nominal cells**. The user-reviewed complete-group method now verifies
-all **3,360 Native cells in 20 complete groups**, with exact matching core
+all **3,360 Native cells in 20 complete groups on the old `6a0b...` image**, with exact matching core
 source/runtime/proof/accounting and owned cleanup. Together they cover every
-one of the **10,080 required IDs**. See the
+one of that cut's **10,080 required IDs**. See the
 [exact current qualification](architecture/milestone-combination-matrix.md#current-qualification-2026-11-13).
 
 The later user-directed [inline command/sidebar menu slice](architecture/session-interactions.md#inline-command-responses-and-sidebar-menus)
@@ -17,6 +17,11 @@ The user also approved the minimal [compatible MCP security lock updates](archit
 They change the dependency input cut, not compiled Native core code. Older
 qualified guest bytes remain unpatched; newly produced patched guest images
 require their own reviewed qualification before release.
+The user approved a new generated patched image (`a204...`): all ten selected
+physical gates and all five Native desktop control patterns now pass, alongside
+the current full desktop **416-pass/11-skip** suite and zero root/consumer
+advisories. Its full **3,360 new-image cells remain unqualified**; the older
+complete-group artifact is not relabeled or reused across the new lock/image.
 
 The original four-hour Native invocation remains **INCOMPLETE**, not a newly
 passing whole run. Its partial groups are excluded; the remaining two groups
@@ -122,6 +127,9 @@ acceptance**. No actual gate is removed or silently narrowed:
   receipts and no-replay recovery. The reviewed complete-group artifact covers
   all 3,360 IDs; original incomplete reports and partial groups remain
   unqualified, and no required cell is dropped.
+- [ ] Qualify the complete required matrix for the newly approved patched
+  worker image. Its selected physical/client gates do not transfer the
+  previous image's 3,360-cell artifact across a changed dependency payload.
 - [ ] Restore account eligibility and record a fresh authorized hosted-main
   CI pass. Generated/local source and package success cannot replace it.
 
