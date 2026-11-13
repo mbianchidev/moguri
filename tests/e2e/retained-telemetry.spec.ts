@@ -30,7 +30,7 @@ test("turn and compact usage information open from saved chat state without turn
     const original = page.locator(`button[data-session-id="${fixture.sessionId}"]`);
     await original.click();
     await page.getByRole("log", { name: "Session transcript", exact: true }).getByRole("button", { name: "Turn information", exact: true }).click();
-    const details = page.getByRole("dialog", { name: "Turn information", exact: true });
+    const details = page.getByRole("region", { name: "Turn information", exact: true });
     await expect(details.getByText("Loading original turn information...", { exact: true })).toHaveCount(0);
     await expect(details).toContainText("30 in / 12 out");
     await expect(details).toContainText("10 read");

@@ -40,7 +40,7 @@ test("local model setup is independent of Copilot and startup controls are inher
     expect(fixture.provider.state.status).toBe("disconnected");
     await expect(page.locator(".nav-footer").getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await page.getByRole("region", { name: "Assistant response", exact: true }).getByRole("button", { name: "Turn information", exact: true }).click();
-    const info = page.getByRole("dialog", { name: "Turn information", exact: true });
+    const info = page.getByRole("region", { name: "Turn information", exact: true });
     await info.getByText("Original turn details", { exact: true }).click();
     await expect(info).toContainText("10 read / 0 write");
     await page.keyboard.press("Escape");

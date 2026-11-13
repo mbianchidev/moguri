@@ -427,7 +427,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           </div>;
         })}{session.repositories && <p>Captured groups support Local and reviewed managed Sandbox execution. Every workspace tool explicitly selects an original repository. There is no first/default or common-parent root, and SSH groups remain unqualified.</p>}</>)}
         <ComposerPopover name="model" label="Model" sourceSessionId={session.id} description={model?.name ?? (cachedModel ? `${cachedModel.name} (cached label; refreshing availability)` : session.controls.modelId) ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? cachedModel?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{!model && cachedModel ? " (refreshing)" : model?.synthetic && session.controls.kupoMode ? ` · ${kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name}` : session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
-          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
+          <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onModelSelected={() => { if (session.kind === "side") setMenu(null); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const reason = autonomy === "Manual" ? "You approve tools or remember a grant" : autonomy === "Guided" ? "Advice, then your confirmation" : autonomy === "Autopilot" ? "Automatically approve all tools and commands" :
@@ -487,7 +487,7 @@ function ComposerPopover({ name, label, sourceSessionId, description, open, togg
 }
 
 const effortLabel = (value: ThinkingEffort | "") => value === "" ? "Model default" : value === "xhigh" ? "Extra high" : value[0]!.toUpperCase() + value.slice(1);
-function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting, onContext, onSaving, onError, pending, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onRouting: () => void; onContext: () => void; onSaving: (saving: boolean) => void; onError: (message: string) => void; pending: boolean; requiresImages: boolean }) {
+function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting, onContext, onModelSelected, onSaving, onError, pending, requiresImages }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; onConnect: () => void; onLocalModels: () => void; onRouting: () => void; onContext: () => void; onModelSelected: () => void; onSaving: (saving: boolean) => void; onError: (message: string) => void; pending: boolean; requiresImages: boolean }) {
   const cachedModels = useContext(StartupModelContext);
   const current = snapshot.provider.models.find((model) => model.id === session.controls.modelId);
   const [search, setSearch] = useState("");
@@ -538,6 +538,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       revision.current = result.revision!;
       setWindow(saved.controls.modelOptions?.contextWindow?.toString() ?? "");
       setEffort(saved.controls.modelOptions?.thinkingEffort ?? "");
+      onModelSelected();
     } catch (error) { const message = error instanceof Error ? error.message : "Model selection failed. No fallback was used."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };

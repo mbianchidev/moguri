@@ -66,10 +66,13 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await expect(page.locator(".call-record").last()).toContainText("solver");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     await expect(page.locator(".message.notice.info")).toContainText("Kupo single plan: Generated routed solver.");
-    await expect.poll(() => page.getByText("Generated routed solver answer.", { exact: true }).evaluate((element) => {
+    const latest = page.getByRole("log", { name: "Session transcript", exact: true }).getByRole("article", { name: "Command /insights", exact: true });
+    await expect.poll(() => latest.evaluate((element) => {
       const bounds = element.getBoundingClientRect(), viewport = element.closest(".timeline")!.getBoundingClientRect();
       return bounds.top >= viewport.top && bounds.bottom <= viewport.bottom;
     })).toBe(true);
+    const answer = page.getByText("Generated routed solver answer.", { exact: true });
+    await answer.scrollIntoViewIfNeeded(); await expect(answer).toBeInViewport();
     await page.screenshot({ path: resolve(".moguri/artifacts/kupo-single-compact.png") });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     expect(failures).toEqual([]);
