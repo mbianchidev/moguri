@@ -13,6 +13,10 @@ one of the **10,080 required IDs**. See the
 The later user-directed [inline command/sidebar menu slice](architecture/session-interactions.md#inline-command-responses-and-sidebar-menus)
 changes desktop assets, not the Native service/SDK/worker inputs. It keeps its
 fresh desktop validation separate from those earlier exact acceptance receipts.
+The user also approved the minimal [compatible MCP security lock updates](architecture/lean-tooling.md#compatible-mcp-dependency-security-updates-2026-11-13).
+They change the dependency input cut, not compiled Native core code. Older
+qualified guest bytes remain unpatched; newly produced patched guest images
+require their own reviewed qualification before release.
 
 The original four-hour Native invocation remains **INCOMPLETE**, not a newly
 passing whole run. Its partial groups are excluded; the remaining two groups
