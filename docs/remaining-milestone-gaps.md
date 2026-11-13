@@ -1,6 +1,30 @@
 # First-milestone acceptance and roadmap
 
-## Acceptance continuation, 2026-11-11
+## Current acceptance status, 2026-11-13
+
+The branch-local runtime/build cut is `51fce72`; later changes are qualification
+fixtures and docs only. The complete source invocation passes **10,870 tests,
+56 explicit Native skips, zero failures/cancellations**, including all **6,720
+Local/SSH nominal cells**. The user-reviewed complete-group method now verifies
+all **3,360 Native cells in 20 complete groups**, with exact matching core
+source/runtime/proof/accounting and owned cleanup. Together they cover every
+one of the **10,080 required IDs**. See the
+[exact current qualification](architecture/milestone-combination-matrix.md#current-qualification-2026-11-13).
+
+The original four-hour Native invocation remains **INCOMPLETE**, not a newly
+passing whole run. Its partial groups are excluded; the remaining two groups
+have a fresh complete receipt. Original failed/cancelled work and unknown
+accounting remain retained. This is branch qualification, not merged main
+delivery or a release/distribution claim.
+
+**Milestone 1 is not accepted:** fresh authorized hosted-main CI is still
+account-blocked before job steps, and the implementation remains in draft
+[#65](https://github.com/mbianchidev/moguri/pull/65). Optional Apple tracing and
+packaged-app CLI installation keep their disclosed separate scope. #45 reviewed
+Sandbox scripts and #53 sidebar/game polish remain pending behind acceptance.
+No tests were removed.
+
+## Historical acceptance continuation, 2026-11-11
 
 The starting merged main is
 [`13001b7`](https://github.com/mbianchidev/moguri/commit/13001b7e206211cc70b32639b155de0b064bf2e1),
@@ -8,7 +32,7 @@ including #62, protocol101 / `0.32.0-alpha.1`. The unchanged milestone criteria
 still govern acceptance. The [current native record](architecture/milestone-combination-matrix.md#current-build-qualification-2026-11-11)
 preserves the initial ten-gate 0.2.4 pass, later startup failures and the
 subsequent reviewed 0.2.5 seven-pass/two-fail/one-skip outcome separately.
-All **3,360 nominal native cells remain unqualified**; neither source test
+At that original cut, all **3,360 nominal native cells remained unqualified**; neither source test
 counts nor a host installation reduces that set.
 
 The user selected Apple Container 1.7.1 and personally installed the reviewed
@@ -82,14 +106,15 @@ No closed implementation/research issue certifies first-milestone acceptance.
 consolidated into that parent as redundant tracking, **not completed milestone
 acceptance**. No actual gate is removed or silently narrowed:
 
-- [ ] Record final criterion-by-criterion integrated acceptance against the
+- [x] Record branch-local criterion-by-criterion integrated qualification against the
   unchanged specification, with exact source/builds, cross-client ownership,
   failure/restart/migration and supported/unavailable outcomes.
-- [ ] Qualify the remaining required native/control/role/input combinations,
+- [x] Qualify the branch's required native/control/role/input combinations,
   including current-policy and actual-human races, candidates, finishing,
   cancellation failure, guest/control/SSH loss, late/unknown accounting,
-  receipts and no-replay recovery. Keep all 3,360 unqualified native cells
-  visible; accepted scope changes require an explicit product decision.
+  receipts and no-replay recovery. The reviewed complete-group artifact covers
+  all 3,360 IDs; original incomplete reports and partial groups remain
+  unqualified, and no required cell is dropped.
 - [ ] Restore account eligibility and record a fresh authorized hosted-main
   CI pass. Generated/local source and package success cannot replace it.
 
@@ -102,7 +127,7 @@ an install/build/test failure. Separate notices mention macOS arm64 capacity
 and the Ubuntu 26 label migration. CI stays main-push-only; absent branch/PR
 checks are not green CI. No rerun, billing action or trigger change was made.
 
-### Current native evidence remains exact-build scoped
+### Native evidence chronology remains exact-build scoped
 
 The user installed independently verified, released
 [SendBox0.2.6](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.6).
@@ -157,6 +182,9 @@ cancellation. The user [approved complete-group coverage](architecture/milestone
 retain its18 complete groups, freshly qualify the other two whole groups, and
 validate all20 exact receipts. Partial groups and the original INCOMPLETE report
 are never upgraded.
+The fresh two-group invocation and strict merger now pass; the
+[current coverage artifact](architecture/milestone-combination-matrix.md#current-qualification-2026-11-13)
+verifies all3,360 cells while retaining that original INCOMPLETE whole report.
 
 Live provider/decision quality, calibrated independence/confidence and actual
 billed-cost evidence remain distinct from generated accounting. Jev's missing
