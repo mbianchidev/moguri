@@ -3932,6 +3932,11 @@ Color picking is no longer part of the project settings form.
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
+In desktop main and side chats, **Hide queued prompts** collapses the queued
+items; **Show queued prompts** restores them. The count and resume action remain
+visible. Hiding preserves an inline edit and does not run, pause or change the
+queue. Each opened queue starts expanded. In the TUI, `/queue` shows queued
+prompts and **Esc** returns to the composer.
 
 Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
 `/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,

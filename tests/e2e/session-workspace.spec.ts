@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
 import { finishIdleSchedule, openModelChoices } from "./navigation.ts";
@@ -14,6 +14,90 @@ test.skip(process.platform !== "darwin", "The desktop release is qualified on ma
 const launch = (stateDir: string) => electron.launch({
   executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
   env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" },
+});
+
+async function holdPrompt(sdk: MoguriSdk, sessionId: string, text: string) {
+  const session = sdk.getState().snapshot?.sessions.find((session) => session.id === sessionId);
+  if (!session) throw new Error("The generated held prompt requires its original session.");
+  const editor = new DraftEditor(sdk, sessionId, session.draft);
+  try { editor.edit(text); await editor.send("queue", true); } finally { editor.dispose(); }
+}
+
+test("queued prompts hide without losing edits, dispatching work or hiding incoming queue counts", async () => {
+  const fixture = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure(); await fixture.send("Generated original queue transcript"); await fixture.terminal(); await sdk.refresh();
+  await sdk.sessions.rename(fixture.sessionId, "Generated original queue");
+  await holdPrompt(sdk, fixture.sessionId, "Generated first hidden queue prompt");
+  const app = await launch(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow(), queue = page.getByRole("region", { name: "Message queue", exact: true });
+    const hide = queue.getByRole("button", { name: "Hide queued prompts", exact: true });
+    const show = queue.getByRole("button", { name: "Show queued prompts", exact: true });
+    const edit = queue.getByRole("textbox", { name: "Edit queued message", exact: true });
+    await expect(hide).toHaveAttribute("aria-expanded", "true");
+    await queue.getByRole("button", { name: "Edit queued message 1", exact: true }).click();
+    await edit.fill("Generated unsaved queued edit");
+    const original = structuredClone(fixture.session().queue), revision = fixture.session().queueRevision;
+    await hide.press("Enter");
+    await expect(show).toHaveAttribute("aria-expanded", "false");
+    await expect(show).toBeFocused();
+    await expect(edit).toBeHidden();
+    await expect(queue.getByRole("list", { name: "Queued prompt order" })).toBeHidden();
+    await expect(queue.getByText("1 unclaimed", { exact: true })).toBeVisible();
+    expect(fixture.session().queue).toEqual(original); expect(fixture.session().queueRevision).toBe(revision);
+    await page.keyboard.press("Tab");
+    await expect(queue.getByRole("button", { name: "Resume queued work", exact: true })).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await show.press("Space");
+    await expect(hide).toBeFocused();
+    await expect(edit).toHaveValue("Generated unsaved queued edit");
+    await hide.click();
+    await holdPrompt(sdk, fixture.sessionId, "Generated incoming hidden queue prompt");
+    await expect(queue.getByText("2 unclaimed", { exact: true })).toBeVisible();
+    await expect(show).toHaveAttribute("aria-expanded", "false");
+    await expect(queue.getByRole("button", { name: "Run queued message 2", exact: true })).toBeHidden();
+    await show.click();
+    await expect(edit).toHaveValue("Generated unsaved queued edit");
+    await expect(queue.getByText("Generated incoming hidden queue prompt", { exact: true })).toBeVisible();
+    await queue.getByRole("button", { name: "Save", exact: true }).click();
+    await expect.poll(() => fixture.session().queue[0]?.text).toBe("Generated unsaved queued edit");
+    await hide.click();
+    const other = await sdk.sessions.create(null, "Generated separate queue");
+    await holdPrompt(sdk, other.id!, "Generated separate queued prompt");
+    await page.locator(".session-link").filter({ hasText: "Generated separate queue" }).click();
+    await expect(hide).toHaveAttribute("aria-expanded", "true");
+    await expect(queue.getByText("Generated separate queued prompt", { exact: true })).toBeVisible();
+    await expect(page.getByRole("log", { name: "Session transcript", exact: true })).not.toContainText("Generated original queue transcript");
+    expect(fixture.session().queue.every((item) => item.held)).toBe(true);
+    expect(fixture.session().queue).toHaveLength(2); expect(fixture.requests).toHaveLength(1);
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+  } finally { sdk.disconnect(); await app.close(); await fixture.close(); }
+});
+
+test("main and side chats have independent queued prompt visibility in a compact window", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await holdPrompt(sdk, fixture.sessionId, "Generated main queue visibility prompt");
+  const app = await launch(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow();
+    const main = page.getByRole("region", { name: "Message queue", exact: true }).filter({ hasText: "Generated main queue visibility prompt" });
+    await main.getByRole("button", { name: "Hide queued prompts", exact: true }).click();
+    await page.getByRole("button", { name: "Side chat", exact: true }).click();
+    const sideSession = await waitFor(() => sdk.getState().snapshot?.sessions.find((session) => session.kind === "side"));
+    await holdPrompt(sdk, sideSession.id, "Generated side queue visibility prompt");
+    const side = page.locator(".side-chat-panel").getByRole("region", { name: "Message queue", exact: true });
+    await expect(side.getByRole("button", { name: "Hide queued prompts", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await side.getByRole("button", { name: "Hide queued prompts", exact: true }).click();
+    await main.getByRole("button", { name: "Show queued prompts", exact: true }).click();
+    await expect(main.getByText("Generated main queue visibility prompt", { exact: true })).toBeVisible();
+    await expect(side.getByRole("button", { name: "Show queued prompts", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1000, 760));
+    for (const queue of [main, side]) {
+      expect(await queue.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
+    }
+    expect(fixture.requests).toHaveLength(0);
+    await expect(page.getByText("Draft saved", { exact: true }).first()).toBeVisible();
+  } finally { sdk.disconnect(); await app.close(); await fixture.close(); }
 });
 
 test("held prompts, shared slash actions, nested sessions, real Ghostty and project settings work end to end", async () => {
