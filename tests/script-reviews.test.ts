@@ -7,6 +7,34 @@ import { isRecord, MoguriSdk } from "../packages/sdk/src/index.ts";
 import { startService } from "../apps/service/src/server.ts";
 import { waitFor } from "./fixture.ts";
 import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
+import { projectScriptReview } from "../packages/protocol/src/script-reviews.ts";
+
+test("native review grants and results advance once without rebinding a source, owner or retained observation", { skip: process.platform !== "darwin" }, async () => {
+  const f = await scriptReviewFixture({ autopilot: true });
+  try {
+    await f.send("Generated native projection contract."); await f.terminal();
+    const original = structuredClone(f.review()!);
+    assert.ok(original.attempt);
+    const bound = { ...original, revision: original.revision + 1, nativeExecution: {
+      version: 1 as const, executionId: "generated-native-execution", workspaceId: "generated-native-workspace",
+      turnId: original.turnId, stepId: "generated-native-step", rootDigest: original.source.rootDigest,
+      guestRootDigest: "1".repeat(64), resultDigest: null,
+    } };
+    assert.deepEqual(projectScriptReview(original, bound), bound);
+    const observed = { ...bound, revision: bound.revision + 1, nativeExecution: { ...bound.nativeExecution, resultDigest: "2".repeat(64) } };
+    assert.deepEqual(projectScriptReview(bound, observed), observed);
+    for (const nativeExecution of [
+      { ...bound.nativeExecution, executionId: "generated-replacement" },
+      { ...bound.nativeExecution, guestRootDigest: "3".repeat(64) },
+      { ...bound.nativeExecution, rootDigest: "4".repeat(64) },
+    ]) assert.throws(() => projectScriptReview(bound, { ...bound, revision: bound.revision + 1, nativeExecution }), { code: "script_review_corrupt" });
+    assert.throws(() => projectScriptReview(original, { ...bound, nativeExecution: { ...bound.nativeExecution, resultDigest: "2".repeat(64) } }), { code: "script_review_corrupt" });
+    assert.throws(() => projectScriptReview(observed, { ...observed, revision: observed.revision + 1,
+      nativeExecution: { ...observed.nativeExecution, resultDigest: null } }), { code: "script_review_corrupt" });
+    assert.throws(() => projectScriptReview(observed, { ...observed, revision: observed.revision + 1,
+      nativeExecution: { ...observed.nativeExecution, resultDigest: "3".repeat(64) } }), { code: "script_review_corrupt" });
+  } finally { await f.close(); }
+});
 
 test("descriptive findings do not contradict an explicit safe full-source assessment", { skip: process.platform !== "darwin" }, async () => {
   const findings = ["The generated script prints one fixture value and does not access the network."];

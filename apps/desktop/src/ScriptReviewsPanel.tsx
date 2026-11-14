@@ -21,7 +21,8 @@ export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReview
       {records.map((review) => {
         const selected = read?.sdk === sdk && read.value.review.id === review.id && read.value.review.revision === review.revision ? read.value : null;
         const canForce = selected && review.advice?.verdict === "unsafe" && !review.force && !review.attempt && !session.turnId &&
-          session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && session.controls.env === "Local";
+          session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" &&
+          (session.controls.env === "Local" || session.controls.env === "Sandbox" && snapshot.capabilities.some((capability) => capability.env === "Sandbox" && capability.ready));
         return <article key={review.id}>
           <h4>{review.source.path}</h4>
           <p>Agent assessment: <strong>{review.advice?.verdict ?? "Not assessed"}</strong>. {review.advice?.summary}</p>
@@ -42,7 +43,7 @@ export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReview
               })}>Approve script review</button>
             </>}
             {canForce && <>
-              <Alert as="p" tone="warning">This agent reported unsafe behavior. Forcing overrides only this advice. Hard policy, the exact source/root and normal execution approval still apply. Code may change your files or contact external services without OS isolation.</Alert>
+              <Alert as="p" tone="warning">This agent reported unsafe behavior. Forcing overrides only this advice. Hard policy, the exact source/root and normal execution approval still apply. {session.controls.env === "Sandbox" ? "A new model-free guest uses the same verified private stage and reviewed native network boundary, never the Local source. Isolation does not make the code safe." : "Code may change your files or contact external services without OS isolation."}</Alert>
               <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the complete source and findings and explicitly want to force this exact unsafe script.</label>
               <button type="button" className="danger" disabled={busy || !confirmed} onClick={() => void run(async () => {
                 await sdk.scriptReviews.force(session.id, review.id, review.source.digest, review.revision, session.revision);

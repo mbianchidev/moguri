@@ -13,6 +13,14 @@ before physical preflight or matrix execution. Earlier reports, original
 failures and the independent completed 6,720-cell Local/SSH report remain
 unchanged. No acceptance gate or failed report is silently relabeled.
 
+The following protocol103 slice implements guarded reviewed-script Sandbox
+execution: exact private/guest binding, guest-only public source reads, one
+retained attempt/result and model-free actual-user force under normal approval.
+Source, migration, cancellation and packed SDK checks are separate from physical
+acceptance. Its changed worker payload still needs a newly reviewed image and
+focused actual native/client evidence; no preceding image is relabeled, and
+#45 remains open for its broader AST categories and unqualified boundaries.
+
 The [fresh patched-image continuation](architecture/milestone-combination-matrix.md#patched-image-acceptance-continuation-2026-11-14)
 at clean `65cea15` passes all ten physical preflight gates on the unchanged
 approved `a204...` image. Its full matrix reaches the existing four-hour limit:

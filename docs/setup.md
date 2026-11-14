@@ -127,9 +127,9 @@ distinguishes captured regular files from excluded secrets/control paths and
 unavailable historical data. No rewind undoes pushes, merges, deployments or
 external MCP effects. No tool or paid model call is replayed. The additive
 upgrade retains genuine95/96/97 markers and original ciphertext; earlier turns
-without captures remain explicitly unavailable. **Sandbox reviewed-script
-execution remains unqualified**, independently of workspace rewind and native
-worker qualification.
+without captures remain explicitly unavailable. **Protocol103 reviewed Sandbox
+scripts require their own current worker-image review and qualification**,
+independently of workspace rewind and older native-worker receipts.
 
 ## Metadata-only OpenTelemetry export
 
@@ -771,8 +771,17 @@ CLI/TUI: `/script-review list`, `/script-review read ID`,
 `/script-review force ID REVIEW_REV SHA SESSION_REV confirm-unsafe`.
 CLI also supports `moguri script-review ... --session ID`. Inspect the returned
 job/approval for its actual outcome. Private or oversized sources are blocked,
-not truncated. Script execution is non-interactive Local only, using the exact
-reviewed bytes rather than a second download; Remote/Sandbox do not fall back.
+not truncated. Script execution is non-interactive Local or qualified Sandbox,
+using the exact reviewed bytes rather than a second download; Remote stays
+unsupported and no environment falls back to Local.
+The protocol103 Sandbox path requires a separately reviewed current worker
+image. It inspects only the exact mapped private repository stage, not the
+Local source checkout. Public URL reads stay in the actual guest's website and
+native proxy scope, with complete bounded UTF-8 bytes. Execution binds both the
+original private stage and the actual guest identity, without equating their
+inodes. An unsafe user force creates a new model-free native job over that same
+stage and still needs normal permission. Inspect its actual job/result;
+retained observations and missing receipts never authorize replay.
 This does not isolate arbitrary approved shells, package-manager tasks,
 transitive scripts or external MCP services. See the
 [content-review contract](architecture/content-review.md).
