@@ -1,6 +1,24 @@
 # First-milestone acceptance and roadmap
 
-## Current acceptance status, 2026-11-13
+## Current acceptance status, 2026-11-14
+
+The [fresh patched-image continuation](architecture/milestone-combination-matrix.md#patched-image-acceptance-continuation-2026-11-14)
+at clean `65cea15` passes all ten physical preflight gates on the unchanged
+approved `a204...` image. Its full matrix reaches the existing four-hour limit:
+3,255 passing cell observations, 18 complete groups and two cancelled incomplete
+groups. The original report remains **INCOMPLETE with zero whole-run qualified
+cells**. The user approved freshly qualifying the two remaining whole groups
+(336 cases) and combining only strict verified complete-group receipts.
+The continuation also remains INCOMPLETE: 254 observations, no complete groups,
+and two existing per-cell deadlines exceeded. All exact owned guests are
+confirmed stopped. A narrowly scoped reservation-replay repair improves the
+same retained-state replay without changing output, admission or deadlines;
+29 focused source checks and both actual native failure paths pass. It changes
+controller/SDK/harness inputs and therefore requires fresh full qualification,
+not reuse of preceding receipts. Packed SDK verification and the independent
+consumer now pass with the official npm registry; root/consumer audits are
+clean. The user revoked CFS after its failed resolution/rate-limited checks.
+No original partial group or old-image receipt is treated as current acceptance.
 
 At the pre-security-update core runtime/build cut `51fce72`, the complete source invocation passes **10,870 tests,
 56 explicit Native skips, zero failures/cancellations**, including all **6,720
@@ -29,11 +47,13 @@ have a fresh complete receipt. Original failed/cancelled work and unknown
 accounting remain retained. This is branch qualification, not merged main
 delivery or a release/distribution claim.
 
-**Milestone 1 is not accepted:** fresh authorized hosted-main CI is still
-account-blocked before job steps, and the implementation remains in draft
-[#65](https://github.com/mbianchidev/moguri/pull/65). Optional Apple tracing and
+**Milestone 1 is not accepted:** complete patched-image coverage is pending and
+fresh authorized hosted-main CI is still account-blocked before job steps.
+[#65](https://github.com/mbianchidev/moguri/pull/65) is merged on main at `8b8db23`;
+the queue visibility and startup-game follow-up is in draft
+[#66](https://github.com/mbianchidev/moguri/pull/66). Optional Apple tracing and
 packaged-app CLI installation keep their disclosed separate scope. #45 reviewed
-Sandbox scripts and the remaining #53 sidebar/search/game polish stay pending.
+Sandbox scripts and the remaining #53 sidebar/search polish stay pending.
 No tests were removed.
 
 ## Historical acceptance continuation, 2026-11-11
@@ -134,8 +154,8 @@ acceptance**. No actual gate is removed or silently narrowed:
   CI pass. Generated/local source and package success cannot replace it.
 
 The latest main
-[run 42984028685](https://github.com/mbianchidev/moguri/actions/runs/42984028685),
-for `13001b7`, failed on 2026-11-11 before either OS job ran a step.
+[run 43507230498](https://github.com/mbianchidev/moguri/actions/runs/43507230498),
+for `8b8db23`, failed on 2026-11-13 before either OS job ran a step.
 Both annotations still say recent payments failed or the spending limit
 needs increasing. This is a refreshed account-owned gate, not a diagnosis of
 an install/build/test failure. Separate notices mention macOS arm64 capacity
@@ -213,7 +233,7 @@ Delivered #7/#9/#13/#36/#37/#38 do not reappear as new implementation work.
 
 | Order | Actual remaining scope |
 | --- | --- |
-| 1. Acceptance | The three parent-owned acceptance items above, with the original native cell/gate definitions retained in the matrix. |
+| 1. Acceptance | The parent-owned acceptance items above, with the original native cell/gate definitions retained in the matrix. |
 | 2. Everyday UX and existing integrations | #53 design/UX polish, #55 default smart-compaction direction, #45 remaining applicable AST controls and real reviewed-script Sandbox execution, #23 scope beyond the delivered metadata exporter, #12 actual Stainless qualification. The focused placement fix does not implement the #53 redesign or #55 policy. |
 | 3. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. Repository visibility/access, license and signing/notarization need explicit decisions, not assumed publication. |
 | 4. Optional providers and automation | #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions and #54 GetMoshi integration. Existing one-time schedules and reviewed compaction are not those broader features. |

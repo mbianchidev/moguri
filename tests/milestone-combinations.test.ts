@@ -328,6 +328,22 @@ test("native qualification reads an oversized original signed witness without re
   } finally { await fixture.close(); }
 });
 
+test("native finite critique document and text turns settle inside the existing cell deadline", {
+  skip: !native, timeout: 90000,
+}, async () => {
+  assert.ok(native);
+  const fixture = await nativeMilestoneFixture(native);
+  try {
+    await configureMilestoneRouting(fixture, "critique");
+    for (const cell of [
+      { autonomy: "Autopilot Max", budget: "usd", window: "half", effort: "max", input: "document" },
+      { autonomy: "Autopilot", budget: "both", window: "maximum", effort: "minimal", input: "text" },
+    ] as const) {
+      await runCell(fixture, { env: "Sandbox", selection: "critique", ...cell });
+    }
+  } finally { await fixture.close(); }
+});
+
 test("reviewed native groups reject partial-cell and duplicate selections before creating a qualification journal", {
   skip: !native, timeout: 15000,
 }, async () => {
