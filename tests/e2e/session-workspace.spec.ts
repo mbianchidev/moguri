@@ -1,4 +1,4 @@
-import { _electron as electron, expect, test } from "@playwright/test";
+import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
@@ -23,6 +23,12 @@ async function holdPrompt(sdk: MoguriSdk, sessionId: string, text: string) {
   try { editor.edit(text); await editor.send("queue", true); } finally { editor.dispose(); }
 }
 
+async function queuedActions(page: Page, index: number) {
+  const more = page.getByRole("button", { name: `More actions for queued message ${index}`, exact: true });
+  await more.focus(); await more.press("Enter");
+  return page.getByRole("dialog", { name: `Queued message ${index} actions`, exact: true });
+}
+
 test("queued prompts hide without losing edits, dispatching work or hiding incoming queue counts", async () => {
   const fixture = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure(); await fixture.send("Generated original queue transcript"); await fixture.terminal(); await sdk.refresh();
@@ -35,7 +41,17 @@ test("queued prompts hide without losing edits, dispatching work or hiding incom
     const show = queue.getByRole("button", { name: "Show queued prompts", exact: true });
     const edit = queue.getByRole("textbox", { name: "Edit queued message", exact: true });
     await expect(hide).toHaveAttribute("aria-expanded", "true");
-    await queue.getByRole("button", { name: "Edit queued message 1", exact: true }).click();
+    const row = queue.getByRole("listitem").first(), actions = row.locator(".queue-actions");
+    await expect(row.locator(".queue-bubble")).toHaveCSS("border-top-style", "dashed");
+    await expect(actions).toHaveCSS("opacity", "0");
+    await row.hover(); await expect(actions).toHaveCSS("opacity", "1");
+    await page.screenshot({ path: test.info().outputPath("queued-prompt-hover.png") });
+    await queue.getByRole("button", { name: "More actions for queued message 1", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Queued message 1 actions", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(queue.getByRole("button", { name: "More actions for queued message 1", exact: true })).toBeFocused();
+    await (await queuedActions(page, 1)).getByRole("button", { name: "Edit queued message 1", exact: true }).press("Enter");
+    await expect(edit).toBeFocused();
     await edit.fill("Generated unsaved queued edit");
     const original = structuredClone(fixture.session().queue), revision = fixture.session().queueRevision;
     await hide.press("Enter");
@@ -43,7 +59,7 @@ test("queued prompts hide without losing edits, dispatching work or hiding incom
     await expect(show).toBeFocused();
     await expect(edit).toBeHidden();
     await expect(queue.getByRole("list", { name: "Queued prompt order" })).toBeHidden();
-    await expect(queue.getByText("1 unclaimed", { exact: true })).toBeVisible();
+    await expect(show).toHaveText("1 queued message");
     expect(fixture.session().queue).toEqual(original); expect(fixture.session().queueRevision).toBe(revision);
     await page.keyboard.press("Tab");
     await expect(queue.getByRole("button", { name: "Resume queued work", exact: true })).toBeFocused();
@@ -53,7 +69,8 @@ test("queued prompts hide without losing edits, dispatching work or hiding incom
     await expect(edit).toHaveValue("Generated unsaved queued edit");
     await hide.click();
     await holdPrompt(sdk, fixture.sessionId, "Generated incoming hidden queue prompt");
-    await expect(queue.getByText("2 unclaimed", { exact: true })).toBeVisible();
+    await expect(show).toHaveText("2 queued messages");
+    await page.screenshot({ path: test.info().outputPath("queued-prompts-collapsed.png") });
     await expect(show).toHaveAttribute("aria-expanded", "false");
     await expect(queue.getByRole("button", { name: "Run queued message 2", exact: true })).toBeHidden();
     await show.click();
@@ -87,10 +104,20 @@ test("main and side chats have independent queued prompt visibility in a compact
     await holdPrompt(sdk, sideSession.id, "Generated side queue visibility prompt");
     const side = page.locator(".side-chat-panel").getByRole("region", { name: "Message queue", exact: true });
     await expect(side.getByRole("button", { name: "Hide queued prompts", exact: true })).toHaveAttribute("aria-expanded", "true");
+    const more = side.getByRole("button", { name: "More actions for queued message 1", exact: true });
+    await more.focus(); await more.press("Enter");
+    const menu = page.getByRole("dialog", { name: "Queued message 1 actions", exact: true });
+    await expect(menu).toHaveAttribute("data-source-session-id", sideSession.id);
+    await menu.getByRole("button", { name: "Edit queued message 1", exact: true }).press("Enter");
+    await side.getByRole("textbox", { name: "Edit queued message", exact: true }).fill("Generated preserved side queue edit");
     await side.getByRole("button", { name: "Hide queued prompts", exact: true }).click();
     await main.getByRole("button", { name: "Show queued prompts", exact: true }).click();
     await expect(main.getByText("Generated main queue visibility prompt", { exact: true })).toBeVisible();
     await expect(side.getByRole("button", { name: "Show queued prompts", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await side.getByRole("button", { name: "Show queued prompts", exact: true }).click();
+    await expect(side.getByRole("textbox", { name: "Edit queued message", exact: true })).toHaveValue("Generated preserved side queue edit");
+    expect(fixture.session().queue[0]?.text).toBe("Generated main queue visibility prompt");
+    expect(sdk.getState().snapshot?.sessions.find((session) => session.id === sideSession.id)?.queue[0]?.text).toBe("Generated side queue visibility prompt");
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(1000, 760));
     for (const queue of [main, side]) {
       expect(await queue.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false);
@@ -133,7 +160,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await expect.poll(() => fixture.session().queue.length).toBe(2);
     expect(fixture.session().queue.every((item) => item.held)).toBe(true);
     expect(fixture.requests.length).toBe(1);
-    await page.getByRole("button", { name: "Edit queued message 1", exact: true }).click();
+    await (await queuedActions(page, 1)).getByRole("button", { name: "Edit queued message 1", exact: true }).click();
     await page.getByLabel("Edit queued message", { exact: true }).fill("Generated edited held prompt");
     await page.getByRole("region", { name: "Message queue" }).getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => fixture.session().queue[0]?.text).toBe("Generated edited held prompt");
@@ -141,7 +168,10 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await expect(reorder).toBeEnabled();
     await reorder.press("Alt+ArrowUp");
     await expect.poll(() => fixture.session().queue[0]?.text).toBe("Generated second held prompt");
-    await page.getByRole("button", { name: "Copy queued message 1", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Message queue" }).getByRole("listitem").first()).toContainText("Generated second held prompt");
+    await (await queuedActions(page, 1)).getByRole("button", { name: "Copy queued message 1", exact: true }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Remove queued message 2", exact: true }).focus();
     await page.getByRole("button", { name: "Remove queued message 2", exact: true }).click();
     await expect.poll(() => fixture.session().queue.length).toBe(1);
     await sdk.command({ type: "session.stop", sessionId: fixture.sessionId }); await fixture.terminal();
@@ -154,7 +184,8 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await (await openModelChoices(page)).getByRole("menuitemradio", { name: /Generated Copilot model/ }).click();
     await expect.poll(() => fixture.session().controls.modelId).toBe(fixture.modelId);
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Run queued message 1", exact: true }).click();
+    await page.getByRole("button", { name: "Run queued message 1", exact: true }).focus();
+    await page.getByRole("button", { name: "Run queued message 1", exact: true }).press("Enter");
     await expect.poll(() => fixture.session().status).toBe("completed");
     expect(fixture.requests.length).toBe(2);
     await page.locator(".message.user").last().hover();

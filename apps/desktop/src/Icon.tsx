@@ -29,7 +29,7 @@ const paths: Record<string, string> = {
   PinOff: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8M3 3l18 18",
   Plus: "M12 4v16M4 12h16", Close: "m5 5 14 14M19 5 5 19", Up: "m5 15 7-7 7 7", Down: "m5 9 7 7 7-7",
   ChevronLeft: "m15 5-7 7 7 7", ChevronRight: "m9 5 7 7-7 7",
-  Play: "m7 4 14 8-14 8Z", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
+  Play: "m7 4 14 8-14 8Z", ArrowUp: "m5 11 7-7 7 7M12 4v16", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
   Agent: "m5 5 14 14M5 19 19 5M8 3v4m-5 4h4m13 2h-4m-4 8v-4",
   PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
   PRMerged: "M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12-7a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6 7v10m0-9a4 4 0 0 0 4 4h6",

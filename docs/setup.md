@@ -3983,11 +3983,35 @@ Color picking is no longer part of the project settings form.
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
-In desktop main and side chats, **Hide queued prompts** collapses the queued
-items; **Show queued prompts** restores them. The count and resume action remain
-visible. Hiding preserves an inline edit and does not run, pause or change the
-queue. Each opened queue starts expanded. In the TUI, `/queue` shows queued
+Desktop main and side chats show queued messages as right-aligned, muted dashed
+bubbles. Hover or keyboard focus reveals More, Delete and, for held prompts,
+the upward Run arrow. More opens source-bound Edit/Copy actions in the sidebar;
+steering inputs also offer Queue as new turn. Drag or Alt+Up/Down still reorders
+the exact queued list. Touch/non-hover devices keep actions visible.
+
+The counted disclosure shows **1 queued message** or **N queued messages** with
+a chevron. It collapses/restores the list; its accessible actions remain
+**Hide queued prompts** and **Show queued prompts**. The count and resume action
+remain visible. Hiding preserves an inline edit and does not run, pause or change
+the queue. Each opened queue starts expanded. In the TUI, `/queue` shows queued
 prompts and **Esc** returns to the composer.
+
+Compact **Changes**, **PR**, **Plan**, **Background** and **Artifacts** shortcuts
+open their existing views. Changes reports the last allowed tracked line
+observation relative to HEAD, not untracked/protected files or the whole PR;
+binary changes are separate and unavailable/incomplete reads never become zero.
+Grouped repositories require explicit selection in Changes. PR shows the retained
+linked association, not merge readiness. Plan counts actual owning-turn model
+items, not repository-file checkboxes or acceptance.
+
+Background combines active owned subagents/coordinated children, running command
+and script calls, and independent command/watch jobs without double-counting a
+call. Incomplete activity uses a disclosed lower bound, not a fabricated exact
+count. It opens **Terminal / Agent**, which also lists the original background
+agents and lets you inspect their chats. This never starts a private User console
+or another model reply. Existing dirty-editor and running-console hide guards
+still apply. Artifacts counts active retained documents across this profile,
+matching the existing artifact resource, not just this chat's documents.
 
 Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
 `/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,

@@ -56,6 +56,15 @@ outside its keyboard-scrollable source. Inline code stays ordinary text.
 Activity disclosures retain their chevrons at rest so inspection does not depend
 on discovering a hover state.
 
+Queued prompts use right-aligned muted dashed bubbles, with explicit held/steer
+labels. More, Delete and held-prompt Run icons reveal on hover or focus; non-hover
+devices retain visible 44px targets. The singular/plural counted chevron preserves
+inline edits when collapsed. Compact outlined session shortcuts wrap above the
+composer without overlapping the transcript or navigation. Their counts describe
+actual scoped observations, not synthetic progress; tooltips dismiss on navigation
+so they cannot cover the destination's controls. Background opens Agent activity,
+not the private User console, and shares existing navigation/dirty-state guards.
+
 Obvious navigation/copy/edit/delete actions use labeled icons. Contextual primary
 labels are New and Save. Long names truncate within bounded rows while retaining
 their full accessible names; controls wrap rather than overlap. Cmd/Ctrl+Enter

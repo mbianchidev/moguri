@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSessionActivity } from "../../../packages/sdk/src/react.ts";
-import type { ActivityResponse, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { sessionBackgroundWork, sessionTitle, type ActivityResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";
@@ -8,8 +8,11 @@ import { CopyButton } from "./CopyButton.tsx";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<ActivityResponse, { type: "activity.read" }>;
-export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
+export function AgentTerminal({ sdk, session, snapshot, active, openAgent }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean; openAgent?: (id: string) => Promise<void> }) {
   const activity = useSessionActivity(sdk, session, snapshot, "run_command"), commands = activity.activity?.entries ?? [];
+  const agents = sessionBackgroundWork(session, snapshot, null).agentSessions;
+  const scripts = snapshot.operationEntries.filter((entry) => entry.sessionId === session.id && entry.turnId === session.turnId &&
+    entry.name === "run_script" && entry.started && entry.outcome === "running");
   const scope = JSON.stringify([sdk.profileId, session.id]);
   const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope, id: null });
   const selected = commands.find((entry) => entry.id === (selection.scope === scope ? selection.id : null)) ??
@@ -36,6 +39,16 @@ export function AgentTerminal({ sdk, session, snapshot, active }: { sdk: MoguriS
   const current = state.sdk === sdk && state.source === source, result = current ? state.result : null, content = result?.content;
   const readError = current ? state.error : "", loading = Boolean(selected) && (!current || state.loading), error = activity.error || readError;
   return <section className="agent-terminal" aria-label="Agent terminal">
+    {agents.length > 0 && <section className="background-agents" aria-label="Background subagents">
+      <h3>Background agents</h3><ul>{agents.map((child) => <li key={child.id}>
+        <div><strong>{sessionTitle(child)}</strong><small>{child.status.replace("_", " ")} / {child.controls.env} / {child.kind === "subagent" ? "Read-only subagent" : "Coordinated agent"}</small></div>
+        {openAgent && <button type="button" className="quiet" aria-label={`Open background agent ${sessionTitle(child)}`} onClick={() => void openAgent(child.id)}>Open agent</button>}
+      </li>)}</ul>
+    </section>}
+    {scripts.length > 0 && <section className="background-agents" aria-label="Running scripts"><h3>Running scripts</h3>
+      <ul>{scripts.map((script) => <li key={script.id}><div><strong>Running script request</strong><small>{script.env} / {script.outcome} / {script.stepId}</small></div></li>)}</ul>
+      <p className="fine-print">Inspect the exact script review and original result in the conversation. No private console output is read here.</p>
+    </section>}
     <CommandJobs sdk={sdk} session={session} snapshot={snapshot} active={active} />
     <header className="terminal-tabs">
       <select aria-label="Selected agent command" value={selected?.id ?? ""} onChange={(event) => setSelection({ scope, id: event.target.value })}>

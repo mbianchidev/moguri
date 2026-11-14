@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { Icon } from "./Icon.tsx";
 
 interface HintAction { label: string; select: () => void }
-export function Tooltip({ children, content, openOnClick = false, disabled = false }: {
-  children: ReactElement<AriaAttributes>; content: ReactNode; openOnClick?: boolean; disabled?: boolean;
+export function Tooltip({ children, content, openOnClick = false, dismissOnClick = false, disabled = false }: {
+  children: ReactElement<AriaAttributes>; content: ReactNode; openOnClick?: boolean; dismissOnClick?: boolean; disabled?: boolean;
 }) {
   const id = useId(), trigger = useRef<HTMLSpanElement>(null), popup = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 0 });
@@ -48,9 +48,9 @@ export function Tooltip({ children, content, openOnClick = false, disabled = fal
     onFocus={(event) => { if (event.target instanceof Element && event.target.matches(":focus-visible")) { keyboardFocus.current = true; show(); } }}
     onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget) && !popup.current?.contains(event.relatedTarget)) setOpen(false); }}
     onKeyDown={() => { keyboardFocus.current = true; }}
-    onClick={openOnClick ? (event) => {
+    onClick={openOnClick || dismissOnClick ? (event) => {
       if (event.target instanceof Node && popup.current?.contains(event.target)) return;
-      show();
+      if (dismissOnClick) setOpen(false); else show();
     } : undefined}>
     {cloneElement(children, { "aria-describedby": [children.props["aria-describedby"], open && !disabled ? id : null].filter(Boolean).join(" ") || undefined })}
     {open && !disabled && createPortal(<div ref={popup} id={id} role="tooltip"
