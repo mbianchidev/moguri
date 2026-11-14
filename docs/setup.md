@@ -3999,12 +3999,17 @@ that changes the project only after **Save**; Cancel leaves the saved color
 unchanged. There are no separate Default color or Custom color buttons.
 Color picking is no longer part of the project settings form.
 
-Clicking a project/repository opens project settings with **Show local folder**
-and **Open remote** beside Save; its context menu offers them too. These are
-explicit client OS actions bound to the exact active profile and registered
-Local project, not the current session's SSH/worktree or an agent permission.
-Open remote uses the supported GitHub upstream. Missing/unsupported remotes
-show an error; no repository URL or account is guessed.
+Right-click (two-finger click) a session in the sidebar for **Show local
+folder** and **Open remote**. Show local folder opens the session's actual
+Local root: its ready managed worktree, its project checkout, or a project-free
+chat's captured Home. Remote/Sandbox sessions, folder sessions with several
+repositories and unready or removed worktrees show the item disabled with the
+reason; the base checkout is never substituted. Open remote uses the session's
+bound checkout (Local, or Remote through its pinned SSH peer). The project
+context menu offers the same pair for the registered project folder. Project
+settings no longer carry these shortcuts. These are explicit client OS actions
+bound to the exact active profile, not agent permissions. Missing/unsupported
+remotes show an error; no repository URL or account is guessed.
 
 Under **Settings / Skills**, global-folder switches support `~/.agents/skills`
 and `~/.moguri/skills`. Each requires confirmation showing its actual absolute

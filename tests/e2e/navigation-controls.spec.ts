@@ -4,7 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
-import { generatedGit, generatedRepository } from "../fixtures/git.ts";
+import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
@@ -85,28 +85,42 @@ test("composer and queue align with the message column at wide/narrow widths and
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
-test("project header shortcuts bind their actual Local folder and repository without opening a real OS window", async () => {
-  const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
-  await generatedRepository(f.project); await generatedGit(f.project, "remote", "add", "origin", "git@github.com:generated/navigation.git");
+test("a session's two-finger context menu opens its actual worktree folder and remote, not Settings or the base checkout", async () => {
+  const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready(), git = initializeGeneratedRepository(f.project);
+  git(["remote", "add", "origin", "git@github.com:generated/navigation.git"]);
+  const projectId = f.session().projectId!, project = sdk.getState().snapshot!.projects.find((entry) => entry.id === projectId)!;
+  const task = await sdk.sessions.create(projectId, "Generated worktree task");
+  const workspace = await sdk.workspaces.wait(sdk.sessions.get(task.id!)!.workspaceId!);
   const app = await launch(f.directory);
   try {
-    const page = await app.firstWindow();
-    await page.locator(`.project-name[data-project-id="${f.session().projectId}"]`).click();
-    const panel = page.getByRole("region", { name: "Per-project settings", exact: true });
-    await panel.getByRole("button", { name: "Show local folder", exact: true }).click();
-    await expect(panel).toContainText('"opened": false'); await expect(panel).toContainText(f.project);
-    await panel.getByRole("button", { name: "Open remote", exact: true }).click();
-    await expect(panel).toContainText("https://github.com/generated/navigation");
-    await page.screenshot({ path: test.info().outputPath("project-location-actions.png") });
-    const input = { profileId: sdk.profileId, projectId: f.session().projectId!, path: `${f.project}-foreign` };
-    const error = await page.evaluate(async (value) => {
-      try { await window.moguri.projectLocation(value.profileId, value.projectId, value.path, "show-folder"); return "unexpected success"; }
+    const page = await app.firstWindow(), updates = page.getByRole("status", { name: "Workspace navigation updates", exact: true });
+    const sessionMenu = async (id: string, title: string) => {
+      await page.locator(`.session-link[data-session-id="${id}"]`).click({ button: "right" });
+      return page.getByRole("menu", { name: `Actions for ${title}`, exact: true });
+    };
+    let menu = await sessionMenu(task.id!, "Generated worktree task");
+    await expect(menu.getByRole("menuitem", { name: "Show local folder", exact: true })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("session-location-actions.png") });
+    await menu.getByRole("menuitem", { name: "Show local folder", exact: true }).click();
+    await expect(updates).toHaveText(`Verified ${workspace.path} without opening it.`);
+    menu = await sessionMenu(task.id!, "Generated worktree task");
+    await menu.getByRole("menuitem", { name: "Open remote", exact: true }).click();
+    await expect(updates).toContainText("https://github.com/generated/navigation");
+    menu = await sessionMenu(f.sessionId, f.session().title);
+    await menu.getByRole("menuitem", { name: "Show local folder", exact: true }).click();
+    await expect(updates).toHaveText(`Verified ${project.path} without opening it.`);
+    const error = await page.evaluate(async (profileId) => {
+      try { await window.moguri.sessionLocation(profileId, "generated-missing-session", "show-folder"); return "unexpected success"; }
       catch (error) { return error instanceof Error ? error.message : String(error); }
-    }, input);
+    }, sdk.profileId);
     expect(error).toMatch(/changed|original|exact/i);
-    await generatedGit(f.project, "remote", "remove", "origin");
-    await panel.getByRole("button", { name: "Open remote", exact: true }).click();
-    await expect(panel.getByRole("alert")).toContainText("no supported repository remote");
+    git(["remote", "remove", "origin"]);
+    menu = await sessionMenu(task.id!, "Generated worktree task");
+    await menu.getByRole("menuitem", { name: "Open remote", exact: true }).click();
+    await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true }).getByRole("alert")).toContainText("no supported repository remote");
+    await page.locator(`.project-name[data-project-id="${projectId}"]`).click();
+    await expect(page.getByRole("region", { name: "Per-project settings", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Show local folder", exact: true })).toHaveCount(0);
     expect(f.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });

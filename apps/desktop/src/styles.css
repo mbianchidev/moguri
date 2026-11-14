@@ -1091,11 +1091,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .context-review .context-confirm input { width: auto; flex-shrink: 0; margin-top: 3px; }
 .context-restore { border-top: 1px solid var(--line); margin-top: 22px; }
 @media (max-width: 540px) { .context-review .context-fields { grid-template-columns: minmax(0, 1fr); } }
-.project-settings-header { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 16px; }
-.project-settings-header > .project-settings-title { min-width: 0; flex: 1 1 180px; }
-.project-settings-actions { justify-content: flex-end; margin-inline-start: auto; }
-.project-settings-actions button { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
-.project-settings-actions svg { width: 14px; height: 14px; }
+.project-settings-header { display: flex; align-items: flex-start; gap: 16px; }
+.project-settings-header > div { min-width: 0; flex: 1; }
 .global-skill-source > span { min-width: 0; }
 .global-skill-source code { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
 .project-settings-header h2 { margin: 0; font-size: 22px; font-weight: 550; }

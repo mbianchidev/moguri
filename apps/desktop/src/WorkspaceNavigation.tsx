@@ -1,5 +1,5 @@
 import { lazy, Suspense, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { ClientError, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionLocalFolder, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization, BulkSessionAction } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -11,7 +11,7 @@ import { Alert } from "./Alert.tsx";
 import { BulkSessionActions } from "./BulkSessionActions.tsx";
 import { WorkspaceContextMenu } from "./WorkspaceContextMenu.tsx";
 import { SessionNavigationControls } from "./SessionNavigationControls.tsx";
-import { ProjectLocationActions } from "./ProjectLocationActions.tsx";
+import { LocationActions } from "./LocationActions.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -562,7 +562,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" onClick={() => void toggleKanban(projectMenu)}><Icon name="Plan" />{kanbanPreferences(snapshot.boards.find((board) => board.projectId === projectMenu.id) ?? defaultBoard(projectMenu.id)).visible ? "Hide Kanban" : "Show Kanban"}</button>
     {terminal && <button role="menuitem" onClick={() => terminal(projectMenu.id)}><Icon name="Terminal" />Open project terminal</button>}
     <button role="menuitem" onClick={() => { setSelection({ projectId: projectMenu.id, ids: [] }); setBulkRequest(null); setCollapsedProjects((current) => { const next = new Set(current); next.delete(projectMenu.id); return next; }); closeMenu(); }}><Icon name="Check" />Select sessions</button>
-    <ProjectLocationActions sdk={sdk} project={projectMenu} menu run={run} />
+    <LocationActions run={run} announce={setNavigationStatus} open={(action) => window.moguri.projectLocation(sdk.profileId, projectMenu.id, projectMenu.path, action)} />
     <button role="menuitem" onClick={() => open({ kind: "new-group", project: projectMenu })}><Icon name="Group" />New session group</button>
     <button role="menuitem" onClick={() => open({ kind: "folder", project: projectMenu })}><Icon name="Files" />Move to folder</button>
     <button role="menuitem" onClick={() => open({ kind: "new-folder", project: projectMenu })}><Icon name="Plus" />New folder</button>
@@ -608,6 +608,10 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       await sdk.sessions.organize(menuSession.id, { unread: !menuUnread });
       if (ids.length) await sdk.attention.acknowledge(ids.slice(-100));
     })}><Icon name="ReadOnly" />{menuUnread ? "Mark read" : "Mark unread"}</button>
+    <LocationActions run={run} announce={setNavigationStatus} open={(action) => window.moguri.sessionLocation(sdk.profileId, menuSession.id, action)}
+      unavailable={{ "show-folder": sessionLocalFolder(menuSession, snapshot).diagnostic,
+        "open-remote": !menuSession.projectId || menuSession.repositories || menuSession.controls.env === "Sandbox" ?
+          "Open remote needs one project session in Local or Remote Env. No base checkout or other repository was substituted." : undefined }} />
     <button role="menuitem" disabled={!menuProject} onClick={() => open({ kind: "group", project: menuProject, session: menuSession })}><Icon name="Group" />Move to group</button>
     <button role="menuitem" disabled={Boolean(menuSession.turnId) || menuSession.kind === "subagent"} onClick={() => open({ kind: "attach", project: menuProject, session: menuSession })}><Icon name="Link" />Attach to session</button>
     {menuSession.parentSessionId && <button role="menuitem" disabled={Boolean(menuSession.turnId) || menuSession.kind === "subagent"} onClick={() => actions.request(menuSession, "detach")}><Icon name="Back" />Detach</button>}

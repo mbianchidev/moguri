@@ -43,6 +43,14 @@ passes retain one pre-existing native-only skip; 47 shared/API/policy cases and
 the fresh packed SDK also pass. [Scoped evidence](architecture/session-interactions.md#navigation-alignment-and-confirmed-global-skill-folders-2026-11-14)
 does not replace the deferred native GUI or whole-milestone acceptance.
 
+The next follow-up moves Show local folder/Open remote out of project Settings
+into the sidebar session context menu. They bind the session's actual Local root
+(ready worktree, checkout or captured Home) through the shared SDK
+`sessionLocalFolder` selector and its bound-root `session.git` read, with no
+base-checkout fallback; project context-menu shortcuts remain. It adds no
+service schema/protocol or dependency. The rewritten worktree journey and 62
+other affected desktop cases pass, with the unit selector cases and packed SDK.
+
 The following protocol103 slice implements guarded reviewed-script Sandbox
 execution: exact private/guest binding, guest-only public source reads, one
 retained attempt/result and model-free actual-user force under normal approval.
