@@ -16,10 +16,14 @@ unchanged. No acceptance gate or failed report is silently relabeled.
 The following protocol103 slice implements guarded reviewed-script Sandbox
 execution: exact private/guest binding, guest-only public source reads, one
 retained attempt/result and model-free actual-user force under normal approval.
-Source, migration, cancellation and packed SDK checks are separate from physical
-acceptance. Its changed worker payload still needs a newly reviewed image and
-focused actual native/client evidence; no preceding image is relabeled, and
-#45 remains open for its broader AST categories and unqualified boundaries.
+At clean `54bc5a6`, the user-approved new `70426070...` image passes all ten
+physical gates, all six actual native SDK/TUI script journeys and the actual
+hidden desktop force/approval path. [Exact current evidence and original failures](architecture/content-review.md#exact-approved-native-continuation)
+remain separate from the complete milestone matrix. The anonymous GitHub Meta
+quota interruption is retained, followed by a fresh pass after its reported
+reset without authentication or weakened policy. No preceding image/report is
+relabeled. #45 stays open for its broader AST categories and remaining disclosed
+boundaries; #53's bounded navigation/Insights slice is not the whole design audit.
 
 The [fresh patched-image continuation](architecture/milestone-combination-matrix.md#patched-image-acceptance-continuation-2026-11-14)
 at clean `65cea15` passes all ten physical preflight gates on the unchanged
@@ -167,9 +171,9 @@ acceptance**. No actual gate is removed or silently narrowed:
   receipts and no-replay recovery. The reviewed complete-group artifact covers
   all 3,360 IDs; original incomplete reports and partial groups remain
   unqualified, and no required cell is dropped.
-- [ ] Qualify the complete required matrix for the newly approved patched
-  worker image. Its selected physical/client gates do not transfer the
-  previous image's 3,360-cell artifact across a changed dependency payload.
+- [ ] Qualify the complete required matrix for the current approved protocol103
+  worker image. Its selected physical/script/client gates do not transfer a
+  previous cut's 3,360-cell artifact across changed protocol/runtime payloads.
 - [ ] Restore account eligibility and record a fresh authorized hosted-main
   CI pass. Generated/local source and package success cannot replace it.
 
