@@ -7,9 +7,14 @@ classifier-owned Kupo effort with retained routing preferences, skill switches
 and scoped Enable all, and removal of startup drafting with a measured
 event-header indexing improvement. Existing saved drafts and original-owner
 recovery remain authoritative. The native image must match this new cut; the
-user selected preparing a candidate for separate exact-digest approval and
-qualification. The protocol103 results below are retained historical receipts,
-not current104 qualification. Full milestone acceptance remains separate.
+user approved the exact `abde17...` candidate. All ten physical gates, eleven
+Sandbox SDK cases, five TUI control cases and six reviewed-script cases pass.
+The following desktop batch retains three passes/five setup-readiness failures,
+not a blanket pass. The user deferred further qualification until the end of
+implementation; no retry is scheduled and the separately exhausted anonymous
+GitHub quota is not a proven cause. [Exact current104 evidence](architecture/startup-responsiveness.md#exact-protocol104-native-continuation-and-deferred-desktop-checks)
+and old103 results retain their own scopes. Full milestone acceptance remains
+separate.
 
 The user explicitly removed hosted CI from the implementation blocking path and
 selected **desktop UX polish first, reviewed Sandbox scripts second**. The
@@ -182,8 +187,8 @@ acceptance**. No actual gate is removed or silently narrowed:
   receipts and no-replay recovery. The reviewed complete-group artifact covers
   all 3,360 IDs; original incomplete reports and partial groups remain
   unqualified, and no required cell is dropped.
-- [ ] Qualify the complete required matrix for the current approved protocol103
-  worker image. Its selected physical/script/client gates do not transfer a
+- [ ] Qualify the complete required matrix for the current approved protocol104
+  worker image and finish the deferred native desktop paths. Its selected physical/script/client gates do not transfer a
   previous cut's 3,360-cell artifact across changed protocol/runtime payloads.
 - [ ] Restore account eligibility and record a fresh authorized hosted-main
   CI pass. Generated/local source and package success cannot replace it.

@@ -524,6 +524,18 @@ qualified thinking-effort control. Automations copy now covers
 broader actions, but only the existing one-time scheduled prompt capability is
 implemented; a general-purpose automation engine is not claimed.
 
+### GitHub login versus native metadata quota
+
+`gh auth login --hostname github.com --web --git-protocol ssh` signs the GitHub
+CLI in; check it with `gh auth status`. This is separate from Copilot provider
+login and SendBox's public GitHub `/meta` lookup. The native host process
+intentionally receives only its qualified `PATH` and `HOME`, not `GH_TOKEN`,
+provider credentials or arbitrary ambient secrets. The current SendBox0.2.6
+`run` interface exposes no login switch, so signing the CLI in does not
+authenticate that metadata path. Do not work around the quota by putting a
+personal token in a guest, image, model context or blanket process environment.
+Authenticated metadata would need an explicitly reviewed host-only integration.
+
 Native JS/TS `goto_definition`/`find_references` use actual semantic tokens over
 bounded approved files, not name/regex guesses. Deterministic array tools are
 `find_in_array`, `order_asc`, `order_desc`, `find_bigger`, `find_smaller`.
