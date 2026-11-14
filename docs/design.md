@@ -51,6 +51,10 @@ explicit deny/approve controls. State is labeled in text, not color alone.
 Conversation Markdown is rendered without raw HTML, automatic remote images or
 implicit external navigation. Long transcripts progressively reveal older
 messages. Code stays selectable and horizontally scrollable.
+Fenced code uses a quiet language caption with a stable exact-copy action
+outside its keyboard-scrollable source. Inline code stays ordinary text.
+Activity disclosures retain their chevrons at rest so inspection does not depend
+on discovering a hover state.
 
 Obvious navigation/copy/edit/delete actions use labeled icons. Contextual primary
 labels are New and Save. Long names truncate within bounded rows while retaining
@@ -68,6 +72,11 @@ owning capability behavior. Dirty settings survive tab changes and block
 navigation/unmount until saved or explicitly reloaded. JSON editors expose exact
 permissions/MCP configuration during this alpha. Model-weight download requires
 its own user acceptance, separate from recording or transcript insertion.
+
+Supporting views show explicit loading, empty and failed states rather than a
+blank or success-looking fallback. Workspace-plan reloads retain the original
+text and dirty indicator until successful reconciliation, lock conflicting
+edits while pending, and recover from failed reads without losing text.
 
 ## Terminal
 
