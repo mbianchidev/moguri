@@ -171,7 +171,7 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 
 > Protocol 96 adds [original-owner startup continuation and window-close
 > background work](architecture/startup-responsiveness.md#protocol-96-original-owner-readiness-and-background-window-close).
-> An unconfirmed readiness deadline keeps the local opening draft and requires
+> An unconfirmed readiness deadline preserves service-owned saved drafts and requires
 > explicit reconnect to its captured authenticated owner; it never starts a
 > substitute service. The root-owned default-on window-close preference keeps
 > the same agent work and user terminals running after the desktop window
@@ -179,6 +179,14 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > on window close. Genuine protocol-95 inbox history, permissions and accounting
 > remain retained. This does not claim the original unreproduced 90-second
 > initialization delay or wider native/milestone gates are resolved.
+
+> Protocol104 removes startup drafting, keeps only the flight/progress/recovery
+> opening, and indexes exact event-header metadata to avoid repeated full-body
+> JSON scans without skipping validation or payload authentication. Kupo has no
+> manual effort level: Balanced/Savings/Performance are routing preferences and
+> the classifier owns thinking. Retained overrides require explicit clearing.
+> Imported skills use toggles plus project-scoped Enable all, never implicit
+> source admission or permissions. See the [change and measured startup contract](architecture/startup-responsiveness.md#simplified-opening-and-classifier-owned-kupo-thinking).
 
 > Protocol99 adds the [session Inbox and explicit skill-load activity](architecture/session-inbox.md).
 > Inbox follows Dashboard and opens the exact source conversation for actual

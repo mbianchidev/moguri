@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { DesktopStartupPhase } from "./bridge.d.ts";
-import type { OpeningDraft, StartupView } from "./startup-cache.ts";
 import { Alert } from "./Alert.tsx";
 import mascot from "../../../assets/moguri.svg?raw";
 import { advanceFlight, flapFlight, flightScore, initialFlight, FLIGHT_FIELD } from "./startup-flight.ts";
@@ -58,49 +57,19 @@ function StartupFlight() {
     <p id="startup-flight-help">Press <kbd>Space</kbd> or click to flap. Dodge clouds; collect stars for +50 points. Stay aloft, kupo!</p>
   </div>;
 }
-export function StartupWorkspace({ view, phase, error, cacheError, draft, change, unconfirmed = false, reconnect, reconnecting = false }: {
-  view: StartupView | null; phase: DesktopStartupPhase; error: string | null; cacheError: string | null;
-  draft: OpeningDraft | null; change: Dispatch<SetStateAction<OpeningDraft | null>>;
+export function StartupWorkspace({ phase, error, cacheError, unconfirmed = false, reconnect, reconnecting = false }: {
+  phase: DesktopStartupPhase; error: string | null; cacheError: string | null;
   unconfirmed?: boolean; reconnect?: () => void; reconnecting?: boolean;
 }) {
-  const cachedModel = view?.models.find((model) => model.id === view.session?.modelId);
-  const update = (input: HTMLTextAreaElement) => {
-    const text = input.value, focused = document.activeElement === input, selectionStart = input.selectionStart, selectionEnd = input.selectionEnd;
-    change((previous) => ({
-      id: previous?.id ?? crypto.randomUUID(), text, focused, selectionStart, selectionEnd,
-      binding: previous ? previous.binding : view?.session ? { scopeKey: view.scopeKey, storeId: view.storeId,
-        profileId: view.profileId, sessionId: view.session.id, draftRevision: view.session.draftRevision, draftEmpty: view.session.draftEmpty } : null,
-    }));
-  };
   return <section className="opening-workspace" aria-label="Opening workspace">
     <div className="opening-window-drag" aria-hidden="true" />
     <StartupFlight />
     <div className="opening-status">
         {(unconfirmed || error) && <h1>{unconfirmed ? "Startup not yet confirmed" : "Moguri could not connect"}</h1>}
         <p role="status" aria-label="Startup status">Opening your workspace... {labels[phase]}.</p>
-        {error && <Alert as="p" className="inline-error" role="alert">{error} Your local opening draft is still here; nothing was sent.</Alert>}
+        {error && <Alert as="p" className="inline-error" role="alert">{error} Saved chats and drafts remain with the original service; nothing was sent.</Alert>}
         {reconnect && <button type="button" disabled={reconnecting} onClick={reconnect}>Reconnect to original service</button>}
         {cacheError && <p className="fine-print">{cacheError}</p>}
     </div>
-    <details className="opening-tools">
-      <summary>Draft while waiting</summary>
-      <p className="fine-print">{view?.session ? "Last opened chat. " : ""}This local draft stays in this window until its exact saved destination is verified. Nothing is sent during startup.</p>
-        {view && view.models.length > 0 && <details className="opening-models"><summary>Last known models and thinking efforts</summary>
-          <p className="fine-print">Display only. Cached names do not establish current availability or authorize a model call.</p>
-          <ul>{view.models.map((model) => <li key={model.id}>{model.name}: {model.thinkingLevels.length ? model.thinkingLevels.join(", ") : "no declared thinking effort"}</li>)}</ul>
-        </details>}
-      <form className="composer compact-composer opening-composer" aria-label="Opening draft composer" onSubmit={(event) => event.preventDefault()}>
-        <textarea aria-label="Opening prompt" aria-describedby="opening-draft-help" value={draft?.text ?? ""} placeholder="Draft while Moguri reconnects..."
-          onChange={(event) => update(event.currentTarget)}
-          onSelect={(event) => { if (draft) update(event.currentTarget); }}
-          onFocus={(event) => { if (draft) update(event.currentTarget); }}
-          onBlur={(event) => { if (draft) update(event.currentTarget); }}
-          onKeyDown={(event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) event.preventDefault(); }} />
-        <div className="composer-toolbar"><div className="composer-leading">
-          <span className="fine-print">Last model: <strong>{cachedModel?.name ?? "not cached"}</strong>{view?.session?.thinkingEffort ? ` / ${view.session.thinkingEffort}` : ""}</span>
-        </div><button type="submit" className="composer-send" disabled aria-label="Send">Send</button></div>
-        <p id="opening-draft-help" className="composer-voice-status fine-print">Local draft only. Not saved, sent or queued.</p>
-      </form>
-    </details>
   </section>;
 }

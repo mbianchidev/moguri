@@ -24,7 +24,8 @@ for (const reduced of [false, true]) test(`startup flight is playable without di
     await expect(flap).toBeVisible();
     await expect(opening).toHaveCSS("background-color", "rgb(0, 0, 0)");
     await expect(opening.getByRole("navigation")).toHaveCount(0);
-    await expect(opening.getByRole("textbox", { name: "Opening prompt", exact: true })).not.toBeVisible();
+    await expect(opening.getByText("Draft while waiting", { exact: true })).toHaveCount(0);
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
     await page.clock.install();
     const avatar = opening.locator(".startup-flight-avatar");
     const score = opening.getByRole("heading", { name: /^Flight score: / });
@@ -46,23 +47,14 @@ for (const reduced of [false, true]) test(`startup flight is playable without di
     await expect(result).toContainText("Game over! Moguri fell.");
     const restart = opening.getByRole("button", { name: "Play again", exact: true });
     await expect(restart).toBeVisible();
-    const landedScore = await score.textContent();
-    await opening.getByText("Draft while waiting", { exact: true }).click();
-    const input = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
-    await input.fill("Generated startup draft"); await input.press("Space"); await page.clock.runFor(100);
-    await expect(input).toHaveValue("Generated startup draft ");
-    expect(await score.textContent()).toBe(landedScore);
     await restart.press("Enter"); await page.clock.runFor(100);
     await expect(result).not.toContainText("Game over");
     await expect(flap).toBeVisible();
-    await expect(input).toHaveValue("Generated startup draft ");
     expect(f.requests).toHaveLength(0);
     expect(f.service.controller.snapshot().budgetEntries).toHaveLength(0);
     await page.clock.resume(); gate.resolve();
     await expect(opening).toHaveCount(0);
-    const review = page.getByRole("region", { name: "Opening draft review", exact: true });
-    await expect(review.getByRole("textbox", { name: "Unapplied opening draft", exact: true })).toHaveValue("Generated startup draft ");
-    await review.getByRole("button", { name: "Discard opening draft", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Opening draft review", exact: true })).toHaveCount(0);
     await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toBeVisible();
     expect(f.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally {

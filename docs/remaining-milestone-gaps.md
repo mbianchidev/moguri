@@ -2,6 +2,15 @@
 
 ## Current acceptance status, 2026-11-14
 
+The latest user-directed controls/startup slice advances to protocol104:
+classifier-owned Kupo effort with retained routing preferences, skill switches
+and scoped Enable all, and removal of startup drafting with a measured
+event-header indexing improvement. Existing saved drafts and original-owner
+recovery remain authoritative. The native image must match this new cut; the
+user selected preparing a candidate for separate exact-digest approval and
+qualification. The protocol103 results below are retained historical receipts,
+not current104 qualification. Full milestone acceptance remains separate.
+
 The user explicitly removed hosted CI from the implementation blocking path and
 selected **desktop UX polish first, reviewed Sandbox scripts second**. The
 [navigation/Insights polish](architecture/session-interactions.md#desktop-polish-direction-2026-11-14)
@@ -76,8 +85,10 @@ fresh authorized hosted-main CI is still account-blocked before job steps.
 the queue visibility and startup-game follow-up is in draft
 [#66](https://github.com/mbianchidev/moguri/pull/66). Optional Apple tracing and
 packaged-app CLI installation keep their disclosed separate scope. #45 reviewed
-Sandbox scripts and the remaining #53 sidebar/search polish stay pending.
-No tests were removed.
+Sandbox script acceptance and the wider #53 audit remain pending beyond their
+completed bounded slices. One obsolete opening-draft-adoption unit test was
+removed after the user retired that feature; its browser cases now protect
+saved-draft preservation and game-only readiness instead.
 
 ## Historical acceptance continuation, 2026-11-11
 

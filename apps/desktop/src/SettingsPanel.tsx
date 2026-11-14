@@ -93,6 +93,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const lineageDirty = lineageDraftDirty || modelProfileDirty, lineageBusy = lineageDraftBusy || modelProfileBusy;
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [capabilityBusy, setCapabilityBusy] = useState(false), [capabilityProgress, setCapabilityProgress] = useState("");
+  const capabilityPending = useRef(false);
   const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
   const [sandboxDraftDirty, setSandboxDraftDirty] = useState(false);
   const [error, setError] = useState("");
@@ -141,7 +143,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     return () => cancelAnimationFrame(frame);
   }, [policyFocus?.id, tab]);
   useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
-  const nonWebNestedDirty = projectDirty || repositoriesDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy;
+  const nonWebNestedDirty = projectDirty || repositoriesDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy || capabilityBusy;
   const otherNestedDirty = nonWebNestedDirty || webBusy || webDirty;
   const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty || exportDirty;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
@@ -293,6 +295,20 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const jsonEditor = (section: SettingsSection, label: string, disabled = saving) => <div className="setting-editor"><label className="setting-field">{label}<SettingsTextarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={disabled}
     onChange={(event) => setRaw((raw) => ({ ...raw, [section]: event.target.value }))} spellCheck={false} /></label>{saveButton(section, `Save ${label}`, disabled)}</div>;
   const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
+  useEffect(() => { setCapabilityProgress(""); }, [sdk, project?.id, tab]);
+  const toggleSkills = (entries: typeof registry, enabled: boolean) => {
+    if (capabilityPending.current) return;
+    capabilityPending.current = true; setCapabilityBusy(true);
+    const progress = (count: number) => setCapabilityProgress(`${count} of ${entries.length} skill changes acknowledged. Existing source reviews and permissions are unchanged.`);
+    progress(0);
+    void run(async () => {
+      for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index]!;
+        await sdk.capabilities.toggle(entry.id, enabled, entry.revision);
+        progress(index + 1);
+      }
+    }).finally(() => { capabilityPending.current = false; setCapabilityBusy(false); });
+  };
   const pending = snapshot.proposals.filter((proposal) => proposal.projectId === project?.id && proposal.status === "pending");
   const activeVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && job.kind.startsWith("voice.") && job.status === "running");
   const voiceDownload = snapshot.jobs.findLast((job) => job.kind === "voice.download" && job.status === "running");
@@ -766,7 +782,13 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <><h2>{tab === "skills" ? "Imported skills" : tab === "scripts" ? "Foundational and approved scripts" : "Plugins"}</h2>
           <p>{tab === "skills" ? "Import standard SKILL.md front matter and instructions. A skill grants no tool permissions." : tab === "scripts" ? "Built-in grep_logs, fetch_page, search_memory and memory_graph are exposed through the single internal MCP, without generated one-off scripts." : "Version-1 Moguri plugin manifests bundle declarative standard skills. Importing a plugin does not execute a JavaScript entrypoint or install dependencies."}</p>
           {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(() => tab === "skills" ? sdk.capabilities.importSkill(project!.id, input) : sdk.capabilities.importPlugin(project!.id, input))}>Import</button></>}
-          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code></div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button><button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button></section>)}
+          {tab === "skills" && <><button type="button" aria-label="Enable all skills" disabled={capabilityBusy || !registry.some((entry) => !entry.enabled)}
+            onClick={() => toggleSkills(registry.filter((entry) => !entry.enabled), true)}>Enable all</button>
+            <p className="fine-print" role="status" aria-label="Skill changes">{capabilityProgress}</p></>}
+          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code></div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
+            {tab === "skills" ? <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
+              onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label> :
+              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button>}</section>)}
           {tab === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Approved custom scripts execute as Local host code, not in a fictional sandbox. Review the full source, enable it explicitly, and approve each call. Use only scripts you trust.</Alert>}
           <h3>Optional evolution</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Allow model-proposed skills, scripts and style knowledge for human review</label>}>Off by default. Nothing applies itself; approval installs disabled content and enabling/execution remain separate actions.</SettingsHelp>
           {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })} aria-label="Review full proposal">Review</button></div>)}

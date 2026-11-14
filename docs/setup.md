@@ -342,9 +342,14 @@ or a lost result. Native inspection requires the original active qualified
 guest; it does not launch a new one or borrow controller hardware. Cancelling
 that query never stops the parent agent/guest.
 
-Kupo mode, **Role thinking override** and **Working context window** are
-separate controls. `/thinking LEVEL`, `/context-window TOKENS` and
-`routing.options` retain exact supported values, not silent clamps. Compound
+Kupo's **Routing** preference and **Working context window** are separate
+controls. Balanced/Savings/Performance are not effort levels: the classifier
+chooses each actual role's supported thinking automatically. Manual
+`/thinking LEVEL` applies only to fixed models; Kupo rejects it without mutation
+or inference. A retained old override stays blocked until explicitly cleared
+with **Use automatic thinking** or `/thinking default`, preserving its window.
+`/context-window TOKENS` and `routing.options` keep exact supported windows,
+not silent clamps. Compound
 reports include the classifier and every eligible route role's real output
 bound. Its immutable source/stages/script preview must still fit all complete
 future role/test context and receive its separate actual-user review.
@@ -444,18 +449,14 @@ workspace state and never delays authenticated readiness. Reduced motion
 disables decorative wing animation; essential flight and obstacle positions
 remain visible so collisions match what you see.
 
-Open **Draft while waiting** to see cached model/effort labels and type a
-temporary local draft. Space inside that editor types normally, not a flap.
-Send and hold remain unavailable until the real client is authenticated.
-That opening text is kept in this window's memory, not persisted as a
-plaintext transcript/draft cache. An exact unchanged empty saved draft is
-reconciled through the normal SDK; a changed/missing destination or peer
-draft stays preserved for explicit review instead of being overwritten or
-sent. Keep the window open until **Draft saved**, or explicitly discard
-unsaved text when closing.
+There is no **Draft while waiting** composer. The lightweight opening renders
+before SDK/application/cache loading, which proceeds alongside original-owner
+connection. Saved chat drafts remain encrypted and service-owned; the live
+composer restores them only after authentication. Last-view hints and model
+labels never replace a peer draft, restore a deleted chat or authorize sending.
 
 An unconfirmed 60-second service startup now offers **Reconnect to original
-service** while keeping that same local draft and captured destination. Reconnect
+service** while preserving the original service's saved drafts. Reconnect
 only retries authenticated readiness for the captured original owner; it does
 not start another service or send your text. Fatal initialization, authentication
 or changed-owner diagnostics still require inspection rather than a fallback.
@@ -517,8 +518,9 @@ are associated. Select an exact association, then **Files**, **Actions** or
 exact-head watch. Account/root/head changes are stale, not silently adopted.
 Reading or watching never approves a review, rerun, push or merge.
 
-The synthetic dropdown labels Balanced/Savings/Performance **Kupo effort**,
-separately from a concrete model's thinking effort. Automations copy now covers
+The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
+Kupo has no manual effort selector. A concrete fixed model retains its
+qualified thinking-effort control. Automations copy now covers
 broader actions, but only the existing one-time scheduled prompt capability is
 implemented; a general-purpose automation engine is not claimed.
 
@@ -1250,6 +1252,12 @@ receipts and unknown budget holds. A missing current marker is an error, never
 permission to recreate or replay work.
 
 ## Workspace experience and skill gateway
+
+Imported skills have **Enabled/Disabled** switches. **Enable all** applies only
+to the listed project's imported skills, reports acknowledged progress and
+stops on the first failure. Already-applied changes remain applied; refresh and
+retry remaining disabled entries explicitly. Neither action admits new source,
+enables another project/profile, nor grants tool or execution permissions.
 
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
 The left sidebar has **New**, Dashboard, Suggestions and Automations.

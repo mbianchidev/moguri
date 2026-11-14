@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  canApplyOpeningDraft, createStartupView, readStartupProfile, readStartupView, saveStartupView,
-  STARTUP_CACHE_MAX_BYTES, type OpeningDraft, type StartupContext,
+  createStartupView, readStartupProfile, readStartupView, saveStartupView,
+  STARTUP_CACHE_MAX_BYTES, type StartupContext,
 } from "../apps/desktop/src/startup-cache.ts";
 import { setupFixture } from "./fixture.ts";
 
@@ -29,7 +29,8 @@ test("startup presentation persists only scoped model labels, effort names and a
     assert.deepEqual(readStartupView(cache, scopeKey, "default"), view);
     assert.equal(readStartupProfile(cache, context), "default");
     assert.equal(view.session?.id, f.sessionId);
-    assert.equal(view.session?.draftEmpty, false);
+    assert.equal(view.session?.draftEmpty, undefined);
+    assert.equal(view.session?.draftRevision, undefined);
     assert.equal(view.session?.modelId, f.modelId);
     assert.equal(view.session?.thinkingEffort, "high");
     assert.deepEqual(view.models.find((entry) => entry.id === f.modelId)?.thinkingLevels, ["low", "high"]);
@@ -39,6 +40,11 @@ test("startup presentation persists only scoped model labels, effort names and a
     ]) assert.equal(text.includes(excluded), false, excluded);
     assert.equal(readStartupView(cache, otherScope, "default"), null);
     assert.equal(readStartupView(cache, scopeKey, "generated-other-profile"), null);
+    session.draft.revision++; session.draft.text = "Generated changed saved draft does not rewrite presentation metadata.";
+    assert.deepEqual(createStartupView(scopeKey, storeId, snapshot, f.sessionId), view);
+    const legacy = { ...view, session: { ...view.session!, draftRevision: 7, draftEmpty: false } };
+    saveStartupView(cache, legacy);
+    assert.deepEqual(readStartupView(cache, scopeKey, "default"), legacy);
     const connecting = structuredClone(snapshot);
     connecting.provider.status = "connecting"; connecting.provider.models = []; connecting.provider.connections = [];
     assert.deepEqual(createStartupView(scopeKey, storeId, connecting, f.sessionId, view).models, view.models);
@@ -57,7 +63,6 @@ test("startup presentation persists only scoped model labels, effort names and a
     assert.equal(f.requests.length, 0);
   } finally { await f.close(); }
 });
-
 test("cached profile hints never override an explicit profile and corrupt or oversized views fail visibly", async () => {
   const f = await setupFixture();
   try {
@@ -83,33 +88,6 @@ test("cached profile hints never override an explicit profile and corrupt or ove
     }
     cache.values.set(key, original);
     assert.deepEqual(readStartupView(cache, scopeKey, "generated-profile"), view);
-    assert.equal(f.requests.length, 0);
-  } finally { await f.close(); }
-});
-
-test("opening drafts can be adopted only by the exact live empty draft, never by cached authority alone", async () => {
-  const f = await setupFixture();
-  try {
-    const snapshot = f.service.controller.snapshot(), storeId = f.service.connection.storeId!;
-    const view = createStartupView(scopeKey, storeId, snapshot, f.sessionId);
-    assert.ok(view.session);
-    const draft: OpeningDraft = { id: "generated-opening-draft", text: "Generated original local opening text.",
-      binding: { scopeKey, storeId, profileId: "default", sessionId: f.sessionId,
-        draftRevision: view.session.draftRevision, draftEmpty: view.session.draftEmpty } };
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, storeId, snapshot, f.sessionId), true);
-    assert.equal(canApplyOpeningDraft({ ...draft, binding: null }, scopeKey, storeId, snapshot, f.sessionId), false);
-    assert.equal(canApplyOpeningDraft(draft, otherScope, storeId, snapshot, f.sessionId), false);
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, "b".repeat(64), snapshot, f.sessionId), false);
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, undefined, snapshot, f.sessionId), false);
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, storeId, { ...snapshot, profileId: "generated-other-profile" }, f.sessionId), false);
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, storeId, snapshot, "generated-other-session"), false);
-    const changed = structuredClone(snapshot), session = changed.sessions.find((session) => session.id === f.sessionId)!;
-    session.draft = { revision: session.draft.revision + 1, text: "Generated peer saved draft.", attachments: [] };
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, storeId, changed, f.sessionId), false);
-    session.draft.text = "";
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, storeId, changed, f.sessionId), false);
-    assert.equal(canApplyOpeningDraft(draft, scopeKey, storeId, { ...snapshot, sessions: [] }, f.sessionId), false);
-    assert.equal(f.session().draft.text, "");
     assert.equal(f.requests.length, 0);
   } finally { await f.close(); }
 });

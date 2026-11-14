@@ -43,7 +43,7 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await expect.poll(() => fixture.session().controls.modelId).toBe("kupo");
     await expect(models.getByRole("button", { name: "Working context window", exact: true })).toBeDisabled();
     await expect(models.getByRole("button", { name: "Thinking effort", exact: true })).toHaveCount(0);
-    await expect(models.getByRole("button", { name: "Kupo effort", exact: true })).toBeDisabled();
+    await expect(models.getByRole("button", { name: "Kupo routing preference", exact: true })).toBeDisabled();
     await page.keyboard.press("Escape");
     await composer.getByRole("button", { name: "Budget and usage", exact: true }).click();
     const budget = page.getByRole("dialog", { name: "Budget and usage", exact: true });

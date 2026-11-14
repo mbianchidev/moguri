@@ -32,7 +32,7 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
       env: { ...process.env, MOGURI_STATE_DIR: dirname(fixture.service.store.path), MOGURI_TEST_WINDOW: "hidden" },
     });
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
-    const cell = { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "document" } as const;
+    const cell = { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: selection === "fixed" ? "high" : "default", input: "document" } as const;
     const text = `Generated real desktop matrix document question. ${milestoneCellId(cell)}`;
     await prompt.fill(text);
     const path = join(fixture.directory, "generated-desktop-matrix.docx");
@@ -45,10 +45,11 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     const observed = milestoneResponses(fixture, cell, documentId);
     await page.getByRole("button", { name: /^Model:/ }).click();
     await chooseContextWindow(page, "16,384 tokens");
-    const label = selection === "fixed" ? "Thinking effort" : "Role thinking override";
-    await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: label, exact: true }).click();
-    await page.getByRole("menu", { name: label, exact: true }).getByRole("menuitemradio", { name: "High", exact: true }).click();
-    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 16384, thinkingEffort: "high" });
+    if (selection === "fixed") {
+      await page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: "Thinking effort", exact: true }).click();
+      await page.getByRole("menu", { name: "Thinking effort", exact: true }).getByRole("menuitemradio", { name: "High", exact: true }).click();
+    } else await expect(page.getByRole("dialog", { name: "Model", exact: true }).getByRole("button", { name: /effort|thinking override/i })).toHaveCount(0);
+    await expect.poll(() => fixture.session().controls.modelOptions).toEqual({ contextWindow: 16384, ...(selection === "fixed" ? { thinkingEffort: "high" } : {}) });
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Budget and usage", exact: true }).click();
     const budget = page.getByRole("dialog", { name: "Budget and usage", exact: true });
@@ -73,7 +74,9 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await expect.poll(() => fixture.session().status).toBe("completed");
     await expect(page.getByText("Generated selected milestone response.", { exact: true })).toBeVisible();
     const calls = await milestoneCalls(fixture, observed);
-    expect(calls.length > 0 && calls.every((call) => call.request.reasoning_effort === "high")).toBe(true);
+    expect(calls.length).toBeGreaterThan(0);
+    if (selection === "fixed") expect(calls.every((call) => call.request.reasoning_effort === "high")).toBe(true);
+    else expect(fixture.session().controls.modelOptions?.thinkingEffort).toBeUndefined();
     expect((await fixture.sdk.budgets.status(fixture.sessionId)).status.totals.knownReportedTokens).toBe(calls.length * 42);
     expect(fixture.session().controls.env).toBe(env);
     expect(fixture.service.controller.events(0).filter((event) => event.event_type === "tool.decided" && event.payload.actor === "user")).toHaveLength(1);
