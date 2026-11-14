@@ -25,6 +25,7 @@ const paths: Record<string, string> = {
   Trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
   Pin: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8", More: "M5 12h.01M12 12h.01M19 12h.01",
   Grip: "M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01",
+  Filter: "M3 5h18l-7 8v6l-4 2v-8Z", Sort: "M7 3v18m-4-4 4 4 4-4M14 5h7m-7 5h5m-5 5h3", Circle: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
   Refresh: "M20 7v5h-5m5 0a8 8 0 1 0-2 6M4 17v-5h5",
   PinOff: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8M3 3l18 18",
   Plus: "M12 4v16M4 12h16", Close: "m5 5 14 14M19 5 5 19", Up: "m5 15 7-7 7 7", Down: "m5 9 7 7 7-7",

@@ -56,6 +56,15 @@ outside its keyboard-scrollable source. Inline code stays ordinary text.
 Activity disclosures retain their chevrons at rest so inspection does not depend
 on discovering a hover state.
 
+The transcript and composer/queue/approval surfaces share one measured content
+column, excluding the adjacent turn rail; compact expanded turn lists remain
+overlays. Navigation starts with Search/Filter/Order icons. Search reveals its
+focused field on demand, while active status/order choices expose Reset.
+Filters preserve parent context and collapsed-group intent rather than
+restructuring the workspace. Project headers keep location actions together
+beside Save. Global skill-folder switches show an exact-path confirmation
+before adding a saved discovery source, never an implied execution grant.
+
 Queued prompts use right-aligned muted dashed bubbles, with explicit held/steer
 labels. More, Delete and held-prompt Run icons reveal on hover or focus; non-hover
 devices retain visible 44px targets. The singular/plural counted chevron preserves

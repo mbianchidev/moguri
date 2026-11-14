@@ -3971,6 +3971,26 @@ TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 ## Session workspace and project settings
 
+The navigation toolbar starts with **Search**, **Filter** and **Order** icons,
+not a persistent search field. Search opens and focuses the field; Escape clears
+it, then Escape again closes it and returns focus to the icon. Filter supports
+Finished, Error, Needs attention and In progress. Multiple statuses combine;
+nonmatching ancestors remain labeled context so child chats stay reachable.
+Held/idle/stopped work is not silently called successful or running.
+
+Order offers **Newest prompt first** and **Oldest prompt first** using each
+chat's latest sent prompt, not a streaming answer, rename or saved draft.
+Unsent chats use creation time. Pins and parent groups remain. **Reset** appears
+when status filters or explicit ordering are selected, restores default order,
+and does not clear the composer or rewrite stored drag order. Reset prompt
+ordering before manually reordering sessions. Clearing a filter restores the
+previous project/group collapse choices.
+
+The composer, queue and approval controls share the message column's gutters
+instead of extending below the turn-navigation rail. Expanded previews retain
+their established adjacent wide layout and compact overlay without forcing the
+composer into the overlay's width.
+
 Right-click a project header, press **Shift+F10** while it is focused, or open
 its **Project actions** button to choose an icon color. The same context menu
 offers named red, orange, yellow, green, blue, indigo and violet presets, plus
@@ -3978,6 +3998,20 @@ a half-white/half-black pencil swatch for a custom color. It opens a preview
 that changes the project only after **Save**; Cancel leaves the saved color
 unchanged. There are no separate Default color or Custom color buttons.
 Color picking is no longer part of the project settings form.
+
+Clicking a project/repository opens project settings with **Show local folder**
+and **Open remote** beside Save; its context menu offers them too. These are
+explicit client OS actions bound to the exact active profile and registered
+Local project, not the current session's SSH/worktree or an agent permission.
+Open remote uses the supported GitHub upstream. Missing/unsupported remotes
+show an error; no repository URL or account is guessed.
+
+Under **Settings / Skills**, global-folder switches support `~/.agents/skills`
+and `~/.moguri/skills`. Each requires confirmation showing its actual absolute
+Local folder, then **Save** before discovery. They are off until selected for
+this profile. Opening Settings does not enumerate either folder. Existing
+folder-existence, canonical-path, symlink, source-freshness and Local-only
+checks remain; complete inspection/admission is still separate from discovery.
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit

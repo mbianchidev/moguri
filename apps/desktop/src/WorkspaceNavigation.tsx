@@ -1,6 +1,5 @@
 import { lazy, Suspense, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { ClientError, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization, BulkSessionAction } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -10,6 +9,9 @@ import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 import { PolicyNavigationContext } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
 import { BulkSessionActions } from "./BulkSessionActions.tsx";
+import { WorkspaceContextMenu } from "./WorkspaceContextMenu.tsx";
+import { SessionNavigationControls } from "./SessionNavigationControls.tsx";
+import { ProjectLocationActions } from "./ProjectLocationActions.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -61,13 +63,15 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const editFocus = useRef<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const searchInput = useRef<HTMLInputElement>(null), searchStatusId = useId();
+  const searchStatusId = useId();
+  const [statusFilters, setStatusFilters] = useState<SessionNavigationStatus[]>([]), [promptOrder, setPromptOrder] = useState<SessionPromptOrder>("default");
+  const [controlsOpen, setControlsOpen] = useState(false);
   const beforeSearch = useRef<{ folders: Set<string>; projects: Set<string> } | null>(null);
   const [selection, setSelection] = useState<{ projectId: string | null; ids: string[] } | null>(null);
   const [bulkRequest, setBulkRequest] = useState<{ action: BulkSessionAction; nonce: number } | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false), [creatingChat, setCreatingChat] = useState(false);
   const bulkNonce = useRef(0), creating = useRef(false);
-  const priority = (a: Session, b: Session) => compareSessionPriority(a, b, snapshot);
+  const priority = (a: Session, b: Session) => promptOrder === "default" ? compareSessionPriority(a, b, snapshot) : compareSessionPrompts(a, b, promptOrder);
   const bulk = (projectId: string | null) => selection?.projectId === projectId &&
     <BulkSessionActions sdk={sdk} snapshot={snapshot} ids={selection.ids} clear={() => { setSelection(null); setBulkRequest(null); }} prepare={prepareSession} modal={modal}
       request={bulkRequest} busyChanged={setBulkBusy} />;
@@ -84,19 +88,24 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
   }, [selection, bulkBusy]);
   const searchResults = useMemo(() => {
-    if (!search.trim()) return null;
+    if (!search.trim() && !statusFilters.length) return null;
     const values = new Map(snapshot.sessions.map((session) => [session.id, session]));
-    const projects = new Set(snapshot.projects.filter((project) => fuzzyMatch(search, project.name)).map((project) => project.id));
-    const selected = new Set(snapshot.sessions.filter((session) => (session.status === "archived") === archived && (
+    const projects = new Set(snapshot.projects.filter((project) => search.trim() && fuzzyMatch(search, project.name)).map((project) => project.id));
+    const matchesStatus = (session: Session) => {
+      if (!statusFilters.length) return true;
+      const status = sessionNavigationStatus(session, snapshot); return status !== null && statusFilters.includes(status);
+    };
+    const selected = new Set(snapshot.sessions.filter((session) => (session.status === "archived") === archived &&
+      matchesStatus(session) && (!search.trim() ||
       session.projectId !== null && projects.has(session.projectId) || fuzzyMatch(search, sessionTitle(session, 160, "New chat")) ||
       fuzzyMatch(search, session.id))).map((session) => session.id));
-    const count = selected.size;
+    const direct = new Set(selected), count = selected.size;
     for (const id of [...selected]) {
       let parent = values.get(id)?.parentSessionId;
       while (parent && !selected.has(parent)) { selected.add(parent); parent = values.get(parent)?.parentSessionId; }
     }
-    return { visible: selected, count, projects };
-  }, [search, snapshot.sessions, snapshot.projects, archived]);
+    return { visible: selected, direct, count, projects: statusFilters.length ? new Set<string>() : projects };
+  }, [search, statusFilters, snapshot, archived]);
   const matches = searchResults?.visible ?? null;
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
   const [foldersMenu, setFoldersMenu] = useState<NavigationMenu | null>(null);
@@ -105,17 +114,17 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set());
   const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
   const [navigationStatus, setNavigationStatus] = useState("");
-  const updateSearch = (value: string) => {
-    if (value.trim()) {
+  const updateFiltering = (value: string, filters: SessionNavigationStatus[]) => {
+    if (value.trim() || filters.length) {
       beforeSearch.current ??= { folders: new Set(collapsedFolders), projects: new Set(collapsedProjects) };
       setCollapsedFolders(new Set()); setCollapsedProjects(new Set());
     } else if (beforeSearch.current) {
       setCollapsedFolders(beforeSearch.current.folders); setCollapsedProjects(beforeSearch.current.projects); beforeSearch.current = null;
     }
-    setSearch(value);
+    setSearch(value); setStatusFilters(filters);
   };
-  const clearSearch = () => { updateSearch(""); searchInput.current?.focus(); };
-  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); beforeSearch.current = null; setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
+  const updateSearch = (value: string) => updateFiltering(value, statusFilters);
+  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setStatusFilters([]); setPromptOrder("default"); beforeSearch.current = null; setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
   useLayoutEffect(() => {
     const request = removedFolderFocus.current;
     if (!request || request.profileId !== sdk.profileId || snapshot.projectFolders.some((folder) => folder.id === request.id)) return;
@@ -159,7 +168,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     if (anchor.isConnected) anchor.focus();
   }, [edit]);
   useEffect(() => { if (menu && !(menu.kind === "project" ? snapshot.projects : menu.kind === "folder" ? snapshot.projectFolders : snapshot.sessions).some((entry) => entry.id === menu.id)) setMenu(null); }, [menu, snapshot.projects, snapshot.projectFolders, snapshot.sessions]);
-  useEffect(() => { modal(Boolean(edit || renaming || menu || foldersMenu || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, renaming, menu, foldersMenu, actions.reviewing, actions.busy, modal]);
+  useEffect(() => { modal(Boolean(edit || renaming || menu || foldersMenu || controlsOpen || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, renaming, menu, foldersMenu, controlsOpen, actions.reviewing, actions.busy, modal]);
   const run = async (operation: () => Promise<unknown>) => { setError(""); try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Workspace action failed."); } };
   const open = (value: Edit) => { if (allow()) setEdit(value); };
   const rename = (session: Session) => {
@@ -234,6 +243,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     } finally { orderPending.current = false; setOrdering(false); }
   };
   const moveSession = (session: Session, delta: number) => run(async () => {
+    if (promptOrder !== "default") throw new Error("Reset prompt ordering before manually reordering sessions. No saved order was changed.");
     const ordered = siblings(session), index = ordered.findIndex((entry) => entry.id === session.id), target = index + delta;
     if (target < 0 || target >= ordered.length || ordered[target]!.pinned !== session.pinned) throw new Error("This session is already at the edge of its pinned or unpinned siblings.");
     [ordered[index], ordered[target]] = [ordered[target]!, ordered[index]!]; await saveOrder(session, ordered);
@@ -362,8 +372,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const unread = unreadSession(session, snapshot);
     const selecting = selection?.projectId === session.projectId, selected = selecting ? selection.ids.includes(session.id) : session.id === selectedId;
     return <div className={`session-row ${selected ? "selected" : ""} ${drop?.id === session.id ? `drop-${drop.edge}` : ""}`} key={session.id} data-session-selected={selecting ? String(selected) : undefined} style={{ paddingInlineStart: `${Math.min(8, depth) * 10}px` }}
-    draggable={!actions.busy && !ordering && !selection && !renaming} onDragStart={(event) => {
-      if (!allow() || orderPending.current) { event.preventDefault(); return; }
+    draggable={!actions.busy && !ordering && !selection && !renaming && promptOrder === "default"} onDragStart={(event) => {
+      if (!allow() || orderPending.current || promptOrder !== "default") { event.preventDefault(); return; }
       dragging.current = { source: position(session), siblings: siblings(session).map(position), profileId: sdk.profileId };
       event.dataTransfer.setData(SESSION_DRAG, JSON.stringify({ profileId: sdk.profileId, sessionId: session.id })); event.dataTransfer.effectAllowed = "copyMove"; setMenu(null);
     }} onDragEnd={() => { dragging.current = null; setDrop(null); }}
@@ -385,7 +395,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     onContextMenu={(event) => { if (renaming?.id === session.id) return; event.preventDefault(); const anchor = event.currentTarget.querySelector<HTMLButtonElement>(".session-link")!; openMenu("session", session.id, anchor, event.clientX, event.clientY); }}>
     {renaming?.id === session.id ? <InlineSessionRename sdk={sdk} id={session.id} original={renaming.title} source={renaming.source} titleRevision={renaming.revision} close={() => {
       renameFocus.current = session.id; setRenaming(null);
-    }} /> : <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions. Drop on a session to attach; drop near its edges or use Alt+Up/Down to reorder siblings. Drag a child to a header to detach.`}
+    }} /> : <button className="session-link" data-session-id={session.id} data-unread={unread ? "true" : undefined} aria-label={session.title} aria-description={`${statusFilters.length && searchResults && !searchResults.direct.has(session.id) ? "Parent context, not a filter match. " : ""}${unread ? "Unread. " : ""}${indicator.label}. Double-click to rename. Right-click or Shift+F10 for actions. ${promptOrder === "default" ? "Drop on a session to attach; drop near its edges or use Alt+Up/Down to reorder siblings. Drag a child to a header to detach." : "Reset prompt ordering before manual reordering."}`}
       aria-pressed={selecting ? selected : undefined} disabled={bulkBusy} aria-haspopup="menu" aria-expanded={menu?.kind === "session" && menu.id === session.id} aria-current={selectedId === session.id ? "page" : undefined}
       onClick={(event) => selection || event.metaKey || event.ctrlKey ? toggleSelection(session) : void chooseSession(session.id)} title={session.title}
       onDoubleClick={(event) => { event.preventDefault(); if (!selection) rename(session); }}
@@ -494,16 +504,13 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const contextBulk = contextSelection.length > 1;
   const requestBulk = (action: BulkSessionAction) => { setBulkRequest({ action, nonce: ++bulkNonce.current }); closeMenu(); };
   return <><div className="project-list" aria-busy={busy || actions.busy || ordering}>
-    <div className="workspace-navigation-tools"><search className="workspace-session-search" aria-label="Chats and projects"><Icon name="Search" /><input ref={searchInput} type="search" aria-label="Search sessions" aria-describedby={searchStatusId} placeholder="Find chats or projects" value={search}
-      onChange={(event) => updateSearch(event.target.value)} onKeyDown={(event) => {
-        if (event.key === "Escape" && search && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); clearSearch(); }
-      }} />
-      {search && <button type="button" className="icon-button" aria-label="Clear session search" title="Clear search (Escape)" onClick={clearSearch}><Icon name="Close" /></button>}</search>
+    <SessionNavigationControls key={sdk.profileId} search={search} changeSearch={updateSearch} filters={statusFilters} changeFilters={(values) => updateFiltering(search, values)}
+      order={promptOrder} changeOrder={setPromptOrder} statusId={searchStatusId} menuChanged={setControlsOpen}>
       <button ref={projectsMenuButton} type="button" className="icon-button" aria-label="Projects menu" title="Projects menu" aria-haspopup="menu" aria-expanded={Boolean(foldersMenu)} onClick={(event) => {
         if (foldersMenu) { setFoldersMenu(null); return; }
         const bounds = event.currentTarget.getBoundingClientRect();
         setFoldersMenu({ kind: "project", id: "folders", x: bounds.left, y: bounds.bottom, anchor: event.currentTarget, trigger: event.currentTarget });
-      }}><Icon name="More" /></button></div>
+      }}><Icon name="More" /></button></SessionNavigationControls>
     <p id={searchStatusId} className={searchResults ? "workspace-search-summary" : "sr-only"} role="status" aria-label="Session search results" aria-atomic="true">
       {searchResults && (searchResults.count || projects.length ? `${searchResults.count} chat${searchResults.count === 1 ? "" : "s"} / ${projects.length} project${projects.length === 1 ? "" : "s"}` : "No matches")}
     </p>
@@ -554,7 +561,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <button role="menuitem" onClick={() => void toggleKanban(projectMenu)}><Icon name="Plan" />{kanbanPreferences(snapshot.boards.find((board) => board.projectId === projectMenu.id) ?? defaultBoard(projectMenu.id)).visible ? "Hide Kanban" : "Show Kanban"}</button>
     {terminal && <button role="menuitem" onClick={() => terminal(projectMenu.id)}><Icon name="Terminal" />Open project terminal</button>}
     <button role="menuitem" onClick={() => { setSelection({ projectId: projectMenu.id, ids: [] }); setBulkRequest(null); setCollapsedProjects((current) => { const next = new Set(current); next.delete(projectMenu.id); return next; }); closeMenu(); }}><Icon name="Check" />Select sessions</button>
-    <button role="menuitem" onClick={() => void run(async () => { const info = await sdk.projects.git(projectMenu.id, false); if (!info.repository) throw new Error("This attached folder has no supported GitHub upstream."); await window.moguri.openExternal(info.repository); })}><Icon name="PR" />Open in GitHub</button>
+    <ProjectLocationActions sdk={sdk} project={projectMenu} menu run={run} />
     <button role="menuitem" onClick={() => open({ kind: "new-group", project: projectMenu })}><Icon name="Group" />New session group</button>
     <button role="menuitem" onClick={() => open({ kind: "folder", project: projectMenu })}><Icon name="Files" />Move to folder</button>
     <button role="menuitem" onClick={() => open({ kind: "new-folder", project: projectMenu })}><Icon name="Plus" />New folder</button>
@@ -627,38 +634,6 @@ function NavigationColors({ label, color, busy, pick, customLabel, custom }: { l
       <span className="project-color-swatch custom" aria-hidden="true"><Icon name="Edit" /></span>
     </button>
   </div></div>;
-}
-function WorkspaceContextMenu({ label, point, close, children }: { label: string; point: NavigationMenu; close: (restore?: boolean) => void; children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const element = ref.current; if (!element) return;
-    const bounds = element.getBoundingClientRect();
-    element.style.left = `${Math.max(8, Math.min(window.innerWidth - bounds.width - 8, point.x))}px`;
-    element.style.top = `${Math.max(48, Math.min(window.innerHeight - bounds.height - 8, point.y))}px`;
-    (element.querySelector<HTMLButtonElement>('[aria-checked="true"]:not(:disabled)') ?? element.querySelector<HTMLButtonElement>("button:not(:disabled)"))?.focus();
-  }, []);
-  useEffect(() => {
-    const outside = (event: PointerEvent) => { if (event.target instanceof Node && !ref.current?.contains(event.target) && !point.trigger?.contains(event.target)) close(false); };
-    document.addEventListener("pointerdown", outside); return () => document.removeEventListener("pointerdown", outside);
-  }, [close, point.trigger]);
-  return createPortal(<div ref={ref} className="session-context-menu" role="menu" aria-label={label} style={{ left: point.x, top: point.y }}
-    onClick={(event) => { if (event.target instanceof Element && event.target.closest("button")) close(); }}
-    onKeyDown={(event) => {
-      if (event.key === "Escape") { event.preventDefault(); close(); return; }
-      if (event.key === "Tab") { close(false); return; }
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault(); event.stopPropagation();
-        if (event.target instanceof Element) event.target.closest<HTMLButtonElement>("button:not(:disabled)")?.click();
-        return;
-      }
-      const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
-      const palette = horizontal && event.target instanceof Element ? event.target.closest(".project-color-palette") : null;
-      if ((horizontal && !palette) || !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      const buttons = Array.from((palette ?? ref.current)?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []), index = buttons.findIndex((button) => button === document.activeElement);
-      const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
-      buttons[next]?.focus();
-    }}>{children}</div>, document.body);
 }
 function unreadSession(session: Session, snapshot: Snapshot): boolean {
   const entry = snapshot.attention.findLast((entry) => entry.sessionId === session.id && entry.active);

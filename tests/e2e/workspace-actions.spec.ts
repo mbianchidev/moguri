@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
-import { waitForWorkspace } from "./navigation.ts";
+import { openSessionSearch, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -39,7 +39,7 @@ test("session lists page ten project-free roots, five project roots and five chi
     await projects.getByRole("button", { name: `Show more subsessions of ${fixture.session().title}`, exact: true }).click();
     await expect(projects.getByRole("button", { name: /^Generated nested child / })).toHaveCount(7);
     await projectRoots.last().scrollIntoViewIfNeeded();
-    const search = page.getByRole("searchbox", { name: "Search sessions", exact: true });
+    const search = await openSessionSearch(page);
     await expect(search).toBeInViewport({ ratio: 1 });
     await search.fill("Generated nested child 6");
     await expect(page.getByRole("status", { name: "Session search results", exact: true })).toContainText("1 chat");
@@ -66,7 +66,7 @@ test("an individual project collapses only its navigation sessions and remains e
     await section.getByRole("button", { name: `Expand project ${project.name}`, exact: true }).focus();
     await page.keyboard.press("Enter"); await expect(session).toBeVisible();
     await section.getByRole("button", { name: `Collapse project ${project.name}`, exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search sessions", exact: true }).fill(sessionTitle(fixture.session(), 160, "New chat"));
+    await (await openSessionSearch(page)).fill(sessionTitle(fixture.session(), 160, "New chat"));
     await expect(session).toBeVisible();
     await page.getByRole("searchbox", { name: "Search sessions", exact: true }).press("Escape");
     await expect(page.getByRole("searchbox", { name: "Search sessions", exact: true })).toHaveValue("");

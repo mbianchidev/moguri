@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { openSessionSearch } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -17,7 +18,7 @@ test("session search finds chats and projects, explains empty results and clears
   await sdk.sessions.create(null, "Unrelated");
   const app = await launch(fixture.directory);
   try {
-    const page = await app.firstWindow(), search = page.getByRole("searchbox", { name: "Search sessions", exact: true });
+    const page = await app.firstWindow(), search = await openSessionSearch(page);
     const prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill("Generated draft stays in the original chat.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");

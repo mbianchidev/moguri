@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -498,6 +498,41 @@ else {
       if (typeof input !== "string") throw new Error("URL required.");
       const url = previewUrl(input);
       if (process.env.MOGURI_TEST_WINDOW !== "hidden") await shell.openExternal(url.toString());
+    });
+    ipcMain.handle("moguri:global-skill-sources", (event, profileId: unknown) => {
+      trusted(event);
+      if (profileId !== activeProfileId || attentionClient?.profileId !== profileId) throw new Error("Global skill folders belong to the original active profile. Reopen Skills after profile loading.");
+      return globalSkillSources(process.env.MOGURI_TEST_WINDOW === "hidden" ?
+        process.env.MOGURI_TEST_SKILL_HOME ?? join(stateDirectory(), "generated-skill-home") : undefined);
+    });
+    ipcMain.handle("moguri:project-location", async (event, profileId: unknown, projectId: unknown, expectedPath: unknown, action: unknown) => {
+      trusted(event);
+      if (typeof projectId !== "string" || typeof expectedPath !== "string" || action !== "show-folder" && action !== "open-remote") throw new Error("Choose an exact project folder or repository action.");
+      const client = attentionClient, epoch = profileEpoch;
+      if (!client) throw new Error("The original profile is not connected. No location was opened.");
+      const current = () => {
+        const state = client?.getState(), project = state?.snapshot?.projects.find((project) => project.id === projectId);
+        if (!client || client !== attentionClient || profileId !== activeProfileId || profileId !== client.profileId || epoch !== profileEpoch ||
+          state?.status !== "connected" || !project || project.path !== expectedPath) throw new Error("The original profile or exact project folder changed. No other location was opened.");
+        return project;
+      };
+      current(); await client.refresh(); current();
+      let location: string;
+      if (action === "show-folder") {
+        location = await realpath(expectedPath);
+        if (location !== expectedPath || !(await lstat(location)).isDirectory()) throw new Error("The exact registered Local folder is no longer available. No replacement was opened.");
+      } else {
+        const git = await client.projects.git(projectId, false); current();
+        if (!git.repository) throw new Error("This Local project has no supported repository remote. No URL or SSH account was inferred.");
+        location = previewUrl(git.repository).toString();
+      }
+      current();
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") return { opened: false, location };
+      if (action === "show-folder") {
+        const error = await shell.openPath(location);
+        if (error) throw new Error(`The Local folder could not be opened: ${error}`);
+      } else await shell.openExternal(location);
+      return { opened: true, location };
     });
     ipcMain.handle("moguri:copy-text", (event, text: unknown) => {
       trusted(event);

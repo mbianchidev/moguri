@@ -7,6 +7,7 @@ import { BoardSettings } from "./BoardSettings.tsx";
 import { RepositoryRemotePanel } from "./RepositoryRemotePanel.tsx";
 import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
+import { ProjectLocationActions } from "./ProjectLocationActions.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -110,8 +111,9 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     });
   };
   const canRun = session?.projectId === project.id && !dirty && !busy;
-  return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
-    <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy || trustBusy} onClick={() => void save()}>Save</button></header>
+  return <section aria-label="Per-project settings"><header className="project-settings-header"><div className="project-settings-title"><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
+    <div className="button-row project-settings-actions"><ProjectLocationActions sdk={sdk} project={project} disabled={!available || busy || trustBusy} run={run} />
+      <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy || trustBusy} onClick={() => void save()}>Save</button></div></header>
     {!available && discardUnavailable && <button type="button" disabled={busy} onClick={discardUnavailable}>Discard unavailable project edit</button>}
     {error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={!available || busy} onClick={() => void run(reload)}>Reload</button></div>}
     {!loaded && available && <p role="status">Loading committed project settings...</p>}
