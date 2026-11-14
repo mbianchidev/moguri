@@ -543,7 +543,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         <button type="button" className="icon-button folder-actions" aria-label={`Project group actions for ${group.name}`} aria-haspopup="menu" aria-expanded={menu?.kind === "folder" && menu.id === group.id}
           onClick={(event) => { event.preventDefault(); event.stopPropagation(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.bottom); }}><Icon name="More" /></button>
       </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
-    {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">Try another chat or project name, or clear the search.</p>}
+    {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">{statusFilters.length ?
+      "No sessions match these filters. Change a status or reset filters." : "Try another chat or project name, or clear the search."}</p>}
     {!matches && !snapshot.projects.length && !snapshot.sessions.length && !archived && <p className="nav-empty">Use New for a chat, a local folder or a repository.</p>}
     {!matches && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
   </div>

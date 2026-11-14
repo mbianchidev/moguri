@@ -36,6 +36,13 @@ selection passes with scoped startup/layout/source-ownership evidence in
 It adds no service schema/protocol or dependency and does not complete the wider
 design audit, run the full milestone matrix or qualify the deferred native GUI.
 
+The subsequent `e18a99c` follow-up aligns chat controls with the message column,
+adds icon-triggered search/status/prompt-order/reset controls, exact project
+location actions and confirmed global skill-folder presets. Its 47 desktop
+passes retain one pre-existing native-only skip; 47 shared/API/policy cases and
+the fresh packed SDK also pass. [Scoped evidence](architecture/session-interactions.md#navigation-alignment-and-confirmed-global-skill-folders-2026-11-14)
+does not replace the deferred native GUI or whole-milestone acceptance.
+
 The following protocol103 slice implements guarded reviewed-script Sandbox
 execution: exact private/guest binding, guest-only public source reads, one
 retained attempt/result and model-free actual-user force under normal approval.

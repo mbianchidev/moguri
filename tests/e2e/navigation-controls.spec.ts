@@ -39,6 +39,10 @@ test("search opens explicitly and filters/order reset without changing drafts, g
     const reset = page.getByRole("button", { name: "Reset session filters and ordering", exact: true });
     await reset.click(); await expect(reset).toHaveCount(0);
     await expect(project.getByRole("button", { name: "Expand project project", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await page.getByRole("button", { name: "Filter sessions", exact: true }).click();
+    await page.getByRole("menu", { name: "Session status filters", exact: true }).getByRole("menuitemcheckbox", { name: "Error", exact: true }).click();
+    await expect(page.getByText("No sessions match these filters. Change a status or reset filters.", { exact: true })).toBeVisible();
+    await reset.click();
     const chats = page.getByRole("region", { name: "Chats", exact: true });
     for (const [label, expected] of [["Newest prompt first", "Generated newer unsent chat"], ["Oldest prompt first", "Generated older unsent chat"]] as const) {
       await page.getByRole("button", { name: "Order sessions", exact: true }).click();
