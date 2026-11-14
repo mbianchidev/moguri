@@ -27,6 +27,15 @@ before physical preflight or matrix execution. Earlier reports, original
 failures and the independent completed 6,720-cell Local/SSH report remain
 unchanged. No acceptance gate or failed report is silently relabeled.
 
+The latest reference-driven #53 follow-up at `b793847` adds dashed queued-message
+bubbles, hover/focus actions, counted collapse and Changes/PR/Plan/Background/
+Artifacts shortcuts. Agent activity includes actual background subagents and
+preserves private-console and dirty-editor guards. Its 32-case hidden-desktop
+selection passes with scoped startup/layout/source-ownership evidence in
+[session interactions](architecture/session-interactions.md#queued-message-references-and-session-shortcuts-2026-11-14).
+It adds no service schema/protocol or dependency and does not complete the wider
+design audit, run the full milestone matrix or qualify the deferred native GUI.
+
 The following protocol103 slice implements guarded reviewed-script Sandbox
 execution: exact private/guest binding, guest-only public source reads, one
 retained attempt/result and model-free actual-user force under normal approval.
