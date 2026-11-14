@@ -38,17 +38,19 @@ export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sd
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [repository, setRepository] = useState(""), generation = useRef(0);
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""), [loading, setLoading] = useState(false);
   const load = async () => {
     setError("");
-    const current = ++generation.current; setData(null);
-    if (session.repositories && !repository) return;
-    if (!session.projectId && !session.repositories) { setError("Select a project to inspect file changes."); return; }
+    const current = ++generation.current; setData(null); setLoading(true);
+    if (session.repositories && !repository) { setLoading(false); return; }
+    if (!session.projectId && !session.repositories) { setError("Select a project to inspect file changes."); setLoading(false); return; }
     try { const data = await sdk.workspaces.git(session.id, true, repository || undefined); if (generation.current === current) setData(data); }
     catch (error) { if (generation.current === current) setError(error instanceof Error ? error.message : "Git status could not be read."); }
+    finally { if (generation.current === current) setLoading(false); }
   };
   useEffect(() => { void load(); return () => { generation.current++; }; }, [session.id, session.workspaceId, session.turnId, repository]);
-  return <section className="changes-panel"><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Down" /></button></header>
+  return <section className="changes-panel" aria-label="Bound workspace changes" aria-busy={loading}><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={loading || Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Refresh" /></button></header>
+    {loading && <p className="fine-print" role="status">Loading changes from the bound workspace...</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
@@ -97,6 +99,7 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
   const [plan, setPlan] = useState<({ text: string; digest: string; path: string; scope: string } & Partial<PlanBinding>) | null>(null);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [stopping, setStopping] = useState(false);
   const save = snapshot.planSaves.findLast((entry) => entry.sessionId === session.id);
@@ -109,25 +112,26 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
     return () => window.removeEventListener("beforeunload", close);
   }, [dirty, saving]);
   const load = async (expectedBinding?: string) => {
-    const current = ++generation.current; setError("");
+    const current = ++generation.current; setError(""); setLoading(true);
     try {
       const result = await sdk.plans.read(session.id);
       if (generation.current !== current || currentScope.current !== scope) return;
       if (expectedBinding && result.bindingDigest !== expectedBinding) { setError("The original save settled, but the workspace changed. Your edit is preserved; reload explicitly before editing another root."); return; }
       setPlan({ ...result, scope }); setText(result.text);
     } catch (error) { if (generation.current === current && currentScope.current === scope) setError(error instanceof Error ? error.message : "Plan could not be read."); }
+    finally { if (generation.current === current && currentScope.current === scope) setLoading(false); }
   };
   useEffect(() => {
     generation.current++;
-    if (dirty && plan?.scope !== scope) setError("The bound workspace changed. Your edit is preserved; copy it or explicitly reload before saving into another root.");
+    if (dirty && plan?.scope !== scope) { setLoading(false); setError("The bound workspace changed. Your edit is preserved; copy it or explicitly reload before saving into another root."); }
     else void load();
     return () => { generation.current++; };
   }, [scope]);
   const scopeChanged = plan !== null && plan.scope !== scope;
   const readOnly = scopeChanged || session.controls.env === "Sandbox" || session.mode !== "agent" || session.pendingMode === "read-only" || session.kind === "side" || session.kind === "subagent" || session.status === "archived" ||
     session.controls.env === "Remote" && (!snapshot.policy.allowedEnvs.includes("Remote") || !snapshot.capabilities.find((capability) => capability.env === "Remote")?.ready || Boolean(session.turnId));
-  return <section className="plan-panel" aria-label="Bound project plan"><header className="panel-toolbar"><strong title={plan?.path}>{plan?.path ?? "Plan"}</strong><button className="icon-button" aria-label="Reload plan" title="Reload plan, discarding local edits" disabled={saving} onClick={() => void load()}><Icon name="Down" /></button>
-    <button className="primary" disabled={!dirty || saving || readOnly} onClick={() => {
+  return <section className="plan-panel" aria-label="Bound project plan" aria-busy={loading || saving}><header className="panel-toolbar"><strong title={plan?.path}>{plan?.path ?? "Plan"}</strong><button className="icon-button" aria-label="Reload plan" title="Reload plan, discarding local edits" disabled={saving || loading} onClick={() => void load()}><Icon name="Refresh" /></button>
+    <button className="primary" disabled={!dirty || saving || loading || readOnly} onClick={() => {
       if (!plan) return;
       setSaving(true); setError("");
       const capturedScope = scope;
@@ -136,11 +140,12 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
         return load(plan.bindingDigest);
       }).catch((error: unknown) => setError(error instanceof Error ? error.message : "The plan was not saved; your edit was preserved.")).finally(() => setSaving(false));
     }}>Save</button></header>
+    {loading && <p className="fine-print" role="status">Loading plan from the bound workspace...</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {plan?.boundary && <details className="plan-binding"><summary>SSH destination and binding</summary><p className="fine-print path">{plan.boundary.root}/{plan.path} / {plan.boundary.hostFingerprint}. Saving uses this exact reviewed binding, not a Local path.</p></details>}
     {readOnly && <p className="fine-print">{scopeChanged ? "Workspace changed. Reload explicitly before editing this root." : session.controls.env === "Remote" && session.mode === "agent" ? "Finish owned work and verify the exact Remote target/policy before saving. No Local fallback." : "Question-only or unavailable workspace. Plan editing is disabled."}</p>}
-    <textarea aria-label="Project plan" spellCheck={false} value={text} readOnly={readOnly} disabled={!plan || saving} onChange={(event) => setText(event.target.value)} placeholder={session.controls.env === "Remote" ? "No plan exists in the approved remote workspace." : "No plan yet. Write one here to create it explicitly."} />
-    <p className="fine-print">{saving ? "Saving exact owned plan. Your edit is preserved until settlement." : dirty ? "Unsaved edit" : session.controls.env === "Remote" ? "Read from the approved SSH workspace. Only explicit saves retain an independent snapshot; no model is called." : "Saved snapshots survive session deletion."}</p>
+    <textarea aria-label="Project plan" spellCheck={false} value={text} readOnly={readOnly} disabled={!plan || saving || loading} onChange={(event) => setText(event.target.value)} placeholder={session.controls.env === "Remote" ? "No plan exists in the approved remote workspace." : "No plan yet. Write one here to create it explicitly."} />
+    {(!loading || dirty || saving) && <p className="fine-print">{saving ? "Saving exact owned plan. Your edit is preserved until settlement." : dirty ? "Unsaved edit" : session.controls.env === "Remote" ? "Read from the approved SSH workspace. Only explicit saves retain an independent snapshot; no model is called." : "Saved snapshots survive session deletion."}</p>}
     {save && <details className="plan-save-outcome" aria-label="Remote plan save outcome"><summary>Remote save: {save.status}</summary>
       <p className="fine-print path">Phase: {save.phase}. File: {save.fileOutcome}. Source: {save.root}/{save.path}.</p>
       <p className="fine-print path">Pinned host: {save.hostFingerprint}. Worker cleanup: {execution?.cleanup === "acknowledged" ? "user inspection acknowledged, not proof" : execution?.cleanup ?? "not confirmed"}. SSH is not sandbox isolation or descendant-containment proof.</p>

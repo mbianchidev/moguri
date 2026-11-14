@@ -144,7 +144,7 @@ test("quitting during connection admission waits for that exact service and does
   try {
     await expect.poll(() => entered).toBe(true);
     const startup = await app.firstWindow();
-    await expect(startup.getByRole("status")).toContainText("Opening your workspace");
+    await expect(startup.getByRole("status", { name: "Startup status", exact: true })).toContainText("Opening your workspace");
     const closing = app.waitForEvent("close");
     await app.evaluate(({ app, BrowserWindow }) => { if (BrowserWindow.getAllWindows().length !== 1) throw new Error("The generated startup window is missing or duplicated."); app.quit(); });
     gate.resolve(); await closing; await closed.promise;

@@ -51,6 +51,29 @@ explicit deny/approve controls. State is labeled in text, not color alone.
 Conversation Markdown is rendered without raw HTML, automatic remote images or
 implicit external navigation. Long transcripts progressively reveal older
 messages. Code stays selectable and horizontally scrollable.
+Fenced code uses a quiet language caption with a stable exact-copy action
+outside its keyboard-scrollable source. Inline code stays ordinary text.
+Activity disclosures retain their chevrons at rest so inspection does not depend
+on discovering a hover state.
+
+The transcript and composer/queue/approval surfaces share one measured content
+column, excluding the adjacent turn rail; compact expanded turn lists remain
+overlays. Navigation starts with Search/Filter/Order icons. Search reveals its
+focused field on demand, while active status/order choices expose Reset.
+Filters preserve parent context and collapsed-group intent rather than
+restructuring the workspace. Location shortcuts live in the sidebar session and
+project context menus, not Settings; unavailable roots stay visible but
+disabled with their reason. Global skill-folder switches show an exact-path confirmation
+before adding a saved discovery source, never an implied execution grant.
+
+Queued prompts use right-aligned muted dashed bubbles, with explicit held/steer
+labels. More, Delete and held-prompt Run icons reveal on hover or focus; non-hover
+devices retain visible 44px targets. The singular/plural counted chevron preserves
+inline edits when collapsed. Compact outlined session shortcuts wrap above the
+composer without overlapping the transcript or navigation. Their counts describe
+actual scoped observations, not synthetic progress; tooltips dismiss on navigation
+so they cannot cover the destination's controls. Background opens Agent activity,
+not the private User console, and shares existing navigation/dirty-state guards.
 
 Obvious navigation/copy/edit/delete actions use labeled icons. Contextual primary
 labels are New and Save. Long names truncate within bounded rows while retaining
@@ -68,6 +91,11 @@ owning capability behavior. Dirty settings survive tab changes and block
 navigation/unmount until saved or explicitly reloaded. JSON editors expose exact
 permissions/MCP configuration during this alpha. Model-weight download requires
 its own user acceptance, separate from recording or transcript insertion.
+
+Supporting views show explicit loading, empty and failed states rather than a
+blank or success-looking fallback. Workspace-plan reloads retain the original
+text and dirty indicator until successful reconciliation, lock conflicting
+edits while pending, and recover from failed reads without losing text.
 
 ## Terminal
 

@@ -15,13 +15,15 @@ test.skip(process.platform !== "darwin", "Deferred startup uses a generated hidd
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 
-for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`cached opening keeps the original local draft safe after ${outcome} reconciliation without sending`, async () => {
+for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`game-only opening restores only the authenticated saved chat after ${outcome} reconciliation`, async () => {
   const peerChange = outcome === "peer";
   const f = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(f.service.connection).ready();
   const created = await sdk.sessions.create(null, "Generated remembered opening chat");
   if (!created.id) throw new Error("The generated remembered session was not acknowledged.");
   const sessionId = created.id;
   await sdk.sessions.selectModel(sessionId, f.modelId);
+  const original = `Generated service-owned saved draft ${outcome}.`;
+  await sdk.command({ type: "draft.save", sessionId, expectedRevision: 0, text: original, attachments: [] });
   const app = await launch(f.directory), gate = Promise.withResolvers<void>();
   const snapshot = f.service.profiles.snapshot.bind(f.service.profiles);
   let paused = false, entered = false;
@@ -34,6 +36,7 @@ for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`cach
     await page.getByRole("navigation", { name: "Projects and sessions", exact: true })
       .getByRole("button", { name: "Generated remembered opening chat", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Generated remembered opening chat", exact: true })).toBeVisible();
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate((id) => Object.keys(localStorage).some((key) => {
       if (!key.startsWith("moguri.startup.v1:")) return false;
       const value = JSON.parse(localStorage.getItem(key) ?? "{}");
@@ -50,26 +53,19 @@ for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`cach
     const began = performance.now();
     await page.reload({ waitUntil: "domcontentloaded" });
     const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
-    await opening.getByText("Draft while waiting", { exact: true }).click();
-    const local = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
-    await expect(local).toBeEditable({ timeout: 1500 });
+    await expect(opening.getByRole("button", { name: "Flap Moguri's wings", exact: true })).toBeVisible({ timeout: 1500 });
     const interactiveMs = performance.now() - began;
     expect(interactiveMs).toBeLessThanOrEqual(700);
-    await expect(opening).toContainText("Last opened chat");
-    const model = f.provider.state.models.find((model) => model.id === f.modelId)!;
-    await expect(opening.getByText(model.name, { exact: true })).toBeVisible();
-    await expect(opening.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
-    const original = `Generated original opening draft ${outcome}.`;
-    await local.fill(original);
-    await local.press("Meta+Enter");
-    await expect(local).toHaveValue(original);
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
+    await expect(opening.getByText("Draft while waiting", { exact: true })).toHaveCount(0);
+    await page.keyboard.press("Meta+Enter");
     await expect.poll(() => entered).toBe(true);
-    expect(sdk.sessions.get(sessionId)?.draft.text).toBe("");
+    expect(sdk.sessions.get(sessionId)?.draft.text).toBe(original);
     expect(sdk.sessions.get(sessionId)?.queue).toHaveLength(0);
     expect(f.requests).toHaveLength(0);
     if (peerChange) {
       await f.service.controller.dispatch({ id: "generated-opening-peer-draft", profileId: "default",
-        command: { type: "draft.save", sessionId, expectedRevision: 0, text: "Generated peer saved draft.", attachments: [] } });
+        command: { type: "draft.save", sessionId, expectedRevision: 1, text: "Generated peer saved draft.", attachments: [] } });
     } else if (outcome === "deleted") {
       const current = f.service.controller.snapshot().sessions.find((session) => session.id === sessionId)!;
       await f.service.controller.dispatch({ id: "generated-opening-peer-delete", profileId: "default",
@@ -80,25 +76,10 @@ for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`cach
     await expect(page.locator(".app-shell")).toHaveAttribute("data-session-id", outcome === "deleted" || outcome === "store" ? f.sessionId : sessionId);
     await expect(opening).toHaveCount(0);
     const prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
-    if (outcome !== "exact") {
-      const review = page.getByRole("region", { name: "Opening draft review", exact: true });
-      await expect(review.getByRole("textbox", { name: "Unapplied opening draft", exact: true })).toHaveValue(original);
-      await expect(prompt).toHaveValue(peerChange ? "Generated peer saved draft." : "");
-      if (peerChange) {
-        await expect(review.getByRole("button", { name: "Use in this chat", exact: true })).toBeDisabled();
-        await expect.poll(() => sdk.sessions.get(sessionId)?.draft.text).toBe("Generated peer saved draft.");
-      } else {
-        expect(f.service.controller.snapshot().sessions.find((session) => session.id === f.sessionId)?.draft.text).toBe("");
-      }
-      await review.getByRole("button", { name: "Discard opening draft", exact: true }).click();
-    } else {
-      await expect(prompt).toHaveValue(original);
-      await expect(prompt).toBeFocused();
-      await expect.poll(() => sdk.sessions.get(sessionId)?.draft.text).toBe(original);
-      expect(sdk.sessions.get(sessionId)?.queue).toHaveLength(0);
-      expect(f.service.controller.events(0).filter((event) => event.event_type === "draft.saved" && event.session_id === sessionId &&
-        event.payload.text === original)).toHaveLength(1);
-    }
+    await expect(prompt).toHaveValue(outcome === "exact" ? original : peerChange ? "Generated peer saved draft." : "");
+    await expect(page.getByRole("region", { name: "Opening draft review", exact: true })).toHaveCount(0);
+    expect(f.service.controller.events(0).filter((event) => event.event_type === "draft.saved" && event.session_id === sessionId &&
+      event.payload.text === original)).toHaveLength(outcome === "deleted" ? 0 : 1);
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     expect(f.requests).toHaveLength(0);
     console.log(JSON.stringify({ primitive: "generated-deferred-opening", owner: "reused", outcome, interactiveMs,
@@ -112,25 +93,21 @@ for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`cach
   }
 });
 
-test("a cache miss keeps early text unbound until the user chooses the live empty draft", async () => {
+test("a cache miss offers no early composer and restores the original saved draft without moving or dispatching it", async () => {
   const f = await setupFixture({ responseMode: "text" }), gate = Promise.withResolvers<void>();
+  const original = "Generated saved first-launch draft with no cached destination.";
+  await f.service.controller.dispatch({ id: "generated-first-launch-saved-draft", profileId: "default",
+    command: { type: "draft.save", sessionId: f.sessionId, expectedRevision: 0, text: original, attachments: [] } });
   const snapshot = f.service.profiles.snapshot.bind(f.service.profiles);
   f.service.profiles.snapshot = async (...args: Parameters<typeof snapshot>) => { await gate.promise; return snapshot(...args); };
   const app = await launch(f.directory);
   try {
     const page = await app.firstWindow(), opening = page.getByRole("region", { name: "Opening workspace", exact: true });
-    const original = "Generated first-launch local draft with no cached destination.";
-    await opening.getByText("Draft while waiting", { exact: true }).click();
-    await opening.getByRole("textbox", { name: "Opening prompt", exact: true }).fill(original);
-    await expect(opening.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
-    expect(f.session().draft.text).toBe(""); expect(f.requests).toHaveLength(0);
+    await expect(opening.getByRole("status", { name: "Startup status", exact: true })).toBeVisible();
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
+    expect(f.session().draft.text).toBe(original); expect(f.requests).toHaveLength(0);
     gate.resolve();
-    const review = page.getByRole("region", { name: "Opening draft review", exact: true });
-    await expect(review.getByRole("textbox", { name: "Unapplied opening draft", exact: true })).toHaveValue(original);
-    await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toHaveValue("");
-    expect(f.session().draft.text).toBe("");
-    await review.getByRole("button", { name: "Use in this chat", exact: true }).click();
-    await expect(review).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Opening draft review", exact: true })).toHaveCount(0);
     await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toHaveValue(original);
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     expect(f.session().draft.text).toBe(original); expect(f.session().queue).toHaveLength(0); expect(f.requests).toHaveLength(0);
@@ -183,7 +160,7 @@ test("cached model and effort labels remain read-only while current provider dis
   }
 });
 
-for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/runtime opening ${sample + 1} renders the cached editable shell before retained backend hydration finishes`, async () => {
+for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/runtime opening ${sample + 1} renders the game-only shell before retained backend hydration finishes`, async () => {
   test.setTimeout(60_000);
   const f = await setupFixture(), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
   const sdk = await new MoguriSdk(f.service.connection).ready();
@@ -191,6 +168,8 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
   if (!created.id) throw new Error("The generated cold remembered session was not acknowledged.");
   const sessionId = created.id;
   await sdk.sessions.selectModel(sessionId, f.modelId);
+  const savedText = "Generated service-owned cold-opening draft.";
+  await sdk.command({ type: "draft.save", sessionId, expectedRevision: 0, text: savedText, attachments: [] });
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined = await launch(f.directory);
   let child: ReturnType<typeof spawn> | undefined;
   let ready = false, runtimeMs: number | null = null;
@@ -210,7 +189,9 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
     const began = performance.now();
     const bundledRoot = process.env.MOGURI_TEST_APP ? join(dirname(dirname(process.env.MOGURI_TEST_APP)), "Resources", "app") : process.cwd();
     const executable = process.env.MOGURI_TEST_APP ? join(bundledRoot, "node_modules", "node", "bin", "node") : process.execPath;
-    child = spawn(executable, [join(process.cwd(), "tests/fixtures/cold-startup-service.mjs"), bundledRoot, stateDir, f.home],
+    const profiling = process.env.MOGURI_TEST_STARTUP_PROFILE_DIR;
+    child = spawn(executable, [...(profiling ? ["--cpu-prof", `--cpu-prof-dir=${profiling}`] : []),
+      join(process.cwd(), "tests/fixtures/cold-startup-service.mjs"), bundledRoot, stateDir, f.home],
       { stdio: ["ignore", "pipe", "pipe", "ipc"], env: { ...process.env, MOGURI_STATE_DIR: stateDir,
         MOGURI_STATE_DIR_EXPLICIT: "1", MOGURI_LOCATION_DIR: join(f.directory, "generated-locator") } });
     const processOwner = child;
@@ -239,15 +220,11 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
     app = await launch(f.directory);
     const page = await app.firstWindow(), opening = page.getByRole("region", { name: "Opening workspace", exact: true });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.setBackgroundThrottling(false));
-    await opening.getByText("Draft while waiting", { exact: true }).click();
-    const local = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
-    await expect(local).toBeEditable({ timeout: 1500 });
-    await expect(opening).toContainText("Last opened chat");
+    await expect(opening.getByRole("button", { name: "Flap Moguri's wings", exact: true })).toBeVisible({ timeout: 1500 });
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
     const shellMs = performance.now() - launchBegan, totalToShellMs = performance.now() - began;
     assertOperationLatency("startup.window", shellMs);
-    expect(ready, "The cached shell must be usable before the actual retained runtime is ready.").toBe(false);
-    await local.fill("Generated locally composed cold-opening draft.");
-    await expect(opening.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    expect(ready, "The opening game must be usable before the actual retained runtime is ready.").toBe(false);
     await page.evaluate(({ sessionId, text }) => new Promise<void>((resolve, reject) => {
       let framePending = false;
       const current = () => {
@@ -273,7 +250,7 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
       };
       observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
       check();
-    }), { sessionId, text: "Generated locally composed cold-opening draft." });
+    }), { sessionId, text: savedText });
     const fullyReadyMs = performance.now() - began;
     const startup = await page.evaluate(() => window.moguri.startupStatus());
     console.log(JSON.stringify({ primitive: "generated-real-cold-cached-opening", sample: sample + 1, shellMs, totalToShellMs, fullyReadyMs,

@@ -75,6 +75,23 @@ function source(identity) {
 
 function receipt(cell, identity) {
   assert.ok(isRecord(cell) && expected.has(cell.id) && cell.outcome === "native-pass");
+  const required = expected.get(cell.id);
+  assert.equal(cell.coverage, required.selection !== "fixed" && required.effort !== "default" ? "manual-kupo-effort-rejected" : "execution");
+  if (cell.coverage === "manual-kupo-effort-rejected") {
+    assert.ok(required.selection !== "fixed" && required.effort !== "default");
+    assert.equal(cell.controls?.modelId, "kupo");
+    assert.equal(cell.controls.modelOptions?.thinkingEffort, required.effort);
+    assert.equal(cell.controls.modelOptions.contextWindow, required.window === "maximum" ? 32768 : 16384);
+    assert.equal(cell.cleanup, "not-started");
+    assert.equal(cell.calls, 0); assert.equal(cell.reportedTokens, 0); assert.equal(cell.billedUsd, null);
+    assert.deepEqual(cell.roles, []); assert.deepEqual(cell.models, []);
+    assert.equal(cell.rejection?.code, "routing_effort");
+    assert.ok(Number.isSafeInteger(cell.rejection.beforeSeq) && cell.rejection.beforeSeq >= 0);
+    assert.equal(cell.rejection.afterSeq, cell.rejection.beforeSeq);
+    for (const key of ["rootDigest", "peerDigest", "targetDigest", "rootLease", "workerDigest"]) assert.equal(cell[key], null);
+    assert.equal(cell.nativeReceipt, undefined);
+    return;
+  }
   assert.equal(cell.cleanup, "owned-guest-stopped");
   assert.equal(cell.billedUsd, null, "Generated qualification must not invent billed telemetry.");
   assert.ok(Array.isArray(cell.roles) && Array.isArray(cell.models));
@@ -153,21 +170,24 @@ for (const cell of fresh.value.cells) assert.deepEqual(cell, second.get(cell.id)
 const cells = new Map([...first, ...second]);
 assert.equal(cells.size, first.size + second.size);
 assert.deepEqual([...cells.keys()].sort(), [...expected.keys()].sort());
-assert.equal(new Set([...cells.values()].map((cell) => cell.nativeReceipt.nativeSessionId)).size, expected.size);
 const values = [...cells.values()];
+const executions = values.filter((cell) => cell.coverage === "execution");
+assert.equal(executions.length, [...expected.values()].filter((cell) => cell.selection === "fixed" || cell.effort === "default").length);
+assert.equal(new Set(executions.map((cell) => cell.nativeReceipt.nativeSessionId)).size, executions.length);
 const report = {
   format: "moguri-native-complete-group-coverage", version: 1, status: "PASS",
   createdAt: new Date().toISOString(),
   mergerSha256: sha256(await readFile(new URL(import.meta.url))),
   acceptanceMethod: "Explicitly user-reviewed combination of exact complete groups; original whole invocation remains INCOMPLETE.",
   required: expected.size, nativeCovered: values.length, completeGroups: allGroups,
+  coverage: { executions: executions.length, controlRejections: values.length - executions.length },
   originalInvocation: { report: base.path, sha256: base.sha256, status: base.value.nativeNominalStatus,
     journal: original.path, journalSha256: original.sha256, groups: original.groups, identity: base.value.identity },
   reviewedGroupInvocation: { report: fresh.path, sha256: fresh.sha256, status: fresh.value.groupStatus,
     journal: selected.path, journalSha256: selected.sha256, groups: selected.groups, identity: fresh.value.identity },
   unchangedCoreSha256: Object.fromEntries(Object.entries(originalCore).map(([key, value]) => [key, sha256(value)])),
-  observedWitnessesAbove128KiB: values.filter((cell) => cell.nativeReceipt.witnessBytes > 128 * 1024).length,
-  maximumWitnessBytes: Math.max(...values.map((cell) => cell.nativeReceipt.witnessBytes)),
+  observedWitnessesAbove128KiB: executions.filter((cell) => cell.nativeReceipt.witnessBytes > 128 * 1024).length,
+  maximumWitnessBytes: Math.max(...executions.map((cell) => cell.nativeReceipt.witnessBytes)),
   totalReportedTokens: values.reduce((sum, cell) => sum + cell.reportedTokens, 0),
   billedUsd: null, cells: [...expected.keys()].map((id) => cells.get(id)),
 };

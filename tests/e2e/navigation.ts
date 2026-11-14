@@ -3,6 +3,12 @@ import { expect, type Locator, type Page } from "@playwright/test";
 export async function waitForWorkspace(page: Page) {
   await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true })).toBeVisible();
 }
+export async function openSessionSearch(page: Page) {
+  const search = page.getByRole("searchbox", { name: "Search sessions", exact: true });
+  if (!await search.isVisible()) await page.getByRole("button", { name: "Search sessions", exact: true }).click();
+  await expect(search).toBeFocused();
+  return search;
+}
 
 export async function focusByKeyboard(target: Locator) {
   await target.focus();

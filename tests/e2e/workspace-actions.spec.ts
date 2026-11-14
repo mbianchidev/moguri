@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
-import { waitForWorkspace } from "./navigation.ts";
+import { openSessionSearch, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -38,6 +38,17 @@ test("session lists page ten project-free roots, five project roots and five chi
     await expect(projectRoots).toHaveCount(8);
     await projects.getByRole("button", { name: `Show more subsessions of ${fixture.session().title}`, exact: true }).click();
     await expect(projects.getByRole("button", { name: /^Generated nested child / })).toHaveCount(7);
+    await projectRoots.last().scrollIntoViewIfNeeded();
+    const search = await openSessionSearch(page);
+    await expect(search).toBeInViewport({ ratio: 1 });
+    await search.fill("Generated nested child 6");
+    await expect(page.getByRole("status", { name: "Session search results", exact: true })).toContainText("1 chat");
+    await expect(projects.getByRole("button", { name: "Generated nested child 6", exact: true })).toBeVisible();
+    await expect(projects.getByRole("button", { name: fixture.session().title, exact: true })).toBeVisible();
+    await search.press("Escape");
+    await expect(chats.getByRole("button", { name: /^Generated root chat / })).toHaveCount(12);
+    await expect(projectRoots).toHaveCount(8);
+    await expect(projects.getByRole("button", { name: /^Generated nested child / })).toHaveCount(7);
     expect(sdk.getState().snapshot!.sessions.filter((session) => session.parentSessionId === fixture.sessionId)).toHaveLength(7);
     expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
@@ -55,8 +66,12 @@ test("an individual project collapses only its navigation sessions and remains e
     await section.getByRole("button", { name: `Expand project ${project.name}`, exact: true }).focus();
     await page.keyboard.press("Enter"); await expect(session).toBeVisible();
     await section.getByRole("button", { name: `Collapse project ${project.name}`, exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search sessions", exact: true }).fill(sessionTitle(fixture.session(), 160, "New chat"));
+    await (await openSessionSearch(page)).fill(sessionTitle(fixture.session(), 160, "New chat"));
     await expect(session).toBeVisible();
+    await page.getByRole("searchbox", { name: "Search sessions", exact: true }).press("Escape");
+    await expect(page.getByRole("searchbox", { name: "Search sessions", exact: true })).toHaveValue("");
+    await expect(section.getByRole("button", { name: `Expand project ${project.name}`, exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(session).not.toBeVisible();
     expect(fixture.service.controller.snapshot().sessions[0]!.id).toBe(fixture.sessionId);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
@@ -96,8 +111,8 @@ test("copy icons acknowledge only completed clipboard writes and surface failure
   } finally { await app.evaluate(({ ipcMain }) => { ipcMain.emit("generated-copy-release"); }); await app.close(); await fixture.close(); }
 });
 
-test("inline code stays ordinary text while fenced Markdown alone has an explicit exact copy button", async () => {
-  const path = "/generated/scripts/qualify.mjs", code = "node /generated/scripts/qualify.mjs\nprintf 'Generated exact output'\n";
+test("fenced-code copy stays reachable after horizontal scrolling while inline code remains ordinary text", async () => {
+  const path = "/generated/scripts/qualify.mjs", code = `printf '${"Generated_exact_code_".repeat(120)}'\nnode /generated/scripts/qualify.mjs\n`;
   const text = `Run \`${path}\`.\n\n\`\`\`sh\n${code}\`\`\`\n\n[\`${path}\`](https://example.invalid/generated-script)`;
   const thoughtCode = "const generated = true;\n";
   const fixture = await setupFixture({ responseMode: "text", replyText: text, reasoning: true,
@@ -119,7 +134,32 @@ test("inline code stays ordinary text while fenced Markdown alone has an explici
     const inline = response.locator("p > code");
     await expect(inline.getByRole("button")).toHaveCount(0);
     await inline.click();
-    await copies.focus(); await page.keyboard.press("Enter");
+    const placements: Array<{ left: number; right: number }> = [];
+    for (const [width, height] of [[1280, 900], [840, 620]] as const) {
+      await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0]!.setSize(size.width, size.height), { width, height });
+      const pre = response.locator("pre");
+      await pre.scrollIntoViewIfNeeded();
+      await pre.evaluate((block) => { block.scrollLeft = block.scrollWidth - block.clientWidth; });
+      placements.push(await copies.evaluate((button) => {
+        const owner = button.closest("figure") ?? button.closest("pre");
+        if (!owner) throw new Error("The generated code action lost its owning block.");
+        const box = owner.getBoundingClientRect(), action = button.getBoundingClientRect();
+        return { left: action.left - box.left, right: box.right - action.right };
+      }));
+      await page.screenshot({ path: test.info().outputPath(`conversation-code-${width}.png`) });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    }
+    for (const placement of placements) {
+      expect(placement.left).toBeGreaterThanOrEqual(0);
+      expect(placement.right).toBeGreaterThanOrEqual(0);
+      expect(placement.right).toBeLessThanOrEqual(16);
+    }
+    const scrollingCode = response.locator("pre"), previousScroll = await scrollingCode.evaluate((block) => block.scrollLeft);
+    await scrollingCode.focus(); await page.keyboard.press("ArrowLeft");
+    await expect.poll(() => scrollingCode.evaluate((block) => block.scrollLeft)).toBeLessThan(previousScroll);
+    await expect(scrollingCode).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("Shift+Tab"); await expect(copies).toBeFocused();
+    await page.keyboard.press("Enter");
     await expect(copies.locator("svg")).toHaveAttribute("data-icon", "Check");
     const thought = page.locator("details.activity-thought");
     await thought.locator("summary").press("Enter");
@@ -131,7 +171,7 @@ test("inline code stays ordinary text while fenced Markdown alone has an explici
     for (const control of [copies, thoughtCopy]) {
       await expect(control.locator("svg")).toBeVisible();
       const placement = await control.evaluate((button) => {
-        const block = button.closest("pre");
+        const block = button.closest("figure") ?? button.closest("pre");
         if (!block) throw new Error("The generated fenced-code control has no owning block.");
         const box = block.getBoundingClientRect(), copy = button.getBoundingClientRect();
         return { top: copy.top - box.top, right: box.right - copy.right };

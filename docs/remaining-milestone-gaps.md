@@ -1,6 +1,85 @@
 # First-milestone acceptance and roadmap
 
-## Current acceptance status, 2026-11-13
+## Current acceptance status, 2026-11-14
+
+The latest user-directed controls/startup slice advances to protocol104:
+classifier-owned Kupo effort with retained routing preferences, skill switches
+and scoped Enable all, and removal of startup drafting with a measured
+event-header indexing improvement. Existing saved drafts and original-owner
+recovery remain authoritative. The native image must match this new cut; the
+user approved the exact `abde17...` candidate. All ten physical gates, eleven
+Sandbox SDK cases, five TUI control cases and six reviewed-script cases pass.
+The following desktop batch retains three passes/five setup-readiness failures,
+not a blanket pass. The user deferred further qualification until the end of
+implementation; no retry is scheduled and the separately exhausted anonymous
+GitHub quota is not a proven cause. [Exact current104 evidence](architecture/startup-responsiveness.md#exact-protocol104-native-continuation-and-deferred-desktop-checks)
+and old103 results retain their own scopes. Full milestone acceptance remains
+separate.
+
+The user explicitly removed hosted CI from the implementation blocking path and
+selected **desktop UX polish first, reviewed Sandbox scripts second**. The
+[navigation/Insights polish](architecture/session-interactions.md#desktop-polish-direction-2026-11-14)
+is a bounded #53 slice, with preserved controls and separate current client
+evidence. The running isolated `83c0e5a` source/desktop retry was intentionally
+interrupted before completion to permit these changes; its unfinished evidence
+is not a passing run. The waiting repaired-cut native continuation was stopped
+before physical preflight or matrix execution. Earlier reports, original
+failures and the independent completed 6,720-cell Local/SSH report remain
+unchanged. No acceptance gate or failed report is silently relabeled.
+
+The latest reference-driven #53 follow-up at `b793847` adds dashed queued-message
+bubbles, hover/focus actions, counted collapse and Changes/PR/Plan/Background/
+Artifacts shortcuts. Agent activity includes actual background subagents and
+preserves private-console and dirty-editor guards. Its 32-case hidden-desktop
+selection passes with scoped startup/layout/source-ownership evidence in
+[session interactions](architecture/session-interactions.md#queued-message-references-and-session-shortcuts-2026-11-14).
+It adds no service schema/protocol or dependency and does not complete the wider
+design audit, run the full milestone matrix or qualify the deferred native GUI.
+
+The subsequent `e18a99c` follow-up aligns chat controls with the message column,
+adds icon-triggered search/status/prompt-order/reset controls, exact project
+location actions and confirmed global skill-folder presets. Its 47 desktop
+passes retain one pre-existing native-only skip; 47 shared/API/policy cases and
+the fresh packed SDK also pass. [Scoped evidence](architecture/session-interactions.md#navigation-alignment-and-confirmed-global-skill-folders-2026-11-14)
+does not replace the deferred native GUI or whole-milestone acceptance.
+
+The next follow-up moves Show local folder/Open remote out of project Settings
+into the sidebar session context menu. They bind the session's actual Local root
+(ready worktree, checkout or captured Home) through the shared SDK
+`sessionLocalFolder` selector and its bound-root `session.git` read, with no
+base-checkout fallback; project context-menu shortcuts remain. It adds no
+service schema/protocol or dependency. The rewritten worktree journey and 62
+other affected desktop cases pass, with the unit selector cases and packed SDK.
+
+The following protocol103 slice implements guarded reviewed-script Sandbox
+execution: exact private/guest binding, guest-only public source reads, one
+retained attempt/result and model-free actual-user force under normal approval.
+At clean `54bc5a6`, the user-approved new `70426070...` image passes all ten
+physical gates, all six actual native SDK/TUI script journeys and the actual
+hidden desktop force/approval path. [Exact current evidence and original failures](architecture/content-review.md#exact-approved-native-continuation)
+remain separate from the complete milestone matrix. The anonymous GitHub Meta
+quota interruption is retained, followed by a fresh pass after its reported
+reset without authentication or weakened policy. No preceding image/report is
+relabeled. #45 stays open for its broader AST categories and remaining disclosed
+boundaries; #53's bounded navigation/Insights slice is not the whole design audit.
+
+The [fresh patched-image continuation](architecture/milestone-combination-matrix.md#patched-image-acceptance-continuation-2026-11-14)
+at clean `65cea15` passes all ten physical preflight gates on the unchanged
+approved `a204...` image. Its full matrix reaches the existing four-hour limit:
+3,255 passing cell observations, 18 complete groups and two cancelled incomplete
+groups. The original report remains **INCOMPLETE with zero whole-run qualified
+cells**. The user approved freshly qualifying the two remaining whole groups
+(336 cases) and combining only strict verified complete-group receipts.
+The continuation also remains INCOMPLETE: 254 observations, no complete groups,
+and two existing per-cell deadlines exceeded. All exact owned guests are
+confirmed stopped. A narrowly scoped reservation-replay repair improves the
+same retained-state replay without changing output, admission or deadlines;
+29 focused source checks and both actual native failure paths pass. It changes
+controller/SDK/harness inputs and therefore requires fresh full qualification,
+not reuse of preceding receipts. Packed SDK verification and the independent
+consumer now pass with the official npm registry; root/consumer audits are
+clean. The user revoked CFS after its failed resolution/rate-limited checks.
+No original partial group or old-image receipt is treated as current acceptance.
 
 At the pre-security-update core runtime/build cut `51fce72`, the complete source invocation passes **10,870 tests,
 56 explicit Native skips, zero failures/cancellations**, including all **6,720
@@ -29,12 +108,16 @@ have a fresh complete receipt. Original failed/cancelled work and unknown
 accounting remain retained. This is branch qualification, not merged main
 delivery or a release/distribution claim.
 
-**Milestone 1 is not accepted:** fresh authorized hosted-main CI is still
-account-blocked before job steps, and the implementation remains in draft
-[#65](https://github.com/mbianchidev/moguri/pull/65). Optional Apple tracing and
+**Milestone 1 is not accepted:** complete patched-image coverage is pending and
+fresh authorized hosted-main CI is still account-blocked before job steps.
+[#65](https://github.com/mbianchidev/moguri/pull/65) is merged on main at `8b8db23`;
+the queue visibility and startup-game follow-up is in draft
+[#66](https://github.com/mbianchidev/moguri/pull/66). Optional Apple tracing and
 packaged-app CLI installation keep their disclosed separate scope. #45 reviewed
-Sandbox scripts and the remaining #53 sidebar/search/game polish stay pending.
-No tests were removed.
+Sandbox script acceptance and the wider #53 audit remain pending beyond their
+completed bounded slices. One obsolete opening-draft-adoption unit test was
+removed after the user retired that feature; its browser cases now protect
+saved-draft preservation and game-only readiness instead.
 
 ## Historical acceptance continuation, 2026-11-11
 
@@ -66,8 +149,9 @@ host parsing is not native execution acceptance; original physical retry/
 rewind failures remain open. No reviewed-script Sandbox path or broader UI
 work is claimed by this acceptance continuation.
 
-The requested order remains acceptance under #39, reviewed Sandbox scripts
-under #45, then the explicit #53 interaction polish. The historical audit below
+The earlier requested order was acceptance under #39, reviewed Sandbox scripts
+under #45, then the explicit #53 interaction polish. The current user-directed
+implementation priority is recorded above. The historical audit below
 keeps its original source/PR states and receipts; it is not the newer branch's
 delivery claim.
 
@@ -127,15 +211,15 @@ acceptance**. No actual gate is removed or silently narrowed:
   receipts and no-replay recovery. The reviewed complete-group artifact covers
   all 3,360 IDs; original incomplete reports and partial groups remain
   unqualified, and no required cell is dropped.
-- [ ] Qualify the complete required matrix for the newly approved patched
-  worker image. Its selected physical/client gates do not transfer the
-  previous image's 3,360-cell artifact across a changed dependency payload.
+- [ ] Qualify the complete required matrix for the current approved protocol104
+  worker image and finish the deferred native desktop paths. Its selected physical/script/client gates do not transfer a
+  previous cut's 3,360-cell artifact across changed protocol/runtime payloads.
 - [ ] Restore account eligibility and record a fresh authorized hosted-main
   CI pass. Generated/local source and package success cannot replace it.
 
 The latest main
-[run 42984028685](https://github.com/mbianchidev/moguri/actions/runs/42984028685),
-for `13001b7`, failed on 2026-11-11 before either OS job ran a step.
+[run 43507230498](https://github.com/mbianchidev/moguri/actions/runs/43507230498),
+for `8b8db23`, failed on 2026-11-13 before either OS job ran a step.
 Both annotations still say recent payments failed or the spending limit
 needs increasing. This is a refreshed account-owned gate, not a diagnosis of
 an install/build/test failure. Separate notices mention macOS arm64 capacity
@@ -213,7 +297,7 @@ Delivered #7/#9/#13/#36/#37/#38 do not reappear as new implementation work.
 
 | Order | Actual remaining scope |
 | --- | --- |
-| 1. Acceptance | The three parent-owned acceptance items above, with the original native cell/gate definitions retained in the matrix. |
+| 1. Acceptance | The parent-owned acceptance items above, with the original native cell/gate definitions retained in the matrix. |
 | 2. Everyday UX and existing integrations | #53 design/UX polish, #55 default smart-compaction direction, #45 remaining applicable AST controls and real reviewed-script Sandbox execution, #23 scope beyond the delivered metadata exporter, #12 actual Stainless qualification. The focused placement fix does not implement the #53 redesign or #55 policy. |
 | 3. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. Repository visibility/access, license and signing/notarization need explicit decisions, not assumed publication. |
 | 4. Optional providers and automation | #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions and #54 GetMoshi integration. Existing one-time schedules and reviewed compaction are not those broader features. |

@@ -23,8 +23,8 @@ test("Kupo offers three real modes instead of effort, keeps unsupported Performa
     await page.getByRole("button", { name: /^Model:/ }).click();
     const model = page.getByRole("dialog", { name: "Model", exact: true });
     await expect(model.getByRole("button", { name: "Thinking effort", exact: true })).toHaveCount(0);
-    await model.getByRole("button", { name: "Kupo effort", exact: true }).click();
-    const modes = page.getByRole("menu", { name: "Kupo effort", exact: true });
+    await model.getByRole("button", { name: "Kupo routing preference", exact: true }).click();
+    const modes = page.getByRole("menu", { name: "Kupo routing preference", exact: true });
     await expect(modes.getByRole("menuitemradio")).toHaveCount(3);
     await expect(modes.getByRole("menuitemradio", { name: "Performance", exact: true })).toHaveAttribute("aria-disabled", "true");
     await expect(modes.getByRole("menuitemradio", { name: "Savings", exact: true })).toHaveAttribute("aria-disabled", "false");

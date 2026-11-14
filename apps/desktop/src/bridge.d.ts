@@ -1,4 +1,4 @@
-import type { ArtifactExport, BrowserState, Connection } from "../../../packages/protocol/src/index.ts";
+import type { ArtifactExport, BrowserState, Connection, SkillSource } from "../../../packages/protocol/src/index.ts";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 import type { StartupContext } from "./startup-cache.ts";
 
@@ -24,6 +24,9 @@ export interface DesktopBridge {
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   openExternal(url: string): Promise<void>;
+  projectLocation(profileId: string, projectId: string, expectedPath: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
+  sessionLocation(profileId: string, sessionId: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
+  globalSkillSources(profileId: string): Promise<Array<Extract<SkillSource, { kind: "local" }>>>;
   audioPermission(input: { profileId: string; purpose: "capture" | "devices"; sessionId?: string; jobId?: string }): Promise<string>;
   audioPermission(input: { profileId: string; purpose: "standby"; sessionId: string }): Promise<string | null>;
   releaseAudioPermission(id: string): Promise<void>;

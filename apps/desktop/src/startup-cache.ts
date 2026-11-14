@@ -1,6 +1,5 @@
 import { Type, type Static, type TSchema } from "typebox";
 import { Value } from "typebox/value";
-import { MAX_TEXT } from "../../../packages/protocol/src/core.ts";
 import { ThinkingEffortSchema } from "../../../packages/protocol/src/model.ts";
 import type { Snapshot } from "../../../packages/sdk/src/index.ts";
 
@@ -16,7 +15,7 @@ const viewSchema = Type.Object({
   schemaVersion: Type.Literal(1), scopeKey: scopeSchema, storeId: scopeSchema, profileId: profileSchema,
   session: Type.Union([Type.Null(), Type.Object({
     id: Type.String({ pattern: "^[A-Za-z0-9_-]{1,128}$" }),
-    draftRevision: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }), draftEmpty: Type.Boolean(),
+    draftRevision: Type.Optional(Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER })), draftEmpty: Type.Optional(Type.Boolean()),
     modelId: Type.Union([Type.String({ minLength: 1, maxLength: 256 }), Type.Null()]),
     thinkingEffort: Type.Union([ThinkingEffortSchema, Type.Null()]),
   }, { additionalProperties: false })]),
@@ -28,14 +27,6 @@ const profileHintSchema = Type.Object({
 export type StartupView = Static<typeof viewSchema>;
 export type StartupModel = Static<typeof modelSchema>;
 export interface StartupContext { scopeKey: string | null; profileId: string; profileExplicit: boolean }
-export interface OpeningDraft {
-  id: string;
-  text: string;
-  binding: { scopeKey: string; storeId: string; profileId: string; sessionId: string; draftRevision: number; draftEmpty: boolean } | null;
-  focused?: boolean;
-  selectionStart?: number;
-  selectionEnd?: number;
-}
 type CacheStorage = Pick<Storage, "getItem" | "setItem">;
 function checked<T extends TSchema>(schema: T, value: unknown): Static<T> {
   if (!Value.Check(schema, value)) throw new Error("The cached startup presentation has an unsupported version or invalid metadata. Live state was not replaced.");
@@ -93,15 +84,6 @@ export function createStartupView(scopeKey: string, storeId: string, snapshot: S
   const models = snapshot.provider.status === "connected" || isModelDiscoveryPending(snapshot.provider) ? [...current, ...retained] : [];
   return checked(viewSchema, {
     schemaVersion: 1, scopeKey, storeId, profileId: snapshot.profileId, models,
-    session: session ? { id: session.id, draftRevision: session.draft.revision, draftEmpty: !session.draft.text && !session.draft.attachments.length,
-      modelId: session.controls.modelId, thinkingEffort: session.controls.modelOptions?.thinkingEffort ?? null } : null,
+    session: session ? { id: session.id, modelId: session.controls.modelId, thinkingEffort: session.controls.modelOptions?.thinkingEffort ?? null } : null,
   });
-}
-export function canApplyOpeningDraft(draft: OpeningDraft, scopeKey: string | null, storeId: string | undefined, snapshot: Snapshot, sessionId: string): boolean {
-  const binding = draft.binding;
-  if (!draft.text || draft.text.length > MAX_TEXT || !binding || !binding.draftEmpty || binding.scopeKey !== scopeKey || binding.storeId !== storeId ||
-    binding.profileId !== snapshot.profileId || binding.sessionId !== sessionId) return false;
-  const session = snapshot.sessions.find((session) => session.id === sessionId);
-  return Boolean(session && session.status !== "archived" && session.draft.revision === binding.draftRevision &&
-    !session.draft.text && !session.draft.attachments.length);
 }

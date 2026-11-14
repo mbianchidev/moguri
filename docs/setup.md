@@ -127,9 +127,9 @@ distinguishes captured regular files from excluded secrets/control paths and
 unavailable historical data. No rewind undoes pushes, merges, deployments or
 external MCP effects. No tool or paid model call is replayed. The additive
 upgrade retains genuine95/96/97 markers and original ciphertext; earlier turns
-without captures remain explicitly unavailable. **Sandbox reviewed-script
-execution remains unqualified**, independently of workspace rewind and native
-worker qualification.
+without captures remain explicitly unavailable. **Protocol103 reviewed Sandbox
+scripts require their own current worker-image review and qualification**,
+independently of workspace rewind and older native-worker receipts.
 
 ## Metadata-only OpenTelemetry export
 
@@ -201,9 +201,11 @@ wrappers, substitutions or hard denials. Both clients retain the same actual
 user grant. Enter captures the current native editor text once, including
 while draft autosave is pending; Shift+Enter, Cmd/Ctrl+Enter, input method
 composition, conflict review and separate Resume/Retry actions retain their
-existing meanings. Inline and fenced Markdown code each has an independent
-copy button. Copy confirms only the exact snippet's successful clipboard
-write; linked snippets do not open their link when copied.
+existing meanings. Inline Markdown code stays ordinary selectable text;
+fenced blocks have an independent **Copy code block** action in their language
+header. It stays visible while code scrolls horizontally. Focus the code to
+scroll by keyboard; Shift+Tab returns to Copy. Copy confirms only the exact
+snippet's successful clipboard write, without opening links or executing code.
 
 Protocol94 adds typed search/read surfaces and advances only version metadata.
 No encrypted event, grant, receipt or saved source is rewritten. The
@@ -342,9 +344,14 @@ or a lost result. Native inspection requires the original active qualified
 guest; it does not launch a new one or borrow controller hardware. Cancelling
 that query never stops the parent agent/guest.
 
-Kupo mode, **Role thinking override** and **Working context window** are
-separate controls. `/thinking LEVEL`, `/context-window TOKENS` and
-`routing.options` retain exact supported values, not silent clamps. Compound
+Kupo's **Routing** preference and **Working context window** are separate
+controls. Balanced/Savings/Performance are not effort levels: the classifier
+chooses each actual role's supported thinking automatically. Manual
+`/thinking LEVEL` applies only to fixed models; Kupo rejects it without mutation
+or inference. A retained old override stays blocked until explicitly cleared
+with **Use automatic thinking** or `/thinking default`, preserving its window.
+`/context-window TOKENS` and `routing.options` keep exact supported windows,
+not silent clamps. Compound
 reports include the classifier and every eligible route role's real output
 bound. Its immutable source/stages/script preview must still fit all complete
 future role/test context and receive its separate actual-user review.
@@ -435,23 +442,23 @@ records protocol-91 migration, ownership and recovery boundaries.
 
 The desktop opens to the original Moguri mascot on a black window while the
 original backend connects, not an incomplete workspace layout. Press **Space**
-or click the mascot to flap its wings, gain altitude and earn a score. The
-optional game makes no model call, changes no workspace state and never delays
-authenticated readiness. Reduced motion keeps the mascot still while scoring
-remains available.
+or click the playfield to start flapping. The score is in the upper-left corner.
+Keep flapping to avoid falling, dodge the lightly spaced random clouds and
+collect gold stars for **50 bonus points** each. Falling or hitting a cloud ends
+the round and freezes its score; **Space**, **Enter** on **Play again**, or a
+click starts a fresh round. The optional game makes no model call, changes no
+workspace state and never delays authenticated readiness. Reduced motion
+disables decorative wing animation; essential flight and obstacle positions
+remain visible so collisions match what you see.
 
-Open **Draft while waiting** to see cached model/effort labels and type a
-temporary local draft. Space inside that editor types normally, not a flap.
-Send and hold remain unavailable until the real client is authenticated.
-That opening text is kept in this window's memory, not persisted as a
-plaintext transcript/draft cache. An exact unchanged empty saved draft is
-reconciled through the normal SDK; a changed/missing destination or peer
-draft stays preserved for explicit review instead of being overwritten or
-sent. Keep the window open until **Draft saved**, or explicitly discard
-unsaved text when closing.
+There is no **Draft while waiting** composer. The lightweight opening renders
+before SDK/application/cache loading, which proceeds alongside original-owner
+connection. Saved chat drafts remain encrypted and service-owned; the live
+composer restores them only after authentication. Last-view hints and model
+labels never replace a peer draft, restore a deleted chat or authorize sending.
 
 An unconfirmed 60-second service startup now offers **Reconnect to original
-service** while keeping that same local draft and captured destination. Reconnect
+service** while preserving the original service's saved drafts. Reconnect
 only retries authenticated readiness for the captured original owner; it does
 not start another service or send your text. Fatal initialization, authentication
 or changed-owner diagnostics still require inspection rather than a fallback.
@@ -487,7 +494,9 @@ remains disclosed.
 
 ## Session controls and interactive tools
 
-**Insights / Session details** shows the real stable session ID.
+**Insights / Execution** shows Env, the actual boundary, Model, Autonomy and
+Budget first. Expand **Session identity and workspace** for the real stable
+session ID, project, workspace and profile.
 Use a known full ID in a prompt or `:ID` in the context picker to review and
 attach that exact same-profile public transcript. Archived context is available.
 This never navigates into another execution root or exposes its private console.
@@ -511,10 +520,23 @@ are associated. Select an exact association, then **Files**, **Actions** or
 exact-head watch. Account/root/head changes are stale, not silently adopted.
 Reading or watching never approves a review, rerun, push or merge.
 
-The synthetic dropdown labels Balanced/Savings/Performance **Kupo effort**,
-separately from a concrete model's thinking effort. Automations copy now covers
+The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
+Kupo has no manual effort selector. A concrete fixed model retains its
+qualified thinking-effort control. Automations copy now covers
 broader actions, but only the existing one-time scheduled prompt capability is
 implemented; a general-purpose automation engine is not claimed.
+
+### GitHub login versus native metadata quota
+
+`gh auth login --hostname github.com --web --git-protocol ssh` signs the GitHub
+CLI in; check it with `gh auth status`. This is separate from Copilot provider
+login and SendBox's public GitHub `/meta` lookup. The native host process
+intentionally receives only its qualified `PATH` and `HOME`, not `GH_TOKEN`,
+provider credentials or arbitrary ambient secrets. The current SendBox0.2.6
+`run` interface exposes no login switch, so signing the CLI in does not
+authenticate that metadata path. Do not work around the quota by putting a
+personal token in a guest, image, model context or blanket process environment.
+Authenticated metadata would need an explicitly reviewed host-only integration.
 
 Native JS/TS `goto_definition`/`find_references` use actual semantic tokens over
 bounded approved files, not name/regex guesses. Deterministic array tools are
@@ -765,8 +787,17 @@ CLI/TUI: `/script-review list`, `/script-review read ID`,
 `/script-review force ID REVIEW_REV SHA SESSION_REV confirm-unsafe`.
 CLI also supports `moguri script-review ... --session ID`. Inspect the returned
 job/approval for its actual outcome. Private or oversized sources are blocked,
-not truncated. Script execution is non-interactive Local only, using the exact
-reviewed bytes rather than a second download; Remote/Sandbox do not fall back.
+not truncated. Script execution is non-interactive Local or qualified Sandbox,
+using the exact reviewed bytes rather than a second download; Remote stays
+unsupported and no environment falls back to Local.
+The protocol103 Sandbox path requires a separately reviewed current worker
+image. It inspects only the exact mapped private repository stage, not the
+Local source checkout. Public URL reads stay in the actual guest's website and
+native proxy scope, with complete bounded UTF-8 bytes. Execution binds both the
+original private stage and the actual guest identity, without equating their
+inodes. An unsafe user force creates a new model-free native job over that same
+stage and still needs normal permission. Inspect its actual job/result;
+retained observations and missing receipts never authorize replay.
 This does not isolate arbitrary approved shells, package-manager tasks,
 transitive scripts or external MCP services. See the
 [content-review contract](architecture/content-review.md).
@@ -1235,6 +1266,12 @@ receipts and unknown budget holds. A missing current marker is an error, never
 permission to recreate or replay work.
 
 ## Workspace experience and skill gateway
+
+Imported skills have **Enabled/Disabled** switches. **Enable all** applies only
+to the listed project's imported skills, reports acknowledged progress and
+stops on the first failure. Already-applied changes remain applied; refresh and
+retry remaining disabled entries explicitly. Neither action admits new source,
+enables another project/profile, nor grants tool or execution permissions.
 
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
@@ -1843,6 +1880,14 @@ context submenus expand inside it. Escape closes the current menu and returns
 to its original control; opening a menu preserves the prior sidebar and
 running consoles. Turn information expands directly beneath its response.
 
+The left navigation's search finds chat names/IDs and project names without
+changing the active conversation or saved draft. Matching children retain their
+parent context; the result count excludes those extra ancestors. The search
+toolbar stays reachable while scrolling a long session list. **Clear session
+search** or Escape in the field restores the original collapsed projects/groups
+and keeps keyboard focus in search. No matches offers search recovery rather
+than suggesting the workspace is empty.
+
 During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
 action. A successful held submission restores Stop and preserves the running
 turn. The clock stays visible while acknowledgement is pending, even after
@@ -1896,6 +1941,11 @@ actionable steps. Model checkmarks and estimates live there only, never above
 the textbox, and never prove acceptance or successful completion. An existing
 repository checklist does not become a task plan. **Open workspace plan file**
 still exposes the separately reviewed Local/SSH file editor and retained saves.
+Plan reload shows its bound-workspace read and temporarily locks editing,
+saving and duplicate reloads. Original text and the Unsaved edit marker remain
+until the read succeeds; a failed reload preserves them for retry. Changes
+likewise shows loading rather than a blank or clean-tree claim, with Refresh
+available again after the original read settles.
 Every actual model question shows its offered answers as a vertical clickable
 list, scrollable when long. **Other** is an always-visible blank field: type an
 answer and press Enter to send it, or use its send icon. Shift+Enter adds a line;
@@ -2040,7 +2090,8 @@ them. Earlier protocol qualification records below remain historical.
 Protocol 45 introduced this activity slice. Chat operations appear as compact
 icon-led rows for file reads/creation/edits, file/skill/web search, skill loading,
 GitHub/Linear issue creation, commands/scripts, MCP calls and actual questions.
-Expand a row for its original arguments/result, local start date/time, observed
+Each row has a visible disclosure chevron before hover or keyboard focus.
+Expand it for its original arguments/result, local start date/time, observed
 duration and retained UTF-8 output size. Large results use explicit byte pages.
 Running operations have an elapsed wall timer; waiting, failed, stopped,
 partial and unconfirmed outcomes stay distinct.
@@ -3920,6 +3971,26 @@ TUI `/notification-sounds` inspects/removes metadata without terminal playback.
 
 ## Session workspace and project settings
 
+The navigation toolbar starts with **Search**, **Filter** and **Order** icons,
+not a persistent search field. Search opens and focuses the field; Escape clears
+it, then Escape again closes it and returns focus to the icon. Filter supports
+Finished, Error, Needs attention and In progress. Multiple statuses combine;
+nonmatching ancestors remain labeled context so child chats stay reachable.
+Held/idle/stopped work is not silently called successful or running.
+
+Order offers **Newest prompt first** and **Oldest prompt first** using each
+chat's latest sent prompt, not a streaming answer, rename or saved draft.
+Unsent chats use creation time. Pins and parent groups remain. **Reset** appears
+when status filters or explicit ordering are selected, restores default order,
+and does not clear the composer or rewrite stored drag order. Reset prompt
+ordering before manually reordering sessions. Clearing a filter restores the
+previous project/group collapse choices.
+
+The composer, queue and approval controls share the message column's gutters
+instead of extending below the turn-navigation rail. Expanded previews retain
+their established adjacent wide layout and compact overlay without forcing the
+composer into the overlay's width.
+
 Right-click a project header, press **Shift+F10** while it is focused, or open
 its **Project actions** button to choose an icon color. The same context menu
 offers named red, orange, yellow, green, blue, indigo and violet presets, plus
@@ -3928,10 +3999,58 @@ that changes the project only after **Save**; Cancel leaves the saved color
 unchanged. There are no separate Default color or Custom color buttons.
 Color picking is no longer part of the project settings form.
 
+Right-click (two-finger click) a session in the sidebar for **Show local
+folder** and **Open remote**. Show local folder opens the session's actual
+Local root: its ready managed worktree, its project checkout, or a project-free
+chat's captured Home. Remote/Sandbox sessions, folder sessions with several
+repositories and unready or removed worktrees show the item disabled with the
+reason; the base checkout is never substituted. Open remote uses the session's
+bound checkout (Local, or Remote through its pinned SSH peer). The project
+context menu offers the same pair for the registered project folder. Project
+settings no longer carry these shortcuts. These are explicit client OS actions
+bound to the exact active profile, not agent permissions. Missing/unsupported
+remotes show an error; no repository URL or account is guessed.
+
+Under **Settings / Skills**, global-folder switches support `~/.agents/skills`
+and `~/.moguri/skills`. Each requires confirmation showing its actual absolute
+Local folder, then **Save** before discovery. They are off until selected for
+this profile. Opening Settings does not enumerate either folder. Existing
+folder-existence, canonical-path, symlink, source-freshness and Local-only
+checks remain; complete inspection/admission is still separate from discovery.
+
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
+Desktop main and side chats show queued messages as right-aligned, muted dashed
+bubbles. Hover or keyboard focus reveals More, Delete and, for held prompts,
+the upward Run arrow. More opens source-bound Edit/Copy actions in the sidebar;
+steering inputs also offer Queue as new turn. Drag or Alt+Up/Down still reorders
+the exact queued list. Touch/non-hover devices keep actions visible.
+
+The counted disclosure shows **1 queued message** or **N queued messages** with
+a chevron. It collapses/restores the list; its accessible actions remain
+**Hide queued prompts** and **Show queued prompts**. The count and resume action
+remain visible. Hiding preserves an inline edit and does not run, pause or change
+the queue. Each opened queue starts expanded. In the TUI, `/queue` shows queued
+prompts and **Esc** returns to the composer.
+
+Compact **Changes**, **PR**, **Plan**, **Background** and **Artifacts** shortcuts
+open their existing views. Changes reports the last allowed tracked line
+observation relative to HEAD, not untracked/protected files or the whole PR;
+binary changes are separate and unavailable/incomplete reads never become zero.
+Grouped repositories require explicit selection in Changes. PR shows the retained
+linked association, not merge readiness. Plan counts actual owning-turn model
+items, not repository-file checkboxes or acceptance.
+
+Background combines active owned subagents/coordinated children, running command
+and script calls, and independent command/watch jobs without double-counting a
+call. Incomplete activity uses a disclosed lower bound, not a fabricated exact
+count. It opens **Terminal / Agent**, which also lists the original background
+agents and lets you inspect their chats. This never starts a private User console
+or another model reply. Existing dirty-editor and running-console hide guards
+still apply. Artifacts counts active retained documents across this profile,
+matching the existing artifact resource, not just this chat's documents.
 
 Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
 `/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,

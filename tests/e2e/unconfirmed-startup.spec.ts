@@ -14,7 +14,7 @@ test.skip(process.platform !== "darwin", "Original-owner deferred startup uses g
 const launch = (stateDir: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
 
-test("the real unconfirmed deadline preserves the local opening draft and reconnects only after user action to its late original service", async () => {
+test("the real unconfirmed deadline preserves saved drafts without a startup composer and reconnects only to the late original service", async () => {
   test.setTimeout(95_000);
   const f = await setupFixture(), stateDir = join(f.directory, "state"), sdk = await new MoguriSdk(f.service.connection).ready();
   const provider = structuredClone(f.provider.state);
@@ -22,6 +22,8 @@ test("the real unconfirmed deadline preserves the local opening draft and reconn
   let childExit: ReturnType<typeof once> | undefined, live: MoguriSdk | undefined;
   try {
     await f.configure(); await sdk.refresh();
+    const original = "Generated saved draft across the actual 60-second unconfirmed startup.";
+    await sdk.command({ type: "draft.save", sessionId: f.sessionId, expectedRevision: 0, text: original, attachments: [] });
     app = await launch(stateDir);
     const warm = await app.firstWindow();
     await expect(warm.getByRole("navigation", { name: "Projects and sessions", exact: true })).toBeVisible();
@@ -50,19 +52,14 @@ test("the real unconfirmed deadline preserves the local opening draft and reconn
     const page = await app.firstWindow();
     assertOperationLatency("startup.window", performance.now() - began);
     const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
-    await opening.getByText("Draft while waiting", { exact: true }).click();
-    const input = opening.getByRole("textbox", { name: "Opening prompt", exact: true });
-    await expect(input).toBeEditable();
-    await expect(opening).toContainText("Last opened chat");
-    const original = "Generated unsent draft across the actual 60-second unconfirmed startup.";
-    await input.fill(original); await input.press("Meta+Enter");
-    await expect(opening.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
+    await expect(opening.getByText("Draft while waiting", { exact: true })).toHaveCount(0);
     await expect(opening.getByRole("heading", { name: "Startup not yet confirmed", exact: true })).toBeVisible({ timeout: 65_000 });
     const unconfirmedMs = performance.now() - began;
     const status = await page.evaluate(() => window.moguri.startupStatus());
     expect(status.phase).toBe("service"); expect(status.canReconnect).toBe(true);
     expect(status.completed.some((phase) => phase.phase === "failed")).toBe(false);
-    await expect(input).toHaveValue(original);
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
     await expect(opening.getByRole("button", { name: "Reconnect to original service", exact: true })).toBeEnabled();
     await expect.poll(async () => {
       try { return (await readPrivateConnection(stateDir)).pid; }
@@ -70,10 +67,9 @@ test("the real unconfirmed deadline preserves the local opening draft and reconn
     }, { timeout: 10_000 }).toBe(child.pid);
     const connection = await readPrivateConnection(stateDir);
     live = await new MoguriSdk(connection).ready();
-    expect(live.sessions.get(f.sessionId)?.draft.text).toBe("");
+    expect(live.sessions.get(f.sessionId)?.draft.text).toBe(original);
     expect(live.sessions.get(f.sessionId)?.queue).toHaveLength(0);
-    await expect(input).toHaveValue(original);
-    await expect(opening.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+    await expect(opening.getByRole("textbox")).toHaveCount(0);
     const reconnect = performance.now();
     await opening.getByRole("button", { name: "Reconnect to original service", exact: true }).click();
     await expect(page.locator(".app-shell")).toHaveAttribute("data-session-id", f.sessionId);

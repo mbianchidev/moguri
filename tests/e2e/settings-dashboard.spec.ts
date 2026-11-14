@@ -1,8 +1,8 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriError, MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { profileFixture } from "../fixtures/profiles.ts";
 import { focusByKeyboard, openSettingsSection, waitForWorkspace } from "./navigation.ts";
@@ -25,6 +25,47 @@ async function send(sdk: MoguriSdk, sessionId: string, text: string, held = fals
   const saved = await sdk.command({ type: "draft.save", sessionId, text, attachments: [], expectedRevision: session.draft.revision });
   await sdk.command({ type: "message.send", sessionId, expectedRevision: saved.revision!, delivery: "queue", ...(held ? { held: true } : {}) });
 }
+
+test("imported skill switches persist and Enable all reports a partial failure without enabling another project", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const otherRoot = join(fixture.directory, "generated-other-skill-project"); await mkdir(otherRoot);
+  const otherProject = (await sdk.projects.add(otherRoot)).id!;
+  for (const [name, projectId, root] of [["generated-alpha", fixture.session().projectId, fixture.project],
+    ["generated-beta", fixture.session().projectId, fixture.project], ["generated-other", otherProject, otherRoot]] as const) {
+    const directory = join(root, name); await mkdir(directory);
+    const path = join(directory, "SKILL.md");
+    await writeFile(path, `---\nname: ${name}\ndescription: Generated skill switch fixture.\n---\nUse generated fixtures; no tool permissions.\n`);
+    await sdk.capabilities.importSkill(projectId, path);
+  }
+  const dispatch = fixture.service.controller.dispatch.bind(fixture.service.controller);
+  let changes = 0;
+  fixture.service.controller.dispatch = async (...args: Parameters<typeof dispatch>) => {
+    if (isRecord(args[0]) && isRecord(args[0].command) && args[0].command.type === "capability.toggle" && ++changes === 2) {
+      throw new MoguriError("generated_conflict", "Generated skill revision conflict; refresh and retry.", 409);
+    }
+    return dispatch(...args);
+  };
+  const app = await launch(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow(); await openSettingsSection(page, "Skills");
+    const alpha = page.getByRole("switch", { name: "Enable skill generated-alpha", exact: true });
+    const beta = page.getByRole("switch", { name: "Enable skill generated-beta", exact: true });
+    await expect(alpha).not.toBeChecked(); await expect(beta).not.toBeChecked();
+    const enableAll = page.getByRole("button", { name: "Enable all skills", exact: true });
+    await enableAll.click();
+    await expect(page.getByRole("alert")).toContainText("Generated skill revision conflict");
+    await expect(page.getByRole("status", { name: "Skill changes", exact: true })).toContainText("1 of 2");
+    await expect(alpha).toBeChecked(); await expect(beta).not.toBeChecked();
+    expect(sdk.getState().snapshot?.registry.find((entry) => entry.projectId === otherProject && entry.kind === "skill")?.enabled).toBe(false);
+    await enableAll.click(); await expect(beta).toBeChecked(); await expect(enableAll).toBeDisabled();
+    await alpha.focus(); await page.keyboard.press("Space"); await expect(alpha).not.toBeChecked();
+    await expect.poll(() => sdk.getState().snapshot?.registry.find((entry) => entry.name === "generated-alpha")?.enabled).toBe(false);
+    await page.reload(); await openSettingsSection(page, "Skills");
+    await expect(alpha).not.toBeChecked(); await expect(beta).toBeChecked();
+    expect(fixture.requests).toHaveLength(0);
+    expect(fixture.service.controller.snapshot().skillAdmissions).toHaveLength(0);
+  } finally { fixture.service.controller.dispatch = dispatch; await close(app); sdk.disconnect(); await fixture.close(); }
+});
 
 test("project configuration lists registered projects, preserves concurrent edits and keeps a removed target without replacement", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
@@ -127,7 +168,7 @@ test("project-group menu collapses and expands only its actual member projects w
     const menu = page.getByRole("menu", { name: "Project group actions for Generated selected group", exact: true });
     await menu.getByRole("menuitem", { name: "Collapse all projects", exact: true }).press("Enter");
     await expect(actions).toBeFocused();
-    await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true }).getByRole("status")).toHaveText("Collapsed 2 projects in Generated selected group.");
+    await expect(page.getByRole("status", { name: "Workspace navigation updates", exact: true })).toHaveText("Collapsed 2 projects in Generated selected group.");
     for (const id of ids.slice(0, 2)) {
       const project = sdk.getState().snapshot!.projects.find((project) => project.id === id)!;
       await expect(folder.getByRole("button", { name: `Expand project ${project.name}`, exact: true })).toHaveAttribute("aria-expanded", "false");
@@ -148,7 +189,7 @@ test("project-group menu collapses and expands only its actual member projects w
     await expect(folder.getByRole("region", { name: "Project generated-member", exact: true })).toHaveCount(0);
     await expect(outside.getByRole("button", { name: "Collapse project generated-member", exact: true })).toBeVisible();
     await menu.getByRole("menuitem", { name: "Collapse all projects", exact: true }).click();
-    await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true }).getByRole("status")).toHaveText("Collapsed 1 project in Generated selected group.");
+    await expect(page.getByRole("status", { name: "Workspace navigation updates", exact: true })).toHaveText("Collapsed 1 project in Generated selected group.");
     await expect(outside.getByRole("button", { name: "Collapse project generated-member", exact: true })).toBeVisible();
     await expect(outside.getByRole("button", { name: "Generated second member session", exact: true })).toBeVisible();
     await expect(unrelated).not.toHaveAttribute("open");

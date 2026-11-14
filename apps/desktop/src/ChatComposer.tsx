@@ -519,10 +519,10 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   }, [sdk, modeScope]);
   const revision = useRef(session.revision);
   const windows = current?.synthetic ? poolControls?.available ? poolControls.windows : null : current ? modelContextWindows(current) : null;
-  const staleWindow = Boolean(window && (current?.synthetic ? poolControls && (!poolControls.available || !poolControls.windows.values.includes(Number(window))) :
+  const staleWindow = Boolean(window && (current?.synthetic ? poolControls?.available && !poolControls.windows.values.includes(Number(window)) :
     !current || !supportsModelContextWindow(current, Number(window))));
   const thinkingLevels = current?.synthetic ? poolControls?.thinkingLevels ?? [] : current?.thinkingLevels ?? [];
-  const staleEffort = Boolean(effort && (current?.synthetic ? poolControls !== null && !thinkingLevels.includes(effort) : !thinkingLevels.includes(effort)));
+  const staleEffort = Boolean(effort && !current?.synthetic && !thinkingLevels.includes(effort));
   const contextChoices = windows?.values.slice() ?? [];
   if (window && !staleWindow && !contextChoices.includes(Number(window))) contextChoices.push(Number(window));
   contextChoices.sort((a, b) => b - a);
@@ -580,7 +580,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       </div>;
     })}</div>
     </ModelSubmenu>
-    {current?.synthetic ? <ModelSubmenu label="Kupo effort" text="Effort" value={snapshot.settings.values.kupo.workflow !== "auto" ? "Retained explicit policy" : session.controls.kupoMode ? kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name : "Legacy / choose an effort"}
+    {current?.synthetic ? <ModelSubmenu label="Kupo routing preference" text="Routing" value={snapshot.settings.values.kupo.workflow !== "auto" ? "Retained explicit policy" : session.controls.kupoMode ? kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name : "Legacy / choose a preference"}
       open={submenu === "mode"} disabled={locked || snapshot.settings.values.kupo.workflow !== "auto"} toggle={() => setSubmenu(submenu === "mode" ? null : "mode")} close={() => setSubmenu(null)}>
       {!modeChoices.length && !modeError && <p role="status">Reading shared mode readiness...</p>}
       {kupoModes.map((mode) => {
@@ -590,7 +590,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
           onClick={() => { if (!unavailable) void chooseMode(mode.id); }}><span>{mode.name}<small>{mode.description}</small></span>{session.controls.kupoMode === mode.id && <Icon name="Check" />}</button>
           <InfoTip label={`About ${mode.name} readiness`}>{choice?.reason ?? (modeError || "Readiness is not yet known. No model was admitted.")}</InfoTip></div>;
       })}
-      <p className="fine-print">Kupo effort selects Balanced, Savings or Performance routing. It is not a model's thinking effort. Each admitted role keeps its actual supported effort, context and metered budget. Source reviews and mode choices do not grant permissions or prove quality.</p>
+      <p className="fine-print">Balanced, Savings and Performance are routing preferences, not effort levels. Kupo's classifier chooses supported thinking automatically for each role. Context, metered budgets and normal permissions still apply.</p>
       {modeError && <Alert as="p" className="inline-error" role="alert">{modeError}</Alert>}
     </ModelSubmenu> : <ModelSubmenu label="Thinking effort" text="Effort" value={current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
       open={submenu === "effort"} disabled={locked || !current?.thinkingLevels?.length && !staleEffort} toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
@@ -598,16 +598,9 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
     </ModelSubmenu>}
-    {current?.synthetic && <ModelSubmenu label="Role thinking override" text="Role thinking override"
-      value={effort ? effortLabel(effort) : "Workflow default"} open={submenu === "effort"} disabled={locked || !poolControls?.available || !thinkingLevels.length && !effort}
-      toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
-      {effortChoices.map((value) => <button key={value} type="button" role="menuitemradio" aria-checked={effort === value}
-        onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
-        <span>{value ? effortLabel(value) : "Workflow default"}</span>{effort === value && <Icon name="Check" />}</button>)}
-      <p className="fine-print">An explicit effort must fit every admitted role and workflow. Unsupported models are excluded before classification; no effort is silently clamped.</p>
-    </ModelSubmenu>}
+    {current?.synthetic && <p className="fine-print">Thinking is automatic: Kupo's classifier selects each role's supported effort.</p>}
     {session.controls.preferredThinkingEffort !== undefined && <p className="fine-print" role="status">
-      {effortLabel(session.controls.preferredThinkingEffort)} preference retained. {current?.synthetic ? effort ? "The exact pooled override is rechecked for each role." : "Kupo manages each role's effort." :
+      {effortLabel(session.controls.preferredThinkingEffort)} fixed-model preference retained. {current?.synthetic ? "Kupo's classifier manages each role's effort instead." :
         !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :
           "This model has no adjustable thinking; the preference returns on a supporting model."}
     </p>}
@@ -619,7 +612,9 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       {current?.synthetic && <p className="fine-print">Shared exact ceiling for the eligible pool, rechecked before every role. Default uses each model's qualified window; history and attachments are never truncated.</p>}
     </ModelSubmenu>
     {current?.synthetic && poolControls && !poolControls.available && <Alert as="p" className="inline-error" role="alert">{poolControls.diagnostic}
-      {Object.keys(session.controls.modelOptions ?? {}).length > 0 && <button type="button" disabled={locked} onClick={() => {
+      {effort ? <button type="button" disabled={locked} onClick={() => {
+        setEffort(""); void save(window ? { contextWindow: Number(window) } : {});
+      }}>Use automatic thinking</button> : Object.keys(session.controls.modelOptions ?? {}).length > 0 && <button type="button" disabled={locked} onClick={() => {
         setWindow(""); setEffort(""); void save({});
       }}>Clear pooled overrides</button>}
     </Alert>}

@@ -46,11 +46,11 @@ test("the startup window appears before service recovery and new-chat clicks set
     const began = performance.now();
     app = await electron.launch({ executablePath: executablePath(), args: args(), env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
     const page = await app.firstWindow();
-    await expect(page.getByRole("status")).toContainText("Opening your workspace");
+    await expect(page.getByRole("status", { name: "Startup status", exact: true })).toContainText("Opening your workspace");
     const firstWindowMs = performance.now() - began;
     assertOperationLatency("startup.window", firstWindowMs);
     expect(await page.getByRole("navigation", { name: "Projects and sessions" }).count()).toBe(0);
-    await expect(page.getByRole("status")).toContainText("Waiting for the local service");
+    await expect(page.getByRole("status", { name: "Startup status", exact: true })).toContainText("Waiting for the local service");
     const waiting = await page.evaluate(() => window.moguri.startupStatus());
     expect(waiting.phase).toBe("service");
     expect(waiting.totalMs).toBeGreaterThanOrEqual(waiting.elapsedMs);

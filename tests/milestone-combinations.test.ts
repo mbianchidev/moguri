@@ -46,6 +46,8 @@ test("the required milestone cell map is the complete Cartesian set, with native
   assert.equal(new Set(cells.map(milestoneCellId)).size, cells.length);
   assert.equal(sourceCells.length, 6720);
   assert.equal(cells.filter((cell) => cell.env === "Sandbox").length, 3360);
+  assert.equal(cells.filter((cell) => cell.selection === "fixed" || cell.effort === "default").length, 3168);
+  assert.equal(cells.filter((cell) => cell.selection !== "fixed" && cell.effort !== "default").length, 6912);
   for (const [axis, values] of Object.entries(milestoneAxes)) {
     for (const value of values) {
       assert.equal(cells.filter((cell) => cell[axis as keyof MilestoneCell] === value).length, cells.length / values.length);
@@ -90,6 +92,27 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   const modelOptions: Controls["modelOptions"] = {
     contextWindow, ...(cell.effort === "default" ? {} : { thinkingEffort: cell.effort }),
   };
+  if (cell.selection !== "fixed" && cell.effort !== "default") {
+    const before = fixture.service.controller.snapshot(), requests = fixture.requests.length + fixture.solver.requests.length;
+    await assert.rejects(() => fixture.sdk.sessions.create(fixture.session().projectId, milestoneCellId(cell), {
+      env: cell.env, modelId: KUPO_MODEL_ID, autonomy: cell.autonomy, budget: milestoneBudget(cell.budget), modelOptions,
+    }), (error: unknown) => error instanceof Error && "code" in error && error.code === "routing_effort");
+    const after = fixture.service.controller.snapshot();
+    assert.equal(after.seq, before.seq);
+    assert.equal(after.sessions.length, before.sessions.length);
+    assert.equal(after.budgetEntries.length, before.budgetEntries.length);
+    assert.equal(fixture.requests.length + fixture.solver.requests.length, requests);
+    assert.equal(after.executions.length, before.executions.length);
+    assert.equal(after.sandboxExecutions?.length, before.sandboxExecutions?.length);
+    return {
+      id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-pass" as const : "source-pass" as const,
+      coverage: "manual-kupo-effort-rejected" as const, controls: { modelId: KUPO_MODEL_ID, modelOptions },
+      roles: [], calls: 0, reportedTokens: 0, billedUsd: null, models: [], profileId: after.profileId,
+      rootDigest: null, peerDigest: null, targetDigest: null, rootLease: null, workerDigest: null,
+      cleanup: "not-started", rejection: { code: "routing_effort", beforeSeq: before.seq, afterSeq: after.seq },
+      nativeReceipt: undefined,
+    };
+  }
   const created = await fixture.sdk.sessions.create(fixture.session().projectId, milestoneCellId(cell), {
     env: cell.env, modelId: cell.selection === "fixed" ? fixture.solverId : KUPO_MODEL_ID,
     budget: milestoneBudget(cell.budget), modelOptions,
@@ -289,6 +312,7 @@ async function runCell(fixture: MilestoneFixture, cell: MilestoneCell, options: 
   const execution = fixture.service.controller.snapshot().executions.find((value) => value.sessionId === sessionId);
   const result = {
     id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-pass" as const : "source-pass" as const, controls: session().controls, roles,
+    coverage: "execution" as const,
     calls: observed.length, reportedTokens: roles.length * 42, billedUsd: status.totals.billedUsd,
     models: entries.map((entry) => ({ role: entry.role, modelId: entry.modelId, providerId: entry.providerId,
       apiModelId: entry.apiModelId, inputEstimate: entry.inputEstimate, outputLimit: entry.outputLimit,
@@ -328,6 +352,22 @@ test("native qualification reads an oversized original signed witness without re
   } finally { await fixture.close(); }
 });
 
+test("native finite critique document and text turns settle inside the existing cell deadline", {
+  skip: !native, timeout: 90000,
+}, async () => {
+  assert.ok(native);
+  const fixture = await nativeMilestoneFixture(native);
+  try {
+    await configureMilestoneRouting(fixture, "critique");
+    for (const cell of [
+      { autonomy: "Autopilot Max", budget: "usd", window: "half", effort: "default", input: "document" },
+      { autonomy: "Autopilot", budget: "both", window: "maximum", effort: "default", input: "text" },
+    ] as const) {
+      await runCell(fixture, { env: "Sandbox", selection: "critique", ...cell });
+    }
+  } finally { await fixture.close(); }
+});
+
 test("reviewed native groups reject partial-cell and duplicate selections before creating a qualification journal", {
   skip: !native, timeout: 15000,
 }, async () => {
@@ -362,9 +402,28 @@ for (const env of ["Local", "Remote", "Sandbox"] as const)
         await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
       try {
         await configureMilestoneRouting(fixture, selection);
-        await runCell(fixture, { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "text" }, { window: 24577 });
+        await runCell(fixture, { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: selection === "fixed" ? "high" : "default", input: "text" }, { window: 24577 });
       } finally { await fixture.close(); }
     });
+
+for (const env of ["Local", "Remote", "Sandbox"] as const) test(`${env} manual Kupo effort cells reject every level and workflow before dispatch`, {
+  skip: process.platform !== "darwin" || env === "Sandbox" && !native, timeout: 60000,
+}, async () => {
+  const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
+    await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
+  try {
+    for (const selection of milestoneAxes.selection) {
+      if (selection === "fixed") continue;
+      await configureMilestoneRouting(fixture, selection);
+      for (const effort of milestoneAxes.effort) if (effort !== "default") {
+        const result = await runCell(fixture, { env, selection, autonomy: "Autopilot Max", budget: "both",
+          window: "half", effort, input: "document" });
+        assert.equal(result.coverage, "manual-kupo-effort-rejected");
+        assert.equal(result.cleanup, "not-started");
+      }
+    }
+  } finally { await fixture.close(); }
+});
 
 for (const env of ["Local", "Remote", "Sandbox"] as const) for (const selection of milestoneAxes.selection)
 test(`mixed approved image/document ${env}/${selection} context reaches every actual role without a path or body fallback`, {
@@ -374,7 +433,7 @@ test(`mixed approved image/document ${env}/${selection} context reaches every ac
     await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
   try {
     await configureMilestoneRouting(fixture, selection);
-    await runCell(fixture, { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: "high", input: "document" }, { image: true });
+    await runCell(fixture, { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: selection === "fixed" ? "high" : "default", input: "document" }, { image: true });
   } finally { await fixture.close(); }
 });
 
@@ -521,6 +580,8 @@ test("required Local/SSH source cells execute every independent control/input co
       sourceStatus: completed.size === sourceCells.length && completedGroups.size === groups.length ? "PASS" : "INCOMPLETE", diagnostic,
       nativeStatus: "UNQUALIFIED", nativeImage: null, nativePhysicalReceipt: null,
       required: cells.length, sourcePassed: completed.size, nativeUnqualified: 3360, journalPath,
+      coverage: { executions: [...completed.values()].filter((cell) => cell.coverage === "execution").length,
+        controlRejections: [...completed.values()].filter((cell) => cell.coverage === "manual-kupo-effort-rejected").length },
       cells: cells.map((cell) => completed.get(milestoneCellId(cell)) ?? {
         id: milestoneCellId(cell), outcome: cell.env === "Sandbox" ? "native-unqualified" :
           failed.has(milestoneCellId(cell)) ? "source-failed" : "not-run",
@@ -622,7 +683,9 @@ test(nativeGroupMode ? "reviewed native Sandbox groups execute every whole-group
         { nativeNominalStatus: qualified.size === nativeCells.length ? "PASS" : "INCOMPLETE",
           nativePassed: qualified.size, nativeObservedPassed: completed.size, nativeUnqualified: nativeCells.length - qualified.size }),
       required: requiredCells.length,
-      qualification: "Actual current guest with generated inference. Failure/ownership gates, clients, hosted CI and live model quality remain separate.",
+      coverage: { executions: [...qualified.values()].filter((cell) => cell.coverage === "execution").length,
+        controlRejections: [...qualified.values()].filter((cell) => cell.coverage === "manual-kupo-effort-rejected").length },
+      qualification: "Actual current guest executions with generated inference, plus separately counted pre-admission control rejections. Failure/ownership gates, clients, hosted CI and live model quality remain separate.",
       cells: requiredCells.map((cell) => qualified.get(milestoneCellId(cell)) ?? {
         ...completed.get(milestoneCellId(cell)),
         id: milestoneCellId(cell), outcome: failed.has(milestoneCellId(cell)) ? "native-failed" : "native-unqualified",

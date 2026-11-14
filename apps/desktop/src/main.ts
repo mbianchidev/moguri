@@ -5,10 +5,10 @@ import { mkdirSync } from "node:fs";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
-import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
+import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
@@ -498,6 +498,74 @@ else {
       if (typeof input !== "string") throw new Error("URL required.");
       const url = previewUrl(input);
       if (process.env.MOGURI_TEST_WINDOW !== "hidden") await shell.openExternal(url.toString());
+    });
+    ipcMain.handle("moguri:global-skill-sources", (event, profileId: unknown) => {
+      trusted(event);
+      if (profileId !== activeProfileId || attentionClient?.profileId !== profileId) throw new Error("Global skill folders belong to the original active profile. Reopen Skills after profile loading.");
+      return globalSkillSources(process.env.MOGURI_TEST_WINDOW === "hidden" ?
+        process.env.MOGURI_TEST_SKILL_HOME ?? join(stateDirectory(), "generated-skill-home") : undefined);
+    });
+    const verifiedFolder = async (path: string, identity: { device: string; inode: string } | null) => {
+      const metadata = await lstat(path, { bigint: true }).catch(() => null);
+      if (!metadata?.isDirectory() || metadata.isSymbolicLink() || await realpath(path).catch(() => null) !== path ||
+        identity && (String(metadata.dev) !== identity.device || String(metadata.ino) !== identity.inode)) throw new Error("The exact Local folder is unavailable or changed identity. No replacement was opened.");
+      return path;
+    };
+    const repositoryUrl = (repository: string | null, subject: string) => {
+      if (!repository) throw new Error(`${subject} has no supported repository remote. No URL or SSH account was inferred.`);
+      return previewUrl(repository).toString();
+    };
+    const deliverLocation = async (action: "show-folder" | "open-remote", location: string) => {
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") return { opened: false, location };
+      if (action === "show-folder") {
+        const error = await shell.openPath(location);
+        if (error) throw new Error(`The Local folder could not be opened: ${error}`);
+      } else await shell.openExternal(location);
+      return { opened: true, location };
+    };
+    const locationAction = (action: unknown): action is "show-folder" | "open-remote" => action === "show-folder" || action === "open-remote";
+    ipcMain.handle("moguri:project-location", async (event, profileId: unknown, projectId: unknown, expectedPath: unknown, action: unknown) => {
+      trusted(event);
+      if (typeof projectId !== "string" || typeof expectedPath !== "string" || !locationAction(action)) throw new Error("Choose an exact project folder or repository action.");
+      const client = attentionClient, epoch = profileEpoch;
+      if (!client) throw new Error("The original profile is not connected. No location was opened.");
+      const current = () => {
+        const state = client?.getState(), project = state?.snapshot?.projects.find((project) => project.id === projectId);
+        if (!client || client !== attentionClient || profileId !== activeProfileId || profileId !== client.profileId || epoch !== profileEpoch ||
+          state?.status !== "connected" || !project || project.path !== expectedPath) throw new Error("The original profile or exact project folder changed. No other location was opened.");
+        return project;
+      };
+      current(); await client.refresh(); current();
+      const location = action === "show-folder" ? await verifiedFolder(expectedPath, null) :
+        repositoryUrl((await client.projects.git(projectId, false)).repository, "This Local project");
+      current();
+      return deliverLocation(action, location);
+    });
+    ipcMain.handle("moguri:session-location", async (event, profileId: unknown, sessionId: unknown, action: unknown) => {
+      trusted(event);
+      if (typeof sessionId !== "string" || !locationAction(action)) throw new Error("Choose an exact session folder or repository action.");
+      const client = attentionClient, epoch = profileEpoch;
+      if (!client) throw new Error("The original profile is not connected. No location was opened.");
+      const current = () => {
+        const state = client?.getState(), snapshot = state?.snapshot, session = snapshot?.sessions.find((entry) => entry.id === sessionId);
+        if (!client || client !== attentionClient || profileId !== activeProfileId || profileId !== client.profileId || epoch !== profileEpoch ||
+          state?.status !== "connected" || !snapshot || !session || session.status === "archived") throw new Error("The original profile or exact session changed. No other location was opened.");
+        const folder = sessionLocalFolder(session, snapshot);
+        return { session, folder, key: JSON.stringify([session.projectId, session.workspaceId, session.controls.env, folder.path ?? null, folder.identity ?? null]) };
+      };
+      const before = current().key; await client.refresh();
+      const { session, folder, key } = current();
+      if (key !== before) throw new Error("The session's bound folder changed while it was being checked. No other location was opened.");
+      let location: string;
+      if (action === "show-folder") {
+        if (folder.diagnostic !== undefined) throw new Error(folder.diagnostic);
+        location = await verifiedFolder(folder.path, folder.identity);
+      } else {
+        if (!session.projectId || session.repositories || session.controls.env === "Sandbox") throw new Error("Open remote needs one project session in Local or Remote Env. No base checkout or other repository was substituted.");
+        location = repositoryUrl((await client.workspaces.git(sessionId, false)).repository, "This session's checkout");
+      }
+      if (current().key !== key) throw new Error("The session's bound folder changed while it was being checked. No other location was opened.");
+      return deliverLocation(action, location);
     });
     ipcMain.handle("moguri:copy-text", (event, text: unknown) => {
       trusted(event);
