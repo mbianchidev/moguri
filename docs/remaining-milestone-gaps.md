@@ -2,6 +2,17 @@
 
 ## Current acceptance status, 2026-11-14
 
+The user explicitly removed hosted CI from the implementation blocking path and
+selected **desktop UX polish first, reviewed Sandbox scripts second**. The
+[navigation/Insights polish](architecture/session-interactions.md#desktop-polish-direction-2026-11-14)
+is a bounded #53 slice, with preserved controls and separate current client
+evidence. The running isolated `83c0e5a` source/desktop retry was intentionally
+interrupted before completion to permit these changes; its unfinished evidence
+is not a passing run. The waiting repaired-cut native continuation was stopped
+before physical preflight or matrix execution. Earlier reports, original
+failures and the independent completed 6,720-cell Local/SSH report remain
+unchanged. No acceptance gate or failed report is silently relabeled.
+
 The [fresh patched-image continuation](architecture/milestone-combination-matrix.md#patched-image-acceptance-continuation-2026-11-14)
 at clean `65cea15` passes all ten physical preflight gates on the unchanged
 approved `a204...` image. Its full matrix reaches the existing four-hour limit:
@@ -86,8 +97,9 @@ host parsing is not native execution acceptance; original physical retry/
 rewind failures remain open. No reviewed-script Sandbox path or broader UI
 work is claimed by this acceptance continuation.
 
-The requested order remains acceptance under #39, reviewed Sandbox scripts
-under #45, then the explicit #53 interaction polish. The historical audit below
+The earlier requested order was acceptance under #39, reviewed Sandbox scripts
+under #45, then the explicit #53 interaction polish. The current user-directed
+implementation priority is recorded above. The historical audit below
 keeps its original source/PR states and receipts; it is not the newer branch's
 delivery claim.
 

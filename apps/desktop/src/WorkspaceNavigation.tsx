@@ -1,4 +1,4 @@
-import { lazy, Suspense, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { lazy, Suspense, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ClientError, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionOrderScope, sessionTitle, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization, BulkSessionAction } from "../../../packages/sdk/src/index.ts";
@@ -61,6 +61,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const editFocus = useRef<HTMLElement | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null), searchStatusId = useId();
+  const beforeSearch = useRef<{ folders: Set<string>; projects: Set<string> } | null>(null);
   const [selection, setSelection] = useState<{ projectId: string | null; ids: string[] } | null>(null);
   const [bulkRequest, setBulkRequest] = useState<{ action: BulkSessionAction; nonce: number } | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false), [creatingChat, setCreatingChat] = useState(false);
@@ -81,17 +83,21 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const escape = (event: KeyboardEvent) => { if (!event.defaultPrevented && event.key === "Escape" && !bulkBusy) { setSelection(null); setBulkRequest(null); } };
     window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
   }, [selection, bulkBusy]);
-  const matches = useMemo(() => {
+  const searchResults = useMemo(() => {
     if (!search.trim()) return null;
     const values = new Map(snapshot.sessions.map((session) => [session.id, session]));
-    const selected = new Set(snapshot.sessions.filter((session) => (session.status === "archived") === archived &&
-      fuzzyMatch(search, `${session.id} ${sessionTitle(session, 160, "New chat")}`)).map((session) => session.id));
+    const projects = new Set(snapshot.projects.filter((project) => fuzzyMatch(search, project.name)).map((project) => project.id));
+    const selected = new Set(snapshot.sessions.filter((session) => (session.status === "archived") === archived && (
+      session.projectId !== null && projects.has(session.projectId) || fuzzyMatch(search, sessionTitle(session, 160, "New chat")) ||
+      fuzzyMatch(search, session.id))).map((session) => session.id));
+    const count = selected.size;
     for (const id of [...selected]) {
       let parent = values.get(id)?.parentSessionId;
       while (parent && !selected.has(parent)) { selected.add(parent); parent = values.get(parent)?.parentSessionId; }
     }
-    return selected;
-  }, [search, snapshot.sessions, archived]);
+    return { visible: selected, count, projects };
+  }, [search, snapshot.sessions, snapshot.projects, archived]);
+  const matches = searchResults?.visible ?? null;
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
   const [foldersMenu, setFoldersMenu] = useState<NavigationMenu | null>(null);
   const projectsMenuButton = useRef<HTMLButtonElement>(null), removedFolderFocus = useRef<{ id: string; profileId: string } | null>(null);
@@ -99,7 +105,17 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set());
   const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
   const [navigationStatus, setNavigationStatus] = useState("");
-  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
+  const updateSearch = (value: string) => {
+    if (value.trim()) {
+      beforeSearch.current ??= { folders: new Set(collapsedFolders), projects: new Set(collapsedProjects) };
+      setCollapsedFolders(new Set()); setCollapsedProjects(new Set());
+    } else if (beforeSearch.current) {
+      setCollapsedFolders(beforeSearch.current.folders); setCollapsedProjects(beforeSearch.current.projects); beforeSearch.current = null;
+    }
+    setSearch(value);
+  };
+  const clearSearch = () => { updateSearch(""); searchInput.current?.focus(); };
+  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); beforeSearch.current = null; setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
   useLayoutEffect(() => {
     const request = removedFolderFocus.current;
     if (!request || request.profileId !== sdk.profileId || snapshot.projectFolders.some((folder) => folder.id === request.id)) return;
@@ -451,7 +467,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       {more(`project:${project.id}`, roots.length, 5, `sessions in ${project.name}`)}</>}
     </section>;
   };
-  const projects = [...snapshot.projects].filter((project) => !matches || snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id)))
+  const projects = [...snapshot.projects].filter((project) => !matches || searchResults?.projects.has(project.id) ||
+    snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id)))
     .sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
   const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived && (!matches || matches.has(session.id)));
   const generalIds = new Set(general.map((session) => session.id));
@@ -477,22 +494,28 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const contextBulk = contextSelection.length > 1;
   const requestBulk = (action: BulkSessionAction) => { setBulkRequest({ action, nonce: ++bulkNonce.current }); closeMenu(); };
   return <><div className="project-list" aria-busy={busy || actions.busy || ordering}>
-    <div className="workspace-navigation-tools"><label className="workspace-session-search"><Icon name="Search" /><input type="search" aria-label="Search sessions" placeholder="Search sessions" value={search}
-      onChange={(event) => { setSearch(event.target.value); if (event.target.value.trim()) { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); } }} /></label>
+    <div className="workspace-navigation-tools"><search className="workspace-session-search" aria-label="Chats and projects"><Icon name="Search" /><input ref={searchInput} type="search" aria-label="Search sessions" aria-describedby={searchStatusId} placeholder="Find chats or projects" value={search}
+      onChange={(event) => updateSearch(event.target.value)} onKeyDown={(event) => {
+        if (event.key === "Escape" && search && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); clearSearch(); }
+      }} />
+      {search && <button type="button" className="icon-button" aria-label="Clear session search" title="Clear search (Escape)" onClick={clearSearch}><Icon name="Close" /></button>}</search>
       <button ref={projectsMenuButton} type="button" className="icon-button" aria-label="Projects menu" title="Projects menu" aria-haspopup="menu" aria-expanded={Boolean(foldersMenu)} onClick={(event) => {
         if (foldersMenu) { setFoldersMenu(null); return; }
         const bounds = event.currentTarget.getBoundingClientRect();
         setFoldersMenu({ kind: "project", id: "folders", x: bounds.left, y: bounds.bottom, anchor: event.currentTarget, trigger: event.currentTarget });
       }}><Icon name="More" /></button></div>
+    <p id={searchStatusId} className={searchResults ? "workspace-search-summary" : "sr-only"} role="status" aria-label="Session search results" aria-atomic="true">
+      {searchResults && (searchResults.count || projects.length ? `${searchResults.count} chat${searchResults.count === 1 ? "" : "s"} / ${projects.length} project${projects.length === 1 ? "" : "s"}` : "No matches")}
+    </p>
     {(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
-    <p className="sr-only" role="status" aria-atomic="true">{navigationStatus}</p>
-    <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
+    <p className="sr-only" role="status" aria-label="Workspace navigation updates" aria-atomic="true">{navigationStatus}</p>
+    {(!matches || general.length > 0) && <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
       <button type="button" className="icon-button" aria-label="New chat" title="New chat" aria-busy={creatingChat}
         disabled={busy || actions.busy || bulkBusy || creatingChat || archived || sdk.getState().status !== "connected"} onClick={() => {
           if (creating.current) return;
           creating.current = true; setCreatingChat(true);
           void run(async () => { await startChat(); setSelection(null); setBulkRequest(null); }).finally(() => { creating.current = false; setCreatingChat(false); });
-        }}><Icon name="Plus" /></button></header>{bulk(null)}{generalTree(null)}</section>
+        }}><Icon name="Plus" /></button></header>{bulk(null)}{generalTree(null)}</section>}
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
       <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)}><summary onClick={(event) => {
@@ -513,8 +536,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         <button type="button" className="icon-button folder-actions" aria-label={`Project group actions for ${group.name}`} aria-haspopup="menu" aria-expanded={menu?.kind === "folder" && menu.id === group.id}
           onClick={(event) => { event.preventDefault(); event.stopPropagation(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.bottom); }}><Icon name="More" /></button>
       </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
-    {!projects.length && <p className="nav-empty">Use New for a chat, a local folder or a repository.</p>}
-    {archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
+    {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">Try another chat or project name, or clear the search.</p>}
+    {!matches && !snapshot.projects.length && !snapshot.sessions.length && !archived && <p className="nav-empty">Use New for a chat, a local folder or a repository.</p>}
+    {!matches && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
   </div>
   {foldersMenu && <WorkspaceContextMenu label="Projects menu" point={foldersMenu} close={(restore = true) => { const anchor = foldersMenu.anchor; setFoldersMenu(null); if (restore) queueMicrotask(() => anchor.isConnected && anchor.focus()); }}>
     <button role="menuitem" onClick={() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); }}><Icon name="Maximize" />Expand all groups</button>

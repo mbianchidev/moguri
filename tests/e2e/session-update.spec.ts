@@ -10,23 +10,66 @@ const launch = (directory: string) => electron.launch({ executablePath: process.
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Session navigation runs hidden on macOS.");
 
-test("session search fuzzy-matches names across projects and project-free chats without changing the selected context", async () => {
+test("session search finds chats and projects, explains empty results and clears by keyboard without changing the draft", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
-  await sdk.sessions.organize(fixture.sessionId, { title: "CAP project task" }, fixture.session().revision);
+  await sdk.sessions.organize(fixture.sessionId, { title: "CAP task" }, fixture.session().revision);
   await sdk.sessions.create(null, "App general task");
   await sdk.sessions.create(null, "Unrelated");
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), search = page.getByRole("searchbox", { name: "Search sessions", exact: true });
+    const prompt = page.getByLabel("Prompt", { exact: true });
+    await prompt.fill("Generated draft stays in the original chat.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    const selected = await page.locator(".session-header").getAttribute("data-session-id");
+    await mkdir(".moguri/artifacts", { recursive: true });
+    await page.screenshot({ path: ".moguri/artifacts/desktop-navigation-overview.png" });
     await search.fill("aP");
-    await expect(page.getByRole("button", { name: "CAP project task", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "CAP task", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "App general task", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Unrelated", exact: true })).toHaveCount(0);
     await search.fill("UNR");
     await expect(page.getByRole("button", { name: "Unrelated", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "CAP project task", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "CAP task", exact: true })).toHaveCount(0);
+    await search.fill("project");
+    await expect(page.getByRole("button", { name: "CAP task", exact: true })).toBeVisible();
+    await expect(page.getByRole("status", { name: "Session search results", exact: true })).toContainText("1 chat");
+    await search.fill("generated-no-matching-conversation");
+    await expect(page.getByRole("status", { name: "Session search results", exact: true })).toContainText("No matches");
+    await expect(page.getByText("Use New for a chat, a local folder or a repository.", { exact: true })).toHaveCount(0);
+    await search.press("Tab");
+    const clear = page.getByRole("button", { name: "Clear session search", exact: true });
+    await expect(clear).toBeFocused(); await clear.press("Enter");
+    await expect(search).toHaveValue(""); await expect(search).toBeFocused();
+    await expect(page.getByRole("button", { name: "CAP task", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Unrelated", exact: true })).toBeVisible();
+    await expect(prompt).toHaveValue("Generated draft stays in the original chat.");
+    await expect(page.locator(".session-header")).toHaveAttribute("data-session-id", selected!);
+    expect(fixture.session().draft.text).toBe("Generated draft stays in the original chat.");
+    await page.screenshot({ path: ".moguri/artifacts/desktop-navigation-search.png" });
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("Insights keeps the execution boundary visible before optional session identity at a narrow window size", async () => {
+  const fixture = await setupFixture(), app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
+    await expect(sidebar.getByRole("heading", { name: "Execution", exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Host execution, not isolated", { exact: true })).toBeInViewport();
+    await expect(sidebar.getByText("Not selected", { exact: true })).toBeVisible();
+    const identity = sidebar.getByText("Session identity and workspace", { exact: true });
+    await expect(sidebar.getByRole("button", { name: "Copy session ID", exact: true })).toBeHidden();
+    await identity.focus(); await page.keyboard.press("Enter");
+    await expect(sidebar.getByRole("button", { name: "Copy session ID", exact: true })).toBeVisible();
+    await expect(sidebar.getByText(fixture.sessionId, { exact: true })).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(sidebar.getByRole("button", { name: "Copy session ID", exact: true })).toBeHidden();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
 });
 
 test("custom project color is a split-color pencil swatch instead of extra Custom and Default buttons", async () => {

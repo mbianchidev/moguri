@@ -491,7 +491,9 @@ remains disclosed.
 
 ## Session controls and interactive tools
 
-**Insights / Session details** shows the real stable session ID.
+**Insights / Execution** shows Env, the actual boundary, Model, Autonomy and
+Budget first. Expand **Session identity and workspace** for the real stable
+session ID, project, workspace and profile.
 Use a known full ID in a prompt or `:ID` in the context picker to review and
 attach that exact same-profile public transcript. Archived context is available.
 This never navigates into another execution root or exposes its private console.
@@ -1846,6 +1848,14 @@ delivery and autocomplete choices also use that sidebar. Model, effort and
 context submenus expand inside it. Escape closes the current menu and returns
 to its original control; opening a menu preserves the prior sidebar and
 running consoles. Turn information expands directly beneath its response.
+
+The left navigation's search finds chat names/IDs and project names without
+changing the active conversation or saved draft. Matching children retain their
+parent context; the result count excludes those extra ancestors. The search
+toolbar stays reachable while scrolling a long session list. **Clear session
+search** or Escape in the field restores the original collapsed projects/groups
+and keeps keyboard focus in search. No matches offers search recovery rather
+than suggesting the workspace is empty.
 
 During a turn, hold Cmd/Ctrl with a nonempty draft to replace Stop with the clock
 action. A successful held submission restores Stop and preserves the running

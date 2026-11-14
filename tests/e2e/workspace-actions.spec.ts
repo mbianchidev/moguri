@@ -38,6 +38,17 @@ test("session lists page ten project-free roots, five project roots and five chi
     await expect(projectRoots).toHaveCount(8);
     await projects.getByRole("button", { name: `Show more subsessions of ${fixture.session().title}`, exact: true }).click();
     await expect(projects.getByRole("button", { name: /^Generated nested child / })).toHaveCount(7);
+    await projectRoots.last().scrollIntoViewIfNeeded();
+    const search = page.getByRole("searchbox", { name: "Search sessions", exact: true });
+    await expect(search).toBeInViewport({ ratio: 1 });
+    await search.fill("Generated nested child 6");
+    await expect(page.getByRole("status", { name: "Session search results", exact: true })).toContainText("1 chat");
+    await expect(projects.getByRole("button", { name: "Generated nested child 6", exact: true })).toBeVisible();
+    await expect(projects.getByRole("button", { name: fixture.session().title, exact: true })).toBeVisible();
+    await search.press("Escape");
+    await expect(chats.getByRole("button", { name: /^Generated root chat / })).toHaveCount(12);
+    await expect(projectRoots).toHaveCount(8);
+    await expect(projects.getByRole("button", { name: /^Generated nested child / })).toHaveCount(7);
     expect(sdk.getState().snapshot!.sessions.filter((session) => session.parentSessionId === fixture.sessionId)).toHaveLength(7);
     expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
@@ -57,6 +68,10 @@ test("an individual project collapses only its navigation sessions and remains e
     await section.getByRole("button", { name: `Collapse project ${project.name}`, exact: true }).click();
     await page.getByRole("searchbox", { name: "Search sessions", exact: true }).fill(sessionTitle(fixture.session(), 160, "New chat"));
     await expect(session).toBeVisible();
+    await page.getByRole("searchbox", { name: "Search sessions", exact: true }).press("Escape");
+    await expect(page.getByRole("searchbox", { name: "Search sessions", exact: true })).toHaveValue("");
+    await expect(section.getByRole("button", { name: `Expand project ${project.name}`, exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(session).not.toBeVisible();
     expect(fixture.service.controller.snapshot().sessions[0]!.id).toBe(fixture.sessionId);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
