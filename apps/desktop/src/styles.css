@@ -421,9 +421,8 @@ body:has(.opening-workspace), body:has(#root:empty) { background: #000; }
 .activity-row > summary { display: flex; align-items: center; gap: 9px; list-style: none; min-height: 30px; color: var(--muted); padding: 3px 0; }
 .activity-row > summary::-webkit-details-marker { display: none; }
 .activity-row > summary > svg { width: 16px; height: 16px; }
-.activity-chevron { width: 12px; opacity: 0; flex-shrink: 0; overflow: hidden; transition: opacity 120ms ease-out; }
+.activity-chevron { width: 12px; flex-shrink: 0; overflow: hidden; }
 .activity-chevron svg { width: 12px; height: 12px; transform: rotate(-90deg); }
-.activity-row:hover .activity-chevron, .activity-row:focus-within .activity-chevron, .activity-row[open] .activity-chevron { opacity: 1; }
 .activity-row[open] .activity-chevron svg { transform: none; }
 .activity-title { display: flex; align-items: baseline; gap: 7px; flex: 1; min-width: 0; font-size: 13px; }
 .activity-subject { color: var(--muted); opacity: .8; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
@@ -467,7 +466,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: #000; }
 .message:hover .message-copy, .message:focus-within .message-copy { opacity: 1; }
 @keyframes activity-spin { to { transform: rotate(360deg); } }
 @media (hover: none) { .turn-actions, .message-copy { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .activity-spinner { animation: none; } .activity-chevron, .turn-actions { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .activity-spinner { animation: none; } .turn-actions { transition: none; } }
 .message.notice { display: block; background: var(--warning-bg); color: var(--warning-text); padding: 12px 14px; border-radius: 4px; }
 .message.notice.info { background: var(--subtle); color: var(--text); }
 .command-message { background: var(--subtle); padding: 14px 16px; border-radius: 8px; }
@@ -480,9 +479,14 @@ body:has(.opening-workspace), body:has(#root:empty) { background: #000; }
 .markdown h1, .markdown h2, .markdown h3 { font-size: 17px; margin: 24px 0 12px; letter-spacing: 0; }
 pre, code { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12px; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: auto; line-height: 1.65; padding: 12px; background: var(--code); border-radius: 5px; margin: 10px 0; }
-.markdown pre { position: relative; white-space: pre; padding-right: 44px; }
+.markdown pre { white-space: pre; }
+.markdown .code-block { margin: 14px 0; min-width: 0; max-width: 100%; background: var(--code); border: 1px solid var(--line); border-radius: 6px; }
+.code-block > figcaption { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+.code-language { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.code-block > figcaption .inline-error { flex-basis: 100%; }
+.markdown .code-block > pre { margin: 0; max-width: 100%; background: transparent; border-radius: 0 0 5px 5px; outline-offset: -3px; }
+.code-block .code-copy { width: 32px; height: 32px; color: var(--muted); }
 .markdown :not(pre) > code { background: var(--code); padding: 2px 4px; border-radius: 3px; }
-.markdown pre .code-copy { display: inline-flex; position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; background: var(--code); }
 .markdown table { border-collapse: collapse; font-size: 12px; max-width: 100%; display: block; overflow: auto; }
 .markdown th, .markdown td { border: 1px solid var(--line); padding: 7px 10px; }
 summary { font-size: 12px; line-height: 1.7; color: var(--muted); }

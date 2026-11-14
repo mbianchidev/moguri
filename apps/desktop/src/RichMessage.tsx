@@ -14,7 +14,14 @@ function RichLink({ href, children }: ComponentProps<"a"> & ExtraProps) {
 function CodeBlock({ node, children, ...props }: ComponentProps<"pre"> & ExtraProps) {
   const code = node?.children.find((child) => child.type === "element" && child.tagName === "code");
   const value = code?.type === "element" ? codeText(code) : null;
-  return <pre {...props}>{children}{value !== null && <CopyButton className="code-copy" label="Copy code block" text={value} source={value} />}</pre>;
+  if (value === null) return <pre {...props}>{children}</pre>;
+  const classes = code?.type === "element" ? code.properties.className : undefined;
+  const language = Array.isArray(classes) ? classes.find((name): name is string => typeof name === "string" && name.startsWith("language-"))?.slice(9) : undefined;
+  return <figure className="code-block">
+    <figcaption><span className="code-language">{language || "Code"}</span>
+      <CopyButton className="code-copy" label="Copy code block" text={value} source={value} /></figcaption>
+    <pre {...props} tabIndex={0}>{children}</pre>
+  </figure>;
 }
 const components = {
   a: RichLink, pre: CodeBlock,

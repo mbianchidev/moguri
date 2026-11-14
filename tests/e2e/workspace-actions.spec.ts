@@ -111,8 +111,8 @@ test("copy icons acknowledge only completed clipboard writes and surface failure
   } finally { await app.evaluate(({ ipcMain }) => { ipcMain.emit("generated-copy-release"); }); await app.close(); await fixture.close(); }
 });
 
-test("inline code stays ordinary text while fenced Markdown alone has an explicit exact copy button", async () => {
-  const path = "/generated/scripts/qualify.mjs", code = "node /generated/scripts/qualify.mjs\nprintf 'Generated exact output'\n";
+test("fenced-code copy stays reachable after horizontal scrolling while inline code remains ordinary text", async () => {
+  const path = "/generated/scripts/qualify.mjs", code = `printf '${"Generated_exact_code_".repeat(120)}'\nnode /generated/scripts/qualify.mjs\n`;
   const text = `Run \`${path}\`.\n\n\`\`\`sh\n${code}\`\`\`\n\n[\`${path}\`](https://example.invalid/generated-script)`;
   const thoughtCode = "const generated = true;\n";
   const fixture = await setupFixture({ responseMode: "text", replyText: text, reasoning: true,
@@ -134,7 +134,32 @@ test("inline code stays ordinary text while fenced Markdown alone has an explici
     const inline = response.locator("p > code");
     await expect(inline.getByRole("button")).toHaveCount(0);
     await inline.click();
-    await copies.focus(); await page.keyboard.press("Enter");
+    const placements: Array<{ left: number; right: number }> = [];
+    for (const [width, height] of [[1280, 900], [840, 620]] as const) {
+      await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0]!.setSize(size.width, size.height), { width, height });
+      const pre = response.locator("pre");
+      await pre.scrollIntoViewIfNeeded();
+      await pre.evaluate((block) => { block.scrollLeft = block.scrollWidth - block.clientWidth; });
+      placements.push(await copies.evaluate((button) => {
+        const owner = button.closest("figure") ?? button.closest("pre");
+        if (!owner) throw new Error("The generated code action lost its owning block.");
+        const box = owner.getBoundingClientRect(), action = button.getBoundingClientRect();
+        return { left: action.left - box.left, right: box.right - action.right };
+      }));
+      await page.screenshot({ path: test.info().outputPath(`conversation-code-${width}.png`) });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    }
+    for (const placement of placements) {
+      expect(placement.left).toBeGreaterThanOrEqual(0);
+      expect(placement.right).toBeGreaterThanOrEqual(0);
+      expect(placement.right).toBeLessThanOrEqual(16);
+    }
+    const scrollingCode = response.locator("pre"), previousScroll = await scrollingCode.evaluate((block) => block.scrollLeft);
+    await scrollingCode.focus(); await page.keyboard.press("ArrowLeft");
+    await expect.poll(() => scrollingCode.evaluate((block) => block.scrollLeft)).toBeLessThan(previousScroll);
+    await expect(scrollingCode).toHaveCSS("outline-style", "solid");
+    await page.keyboard.press("Shift+Tab"); await expect(copies).toBeFocused();
+    await page.keyboard.press("Enter");
     await expect(copies.locator("svg")).toHaveAttribute("data-icon", "Check");
     const thought = page.locator("details.activity-thought");
     await thought.locator("summary").press("Enter");
@@ -146,7 +171,7 @@ test("inline code stays ordinary text while fenced Markdown alone has an explici
     for (const control of [copies, thoughtCopy]) {
       await expect(control.locator("svg")).toBeVisible();
       const placement = await control.evaluate((button) => {
-        const block = button.closest("pre");
+        const block = button.closest("figure") ?? button.closest("pre");
         if (!block) throw new Error("The generated fenced-code control has no owning block.");
         const box = block.getBoundingClientRect(), copy = button.getBoundingClientRect();
         return { top: copy.top - box.top, right: box.right - copy.right };

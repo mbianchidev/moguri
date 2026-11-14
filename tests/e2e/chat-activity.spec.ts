@@ -37,6 +37,7 @@ test("desktop expands original operations and public reasoning, copies only the 
     const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     const read = transcript.locator(".activity-row[data-kind='read-file']");
     await expect(read.locator("summary svg[data-icon='ReadFile']")).toBeVisible();
+    expect(await read.locator(".activity-chevron").evaluate((element) => Number(getComputedStyle(element).opacity))).toBeGreaterThan(0);
     await read.locator("summary").click();
     await expect(read.getByText("Loading the retained operation...", { exact: true })).toHaveCount(0);
     await expect(read.getByRole("region", { name: "Operation arguments", exact: true })).toContainText('"path": "fixture.txt"');

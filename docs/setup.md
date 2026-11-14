@@ -201,9 +201,11 @@ wrappers, substitutions or hard denials. Both clients retain the same actual
 user grant. Enter captures the current native editor text once, including
 while draft autosave is pending; Shift+Enter, Cmd/Ctrl+Enter, input method
 composition, conflict review and separate Resume/Retry actions retain their
-existing meanings. Inline and fenced Markdown code each has an independent
-copy button. Copy confirms only the exact snippet's successful clipboard
-write; linked snippets do not open their link when copied.
+existing meanings. Inline Markdown code stays ordinary selectable text;
+fenced blocks have an independent **Copy code block** action in their language
+header. It stays visible while code scrolls horizontally. Focus the code to
+scroll by keyboard; Shift+Tab returns to Copy. Copy confirms only the exact
+snippet's successful clipboard write, without opening links or executing code.
 
 Protocol94 adds typed search/read surfaces and advances only version metadata.
 No encrypted event, grant, receipt or saved source is rewritten. The
@@ -2083,7 +2085,8 @@ them. Earlier protocol qualification records below remain historical.
 Protocol 45 introduced this activity slice. Chat operations appear as compact
 icon-led rows for file reads/creation/edits, file/skill/web search, skill loading,
 GitHub/Linear issue creation, commands/scripts, MCP calls and actual questions.
-Expand a row for its original arguments/result, local start date/time, observed
+Each row has a visible disclosure chevron before hover or keyboard focus.
+Expand it for its original arguments/result, local start date/time, observed
 duration and retained UTF-8 output size. Large results use explicit byte pages.
 Running operations have an elapsed wall timer; waiting, failed, stopped,
 partial and unconfirmed outcomes stay distinct.
