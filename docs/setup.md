@@ -1941,6 +1941,11 @@ actionable steps. Model checkmarks and estimates live there only, never above
 the textbox, and never prove acceptance or successful completion. An existing
 repository checklist does not become a task plan. **Open workspace plan file**
 still exposes the separately reviewed Local/SSH file editor and retained saves.
+Plan reload shows its bound-workspace read and temporarily locks editing,
+saving and duplicate reloads. Original text and the Unsaved edit marker remain
+until the read succeeds; a failed reload preserves them for retry. Changes
+likewise shows loading rather than a blank or clean-tree claim, with Refresh
+available again after the original read settles.
 Every actual model question shows its offered answers as a vertical clickable
 list, scrollable when long. **Other** is an always-visible blank field: type an
 answer and press Enter to send it, or use its send icon. Shift+Enter adds a line;
