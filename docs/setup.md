@@ -444,11 +444,16 @@ connection. Saved chat drafts remain encrypted and service-owned; the live
 composer restores them only after authentication. Last-view hints and model
 labels never replace a peer draft, restore a deleted chat or authorize sending.
 
-The first start after upgrading from a release that saved a card revision on
-every GitHub poll removes those observation-only revisions and compacts
-`state.sqlite`. This can take several seconds once, and `service.log` reports
-how many were removed. Card text, phases, links and every real change are kept.
-Fully quit Moguri (or run `moguri service restart`) so the new service starts.
+The first start after upgrading from a release that saved a card revision and
+a refresh job on every GitHub poll removes those polling-only records and
+compacts `state.sqlite`. This can take several seconds once, and `service.log`
+reports how many were removed. Card text, phases, links, the latest sync
+status and every real change are kept. Fully quit Moguri (or run
+`moguri service restart`) so the new service starts.
+
+Each start writes `Service ready in <ms> ms with <n> retained events (<MiB>)`
+to `service.log` and adds a **Startup health** warning naming the largest event
+types when history is unusually large or startup takes 5 seconds or more.
 
 An unconfirmed 60-second service startup now offers **Reconnect to original
 service** while preserving the original service's saved drafts. Reconnect
