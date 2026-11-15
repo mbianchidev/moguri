@@ -22,6 +22,7 @@ test("stable IDs and mentions use reviewed context; project bulk attach/detach/a
     const insights = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true });
     await expect(insights).toBeVisible();
     if (await insights.getAttribute("aria-pressed") !== "true") await insights.click();
+    await page.getByText("Session identity and workspace", { exact: true }).click();
     await expect(page.locator(".facts").getByText(f.sessionId, { exact: true })).toBeVisible();
     const prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill(`Read context from ${keep} without changing its workspace.`);
