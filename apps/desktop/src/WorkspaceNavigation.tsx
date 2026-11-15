@@ -613,13 +613,13 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     </> : <>
     <button role="menuitem" disabled={bulkBusy} onClick={() => { setSelection({ projectId: menuSession.projectId, ids: [menuSession.id] }); setBulkRequest(null); closeMenu(); }}><Icon name="Check" />Select</button>
     <button role="menuitem" onClick={() => rename(menuSession)}><Icon name="Edit" />Rename</button>
-    <button role="menuitem" onClick={() => void run(async () => { await window.moguri.copyText(menuSession.id); closeMenu(); setNavigationStatus(`Copied session ID ${sessionShortId(menuSession.id)}.`); })}><Icon name="Copy" />Copy session ID</button>
     <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name={menuSession.pinned ? "PinOff" : "Pin"} />{menuSession.pinned ? "Unpin" : "Pin"}</button>
     <button role="menuitem" onClick={() => void run(async () => {
       const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.deleted && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];
       await sdk.sessions.organize(menuSession.id, { unread: !menuUnread });
       if (ids.length) await sdk.attention.acknowledge(ids.slice(-100));
     })}><Icon name="ReadOnly" />{menuUnread ? "Mark read" : "Mark unread"}</button>
+    <button role="menuitem" onClick={() => void run(async () => { await window.moguri.copyText(menuSession.id); closeMenu(); setNavigationStatus(`Copied session ID ${sessionShortId(menuSession.id)}.`); })}><Icon name="Copy" />Copy session ID</button>
     <LocationActions run={run} announce={setNavigationStatus} open={(action) => window.moguri.sessionLocation(sdk.profileId, menuSession.id, action)}
       unavailable={{ "show-folder": sessionLocalFolder(menuSession, snapshot).diagnostic,
         "open-remote": !menuSession.projectId || menuSession.repositories || menuSession.controls.env === "Sandbox" ?
