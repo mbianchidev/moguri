@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { githubItemIdentity, sessionPullRequestUrls, type GithubAction, type GithubPreview, type GithubScope, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { GitHubItemPicker, type GithubProject, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
+import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 import { PullRequestPane } from "./PullRequestPane.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
@@ -16,7 +17,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   const [base, setBase] = useState(""), [head, setHead] = useState(""), [draft, setDraft] = useState(true);
   const [review, setReview] = useState<GithubPreview | null>(null), [confirmed, setConfirmed] = useState<string[]>([]);
   const [operationId, setOperationId] = useState(""), [attempted, setAttempted] = useState(false), [busy, setBusy] = useState(false);
-  const [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [error, setError] = useState<PanelFailure | null>(null), [notice, setNotice] = useState("");
   const [stopping, setStopping] = useState(false);
   const pending = useRef(false);
   const label = kind === "pull" ? "pull request" : "issue", bound = selectedUrl ?? (kind === "pull" ? session.prUrl : session.workItemUrl);
@@ -39,9 +40,9 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   useEffect(() => { onDirty(dirty || creating && busy); return () => onDirty(false); }, [dirty, creating, busy, onDirty]);
   const run = async (action: (isCurrent: () => boolean) => Promise<void>) => {
     if (pending.current) return;
-    pending.current = true; const captured = scopeKey; setBusy(true); setError(""); setNotice("");
+    pending.current = true; const captured = scopeKey; setBusy(true); setError(null); setNotice("");
     try { await action(() => current.current === captured); }
-    catch (error) { setError(error instanceof Error ? error.message : "The original GitHub outcome is unconfirmed. Inspect its retained operation before creating anything again."); }
+    catch (error) { setError(panelFailure(error, "The original GitHub outcome is unconfirmed. Inspect its retained operation before creating anything again.")); }
     finally { pending.current = false; setBusy(false); }
   };
   const attach = async (url: string) => {
@@ -67,7 +68,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   const cancelOriginal = () => {
     if (!retainedOperation) return;
     setStopping(true);
-    void sdk.github.cancel(retainedOperation.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Original GitHub cancellation was not confirmed. Inspect its retained result.")).finally(() => setStopping(false));
+    void sdk.github.cancel(retainedOperation.id).catch((error: unknown) => setError(panelFailure(error, "Original GitHub cancellation was not confirmed. Inspect its retained result."))).finally(() => setStopping(false));
   };
   const discard = () => { setCreating(false); setTitle(""); setBody(""); setReview(null); };
   const kanban = kind === "issue" && session.projectId ? <KanbanWorkItem sdk={sdk} session={session} snapshot={snapshot} /> : null;
@@ -78,7 +79,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
       <button type="button" disabled={busy} onClick={discard}>Discard preserved form</button></>}
     {operationId && <p className="fine-print">Original operation: {operationId} / {retainedOperation?.status ?? "unobserved"}. Inspect its retained history; no different environment was used.</p>}
     {retainedOperation?.status === "running" && <button type="button" disabled={stopping} onClick={cancelOriginal}>Cancel original GitHub operation</button>}
-    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    <PanelError failure={error} projectId={session.projectId} />
   </section>;
   return <section className="session-github" aria-label={kind === "pull" ? "Project pull requests" : "Project work items"} aria-busy={busy}>
     {kanban}
@@ -140,24 +141,24 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
     </form>}
     {operationId && <p className="fine-print">Original GitHub operation: <code>{operationId}</code> / {retainedOperation?.status ?? "unobserved"}. Its result remains in GitHub workflow history.</p>}
     {retainedOperation?.status === "running" && <button type="button" disabled={stopping} onClick={cancelOriginal}>Cancel original GitHub operation</button>}
-    {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}<PanelError failure={error} projectId={session.projectId} />
   </section>;
 }
 function KanbanWorkItem({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
-  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const [busy, setBusy] = useState(false), [error, setError] = useState<PanelFailure | null>(null);
   const selected = snapshot.issues.find((issue) => issue.id === session.workItemId && issue.projectId === session.projectId);
   const cards = snapshot.issues.filter((issue) => issue.projectId === session.projectId && (!issue.archived || issue.id === selected?.id)).sort((a, b) => a.number - b.number);
   return <section className="kanban-work-item" aria-label="Kanban work item">
     <label className="setting-field">Kanban card<select aria-label="Kanban work item" disabled={busy} value={selected?.id ?? ""} onChange={(event) => {
-      const workItemId = event.target.value || null; setBusy(true); setError("");
+      const workItemId = event.target.value || null; setBusy(true); setError(null);
       void sdk.sessions.organize(session.id, { workItemId, ...(workItemId ? { workItemUrl: null } : {}) }).catch((error: unknown) => {
-        setError(error instanceof Error ? error.message : "The card was not linked. Reload the actual project.");
+        setError(panelFailure(error, "The card was not linked. Reload the actual project."));
       }).finally(() => setBusy(false));
     }}><option value="">No Kanban card</option>{cards.map((issue) => <option key={issue.id} value={issue.id}>#{issue.number} {issue.title}{issue.linear ? ` / ${issue.linear.identifier}` : ""}{issue.archived ? " (archived)" : ""}</option>)}</select></label>
     {selected && <article className="github-item"><h3>Local work item #{selected.number}: {selected.title}</h3>
       {selected.linear && <p className="fine-print">Imported Linear item {selected.linear.identifier}; no remote write.</p>}
-      <Suspense fallback={<p>{selected.body}</p>}><RichMessage text={selected.body} openLink={(url) => void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened."))} /></Suspense>
+      <Suspense fallback={<p>{selected.body}</p>}><RichMessage text={selected.body} openLink={(url) => void window.moguri.openExternal(url).catch((error: unknown) => setError(panelFailure(error, "The link could not be opened.")))} /></Suspense>
     </article>}
-    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    <PanelError failure={error} projectId={session.projectId} />
   </section>;
 }

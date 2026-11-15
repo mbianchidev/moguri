@@ -33,6 +33,7 @@ import { usePanelBadges } from "./PanelBadges.ts";
 import { RepositoryProposal } from "./RepositoryProposal.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
+import { ProjectFolderActions, type ProjectFolderAction } from "./PanelFailure.tsx";
 import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 import { createStartupView, isModelDiscoveryPending, readStartupView, saveStartupView, type StartupModel, type StartupView } from "./startup-cache.ts";
 import { StartupModelContext } from "./StartupModelContext.ts";
@@ -197,6 +198,11 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     queued?: { context: CommandViewContext; settle(outcome: CommandViewOutcome): void } } | null>(null);
   const [sessionActionRequest, setSessionActionRequest] = useState<{ sessionId: string; action: "archive"; nonce: number; owner?: SessionActionOwner } | null>(null);
   const sessionActionRequestNonce = useRef(0);
+  const [projectActionRequest, setProjectActionRequest] = useState<{ projectId: string; action: "relocate" | "remove-project"; nonce: number } | null>(null);
+  const projectActionRequestNonce = useRef(0);
+  const requestProjectAction = useCallback<ProjectFolderAction>((projectId, action) => {
+    setNavOpen(true); setProjectActionRequest({ projectId, action, nonce: ++projectActionRequestNonce.current });
+  }, []);
   const [suggestionsAll, setSuggestionsAll] = useState(true);
   const [artifactRequest, setArtifactRequest] = useState<ArtifactEditorRequest | null>(null);
   const switchingProfile = useRef(false);
@@ -684,7 +690,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const presentationModels = status === "connected" && snapshot && isModelDiscoveryPending(snapshot.provider) &&
     cachedModels.profileId === client.profileId && cachedModels.storeId === client.connection.storeId ? cachedModels.models : [];
   const inboxUnread = Boolean(snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged));
-  return <StartupModelContext.Provider value={presentationModels}><PolicyNavigationContext.Provider value={openPolicy}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
+  return <StartupModelContext.Provider value={presentationModels}><PolicyNavigationContext.Provider value={openPolicy}><ProjectFolderActions.Provider value={requestProjectAction}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
     data-profile-id={client.profileId} data-session-id={selectedId ?? ""} data-side-session-id={sideSessionId ?? ""}
     className={`app-shell ${navOpen ? "nav-open" : ""} ${panelVisible ? "context-open" : ""} ${panelExpanded ? "context-maximized" : ""}`}>
     <header className="titlebar">
@@ -700,7 +706,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startChat={() => startSession(null)} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
         setupSandbox={() => openSettings("sendbox")}
-        sessionActionRequest={sessionActionRequest} onSessionActionRequestHandled={(nonce) => setSessionActionRequest((request) => request?.nonce === nonce ? null : request)} />}
+        sessionActionRequest={sessionActionRequest} onSessionActionRequestHandled={(nonce) => setSessionActionRequest((request) => request?.nonce === nonce ? null : request)}
+        projectActionRequest={projectActionRequest} onProjectActionRequestHandled={(nonce) => setProjectActionRequest((request) => request?.nonce === nonce ? null : request)} />}
       </div>
       <div className="nav-footer">
         <div className="profile-actions">
@@ -784,7 +791,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
     ]} />}
-  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</PolicyNavigationContext.Provider></StartupModelContext.Provider>;
+  </div>{profilePending && <p className="sr-only" role="status">Opening the selected isolated profile. Existing work stays in its original profile.</p>}</ProjectFolderActions.Provider></PolicyNavigationContext.Provider></StartupModelContext.Provider>;
 }
 
 function Timeline({ session, editor, snapshot, run, client, modal, label = "Session transcript", navigationLabel = "Conversation turns", rewind = true }: {

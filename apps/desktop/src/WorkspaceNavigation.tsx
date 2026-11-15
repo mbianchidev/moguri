@@ -41,7 +41,7 @@ const dropEdge = (element: HTMLElement, y: number): "before" | "after" | "inside
   return ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
 };
 export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, startChat, openKanban, settings, terminal, modal, allow, prepareSession,
-  sessionActionRequest, onSessionActionRequestHandled, setupSandbox }: {
+  sessionActionRequest, onSessionActionRequestHandled, projectActionRequest, onProjectActionRequestHandled, setupSandbox }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
   startChat: () => Promise<void>;
@@ -49,6 +49,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   modal: (open: boolean) => void; allow: () => boolean; terminal?: (projectId: string) => void;
   prepareSession?: (id: string) => Promise<void>;
   sessionActionRequest?: { sessionId: string; action: "archive"; nonce: number; owner?: SessionActionOwner } | null; onSessionActionRequestHandled?: (nonce: number) => void;
+  projectActionRequest?: { projectId: string; action: "relocate" | "remove-project"; nonce: number } | null; onProjectActionRequestHandled?: (nonce: number) => void;
   setupSandbox?: () => void;
 }) {
   const [edit, setEdit] = useState<Edit | null>(null);
@@ -171,6 +172,15 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   useEffect(() => { modal(Boolean(edit || renaming || menu || foldersMenu || controlsOpen || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, renaming, menu, foldersMenu, controlsOpen, actions.reviewing, actions.busy, modal]);
   const run = async (operation: () => Promise<unknown>) => { setError(""); try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Workspace action failed."); } };
   const open = (value: Edit) => { if (allow()) setEdit(value); };
+  const handledProjectAction = useRef<number | null>(null);
+  useEffect(() => {
+    const request = projectActionRequest;
+    if (!request || handledProjectAction.current === request.nonce) return;
+    handledProjectAction.current = request.nonce;
+    const project = snapshot.projects.find((value) => value.id === request.projectId);
+    if (project) open({ kind: request.action, project }); else setError("The project requested for this action is no longer available.");
+    onProjectActionRequestHandled?.(request.nonce);
+  }, [projectActionRequest, snapshot.projects, onProjectActionRequestHandled]);
   const rename = (session: Session) => {
     if (!allow()) return;
     setMenu(null); setRenaming({ id: session.id, title: session.title, source: session.titleSource, revision: session.titleRevision });
