@@ -77,8 +77,11 @@ source or revoking a grant blocks future use and dispatch, including an approval
 that was already waiting. It cannot retract text already delivered to a model
 or undo an already-running effect. A clean conversation branch or a new chat is
 required to stop carrying revoked/obsolete guidance; old grants never revive.
-Unsupported authority-bearing metadata and foreign compatibility declarations
-are rejected, not translated.
+Standard Agent Skills frontmatter (`license`, free-text `compatibility`,
+`metadata`, `allowed-tools`) and other harness fields such as `user-invocable`
+are read as informational text: they never grant tools, permissions or trust,
+and only Moguri's own `moguri:` block carries semantics. In a Local folder an
+invalid `SKILL.md` is skipped and logged rather than hiding the other skills.
 
 The prompt timeline's session sidebar has a **Checkpoints and rewind** action.
 It opens the selected session's review dialog, not an inline conversation panel.
