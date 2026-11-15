@@ -43,7 +43,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await panels.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "workspace-only.txt", exact: true }).click();
     await expect(page.locator(".workspace-file-content")).toContainText("Generated file exists only in the owned checkout.");
-    await panels.getByRole("button", { name: "Changes", exact: true }).click();
+    await panels.getByRole("button", { name: "Code change", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated desktop worktree change");
     await panels.getByRole("button", { name: "Plan", exact: true }).click();
     await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();

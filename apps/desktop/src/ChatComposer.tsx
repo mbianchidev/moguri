@@ -16,7 +16,6 @@ import { Alert } from "./Alert.tsx";
 import { SchedulePromptDialog } from "./ScheduledPrompts.tsx";
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { isModelDiscoveryPending } from "./startup-cache.ts";
-import { SidebarMenu } from "./ChatMenus.tsx";
 
 const SandboxSetupDialog = lazy(() => import("./SandboxSetupDialog.tsx").then((module) => ({ default: module.SandboxSetupDialog })));
 const ModelReadinessView = lazy(() => import("./ModelReadinessView.tsx").then((module) => ({ default: module.ModelReadinessView })));
@@ -173,7 +172,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       input.current?.focus();
     });
   };
-  useEffect(() => { onMenuChange(menu !== null || sandboxSetup !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null || suggestions.length > 0 || sessionOptions.length > 0); return () => onMenuChange(false); }, [menu, sandboxSetup, attachmentReview, previewOpen, contextReview, scheduleReview, suggestions.length, sessionOptions.length, onMenuChange]);
+  useEffect(() => { onMenuChange(menu !== null || sandboxSetup !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null); return () => onMenuChange(false); }, [menu, sandboxSetup, attachmentReview, previewOpen, contextReview, scheduleReview, onMenuChange]);
   useEffect(() => { onPendingChange?.(configuring || heldPending || resuming || retrying); return () => onPendingChange?.(false); }, [configuring, heldPending, resuming, retrying, onPendingChange]);
   const adopt = async (saved: Session["draft"]) => {
     const text = editor.getState().text;
@@ -313,7 +312,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
   const sendLabel = isSlash ? "Run command" : held || heldPending ? session.turnId ? "Queue prompt without starting work" : "Schedule prompt" : retryAction ? "Retry last model request" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? delivery === "auto" ? "Send now" : "Queue" : "Send";
-  const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} sourceSessionId={session.id} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
+  const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className={`composer compact-composer ${dragging ? "session-drop-target" : ""}`} data-composer-session={session.id} onSubmit={(event) => submit(event)} onKeyDown={(event) => { if (event.key === "Escape") { setTrigger(null); setDismissedTrigger(draft.text); setDismissedSlash(draft.text); } }}
     onDragOver={(event) => { if (event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setDragging(true); } }}
     onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
@@ -381,15 +380,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           if (current.text.startsWith("/") || action === "hold" ? canQueueDraft(current) : failedRequest ? canRetry : needsResume ? canResume : canSendDraft(current)) submit(undefined, action === "hold");
         }
       }} />
-    {suggestions.length > 0 && <SidebarMenu label="Slash commands" sourceSessionId={session.id} close={() => setDismissedSlash(draft.text)} trigger={input} focusOnOpen={false} role="region">
-      <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
+    {suggestions.length > 0 && <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
       aria-selected={index === slashOption} key={suggestion.kind === "skill" ? suggestion.skill.id : suggestion.name} data-command-kind={suggestion.kind}
-      onClick={() => selectSlash(suggestion)}><strong>/{suggestion.name}{suggestion.kind === "skill" && <small>Skill / {suggestion.skill.sourceName}</small>}</strong><span>{suggestion.description}</span></button>)}</div>
-    </SidebarMenu>}
+      onClick={() => selectSlash(suggestion)}><strong>/{suggestion.name}{suggestion.kind === "skill" && <small>Skill / {suggestion.skill.sourceName}</small>}</strong><span>{suggestion.description}</span></button>)}</div>}
     {slashOpen && slashCatalog.scope === slashScope && slashCatalog.error && <Alert as="p" className="inline-error" role="alert">{slashCatalog.error} Built-in slash commands remain available.</Alert>}
-    {sessionOptions.length > 0 && <SidebarMenu label="Active context sessions" sourceSessionId={session.id} close={() => { setTrigger(null); setDismissedTrigger(draft.text); }} trigger={input} focusOnOpen={false} role="region">
-      <div className="attachment-session-suggestions" role="listbox" aria-label="Active context sessions">{sessionOptions.map((source, index) => <button type="button" role="option" aria-selected={index === sessionOption} key={source.id} onClick={() => { setTrigger(attachmentTrigger); void attachSession(source.id); }}><Icon name="Side chat" /><span>{sessionTitle(source)}</span></button>)}</div>
-    </SidebarMenu>}
+    {sessionOptions.length > 0 && <div className="attachment-session-suggestions" role="listbox" aria-label="Active context sessions">{sessionOptions.map((source, index) => <button type="button" role="option" aria-selected={index === sessionOption} key={source.id} onClick={() => { setTrigger(attachmentTrigger); void attachSession(source.id); }}><Icon name="Side chat" /><span>{sessionTitle(source)}</span></button>)}</div>}
     {attachmentTrigger && <button className="attachment-trigger-hint quiet" type="button" onClick={chooseAttachmentTrigger}>{attachmentTrigger.prefix} {attachmentTriggers[attachmentTrigger.prefix]}<small>Tab to choose; text stays literal until selection</small></button>}
     {draft.error && <div className="draft-error"><Alert as="p" role="alert">{draft.error}</Alert><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "transcribing" ? "Flushing the original local audio buffer. Inserted words are preserved." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
@@ -426,7 +421,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
               title={capability.env === "Sandbox" ? "SendBox settings" : "Remote settings"} onClick={() => { setMenu(null); if (capability.env === "Sandbox") onSandbox(); else onRemote(); }}><Icon name="Settings" /></button>}
           </div>;
         })}{session.repositories && <p>Captured groups support Local and reviewed managed Sandbox execution. Every workspace tool explicitly selects an original repository. There is no first/default or common-parent root, and SSH groups remain unqualified.</p>}</>)}
-        <ComposerPopover name="model" label="Model" sourceSessionId={session.id} description={model?.name ?? (cachedModel ? `${cachedModel.name} (cached label; refreshing availability)` : session.controls.modelId) ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? cachedModel?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{!model && cachedModel ? " (refreshing)" : model?.synthetic && session.controls.kupoMode ? ` · ${kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name}` : session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
+        <ComposerPopover name="model" label="Model" description={model?.name ?? (cachedModel ? `${cachedModel.name} (cached label; refreshing availability)` : session.controls.modelId) ?? "Select model"} open={menu === "model"} toggle={() => toggle("model")} close={() => close("model")} trigger={<span className="composer-model-name">{model?.name ?? cachedModel?.name ?? (session.controls.modelId ? session.controls.modelId : "Select model")}{!model && cachedModel ? " (refreshing)" : model?.synthetic && session.controls.kupoMode ? ` · ${kupoModes.find((mode) => mode.id === session.controls.kupoMode)!.name}` : session.controls.modelOptions?.thinkingEffort && ` · ${effortLabel(session.controls.modelOptions.thinkingEffort)}`}</span>} model>
           <ModelMenu sdk={client} session={session} snapshot={snapshot} requiresImages={requiresImages} onConnect={() => { setMenu(null); onConnect(); }} onLocalModels={() => { setMenu(null); onLocalModels(); }} onRouting={() => { setMenu(null); onRouting(); }} onContext={() => { setMenu(null); setContextReview(true); }} onModelSelected={() => { if (session.kind === "side") setMenu(null); }} onSaving={trackConfiguration} onError={setConfigurationError} pending={configuring} />
         </ComposerPopover>
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
@@ -455,7 +450,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
             <button className="primary icon-button composer-send" type="button" aria-label={sendLabel} title="Send to the active agent at its next safe boundary. The current operation is not cancelled." disabled={!canSend} onClick={() => submit(undefined, false)}><Icon name="Send" /></button>}
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
             <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || retrying || undefined} title={retryAction ? "Retry the exact failed model request. Earlier tools/hooks are not replayed; your new draft is not sent or cleared." : resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? session.turnId ? "Queue without starting (Cmd/Ctrl+Enter)" : "Schedule this idle prompt (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || retrying || (retryAction ? !canRetry : resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : retryAction ? "Refresh" : resumeAction ? "Play" : "Send"} /></button>}
-          <ComposerPopover name="delivery" label="Delivery mode" sourceSessionId={session.id} open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
+          <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
             <h2>Delivery</h2>{(["auto", "queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && value !== "auto" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" || value === "auto" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "auto" ? "Send now; steer an active solver" : value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}
             {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); submit(undefined, held); }}>{sendLabel}</button>}
             <p>{resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first." : "Enter sends using this delivery mode."} Cmd/Ctrl+Enter always holds the prompt instead.</p>
@@ -475,14 +470,38 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   </form>;
 }
 
-function ComposerPopover({ name, label, sourceSessionId, description, open, toggle, close, trigger, children, model = false }: {
-  name: Menu; label: string; sourceSessionId: string; description?: string; open: boolean; toggle: () => void; close: () => void; trigger: ReactNode; children: ReactNode; model?: boolean;
+function ComposerPopover({ name, label, description, open, toggle, close, trigger, children, model = false }: {
+  name: Menu; label: string; description?: string; open: boolean; toggle: () => void; close: () => void; trigger: ReactNode; children: ReactNode; model?: boolean;
 }) {
   const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open || !panel.current || !button.current) return;
+    const element = panel.current;
+    element.showPopover();
+    const position = () => {
+      if (!button.current) return;
+      const anchor = button.current.getBoundingClientRect();
+      const parent = button.current.closest(".composer")!.getBoundingClientRect();
+      const toolbarTop = button.current.closest(".composer-toolbar")?.getBoundingClientRect().top ?? anchor.top;
+      const anchorTop = Math.min(anchor.top, toolbarTop);
+      element.style.width = `${Math.min(360, parent.width, window.innerWidth - 24)}px`;
+      const width = element.getBoundingClientRect().width;
+      element.style.left = `${Math.max(12, Math.min(parent.right - width, anchor.left, window.innerWidth - width - 12))}px`;
+      element.style.maxHeight = `${Math.max(100, anchorTop - 60)}px`;
+      element.style.top = `${Math.max(50, anchorTop - element.getBoundingClientRect().height - 8)}px`;
+    };
+    const observer = new ResizeObserver(position); observer.observe(element); observer.observe(button.current);
+    observer.observe(button.current.closest(".composer")!);
+    const navigation = button.current.closest(".app-shell")?.querySelector(".project-nav");
+    if (navigation) observer.observe(navigation);
+    position(); window.addEventListener("resize", position); window.addEventListener("scroll", position, true);
+    return () => { observer.disconnect(); if (element.matches(":popover-open")) element.hidePopover(); window.removeEventListener("resize", position); window.removeEventListener("scroll", position, true); };
+  }, [open]);
   const id = useId();
   return <div className={`composer-control ${model ? "model-menu-control" : ""}`}>
     <button ref={button} type="button" className={model ? "composer-model-button quiet" : "icon-button"} aria-label={model ? undefined : label} aria-description={description} title={description ? `${label}: ${description}` : label} data-composer-control={name} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? id : undefined} onClick={toggle}>{model && <span className="sr-only">Model: </span>}{trigger}</button>
-    {open && <SidebarMenu id={id} label={label} sourceSessionId={sourceSessionId} className={`composer-popover ${name}-popover`} close={close} trigger={button}>{children}</SidebarMenu>}
+    {open && <div ref={panel} id={id} className={`composer-popover ${name}-popover`} popover="auto" role="dialog" aria-label={label} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) { event.preventDefault(); event.stopPropagation(); } }} onToggle={(event) => { if (event.newState === "closed") { if (document.activeElement === document.body || panel.current?.contains(document.activeElement)) button.current?.focus(); close(); } }}>{children}</div>}
   </div>;
 }
 

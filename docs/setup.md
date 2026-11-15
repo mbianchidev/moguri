@@ -1011,7 +1011,7 @@ single-repository chat. Click the folder header to expand/collapse it, or use
 Edge drops continue to reorder projects.
 
 Folder tools explicitly select a captured repository by ID or original name.
-Files, Changes and Terminal have repository pickers; no first member,
+Files, Code change and Terminal have repository pickers; no first member,
 common-parent directory or HOME console is substituted. Folder sessions are
 currently Local-only. PR, Work item and workspace plan files remain
 single-repository surfaces: open them from an individual member project's chat.
@@ -1819,10 +1819,11 @@ section. Keyboard users can activate the hint, Tab/Shift+Tab out, or press
 Escape. Links never change policy or discard an unsaved settings/budget edit.
 
 The scrollable left resources are **Dashboard, Suggestions, Automations**.
-Artifacts, Candidates and Sandbox live in Settings. The right rail contains
-**Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change,
-Work item**, in that order. Global views are not duplicated there;
-`/pr` opens the selected session's Code change panel. Attention uses the single
+Artifacts, Candidates and Sandbox live in Settings. For project and project-group
+sessions the right rail contains **Terminal, Browser, Insights, Code change,
+Files, Plan, Side chat, Work item**, in that order. Project-free chats show only
+**Terminal, Browser, Insights, Plan, Side chat**. Global views are not duplicated
+there; `/pr` and `/diff` open the selected session's Code change panel. Attention uses the single
 top-bar icon. Where a global action needs a source, select an actual **Source
 chat** first. Viewing a global resource never creates a hidden chat or model
 request. Terminal uses the selected session's authenticated Ghostty owner;
@@ -1873,12 +1874,14 @@ measurements are in [session ordering qualification](architecture/session-intera
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and
 read-only are a pen/book toggle immediately after the composer's **+** attachment
-button. Cmd/Ctrl+K opens Commands in the sidebar, without a titlebar
-advertisement or covering the chat. Env, Model, Autonomy, Budget, attachments,
-delivery and autocomplete choices also use that sidebar. Model, effort and
-context submenus expand inside it. Escape closes the current menu and returns
-to its original control; opening a menu preserves the prior sidebar and
-running consoles. Turn information expands directly beneath its response.
+button. Cmd/Ctrl+K opens the Commands palette as a modal dialog, without a
+titlebar advertisement. Env, Model, Autonomy, Budget, attachments and delivery
+open as popups anchored above their composer control; model, effort, routing
+and context choices cascade beside the Model popup. Slash and session
+autocomplete appear directly above the prompt. Escape or clicking outside closes
+the current popup and returns focus to its control; popups never replace the
+sidebar panel or stop running consoles. Turn information expands directly
+beneath its response.
 
 The left navigation's search finds chat names/IDs and project names without
 changing the active conversation or saved draft. Matching children retain their
@@ -2177,8 +2180,9 @@ See the [browser contract](architecture/agent-browser.md).
 Protocol 44 introduced these interaction changes. Protocol 60 leaves Dashboard,
 Suggestions and Automations in the left sidebar, removing Global Terminal;
 Artifacts/Candidates/Sandbox are Settings sections. The right rail is reserved
-for Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change
-and Work item. Its two link panels are per session. Global actions and existing slash commands
+for Terminal, Browser, Insights, Code change, Files, Plan, Side chat and Work
+item; project-free chats keep only Terminal, Browser, Insights, Plan and Side
+chat. Its two link panels are per session. Global actions and existing slash commands
 retain their independently scoped source selection. Attention remains in the top bar. The unified New
 chooser and project-free navigation remain available.
 
@@ -3605,7 +3609,7 @@ Acknowledgement is not proof of cleanup. Unknown owned work blocks new
 admission/deletion; session deletion destroys its transport key only after
 settlement or actual user inspection.
 
-**Files**, **Changes** and **Plan** views use the actual SSH
+**Files**, **Code change** and **Plan** views use the actual SSH
 workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path in
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
@@ -3980,10 +3984,13 @@ Held/idle/stopped work is not silently called successful or running.
 
 Order offers **Newest prompt first** and **Oldest prompt first** using each
 chat's latest sent prompt, not a streaming answer, rename or saved draft.
-Unsent chats use creation time. Pins and parent groups remain. **Reset** appears
-when status filters or explicit ordering are selected, restores default order,
-and does not clear the composer or rewrite stored drag order. Reset prompt
-ordering before manually reordering sessions. Clearing a filter restores the
+Unsent chats use creation time. Explicit prompt ordering shows one flat list of
+sessions from every project, project group and folder, without their headers;
+each row names its project or group, so combining it with a status filter such
+as In progress shows active work scattered across the sidebar. **Reset** appears
+when status filters or explicit ordering are selected, restores the grouped
+default order, and does not clear the composer or rewrite stored drag order.
+Reset prompt ordering before manually reordering sessions. Clearing a filter restores the
 previous project/group collapse choices.
 
 The composer, queue and approval controls share the message column's gutters
@@ -4024,7 +4031,7 @@ run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
 Desktop main and side chats show queued messages as right-aligned, muted dashed
 bubbles. Hover or keyboard focus reveals More, Delete and, for held prompts,
-the upward Run arrow. More opens source-bound Edit/Copy actions in the sidebar;
+the upward Run arrow. More opens source-bound Edit/Copy actions in a popup;
 steering inputs also offer Queue as new turn. Drag or Alt+Up/Down still reorders
 the exact queued list. Touch/non-hover devices keep actions visible.
 
@@ -4035,22 +4042,23 @@ remain visible. Hiding preserves an inline edit and does not run, pause or chang
 the queue. Each opened queue starts expanded. In the TUI, `/queue` shows queued
 prompts and **Esc** returns to the composer.
 
-Compact **Changes**, **PR**, **Plan**, **Background** and **Artifacts** shortcuts
-open their existing views. Changes reports the last allowed tracked line
-observation relative to HEAD, not untracked/protected files or the whole PR;
-binary changes are separate and unavailable/incomplete reads never become zero.
-Grouped repositories require explicit selection in Changes. PR shows the retained
-linked association, not merge readiness. Plan counts actual owning-turn model
-items, not repository-file checkboxes or acceptance.
+The chat header has no shortcut buttons. Instead the right rail shows small
+counts on its icons. **Terminal** counts active owned subagents/coordinated
+children, running agent commands in the current turn and independent
+command/watch jobs, counting a call once; with a count, it opens **Terminal /
+Agent**, which lists the original background agents and lets you inspect their
+chats. This never starts a private User console or another model reply.
+**Plan** counts actual owning-turn model items, not repository-file checkboxes
+or acceptance. **Code change** counts changed files reported by the bound
+workspace's Git status, excluding protected paths; failed reads show no count
+rather than zero. Existing dirty-editor and running-console hide guards still
+apply. Artifacts remain in Settings / Artifacts.
 
-Background combines active owned subagents/coordinated children, running command
-and script calls, and independent command/watch jobs without double-counting a
-call. Incomplete activity uses a disclosed lower bound, not a fabricated exact
-count. It opens **Terminal / Agent**, which also lists the original background
-agents and lets you inspect their chats. This never starts a private User console
-or another model reply. Existing dirty-editor and running-console hide guards
-still apply. Artifacts counts active retained documents across this profile,
-matching the existing artifact resource, not just this chat's documents.
+**Code change** shows the linked pull request when one exists. Otherwise it
+shows the bound workspace changes (or the SendBox stage for Sandbox sessions),
+with **Link or open a pull request** below. Project groups require explicit
+repository selection for changes and have no PR association. The separate
+Changes panel was removed; saved layouts and `/diff` open Code change instead.
 
 Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
 `/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,
@@ -4088,8 +4096,9 @@ records coverage and the exact local development installer. Quit before
 replacing the app, then reopen matching clients/service; retained state is
 preserved, never deleted to upgrade.
 
-The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
-Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
+The desktop rail exposes Terminal, Browser, Insights, Code change, Files, Plan,
+Side chat and Work item for project sessions, and Terminal, Browser, Insights,
+Plan and Side chat for project-free chats. A connected PR opens in Code change.
 `/terminal`, its requested `/termnial` alias and the
 terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model

@@ -30,7 +30,7 @@ export function SessionNavigationControls({ search, changeSearch, filters, chang
       <button type="button" className="icon-button" aria-label="Filter sessions" title="Filter by session status" aria-haspopup="menu"
         aria-expanded={menu?.kind === "filter"} aria-pressed={filters.length > 0} onClick={(event) => open("filter", event.currentTarget)}><Icon name="Filter" /></button>
       <button type="button" className="icon-button" aria-label="Order sessions" title="Order by the latest sent prompt; unsent chats use creation time"
-        aria-description="Newest or oldest latest-prompt time; unsent chats use creation time." aria-haspopup="menu"
+        aria-description="Shows one flat list of sessions from every project, group and folder by newest or oldest latest-prompt time; unsent chats use creation time." aria-haspopup="menu"
         aria-expanded={menu?.kind === "order"} aria-pressed={order !== "default"} onClick={(event) => open("order", event.currentTarget)}><Icon name="Sort" /></button>
       {(filters.length > 0 || order !== "default") && <button type="button" className="quiet nav-reset" aria-label="Reset session filters and ordering"
         onClick={() => { changeFilters([]); changeOrder("default"); }}>Reset</button>}

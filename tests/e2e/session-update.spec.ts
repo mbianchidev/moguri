@@ -203,7 +203,10 @@ test("dropping a project on another names a folder, starts a captured multi-repo
     await expect(page.getByRole("combobox", { name: "Terminal repository", exact: true })).toHaveValue("");
     expect(fixture.service.controller.snapshot().terminals.filter((terminal) => terminal.sessionId === created.id)).toHaveLength(0);
     await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Code change", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Choose an individual repository chat", exact: true })).toBeVisible();
+    const change = page.getByRole("region", { name: "Session code change", exact: true });
+    await expect(change).toHaveAttribute("data-code-change", "changes");
+    await expect(change.getByRole("combobox", { name: "Changes repository", exact: true })).toHaveValue("");
+    await expect(change.locator(".code-change-pr-link")).toHaveCount(0);
     await page.getByRole("button", { name: "Projects menu", exact: true }).click();
     await page.getByRole("menuitem", { name: "Collapse all groups", exact: true }).click();
     await expect(folder).not.toHaveAttribute("open");

@@ -367,7 +367,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     const current = (await sdk.issues.board(project.id)).board;
     await sdk.issues.configure(project.id, { ...current, kanban: { ...kanbanPreferences(current), visible: !kanbanPreferences(current).visible } }, current.revision);
   });
-  const renderSession = (session: Session, depth: number) => {
+  const renderSession = (session: Session, depth: number, location?: string) => {
     const indicator = sessionIndicator(session, snapshot);
     const unread = unreadSession(session, snapshot);
     const selecting = selection?.projectId === session.projectId, selected = selecting ? selection.ids.includes(session.id) : session.id === selectedId;
@@ -410,6 +410,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("session", session.id, event.currentTarget, bounds.right, bounds.top);
       }}>
       <span className="status-dot session-status-dot" data-session-state={indicator.kind} title={indicator.label} aria-hidden="true" /><span className="session-link-text"><span>{sessionTitle(session, 60, "New chat")}</span>
+        {location && <small className="session-location">{location}</small>}
         {session.status === "waiting_input" && <small title="Needs attention">Needs attention</small>}</span><SessionIndicators indicator={indicator} />{session.pinned && <Icon name="Pin" />}{session.queue.length > 0 && <span className="queue-count">{session.queue.length}</span>}
     </button>}
   </div>;
@@ -495,6 +496,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       {page(key, entries, limit).map((session) => <div key={session.id}>{renderSession(session, depth)}{depth < 8 && generalTree(session.id, folderId, depth + 1)}</div>)}
       {more(key, entries.length, limit, label)}</>;
   };
+  const flat = promptOrder !== "default";
+  const flatSessions = flat ? snapshot.sessions.filter((session) => (session.status === "archived") === archived && session.purpose !== "kanban" &&
+    (!searchResults || searchResults.direct.has(session.id))).sort(priority) : [];
+  const sessionLocation = (session: Session) => session.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name ?? "Removed project" :
+    session.projectFolderId ? snapshot.projectFolders.find((group) => group.id === session.projectFolderId)?.name ?? "Chats" : "Chats";
   const menuSession = menu?.kind === "session" ? snapshot.sessions.find((session) => session.id === menu.id) : undefined;
   const projectMenu = menu?.kind === "project" ? snapshot.projects.find((project) => project.id === menu.id) : undefined;
   const folderMenu = menu?.kind === "folder" ? snapshot.projectFolders.find((folder) => folder.id === menu.id) : undefined;
@@ -516,6 +522,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     </p>
     {(error || actions.error) && <Alert as="p" className="inline-error" role="alert">{error || actions.error}</Alert>}
     <p className="sr-only" role="status" aria-label="Workspace navigation updates" aria-atomic="true">{navigationStatus}</p>
+    {flat ? <section className="project-group prompt-ordered-sessions" aria-label={`Sessions by ${promptOrder} prompt`}>{selection && bulk(selection.projectId)}
+      {page("prompt-ordered", flatSessions, 20).map((session) => <div key={session.id}>{renderSession(session, 0, sessionLocation(session))}</div>)}
+      {more("prompt-ordered", flatSessions.length, 20, "sessions")}</section> : <>
     {(!matches || general.length > 0) && <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
       <button type="button" className="icon-button" aria-label="New chat" title="New chat" aria-busy={creatingChat}
         disabled={busy || actions.busy || bulkBusy || creatingChat || archived || sdk.getState().status !== "connected"} onClick={() => {
@@ -543,6 +552,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         <button type="button" className="icon-button folder-actions" aria-label={`Project group actions for ${group.name}`} aria-haspopup="menu" aria-expanded={menu?.kind === "folder" && menu.id === group.id}
           onClick={(event) => { event.preventDefault(); event.stopPropagation(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.bottom); }}><Icon name="More" /></button>
       </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
+    </>}
     {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">{statusFilters.length ?
       "No sessions match these filters. Change a status or reset filters." : "Try another chat or project name, or clear the search."}</p>}
     {!matches && !snapshot.projects.length && !snapshot.sessions.length && !archived && <p className="nav-empty">Use New for a chat, a local folder or a repository.</p>}

@@ -12,7 +12,7 @@ test.skip(process.platform !== "darwin", "Desktop navigation uses generated hidd
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_SKILL_HOME: directory } });
 
-test("search opens explicitly and filters/order reset without changing drafts, grouping or stored session order", async () => {
+test("search opens explicitly, prompt order flattens every group and filters/order reset without changing drafts, grouping or stored session order", async () => {
   const f = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(f.service.connection).ready();
   await f.configure(); await f.send("Generated finished navigation prompt."); await f.terminal();
   await sdk.sessions.rename(f.sessionId, "Generated finished chat");
@@ -44,12 +44,18 @@ test("search opens explicitly and filters/order reset without changing drafts, g
     await expect(page.getByText("No sessions match these filters. Change a status or reset filters.", { exact: true })).toBeVisible();
     await reset.click();
     const chats = page.getByRole("region", { name: "Chats", exact: true });
-    for (const [label, expected] of [["Newest prompt first", "Generated newer unsent chat"], ["Oldest prompt first", "Generated older unsent chat"]] as const) {
+    const center = async (name: string) => { const box = (await page.getByRole("button", { name, exact: true }).boundingBox())!; return box.x + box.width / 2; };
+    expect(Math.abs(await center("Projects menu") - await center("New chat"))).toBeLessThanOrEqual(1);
+    for (const [label, order, locations] of [["Newest prompt first", "newest", ["Chats", "Chats", "project"]], ["Oldest prompt first", "oldest", ["project", "Chats", "Chats"]]] as const) {
       await page.getByRole("button", { name: "Order sessions", exact: true }).click();
       await page.getByRole("menu", { name: "Session ordering", exact: true }).getByRole("menuitemradio", { name: label, exact: true }).click();
-      await expect(chats.locator(".session-link").first()).toHaveText(expected);
+      const flat = page.getByRole("region", { name: `Sessions by ${order} prompt`, exact: true });
+      await expect(flat.locator(".session-location")).toHaveText([...locations]);
+      await expect(flat.locator(".session-link").first()).toContainText(order === "newest" ? "Generated newer unsent chat" : "Generated finished chat");
+      await expect(chats).toHaveCount(0); await expect(project).toHaveCount(0);
     }
-    await reset.click(); await expect(reset).toHaveCount(0);
+    await page.screenshot({ path: test.info().outputPath("prompt-ordered-navigation.png") });
+    await reset.click(); await expect(reset).toHaveCount(0); await expect(chats).toBeVisible();
     await expect(prompt).toHaveValue("Generated original navigation draft.");
     expect(sdk.getState().snapshot!.sessions.map((session) => [session.id, session.order])).toEqual(order);
     expect(f.requests).toHaveLength(1);

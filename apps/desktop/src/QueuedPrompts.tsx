@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 import type { Command, MoguriSdk, Session } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
-import { SidebarMenu } from "./ChatMenus.tsx";
+import { AnchoredMenu } from "./AnchoredMenu.tsx";
 import { AttachmentChip } from "./ContextAttachments.tsx";
 import { useCopyFeedback } from "./CopyButton.tsx";
 import { Icon } from "./Icon.tsx";
@@ -65,7 +65,7 @@ export function Queue({ session, command, client, modal }: {
         </div>}
       </ReorderList>
     </div>
-    {expanded && menu && <SidebarMenu label={`Queued message ${menuIndex + 1} actions`} sourceSessionId={session.id} trigger={trigger} close={() => setMenuId(null)} className="queued-message-menu">
+    {expanded && menu && <AnchoredMenu key={menu.id} label={`Queued message ${menuIndex + 1} actions`} trigger={trigger} close={() => setMenuId(null)} className="queued-message-menu">
       <p className="queued-message-preview">{menu.text || "Attached project context"}</p>
       <button type="button" aria-label={`Edit queued message ${menuIndex + 1}`} onClick={() => { setEditing(menu.id); setText(menu.text); setMenuId(null); }}><Icon name="Edit" />Edit message</button>
       <button type="button" aria-label={`Copy queued message ${menuIndex + 1}`} aria-busy={copy.pending || undefined} onClick={() => void copy.copy()}><Icon name={copy.copied ? "Check" : "Copy"} />{copy.copied ? "Copied" : "Copy message"}</button>
@@ -74,6 +74,6 @@ export function Queue({ session, command, client, modal }: {
       }}><Icon name="Clock" />Queue as new turn</button>}
       <span className="sr-only" role="status">{copy.copied ? "Copied." : ""}</span>
       {copy.error && <Alert as="p" className="inline-error" role="alert">{copy.error}</Alert>}
-    </SidebarMenu>}
+    </AnchoredMenu>}
   </section>;
 }

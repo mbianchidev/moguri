@@ -202,7 +202,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("complementary", { name: "Session sidebar" }).getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().artifacts.length).toBe(1);
     const artifactId = fixture.service.controller.snapshot().artifacts[0]!.id;
-    await page.getByRole("button", { name: "Changes", exact: true }).click();
+    await page.getByRole("button", { name: "Code change", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated local diff.");
     await slash("/subsession Generated attached session");
     await expect(page.getByRole("heading", { name: "Generated attached session", exact: true })).toBeVisible();

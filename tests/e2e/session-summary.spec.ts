@@ -11,7 +11,7 @@ test.skip(process.platform !== "darwin", "Desktop interaction qualification is m
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 
-test("session shortcuts open their owned views, preserve edits and expose background agents without starting a user console", async () => {
+test("sidebar rail counts open their owned views, preserve edits and expose background agents without starting a user console", async () => {
   const fixture = await setupFixture({ responseMode: "text", taskProgress: { action: "plan", title: "Generated shortcut task",
     steps: [{ text: "Inspect generated source", status: "done" }, { text: "Implement generated change", status: "in_progress" }, { text: "Review generated result", status: "pending" }] },
     platform: { integrations: { fetch: async () => Response.json({ number: 66, html_url: "https://github.com/generated/project/pull/66",
@@ -23,52 +23,54 @@ test("session shortcuts open their owned views, preserve edits and expose backgr
     await writeFile(join(fixture.project, "fixture.txt"), "Generated replacement.\nGenerated addition.\n");
     await mkdir(join(fixture.project, "docs")); await writeFile(join(fixture.project, "docs/plan.md"), "Generated workspace plan.\n");
     await fixture.configure(); await fixture.send("generated task progress shortcuts"); await fixture.terminal(); await sdk.refresh();
-    await sdk.sessions.organize(fixture.sessionId, { prUrl: "https://github.com/generated/project/pull/66" }, fixture.session().revision);
-    await sdk.artifacts.create(fixture.sessionId, { kind: "answer", name: "Generated session note", text: "Generated retained note." });
-    await sdk.artifacts.create(null, { kind: "answer", name: "Generated profile note", text: "Generated independent profile note." });
     const settings = sdk.settings.get()!;
     await sdk.settings.update({ ...settings.values, subagents: { ...settings.values.subagents, enabled: true } }, settings.revision);
     const created = await sdk.subagents.run(fixture.sessionId, "generated slow background subagent");
     const child = await waitFor(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === created.id && session.status === "running"));
     app = await launch(fixture.directory);
-    const page = await app.firstWindow(), shortcuts = page.getByRole("navigation", { name: "Session shortcuts", exact: true });
+    const page = await app.firstWindow(), rail = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
     const pane = page.getByRole("complementary", { name: "Session sidebar", exact: true }), prompt = page.getByRole("textbox", { name: "Prompt", exact: true });
-    await expect(shortcuts.getByRole("button", { name: "Open changes", exact: true })).toHaveText("Changes+2-1");
-    await expect(shortcuts.getByRole("button", { name: "Open linked pull request", exact: true })).toHaveText("PR#66");
-    await expect(shortcuts.getByRole("button", { name: "Open model plan", exact: true })).toHaveText("Plan3");
-    await expect(shortcuts.getByRole("button", { name: "Open background activity", exact: true })).toHaveText("Background1");
-    await expect(shortcuts.getByRole("button", { name: "Open artifacts", exact: true })).toHaveText("Artifacts2");
+    const code = rail.getByRole("button", { name: "Code change", exact: true }), plan = rail.getByRole("button", { name: "Plan", exact: true });
+    const terminal = rail.getByRole("button", { name: "Terminal", exact: true });
+    await expect(page.getByRole("navigation", { name: "Session shortcuts", exact: true })).toHaveCount(0);
+    await expect(code.locator(".panel-badge")).toHaveText("2");
+    await expect(plan.locator(".panel-badge")).toHaveText("3");
+    await expect(terminal.locator(".panel-badge")).toHaveText("1");
+    await expect(rail.getByRole("button", { name: "Insights", exact: true }).locator(".panel-badge")).toHaveCount(0);
     const requests = fixture.requests.length;
     await prompt.fill("Generated saved shortcut draft.");
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     for (const [width, height] of [[1280, 900], [840, 620]] as const) {
       await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0]!.setSize(size.width, size.height), { width, height });
-      expect(await shortcuts.evaluate((element) => {
+      expect(await rail.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
-        return [...element.querySelectorAll("button")].every((button) => {
-          const item = button.getBoundingClientRect();
+        return [...element.querySelectorAll(".panel-badge")].every((badge) => {
+          const item = badge.getBoundingClientRect();
           return item.left >= bounds.left && item.right <= bounds.right;
         });
       })).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-      await page.screenshot({ path: test.info().outputPath(`session-shortcuts-${width}.png`) });
+      await page.screenshot({ path: test.info().outputPath(`session-rail-badges-${width}.png`) });
     }
-    await shortcuts.getByRole("button", { name: "Open changes", exact: true }).click();
+    await code.click();
+    const change = pane.getByRole("region", { name: "Session code change", exact: true });
+    await expect(change).toHaveAttribute("data-code-change", "changes");
     await expect(pane.locator(".unified-diff")).toContainText("Generated addition.");
-    await shortcuts.getByRole("button", { name: "Open linked pull request", exact: true }).click();
-    await expect(pane.getByRole("region", { name: "Session code change", exact: true })).toContainText("https://github.com/generated/project/pull/66");
-    await shortcuts.getByRole("button", { name: "Open model plan", exact: true }).click();
+    await sdk.sessions.organize(fixture.sessionId, { prUrl: "https://github.com/generated/project/pull/66" }, fixture.session().revision);
+    await expect(change).toHaveAttribute("data-code-change", "pull-request");
+    await expect(change).toContainText("https://github.com/generated/project/pull/66");
+    await plan.click();
     await expect(pane.getByRole("region", { name: "Model task plan", exact: true })).toContainText("Review generated result");
     await expect(page.getByRole("tooltip")).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath("session-plan-840.png") });
     await pane.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
-    const plan = pane.getByRole("textbox", { name: "Project plan", exact: true });
-    await expect(plan).toHaveValue("Generated workspace plan.\n"); await plan.fill("Generated unsaved workspace edit.");
-    await shortcuts.getByRole("button", { name: "Open background activity", exact: true }).click();
-    await expect(plan).toHaveValue("Generated unsaved workspace edit.");
+    const planFile = pane.getByRole("textbox", { name: "Project plan", exact: true });
+    await expect(planFile).toHaveValue("Generated workspace plan.\n"); await planFile.fill("Generated unsaved workspace edit.");
+    await terminal.click();
+    await expect(planFile).toHaveValue("Generated unsaved workspace edit.");
     await expect(page.getByRole("tab", { name: "Agent", exact: true })).toHaveCount(0);
-    await pane.getByRole("button", { name: "Reload plan", exact: true }).click(); await expect(plan).toHaveValue("Generated workspace plan.\n");
-    await shortcuts.getByRole("button", { name: "Open background activity", exact: true }).press("Enter");
+    await pane.getByRole("button", { name: "Reload plan", exact: true }).click(); await expect(planFile).toHaveValue("Generated workspace plan.\n");
+    await terminal.press("Enter");
     await expect(pane.getByRole("tab", { name: "Agent", exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(pane.getByRole("region", { name: "Background subagents", exact: true })).toContainText(child.title);
     await expect(page.getByRole("textbox", { name: "Ghostty terminal", exact: true })).toHaveCount(0);
@@ -79,14 +81,11 @@ test("session shortcuts open their owned views, preserve edits and expose backgr
     await expect(pane.getByRole("tab", { name: "Agent", exact: true })).toHaveAttribute("aria-selected", "true");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(0);
     expect(fixture.session().draft.text).toBe("Generated saved shortcut draft.");
-    await shortcuts.getByRole("button", { name: "Open artifacts", exact: true }).click();
-    const artifacts = page.getByRole("region", { name: "Retained artifacts", exact: true });
-    await expect(artifacts.getByRole("combobox", { name: "Retained artifact", exact: true }).getByRole("option")).toHaveCount(3);
     expect(fixture.requests).toHaveLength(requests);
   } finally { await app?.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("a late original-root diff never becomes another chat's change count", async () => {
+test("a late original-root diff never becomes another chat's change count and project-free chats keep only chat panels", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), gate = Promise.withResolvers<void>();
   await generatedRepository(fixture.project); await writeFile(join(fixture.project, "fixture.txt"), "Generated old-root change.\n");
   const query = fixture.service.controller.platform.query.bind(fixture.service.controller.platform);
@@ -102,11 +101,12 @@ test("a late original-root diff never becomes another chat's change count", asyn
     await expect.poll(() => entered).toBe(true);
     const other = await sdk.sessions.create(null, "Generated alternate metadata");
     await page.locator(".session-link").filter({ hasText: "Generated alternate metadata" }).click();
-    const shortcuts = page.getByRole("navigation", { name: "Session shortcuts", exact: true });
-    await expect(shortcuts).toHaveAttribute("data-session-id", other.id!);
+    await expect(page.locator(".session-header")).toHaveAttribute("data-session-id", other.id!);
+    const rail = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
     gate.resolve(); await expect.poll(() => settled).toBe(true);
-    await expect(shortcuts.getByRole("button", { name: "Open changes", exact: true })).toHaveText("Changes");
-    await expect(shortcuts.getByRole("button", { name: "Open model plan", exact: true })).toHaveText("Plan");
+    await expect.poll(() => rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
+      .toEqual(["Terminal", "Browser", "Insights", "Plan", "Side chat"]);
+    await expect(rail.locator(".panel-badge")).toHaveCount(0);
     expect(fixture.requests).toHaveLength(0);
   } finally { gate.resolve(); fixture.service.controller.platform.query = query; await app.close(); sdk.disconnect(); await fixture.close(); }
 });

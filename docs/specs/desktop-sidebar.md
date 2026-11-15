@@ -18,7 +18,9 @@ exact refresh/stop, immutable repository/owner/visibility filtering and
 unassigned-history coverage. None of these grant tools or dispatch a model.
 Current left resources are Dashboard, Suggestions and Automations; Artifacts,
 Candidates and Sandbox are in Settings. The right rail is Terminal, Browser,
-Insights, Changes, Files, Plan, Side chat, Code change and Work item. Attention
+Insights, Code change, Files, Plan, Side chat and Work item for project and
+project-group sessions, and Terminal, Browser, Insights, Plan and Side chat for
+project-free chats. Attention
 is in the top bar. Protocol 60 removes Global Terminal navigation and its scope
 picker while preserving authenticated inspection/close for retained owners.
 Profile-resource shortcuts open the same independent workspace as the left
@@ -57,8 +59,9 @@ This sidebar is desktop-only. The TUI keeps its own navigation and split-panel p
 ## Navigation and layout
 
 The left resources are Dashboard, Suggestions and Automations. Session tools
-appear in the right rail as Terminal, Browser, Insights, Changes, Files, Plan,
-Side chat, Code change and Work item. The two link panels are per session;
+appear in the right rail as Terminal, Browser, Insights, Code change, Files,
+Plan, Side chat and Work item (project-free chats: Terminal, Browser, Insights,
+Plan, Side chat). The two link panels are per session;
 Automations and Work item remain intentionally empty placeholders.
 Extensions remains a roadmap panel, not an implemented additional entry.
 

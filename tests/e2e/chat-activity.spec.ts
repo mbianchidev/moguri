@@ -86,13 +86,8 @@ test("desktop expands original operations and public reasoning, copies only the 
     await expect(budget.getByRole("meter", { name: "Estimated context window", exact: true })).toHaveAttribute("max", "16384");
     await expect(budget.getByRole("button", { name: "View usage and limits...", exact: true })).toBeVisible();
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
-    const sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
-    await expect(sidebar.getByRole("dialog", { name: "Budget and usage", exact: true })).toBeVisible();
-    await expect(page.getByRole("form", { name: "Message composer", exact: true })).toBeVisible();
-    const sidebarBounds = await sidebar.boundingBox(), budgetBounds = await budget.boundingBox();
-    expect(budgetBounds!.x).toBeGreaterThanOrEqual(sidebarBounds!.x);
-    expect(budgetBounds!.x + budgetBounds!.width).toBeLessThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
-    expect(budgetBounds!.y + budgetBounds!.height).toBeLessThanOrEqual(sidebarBounds!.y + sidebarBounds!.height);
+    await expect.poll(async () => (await budget.boundingBox())!.height).toBeLessThan(400);
+    expect(await budget.evaluate((element) => element.matches(":popover-open") && !element.closest("#session-sidebar"))).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.screenshot({ path: resolve(".moguri/artifacts/chat-activity-budget.png") });
     await budget.getByRole("button", { name: "View usage and limits...", exact: true }).click();
