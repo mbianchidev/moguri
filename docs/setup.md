@@ -4060,9 +4060,12 @@ remotes show an error; no repository URL or account is guessed.
 Under **Settings / Skills**, global-folder switches support `~/.agents/skills`
 and `~/.moguri/skills`. Each requires confirmation showing its actual absolute
 Local folder, then **Save** before discovery. They are off until selected for
-this profile. Opening Settings does not enumerate either folder. Existing
-folder-existence, canonical-path, symlink, source-freshness and Local-only
-checks remain; complete inspection/admission is still separate from discovery.
+this profile. Opening Settings does not enumerate either folder. Linked skill
+folders and files are followed, as in other agent harnesses, even when they
+point outside the source. Broken links, links back into a parent folder and
+links into credential or key locations are skipped and logged. Folder-existence,
+source-freshness and Local-only checks remain, and complete inspection/admission
+is still separate from discovery.
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
