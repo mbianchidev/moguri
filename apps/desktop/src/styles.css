@@ -929,6 +929,9 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .capability-row > div, .job-row > div { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .capability-row small, .job-row small, .proposal-row > span { font-size: 11px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
 .capability-row code { font-size: 10px; color: var(--muted); }
+.capability-row { flex-wrap: wrap; }
+.capability-delete { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--subtle); }
+.capability-delete > span { flex: 1; min-width: 200px; line-height: 1.6; }
 .proposal-row strong { flex: 1; }
 .proposal-review { margin-top: 20px; padding: 16px; border: 1px solid var(--warning-line); border-radius: 6px; }
 .proposal-review pre { max-height: 400px; overflow: auto; }

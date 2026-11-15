@@ -1279,6 +1279,17 @@ stops on the first failure. Already-applied changes remain applied; refresh and
 retry remaining disabled entries explicitly. Neither action admits new source,
 enables another project/profile, nor grants tool or execution permissions.
 
+Each standalone imported skill also has a trash icon. It asks for inline
+confirmation, then removes the skill from the project's registry; chats that
+admitted it lose access because admissions and loads recheck the exact registry
+entry. Skills bundled in a plugin show **Plugin bundle** instead and stay with
+their plugin. Deletion requires the current revision, changes no other skill,
+script, plugin or permission, and keeps the skill's earlier versions in the
+profile's encrypted event history. The TUI and CLI use
+`/skills delete ID REVISION confirm-delete`. Protocol/schema 106 adds the
+`capability.deleted` event with a strict migration marker; existing state
+upgrades in place.
+
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
 **Code change** and **Work item** belong to the right rail and follow
