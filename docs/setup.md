@@ -537,6 +537,12 @@ provider credentials or arbitrary ambient secrets. The current SendBox0.2.6
 authenticate that metadata path. Do not work around the quota by putting a
 personal token in a guest, image, model context or blanket process environment.
 Authenticated metadata would need an explicitly reviewed host-only integration.
+The `coldNetwork` qualification probe makes no `/meta` request of its own, so a
+qualification run costs only SendBox's single lookup. The host checks SendBox's
+signed same-run Meta report (fresh state, success after launch, published
+domains/CIDRs) and samples the effective scope with a delegated domain and a
+literal GitHub API address. It also asserts that the guest's only HTTP request
+was the cold provider `/models` probe.
 
 Native JS/TS `goto_definition`/`find_references` use actual semantic tokens over
 bounded approved files, not name/regex guesses. Deterministic array tools are
