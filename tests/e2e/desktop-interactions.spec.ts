@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { compareSessionOrder, DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const launch = (directory: string) => electron.launch({ executablePath: require("electron"), args: [".", "--use-fake-device-for-media-stream"], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -188,7 +189,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await expect(confirm).toHaveCount(0);
     await page.reload(); await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(2);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
     const projectConsole = fixture.service.controller.snapshot().terminals.find((terminal) => terminal.sessionId === fixture.sessionId && terminal.status === "running");

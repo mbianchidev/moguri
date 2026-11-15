@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { cloneRepositoryFixture } from "../fixtures/clone-repository.ts";
-import { openModelChoices, waitForWorkspace } from "./navigation.ts";
+import { openModelChoices, waitForWorkspace, openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -135,7 +135,7 @@ test("an empty workspace creates no console, while explicitly created chats keep
     await expect(page.getByText("Open a session to see its terminal.", { exact: false })).toBeVisible();
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(0);
     expect(fixture.service.controller.snapshot().sessions).toHaveLength(0);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Create or select a session in this project first");
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(0);

@@ -195,8 +195,9 @@ test("project-group menu collapses and expands only its actual member projects w
     const folder = page.locator("details.project-folder").filter({ has: page.locator("summary .folder-name", { hasText: "Generated selected group" }) });
     const unrelated = page.locator("details.project-folder").filter({ has: page.locator("summary .folder-name", { hasText: "Generated unrelated group" }) });
     await unrelated.locator("summary").click();
-    const actions = folder.getByRole("button", { name: "Project group actions for Generated selected group", exact: true });
-    await actions.press("Enter");
+    await expect(folder.getByRole("button", { name: "Project group actions for Generated selected group", exact: true })).toHaveCount(0);
+    const actions = folder.locator("summary");
+    await actions.press("Shift+F10");
     const menu = page.getByRole("menu", { name: "Project group actions for Generated selected group", exact: true });
     await menu.getByRole("menuitem", { name: "Collapse all projects", exact: true }).press("Enter");
     await expect(actions).toBeFocused();
@@ -214,7 +215,7 @@ test("project-group menu collapses and expands only its actual member projects w
     await expect(folder.getByRole("button", { name: "Generated second member session", exact: true })).toBeVisible();
     await expect(unrelated).not.toHaveAttribute("open");
     expect(sdk.getState().snapshot!.projectConfigurations.filter((configuration) => configuration.folderId === selected).map((configuration) => configuration.projectId).sort()).toEqual(ids.slice(0, 2).sort());
-    await actions.click();
+    await actions.click({ button: "right" });
     const moved = (await sdk.projects.configuration(ids[1]!)).configuration;
     await sdk.projects.organize(ids[1]!, { folderId: null, order: moved.order, color: moved.color }, moved.revision);
     const outside = page.getByRole("region", { name: "Project generated-member", exact: true });

@@ -1,4 +1,4 @@
-import { finishIdleSchedule, openSettingsSection } from "./navigation.ts";
+import { finishIdleSchedule, openSettingsSection, openProjectMenu } from "./navigation.ts";
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -206,7 +206,7 @@ test("project dropdowns and toggles save only their changed fields, while nearby
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), configuration = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === fixture.session().projectId)?.values;
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Settings", exact: true }).click();
     const instructions = page.getByLabel("Project instruction override", { exact: true });
     await instructions.fill("Generated uncommitted project guidance.");

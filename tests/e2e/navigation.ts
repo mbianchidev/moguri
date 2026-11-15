@@ -53,3 +53,15 @@ export async function finishIdleSchedule(page: Page) {
   await schedule.getByRole("button", { name: "Schedule prompt", exact: true }).click();
   await expect(schedule).toBeHidden();
 }
+
+export function projectName(page: Page, name: string): Locator {
+  return page.locator(".project-name").filter({ has: page.getByText(name, { exact: true }) });
+}
+export async function openProjectMenu(page: Page, name: string): Promise<Locator> {
+  await projectName(page, name).click({ button: "right" });
+  return page.getByRole("menu", { name: `Project actions for ${name}`, exact: true });
+}
+export async function openGroupMenu(page: Page, name: string): Promise<Locator> {
+  await page.locator(".project-folder > summary").filter({ has: page.getByText(name, { exact: true }) }).click({ button: "right" });
+  return page.getByRole("menu", { name: `Project group actions for ${name}`, exact: true });
+}

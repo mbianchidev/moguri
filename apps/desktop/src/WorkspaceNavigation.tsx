@@ -194,9 +194,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   };
   const openMenu = (kind: NavigationMenu["kind"], id: string, anchor: HTMLElement, x: number, y: number) => {
     if (allow()) {
-      const trigger = kind === "project" ? anchor.closest(".project-row")?.querySelector<HTMLButtonElement>(".project-actions") ?? null :
-        kind === "folder" ? anchor.closest("summary")?.querySelector<HTMLButtonElement>(".folder-actions") ?? null : null;
-      anchor.focus(); setMenu({ kind, id, x, y, anchor, trigger });
+      anchor.focus(); setMenu({ kind, id, x, y, anchor, trigger: null });
     }
   };
   const saveNavigationColor = (operation: () => Promise<unknown>) => {
@@ -454,7 +452,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       <button type="button" className="icon-button project-collapse" aria-label={`${collapsedProjects.has(project.id) ? "Expand" : "Collapse"} project ${project.name}`}
         aria-expanded={!collapsedProjects.has(project.id)} onClick={() => setCollapsedProjects((current) => {
           const next = new Set(current); if (next.has(project.id)) next.delete(project.id); else next.add(project.id); return next;
-        })}><span className={`folder-chevron${collapsedProjects.has(project.id) ? " collapsed" : ""}`}><Icon name="Down" /></span></button>
+        })}><span className="project-color" style={{ color: configuration.color }}><Icon name={collapsedProjects.has(project.id) ? "Files" : "FolderOpen"} /></span></button>
       <button className="project-name" data-project-id={project.id} aria-haspopup="menu" aria-expanded={menu?.kind === "project" && menu.id === project.id}
         aria-description="Open settings. Right-click or Shift+F10 for actions and icon color. Drop onto another project to name a folder; use row edges or Alt+Up/Down to reorder siblings." title={`Project settings: ${project.path}`} onClick={() => settings(project.id)}
         onKeyDown={(event) => {
@@ -462,12 +460,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
             event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("project", project.id, event.currentTarget, bounds.right, bounds.top);
           }
-        }}><span className="project-color" style={{ color: configuration.color }}><Icon name="Files" /></span><span className="project-label">{project.name}</span></button>
-      <button type="button" className="icon-button project-actions" title={`Project actions for ${project.name}`} aria-label={`Project actions for ${project.name}`} aria-haspopup="menu" aria-expanded={menu?.kind === "project" && menu.id === project.id}
-        onClick={(event) => {
-          if (menu?.kind === "project" && menu.id === project.id) { closeMenu(); return; }
-          const bounds = event.currentTarget.getBoundingClientRect(); openMenu("project", project.id, event.currentTarget, bounds.right, bounds.top);
-        }}><Icon name="More" /></button></header>
+        }}><span className="project-label">{project.name}</span></button></header>
       {!collapsedProjects.has(project.id) && <>{bulk(project.id)}{pinned.length > 0 && <div className="pinned-sessions" aria-label={`Pinned sessions in ${project.name}`}>
         {pinned.map((session) => <div key={session.id}>{renderSession(session, 0)}{tree(session.id, session.groupId, 1)}</div>)}</div>}
         {boardVisible && <><button className={`session-link kanban-link ${selectedId === boardChat?.id ? "selected" : ""}`} aria-label={`Kanban for ${project.name}`}
@@ -543,14 +536,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
             event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.top);
           }
-        }}><span className={`folder-chevron${collapsedFolders.has(group.id) ? " collapsed" : ""}`}><Icon name="Down" /></span><span className="folder-icon" style={{ color: groupColor(group) }}><Icon name="Files" /></span><span className="folder-name">{group.name}</span>
-        <button type="button" className="icon-button" aria-label={`New chat in ${group.name}`} title="Local chat with access to every repository in this folder"
-          disabled={busy || !snapshot.policy.allowedEnvs.includes("Local") || !snapshot.projectConfigurations.some((configuration) => configuration.folderId === group.id)}
-          onClick={(event) => { event.preventDefault(); event.stopPropagation(); void run(async () => {
-            const result = await sdk.sessions.createFolder(group.id, `${group.name} chat`, { env: "Local" }); await chooseSession(result.id!);
-          }); }}><Icon name="Plus" /></button>
-        <button type="button" className="icon-button folder-actions" aria-label={`Project group actions for ${group.name}`} aria-haspopup="menu" aria-expanded={menu?.kind === "folder" && menu.id === group.id}
-          onClick={(event) => { event.preventDefault(); event.stopPropagation(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.bottom); }}><Icon name="More" /></button>
+        }}
+        aria-description="Click to collapse or expand. Right-click or Shift+F10 for group actions."><span className="folder-icon" style={{ color: groupColor(group) }}><Icon name={collapsedFolders.has(group.id) ? "Files" : "FolderOpen"} /></span><span className="folder-name">{group.name}</span>
       </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
     </>}
     {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">{statusFilters.length ?
@@ -582,6 +569,10 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   {menu && folderMenu && <WorkspaceContextMenu label={`Project group actions for ${folderMenu.name}`} point={menu} close={closeMenu}>
     <NavigationColors label="Project group icon color" color={groupColor(folderMenu)} busy={savingColor} pick={(color) => saveFolderColor(folderMenu, color)}
       customLabel="Custom group color" custom={() => open({ kind: "folder-color", folder: folderMenu, anchor: menu.anchor })} />
+    <button role="menuitem" disabled={busy || !snapshot.policy.allowedEnvs.includes("Local") || !snapshot.projectConfigurations.some((configuration) => configuration.folderId === folderMenu.id)}
+      title="Local chat with access to every repository in this group" onClick={() => void run(async () => {
+        const result = await sdk.sessions.createFolder(folderMenu.id, `${folderMenu.name} chat`, { env: "Local" }); await chooseSession(result.id!);
+      })}><Icon name="Plus" />New chat</button>
     <button role="menuitem" onClick={() => collapseGroupProjects(folderMenu, false)}><Icon name="Maximize" />Expand all projects</button>
     <button role="menuitem" onClick={() => collapseGroupProjects(folderMenu, true)}><Icon name="Minimize" />Collapse all projects</button>
     <button role="menuitem" disabled={busy || !snapshot.policy.allowedEnvs.includes("Sandbox") ||

@@ -1,4 +1,4 @@
-import { openSettingsSection } from "./navigation.ts";
+import { openSettingsSection, openProjectMenu } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile } from "node:fs/promises";
@@ -51,7 +51,7 @@ test("desktop retains real model provenance, persists exports and keeps artifact
     await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.artifacts.length).toBe(3);
     expect(sdk.getState().snapshot!.sessions.length).toBe(0);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Remove", exact: true }).click();
     const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
     await expect(removal).toContainText("2 independent documents");
@@ -77,7 +77,7 @@ test("desktop project export must be saved before its reviewed copies can be del
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_EXPORT_DIR: exports } });
   try {
     const page = await app.firstWindow();
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Remove", exact: true }).click();
     const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
     await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("export");
@@ -129,7 +129,7 @@ test("desktop organizes actual documents and verifies a reviewed local repositor
     expect(git(["rev-parse", "HEAD"])).toBe(head);
     expect(await readFile(join(fixture.project, ".git/index"))).toEqual(index);
     expect(git(["branch", "--list", "generated/ui-artifact-copy"])).toContain("generated/ui-artifact-copy");
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Remove", exact: true }).click();
     const removal = page.getByRole("dialog", { name: "Remove project", exact: true });
     await removal.getByLabel("Artifact disposition", { exact: true }).selectOption("materialize");

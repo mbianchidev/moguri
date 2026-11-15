@@ -6,7 +6,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
-import { finishIdleSchedule, openModelChoices } from "./navigation.ts";
+import { finishIdleSchedule, openModelChoices, openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const artifacts = resolve(".moguri/artifacts");
@@ -234,7 +234,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.getByRole("button", { name: "Close terminal", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().terminals.find((entry) => entry.id === terminal.id)?.status).toBe("closed");
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("region", { name: "Per-project settings" })).toBeVisible();
     await page.getByLabel("Preview port", { exact: true }).fill("4321");

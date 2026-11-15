@@ -6,7 +6,7 @@ import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { scriptReviewFixture } from "../fixtures/script-review.ts";
-import { openSettingsSection, waitForWorkspace } from "./navigation.ts";
+import { openSettingsSection, waitForWorkspace, openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop qualification is macOS-only.");
@@ -57,13 +57,13 @@ test("New chat creates a real default worktree and its desktop console never fal
   const app = await launch(f.directory);
   try {
     const page = await app.firstWindow(); await waitForWorkspace(page);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "New chat", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.workspaceOrigin === "default-worktree")?.workspaceId).toBeTruthy();
     const session = sdk.getState().snapshot!.sessions.find((session) => session.workspaceOrigin === "default-worktree")!;
     const workspace = await sdk.workspaces.wait(session.workspaceId!);
     await expect(page.locator(".session-header")).toContainText(workspace.branch);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot?.terminals.find((terminal) => terminal.sessionId === session.id)?.workspaceId).toBe(workspace.id);
     const terminal = sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === session.id)!;

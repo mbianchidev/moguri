@@ -44,7 +44,9 @@ test("project context menus offer rainbow presets and preserve project settings,
     const current = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === projectId)!;
     await expect.poll(() => current().color).toBe("#3b82f6");
     expect(current().folderId).toBe(group.id); expect(current().order).toBe(4); expect(current().values).toEqual(before.values);
-    await expect(project.locator(".project-color")).toHaveCSS("color", "rgb(59, 130, 246)");
+    const folderIcon = page.getByRole("button", { name: "Collapse project project", exact: true }).locator(".project-color");
+    await expect(folderIcon).toHaveCSS("color", "rgb(59, 130, 246)");
+    await expect(folderIcon.locator('svg[data-icon="FolderOpen"]')).toBeVisible();
     await page.reload();
     await project.click({ button: "right" });
     await expect(menu.getByRole("menuitemradio", { name: "Blue", exact: true })).toHaveAttribute("aria-checked", "true");
@@ -53,26 +55,26 @@ test("project context menus offer rainbow presets and preserve project settings,
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("project colors work from keyboard context menus and the actions trigger toggles the same menu", async () => {
+test("project colors work from keyboard and two-finger context menus without a separate actions button", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), project = page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "project", exact: true });
-    const trigger = page.getByRole("button", { name: "Project actions for project", exact: true });
     const menu = page.getByRole("menu", { name: "Project actions for project", exact: true });
+    await expect(page.getByRole("button", { name: "Project actions for project", exact: true })).toHaveCount(0);
     await project.focus(); await project.press("Shift+F10");
     await expect(menu).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0); await expect(project).toBeFocused();
-    await trigger.click(); await expect(menu).toBeVisible();
-    await trigger.click(); await expect(menu).toHaveCount(0);
-    await trigger.click(); await page.keyboard.press("Home");
+    await project.click({ button: "right" }); await expect(menu).toBeVisible();
+    await page.keyboard.press("Escape"); await expect(menu).toHaveCount(0);
+    await project.click({ button: "right" }); await page.keyboard.press("Home");
     await expect(menu.getByRole("menuitemradio", { name: "Red", exact: true })).toBeFocused();
     for (let step = 0; step < 4; step++) await page.keyboard.press("ArrowRight");
     await expect(menu.getByRole("menuitemradio", { name: "Blue", exact: true })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().projectConfigurations[0]?.color).toBe("#3b82f6");
-    await expect(trigger).toBeFocused();
-    await trigger.click(); await page.keyboard.press("Home"); await page.keyboard.press("ArrowLeft");
+    await expect(project).toBeFocused();
+    await project.click({ button: "right" }); await page.keyboard.press("Home"); await page.keyboard.press("ArrowLeft");
     await expect(menu.getByRole("menuitemradio", { name: "Custom project color", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowLeft");
     await expect(menu.getByRole("menuitemradio", { name: "Violet", exact: true })).toBeFocused();
@@ -87,25 +89,25 @@ test("custom project colors save only on confirmation, can return to a preset, a
   const projectId = fixture.session().projectId, defaultColor = defaultProjectConfiguration(projectId).color;
   const currentColor = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === projectId)?.color ?? defaultColor;
   try {
-    const page = await app.firstWindow(), trigger = page.getByRole("button", { name: "Project actions for project", exact: true });
+    const page = await app.firstWindow(), trigger = page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "project", exact: true });
     const menu = page.getByRole("menu", { name: "Project actions for project", exact: true });
-    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Custom project color", exact: true }).click();
+    await trigger.click({ button: "right" }); await menu.getByRole("menuitemradio", { name: "Custom project color", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Project color", exact: true });
     await dialog.getByLabel("Custom project color", { exact: true }).fill("#7860a3");
     expect(currentColor()).toBe(defaultColor);
     await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(currentColor()).toBe(defaultColor);
-    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Custom project color", exact: true }).click();
+    await trigger.click({ button: "right" }); await menu.getByRole("menuitemradio", { name: "Custom project color", exact: true }).click();
     await dialog.getByLabel("Custom project color", { exact: true }).fill("#7860a3");
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(currentColor).toBe("#7860a3");
     await expect(trigger).toBeFocused();
-    await trigger.click();
+    await trigger.click({ button: "right" });
     await expect(menu.getByRole("menuitemradio", { name: "Custom project color", exact: true })).toHaveAttribute("aria-checked", "true");
     await expect(menu.getByText("Default color", { exact: true })).toHaveCount(0);
     await menu.getByRole("menuitemradio", { name: "Green", exact: true }).click();
     await expect.poll(currentColor).toBe("#2f9e44");
-    await trigger.click(); await expect(menu.getByRole("menuitemradio", { name: "Green", exact: true })).toHaveAttribute("aria-checked", "true");
+    await trigger.click({ button: "right" }); await expect(menu.getByRole("menuitemradio", { name: "Green", exact: true })).toHaveAttribute("aria-checked", "true");
     await menu.getByRole("menuitem", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("region", { name: "Per-project settings" })).toBeVisible();
     await expect(page.getByLabel("Icon color for project", { exact: true })).toHaveCount(0);
@@ -125,11 +127,11 @@ test("pending color changes reject stale revisions visibly and preserve a newer 
   };
   const app = await launch(fixture.directory);
   try {
-    const page = await app.firstWindow(), trigger = page.getByRole("button", { name: "Project actions for project", exact: true });
+    const page = await app.firstWindow(), trigger = page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "project", exact: true });
     const menu = page.getByRole("menu", { name: "Project actions for project", exact: true });
-    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Blue", exact: true }).click();
+    await trigger.click({ button: "right" }); await menu.getByRole("menuitemradio", { name: "Blue", exact: true }).click();
     await expect.poll(() => attempts).toBe(1);
-    await trigger.click();
+    await trigger.click({ button: "right" });
     await expect(menu.getByRole("menuitemradio", { name: "Red", exact: true })).toBeDisabled();
     await page.keyboard.press("Escape");
     const configuration = (await sdk.projects.configuration(projectId)).configuration;
@@ -139,7 +141,7 @@ test("pending color changes reject stale revisions visibly and preserve a newer 
     const current = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === projectId)!;
     expect(current().color).toBe(configuration.color); expect(current().folderId).toBe(group.id); expect(current().order).toBe(7);
     expect(attempts).toBe(1);
-    await trigger.click(); await menu.getByRole("menuitemradio", { name: "Blue", exact: true }).click();
+    await trigger.click({ button: "right" }); await menu.getByRole("menuitemradio", { name: "Blue", exact: true }).click();
     await expect.poll(() => current().color).toBe("#3b82f6");
     expect(attempts).toBe(2); expect(current().folderId).toBe(group.id); expect(current().order).toBe(7);
     expect(fixture.requests).toHaveLength(0);

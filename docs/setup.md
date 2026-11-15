@@ -1819,11 +1819,16 @@ Settings toolbar in place. Keyboard focus can still reach controls at the bottom
 Chats initially shows ten root sessions; each project or captured project group
 shows five, and each parent shows five subsessions. Quiet **Show more/Show less**
 controls expand only that list. Search reveals matching sessions and their
-parents. Project chevrons fold sessions without moving or archiving them.
-A project's settings button remains separate from its collapse button.
+parents. A project's folder icon is its collapse control: an open folder means
+its sessions are shown, a closed folder means they are folded. Folding never
+moves or archives sessions. Clicking the project name still opens its settings.
+Project groups work the same way: click the group row to fold it, and its
+folder icon shows open or closed. Rows have no **More** or **+** buttons; use a
+right-click (two-finger tap) or **Shift+F10** for actions.
 
-The project group's **More** menu offers seven icon colors, a custom color
-picker, **Expand all projects**, **Collapse all projects** and **Ungroup**.
+The project group's context menu offers seven icon colors, a custom color
+picker, **New chat** (Local, every member repository), **Expand all
+projects**, **Collapse all projects**, **New Sandbox chat** and **Ungroup**.
 Expand/collapse affects only that group's member projects (attached folders),
 preserving unrelated groups, drafts and session ownership. Expanding also opens
 the selected outer group; it does not change paging or persisted project data.
@@ -4015,8 +4020,8 @@ instead of extending below the turn-navigation rail. Expanded previews retain
 their established adjacent wide layout and compact overlay without forcing the
 composer into the overlay's width.
 
-Right-click a project header, press **Shift+F10** while it is focused, or open
-its **Project actions** button to choose an icon color. The same context menu
+Right-click (two-finger tap) a project header or press **Shift+F10** while it
+is focused to choose an icon color. The same context menu
 offers named red, orange, yellow, green, blue, indigo and violet presets, plus
 a half-white/half-black pencil swatch for a custom color. It opens a preview
 that changes the project only after **Save**; Cancel leaves the saved color

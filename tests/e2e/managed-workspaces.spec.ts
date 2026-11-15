@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk, type ManagedWorkspace } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop execution is qualified on macOS.");
@@ -51,7 +52,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await page.locator(".plan-panel").getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(async () => readFile(join(workspace.path, "docs/plan.md"), "utf8").catch(() => "")).toBe("Generated isolated desktop plan.");
     await expect(readFile(join(fixture.project, "docs/plan.md"))).rejects.toThrow(/ENOENT/);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)?.workspaceId).toBe(workspace.id);
     const terminal = sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)!;

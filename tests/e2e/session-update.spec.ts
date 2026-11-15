@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
-import { openSessionSearch } from "./navigation.ts";
+import { openSessionSearch, openGroupMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -185,7 +185,8 @@ test("dropping a project on another names a folder, starts a captured multi-repo
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
     const folder = page.locator(".project-folder").filter({ hasText: "Generated folder" });
     await expect(folder.locator(".project-row")).toHaveCount(2);
-    await folder.getByRole("button", { name: "New chat in Generated folder", exact: true }).click();
+    await expect(folder.getByRole("button", { name: "New chat in Generated folder", exact: true })).toHaveCount(0);
+    await (await openGroupMenu(page, "Generated folder")).getByRole("menuitem", { name: "New chat", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.some((session) => session.repositories?.length === 2)).toBe(true);
     const created = fixture.service.controller.snapshot().sessions.find((session) => session.repositories?.length === 2)!;
     await expect(folder.locator(`button[data-session-id="${created.id}"]`)).toBeVisible();
