@@ -1580,8 +1580,11 @@ audit missed: npm root overrides do not propagate to dependent installations.
 The spreadsheet writer was replaced rather than waiving the advisory or
 modifying the consumer's policy. Both actual dependency graphs now pass.
 The external consumer still reports the existing `whatwg-encoding` and
-`node-domexception` deprecations; the Vite build retains its greater-than-500-kB
-chunk warning and OpenTUI's experimental FFI warning remains expected.
+`node-domexception` deprecations; OpenTUI's experimental FFI warning remains
+expected. The desktop build no longer reports chunks above 500 kB: it drops
+ghostty-web's unused embedded wasm fallback (Moguri always loads the bundled
+`.wasm` asset), splits the shared protocol/SDK code under strict execution order
+(its schemas reference each other across modules) and lazy-loads the Dashboard.
 
 Declared skipped gates remain unqualified. These checks do not qualify a
 matching new physical native image, every language DAP adapter, live provider
@@ -1642,7 +1645,7 @@ Root and image installs no longer emit the requested deprecated-package notices.
 npm does not inherit a dependency's overrides, so a generated external SDK host
 without its own compatibility policy still reports those upstream notices;
 the scoped host configuration remains in [the SDK guide](sdk.md).
-Non-blocking build/package notices remain for large UI chunks and the optional
+A non-blocking package notice remains for the optional
 Apple `.icon` companion format; the ordinary bundled `.icns` is retained.
 Historical source qualifications below are not relabeled as this integrated run.
 
@@ -1673,9 +1676,12 @@ choose **Enable SendBox**. No configuration editor, paths, build or manual
 workspace preparation is required. An already configured exact root-owned
 0.2.7 installation can be reused. SendBox 0.2.7 is the only supported release
 and the minimum Moguri accepts. A saved older selection still loads with its
-encrypted history, but native execution and setup review block it until you
-explicitly review and enable the bundled 0.2.7 setup. It is never silently
-upgraded, accepted as current evidence or replaced by a Local fallback.
+encrypted history, but native execution blocks it. Settings > Sandbox (and
+`/sandbox setup` without a version) then states that the saved release is no
+longer supported and opens the bundled 0.2.7 review instead; the saved
+selection changes only when you enable that review. An explicitly requested
+older version is still refused. It is never silently upgraded, accepted as
+current evidence or replaced by a Local fallback.
 A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
@@ -4003,6 +4009,15 @@ each row names its project or group, so combining it with a status filter such
 as In progress shows active work scattered across the sidebar. **Reset** appears
 when status filters or explicit ordering are selected, restores the grouped
 default order, and does not clear the composer or rewrite stored drag order.
+
+If a project's folder is moved or deleted outside Moguri, Code change, Files,
+Side chat, Work item, project Git and new turns report the exact missing path
+(`project_folder_missing`) instead of a generic or "install Git" error, and
+never fall back to another folder or make a model call. The panel offers
+**Change attached folder…** (point the project at the moved folder) and
+**Remove project…**, the same actions as the project's context menu. Other
+unexpected missing paths are reported as `path_missing` with the path, and
+`service.log` names the failing request type and short session ID.
 Reset prompt ordering before manually reordering sessions. Clearing a filter restores the
 previous project/group collapse choices.
 
