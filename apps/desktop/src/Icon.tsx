@@ -2,7 +2,7 @@ import type { ModelInfo } from "../../../packages/sdk/src/index.ts";
 
 const paths: Record<string, string> = {
   Changes: "M8 3v18m8-18v18M4 7h8m0 10h8", Terminal: "m4 6 6 6-6 6m9 0h7",
-  Files: "M3 6h7l2 3h9v11H3Z", Browser: "M3 5h18v15H3Zm0 4h18",
+  Files: "M3 6h7l2 3h9v11H3Z", FolderOpen: "M3 20V6h7l2 3h7v2M3 20l4-9h15l-4 9Z", Browser: "M3 5h18v15H3Zm0 4h18",
   File: "M6 3h9l4 4v14H6Zm8 0v5h5",
   ReadFile: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
   CreateFile: "M6 3h9l4 4v14H6Zm8 0v5h5m-3 4v6m-3-3h6",

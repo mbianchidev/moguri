@@ -214,30 +214,17 @@ keeps generated evidence separate from physical native and hosted-CI gates.
 
 ## First-milestone combination qualification
 
-The [required combination and native-gate map](architecture/milestone-combination-matrix.md)
+Milestone 1 is accepted at protocol 106 with SendBox 0.2.7. The
+[required combination and native-gate map](architecture/milestone-combination-matrix.md)
 defines all Local/SSH/Sandbox control/input cells, actual-user and accounting
-criteria, reproduction commands and exact report identities. Local/SSH
-generated source execution and real TUI/hidden-desktop interaction are separate
-from physical native acceptance. Released SendBox 0.2.4's Meta-DNS prerequisite,
-fresh current-protocol guest/control/network/cleanup/loss/recovery evidence and
-account-blocked main CI remain visible gates. Neither issue #38 nor Milestone 1
-is accepted by a source test count or a historical receipt.
-The preceding protocol93 clean `5051b6f` qualification completes **6,720 Local/SSH source
-cells**, the full **10,538-pass** source suite, **376-pass** hidden desktop
-suite, independently installed SDK and the actual ad-hoc package. All
-**3,360 native cells remain unqualified**. The fresh development DMG is under
-`release/qualification-builds/milestone93-d7f6648/`; its exact digest, producer
-image and retained report are in the linked map. It is not a native-qualified
-or notarized release. Those immutable receipts do not qualify changed
-protocol94 worker/app bytes. The
-[new frozen protocol94 qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
-at clean `07087bf` independently passes all **6,720 Local/SSH cells**,
-**10,562 source checks**, **382 hidden desktop flows**, the installed SDK,
-actual packaged runtime and **17 actual packaged desktop checks**. Its new
-verified development DMG is
-`release/qualification-builds/milestone94-07087bf/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
-Physical native and hosted gates remain open. SendBox's DNS repair merged, but
-the latest released dependency is still the pre-repair 0.2.4 byte set.
+criteria and reproduction commands; its
+[final qualification](architecture/milestone-combination-matrix.md#final-qualification-2026-11-15)
+records 6,720/6,720 Local/SSH and 3,360/3,360 native cells, ten physical
+native gates and the full source, hidden desktop, SDK and package runs. The
+[acceptance record](remaining-milestone-gaps.md#milestone-1-accepted-2026-11-15)
+maps each milestone criterion to its evidence and records the user-directed
+replacement of hosted CI with that local evidence. Physical native runs need
+the reviewed receipts from `npm run prepare:sandbox` and `scripts/qualify-sandbox.mjs`.
 Fresh macOS source-test environments also require the matching installed
 Chromium revision: run `npm exec -- playwright install chromium` explicitly
 after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
@@ -457,6 +444,17 @@ connection. Saved chat drafts remain encrypted and service-owned; the live
 composer restores them only after authentication. Last-view hints and model
 labels never replace a peer draft, restore a deleted chat or authorize sending.
 
+The first start after upgrading from a release that saved a card revision and
+a refresh job on every GitHub poll removes those polling-only records and
+compacts `state.sqlite`. This can take several seconds once, and `service.log`
+reports how many were removed. Card text, phases, links, the latest sync
+status and every real change are kept. Fully quit Moguri (or run
+`moguri service restart`) so the new service starts.
+
+Each start writes `Service ready in <ms> ms with <n> retained events (<MiB>)`
+to `service.log` and adds a **Startup health** warning naming the largest event
+types when history is unusually large or startup takes 5 seconds or more.
+
 An unconfirmed 60-second service startup now offers **Reconnect to original
 service** while preserving the original service's saved drafts. Reconnect
 only retries authenticated readiness for the captured original owner; it does
@@ -532,11 +530,20 @@ implemented; a general-purpose automation engine is not claimed.
 CLI in; check it with `gh auth status`. This is separate from Copilot provider
 login and SendBox's public GitHub `/meta` lookup. The native host process
 intentionally receives only its qualified `PATH` and `HOME`, not `GH_TOKEN`,
-provider credentials or arbitrary ambient secrets. The current SendBox0.2.6
+provider credentials or arbitrary ambient secrets. The current SendBox 0.2.7
 `run` interface exposes no login switch, so signing the CLI in does not
-authenticate that metadata path. Do not work around the quota by putting a
+authenticate that metadata path. SendBox 0.2.7 makes at most about one
+anonymous `/meta` request per hour per machine: its host revalidates one shared
+cache (`~/.sendbox/run/github-meta.json`) with ETag and seeds each guest, and
+guests never contact GitHub Meta. Do not work around the quota by putting a
 personal token in a guest, image, model context or blanket process environment.
 Authenticated metadata would need an explicitly reviewed host-only integration.
+The `coldNetwork` qualification probe makes no `/meta` request of its own, so a
+qualification run adds no lookup beyond that shared hourly revalidation. The
+host checks SendBox's signed same-run Meta report (fresh state, last success
+within one refresh interval of launch, published domains/CIDRs) and samples
+the effective scope with a delegated domain and a literal GitHub API address. It also asserts that the guest's only HTTP request
+was the cold provider `/models` probe.
 
 Native JS/TS `goto_definition`/`find_references` use actual semantic tokens over
 bounded approved files, not name/regex guesses. Deterministic array tools are
@@ -664,8 +671,9 @@ native-model/Local-Git boundary also requires current Local allowed-env policy.
 Neither metadata, a model answer nor a generic inspection acknowledgement
 supplies those approvals.
 Sandbox must use the current exact
-worker/distribution qualification, not historical bytes or installed SendBox
-0.2.3. No personal model inference or sign-in is used to qualify this slice.
+worker/distribution qualification, not historical bytes or an older installed
+SendBox release. No personal model inference or sign-in is used to qualify
+this slice.
 
 Protocol84 appends independent recovery, scheduling and Kupo-mode markers while
 preserving genuine combined80/81/82/83 history, ciphertext and receipts.
@@ -1011,7 +1019,7 @@ single-repository chat. Click the folder header to expand/collapse it, or use
 Edge drops continue to reorder projects.
 
 Folder tools explicitly select a captured repository by ID or original name.
-Files, Changes and Terminal have repository pickers; no first member,
+Files, Code change and Terminal have repository pickers; no first member,
 common-parent directory or HOME console is substituted. Folder sessions are
 currently Local-only. PR, Work item and workspace plan files remain
 single-repository surfaces: open them from an individual member project's chat.
@@ -1272,6 +1280,17 @@ to the listed project's imported skills, reports acknowledged progress and
 stops on the first failure. Already-applied changes remain applied; refresh and
 retry remaining disabled entries explicitly. Neither action admits new source,
 enables another project/profile, nor grants tool or execution permissions.
+
+Each standalone imported skill also has a trash icon. It asks for inline
+confirmation, then removes the skill from the project's registry; chats that
+admitted it lose access because admissions and loads recheck the exact registry
+entry. Skills bundled in a plugin show **Plugin bundle** instead and stay with
+their plugin. Deletion requires the current revision, changes no other skill,
+script, plugin or permission, and keeps the skill's earlier versions in the
+profile's encrypted event history. The TUI and CLI use
+`/skills delete ID REVISION confirm-delete`. Protocol/schema 106 adds the
+`capability.deleted` event with a strict migration marker; existing state
+upgrades in place.
 
 Protocol 59 adds the [workspace experience and skill gateway](architecture/workspace-experience.md).
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
@@ -1572,8 +1591,11 @@ audit missed: npm root overrides do not propagate to dependent installations.
 The spreadsheet writer was replaced rather than waiving the advisory or
 modifying the consumer's policy. Both actual dependency graphs now pass.
 The external consumer still reports the existing `whatwg-encoding` and
-`node-domexception` deprecations; the Vite build retains its greater-than-500-kB
-chunk warning and OpenTUI's experimental FFI warning remains expected.
+`node-domexception` deprecations; OpenTUI's experimental FFI warning remains
+expected. The desktop build no longer reports chunks above 500 kB: it drops
+ghostty-web's unused embedded wasm fallback (Moguri always loads the bundled
+`.wasm` asset), splits the shared protocol/SDK code under strict execution order
+(its schemas reference each other across modules) and lazy-loads the Dashboard.
 
 Declared skipped gates remain unqualified. These checks do not qualify a
 matching new physical native image, every language DAP adapter, live provider
@@ -1634,14 +1656,14 @@ Root and image installs no longer emit the requested deprecated-package notices.
 npm does not inherit a dependency's overrides, so a generated external SDK host
 without its own compatibility policy still reports those upstream notices;
 the scoped host configuration remains in [the SDK guide](sdk.md).
-Non-blocking build/package notices remain for large UI chunks and the optional
+A non-blocking package notice remains for the optional
 Apple `.icon` companion format; the ordinary bundled `.icns` is retained.
 Historical source qualifications below are not relabeled as this integrated run.
 
 ## Managed SendBox
 
 On supported Apple-silicon macOS with Apple Containerization available, the app
-includes reviewed SendBox **0.2.6**, a versioned no-script installer, and a compatible
+includes reviewed SendBox **0.2.7**, a versioned no-script installer, and a compatible
 digest-pinned Linux image containing Moguri's worker, Node 26.12.0 and native
 dependencies. You do not run a build, container command or SHA command to use it.
 The installer also carries the pinned public Apple init image used by the
@@ -1663,8 +1685,14 @@ Choose **Sandbox** in the composer's Env menu. On first use, Moguri opens
 Review the actual runtime and workspace/network policy, acknowledge it, then
 choose **Enable SendBox**. No configuration editor, paths, build or manual
 workspace preparation is required. An already configured exact root-owned
-0.2.6 installation can be reused. Explicit older selections remain saved until
-separate review; they are not silently upgraded or accepted as current evidence.
+0.2.7 installation can be reused. SendBox 0.2.7 is the only supported release
+and the minimum Moguri accepts. A saved older selection still loads with its
+encrypted history, but native execution blocks it. Settings > Sandbox (and
+`/sandbox setup` without a version) then states that the saved release is no
+longer supported and opens the bundled 0.2.7 review instead; the saved
+selection changes only when you enable that review. An explicitly requested
+older version is still refused. It is never silently upgraded, accepted as
+current evidence or replaced by a Local fallback.
 A fresh installation requests your administrator
 approval for `/opt/moguri/sendbox/<version>`; it never overwrites another SendBox
 installation or approves the OS dialog for you. Unsupported prerequisites block
@@ -1689,10 +1717,12 @@ Provider networking uses the actual prepared HTTPS endpoint, not an assumed
 canonical Copilot host. Managed policy resolves and allows its bounded public
 CNAME chain automatically, capturing the effective hosts with the original
 execution. No permanent historical grant or hardcoded alias is inferred.
-`github.com` and `api.github.com` are default tool grants. From SendBox 0.2.4,
-`github.com` also delegates GitHub Meta domains and IPv4/IPv6 CIDRs, including
-shared-cloud ranges, refreshed before readiness and hourly. This is broader than
-exact-host-only egress and can cover shared infrastructure; setup review states
+`github.com` and `api.github.com` are default tool grants. `github.com` also
+delegates GitHub Meta domains and IPv4/IPv6 CIDRs, including shared-cloud
+ranges. The SendBox host fetches them into one machine-wide cache
+(`~/.sendbox/run/github-meta.json`), revalidates it at most hourly with ETag and
+seeds each guest before readiness; guests never contact GitHub Meta. This is
+broader than exact-host-only egress and can cover shared infrastructure; setup review states
 that explicitly before Enable Sandbox. The native public-page tool works without a project,
 uses the enforced guest proxy, supports public GitHub REST API JSON without
 credential forwarding, and requires ordinary tool permission. This is not an
@@ -1700,24 +1730,25 @@ interactive browser or a general native MCP grant.
 
 Advanced manual configuration also accepts explicitly reviewed `*.domain.com`
 tool rules. These permit subdomains at any depth, not the apex or lookalike
-suffixes. Except for the disclosed 0.2.4 GitHub Meta delegation, exact entries
+suffixes. Except for the disclosed GitHub Meta delegation, exact entries
 remain exact. Private-address protections remain in the
 guest, and selected-provider URLs/CNAMEs still require exact admission. No
 additional wildcard is added automatically by Moguri. Per the owner's explicit
-choice, 0.2.4's default GitHub grant includes the disclosed Meta delegation.
+choice, the default GitHub grant includes the disclosed Meta delegation.
 Selected-provider credentials and tool approvals remain separate.
 
-New factory defaults select 0.2.5. Explicitly saved 0.2.3/0.2.4 selections and
-their release/approval records remain unchanged; using the new bundle still
-requires exact review and personal OS installation approval. The reviewed
-0.2.5 archive/installer is not yet a physical matrix pass. See
-[the current release review](architecture/managed-sandbox.md#reviewed-025-distribution-2026-11-11).
+Factory defaults select 0.2.7, and update preparation accepts only 0.2.7 or
+newer. Using the bundle still requires exact review and personal OS
+installation approval. The reviewed 0.2.7 archive/installer is not by itself a
+physical matrix pass. See
+[the current release review](architecture/managed-sandbox.md#reviewed-027-distribution-2026-11-15)
+and the [native combination record](architecture/milestone-combination-matrix.md).
 
 **Check public SendBox releases** checks at startup and every four hours when
 enabled. **Check SendBox updates now** uses the same fixed public repository with
 no Copilot, CLI or private updater token. The configured version stays selected.
-Choose another eligible version, prepare its signed release for review, then
-approve separately before installation/activation. Unknown digests, changed trust
+Choose another eligible version (0.2.7 or newer), prepare its signed release
+for review, then approve separately before installation/activation. Unknown digests, changed trust
 roots, cancelled authorization and interrupted operations remain explicit; old
 versions and active work are not deleted or replayed.
 
@@ -1749,11 +1780,10 @@ through the Node SDK; root/React entrypoints remain browser-safe. See the
 
 ### Reproducing exact native qualification
 
-The [historical protocol82 0.2.4 worker/VM evidence and limits](architecture/sendbox-0.2.4-qualification.md#protocol-82-command-and-tool-follow-up)
-are separate from the [packaged combined80 cut](architecture/sendbox-0.2.4-qualification.md#protocol-80-combined-follow-up),
-historical 0.2.3/protocol76/77 runs and package-only verification. This cut
-includes actual two-root execution and separate source publication, not just
-generated mapping or readiness data.
+Receipts from earlier, superseded SendBox releases and package-only
+verification are not current evidence. The harness covers actual two-root
+execution and separate source publication, not just generated mapping or
+readiness data.
 Maintainers can build the current distribution with `npm run prepare:sandbox`,
 then use its printed directory and matching image receipt:
 
@@ -1761,11 +1791,11 @@ then use its printed directory and matching image receipt:
 node --import tsx scripts/qualify-sandbox.mjs \
   --distribution /absolute/path/to/current/distribution \
   --workload /absolute/path/to/current/distribution/image.json \
-  --archive .native/sendbox-distribution/0.2.5/sendbox-0.2.5-macos-arm64.tar.gz
+  --archive .native/sendbox-distribution/0.2.7/sendbox-0.2.7-macos-arm64.tar.gz
 ```
 
 Use the pinned Node 26.12.0 runtime. The harness requires an already approved
-exact installation at `/opt/moguri/sendbox/0.2.5` and running Apple
+exact installation at `/opt/moguri/sendbox/0.2.7` and running Apple
 Containerization on Apple-silicon macOS. An explicitly reviewed alternative
 canonical installation root can be supplied with `--installation-root`.
 It never installs components, approves macOS dialogs, forwards personal
@@ -1802,11 +1832,16 @@ Settings toolbar in place. Keyboard focus can still reach controls at the bottom
 Chats initially shows ten root sessions; each project or captured project group
 shows five, and each parent shows five subsessions. Quiet **Show more/Show less**
 controls expand only that list. Search reveals matching sessions and their
-parents. Project chevrons fold sessions without moving or archiving them.
-A project's settings button remains separate from its collapse button.
+parents. A project's folder icon is its collapse control: an open folder means
+its sessions are shown, a closed folder means they are folded. Folding never
+moves or archives sessions. Clicking the project name still opens its settings.
+Project groups work the same way: click the group row to fold it, and its
+folder icon shows open or closed. Rows have no **More** or **+** buttons; use a
+right-click (two-finger tap) or **Shift+F10** for actions.
 
-The project group's **More** menu offers seven icon colors, a custom color
-picker, **Expand all projects**, **Collapse all projects** and **Ungroup**.
+The project group's context menu offers seven icon colors, a custom color
+picker, **New chat** (Local, every member repository), **Expand all
+projects**, **Collapse all projects**, **New Sandbox chat** and **Ungroup**.
 Expand/collapse affects only that group's member projects (attached folders),
 preserving unrelated groups, drafts and session ownership. Expanding also opens
 the selected outer group; it does not change paging or persisted project data.
@@ -1819,10 +1854,11 @@ section. Keyboard users can activate the hint, Tab/Shift+Tab out, or press
 Escape. Links never change policy or discard an unsaved settings/budget edit.
 
 The scrollable left resources are **Dashboard, Suggestions, Automations**.
-Artifacts, Candidates and Sandbox live in Settings. The right rail contains
-**Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change,
-Work item**, in that order. Global views are not duplicated there;
-`/pr` opens the selected session's Code change panel. Attention uses the single
+Artifacts, Candidates and Sandbox live in Settings. For project and project-group
+sessions the right rail contains **Terminal, Browser, Insights, Code change,
+Files, Plan, Side chat, Work item**, in that order. Project-free chats show only
+**Terminal, Browser, Insights, Plan, Side chat**. Global views are not duplicated
+there; `/pr` and `/diff` open the selected session's Code change panel. Attention uses the single
 top-bar icon. Where a global action needs a source, select an actual **Source
 chat** first. Viewing a global resource never creates a hidden chat or model
 request. Terminal uses the selected session's authenticated Ghostty owner;
@@ -1873,12 +1909,14 @@ measurements are in [session ordering qualification](architecture/session-intera
 The right sidebar has panel-hide and maximize/restore icons. Maximize covers the
 chat, not left navigation; restore preserves its previous split width. Agent and
 read-only are a pen/book toggle immediately after the composer's **+** attachment
-button. Cmd/Ctrl+K opens Commands in the sidebar, without a titlebar
-advertisement or covering the chat. Env, Model, Autonomy, Budget, attachments,
-delivery and autocomplete choices also use that sidebar. Model, effort and
-context submenus expand inside it. Escape closes the current menu and returns
-to its original control; opening a menu preserves the prior sidebar and
-running consoles. Turn information expands directly beneath its response.
+button. Cmd/Ctrl+K opens the Commands palette as a modal dialog, without a
+titlebar advertisement. Env, Model, Autonomy, Budget, attachments and delivery
+open as popups anchored above their composer control; model, effort, routing
+and context choices cascade beside the Model popup. Slash and session
+autocomplete appear directly above the prompt. Escape or clicking outside closes
+the current popup and returns focus to its control; popups never replace the
+sidebar panel or stop running consoles. Turn information expands directly
+beneath its response.
 
 The left navigation's search finds chat names/IDs and project names without
 changing the active conversation or saved draft. Matching children retain their
@@ -2014,15 +2052,10 @@ starts a daemon, requests a Home scan or exposes the private event store.
 
 For current continuation scope, see the
 [first-milestone gap handoff](remaining-milestone-gaps.md).
-The user has reopened previously paused Sandbox integration specifically for
-SendBox 0.2.3. Historical checkpoint measurements below remain scoped to their
-recorded versions; they do not qualify the new runtime or close the milestone.
-Fresh [0.2.3 requalification](architecture/sendbox-0.2.3.md) verifies released
-host/guest artifacts, actual generated worker/tool/image frames and cancellation.
-Cold provider networking requires a separately reviewed exact DNS-alias scope;
-the endpoint-only probe fails. These primitives do not by themselves enable
-public Sandbox. The recorded protocol-40 service/SDK/client lifecycle below
-extends them without changing factory settings or broadening policy.
+Historical Sandbox checkpoint measurements below were recorded against earlier,
+superseded SendBox releases; they do not qualify the current runtime or close
+the milestone. Current-pin qualification is recorded in the
+[native combination record](architecture/milestone-combination-matrix.md).
 
 ## Separate Agent terminal
 
@@ -2177,8 +2210,9 @@ See the [browser contract](architecture/agent-browser.md).
 Protocol 44 introduced these interaction changes. Protocol 60 leaves Dashboard,
 Suggestions and Automations in the left sidebar, removing Global Terminal;
 Artifacts/Candidates/Sandbox are Settings sections. The right rail is reserved
-for Terminal, Browser, Insights, Changes, Files, Plan, Side chat, Code change
-and Work item. Its two link panels are per session. Global actions and existing slash commands
+for Terminal, Browser, Insights, Code change, Files, Plan, Side chat and Work
+item; project-free chats keep only Terminal, Browser, Insights, Plan and Side
+chat. Its two link panels are per session. Global actions and existing slash commands
 retain their independently scoped source selection. Attention remains in the top bar. The unified New
 chooser and project-free navigation remain available.
 
@@ -2235,8 +2269,9 @@ running and awaits the real SSH grid growth acknowledgement before checking
 shrinkage, without changing production behavior, sleeping or weakening the
 comparison. Combined image/Remote cases pass three repetitions: **12/12**.
 
-That checkpoint's native distribution remains protocol 56 / SendBox 0.2.4 with the
-same pinned worker image. Its check passes in **4,224.97 ms**; the actual
+That checkpoint's native distribution remains protocol 56 with the then-pinned
+SendBox release and the same pinned worker image. Its check passes in
+**4,224.97 ms**; the actual
 **740,607,177-byte ZIP** passes the production update consumer in
 **103,047.20 ms**. The **754,273,639-byte DMG** passes native Finder geometry
 and unchanged-app integrity, SHA-256
@@ -2472,8 +2507,8 @@ this extension is recorded separately from earlier archive/milestone claims.
 The final native-enabled source passes **1,045/1,045 unit/integration/native
 TUI cases in 935.17 s**, with **zero skips**, followed by **67/67 hidden
 Electron workflows in 2.6 min**. The current immutable worker image also
-passes eight actual pinned SendBox 0.2.3 cases, including observed living
-double-fork/setsid/reparented descendants and verified exact VM absence.
+passes eight actual cases on the then-pinned SendBox release, including
+observed living double-fork/setsid/reparented descendants and verified exact VM absence.
 The new containment primitive takes **2,902.53 ms**, with zero inference calls.
 Its [release/image/payload pins](architecture/platform-workflows.md#protocol-41-source-qualification)
 are distinct from the historical protocol-40 image.
@@ -2509,11 +2544,10 @@ real main push, merge, rebase, release or tag is dispatched by this acceptance.
 The complete current source passes **956/956 unit/integration/native checks
 in 854.52 s**, with no skipped cases on this macOS host. All **64 hidden
 Electron workflows pass in 2.5 min**. The exact current protocol-40 image is
-qualified against released SendBox 0.2.3, including actual guest tools,
+qualified against the then-pinned SendBox release, including actual guest tools,
 Manual approvals, project-free paste paging, acknowledged cancellation,
 guest loss, real controller SIGKILL and late metering without replay.
-Its immutable pins and narrower networking boundary are recorded in
-[the native qualification](architecture/sendbox-0.2.3.md#protocol-40-source-requalification).
+Those superseded native receipts are not current evidence.
 
 Type checks, production build and actual packed external SDK installation
 pass. `npm run verify:sdk` exercises root/React/Node/MCP entrypoints, the
@@ -2597,13 +2631,13 @@ proxy/DNS boundary. API-only access may reject the provider's current DNS alias.
 No alias is added automatically, and offline guest qualification does not
 establish Copilot connectivity. Sandbox consoles remain unavailable independently
 of core native-agent readiness. See the
-[protocol-51 bootstrap contract](architecture/sendbox-0.2.3.md#protocol-51-bootstrap-and-private-qualification)
-for ownership, cleanup and network limitations.
+[managed Sandbox contract](architecture/managed-sandbox.md)
+for current ownership, cleanup and network limitations.
 
 ### Native service/SDK development checkpoint
 
 Current source adds protocol/database **37**, not a new qualified archive.
-Explicitly reviewed SendBox 0.2.3 release/image pins can now qualify the actual
+Explicitly reviewed SendBox release/image pins can now qualify the actual
 guest and prepare a bounded private text stage through the SDK. Model/worker
 calls run there, with Manual approvals, scoped pasted-file reads, the shared
 budget ledger and verified original VM cleanup. A project-free model root stays
@@ -2622,7 +2656,7 @@ The latest ordinary execution/publication case passes in **4.08 s**.
 Run the actual native cases only with the exact current generated image receipt:
 
 ```sh
-MOGURI_NATIVE_INSTALLATION=.native/sendbox-0.2.3/installation.json \
+MOGURI_NATIVE_INSTALLATION=/absolute/path/to/reviewed/installation.json \
 MOGURI_NATIVE_WORKLOAD=/absolute/path/to/current/qualification.json \
 node --import tsx --test --test-concurrency=1 \
   tests/sandbox-runtime.test.ts tests/sandbox-service.test.ts \
@@ -3547,7 +3581,7 @@ risk acknowledgement, source review, downloads and model proposals remain
 explicit actions, not autosaved approvals.
 
 **Sandbox is gated, not enabled by entering paths.** The development SDK now
-has explicit 0.2.3 guest qualification, source review/preparation, execution
+has explicit guest qualification, source review/preparation, execution
 inspection/reconciliation and separately accepted text-output publication.
 Guardrails requires separate explicit verification of the saved review. Exact release,
 workload, current reviewed network scope and private staging are mandatory;
@@ -3605,7 +3639,7 @@ Acknowledgement is not proof of cleanup. Unknown owned work blocks new
 admission/deletion; session deletion destroys its transport key only after
 settlement or actual user inspection.
 
-**Files**, **Changes** and **Plan** views use the actual SSH
+**Files**, **Code change** and **Plan** views use the actual SSH
 workspace. `/files`, `/file PATH`, `/diff` and `/plan` share the same SDK path in
 CLI/TUI; a Remote plan is displayed as text, never opened as a Local filename.
 Protected paths, denied folders, file limits and Git filter/hook suppression
@@ -3980,10 +4014,22 @@ Held/idle/stopped work is not silently called successful or running.
 
 Order offers **Newest prompt first** and **Oldest prompt first** using each
 chat's latest sent prompt, not a streaming answer, rename or saved draft.
-Unsent chats use creation time. Pins and parent groups remain. **Reset** appears
-when status filters or explicit ordering are selected, restores default order,
-and does not clear the composer or rewrite stored drag order. Reset prompt
-ordering before manually reordering sessions. Clearing a filter restores the
+Unsent chats use creation time. Explicit prompt ordering shows one flat list of
+sessions from every project, project group and folder, without their headers;
+each row names its project or group, so combining it with a status filter such
+as In progress shows active work scattered across the sidebar. **Reset** appears
+when status filters or explicit ordering are selected, restores the grouped
+default order, and does not clear the composer or rewrite stored drag order.
+
+If a project's folder is moved or deleted outside Moguri, Code change, Files,
+Side chat, Work item, project Git and new turns report the exact missing path
+(`project_folder_missing`) instead of a generic or "install Git" error, and
+never fall back to another folder or make a model call. The panel offers
+**Change attached folder…** (point the project at the moved folder) and
+**Remove project…**, the same actions as the project's context menu. Other
+unexpected missing paths are reported as `path_missing` with the path, and
+`service.log` names the failing request type and short session ID.
+Reset prompt ordering before manually reordering sessions. Clearing a filter restores the
 previous project/group collapse choices.
 
 The composer, queue and approval controls share the message column's gutters
@@ -3991,8 +4037,8 @@ instead of extending below the turn-navigation rail. Expanded previews retain
 their established adjacent wide layout and compact overlay without forcing the
 composer into the overlay's width.
 
-Right-click a project header, press **Shift+F10** while it is focused, or open
-its **Project actions** button to choose an icon color. The same context menu
+Right-click (two-finger tap) a project header or press **Shift+F10** while it
+is focused to choose an icon color. The same context menu
 offers named red, orange, yellow, green, blue, indigo and violet presets, plus
 a half-white/half-black pencil swatch for a custom color. It opens a preview
 that changes the project only after **Save**; Cancel leaves the saved color
@@ -4024,7 +4070,7 @@ run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
 Desktop main and side chats show queued messages as right-aligned, muted dashed
 bubbles. Hover or keyboard focus reveals More, Delete and, for held prompts,
-the upward Run arrow. More opens source-bound Edit/Copy actions in the sidebar;
+the upward Run arrow. More opens source-bound Edit/Copy actions in a popup;
 steering inputs also offer Queue as new turn. Drag or Alt+Up/Down still reorders
 the exact queued list. Touch/non-hover devices keep actions visible.
 
@@ -4035,22 +4081,23 @@ remain visible. Hiding preserves an inline edit and does not run, pause or chang
 the queue. Each opened queue starts expanded. In the TUI, `/queue` shows queued
 prompts and **Esc** returns to the composer.
 
-Compact **Changes**, **PR**, **Plan**, **Background** and **Artifacts** shortcuts
-open their existing views. Changes reports the last allowed tracked line
-observation relative to HEAD, not untracked/protected files or the whole PR;
-binary changes are separate and unavailable/incomplete reads never become zero.
-Grouped repositories require explicit selection in Changes. PR shows the retained
-linked association, not merge readiness. Plan counts actual owning-turn model
-items, not repository-file checkboxes or acceptance.
+The chat header has no shortcut buttons. Instead the right rail shows small
+counts on its icons. **Terminal** counts active owned subagents/coordinated
+children, running agent commands in the current turn and independent
+command/watch jobs, counting a call once; with a count, it opens **Terminal /
+Agent**, which lists the original background agents and lets you inspect their
+chats. This never starts a private User console or another model reply.
+**Plan** counts actual owning-turn model items, not repository-file checkboxes
+or acceptance. **Code change** counts changed files reported by the bound
+workspace's Git status, excluding protected paths; failed reads show no count
+rather than zero. Existing dirty-editor and running-console hide guards still
+apply. Artifacts remain in Settings / Artifacts.
 
-Background combines active owned subagents/coordinated children, running command
-and script calls, and independent command/watch jobs without double-counting a
-call. Incomplete activity uses a disclosed lower bound, not a fabricated exact
-count. It opens **Terminal / Agent**, which also lists the original background
-agents and lets you inspect their chats. This never starts a private User console
-or another model reply. Existing dirty-editor and running-console hide guards
-still apply. Artifacts counts active retained documents across this profile,
-matching the existing artifact resource, not just this chat's documents.
+**Code change** shows the linked pull request when one exists. Otherwise it
+shows the bound workspace changes (or the SendBox stage for Sandbox sessions),
+with **Link or open a pull request** below. Project groups require explicit
+repository selection for changes and have no PR association. The separate
+Changes panel was removed; saved layouts and `/diff` open Code change instead.
 
 Both chat clients share `/read-only`, `/agent`, `/rename NAME`, `/side`,
 `/subsession [NAME]`, `/browser [URL]`, `/diff`, `/plan`, `/insights`, `/pr`,
@@ -4088,8 +4135,9 @@ records coverage and the exact local development installer. Quit before
 replacing the app, then reopen matching clients/service; retained state is
 preserved, never deleted to upgrade.
 
-The desktop rail exposes Terminal, Browser, Insights, Changes, Files, Plan and
-Side chat. A connected PR remains available through `/pr`, not an extra rail icon.
+The desktop rail exposes Terminal, Browser, Insights, Code change, Files, Plan,
+Side chat and Work item for project sessions, and Terminal, Browser, Insights,
+Plan and Side chat for project-free chats. A connected PR opens in Code change.
 `/terminal`, its requested `/termnial` alias and the
 terminal plus button use **actual Ghostty through `ghostty-web`**, not a new
 terminal renderer. Terminal input/resize/output are ephemeral, never model
@@ -5337,7 +5385,7 @@ those existing exact-cut results remain in
 
 The fresh **no-cache producer-only** Linux arm64 image is
 `docker.io/library/moguri-worker@sha256:713b3a7f6a1bc690ae19f956f102d719296e076768f8441ffd6f0896adef9809`.
-Pinned SendBox 0.2.4 and Apple init/distribution integrity checks pass for
+The then-pinned SendBox and Apple init/distribution integrity checks pass for
 packaging, not physical guest/network/cleanup acceptance. The app remains
 ad-hoc signed and not notarized. No personal app, authorization page or
 microphone was opened; no model weights were downloaded and no SendBox agent
@@ -6733,26 +6781,21 @@ artifacts are not overwritten or relabeled as protocol 16.
 
 ### Native runtime prerequisites after 0.10
 
-The official [SendBox 0.2.1 release](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.1)
-has now passed checksum/build-provenance verification and user-authenticated
-system installation. `/usr/local/bin/sendbox --version` reports `sendbox 0.2.1`;
-the root-owned matching guest is
-`/usr/local/share/sendbox/guest/aarch64/bundle`, with its adjacent
-`release-public.key`. Download and verify the official release before any
-administrator installation; Moguri never installs it or authenticates for you.
-Do not use an unverified/user-writable guest bundle or disable system security.
+An earlier official SendBox release, since superseded, passed
+checksum/build-provenance verification and user-authenticated system
+installation at this checkpoint. Moguri never installs SendBox or authenticates
+for you; current installs use the bundled [managed setup](#managed-sendbox).
 
 The historical protocol-16 worker, exact approvals, large image and conservative
-model/command/control-loss cancellation now pass genuine released-guest
-primitives. Cold DNS/networking still fails in a fresh guest. Installing 0.2.1
-therefore does **not** enable Sandbox, lifecycle scripts or real native model
-execution in this alpha. The private staging/evidence prerequisites pass
-314 local checks and 21 hidden source-desktop workflows; the existing delivered
-0.10 artifacts above are not rebuilt or relabeled by this follow-up.
-See [runtime pins](architecture/runtime-foundation.md#released-sendbox-021)
-and [native measurements and limitations](architecture/execution-transports.md#released-021-qualification).
-Further sandbox work is paused at the user's request pending the separate
-SendBox fix; protocol-17 SSH work does not requalify or enable Sandbox.
+model/command/control-loss cancellation passed genuine released-guest
+primitives. Cold DNS/networking still failed in a fresh guest, so that release
+did **not** enable Sandbox, lifecycle scripts or real native model execution.
+The private staging/evidence prerequisites pass 314 local checks and 21 hidden
+source-desktop workflows; the existing delivered 0.10 artifacts above are not
+rebuilt or relabeled by this follow-up. See
+[runtime pins](architecture/runtime-foundation.md#earlier-released-sendbox)
+and [native measurements and limitations](architecture/execution-transports.md#earlier-released-sendbox-qualification).
+Protocol-17 SSH work does not requalify or enable Sandbox.
 
 ### Historical 0.9.1 checkpoint
 

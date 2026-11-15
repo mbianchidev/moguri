@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { defaultSandboxManagement, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { generatedSandboxDistribution } from "../fixtures/sandbox-distribution.ts";
 import { nativeConfiguration } from "../fixtures/native-target.ts";
@@ -68,6 +68,27 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     } });
     await app.close(); sdk.disconnect(); await fixture.close(); await generated.close();
   }
+});
+
+test("an unsupported saved SendBox release opens the bundled review without changing the saved selection", async () => {
+  const generated = await generatedSandboxDistribution();
+  const fixture = await setupFixture({ platform: { sandbox: { distribution: generated.directory, setup: { automatic: false, installed: async () => true } } } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready(), settings = sdk.settings.get()!;
+  await sdk.settings.update({ ...settings.values, sandboxManagement: { ...defaultSandboxManagement(), version: "0.2.0" } }, settings.revision);
+  const app = await launch(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
+    const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
+    await expect(panel).toContainText("Saved SendBox 0.2.0 is no longer supported. Review the bundled 0.2.7 setup to replace it");
+    await expect(panel.getByLabel("SendBox version to review", { exact: true })).toHaveValue("0.2.7");
+    await expect(panel.getByRole("button", { name: "Keep current configured version", exact: true })).toHaveCount(0);
+    await panel.getByRole("button", { name: "Review bundled setup", exact: true }).click();
+    await expect(panel.getByRole("region", { name: "Exact managed Sandbox review", exact: true })).toContainText("nothing changes until you enable");
+    expect(sdk.settings.get()!.values.sandboxManagement?.version).toBe("0.2.0");
+    expect(fixture.requests).toHaveLength(0);
+  } finally { sdk.disconnect(); await app.close(); await fixture.close(); await generated.close(); }
 });
 
 for (const projectFree of [false, true]) test(`actual first-use SendBox sends in ${projectFree ? "a root-less chat" : "a project"} without settings or a file preview`, async () => {

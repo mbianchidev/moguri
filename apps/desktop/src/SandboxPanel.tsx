@@ -94,7 +94,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       {execution.repositories && <section aria-label="Original captured native repositories"><p className="fine-print">No default model root. Each tool selects an original ID/name; publication separately chooses one captured source.</p>
         {execution.repositories.map((binding) => <p className="fine-print path" key={binding.projectId}>{binding.name} / {binding.projectId}<br />{binding.guestRoot} / original {binding.root.root}</p>)}</section>}
       {execution.networkScope && <p className="fine-print">Configured tool/provider domain rules (SendBox {execution.config.qualification?.release ?? "unreported"}): {execution.networkScope.allowedDomains.join(", ")}.
-        {" "}From SendBox 0.2.4, a github.com grant also delegates GitHub Meta domains and IPv4/IPv6 ranges, including shared-cloud addresses. This configured list is not the complete effective destination scope.
+        {" "}A github.com grant also delegates GitHub Meta domains and IPv4/IPv6 ranges, including shared-cloud addresses. This configured list is not the complete effective destination scope.
         {" "}Explicit *.domain.com rules exclude their apex. Provider endpoints and aliases remain exact; tool permission stays separate.</p>}
       {execution.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{execution.diagnostic}</Alert>}
       <div className="button-row">

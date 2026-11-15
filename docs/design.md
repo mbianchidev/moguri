@@ -69,11 +69,12 @@ before adding a saved discovery source, never an implied execution grant.
 Queued prompts use right-aligned muted dashed bubbles, with explicit held/steer
 labels. More, Delete and held-prompt Run icons reveal on hover or focus; non-hover
 devices retain visible 44px targets. The singular/plural counted chevron preserves
-inline edits when collapsed. Compact outlined session shortcuts wrap above the
-composer without overlapping the transcript or navigation. Their counts describe
-actual scoped observations, not synthetic progress; tooltips dismiss on navigation
-so they cannot cover the destination's controls. Background opens Agent activity,
-not the private User console, and shares existing navigation/dirty-state guards.
+inline edits when collapsed. The chat header carries no shortcut buttons; small
+accent count badges on the right-rail Terminal, Plan and Code change icons describe
+actual scoped observations, not synthetic progress. A Terminal count opens Agent
+activity, not the private User console, and shares existing navigation/dirty-state
+guards. Composer controls and the Commands palette open as anchored popups or a
+modal dialog, never inside the sidebar.
 
 Obvious navigation/copy/edit/delete actions use labeled icons. Contextual primary
 labels are New and Save. Long names truncate within bounded rows while retaining

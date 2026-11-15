@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { compareSessionOrder, DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const launch = (directory: string) => electron.launch({ executablePath: require("electron"), args: [".", "--use-fake-device-for-media-stream"], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -25,8 +26,9 @@ test("attachment menu matches the five-source layout, previews retained files/im
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
-    await expect(rail.getByRole("button")).toHaveCount(9);
-    expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label")))).toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"]);
+    await expect(rail.getByRole("button")).toHaveCount(8);
+    expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
+      .toEqual(["Terminal", "Browser", "Insights", "Code change", "Files", "Plan", "Side chat", "Work item"]);
     await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations"]);
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated complete unsent prompt.");
     const path = join(fixture.directory, "generated-preview.txt"); await writeFile(path, "Generated immutable attached file.");
@@ -187,7 +189,7 @@ test("retired global layouts restore a session pane without opening, adopting or
     await expect(confirm).toHaveCount(0);
     await page.reload(); await expect(page.getByLabel("Prompt", { exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().terminals).toHaveLength(2);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect(input).toHaveAttribute("aria-disabled", "false");
     const projectConsole = fixture.service.controller.snapshot().terminals.find((terminal) => terminal.sessionId === fixture.sessionId && terminal.status === "running");

@@ -12,7 +12,7 @@ const launch = (directory: string) => electron.launch({ executablePath: process.
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Native pane-toggle qualification is macOS-only.");
 
-test("Changes reports its pending read and recovers from failure without claiming a clean workspace", async () => {
+test("Code change reports its pending read and recovers from failure without claiming a clean workspace", async () => {
   const fixture = await setupFixture(), gate = Promise.withResolvers<void>();
   await generatedRepository(fixture.project);
   await writeFile(join(fixture.project, "fixture.txt"), "Generated changed file.\n");
@@ -28,7 +28,7 @@ test("Changes reports its pending read and recovers from failure without claimin
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), pane = page.getByRole("complementary", { name: "Session sidebar", exact: true });
-    await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Changes", exact: true }).click();
+    await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Code change", exact: true }).click();
     await expect.poll(() => entered).toBe(true);
     const refresh = pane.getByRole("button", { name: "Refresh diff", exact: true });
     for (const [width, height] of [[1280, 900], [840, 620]] as const) {
@@ -102,7 +102,7 @@ test("each nonterminal right-pane icon opens its view and the same icon collapse
   try {
     const page = await app.firstWindow(), rail = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
     const pane = page.getByRole("complementary", { name: "Session sidebar", exact: true });
-    for (const name of ["Browser", "Insights", "Changes", "Files", "Plan", "Side chat"]) {
+    for (const name of ["Browser", "Insights", "Code change", "Files", "Plan", "Side chat"]) {
       const button = rail.getByRole("button", { name, exact: true });
       await button.click(); await expect(pane).toBeVisible();
       await button.click(); await expect(pane).toBeHidden(); await expect(rail).toBeVisible();

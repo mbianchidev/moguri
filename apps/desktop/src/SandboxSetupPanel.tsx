@@ -1,11 +1,12 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import {
-  defaultSandboxManagement, type MoguriSdk, type SandboxManagement, type SandboxSetupReview, type SandboxSetupStatus, type Snapshot,
+  defaultSandboxManagement, supportedSandboxRelease, type MoguriSdk, type SandboxManagement, type SandboxSetupReview, type SandboxSetupStatus, type Snapshot,
 } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 const active = new Set(["checking", "preparing", "installing", "importing", "verifying"]);
+const reviewDefault = (selected: string, bundled: string | null) => supportedSandboxRelease(selected) || !bundled ? selected : bundled;
 export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDirty, update, compact = false, onReady }: {
   sdk: MoguriSdk; snapshot: Snapshot; disabled: boolean; onBusy: (busy: boolean) => void; onDirty: (dirty: boolean) => void;
   value: SandboxManagement | undefined;
@@ -20,8 +21,9 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
   const busy = requesting || Boolean(status?.operation && active.has(status.operation.status));
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const selectedVersion = status?.selectedVersion ?? management.version;
-  useEffect(() => { onDirty(version !== selectedVersion); return () => onDirty(false); }, [version, selectedVersion, onDirty]);
-  useEffect(() => { setReview(null); setAccepted(false); if (!editedVersion.current) setVersion(management.version); }, [snapshot.settings.revision]);
+  const defaultVersion = reviewDefault(selectedVersion, status?.bundledVersion ?? null);
+  useEffect(() => { onDirty(version !== defaultVersion); return () => onDirty(false); }, [version, defaultVersion, onDirty]);
+  useEffect(() => { setReview(null); setAccepted(false); if (!editedVersion.current) setVersion(reviewDefault(management.version, status?.bundledVersion ?? null)); }, [snapshot.settings.revision]);
   useEffect(() => {
     const token = ++generation.current; let loading = false;
     const load = async () => {
@@ -29,7 +31,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       loading = true;
       try {
         const value = await sdk.sandbox.setup.status();
-        if (generation.current === token) { setStatus(value.setup); if (!editedVersion.current) setVersion(value.setup.selectedVersion); }
+        if (generation.current === token) { setStatus(value.setup); if (!editedVersion.current) setVersion(reviewDefault(value.setup.selectedVersion, value.setup.bundledVersion)); }
       }
       catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "Native setup status could not be read."); }
       finally { loading = false; }
@@ -84,8 +86,8 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       <button type="button" className="primary" disabled={disabled || busy || !status?.supported || !version.trim()} onClick={() => void run(reviewVersion)} aria-label={version.trim() === status?.bundledVersion ? "Review bundled setup" : "Prepare version for review"}>
         {version.trim() === status?.bundledVersion ? "Review" : "Prepare"}
       </button>
-      {version !== selectedVersion && <button type="button" disabled={busy} onClick={() => {
-        editedVersion.current = false; setVersion(selectedVersion); setReview(null); setAccepted(false);
+      {version !== defaultVersion && <button type="button" disabled={busy} onClick={() => {
+        editedVersion.current = false; setVersion(defaultVersion); setReview(null); setAccepted(false);
       }} aria-label="Keep current configured version">Keep current</button>}
     </div>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticUpdates} disabled={disabled || busy}
@@ -97,7 +99,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       onChange={(event) => update({ automaticWorkspaces: event.target.checked })} />Prepare private session workspaces automatically</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticProviderNetwork} disabled={disabled || busy}
       onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Automatically allow the selected model provider's actual HTTPS endpoint and public DNS aliases</label>
-    <Alert as="p" tone="warning" className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox 0.2.4 expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</Alert></>}
+    <Alert as="p" tone="warning" className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</Alert></>}
     {compact && !busy && !review && !ready && <button type="button" disabled={disabled || !status?.supported} onClick={() => void run(reviewVersion)}>Review SendBox setup</button>}
     {compact && onReady && ready && !busy && !error && <button type="button" className="primary" disabled={disabled || !snapshot.policy.allowedEnvs.includes("Sandbox")} onClick={() => void run(async () => { await onReady(); })}>Use SendBox</button>}
     {review && <section className="candidate-binding" aria-label="Exact managed Sandbox review">

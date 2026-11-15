@@ -1,4 +1,4 @@
-import { finishIdleSchedule, openSettingsSection } from "./navigation.ts";
+import { finishIdleSchedule, openSettingsSection, openProjectMenu } from "./navigation.ts";
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -82,14 +82,10 @@ test("both sidebars resize, persist, keep chat usable and reopen from labeled ra
     await expect(right).toHaveAttribute("aria-valuenow", "360");
     const before = Number(await left.getAttribute("aria-valuenow"));
     await page.getByRole("button", { name: "Execution environment", exact: true }).click();
-    const sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
-    const environment = sidebar.getByRole("dialog", { name: "Execution environment", exact: true });
-    await expect(environment).toBeVisible();
+    const environment = page.getByRole("dialog", { name: "Execution environment", exact: true }), anchor = (await environment.boundingBox())!.x;
     await left.focus(); await left.press("ArrowRight");
     await expect(left).toHaveAttribute("aria-valuenow", String(before + 16));
-    const menuBounds = await environment.boundingBox(), sidebarBounds = await sidebar.boundingBox();
-    expect(menuBounds!.x).toBeGreaterThanOrEqual(sidebarBounds!.x);
-    expect(menuBounds!.x + menuBounds!.width).toBeLessThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
+    await expect.poll(async () => (await environment.boundingBox())?.x).toBeCloseTo(anchor + 16, 1);
     await page.keyboard.press("Escape");
     const box = (await right.boundingBox())!, initial = Number(await right.getAttribute("aria-valuenow"));
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -210,7 +206,7 @@ test("project dropdowns and toggles save only their changed fields, while nearby
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), configuration = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === fixture.session().projectId)?.values;
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Settings", exact: true }).click();
     const instructions = page.getByLabel("Project instruction override", { exact: true });
     await instructions.fill("Generated uncommitted project guidance.");

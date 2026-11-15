@@ -10,6 +10,23 @@ const launch = (directory: string) => electron.launch({ executablePath: require(
   env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Hidden native desktop qualification is macOS-only.");
 
+test("the session header shows a copyable short ID and a typed :short mention opens the reviewed attachment", async () => {
+  const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
+  await f.configure();
+  const source = (await sdk.sessions.create(f.session().projectId!, "Generated short ID source")).id!, short = source.slice(0, 8);
+  const app = await launch(f.directory);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.locator(".session-heading").getByRole("button", { name: `Copy session ID ${f.sessionId.slice(0, 8)}`, exact: true })).toBeVisible();
+    const prompt = page.getByLabel("Prompt", { exact: true });
+    await prompt.fill(`Compare with :${short} before answering.`);
+    await prompt.press("Enter");
+    const review = page.getByRole("dialog", { name: "Review attachment", exact: true });
+    await expect(review).toContainText(source);
+    expect(f.requests).toHaveLength(0);
+  } finally { sdk.disconnect(); await app.close(); await f.close(); }
+});
+
 test("stable IDs and mentions use reviewed context; project bulk attach/detach/archive/delete is real and scoped", async () => {
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   await f.configure();
@@ -22,6 +39,7 @@ test("stable IDs and mentions use reviewed context; project bulk attach/detach/a
     const insights = page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Insights", exact: true });
     await expect(insights).toBeVisible();
     if (await insights.getAttribute("aria-pressed") !== "true") await insights.click();
+    await page.getByText("Session identity and workspace", { exact: true }).click();
     await expect(page.locator(".facts").getByText(f.sessionId, { exact: true })).toBeVisible();
     const prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill(`Read context from ${keep} without changing its workspace.`);

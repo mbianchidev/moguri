@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
 import { fixtureProvider, reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
+import { openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -38,6 +39,7 @@ test("issue and PR pickers stay usable beyond twenty seconds when a normal chat 
     await issue.getByLabel("GitHub issue", { exact: true }).selectOption("7");
     await expect(issue.getByRole("article", { name: "Issue details", exact: true })).toContainText("issue body");
     await panels.getByRole("button", { name: "Code change", exact: true }).click();
+    await page.getByText("Link or open a pull request", { exact: true }).click();
     await reading;
     await fixture.sdk.command({ type: "draft.save", sessionId: fixture.sessionId, expectedRevision: fixture.session().draft.revision,
       text: "Generated independent conversation while pull requests load.", attachments: [] });
@@ -69,7 +71,7 @@ test("repository and project-item dropdowns show the actual account, full source
     await expect(start.getByLabel("New clone folder name", { exact: true })).toHaveValue("fixture");
     await expect(start).toContainText("Signed in as generated-owner");
     await start.getByRole("button", { name: "Close New", exact: true }).click();
-    await page.getByLabel("Project actions for checkout", { exact: true }).click();
+    await openProjectMenu(page, "checkout");
     await page.getByRole("menuitem", { name: "From PR", exact: true }).click();
     const fromPr = page.getByRole("dialog", { name: "Session from PR", exact: true });
     await expect(fromPr.getByLabel("Pull request", { exact: true })).toBeEnabled();
@@ -81,7 +83,7 @@ test("repository and project-item dropdowns show the actual account, full source
     expect(fixture.service.controller.snapshot().sessions.at(-1)?.draft.text).toContain("Generated **pull request body**.");
     expect(fixture.service.controller.snapshot().sessions.at(-1)?.turnId).toBeNull();
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
-    await page.getByLabel("Project actions for checkout", { exact: true }).click();
+    await openProjectMenu(page, "checkout");
     await page.getByRole("menuitem", { name: "From work item", exact: true }).click();
     const fromIssue = page.getByRole("dialog", { name: "Session from work item", exact: true });
     await expect(fromIssue.getByLabel("GitHub issue", { exact: true })).toBeEnabled();
@@ -132,6 +134,7 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
+    await page.getByText("Link or open a pull request", { exact: true }).click();
     const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
     await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();
     await pulls.getByLabel("Pull request", { exact: true }).selectOption("11");

@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { automaticHome, homeCommand, setupFixture, waitFor } from "../fixture.ts";
@@ -9,10 +9,9 @@ import { existsSync } from "node:fs";
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Home-backed native chat execution is qualified on macOS.");
 
-test("an ordinary project-free desktop chat opens its generated Home files and runs an approved command in its separate Agent terminal", async () => {
+test("an ordinary project-free desktop chat shows only chat panels and runs an approved command in its separate Agent terminal", async () => {
   const fixture = await setupFixture({ toolCall: { name: "run_command", args: { command: "pwd", timeoutMs: 2000 } } });
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
-  await writeFile(join(fixture.home, "generated-home.txt"), "GENERATED_HOME_FILE_CONTENT\n");
   const created = await sdk.sessions.create(null, "Generated Home-backed chat", { modelId: fixture.modelId });
   const home = sdk.getState().snapshot!.sessions.find((session) => session.id === created.id)!.homeRoot!.root;
   const settings = sdk.settings.get()!;
@@ -24,13 +23,8 @@ test("an ordinary project-free desktop chat opens its generated Home files and r
     page.on("pageerror", (error) => errors.push(error.message));
     await page.locator(".session-link").filter({ hasText: "Generated Home-backed chat" }).click();
     const panels = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
-    await panels.getByRole("button", { name: "Files", exact: true }).click();
-    const files = page.getByRole("region", { name: "Bound workspace files", exact: true });
-    await expect(files.getByRole("button", { name: "generated-home.txt", exact: true })).toBeVisible();
-    await files.getByRole("button", { name: "generated-home.txt", exact: true }).click();
-    await expect(files).toContainText("GENERATED_HOME_FILE_CONTENT");
-    await expect(files).not.toContainText("generated original");
-    await expect(files).toContainText("Home");
+    await expect.poll(() => panels.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
+      .toEqual(["Terminal", "Browser", "Insights", "Plan", "Side chat"]);
     await page.getByLabel("Prompt", { exact: true }).fill("Generated ordinary chat pwd request.");
     await page.getByRole("button", { name: "Send", exact: true }).click();
     const approval = await waitFor(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === created.id)?.pendingApproval);
@@ -44,6 +38,7 @@ test("an ordinary project-free desktop chat opens its generated Home files and r
     await expect(agent).toContainText("completed");
     await expect(agent.getByRole("textbox", { name: "Agent terminal output", exact: true })).toHaveAttribute("aria-readonly", "true");
     await panels.getByRole("button", { name: "Insights", exact: true }).click();
+    await page.getByText("Session identity and workspace", { exact: true }).click();
     await expect(page.getByText("None (project-free)", { exact: true })).toBeVisible();
     await expect(page.locator("dl.facts").getByText(home, { exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().projects).toHaveLength(1);

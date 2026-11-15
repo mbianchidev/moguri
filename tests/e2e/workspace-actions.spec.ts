@@ -218,7 +218,7 @@ test("the project menu hides a synced Kanban without recapturing a stale GitHub 
   const project = fixture.service.controller.snapshot().projects.find((project) => project.id === fixture.projectId)!, app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), section = page.getByRole("region", { name: `Project ${project.name}`, exact: true });
-    await section.getByRole("button", { name: `Project actions for ${project.name}`, exact: true }).click();
+    await section.getByRole("button", { name: project.name, exact: true }).click({ button: "right" });
     await page.getByRole("menuitem", { name: "Hide Kanban", exact: true }).click();
     await expect.poll(async () => kanbanPreferences((await fixture.sdk.issues.board(fixture.projectId)).board).visible).toBe(false);
     await expect(section.getByRole("button", { name: `Kanban for ${project.name}`, exact: true })).not.toBeVisible();
@@ -239,19 +239,19 @@ test("project groups expose keyboard colors and ungroup into the standard list w
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), folder = page.locator("details.project-folder").filter({ hasText: "Generated group controls" });
-    const actions = folder.getByRole("button", { name: "Project group actions for Generated group controls", exact: true });
-    await actions.press("Enter");
+    const actions = folder.locator("summary");
+    await actions.press("Shift+F10");
     const menu = page.getByRole("menu", { name: "Project group actions for Generated group controls", exact: true });
     const violet = menu.getByRole("menuitemradio", { name: "Violet", exact: true });
     await violet.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().projectFolders.find((folder) => folder.id === group.id)?.color).toBe("#a855f7");
-    await expect(folder.locator('summary .folder-icon > svg[data-icon="Files"]')).toHaveCSS("color", "rgb(168, 85, 247)");
-    await actions.click(); await menu.getByRole("menuitemradio", { name: "Custom group color", exact: true }).click();
+    await expect(folder.locator('summary .folder-icon > svg[data-icon="FolderOpen"]')).toHaveCSS("color", "rgb(168, 85, 247)");
+    await actions.click({ button: "right" }); await menu.getByRole("menuitemradio", { name: "Custom group color", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Project group color", exact: true });
     await dialog.getByLabel("Custom group color", { exact: true }).fill("#1f72a3"); await dialog.getByRole("button", { name: "Save", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect.poll(() => fixture.service.controller.snapshot().projectFolders.find((folder) => folder.id === group.id)?.color).toBe("#1f72a3");
-    await actions.focus(); await page.keyboard.press("Enter"); await menu.getByRole("menuitem", { name: "Ungroup", exact: true }).focus(); await page.keyboard.press("Enter");
+    await actions.focus(); await page.keyboard.press("Shift+F10"); await menu.getByRole("menuitem", { name: "Ungroup", exact: true }).focus(); await page.keyboard.press("Enter");
     await expect(folder).toHaveCount(0); await expect(page.getByRole("button", { name: "Projects menu", exact: true })).toBeFocused();
     await expect(page.getByRole("region", { name: "Chats", exact: true }).getByRole("button", { name: "Generated retained group chat", exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().projectConfigurations.filter((entry) => [first, second].includes(entry.projectId)).every((entry) => entry.folderId === null)).toBe(true);

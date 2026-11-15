@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from "react";
 import type { Command, MoguriSdk, Session } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
-import { SidebarMenu } from "./ChatMenus.tsx";
+import { AnchoredMenu } from "./AnchoredMenu.tsx";
 import { AttachmentChip } from "./ContextAttachments.tsx";
 import { useCopyFeedback } from "./CopyButton.tsx";
 import { Icon } from "./Icon.tsx";
@@ -13,7 +13,16 @@ export function Queue({ session, command, client, modal }: {
 }) {
   const [expanded, setExpanded] = useState(true), contentId = useId();
   const [editing, setEditing] = useState<string | null>(null), [text, setText] = useState(""), [error, setError] = useState("");
-  const [menuId, setMenuId] = useState<string | null>(null), trigger = useRef<HTMLButtonElement>(null);
+  const [menuId, setMenuId] = useState<string | null>(null), [menuOpening, setMenuOpening] = useState(0), trigger = useRef<HTMLButtonElement>(null);
+  // Light dismiss and Escape close the popover before React sees the toggle, so decide from the actual popover state.
+  const pointerOpen = useRef(false);
+  const menuShown = (button: HTMLButtonElement) => trigger.current === button && Boolean(document.querySelector(".queued-message-menu:popover-open"));
+  const toggleMenu = (button: HTMLButtonElement, id: string, pointer: boolean) => {
+    const open = pointer ? pointerOpen.current && trigger.current === button : menuShown(button);
+    pointerOpen.current = false; trigger.current = button;
+    if (open) { setMenuId(null); return; }
+    setMenuId(id); setMenuOpening((value) => value + 1);
+  };
   const menuIndex = session.queue.findIndex((item) => item.id === menuId), menu = session.queue[menuIndex];
   const count = `${session.queue.length} queued ${session.queue.length === 1 ? "message" : "messages"}`;
   const copy = useCopyFeedback(JSON.stringify([client.profileId, session.id, menu?.id, menu?.text]), async () => {
@@ -54,7 +63,8 @@ export function Queue({ session, command, client, modal }: {
             </div>
             <div className="queue-actions">
               <Tooltip content="More actions"><button type="button" className="icon-button" aria-label={`More actions for queued message ${index + 1}`}
-                aria-haspopup="dialog" aria-expanded={menu?.id === item.id} onClick={(event) => { trigger.current = event.currentTarget; setMenuId(menuId === item.id ? null : item.id); }}><Icon name="More" /></button></Tooltip>
+                aria-haspopup="dialog" aria-expanded={menu?.id === item.id} onPointerDown={(event) => { pointerOpen.current = menuShown(event.currentTarget); }}
+                onClick={(event) => toggleMenu(event.currentTarget, item.id, event.detail > 0)}><Icon name="More" /></button></Tooltip>
               <Tooltip content="Delete queued message"><button type="button" className="icon-button" aria-label={`Remove queued message ${index + 1}`}
                 onClick={() => void command({ type: "queue.remove", sessionId: session.id, messageId: item.id, expectedRevision: session.queueRevision })}><Icon name="Trash" /></button></Tooltip>
               {item.held && <Tooltip content="Release this held prompt"><button type="button" className="icon-button queue-run" aria-label={`Run queued message ${index + 1}`}
@@ -65,7 +75,7 @@ export function Queue({ session, command, client, modal }: {
         </div>}
       </ReorderList>
     </div>
-    {expanded && menu && <SidebarMenu label={`Queued message ${menuIndex + 1} actions`} sourceSessionId={session.id} trigger={trigger} close={() => setMenuId(null)} className="queued-message-menu">
+    {expanded && menu && <AnchoredMenu key={`${menu.id}:${menuOpening}`} label={`Queued message ${menuIndex + 1} actions`} trigger={trigger} close={() => setMenuId(null)} className="queued-message-menu">
       <p className="queued-message-preview">{menu.text || "Attached project context"}</p>
       <button type="button" aria-label={`Edit queued message ${menuIndex + 1}`} onClick={() => { setEditing(menu.id); setText(menu.text); setMenuId(null); }}><Icon name="Edit" />Edit message</button>
       <button type="button" aria-label={`Copy queued message ${menuIndex + 1}`} aria-busy={copy.pending || undefined} onClick={() => void copy.copy()}><Icon name={copy.copied ? "Check" : "Copy"} />{copy.copied ? "Copied" : "Copy message"}</button>
@@ -74,6 +84,6 @@ export function Queue({ session, command, client, modal }: {
       }}><Icon name="Clock" />Queue as new turn</button>}
       <span className="sr-only" role="status">{copy.copied ? "Copied." : ""}</span>
       {copy.error && <Alert as="p" className="inline-error" role="alert">{copy.error}</Alert>}
-    </SidebarMenu>}
+    </AnchoredMenu>}
   </section>;
 }

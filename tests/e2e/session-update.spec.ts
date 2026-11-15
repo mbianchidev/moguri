@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
-import { openSessionSearch } from "./navigation.ts";
+import { openSessionSearch, openGroupMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -185,7 +185,8 @@ test("dropping a project on another names a folder, starts a captured multi-repo
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
     const folder = page.locator(".project-folder").filter({ hasText: "Generated folder" });
     await expect(folder.locator(".project-row")).toHaveCount(2);
-    await folder.getByRole("button", { name: "New chat in Generated folder", exact: true }).click();
+    await expect(folder.getByRole("button", { name: "New chat in Generated folder", exact: true })).toHaveCount(0);
+    await (await openGroupMenu(page, "Generated folder")).getByRole("menuitem", { name: "New chat", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.some((session) => session.repositories?.length === 2)).toBe(true);
     const created = fixture.service.controller.snapshot().sessions.find((session) => session.repositories?.length === 2)!;
     await expect(folder.locator(`button[data-session-id="${created.id}"]`)).toBeVisible();
@@ -203,7 +204,10 @@ test("dropping a project on another names a folder, starts a captured multi-repo
     await expect(page.getByRole("combobox", { name: "Terminal repository", exact: true })).toHaveValue("");
     expect(fixture.service.controller.snapshot().terminals.filter((terminal) => terminal.sessionId === created.id)).toHaveLength(0);
     await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Code change", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Choose an individual repository chat", exact: true })).toBeVisible();
+    const change = page.getByRole("region", { name: "Session code change", exact: true });
+    await expect(change).toHaveAttribute("data-code-change", "changes");
+    await expect(change.getByRole("combobox", { name: "Changes repository", exact: true })).toHaveValue("");
+    await expect(change.locator(".code-change-pr-link")).toHaveCount(0);
     await page.getByRole("button", { name: "Projects menu", exact: true }).click();
     await page.getByRole("menuitem", { name: "Collapse all groups", exact: true }).click();
     await expect(folder).not.toHaveAttribute("open");

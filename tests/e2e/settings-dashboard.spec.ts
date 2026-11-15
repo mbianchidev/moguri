@@ -67,6 +67,38 @@ test("imported skill switches persist and Enable all reports a partial failure w
   } finally { fixture.service.controller.dispatch = dispatch; await close(app); sdk.disconnect(); await fixture.close(); }
 });
 
+test("an imported skill is deleted only after inline confirmation, while plugin-owned skills stay with their bundle", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready(), projectId = fixture.session().projectId;
+  for (const name of ["generated-removable", "generated-retained"]) {
+    const directory = join(fixture.project, name); await mkdir(directory);
+    await writeFile(join(directory, "SKILL.md"), `---\nname: ${name}\ndescription: Generated deletion fixture.\n---\nUse generated fixtures; no tool permissions.\n`);
+    await sdk.capabilities.importSkill(projectId, join(directory, "SKILL.md"));
+  }
+  const pluginPath = join(fixture.project, "plugin.json");
+  await writeFile(pluginPath, JSON.stringify({ schemaVersion: 1, name: "generated-bundle", version: "1.0.0", description: "Generated plugin",
+    skills: ["---\nname: generated-bundled\ndescription: Bundled skill\n---\nGenerated bundled instructions.\n"] }));
+  await sdk.capabilities.importPlugin(projectId, pluginPath);
+  const app = await launch(join(fixture.directory, "state"));
+  try {
+    const page = await app.firstWindow(); await openSettingsSection(page, "Skills");
+    const remove = page.getByRole("button", { name: "Delete skill generated-removable", exact: true });
+    await expect(page.getByRole("button", { name: "Delete skill generated-bundle/generated-bundled", exact: true })).toHaveCount(0);
+    await remove.click();
+    const confirmation = page.getByRole("group", { name: "Confirm deleting skill generated-removable", exact: true });
+    await expect(confirmation).toContainText("Chats that admitted it lose access");
+    await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(confirmation).toHaveCount(0);
+    expect(sdk.getState().snapshot!.registry.some((entry) => entry.name === "generated-removable")).toBe(true);
+    await remove.click(); await page.screenshot({ path: test.info().outputPath("skill-delete-confirmation.png") });
+    await confirmation.getByRole("button", { name: "Delete skill", exact: true }).click();
+    await expect(page.getByRole("status", { name: "Skill changes", exact: true })).toContainText("Deleted skill generated-removable");
+    await expect(page.getByRole("switch", { name: "Enable skill generated-removable", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("switch", { name: "Enable skill generated-retained", exact: true })).toBeVisible();
+    await expect.poll(() => sdk.getState().snapshot!.registry.some((entry) => entry.name === "generated-removable")).toBe(false);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await close(app); sdk.disconnect(); await fixture.close(); }
+});
+
 test("project configuration lists registered projects, preserves concurrent edits and keeps a removed target without replacement", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const path = join(fixture.directory, "generated-second-project"); await mkdir(path);
@@ -163,8 +195,9 @@ test("project-group menu collapses and expands only its actual member projects w
     const folder = page.locator("details.project-folder").filter({ has: page.locator("summary .folder-name", { hasText: "Generated selected group" }) });
     const unrelated = page.locator("details.project-folder").filter({ has: page.locator("summary .folder-name", { hasText: "Generated unrelated group" }) });
     await unrelated.locator("summary").click();
-    const actions = folder.getByRole("button", { name: "Project group actions for Generated selected group", exact: true });
-    await actions.press("Enter");
+    await expect(folder.getByRole("button", { name: "Project group actions for Generated selected group", exact: true })).toHaveCount(0);
+    const actions = folder.locator("summary");
+    await actions.press("Shift+F10");
     const menu = page.getByRole("menu", { name: "Project group actions for Generated selected group", exact: true });
     await menu.getByRole("menuitem", { name: "Collapse all projects", exact: true }).press("Enter");
     await expect(actions).toBeFocused();
@@ -182,7 +215,7 @@ test("project-group menu collapses and expands only its actual member projects w
     await expect(folder.getByRole("button", { name: "Generated second member session", exact: true })).toBeVisible();
     await expect(unrelated).not.toHaveAttribute("open");
     expect(sdk.getState().snapshot!.projectConfigurations.filter((configuration) => configuration.folderId === selected).map((configuration) => configuration.projectId).sort()).toEqual(ids.slice(0, 2).sort());
-    await actions.click();
+    await actions.click({ button: "right" });
     const moved = (await sdk.projects.configuration(ids[1]!)).configuration;
     await sdk.projects.organize(ids[1]!, { folderId: null, order: moved.order, color: moved.color }, moved.revision);
     const outside = page.getByRole("region", { name: "Project generated-member", exact: true });

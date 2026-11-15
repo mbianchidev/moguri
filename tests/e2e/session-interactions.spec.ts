@@ -42,11 +42,12 @@ test("panel controls maximize over chat without covering navigation, mode is a b
     expect(expanded!.x).toBeGreaterThanOrEqual(left!.x + left!.width - 1);
     await expect(composer).toBeHidden();
     const terminalId = fixture.service.controller.snapshot().terminals[0]!.id;
+    const palette = page.getByRole("dialog", { name: "Commands", exact: true });
     await page.keyboard.press("Meta+k");
-    await expect(pane.getByRole("dialog", { name: "Commands", exact: true })).toBeVisible();
-    await expect(composer).toBeVisible();
+    await expect(palette).toBeVisible(); await expect(palette).toHaveJSProperty("open", true);
+    expect(await palette.evaluate((element) => element.closest("#session-sidebar"))).toBeNull();
     await page.keyboard.press("Escape");
-    await expect(composer).toBeHidden();
+    await expect(palette).toHaveCount(0); await expect(composer).toBeHidden();
     expect(fixture.service.controller.snapshot().terminals[0]?.id).toBe(terminalId);
     expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("running");
     await mkdir(".moguri/artifacts", { recursive: true });
@@ -58,10 +59,8 @@ test("panel controls maximize over chat without covering navigation, mode is a b
     await expect(pane).toBeHidden();
     expect(fixture.service.controller.snapshot().terminals[0]?.status).toBe("running");
     await page.getByLabel("Prompt", { exact: true }).focus(); await page.keyboard.press("Meta+k");
-    await expect(pane.getByRole("dialog", { name: "Commands", exact: true })).toBeVisible();
-    await expect(composer).toBeVisible();
-    await expect(page.locator("dialog[open]")).toHaveCount(0);
-    await page.keyboard.press("Escape");
+    await expect(palette).toBeVisible(); await expect(pane).toBeHidden();
+    await page.keyboard.press("Escape"); await expect(palette).toHaveCount(0);
     await expect(page.getByLabel("Prompt", { exact: true })).toBeFocused();
   } finally { await app.close(); await fixture.close(); }
 });

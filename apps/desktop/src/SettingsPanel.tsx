@@ -94,6 +94,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [capabilityBusy, setCapabilityBusy] = useState(false), [capabilityProgress, setCapabilityProgress] = useState("");
+  const [deletingSkill, setDeletingSkill] = useState<string | null>(null);
   const capabilityPending = useRef(false);
   const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
   const [sandboxDraftDirty, setSandboxDraftDirty] = useState(false);
@@ -295,7 +296,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const jsonEditor = (section: SettingsSection, label: string, disabled = saving) => <div className="setting-editor"><label className="setting-field">{label}<SettingsTextarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={disabled}
     onChange={(event) => setRaw((raw) => ({ ...raw, [section]: event.target.value }))} spellCheck={false} /></label>{saveButton(section, `Save ${label}`, disabled)}</div>;
   const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
-  useEffect(() => { setCapabilityProgress(""); }, [sdk, project?.id, tab]);
+  useEffect(() => { setCapabilityProgress(""); setDeletingSkill(null); }, [sdk, project?.id, tab]);
+  const deleteSkill = (entry: (typeof registry)[number]) => {
+    if (capabilityPending.current) return;
+    capabilityPending.current = true; setCapabilityBusy(true);
+    void run(async () => {
+      await sdk.capabilities.delete(entry.id, entry.revision, true);
+      setDeletingSkill(null); setCapabilityProgress(`Deleted skill ${entry.name}. Sessions that admitted it lose access; no other capability or permission changed.`);
+    }).finally(() => { capabilityPending.current = false; setCapabilityBusy(false); });
+  };
   const toggleSkills = (entries: typeof registry, enabled: boolean) => {
     if (capabilityPending.current) return;
     capabilityPending.current = true; setCapabilityBusy(true);
@@ -698,6 +707,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} onChange={(event) => change("interactions", { ...draft.interactions, confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionDetach !== false} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionDetach: event.target.checked })} />Confirm before detaching a child session</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmRepositoryImport !== false} onChange={(event) => change("interactions", { ...draft.interactions, confirmRepositoryImport: event.target.checked })} />Ask before importing a repository a chat wrote code in</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.nativeRetryRestaging === true} onChange={(event) => change("interactions", { ...draft.interactions, nativeRetryRestaging: event.target.checked })} />Allow exact private-snapshot restaging for native model retries</label>
           <p className="fine-print">Off by default. Requires verified original guest cleanup and unchanged request, profile, Env and current permissions. Never captures changed live source or replays tools, Git or unknown work.</p>
           <label className="setting-field">Scheduling in an idle chat<select value={draft.interactions.idleScheduleAction ?? "ask"} onChange={(event) => change("interactions", { ...draft.interactions, idleScheduleAction: parse(SettingsSchema.properties.interactions.properties.idleScheduleAction, event.target.value) })}>
@@ -786,9 +796,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             onClick={() => toggleSkills(registry.filter((entry) => !entry.enabled), true)}>Enable all</button>
             <p className="fine-print" role="status" aria-label="Skill changes">{capabilityProgress}</p></>}
           {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code></div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
-            {tab === "skills" ? <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
-              onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label> :
-              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button>}</section>)}
+            {tab === "skills" ? <><label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
+              onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label>
+              {entry.ownerPluginId ? <span className="fine-print">Plugin bundle</span> : <button type="button" className="icon-button danger" aria-label={`Delete skill ${entry.name}`} title="Delete skill"
+                aria-expanded={deletingSkill === entry.id} disabled={capabilityBusy} onClick={() => setDeletingSkill((current) => current === entry.id ? null : entry.id)}><Icon name="Trash" /></button>}</> :
+              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button>}
+            {deletingSkill === entry.id && <div className="capability-delete" role="group" aria-label={`Confirm deleting skill ${entry.name}`}>
+              <span>Delete {entry.name}? Chats that admitted it lose access. Its version history stays in this profile's encrypted event history.</span>
+              <button type="button" disabled={capabilityBusy} onClick={() => setDeletingSkill(null)}>Cancel</button>
+              <button type="button" className="danger" disabled={capabilityBusy} onClick={() => deleteSkill(entry)}>Delete skill</button>
+            </div>}</section>)}
           {tab === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Approved custom scripts execute as Local host code, not in a fictional sandbox. Review the full source, enable it explicitly, and approve each call. Use only scripts you trust.</Alert>}
           <h3>Optional evolution</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Allow model-proposed skills, scripts and style knowledge for human review</label>}>Off by default. Nothing applies itself; approval installs disabled content and enabling/execution remain separate actions.</SettingsHelp>
           {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })} aria-label="Review full proposal">Review</button></div>)}

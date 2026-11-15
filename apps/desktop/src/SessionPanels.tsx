@@ -9,6 +9,7 @@ import { ApprovalActions } from "./ApprovalActions.tsx";
 import type { SettingsTab } from "./settings-catalog.ts";
 import { RepositoryPicker } from "./RepositoryPicker.tsx";
 import { Alert } from "./Alert.tsx";
+import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 
 export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -38,20 +39,20 @@ export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sd
 export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [repository, setRepository] = useState(""), generation = useRef(0);
   const [data, setData] = useState<{ branch: string; status: string; diff: string } | null>(null);
-  const [error, setError] = useState(""), [loading, setLoading] = useState(false);
+  const [error, setError] = useState<PanelFailure | null>(null), [loading, setLoading] = useState(false);
   const load = async () => {
-    setError("");
+    setError(null);
     const current = ++generation.current; setData(null); setLoading(true);
     if (session.repositories && !repository) { setLoading(false); return; }
-    if (!session.projectId && !session.repositories) { setError("Select a project to inspect file changes."); setLoading(false); return; }
+    if (!session.projectId && !session.repositories) { setError({ message: "Select a project to inspect file changes.", code: null }); setLoading(false); return; }
     try { const data = await sdk.workspaces.git(session.id, true, repository || undefined); if (generation.current === current) setData(data); }
-    catch (error) { if (generation.current === current) setError(error instanceof Error ? error.message : "Git status could not be read."); }
+    catch (error) { if (generation.current === current) setError(panelFailure(error, "Git status could not be read.")); }
     finally { if (generation.current === current) setLoading(false); }
   };
   useEffect(() => { void load(); return () => { generation.current++; }; }, [session.id, session.workspaceId, session.turnId, repository]);
   return <section className="changes-panel" aria-label="Bound workspace changes" aria-busy={loading}><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={loading || Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Refresh" /></button></header>
     {loading && <p className="fine-print" role="status">Loading changes from the bound workspace...</p>}
-    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    <PanelError failure={error} projectId={session.projectId} />
     {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;
@@ -59,26 +60,26 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
 export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
   const [repository, setRepository] = useState("");
   const [path, setPath] = useState("."), [entries, setEntries] = useState<string[]>([]), [file, setFile] = useState<{ path: string; text: string } | null>(null);
-  const [loading, setLoading] = useState(false), [error, setError] = useState(""), generation = useRef(0);
+  const [loading, setLoading] = useState(false), [error, setError] = useState<PanelFailure | null>(null), generation = useRef(0);
   useEffect(() => {
-    const current = ++generation.current; setLoading(true); setError(""); setFile(null);
+    const current = ++generation.current; setLoading(true); setError(null); setFile(null);
     if (session.repositories && !repository) { setEntries([]); setLoading(false); return; }
     void sdk.workspaces.files(session.id, path, repository || undefined).then((result) => { if (generation.current === current) setEntries(result.entries); })
-      .catch((error: unknown) => { if (generation.current === current) { setEntries([]); setError(error instanceof Error ? error.message : "Directory could not be read from the bound root."); } })
+      .catch((error: unknown) => { if (generation.current === current) { setEntries([]); setError(panelFailure(error, "Directory could not be read from the bound root.")); } })
       .finally(() => { if (generation.current === current) setLoading(false); });
     return () => { generation.current++; };
   }, [session.id, session.workspaceId, session.sandboxWorkspaceId, session.controls.env, path, repository]);
   const open = (entry: string) => {
     if (entry.endsWith("/")) { setPath(entry.slice(0, -1)); return; }
-    const current = ++generation.current; setLoading(true); setError("");
+    const current = ++generation.current; setLoading(true); setError(null);
     void sdk.workspaces.file(session.id, entry, repository || undefined).then((result) => { if (generation.current === current) setFile(result); })
-      .catch((error: unknown) => { if (generation.current === current) setError(error instanceof Error ? error.message : "File could not be read."); })
+      .catch((error: unknown) => { if (generation.current === current) setError(panelFailure(error, "File could not be read.")); })
       .finally(() => { if (generation.current === current) setLoading(false); });
   };
   return <section className="files-panel" aria-label="Bound workspace files"><RepositoryPicker session={session} value={repository}
     change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
-    {loading && <p role="status">Loading from the bound workspace...</p>}{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    {loading && <p role="status">Loading from the bound workspace...</p>}<PanelError failure={error} projectId={session.projectId} />
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
@@ -258,7 +259,7 @@ export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, e
 }) {
   const sides = snapshot.sessions.filter((session) => session.parentSessionId === parent.id && session.createdParentSessionId === parent.id && session.kind === "side" && session.status !== "archived");
   const side = sides.find((session) => session.id === selectedId) ?? sides.at(-1);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<PanelFailure | null>(null);
   const [answerDirty, setAnswerDirty] = useState(false);
   const [coordinationDirty, setCoordinationDirty] = useState(false), dirty = answerDirty || coordinationDirty;
   const creating = useRef(false);
@@ -266,17 +267,17 @@ export function SideChat({ sdk, parent, snapshot, selectedId, select, onSlash, e
     if (side || creating.current) return;
     creating.current = true; let current = true;
     void sdk.sessions.side(parent.id).then((result) => { if (current) select(result.id!); })
-      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The original side chat could not be opened."); })
+      .catch((error: unknown) => { if (current) setError(panelFailure(error, "The original side chat could not be opened.")); })
       .finally(() => { creating.current = false; });
     return () => { current = false; };
   }, [sdk, parent.id, side?.id]);
   useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
   return <section className="side-chat-panel"><SessionCoordinationPanel key={`${sdk.profileId}:${parent.id}`} sdk={sdk} session={parent} snapshot={snapshot} onDirty={setCoordinationDirty} />
     <header className="panel-toolbar"><select aria-label="Question-only side session" value={side?.id ?? ""} disabled={dirty} onChange={(event) => select(event.target.value)}>{sides.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}{!side && <option value="">Question-only context</option>}</select>
-    <button className="icon-button" aria-label="New side chat" title="New question-only side chat" disabled={dirty} onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(error instanceof Error ? error.message : "Side chat could not be created."))}><Icon name="Plus" /></button></header>
-    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    <button className="icon-button" aria-label="New side chat" title="New question-only side chat" disabled={dirty} onClick={() => void sdk.sessions.spawn(parent.id, "side").then((result) => select(result.id!)).catch((error: unknown) => setError(panelFailure(error, "Side chat could not be created.")))}><Icon name="Plus" /></button></header>
+    <PanelError failure={error} projectId={parent.projectId} />
     {side ? <SideConversation key={side.id} sdk={sdk} session={side} snapshot={snapshot} onSlash={onSlash} editorFor={editorFor} onDirty={setAnswerDirty}
-      openSettings={openSettings} modal={modal} renderTranscript={renderTranscript} renderQueue={renderQueue} /> : <p className="fine-print" role="status">Opening the original read-only side chat...</p>}
+      openSettings={openSettings} modal={modal} renderTranscript={renderTranscript} renderQueue={renderQueue} /> : !error && <p className="fine-print" role="status">Opening the original read-only side chat...</p>}
   </section>;
 }
 function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty, openSettings, modal, renderTranscript, renderQueue }: {

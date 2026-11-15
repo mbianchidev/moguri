@@ -13,9 +13,9 @@ test("Guardrails and decision settings sit beside their autonomy choices and set
   try {
     const page = await app.firstWindow(), original = fixture.session().controls.autonomy;
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
-    const sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
-    const menu = sidebar.getByRole("dialog", { name: "Autonomy level", exact: true });
+    const menu = page.getByRole("dialog", { name: "Autonomy level", exact: true });
     await expect(menu).toBeVisible();
+    expect(await menu.evaluate((element) => element.matches(":popover-open") && !element.closest("#session-sidebar") && Boolean(element.closest(".composer")))).toBe(true);
     await expect(page.getByRole("form", { name: "Message composer", exact: true })).toBeVisible();
     const autopilot = menu.getByRole("button", { name: /^Autopilot Automatically approve/ });
     const max = menu.getByRole("button", { name: /^Autopilot Max / });
@@ -35,7 +35,7 @@ test("Guardrails and decision settings sit beside their autonomy choices and set
     expect(fixture.session().controls.autonomy).toBe(original); expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
 });
-test("the sidebar model control expands model, effort and context choices with exact supported options and Kupo's unavailable explanation", async () => {
+test("the model control opens cascading model, effort and context popups with exact supported options and Kupo's unavailable explanation", async () => {
   const fixture = await setupFixture({ reasoning: true, contextWindow: 32768 });
   await fixture.configure();
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
@@ -45,12 +45,13 @@ test("the sidebar model control expands model, effort and context choices with e
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: /^Model:/ }).click();
-    const sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
-    const root = sidebar.getByRole("dialog", { name: "Model", exact: true });
+    const root = page.getByRole("dialog", { name: "Model", exact: true });
     await expect(root).toBeVisible();
+    expect(await root.evaluate((element) => element.matches(":popover-open") && !element.closest("#session-sidebar"))).toBe(true);
     await expect(page.getByRole("log", { name: "Session transcript", exact: true })).toBeVisible();
     await root.getByRole("button", { name: "Choose model", exact: true }).click();
     const models = page.getByRole("menu", { name: "Models", exact: true });
+    expect(await models.evaluate((element) => element.matches(":popover-open"))).toBe(true);
     await expect(models.getByRole("menuitemradio", { name: /^Generated Copilot model/ })).toHaveAttribute("aria-checked", "true");
     const kupo = models.getByRole("menuitemradio", { name: /^Kupo/ });
     await expect(kupo).toHaveAttribute("aria-disabled", "true");
@@ -144,7 +145,8 @@ test("the scrollable slash list contains all builtins before skills, loads the e
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill("/");
     const list = page.getByRole("listbox", { name: "Slash commands", exact: true });
-    await expect(page.getByRole("complementary", { name: "Session sidebar", exact: true }).getByRole("listbox", { name: "Slash commands", exact: true })).toBeVisible();
+    await expect(list).toBeVisible();
+    expect(await list.evaluate((element) => !element.closest("#session-sidebar") && Boolean(element.closest(".composer")))).toBe(true);
     await expect(prompt).toBeFocused();
     await expect(list.getByRole("option")).toHaveCount(slashCommands.length + 10);
     expect(await list.getByRole("option").evaluateAll((items) => items.map((item) => item.getAttribute("data-command-kind")))).toEqual([
@@ -167,19 +169,20 @@ test("the scrollable slash list contains all builtins before skills, loads the e
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("side-chat controls keep their original owner and restore focus after the sidebar menu closes", async () => {
+test("side-chat controls keep their original owner and restore focus after the popup closes", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure();
   const side = await sdk.sessions.side(fixture.sessionId), original = structuredClone(fixture.session().controls);
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
-    const page = await app.firstWindow(), sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
+    const page = await app.firstWindow();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Side chat", exact: true }).click();
     const button = page.locator(".side-chat-panel").getByRole("button", { name: "Budget and usage", exact: true });
     await button.focus(); await page.keyboard.press("Enter");
-    const menu = sidebar.getByRole("dialog", { name: "Budget and usage", exact: true });
-    await expect(menu).toBeVisible(); await expect(menu).toHaveAttribute("data-source-session-id", side.id!);
+    const menu = page.getByRole("dialog", { name: "Budget and usage", exact: true });
+    await expect(menu).toBeVisible();
+    expect(await menu.evaluate((element) => element.matches(":popover-open") && element.closest("[data-composer-session]")?.getAttribute("data-composer-session"))).toBe(side.id!);
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0); await expect(button).toBeFocused();
     expect(fixture.session().controls).toEqual(original);

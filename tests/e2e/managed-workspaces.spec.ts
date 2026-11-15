@@ -1,10 +1,11 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk, type ManagedWorkspace } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { openProjectMenu } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop execution is qualified on macOS.");
@@ -43,7 +44,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await panels.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "workspace-only.txt", exact: true }).click();
     await expect(page.locator(".workspace-file-content")).toContainText("Generated file exists only in the owned checkout.");
-    await panels.getByRole("button", { name: "Changes", exact: true }).click();
+    await panels.getByRole("button", { name: "Code change", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated desktop worktree change");
     await panels.getByRole("button", { name: "Plan", exact: true }).click();
     await page.getByRole("button", { name: "Open workspace plan file", exact: true }).click();
@@ -51,7 +52,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await page.locator(".plan-panel").getByRole("button", { name: "Save", exact: true }).click();
     await expect.poll(async () => readFile(join(workspace.path, "docs/plan.md"), "utf8").catch(() => "")).toBe("Generated isolated desktop plan.");
     await expect(readFile(join(fixture.project, "docs/plan.md"))).rejects.toThrow(/ENOENT/);
-    await page.getByLabel("Project actions for project", { exact: true }).click();
+    await openProjectMenu(page, "project");
     await page.getByRole("menuitem", { name: "Open project terminal", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)?.workspaceId).toBe(workspace.id);
     const terminal = sdk.getState().snapshot!.terminals.find((terminal) => terminal.sessionId === selected.id)!;
@@ -101,4 +102,33 @@ test("worktree removal uses one explicit dropdown target and a bin action while 
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("a moved project folder explains every project panel and reattaches from the panel without another root", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure();
+  await writeFile(join(fixture.project, "kept.txt"), "Generated moved project file.\n");
+  const original = await realpath(fixture.project), moved = join(fixture.directory, "generated-moved-project");
+  await rename(fixture.project, moved);
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), panels = page.getByRole("navigation", { name: "Sidebar panels" });
+    for (const panel of ["Code change", "Files", "Side chat", "Work item"]) {
+      await panels.getByRole("button", { name: panel, exact: true }).click();
+      const alert = page.getByRole("alert").filter({ hasText: `no longer exists at ${original}` });
+      await expect(alert).toBeVisible();
+      await expect(alert.getByRole("button", { name: "Change attached folder…", exact: true })).toBeVisible();
+      await expect(page.getByText(/spawn git ENOENT|Install the configured tool|The operation failed/)).toHaveCount(0);
+    }
+    await panels.getByRole("button", { name: "Files", exact: true }).click();
+    await page.getByRole("alert").getByRole("button", { name: "Change attached folder…", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Change attached folder", exact: true });
+    await dialog.getByLabel("Existing absolute folder", { exact: true }).fill(moved);
+    await dialog.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByRole("button", { name: "kept.txt", exact: true })).toBeVisible();
+    const relocated = await realpath(moved);
+    await expect.poll(() => sdk.getState().snapshot!.projects.find((project) => project.id === fixture.session().projectId)?.path).toBe(relocated);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { sdk.disconnect(); await app.close(); await fixture.close(); }
 });

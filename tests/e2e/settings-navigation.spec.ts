@@ -8,7 +8,7 @@ import { setupFixture, waitFor } from "../fixture.ts";
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop settings are qualified on macOS.");
 
-test("left global resources and the nine right session panels remain separate while searchable settings preserve edits", async () => {
+test("left global resources and the eight right session panels remain separate while searchable settings preserve edits", async () => {
   const fixture = await setupFixture();
   const app = await electron.launch({
     executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -19,9 +19,9 @@ test("left global resources and the nine right session panels remain separate wh
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
-    await expect(rail.getByRole("button")).toHaveCount(9);
+    await expect(rail.getByRole("button")).toHaveCount(8);
     expect(await rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
-      .toEqual(["Terminal", "Browser", "Insights", "Changes", "Files", "Plan", "Side chat", "Code change", "Work item"]);
+      .toEqual(["Terminal", "Browser", "Insights", "Code change", "Files", "Plan", "Side chat", "Work item"]);
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
     await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations"]);
     await expect(rail.getByRole("button", { name: "Attention", exact: true })).toHaveCount(0);
@@ -91,7 +91,7 @@ test("legacy global preferences restore without losing widths and an attached PR
     const dashboard = resources.getByRole("button", { name: "Dashboard", exact: true }), sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
     await expect(dashboard).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("main").getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
-    await expect(sidebar).toBeHidden(); await expect(rail.getByRole("button")).toHaveCount(9);
+    await expect(sidebar).toBeHidden(); await expect(rail.getByRole("button")).toHaveCount(8);
     await expect(rail.getByRole("button", { name: "PR", exact: true })).toHaveCount(0);
     await dashboard.click();
     const prompt = page.getByLabel("Prompt", { exact: true });
@@ -100,7 +100,7 @@ test("legacy global preferences restore without losing widths and an attached PR
     await expect(page.getByRole("separator", { name: "Resize session sidebar", exact: true })).toHaveAttribute("aria-valuenow", "416");
     await prompt.fill("/pr"); await page.getByRole("button", { name: "Run command", exact: true }).click();
     await expect(sidebar.getByRole("heading", { name: "Code change", exact: true })).toBeVisible();
-    await expect(sidebar).toContainText(url); await expect(rail.getByRole("button")).toHaveCount(9);
+    await expect(sidebar).toContainText(url); await expect(rail.getByRole("button")).toHaveCount(8);
     await expect(rail.getByRole("button", { name: "Code change", exact: true })).toHaveAttribute("aria-pressed", "true");
     await sidebar.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     const codeChange = rail.getByRole("button", { name: "Code change", exact: true });
