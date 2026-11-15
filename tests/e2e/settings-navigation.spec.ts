@@ -91,7 +91,7 @@ test("legacy global preferences restore without losing widths and an attached PR
     const dashboard = resources.getByRole("button", { name: "Dashboard", exact: true }), sidebar = page.getByRole("complementary", { name: "Session sidebar", exact: true });
     await expect(dashboard).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("main").getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
-    await expect(sidebar).toBeHidden(); await expect(rail.getByRole("button")).toHaveCount(9);
+    await expect(sidebar).toBeHidden(); await expect(rail.getByRole("button")).toHaveCount(8);
     await expect(rail.getByRole("button", { name: "PR", exact: true })).toHaveCount(0);
     await dashboard.click();
     const prompt = page.getByLabel("Prompt", { exact: true });
@@ -100,7 +100,7 @@ test("legacy global preferences restore without losing widths and an attached PR
     await expect(page.getByRole("separator", { name: "Resize session sidebar", exact: true })).toHaveAttribute("aria-valuenow", "416");
     await prompt.fill("/pr"); await page.getByRole("button", { name: "Run command", exact: true }).click();
     await expect(sidebar.getByRole("heading", { name: "Code change", exact: true })).toBeVisible();
-    await expect(sidebar).toContainText(url); await expect(rail.getByRole("button")).toHaveCount(9);
+    await expect(sidebar).toContainText(url); await expect(rail.getByRole("button")).toHaveCount(8);
     await expect(rail.getByRole("button", { name: "Code change", exact: true })).toHaveAttribute("aria-pressed", "true");
     await sidebar.getByRole("button", { name: "Hide session sidebar", exact: true }).click();
     const codeChange = rail.getByRole("button", { name: "Code change", exact: true });

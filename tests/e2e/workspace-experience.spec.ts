@@ -31,7 +31,7 @@ test("compact navigation, global suggestions and the four graphic dashboard page
     await resources.getByRole("button", { name: "Automations", exact: true }).click();
     await expect(page.getByRole("main").getByRole("heading", { name: "Automations", exact: true })).toBeVisible();
     const rail = page.getByRole("navigation", { name: "Sidebar panels", exact: true });
-    await expect(rail.getByRole("button")).toHaveCount(9);
+    await expect(rail.getByRole("button")).toHaveCount(8);
     for (const [name, region] of [["Code change", "Session code change"], ["Work item", "Session work item"]]) {
       await rail.getByRole("button", { name, exact: true }).click();
       await expect(page.getByRole("region", { name: region, exact: true })).toHaveAttribute("data-session-id", fixture.sessionId);
@@ -249,7 +249,7 @@ test("right-rail links follow the selected session and Copilot connection status
     await expect(code).toHaveAttribute("data-session-id", fixture.sessionId); await expect(code).toContainText(url);
     await nav.getByRole("button", { name: "Generated unlinked session", exact: true }).click();
     await expect(code).toHaveAttribute("data-session-id", second.id!);
-    await expect(code).toContainText("This session has no linked pull request."); await expect(code).not.toContainText(url);
+    await expect(code).toHaveAttribute("data-code-change", "changes"); await expect(code).not.toContainText(url);
     await rail.getByRole("button", { name: "Work item", exact: true }).click();
     const work = page.getByRole("region", { name: "Session work item", exact: true });
     await expect(work).toHaveAttribute("data-session-id", second.id!);

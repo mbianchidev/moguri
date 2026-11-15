@@ -38,6 +38,7 @@ test("issue and PR pickers stay usable beyond twenty seconds when a normal chat 
     await issue.getByLabel("GitHub issue", { exact: true }).selectOption("7");
     await expect(issue.getByRole("article", { name: "Issue details", exact: true })).toContainText("issue body");
     await panels.getByRole("button", { name: "Code change", exact: true }).click();
+    await page.getByText("Link or open a pull request", { exact: true }).click();
     await reading;
     await fixture.sdk.command({ type: "draft.save", sessionId: fixture.sessionId, expectedRevision: fixture.session().draft.revision,
       text: "Generated independent conversation while pull requests load.", attachments: [] });
@@ -132,6 +133,7 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
+    await page.getByText("Link or open a pull request", { exact: true }).click();
     const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
     await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();
     await pulls.getByLabel("Pull request", { exact: true }).selectOption("11");

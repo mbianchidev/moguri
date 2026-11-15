@@ -38,6 +38,7 @@ test("an ordinary project-free desktop chat shows only chat panels and runs an a
     await expect(agent).toContainText("completed");
     await expect(agent.getByRole("textbox", { name: "Agent terminal output", exact: true })).toHaveAttribute("aria-readonly", "true");
     await panels.getByRole("button", { name: "Insights", exact: true }).click();
+    await page.getByText("Session identity and workspace", { exact: true }).click();
     await expect(page.getByText("None (project-free)", { exact: true })).toBeVisible();
     await expect(page.locator("dl.facts").getByText(home, { exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().projects).toHaveLength(1);

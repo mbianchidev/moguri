@@ -107,7 +107,8 @@ test("main and side chats have independent queued prompt visibility in a compact
     const more = side.getByRole("button", { name: "More actions for queued message 1", exact: true });
     await more.focus(); await more.press("Enter");
     const menu = page.getByRole("dialog", { name: "Queued message 1 actions", exact: true });
-    await expect(menu).toHaveAttribute("data-source-session-id", sideSession.id);
+    await expect(menu).toBeVisible();
+    expect(await menu.evaluate((element) => element.matches(":popover-open") && Boolean(element.closest(".side-chat-panel")))).toBe(true);
     await menu.getByRole("button", { name: "Edit queued message 1", exact: true }).press("Enter");
     await side.getByRole("textbox", { name: "Edit queued message", exact: true }).fill("Generated preserved side queue edit");
     await side.getByRole("button", { name: "Hide queued prompts", exact: true }).click();

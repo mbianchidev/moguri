@@ -1019,7 +1019,11 @@ function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel:
 function CommandPalette({ actions, close }: { actions: { name: string; action: () => Promise<void> }[]; close: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
-  useEffect(() => { ref.current?.showModal(); }, []);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    ref.current?.showModal();
+    return () => { requestAnimationFrame(() => { if (previous?.isConnected && (!document.activeElement || document.activeElement === document.body)) previous.focus({ preventScroll: true }); }); };
+  }, []);
   return <dialog ref={ref} className="command-palette" aria-label="Commands" onClose={close}><header><label htmlFor="command-search">Commands</label><button className="quiet" onClick={() => ref.current?.close()}>Esc</button></header>
     <input id="command-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a command..." />
     <div>{actions.filter((action) => action.name.toLowerCase().includes(query.toLowerCase())).map((action) => <button key={action.name} onClick={() => { close(); void action.action(); }}>{action.name}<span>&gt;</span></button>)}</div>

@@ -12,7 +12,7 @@ const launch = (directory: string) => electron.launch({ executablePath: process.
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 test.skip(process.platform !== "darwin", "Native pane-toggle qualification is macOS-only.");
 
-test("Changes reports its pending read and recovers from failure without claiming a clean workspace", async () => {
+test("Code change reports its pending read and recovers from failure without claiming a clean workspace", async () => {
   const fixture = await setupFixture(), gate = Promise.withResolvers<void>();
   await generatedRepository(fixture.project);
   await writeFile(join(fixture.project, "fixture.txt"), "Generated changed file.\n");
