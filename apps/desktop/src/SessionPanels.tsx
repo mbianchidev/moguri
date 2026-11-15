@@ -312,6 +312,6 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty,
       connected={sdk.getState().status === "connected"} inputLabel="Side question" autoFocus onPendingChange={setComposerPending}
       onSlash={onSlash} onMenuChange={modal} onConnect={() => openSettings("providers")} onGuardrails={() => openSettings("permissions")}
       onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")}
-      onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />
+      onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} onVoiceSettings={() => openSettings("voice")} />
   </>;
 }

@@ -16,6 +16,7 @@ const bridge: DesktopBridge = {
   chooseProject: (purpose) => ipcRenderer.invoke("moguri:choose-project", purpose),
   chooseFile: (path) => ipcRenderer.invoke("moguri:choose-file", path),
   chooseAttachment: (kind) => ipcRenderer.invoke("moguri:choose-attachment", kind),
+  chooseVoiceModel: () => ipcRenderer.invoke("moguri:choose-voice-model"),
   openExternal: (url) => ipcRenderer.invoke("moguri:open-external", url),
   projectLocation: (profileId, projectId, expectedPath, action) => ipcRenderer.invoke("moguri:project-location", profileId, projectId, expectedPath, action),
   sessionLocation: (profileId, sessionId, action) => ipcRenderer.invoke("moguri:session-location", profileId, sessionId, action),

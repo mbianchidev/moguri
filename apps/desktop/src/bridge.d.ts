@@ -23,6 +23,7 @@ export interface DesktopBridge {
   chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
+  chooseVoiceModel(): Promise<string | null>;
   openExternal(url: string): Promise<void>;
   projectLocation(profileId: string, projectId: string, expectedPath: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
   sessionLocation(profileId: string, sessionId: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;

@@ -43,12 +43,12 @@ export function chatSubmission(event: ReactKeyboardEvent<HTMLTextAreaElement>): 
   return (event.metaKey || event.ctrlKey) && !event.shiftKey ? "hold" : "send";
 }
 
-export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails, onLocalModels, onRemote, onSandbox, onRouting, onDecisions, inputLabel = "Prompt", autoFocus = false, onPendingChange }: {
+export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails, onLocalModels, onRemote, onSandbox, onRouting, onDecisions, onVoiceSettings, inputLabel = "Prompt", autoFocus = false, onPendingChange }: {
   session: Session; project?: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
   onConnect: () => void; onMenuChange: (open: boolean) => void; onGuardrails: () => void;
   onLocalModels: () => void; onRemote: () => void; onSandbox: () => void; onRouting: () => void; onDecisions: () => void;
   onSlash: (session: Session, editor: DraftEditor, text: string, held?: boolean) => Promise<void>;
-  inputLabel?: string; autoFocus?: boolean; onPendingChange?: (pending: boolean) => void;
+  inputLabel?: string; autoFocus?: boolean; onPendingChange?: (pending: boolean) => void; onVoiceSettings?: () => void;
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const input = useRef<HTMLTextAreaElement>(null), dictated = useRef<DraftDictation | null>(null);
@@ -396,7 +396,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "transcribing" ? "Flushing the original local audio buffer. Inserted words are preserved." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
     {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.state.error}</Alert>}
-    {dictation.preparationError && dictation.preparationError !== dictation.state.error && dictation.preparationError !== voiceOutcome?.error &&
+    {dictation.modelChanged ? <Alert as="p" className="composer-voice-status inline-error" role="alert">Your trusted dictation model file changed, so dictation is blocked until you review it again.
+      {onVoiceSettings && <button type="button" className="quiet" onClick={onVoiceSettings}>Review model</button>}</Alert> :
+      dictation.preparationError && dictation.preparationError !== dictation.state.error && dictation.preparationError !== voiceOutcome?.error &&
       <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.preparationError}</Alert>}
     {voiceOutcome?.status === "failed" && <Alert as="p" className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</Alert>}
     {transcript && transcript.id !== insertedTranscript && !voiceFinalizing && <div className="composer-transcript"><Icon name="Mic" /><div className="composer-transcript-text"><strong>Dictation ready</strong>

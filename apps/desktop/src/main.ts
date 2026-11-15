@@ -487,6 +487,15 @@ else {
         typeof soundId !== "string" || soundId !== "default" && !/^[a-f0-9-]{36}$/.test(soundId)) throw new Error("Choose an exact sound in the active profile.");
       return requestSound(attentionClient, profileEpoch, kind, soundId);
     });
+    ipcMain.handle("moguri:choose-voice-model", async (event) => {
+      trusted(event);
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+        if (!process.env.MOGURI_TEST_VOICE_MODEL_FILE) throw new Error("Hidden model checks require a generated model file. No personal file picker was opened.");
+        return process.env.MOGURI_TEST_VOICE_MODEL_FILE;
+      }
+      const result = await dialog.showOpenDialog(mainWindow!, { title: "Choose an existing streaming speech model", properties: ["openFile"], filters: [{ name: "Speech models", extensions: ["gguf", "bin"] }] });
+      return result.canceled ? null : result.filePaths[0] ?? null;
+    });
     ipcMain.handle("moguri:choose-attachment", async (event, kind: unknown) => {
       trusted(event);
       if (!["file", "image", "folder", "document"].includes(String(kind))) throw new Error("Choose a supported explicit attachment type.");
