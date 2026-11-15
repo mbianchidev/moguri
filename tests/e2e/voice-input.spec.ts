@@ -525,7 +525,7 @@ test("interrupted push-to-talk reports discard, and an empty recognition result 
   }
 });
 
-test("Ctrl+Space streams words into the textbox while held and release flushes once without an Insert action", async () => {
+test("Ctrl+Space streams words into the textbox while held and release flushes once without an Insert action, even after reload", async () => {
   const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
@@ -544,6 +544,9 @@ test("Ctrl+Space streams words into the textbox while held and release flushes o
     await expect(prompt).toHaveValue("Generated local dictation.");
     await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    await page.reload();
+    await expect(prompt).toHaveValue("Generated local dictation.");
+    await expect(page.locator(".composer-transcript")).toHaveCount(0);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

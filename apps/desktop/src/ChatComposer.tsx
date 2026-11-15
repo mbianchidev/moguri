@@ -90,15 +90,16 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       dictated.current?.close();
       dictated.current = editor.startDictation(input.current?.selectionStart, input.current?.selectionEnd);
     },
-    onTranscript: (text, id, final) => {
+    onTranscript: (text, _jobId, final) => {
       if (!dictated.current) throw new Error("The original dictation composer is closed. No transcript was inserted elsewhere.");
       dictated.current.update(text);
-      if (final) { dictated.current.close(); setInsertedTranscript(id); void run(() => editor.flush()); }
+      if (final) { dictated.current.close(); void run(() => editor.flush()); }
     } });
   useEffect(() => () => dictated.current?.close(), [editor]);
   const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running");
   const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
-  const transcript = voiceOutcome?.status === "completed" ? voiceOutcome : undefined;
+  // Streamed captures already wrote their words into this draft; only batch transcripts await an explicit Insert.
+  const transcript = voiceOutcome?.status === "completed" && voiceOutcome.kind !== "voice.capture" ? voiceOutcome : undefined;
   const transcriptPreview = useDictationTranscript(client, session.id, transcript?.id);
   const voiceFinalizing = finishingVoice || dictation.state.phase === "transcribing" || Boolean(voiceJob?.progress?.startsWith("Finalizing"));
   const voicePreparing = voiceJob?.kind === "voice.record" && Boolean(voiceJob.progress?.startsWith("Preparing"));
