@@ -214,29 +214,17 @@ keeps generated evidence separate from physical native and hosted-CI gates.
 
 ## First-milestone combination qualification
 
-The [required combination and native-gate map](architecture/milestone-combination-matrix.md)
+Milestone 1 is accepted at protocol 106 with SendBox 0.2.7. The
+[required combination and native-gate map](architecture/milestone-combination-matrix.md)
 defines all Local/SSH/Sandbox control/input cells, actual-user and accounting
-criteria, reproduction commands and exact report identities. Local/SSH
-generated source execution and real TUI/hidden-desktop interaction are separate
-from physical native acceptance. Fresh current-protocol
-guest/control/network/cleanup/loss/recovery evidence and account-blocked main
-CI remain visible gates. Neither issue #38 nor Milestone 1
-is accepted by a source test count or a historical receipt.
-The preceding protocol93 clean `5051b6f` qualification completes **6,720 Local/SSH source
-cells**, the full **10,538-pass** source suite, **376-pass** hidden desktop
-suite, independently installed SDK and the actual ad-hoc package. All
-**3,360 native cells remain unqualified**. The fresh development DMG is under
-`release/qualification-builds/milestone93-d7f6648/`; its exact digest, producer
-image and retained report are in the linked map. It is not a native-qualified
-or notarized release. Those immutable receipts do not qualify changed
-protocol94 worker/app bytes. The
-[new frozen protocol94 qualification](architecture/milestone-combination-matrix.md#protocol94-frozen-source-and-package-cut)
-at clean `07087bf` independently passes all **6,720 Local/SSH cells**,
-**10,562 source checks**, **382 hidden desktop flows**, the installed SDK,
-actual packaged runtime and **17 actual packaged desktop checks**. Its new
-verified development DMG is
-`release/qualification-builds/milestone94-07087bf/Moguri-0.31.0-alpha.1-macos-arm64.dmg`.
-Physical native and hosted gates remain open.
+criteria and reproduction commands; its
+[final qualification](architecture/milestone-combination-matrix.md#final-qualification-2026-11-15)
+records 6,720/6,720 Local/SSH and 3,360/3,360 native cells, ten physical
+native gates and the full source, hidden desktop, SDK and package runs. The
+[acceptance record](remaining-milestone-gaps.md#milestone-1-accepted-2026-11-15)
+maps each milestone criterion to its evidence and records the user-directed
+replacement of hosted CI with that local evidence. Physical native runs need
+the reviewed receipts from `npm run prepare:sandbox` and `scripts/qualify-sandbox.mjs`.
 Fresh macOS source-test environments also require the matching installed
 Chromium revision: run `npm exec -- playwright install chromium` explicitly
 after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
