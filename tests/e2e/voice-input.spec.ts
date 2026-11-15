@@ -740,7 +740,7 @@ test("an existing streaming model file is reviewed, trusted, dictated with and r
       await expect.poll(() => sdk.settings.get()!.values.voice.model?.sha256).toBe(digest);
     };
     await openVoice();
-    await page.getByRole("button", { name: "Use an existing model file", exact: true }).click();
+    await page.getByRole("button", { name: "Use existing model file", exact: true }).click();
     await trust(sha256(bytes));
     await expect(page.getByLabel("Dictation model")).toHaveText("Generated Moonshine Streaming (moonshine_streaming, transcribe.cpp)");
     await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toHaveCount(0);
@@ -759,10 +759,10 @@ test("an existing streaming model file is reviewed, trusted, dictated with and r
     await expect(prompt).toHaveValue("Generated transcribe dictation.");
     await blocked.getByRole("button", { name: "Review model", exact: true }).click();
     await expect(page.getByRole("alert").filter({ hasText: "This trusted file changed" })).toContainText(sha256(changed));
-    await page.getByRole("button", { name: "Review the changed model file", exact: true }).click();
+    await page.getByRole("button", { name: "Review changed file before trusting it again", exact: true }).click();
     await trust(sha256(changed));
     await expect(page.getByRole("alert").filter({ hasText: "This trusted file changed" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Use the managed Nemotron model", exact: true }).click();
+    await page.getByRole("button", { name: "Use managed Nemotron model", exact: true }).click();
     await expect.poll(() => sdk.settings.get()!.values.voice.model).toBeUndefined();
     expect(await readFile(path)).toEqual(changed);
     expect(fixture.requests).toHaveLength(0);

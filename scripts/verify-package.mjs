@@ -45,6 +45,8 @@ if (PROTOCOL_VERSION >= 88) execFileSync(node, [resolve("tests/fixtures/installe
 if (PROTOCOL_VERSION >= 90) execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-live-chat.mjs"), root], { stdio: "inherit", timeout: 90_000 });
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
 assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
+// The packaged transcribe.cpp host exits cleanly only after loading the exact pinned library version through node:ffi.
+execFileSync(node, ["--disable-warning=ExperimentalWarning", join(root, "dist", "transcribe-host.mjs"), join(root, "dist", "native", "transcribe", "libtranscribe.dylib")], { input: "", timeout: 30_000 });
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
 const icon = join(app, "Contents", "Resources", iconName.endsWith(".icns") ? iconName : `${iconName}.icns`);
 await access(icon);
