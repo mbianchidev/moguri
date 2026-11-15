@@ -97,7 +97,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
       onChange={(event) => update({ automaticWorkspaces: event.target.checked })} />Prepare private session workspaces automatically</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticProviderNetwork} disabled={disabled || busy}
       onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Automatically allow the selected model provider's actual HTTPS endpoint and public DNS aliases</label>
-    <Alert as="p" tone="warning" className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox 0.2.4 expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</Alert></>}
+    <Alert as="p" tone="warning" className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</Alert></>}
     {compact && !busy && !review && !ready && <button type="button" disabled={disabled || !status?.supported} onClick={() => void run(reviewVersion)}>Review SendBox setup</button>}
     {compact && onReady && ready && !busy && !error && <button type="button" className="primary" disabled={disabled || !snapshot.policy.allowedEnvs.includes("Sandbox")} onClick={() => void run(async () => { await onReady(); })}>Use SendBox</button>}
     {review && <section className="candidate-binding" aria-label="Exact managed Sandbox review">
