@@ -98,11 +98,8 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
     let current = true;
     setPreparationError("");
     setReadiness({ sdk, key: readinessKey, ready: false });
-    const observeTrust = () => sdk.voice.status().then(({ voice }) => { if (current) setModelChanged(voice.model?.trust === "changed"); },
-      (error: unknown) => console.error("Voice model trust status is unavailable:", error instanceof Error ? error.message : "status query failed"));
     void sdk.voice.status().then(async ({ voice }) => {
       if (!current) return;
-      setModelChanged(voice.model?.trust === "changed");
       setReadiness({ sdk, key: readinessKey, ready: voice.runtimeReady && voice.modelReady });
       if (!voice.runtimeReady || !voice.modelReady) { setReadinessDiagnostic(voice.diagnostic); return; }
       setReadinessDiagnostic(null);
@@ -110,9 +107,17 @@ export function useDictation(sdk: MoguriSdk, session: Session | undefined, snaps
       if (!result.id) return;
       const job = await sdk.jobs.wait(result.id, { timeoutMs: 180_000 });
       if (job.status !== "completed") throw new Error(job.error ?? `Local recognizer preparation ${job.status}. No microphone or cloud fallback was used.`);
-    }).catch((error: unknown) => { if (current) { setPreparationError(error instanceof Error ? error.message : "Local recognizer preparation failed. No cloud fallback."); void observeTrust(); } });
+    }).catch((error: unknown) => { if (current) setPreparationError(error instanceof Error ? error.message : "Local recognizer preparation failed. No cloud fallback."); });
     return () => { current = false; };
   }, [sdk, voiceEnabled, connected, options.active, snapshot.settings.values.voice.backend, lifecycle?.id, lifecycle?.status, selectedModel?.sha256, selectedModel?.trustedAt]);
+  const failedVoice = snapshot.jobs.filter((job) => ["voice.prepare", "voice.capture", "voice.record", "voice.transcribe"].includes(job.kind) && job.status === "failed").length;
+  useEffect(() => {
+    if (!voiceEnabled || !connected || !selectedModel) { setModelChanged(false); return; }
+    let current = true;
+    void sdk.voice.status().then(({ voice }) => { if (current) setModelChanged(voice.model?.trust === "changed"); },
+      (error: unknown) => console.error("Voice model trust status is unavailable:", error instanceof Error ? error.message : "status query failed"));
+    return () => { current = false; };
+  }, [sdk, voiceEnabled, connected, selectedModel?.sha256, selectedModel?.trustedAt, failedVoice]);
   useEffect(() => {
     if (!voiceEnabled || !connected || !snapshot.settings.values.voice.standby || !sessionId || options.active === false) return;
     let preparing: AbortController | undefined, disposed = false;
