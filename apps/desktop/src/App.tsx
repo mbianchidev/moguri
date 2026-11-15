@@ -6,7 +6,7 @@ import type { SettingsTab } from "./SettingsPanel.tsx";
 import type { DesktopStartupStatus } from "./bridge.d.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
-import { CopyButton, SessionIdChip } from "./CopyButton.tsx";
+import { CopyButton } from "./CopyButton.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, FilesPanel, HomeWriterReview, PlanPanel, SideChat } from "./SessionPanels.tsx";
 import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
@@ -739,7 +739,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <header className="session-header" data-session-id={session?.id}>
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
-        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session, 64, "New chat") : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}{session && <> / <SessionIdChip id={session.id} /></>}</span></div>
+        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session, 64, "New chat") : "Your workspace"}</h1>{!session && <span>Start a chat, with or without a project.</span>}</div>
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">

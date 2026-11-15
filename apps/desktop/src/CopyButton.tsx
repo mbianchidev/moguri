@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 import { Alert } from "./Alert.tsx";
-import { sessionShortId } from "../../../packages/sdk/src/index.ts";
 
 export function useCopyFeedback(source: string, operation: () => Promise<void>) {
   const [copied, setCopied] = useState(false), [pending, setPending] = useState(false), [error, setError] = useState("");
@@ -38,13 +37,4 @@ export function CopyButton({ label, text, source, title = label, className = "",
     <span className="sr-only" role="status">{feedback.copied ? "Copied." : ""}</span>
     {feedback.error && <Alert as="span" className="inline-error" role="alert">{feedback.error}</Alert>}
   </>;
-}
-
-export function SessionIdChip({ id }: { id: string }) {
-  const short = sessionShortId(id), feedback = useCopyFeedback(id, () => window.moguri.copyText(id));
-  return <><Tooltip content={feedback.copied ? "Copied full session ID" : `Session ${id}. Click to copy it, or mention :${short} to attach its reviewed snapshot.`}>
-    <button type="button" className="session-id-chip" aria-label={`Copy session ID ${short}`} aria-busy={feedback.pending || undefined}
-      onClick={(event) => { event.preventDefault(); event.stopPropagation(); void feedback.copy(); }}><code>{short}</code></button></Tooltip>
-    <span className="sr-only" role="status">{feedback.copied ? "Copied." : ""}</span>
-    {feedback.error && <Alert as="span" className="inline-error" role="alert">{feedback.error}</Alert>}</>;
 }
