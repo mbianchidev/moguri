@@ -4468,6 +4468,36 @@ size/SHA-256 verified and atomically installed under the private state directory
 Recording passes an existing local GGUF path, never an alias that might
 auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
+### Use an existing streaming model file
+
+Instead of downloading Nemotron, you can point a profile at a model file you
+already have, for example in a folder shared with other dictation apps. In
+**Settings / Voice dictation / Model**, choose **Use existing model file…**.
+Moguri runs a read-only review: it reads the header, confirms the model can
+stream live dictation, and hashes the whole file. The review card shows the
+name, architecture, runtime, size, license metadata and SHA-256. **Trust this
+model** locks that path, size and digest for the profile and turns dictation on.
+
+- **Accepted:** streaming models only. NeMo-Speech GGUF with a cache-aware
+  streaming encoder (Nemotron 3.5 or Nemotron EN streaming) runs on the pinned
+  NeMo-Speech.cpp runtime. transcribe.cpp GGUF that reports streaming, such
+  as Handy's Parakeet and Moonshine streaming models, runs on the pinned
+  transcribe.cpp 0.4.2 runtime.
+- **Rejected:** Whisper (`.bin` or GGUF) and other offline-only models, such as
+  NeMo Parakeet TDT GGUF, because they can't stream. ONNX, CoreML and MLX files
+  aren't read.
+- **Integrity:** whenever the file changes on disk, Moguri hashes it again
+  before use. A different digest blocks dictation; Settings and the composer
+  show **Review changed file** so you can approve the new digest.
+- **Ownership:** Moguri never copies, moves or deletes the file. Disabling
+  dictation still removes only the managed Nemotron download. **Use managed
+  Nemotron** switches back without touching the external file. Files inside
+  Moguri's own model folder are refused so a later disable can't delete them.
+- **Limits:** the language setting applies to managed Nemotron only; external
+  models use their own language handling. transcribe.cpp models work for
+  desktop dictation and mono 16-kHz PCM16 WAV transcription. Native microphone
+  recording (TUI and `dictate record`) needs a NeMo-Speech model.
+
 Desktop dictation requests audio-only OS permission only on explicit activation.
 **Voice input device** lists microphones after a separate explicit request;
 non-default selection is exact, never silently substituted. Browser capture
@@ -4564,6 +4594,9 @@ node bin/moguri.mjs dictate status
 node bin/moguri.mjs dictate download --accept-license
 node bin/moguri.mjs dictate record --session SESSION_ID
 node bin/moguri.mjs dictate file /absolute/path/recording.wav --session SESSION_ID
+node bin/moguri.mjs dictate model inspect /absolute/path/model.gguf
+node bin/moguri.mjs dictate model trust REVIEW_JOB_ID
+node bin/moguri.mjs dictate model managed
 ```
 
 Ctrl+C finalizes a recording or cancels a download/file transcription.
