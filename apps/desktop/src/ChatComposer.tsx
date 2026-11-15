@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { configuredReadinessModels, continueWorkInput, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport } from "../../../packages/sdk/src/index.ts";
+import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -228,8 +228,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     const canQueue = canQueueDraft(current);
     if (!answering && !isSlash && !failedRequest && (hold || !needsResume)) {
       if (literalMentions.current.text !== text) literalMentions.current = { text, ids: new Set() };
-      const ids = new Set(text.match(/\b[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\b/gi)?.map((id) => id.toLowerCase()) ?? []);
-      const source = snapshot.sessions.find((source) => source.id !== session.id && ids.has(source.id.toLowerCase()) &&
+      const others = snapshot.sessions.filter((source) => source.id !== session.id), ids = new Set<string>();
+      for (const reference of sessionReferences(text)) {
+        const matches = resolveSessionReference(others, reference);
+        if (matches.length > 1) { void run(async () => { throw new Error(`Session ID ${reference} matches ${matches.length} sessions. Use more characters or the full ID; nothing was attached or sent.`); }); return; }
+        if (matches[0] && (reference.startsWith(":") || matches[0].id.toLowerCase() === reference)) ids.add(matches[0].id);
+      }
+      const source = others.find((source) => ids.has(source.id) &&
         !literalMentions.current.ids.has(source.id) && !editor.getState().attachments.some((attachment) => attachment.kind === "session" && attachment.source.location === source.id));
       if (source) {
         if (!mentionPending.current) { mentionPending.current = true; void attachSession(source.id).finally(() => { mentionPending.current = false; }); }

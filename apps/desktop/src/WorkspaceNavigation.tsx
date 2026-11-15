@@ -1,5 +1,5 @@
 import { lazy, Suspense, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { ClientError, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionLocalFolder, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, sessionShortId, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionLocalFolder, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization, BulkSessionAction } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -613,6 +613,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     </> : <>
     <button role="menuitem" disabled={bulkBusy} onClick={() => { setSelection({ projectId: menuSession.projectId, ids: [menuSession.id] }); setBulkRequest(null); closeMenu(); }}><Icon name="Check" />Select</button>
     <button role="menuitem" onClick={() => rename(menuSession)}><Icon name="Edit" />Rename</button>
+    <button role="menuitem" onClick={() => void run(async () => { await window.moguri.copyText(menuSession.id); closeMenu(); setNavigationStatus(`Copied session ID ${sessionShortId(menuSession.id)}.`); })}><Icon name="Copy" />Copy session ID</button>
     <button role="menuitem" onClick={() => void run(() => sdk.sessions.organize(menuSession.id, { pinned: !menuSession.pinned }))}><Icon name={menuSession.pinned ? "PinOff" : "Pin"} />{menuSession.pinned ? "Unpin" : "Pin"}</button>
     <button role="menuitem" onClick={() => void run(async () => {
       const ids = menuUnread ? sdk.getState().snapshot?.attention.filter((entry) => entry.sessionId === menuSession.id && !entry.deleted && !entry.acknowledged).map((entry) => entry.id) ?? [] : [];

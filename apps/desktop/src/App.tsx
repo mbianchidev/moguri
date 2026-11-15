@@ -1,12 +1,12 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { activeDecision, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import type { DesktopStartupStatus } from "./bridge.d.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
-import { CopyButton } from "./CopyButton.tsx";
+import { CopyButton, SessionIdChip } from "./CopyButton.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, FilesPanel, HomeWriterReview, PlanPanel, SideChat } from "./SessionPanels.tsx";
 import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
@@ -739,7 +739,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <header className="session-header" data-session-id={session?.id}>
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
-        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session, 64, "New chat") : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}</span></div>
+        <div className="session-heading"><h1 tabIndex={-1}>{session ? title(session, 64, "New chat") : "Your workspace"}</h1><span>{session ? `${project?.name ?? "Chats"}${activeWorkspace ? ` / ${activeWorkspace.branch}` : ""} / ${session.localFinishing ? "Local finishing" : session.status.replace("_", " ")}` : "Start a chat, with or without a project."}{session && <> / <SessionIdChip id={session.id} /></>}</span></div>
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">
@@ -964,9 +964,10 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
       </dl>
       <details className="session-identity"><summary>Session identity and workspace</summary><dl className="facts">
         <dt>Session ID</dt><dd className="path"><code>{session.id}</code><CopyButton label="Copy session ID" text={session.id} /></dd>
+        <dt>Short ID</dt><dd><code>{sessionShortId(session.id)}</code></dd>
         <dt>Project</dt><dd>{session.repositories?.map((binding) => binding.name).join(", ") ?? project?.name ?? "None (project-free)"}</dd><dt>Workspace</dt><dd className="path">{session.repositories?.map((binding) => binding.root.root).join("\n") ?? workspace ?? "Unavailable"}</dd>
         <dt>Profile</dt><dd>{snapshot?.profile?.name ?? client.profileId}</dd>
-      </dl><p className="fine-print">Mention <code>:{session.id}</code> in a composer to attach a reviewed public snapshot. An ID grants no execution or private-console access.</p></details>
+      </dl><p className="fine-print">Mention <code>:{sessionShortId(session.id)}</code> or the full ID in a composer to attach a reviewed public snapshot. An ID grants no execution or private-console access.</p></details>
       {snapshot && <SessionCoordinationPanel sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} />}
       {routing && <details><summary>Kupo routing provenance</summary><dl className="facts"><dt>Status</dt><dd>{routing.status}</dd><dt>Workflow</dt><dd>{routing.plan?.pattern ?? "Not selected"}</dd><dt>Classifier</dt><dd className="path">{routing.classifierModelId ?? "Not called (one eligible model)"}</dd><dt>Draft / solver</dt><dd className="path">{routing.plan?.modelId ?? "No accepted plan"}</dd>
         {routing.plan?.pattern === "cascade" && <><dt>Gate / escalation</dt><dd className="path">{routing.plan.escalationId}</dd></>}
