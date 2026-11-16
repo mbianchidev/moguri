@@ -4080,9 +4080,12 @@ bound to the exact active profile, not agent permissions. Missing/unsupported
 remotes show an error; no repository URL or account is guessed.
 
 Under **Settings / Skills**, global-folder switches support `~/.agents/skills`
-and `~/.moguri/skills`. Each requires confirmation showing its actual absolute
-Local folder, then **Save** before discovery. They are off until selected for
-this profile. Opening Settings does not enumerate either folder. Linked skill
+and `~/.moguri/skills`; use either or both. Each requires confirmation showing
+its actual absolute Local folder, which Moguri creates if it doesn't exist, then
+**Save** before discovery. They are off until selected for this profile and are
+listed once (not again under the custom sources). An enabled folder that is
+missing offers no skills and never blocks the others. Opening Settings does not
+enumerate either folder. Linked skill
 folders and files are followed, as in other agent harnesses, even when they
 point outside the source. Broken links, links back into a parent folder and
 links into credential or key locations are skipped and logged. Folder-existence,

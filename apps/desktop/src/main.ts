@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
+import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
 import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
@@ -508,11 +508,18 @@ else {
       const url = previewUrl(input);
       if (process.env.MOGURI_TEST_WINDOW !== "hidden") await shell.openExternal(url.toString());
     });
-    ipcMain.handle("moguri:global-skill-sources", (event, profileId: unknown) => {
-      trusted(event);
+    const skillHome = () => process.env.MOGURI_TEST_WINDOW === "hidden" ? process.env.MOGURI_TEST_SKILL_HOME ?? join(stateDirectory(), "generated-skill-home") : undefined;
+    const skillProfile = (profileId: unknown) => {
       if (profileId !== activeProfileId || attentionClient?.profileId !== profileId) throw new Error("Global skill folders belong to the original active profile. Reopen Skills after profile loading.");
-      return globalSkillSources(process.env.MOGURI_TEST_WINDOW === "hidden" ?
-        process.env.MOGURI_TEST_SKILL_HOME ?? join(stateDirectory(), "generated-skill-home") : undefined);
+    };
+    ipcMain.handle("moguri:global-skill-sources", (event, profileId: unknown) => {
+      trusted(event); skillProfile(profileId);
+      return globalSkillSources(skillHome());
+    });
+    ipcMain.handle("moguri:create-global-skill-folder", (event, profileId: unknown, id: unknown) => {
+      trusted(event); skillProfile(profileId);
+      if (typeof id !== "string") throw new Error("Global skill folder required.");
+      return createGlobalSkillFolder(id, skillHome());
     });
     const verifiedFolder = async (path: string, identity: { device: string; inode: string } | null) => {
       const metadata = await lstat(path, { bigint: true }).catch(() => null);

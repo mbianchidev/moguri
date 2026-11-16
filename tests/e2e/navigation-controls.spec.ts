@@ -1,6 +1,6 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
@@ -133,10 +133,9 @@ test("a session's two-finger context menu opens its actual worktree folder and r
 
 test("global skill folders require exact source confirmation and Save before discovery", async () => {
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
-  for (const [folder, name] of [[".agents", "generated-agent-global"], [".moguri", "generated-moguri-global"]]) {
-    const root = join(f.directory, folder!, "skills", "generated", "nested"); await mkdir(root, { recursive: true });
-    await writeFile(join(root, "SKILL.md"), `---\nname: ${name}\ndescription: Generated global source\n---\nGenerated instructions, not authority.\n`);
-  }
+  const agentRoot = join(f.directory, ".agents", "skills", "generated", "nested"); await mkdir(agentRoot, { recursive: true });
+  await writeFile(join(agentRoot, "SKILL.md"), "---\nname: generated-agent-global\ndescription: Generated global source\n---\nGenerated instructions, not authority.\n");
+  const moguriRoot = join(f.directory, ".moguri", "skills");
   const app = await launch(f.directory);
   try {
     const page = await app.firstWindow(); await openSettingsSection(page, "Skills");
@@ -154,6 +153,9 @@ test("global skill folders require exact source confirmation and Save before dis
       await settings.getByRole("button", { name: "Save skill sources", exact: true }).click();
       await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
     }
+    expect((await stat(moguriRoot)).isDirectory()).toBe(true);
+    await writeFile(join(moguriRoot, "SKILL.md"), "---\nname: generated-moguri-global\ndescription: Generated global source\n---\nGenerated instructions, not authority.\n");
+    await expect(settings.getByRole("checkbox", { name: /^Enable skill source Global/ })).toHaveCount(0);
     await settings.getByRole("button", { name: "Find skills", exact: true }).click();
     await expect(settings).toContainText("generated-agent-global"); await expect(settings).toContainText("generated-moguri-global");
     expect(sdk.settings.get()!.values.skillSources).toHaveLength(2);
