@@ -26,7 +26,7 @@ tool call and records the conversation. See the
    control, in a project or a Home-bound chat.
 
 Limits in this release: Local only, Unlimited budget with no profile or global
-cap, ordinary single-root chats, text prompts only, Queue or Interrupt delivery
+cap, ordinary single-root chats, text and pasted text only, Queue or Interrupt delivery
 (no Steer), and Manual, Guided or Autopilot. Each tool approval applies once.
 Read-only chats run Claude in plan mode and deny edits and commands. The usage
 notice after each turn shows Claude Code's cumulative session totals and its own

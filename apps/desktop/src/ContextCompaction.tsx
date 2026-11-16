@@ -14,7 +14,7 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [restoreReview, setRestoreReview] = useState(false);
   const signature = snapshot.compactions.filter((entry) => entry.sessionId === session.id).map((entry) => `${entry.id}:${entry.revision}`).join(",");
   const selected = state?.compactions.find((entry) => entry.id === selectedId);
-  const models = snapshot.provider.models.filter((model) => !model.synthetic && (!model.environments || model.environments.includes(session.controls.env)));
+  const models = snapshot.provider.models.filter((model) => !model.synthetic && model.source !== "claude-agent" && (!model.environments || model.environments.includes(session.controls.env)));
   const active = Boolean(session.turnId) || session.queue.some((item) => !item.held) || Boolean(state?.compactions.some((entry) => entry.status === "running"));
   const disabled = busy || active || !state || Boolean(stateError);
   const refresh = useCallback(async () => {

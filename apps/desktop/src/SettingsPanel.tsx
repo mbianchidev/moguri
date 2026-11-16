@@ -347,7 +347,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const retainedServers = [...new Set(snapshot.settings.values.remote?.mcpGrants?.map((grant) => grant.serverId) ?? [])].filter((id) => id !== "builtin" && !configuredServers.some((server) => server.id === id));
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
-  const routingModels = snapshot.provider.models.filter((model) => !model.synthetic);
+  const routingModels = snapshot.provider.models.filter((model) => !model.synthetic && model.source !== "claude-agent");
   const routingReady = (model: ModelInfo) => snapshot.policy.allowedEnvs.some((env) =>
     env !== "Sandbox" && routingModelReady(model, draft.kupo, env));
   const routingSolverReady = (model: ModelInfo) => routingReady(model) && model.maxTokens !== undefined &&
@@ -394,7 +394,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
           <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
-          <SettingsHelp label="About Claude Agent" target={<h3>Claude Agent</h3>}>Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text prompts.</SettingsHelp>
+          <SettingsHelp label="About Claude Agent" target={<h3>Claude Agent</h3>}>Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Claude Agent" checked={draft.claudeAgent?.enabled === true}
             onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, enabled: event.target.checked })} />Enable Claude Agent</label>
           <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"}
@@ -412,7 +412,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <option value="">Automatic in the original Env</option>
             {draft.chatTitles?.modelId && !snapshot.provider.models.some((model) => model.id === draft.chatTitles!.modelId) &&
               <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
-            {snapshot.provider.models.filter((model) => !model.synthetic).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
+            {snapshot.provider.models.filter((model) => !model.synthetic && model.source !== "claude-agent").map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
           </select></label>
           <p className="fine-print">One tool-less, separately charged call after the first reply, using the first prompt's text. It prefers a configured loopback model, a current price estimate, then the actual solver model. Your Env, budget and chosen names are preserved. Legacy chats are not renamed; saving this setting does not run a model.</p>
         </>}
