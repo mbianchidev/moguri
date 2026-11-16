@@ -65,8 +65,13 @@ test("named and custom palettes update actual elements and reject unreadable cus
     await expect(page.getByRole("alert")).toContainText("contrast");
     await expect(text).toHaveValue("#191f29");
     expect(fixture.service.controller.snapshot().settings.values.appearance.custom?.dark?.text).toBeUndefined();
+    const accent = page.getByLabel("Custom dark accent", { exact: true });
+    await accent.fill("#b9e5cb");
+    await expect(page.getByRole("alert")).toContainText("contrast");
+    await expect(text).toHaveValue("#191f29");
+    expect(fixture.service.controller.snapshot().settings.values.appearance.custom?.dark).toBeUndefined();
     await text.fill("#e1e8f0");
-    await expect.poll(() => fixture.service.controller.snapshot().settings.values.appearance.custom?.dark?.text).toBe("#e1e8f0");
+    await expect.poll(() => fixture.service.controller.snapshot().settings.values.appearance.custom?.dark).toMatchObject({ accent: "#b9e5cb", text: "#e1e8f0" });
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     await page.reload();
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--text").trim())).toBe("#e1e8f0");

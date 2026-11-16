@@ -74,6 +74,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const groups = searchSettings(search);
   const decisions = useDecisionStatus(sdk, session, snapshot, tab === "decisions");
   const [draft, setDraft] = useState(() => structuredClone(snapshot.settings.values));
+  const latestDraft = useRef(draft); latestDraft.current = draft;
   const [committed, setCommitted] = useState(() => structuredClone(snapshot.settings.values));
   const [raw, setRaw] = useState<Record<string, string>>({});
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(draft) !== JSON.stringify(committed);
@@ -783,9 +784,13 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <SettingsHelp label="More about this setting" target={<details><summary>Custom element colors</summary>
             <label className="setting-field">Customize mode<select aria-label="Customize color mode" value={customMode} onChange={(event) => setCustomMode(event.target.value === "light" ? "light" : "dark")}><option value="dark">Dark</option><option value="light">Light</option></select></label>
             <div className="theme-color-grid">{(Object.keys(appearanceColors(draft.appearance, customMode)) as ThemeColor[]).map((key) => <label className="setting-field" key={`${customMode}:${key}`}>{key.replace(/[A-Z]/g, (value) => ` ${value.toLowerCase()}`)}
-              <SettingsCommitInput type="color" aria-label={`Custom ${customMode} ${key}`} value={draft.appearance.custom?.[customMode]?.[key] ?? appearanceColors({ theme: customMode }, customMode)[key]} onChange={(event) => change("appearance", { ...draft.appearance,
+              <SettingsCommitInput type="color" disabled={saving} aria-label={`Custom ${customMode} ${key}`} value={draft.appearance.custom?.[customMode]?.[key] ?? appearanceColors({ theme: customMode }, customMode)[key]} onChange={(event) => change("appearance", { ...draft.appearance,
                 custom: { ...draft.appearance.custom, [customMode]: { ...draft.appearance.custom?.[customMode], [key]: event.target.value } } })}
-                onCommit={(value) => automatic("appearance", { custom: { ...committedValues.current.appearance.custom, [customMode]: { ...committedValues.current.appearance.custom?.[customMode], [key]: value } } })} /></label>)}</div>
+                onCommit={(value) => {
+                  // Colors are validated as a set, so commit every pending pick together; a rejected pick stays and is rechecked with the next one.
+                  const custom = latestDraft.current.appearance.custom;
+                  automatic("appearance", { custom: { ...custom, [customMode]: { ...custom?.[customMode], [key]: value } } });
+                }} /></label>)}</div>
           </details>}>Custom colors apply when Custom is selected and save when you pick a color. Saving validates text, control, focus, selection and semantic contrast in both modes; unreadable combinations are rejected, not silently replaced.</SettingsHelp>
           <button onClick={() => void reset("appearance")} aria-label="Restore defaults for appearance">Restore defaults</button></>}
         {tab === "interactions" && <><SettingsHelp label="More about this setting" target={<h2>Confirmations</h2>}>Saved in this profile. Hiding a terminal pane leaves its consoles running; the console's X button terminates it without confirmation. Snapshot and ownership checks always apply.</SettingsHelp>
