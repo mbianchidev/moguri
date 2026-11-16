@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport } from "../../../packages/sdk/src/index.ts";
+import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -303,7 +303,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const selectAutonomy = (autonomy: Controls["autonomy"]) => run(async () => {
     trackConfiguration(true); setConfigurationError("");
-    try { await client.sessions.autonomy(session.id, autonomy, session.revision); setMenu(null); }
+    try {
+      if (session.turnId) await client.commands.control(session.id, "autonomy", autonomy);
+      else await client.sessions.autonomy(session.id, autonomy, session.revision);
+      setMenu(null);
+    }
     catch (error) { setConfigurationError(error instanceof Error ? error.message : "The autonomy selection was not acknowledged. Existing controls were preserved."); throw error; }
     finally { trackConfiguration(false); }
   });
@@ -418,10 +422,14 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           const policyBlocked = !snapshot.policy.allowedEnvs.includes(capability.env);
           const groupUnavailable = Boolean(session.repositories && capability.env === "Remote");
           const setup = capability.env === "Sandbox" && (!capability.ready || Boolean(session.repositories && !automaticNative));
-          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={Boolean(session.turnId) || !connected || configuring || !capability.ready && !setup || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
+          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={setup && Boolean(session.turnId) || !connected || configuring || !capability.ready && !setup || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
             title={groupUnavailable ? "Captured groups have no qualified SSH execution transport." : capability.reason} onClick={() => {
               if (setup) { setMenu(null); setSandboxSetup({ revision: session.revision }); }
-              else void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); });
+              else void run(async () => {
+                if (session.turnId) await client.commands.control(session.id, "env", capability.env);
+                else await client.sessions.env(session.id, capability.env, session.revision);
+                setMenu(null);
+              });
             }}>
             <Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{policyBlocked ? "Blocked by policy" : groupUnavailable ? "Group transport not qualified" : setup ? "Set up SendBox" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? session.repositories ? "Private copies of every captured repository" : automaticNative ? "Verified SendBox guest; workspaces managed" : "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>
             {policyBlocked && <PolicyHint label={`Why ${capability.env} is unavailable`} target="environments">Global execution policy excludes {capability.env}. Opening its setting does not widen policy, change this session's Env or restart work.</PolicyHint>}
@@ -435,7 +443,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const reason = autonomy === "Manual" ? "You approve tools or remember a grant" : autonomy === "Guided" ? "Advice, then your confirmation" : autonomy === "Autopilot" ? "Automatically approve all tools and commands" :
             decisions.ready ? "Automatic approvals plus bounded System One decisions" : decisions.reason;
-          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={configuring || Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void selectAutonomy(autonomy)}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
+          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={configuring || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void selectAutonomy(autonomy)}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
             {autonomy === "Autopilot Max" && !decisions.ready && <PolicyHint label="Why Autopilot Max is unavailable" target="decisions">{reason} Reviewing the actual decision configuration does not start inference or enable an unqualified transport.</PolicyHint>}
             {autonomy === "Autopilot" && <button type="button" className="icon-button quiet composer-env-settings" aria-label="Guardrails" title="Guardrails" onClick={() => { setMenu(null); onGuardrails(); }}><Icon name="Settings" /></button>}
             {autonomy === "Autopilot Max" && <button type="button" className="icon-button quiet composer-env-settings" aria-label="Decision provider settings" title="Decision provider settings" onClick={() => { setMenu(null); onDecisions(); }}><Icon name="Settings" /></button>}
@@ -521,7 +529,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const [window, setWindow] = useState(session.controls.modelOptions?.contextWindow?.toString() ?? "");
   const [effort, setEffort] = useState<ThinkingEffort | "">(session.controls.modelOptions?.thinkingEffort ?? "");
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false), [queued, setQueued] = useState("");
   const [submenu, setSubmenu] = useState<"models" | "effort" | "context" | "mode" | null>(null);
   const [modeChoices, setModeChoices] = useState<KupoModeAvailability[]>([]), [modeError, setModeError] = useState("");
   const [poolControls, setPoolControls] = useState<KupoOptionsReport | null>(null);
@@ -556,7 +564,16 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
+  const turnActive = Boolean(session.turnId);
+  // During a turn, each change becomes its exact slash command in the session queue; local edit state is left untouched.
+  const queue = async (name: QueueableControlCommand, argument: string) => {
+    setSaving(true); onSaving(true); setError(""); onError(""); setSubmenu(null);
+    try { await sdk.commands.control(session.id, name, argument); setQueued(`Queued /${name} ${argument} to apply after this turn.`); }
+    catch (error) { const message = error instanceof Error ? error.message : "The change was not queued. Current settings were preserved."; setError(message); onError(message); }
+    finally { setSaving(false); onSaving(false); }
+  };
   const select = async (model: ModelInfo) => {
+    if (turnActive) return queue("model", model.id);
     setSaving(true); onSaving(true); setError(""); onError("");
     try {
       const result = await sdk.sessions.selectModel(session.id, model.id, revision.current);
@@ -576,12 +593,13 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     finally { setSaving(false); onSaving(false); }
   };
   const chooseMode = async (mode: KupoMode) => {
+    if (turnActive) return queue("kupo-mode", mode);
     setSaving(true); onSaving(true); setError(""); onError("");
     try { const result = await sdk.sessions.kupoMode(session.id, mode, revision.current); revision.current = result.revision!; setSubmenu(null); }
     catch (error) { const message = error instanceof Error ? error.message : "The original Kupo mode was not saved. No model or effort was substituted."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
-  const locked = saving || pending || Boolean(session.turnId);
+  const locked = saving || pending;
   const effortChoices: Array<ThinkingEffort | ""> = ["", ...thinkingLevels];
   return <>{isModelDiscoveryPending(snapshot.provider) ? <p role="status">Refreshing current model availability. Cached labels do not enable a model call.</p> :
     snapshot.provider.status !== "connected" && <><p>Connect GitHub Copilot or configure a local model to use Kupo.</p><button type="button" onClick={onConnect}>Connect Copilot</button></>}
@@ -622,7 +640,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     </ModelSubmenu> : <ModelSubmenu label="Thinking effort" text="Effort" value={current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
       open={submenu === "effort"} disabled={locked || !current?.thinkingLevels?.length && !staleEffort} toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
       {effortChoices.map((value) => <button key={value} type="button" role="menuitemradio" aria-checked={effort === value}
-        onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
+        onClick={() => { if (turnActive) { void queue("effort", value || "default"); return; } setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
     </ModelSubmenu>}
     {current?.synthetic && <p className="fine-print">Thinking is automatic: Kupo's classifier selects each role's supported effort.</p>}
@@ -634,14 +652,19 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
-        onClick={() => { setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) }); }}>
+        onClick={() => {
+          if (turnActive) { void (value ? queue("context-window", String(value)) : queue("model-settings", JSON.stringify(effort ? { thinkingEffort: effort } : {}))); return; }
+          setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) });
+        }}>
         <span>{value === null ? "Model default" : `${count(value)} tokens`}</span>{window === (value?.toString() ?? "") && <Icon name="Check" />}</button>)}
       {current?.synthetic && <p className="fine-print">Shared exact ceiling for the eligible pool, rechecked before every role. Default uses each model's qualified window; history and attachments are never truncated.</p>}
     </ModelSubmenu>
     {current?.synthetic && poolControls && !poolControls.available && <Alert as="p" className="inline-error" role="alert">{poolControls.diagnostic}
       {effort ? <button type="button" disabled={locked} onClick={() => {
+        if (turnActive) { void queue("model-settings", JSON.stringify(window ? { contextWindow: Number(window) } : {})); return; }
         setEffort(""); void save(window ? { contextWindow: Number(window) } : {});
       }}>Use automatic thinking</button> : Object.keys(session.controls.modelOptions ?? {}).length > 0 && <button type="button" disabled={locked} onClick={() => {
+        if (turnActive) { void queue("model-settings", "{}"); return; }
         setWindow(""); setEffort(""); void save({});
       }}>Clear pooled overrides</button>}
     </Alert>}
@@ -661,7 +684,8 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       {detailsOpen && inspectedId && !inspectedModel && <Alert as="p" className="inline-error" role="alert">This exact inspection choice is no longer configured for this execution machine. Choose explicitly; no model or machine was substituted.</Alert>}
       <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>{snapshot.settings.values.kupo.workflow === "auto" ? "Kupo settings" : snapshot.settings.values.kupo.workflow === "compound" ? "kupo Compound settings" : "kupo Single settings"}</button>
     </details>
-      {session.turnId && <p>Stop the active turn before changing model settings.</p>}
+      {turnActive && <p className="fine-print">A turn is running: changes are queued as commands and apply after it.</p>}
+      {queued && <p className="fine-print" role="status">{queued}</p>}
       {staleWindow && <Alert as="p" className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</Alert>}
       {staleEffort && <Alert as="p" className="inline-error" role="alert">The saved thinking effort is no longer supported. Choose an offered effort or provider default explicitly. The model and context were not substituted.</Alert>}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}

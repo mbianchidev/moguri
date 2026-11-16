@@ -189,3 +189,32 @@ test("side-chat controls keep their original owner and restore focus after the p
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
+
+test("composer controls stay usable during a turn and queue their exact slash commands for after it", async () => {
+  const fixture = await setupFixture({ respond: () => ({ text: "Generated slow reply.", delayMs: 6000 }) });
+  await fixture.configure();
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.routing.configure({ ...sdk.routing.policy()!, enabled: false }, sdk.settings.get()!.revision);
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await fixture.send("Generated running prompt.");
+    await expect.poll(() => Boolean(fixture.session().turnId)).toBe(true);
+    await composer.getByRole("button", { name: "Autonomy level", exact: true }).click();
+    const autonomy = page.getByRole("dialog", { name: "Autonomy level", exact: true });
+    await autonomy.getByRole("button", { name: /^Guided/ }).click();
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    const root = page.getByRole("dialog", { name: "Model", exact: true });
+    await expect(root).toContainText("A turn is running: changes are queued as commands and apply after it.");
+    await root.getByRole("button", { name: "Choose model", exact: true }).click();
+    await page.getByRole("menu", { name: "Models", exact: true }).getByRole("menuitemradio", { name: /^Generated Copilot model/ }).click();
+    await expect(root.getByRole("status").filter({ hasText: `Queued /model ${fixture.modelId}` })).toBeVisible();
+    await expect.poll(() => fixture.session().queue.map((item) => item.text)).toEqual(["/autonomy Guided", `/model ${fixture.modelId}`]);
+    expect(fixture.session().controls.autonomy).toBe("Manual");
+    await expect.poll(() => fixture.session().controls.autonomy, { timeout: 20_000 }).toBe("Guided");
+    await expect.poll(() => fixture.session().queue.length).toBe(0);
+    expect(fixture.requests).toHaveLength(1);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});

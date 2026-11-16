@@ -1938,6 +1938,13 @@ not drain it. The delivery chevron's explicit prompt Interrupt remains separate.
 Typed `/steer TEXT` and `/interrupt TEXT` join the command queue and derive their
 exact follow-up only when reached; they never interrupt earlier work eagerly.
 
+Composer controls stay usable during a turn. Changing Model, Effort, Context
+window, Kupo routing, Env, Autonomy or the session Budget queues the matching
+slash command (`/model`, `/effort`, `/context-window`, `/model-settings`,
+`/kupo-mode`, `/env`, `/autonomy`, `/budget`) after the work already queued;
+your draft is untouched and the change applies when the queue reaches it.
+Hard profile/global policy still applies immediately.
+
 Slash text is queued as a command, never ordinary model input. This includes
 view navigation and `/theme`. **Cmd/Ctrl+Enter holds every input**, including
 `/yolo`, without inference or permission changes. Only unheld `/stop`,

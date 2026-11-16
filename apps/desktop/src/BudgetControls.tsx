@@ -73,6 +73,12 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
         if (!tokens && !usd) throw new Error("Set at least one cumulative limit.");
         limit = { basis: "estimate", ...(tokens ? { tokens: Number(tokens) } : {}), ...(usd ? { usd: Number(usd) } : {}) };
       }
+      if (scope === "session" && session?.turnId) {
+        await sdk.commands.control(session.id, "budget", limit ? `set ${limit.tokens ?? "-"} ${limit.usd ?? "-"} confirm-estimates` : "Unlimited");
+        edited.current = false; setDirty(false); setAccepted(false);
+        setNotice("Queued for after the current turn. The cap applies when the queue reaches it; profile and global policy still apply now.");
+        return;
+      }
       const result = scope === "global" ? await sdk.profiles.globalBudget(limit, base.current, true) : scope === "profile" ? await sdk.budgets.policy(limit, base.current, true) : session ?
         await sdk.sessions.configure(session.id, { ...session.controls, budget: limit ? { kind: "limited", ...limit } : { kind: "unlimited" } }, base.current) :
         (() => { throw new Error("Choose a session for this budget."); })();
@@ -80,7 +86,7 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
     } catch (error) { setError(error instanceof Error ? error.message : "Budget was not saved. No cap was silently lifted."); }
     finally { committing.current = false; setSaving(false); }
   };
-  const locked = disabled || saving || routed && !winddown?.ready || scope === "global" && !globalPolicy || scope === "session" && (Boolean(session?.turnId) || Boolean(status && status.ownerSessionId !== session?.id));
+  const locked = disabled || saving || routed && !winddown?.ready || scope === "global" && !globalPolicy || scope === "session" && Boolean(status && status.ownerSessionId !== session?.id);
   const usdUnavailable = scope === "session" && (routed ? !winddown?.usdReady : !status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
     {routed && <Alert as="p" tone="warning" className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Reading exact reserved finishing readiness..."} Profile/global caps still apply; no policy is removed here.</Alert>}
@@ -93,7 +99,7 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
     <Alert as="p" tone="warning" className="settings-warning">{BUDGET_WARNING}</Alert>
     <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>} descriptionFirst>Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</SettingsHelp>
     <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} aria-label={scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"} onClick={() => void save()}>Save</button><button type="button" disabled={saving || revision < base.current} onClick={load} aria-label="Reload budget">Reload</button></div>
-    {scope === "session" && session?.turnId && <p className="fine-print">Finish or stop this turn before changing its session preference. A profile policy can still block further calls.</p>}
+    {scope === "session" && session?.turnId && <p className="fine-print">A turn is running: saving queues this preference to apply after it. A profile policy can still block further calls now.</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
   </section>;
 }
