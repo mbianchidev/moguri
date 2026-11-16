@@ -16,6 +16,7 @@ import { GitHubWorkflowPanel } from "./GitHubWorkflowPanel.tsx";
 import { LinearWorkflowPanel } from "./LinearWorkflowPanel.tsx";
 import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
 import { ProviderConnect } from "./ProviderConnect.tsx";
+import { HostedProviderConnect } from "./HostedProviderConnect.tsx";
 import { SessionManagement } from "./SessionManagement.tsx";
 import { GitHubConnectionPanel, LinearConnectionPanel } from "./IntegrationConnections.tsx";
 import { useDictation, useDictationTranscript } from "./useDictation.ts";
@@ -394,6 +395,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
           <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
+          <HostedProviderConnect provider={snapshot.provider} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
           <SettingsHelp label="About Claude Agent" target={<h3>Claude Agent</h3>}>Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Claude Agent" checked={draft.claudeAgent?.enabled === true}
             onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, enabled: event.target.checked })} />Enable Claude Agent</label>
