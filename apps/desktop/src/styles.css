@@ -347,8 +347,9 @@ body:has(.opening-workspace), body:has(#root:empty) { background: #000; }
 .composer-stop:hover:not(:disabled) { color: var(--error-text); border-color: var(--danger); background: var(--error-bg); }
 .composer-mode { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; white-space: nowrap; font-size: 11px; }
 .composer-mode small { color: var(--muted); }
-.question-other { display: grid; grid-template-columns: auto minmax(0, 1fr) 32px; align-items: center; gap: 8px; flex-shrink: 0; }
-.question-other > label { color: var(--muted); font-size: 12px; }
+.question-other { display: flex; flex-shrink: 0; padding-inline: 3px; }
+.user-question-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
+.user-question-skip { min-height: 28px; padding: 3px 10px; color: var(--muted); font-size: 12px; }
 .question-other textarea { width: 100%; min-width: 0; min-height: 36px; max-height: 96px; padding: 7px 9px; field-sizing: content; resize: none; font: inherit; line-height: 1.5; }
 .nav-toggle { display: none; }
 .notice { padding: 9px 20px; display: flex; align-items: center; gap: 10px; font-size: 12px; line-height: 1.5; background: var(--selected); color: var(--selection-text); }

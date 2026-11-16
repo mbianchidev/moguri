@@ -426,7 +426,7 @@ test("every model choice question has an explicit Other textbox that preserves t
     await page.getByLabel("Prompt", { exact: true }).fill("Generated unrelated draft");
     await expect(question.getByRole("textbox", { name: "Other answer", exact: true })).toHaveValue("");
     await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated distinct actual user choice");
-    await question.getByRole("button", { name: "Send answer", exact: true }).click();
+    await question.getByRole("textbox", { name: "Other answer", exact: true }).press("Enter");
     await expect(question).toHaveCount(0);
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated unrelated draft");
     const answered = fixture.service.controller.snapshot().questions.at(-1)!;
@@ -447,7 +447,7 @@ test("question-only side chats expose the same explicit Other answer without cha
     const question = side.getByRole("region", { name: "User question", exact: true });
     await expect(question.getByRole("textbox", { name: "Other answer", exact: true })).toHaveValue("");
     await question.getByRole("textbox", { name: "Other answer", exact: true }).fill("Generated explicit side alternative");
-    await question.getByRole("button", { name: "Send answer", exact: true }).click();
+    await question.getByRole("textbox", { name: "Other answer", exact: true }).press("Enter");
     await expect(question).toHaveCount(0);
     const state = fixture.service.controller.snapshot(), child = state.sessions.find((session) => session.kind === "side")!;
     const answered = state.questions.find((entry) => entry.sessionId === child.id)!;

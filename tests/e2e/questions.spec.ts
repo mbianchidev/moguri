@@ -203,3 +203,27 @@ test("offered answers are numbered, a digit in the empty composer chooses one wh
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
+
+test("the question card offers Skip in its top-right corner and an inline Other, specify field without a send button", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.sessions.configure(fixture.sessionId, { ...fixture.session().controls, modelId: fixture.modelId });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), prompt = page.getByRole("textbox", { name: "Prompt", exact: true }), card = page.getByRole("region", { name: "User question", exact: true });
+    await prompt.fill("generated structured question choices only");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const other = card.getByRole("textbox", { name: "Other answer", exact: true }), skip = card.getByRole("button", { name: "Skip", exact: true });
+    await expect(other).toHaveAttribute("placeholder", "Other, specify...");
+    await expect(card.getByRole("button", { name: "Send answer", exact: true })).toHaveCount(0);
+    await expect(card.getByText("Other", { exact: true })).toHaveCount(0);
+    const [cardBox, skipBox, headingBox] = await Promise.all([card.boundingBox(), skip.boundingBox(), card.getByRole("heading", { name: "Your answer is needed" }).boundingBox()]);
+    expect(cardBox!.x + cardBox!.width - (skipBox!.x + skipBox!.width)).toBeLessThan(24);
+    expect(Math.abs((skipBox!.y + skipBox!.height / 2) - (headingBox!.y + headingBox!.height / 2))).toBeLessThan(6);
+    await page.screenshot({ path: test.info().outputPath("question-skip.png") });
+    await skip.click();
+    await expect(card).toHaveCount(0);
+    await expect.poll(() => sdk.getState().snapshot!.questions[0]?.answer?.skipped).toBe(true);
+    await fixture.terminal();
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
