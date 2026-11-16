@@ -642,7 +642,7 @@ Model selection (**fixed model** or **kupo**), **Env**, **Autonomy level**, and 
 | **Autopilot** | Explicit selection delegates automatic approval of all declared, qualified tools and commands for subsequent session turns. The solver still asks for genuinely missing user-only facts rather than fabricating answers. |
 | **Autopilot Max** | The same automatic tool approvals, plus a configured qualified System One-compatible decision provider for explicitly delegated technical choices and bounded steering. It also works with a fixed solver and does not require kupo. |
 
-Use the shared global/profile/repo/project/session defaults. Selecting an Autopilot mode explicitly delegates tool approvals, not additional capabilities, authentication, roots or budget. Hard denials, read-only mode, user-only settings, secret boundaries, Git policies and allowed-env policy remain authoritative. Protocol 61 records explicit `automaticApprovals` consent; old bounded selections are preserved until the user selects the mode again.
+Use the shared global/profile/repo/project/session defaults. Selecting an Autopilot mode explicitly delegates tool approvals, not additional capabilities, authentication, roots or budget. Hard denials, read-only mode, user-only settings, secret boundaries, Git policies and allowed-env policy remain authoritative. Protocol 61 records explicit `automaticApprovals` consent. Saved Autopilot/Max defaults and unmarked older sessions count as automatic (owner decision); only an explicit `automaticApprovals: false` keeps the bounded legacy path.
 
 Protocol 81 gives that explicit selection its own revision-bound SDK/service
 command, so reselecting the same legacy value persists consent for later turns.

@@ -11,7 +11,7 @@ const launch = (directory: string) => electron.launch({ executablePath: process.
   args: process.env.MOGURI_TEST_APP ? [] : ["."],
   env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
 
-test("reselecting legacy Autopilot clears its warning and approves actual commands on subsequent turns and renderer reload", async () => {
+test("legacy Autopilot shows no reselection warning and approves actual commands on subsequent turns and renderer reload", async () => {
   const f = await setupFixture({ toolCall: { name: "run_command", args: { command: "printf 'Generated hidden automatic command\\n'", timeoutMs: 2000 } } });
   await f.configure(); appendLegacyAutopilot(f.service, f.sessionId);
   const app = await launch(f.directory);
@@ -19,9 +19,9 @@ test("reselecting legacy Autopilot clears its warning and approves actual comman
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
     const menu = page.getByRole("dialog", { name: "Autonomy level", exact: true });
-    await expect(menu).toContainText("legacy bounded grants");
-    await menu.getByRole("button", { name: /^Autopilot Automatically approve/ }).click();
-    await expect.poll(() => f.session().controls.automaticApprovals).toBe(true);
+    await expect(menu).toContainText("Autopilot modes are unattended");
+    await expect(menu).not.toContainText("legacy bounded grants");
+    await page.keyboard.press("Escape");
     for (const prompt of ["Generated hidden first automatic turn.", "Generated hidden second automatic turn."]) {
       await page.getByLabel("Prompt", { exact: true }).fill(prompt);
       await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();

@@ -450,7 +450,6 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           </div>;
         })}<p>Autopilot modes are unattended. Hard deny rules, read-only mode, environment policy and budgets still apply.</p>
           {snapshot.settings.values.permissions.defaultDecision === "deny" && <p>Automatic approvals cannot bypass the saved tool policy.<PolicyHint label="About automatic approval policy" target="tools">Default-deny and explicit deny rules remain authoritative. Changing autonomy or opening this setting does not remove a hard rule.</PolicyHint></p>}
-          {["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) && !session.controls.automaticApprovals && <Alert as="p" tone="warning" className="settings-warning">This saved mode uses legacy bounded grants. Select it again to enable automatic approvals explicitly.</Alert>}
           {decisions.error && <Alert as="p" className="inline-error" role="alert">{decisions.error}</Alert>}</>)}
       </div>
       <div className="composer-trailing">

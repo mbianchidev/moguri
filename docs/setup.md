@@ -207,8 +207,10 @@ provider settings** beside **Autopilot Max**, including when Max needs setup.
 An explicit Autopilot selection automatically approves qualified tools and
 commands, even with ask rules. Hard denials, actual authentication, source
 qualification, read-only modes, Env policy and budgets still apply. Actual-user
-questions are not permission prompts. Retained legacy bounded selections still
-require explicit reselection; opening settings never changes autonomy.
+questions are not permission prompts. A saved Autopilot or Max default, or an
+older session saved in Autopilot/Max before the explicit marker existed, also
+approves automatically; nothing needs reselecting. Opening settings never
+changes autonomy.
 
 The main approval menu offers **This family of commands** across the active
 profile and selected Env. It does not cover another profile, shell composition,
