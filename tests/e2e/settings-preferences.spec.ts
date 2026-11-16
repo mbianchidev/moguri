@@ -62,12 +62,10 @@ test("named and custom palettes update actual elements and reject unreadable cus
     await page.getByText("Custom element colors", { exact: true }).click();
     const text = page.getByLabel("Custom dark text", { exact: true });
     await text.fill("#191f29");
-    await page.getByRole("button", { name: "Save custom theme colors", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("contrast");
     await expect(text).toHaveValue("#191f29");
     expect(fixture.service.controller.snapshot().settings.values.appearance.custom?.dark?.text).toBeUndefined();
     await text.fill("#e1e8f0");
-    await page.getByRole("button", { name: "Save custom theme colors", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.appearance.custom?.dark?.text).toBe("#e1e8f0");
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     await page.reload();

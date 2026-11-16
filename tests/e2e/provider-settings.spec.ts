@@ -55,15 +55,26 @@ test("provider cards show each service's logo and text status, and the API key f
 
     const claude = page.getByRole("region", { name: "Claude Agent harness", exact: true });
     await expect(claude.getByLabel("Claude Code executable", { exact: true })).toHaveCount(0);
+    const toolbar = page.locator(".settings-toolbar").getByRole("status"), saved = () => sdk.getState().snapshot!.settings.values.claudeAgent;
     await claude.getByRole("switch", { name: "Enable Claude Agent", exact: true }).check();
-    await expect(claude.getByLabel("Claude Code executable", { exact: true })).toBeVisible();
-    await expect(claude.getByRole("combobox", { name: "Claude Agent transport", exact: true })).toHaveValue("sdk");
-    await expect(page.getByRole("status").filter({ hasText: "Unsaved changes" })).toBeVisible();
+    await expect.poll(() => saved()?.enabled).toBe(true);
+    await expect(toolbar).toHaveText("Saved");
+    await claude.getByRole("combobox", { name: "Claude Agent transport", exact: true }).selectOption("stream-json");
+    await expect.poll(() => saved()?.transport).toBe("stream-json");
+    const executable = claude.getByLabel("Claude Code executable", { exact: true }), savePath = claude.getByRole("button", { name: "Save Claude Agent executable", exact: true });
+    await expect(savePath).toBeDisabled();
+    await executable.fill("/generated/bin/claude");
+    await expect(toolbar).toHaveText("Unsaved changes");
     await claude.getByRole("switch", { name: "Enable Claude Agent", exact: true }).uncheck();
-    await expect(claude.getByLabel("Claude Code executable", { exact: true })).toHaveCount(0);
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
-    await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
-    await expect.poll(() => sdk.getState().snapshot!.settings.values.claudeAgent?.enabled).toBe(false);
+    await expect.poll(() => saved()?.enabled).toBe(false);
+    expect(saved()?.executablePath).toBeNull();
+    await claude.getByRole("switch", { name: "Enable Claude Agent", exact: true }).check();
+    await expect(executable).toHaveValue("/generated/bin/claude");
+    await savePath.click();
+    await expect.poll(() => saved()?.executablePath).toBe("/generated/bin/claude");
+    await expect(toolbar).toHaveText("Saved");
+    await claude.getByRole("switch", { name: "Enable Claude Agent", exact: true }).uncheck();
+    await expect.poll(() => saved()).toEqual({ enabled: false, transport: "stream-json", executablePath: "/generated/bin/claude" });
 
     await page.getByRole("region", { name: "Local model servers", exact: true }).getByRole("button", { name: "Configure local models", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Configured local models", exact: true })).toBeVisible();

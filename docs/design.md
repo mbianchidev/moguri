@@ -96,6 +96,15 @@ Native browser previews are hidden while dialogs or other task surfaces own
 focus. Project settings and destructive dialogs use the same restrained layout
 and clear source/retention boundaries.
 
+Settings choices save as soon as they change: switches, checkboxes, selects,
+sliders and color pickers commit on change (sliders and colors when released),
+on top of the committed values, so other unsaved text is untouched. Explicit
+Save is reserved for written values such as text, paths, numbers, shortcuts and
+JSON/YAML editors, and for flows gated by a review or consent step. List actions
+like adding, enabling or removing a skill source, or confirming a global skill
+folder, also save immediately. A refused save keeps the attempted value visible
+with the error and never overwrites another client's revision.
+
 Settings is a full main-pane task surface, with a category rail, persistent save
 state and explicit warning/reset actions. It exposes the shared SDK rather than
 owning capability behavior. Dirty settings survive tab changes and block

@@ -72,11 +72,9 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
       }} />Import open issues from this repository and keep existing links updated</label>
       {(["backlog", "inProgress", "review", "done"] as const).map((state) => <label className="setting-field" key={state}>GitHub {state === "inProgress" ? "draft PR" : state === "review" ? "open PR" : state === "done" ? "closed issue" : "open issue"} column
         <select aria-label={`GitHub ${state} column`} value={githubSyncSettings(draft).phases[state]} onChange={(event) => {
-          const value = event.target.value;
-          setDraft((current) => ({ ...current, githubSync: { ...githubSyncSettings(current), phases: { ...githubSyncSettings(current).phases, [state]: value } } }));
+          const saved = githubSyncSettings(actual.current);
+          automatic("githubSync", { ...saved, phases: { ...saved.phases, [state]: event.target.value } });
         }}>{committed.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>)}
-      <button type="button" disabled={JSON.stringify(githubSyncSettings(draft).phases) === JSON.stringify(githubSyncSettings(committed).phases)}
-        onClick={() => void write({ ...actual.current, githubSync: { ...githubSyncSettings(actual.current), phases: githubSyncSettings(draft).phases } })}>Save GitHub mapping</button>
       <label className="setting-field">Linked-PR GitHub read access<select aria-label="Linked-PR GitHub read access" value={draft.githubAccess} onChange={(event) => automatic("githubAccess", event.target.value === "gh-cli" ? "gh-cli" : "public")}><option value="public">Public GitHub API, no account</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
       <SettingsHelp label="More about this setting" target={<h3>Optional Linear team</h3>}>Authentication lives in Integrations / Linear. Save the exact team UUID before enabling import. Importing is explicit and read-only; enabling a team never exports local tickets or starts a scan.</SettingsHelp>
       <label className="check-setting"><SettingsInput type="checkbox" checked={draft.linear.enabled} disabled={!draft.linear.enabled && !/^[A-Za-z0-9-]{1,128}$/.test(committed.linear.teamId)} onChange={(event) => {

@@ -183,7 +183,6 @@ test("small real cost estimates remain graphically visible and saved skill folde
     await gateway.getByLabel("Skill source name", { exact: true }).fill("Generated desktop skills");
     await gateway.getByLabel("Skill source location", { exact: true }).fill(root);
     await gateway.getByRole("button", { name: "Add source", exact: true }).click();
-    await gateway.getByRole("button", { name: "Save skill sources", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.skillSources?.length).toBe(1);
     expect(fixture.service.controller.snapshot().settings.values.skillSources![0]).toMatchObject({ kind: "local", path: root });
     await gateway.getByRole("button", { name: "Find skills", exact: true }).click();

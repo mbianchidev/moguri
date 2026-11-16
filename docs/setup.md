@@ -20,7 +20,8 @@ tool call and records the conversation. See the
 3. In **Settings / Model providers / Agent harnesses**, turn on the **Claude Agent**
    switch. Its card then shows the transport (`Claude Agent SDK`, the default, or
    `Claude Code stream-json protocol`) and an optional absolute executable path if `claude`
-   is not on `PATH` or in its standard install locations. Save, then
+   is not on `PATH` or in its standard install locations. The switch and transport
+   save immediately; a typed path needs its **Save** button. Then
    **Refresh available models**.
 4. Choose **Claude Agent / Sonnet**, **Opus** or **Haiku** in the composer's Model
    control, in a project or a Home-bound chat.
@@ -42,7 +43,8 @@ Moguri chat. See the [Codex Agent contract](architecture/agent-harnesses.md#code
 2. Sign in from your own terminal with `codex login` (Sign in with ChatGPT or an
    API key). Moguri never reads Codex credentials.
 3. In **Settings / Model providers / Agent harnesses**, turn on the **Codex Agent**
-   switch and optionally set an absolute executable path in its card. Save, then **Refresh available models**. Your login's
+   switch (it saves immediately) and optionally save an absolute executable path in its card.
+   Then **Refresh available models**. Your login's
    Codex models appear as **Codex Agent / ...**.
 
 Codex asks Moguri before commands and file changes. Anything it runs without
@@ -2131,9 +2133,10 @@ guidance enters future recorded prompts, never grants permissions or rewrites
 an in-flight turn.
 
 **Appearance** offers Moguri, Ocean, Orchid and Custom palettes in dark/light
-modes. Custom element colors are saved together and validated against measured
-text, focus, control, selection and semantic contrast. Invalid combinations
-remain editable and never replace committed colors.
+modes. Each custom element color saves when you pick it and is validated with
+the other saved colors against measured text, focus, control, selection and
+semantic contrast. An invalid combination stays visible for correction and never
+replaces committed colors.
 
 **Sessions / Startup defaults** exposes a shared **Global default model** and
 supported global thinking effort, plus separate current-profile model/effort

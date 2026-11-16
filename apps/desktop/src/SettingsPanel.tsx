@@ -1,4 +1,4 @@
-import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
+import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
@@ -46,7 +46,8 @@ import { Alert } from "./Alert.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
-type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences";
+/** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
+type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
@@ -234,11 +235,19 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       }, risk);
     } catch (error) { setError(error instanceof Error ? error.message : "Settings were not saved. Your text is preserved."); }
   };
-  const automatic = <K extends AutomaticSection>(section: K, patch: Partial<UserSettings[K]>, replace = false) => {
+  /** Saves one choice immediately on top of the committed values, leaving any other unsaved text in the draft. `fallback` fills an optional section that was never saved. */
+  const automatic = <K extends AutomaticSection>(section: K, patch: Partial<NonNullable<UserSettings[K]>>, replace = false, fallback?: NonNullable<UserSettings[K]>) => {
     if (ownSave.current) { setError("Wait for the current settings save to finish. Your edits are preserved."); return; }
     if (raw[section] !== undefined) { setError("Save or reload this section's JSON before changing its controls. Your text is preserved."); return; }
-    const value = replace ? patch : { ...committedValues.current[section], ...patch };
-    setDraft((current) => ({ ...current, [section]: replace ? value : { ...current[section], ...patch } }));
+    const value = replace ? patch : { ...fallback, ...committedValues.current[section], ...patch };
+    setDraft((current) => ({ ...current, [section]: replace ? value : { ...fallback, ...current[section], ...patch } }));
+    void write({ ...committedValues.current, [section]: value }, () => {});
+  };
+  /** Saves a whole section immediately, for list choices such as adding, enabling or removing a skill source. */
+  const commitSection = <K extends SettingsSection>(section: K, value: UserSettings[K]) => {
+    if (ownSave.current) { setError("Wait for the current settings save to finish. Your edits are preserved."); return; }
+    if (raw[section] !== undefined) { setError("Save or reload this section's JSON before changing its controls. Your text is preserved."); return; }
+    setDraft((current) => ({ ...current, [section]: value }));
     void write({ ...committedValues.current, [section]: value }, () => {});
   };
   const updateChildrenPreference = (action: "archive" | "delete", input: string) => {
@@ -400,31 +409,41 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
             <HostedProviderConnect provider={snapshot.provider} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
           </div>
-          <SettingsHelp label="About agent harnesses" target={<h3>Agent harnesses</h3>}>Off by default. Each harness runs your own installed command-line agent with your own sign-in; Moguri never installs it or collects its credentials. Local only, Unlimited budget, text and pasted text. Save, then refresh available models to recheck its version and sign-in.</SettingsHelp>
+          <SettingsHelp label="About agent harnesses" target={<h3>Agent harnesses</h3>}>Off by default. Each harness runs your own installed command-line agent with your own sign-in; Moguri never installs it or collects its credentials. Local only, Unlimited budget, text and pasted text. Switches save immediately; refresh available models afterwards to recheck its version and sign-in.</SettingsHelp>
           <div className="provider-list">
             {([["claudeAgent", CLAUDE_AGENT_PROVIDER_ID, "Claude Agent", "claude-code", "Your installed Claude Code, with every tool call approved in Moguri."],
               ["codexAgent", CODEX_AGENT_PROVIDER_ID, "Codex Agent", "codex", "Your installed Codex CLI through codex app-server."]] as const).map(([key, id, name, logo, subtitle]) => {
               const value = { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...draft[key] };
               const entry = snapshot.provider.catalogue?.providers.find((provider) => provider.id === id), active = committed[key]?.enabled === true;
-              const update = (patch: { enabled?: boolean; executablePath?: string | null }) => key === "claudeAgent" ?
-                change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, ...patch }) : change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, ...patch });
+              const choose = (patch: { enabled?: boolean; transport?: "sdk" | "stream-json" }) => key === "claudeAgent" ?
+                automatic("claudeAgent", patch, false, defaultClaudeAgentSettings()) : automatic("codexAgent", { enabled: patch.enabled }, false, defaultCodexAgentSettings());
+              const path = value.executablePath ?? null, savedPath = committed[key]?.executablePath ?? null;
+              const savePath = () => void write({ ...committedValues.current, [key]: { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...committedValues.current[key], executablePath: path } },
+                () => setDraft((current) => ({ ...current, [key]: { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...current[key], executablePath: path } })));
               return <ProviderCard key={id} label={`${name} harness`} logo={logo} name={name} subtitle={subtitle}
-                status={value.enabled !== active ? undefined : active ? providerStatus(entry?.status, entry?.enabled ?? true) : "disabled"}
+                status={active ? providerStatus(entry?.status, entry?.enabled ?? true) : "disabled"}
                 help={{ label: `About ${name}`, content: key === "claudeAgent" ?
                   "Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text and pasted text." :
                   "Runs your own installed Codex CLI through `codex app-server` with your own `codex login` (ChatGPT or API key). Moguri never installs Codex or collects Codex credentials. Codex asks Moguri before commands and file changes; anything it runs without asking (its own exec-policy rules, or known-safe reads in older versions) is checked against your policy afterwards. Local only, Unlimited budget, text and pasted text." }}
                 actions={<label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable ${name}`} checked={value.enabled === true}
-                  onChange={(event) => update({ enabled: event.target.checked })} /><span className="sr-only">Enable {name}</span></label>}>
+                  disabled={saving} onChange={(event) => choose({ enabled: event.target.checked })} /><span className="sr-only">Enable {name}</span></label>}>
                 {value.enabled && <div className="provider-card-fields">
-                  {key === "claudeAgent" && <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"}
-                    onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, transport: event.target.value === "stream-json" ? "stream-json" : "sdk" })}>
+                  {key === "claudeAgent" && <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"} disabled={saving}
+                    onChange={(event) => choose({ transport: event.target.value === "stream-json" ? "stream-json" : "sdk" })}>
                     <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
                   </select></label>}
-                  <label className="setting-field">{key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}<SettingsInput aria-label={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}
-                    placeholder="Found on PATH or in its install location" value={value.executablePath ?? ""}
-                    onChange={(event) => update({ executablePath: event.target.value.trim() || null })} /></label>
+                  <form className="provider-key-form" onSubmit={(event) => { event.preventDefault(); if (path !== savedPath) savePath(); }}>
+                    <label className="setting-field">{key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}<SettingsInput aria-label={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}
+                      placeholder="Found on PATH or in its install location" value={value.executablePath ?? ""}
+                      onChange={(event) => {
+                        const executablePath = event.target.value.trim() || null;
+                        if (key === "claudeAgent") change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath });
+                        else change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, executablePath });
+                      }} /></label>
+                    <button type="submit" className="primary" aria-label={`Save ${name} executable`} disabled={saving || path === savedPath}>Save</button>
+                  </form>
                   <p className="fine-print">{key === "claudeAgent" ? "Both transports launch the same executable. Moguri never runs a Claude binary bundled with the SDK." :
-                    "Codex models come from your login's `model/list`."} Save, then refresh available models to recheck its version and sign-in.</p>
+                    "Codex models come from your login's `model/list`."} Refresh available models after a change to recheck its version and sign-in.</p>
                 </div>}
                 {active && entry?.diagnostic && <Alert as="p" className="inline-error" role="status">{entry.diagnostic}</Alert>}
               </ProviderCard>;
@@ -441,10 +460,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           </div>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
           <h3>Chat names</h3>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
-            setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
-          <label className="setting-field">Naming model<select aria-label="Chat naming model" value={draft.chatTitles?.modelId ?? ""} onChange={(event) =>
-            setDraft({ ...draft, chatTitles: { enabled: draft.chatTitles?.enabled !== false, modelId: event.target.value || null } })}>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.chatTitles?.enabled !== false} disabled={saving} onChange={(event) =>
+            automatic("chatTitles", { enabled: event.target.checked }, false, { enabled: true, modelId: null })} />Summarize new chat topics automatically</label>
+          <label className="setting-field">Naming model<select aria-label="Chat naming model" value={draft.chatTitles?.modelId ?? ""} disabled={saving} onChange={(event) =>
+            automatic("chatTitles", { modelId: event.target.value || null }, false, { enabled: true, modelId: null })}>
             <option value="">Automatic in the original Env</option>
             {draft.chatTitles?.modelId && !snapshot.provider.models.some((model) => model.id === draft.chatTitles!.modelId) &&
               <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
@@ -567,8 +586,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <button type="button" disabled={saving} aria-label={`Remove unavailable solver ${id}`} onClick={() => automatic("kupo", { approvedModelIds: draft.kupo.approvedModelIds.filter((value) => value !== id) })}>Remove saved approval</button>
           </div>)}
           <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Allow hosted or network routing data" checked={draft.kupo.allowHosted} disabled={saving} onChange={(event) => automatic("kupo", { allowHosted: event.target.checked })} />Allow approved task history to hosted or network classifiers and solvers</label>}>Leave this off for explicitly configured loopback endpoints. A provider's local label does not make a network URL local. Loopback is on the execution host, not proof that a configured proxy never forwards data. Model redirects are blocked. Remote also needs its separately approved SSH host and scoped Copilot grant.</SettingsHelp>
-          <SettingsHelp label="More about this setting" target={<label className="setting-field">Classifier confidence threshold: {draft.kupo.minimumConfidence.toFixed(2)}<SettingsInput type="range" aria-label="Classifier confidence threshold" min={0} max={1} step={0.01} value={draft.kupo.minimumConfidence} disabled={saving} onChange={(event) => change("kupo", { ...draft.kupo, minimumConfidence: Number(event.target.value) })} /></label>}>This is model-supplied advice, not a calibrated probability or permission. Invalid or low-confidence plans pause without another model or fallback.</SettingsHelp>
-          {saveButton("kupo", "Save routing threshold")}
+          <SettingsHelp label="More about this setting" target={<label className="setting-field">Classifier confidence threshold: {draft.kupo.minimumConfidence.toFixed(2)}<SettingsCommitInput type="range" aria-label="Classifier confidence threshold" min={0} max={1} step={0.01} value={draft.kupo.minimumConfidence} disabled={saving}
+            onChange={(event) => change("kupo", { ...draft.kupo, minimumConfidence: Number(event.target.value) })} onCommit={(value) => automatic("kupo", { minimumConfidence: Number(value) })} /></label>}>This is model-supplied advice, not a calibrated probability or permission. Invalid or low-confidence plans pause without another model or fallback.</SettingsHelp>
 
           <Alert as="p" tone="warning" className="settings-warning">Finite Single needs an explicitly configured qualified finishing policy on its selected execution boundary. Images, documents and exact window/effort controls require every actual classifier/solver capability; unsupported context is preserved. This explicit policy remains Single; automatic Cascade/Critique and separately reviewed Compound have their own contracts. Native execution still needs fresh physical qualification. Hard policy is never lifted.</Alert>
           </>}
@@ -682,7 +701,12 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <option value="dry">Dry</option><option value="minimal">Minimal</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option>
           </select></label>}>Verbosity changes response guidance, not permissions, context limits or accounting. Existing sessions keep their captured controls.</SettingsHelp>
           {jsonEditor("startup", "Global and current-profile startup defaults")}
-          {session && <button onClick={() => change("startup", { ...draft.startup, profile: structuredClone(session.controls) })} aria-label="Use current controls for this profile">Use current controls</button>}
+          {session && <button disabled={saving} onClick={() => {
+            if (ownSave.current || raw.startup !== undefined) { setError("Save or reload the startup JSON before changing default controls. Your text is preserved."); return; }
+            const profile = structuredClone(session.controls);
+            setDraft((current) => ({ ...current, startup: { ...current.startup, profile } }));
+            void write({ ...committedValues.current, startup: { ...committedValues.current.startup, profile } }, () => {});
+          }} aria-label="Use current controls for this profile">Use current controls</button>}
           <details><summary>Available model IDs</summary>{snapshot.provider.models.map((model) => <p className="fine-print path" key={model.id}>{model.name}: <code>{model.id}</code></p>)}</details>
           <button onClick={() => void reset("startup")} aria-label="Restore profile startup defaults">Restore profile</button>
           <button disabled={dirty || saving || nestedDirty || !profileCatalog} onClick={() => void run(async () => { if (!profileCatalog) throw new Error("Load the actual global preference revision first."); await sdk.profiles.defaults({}, profileCatalog.globalDefaults.revision); return "Shared global startup preferences restored. Existing sessions and hard policy were preserved."; })} aria-label="Restore global defaults">Restore global</button></>}
@@ -759,19 +783,19 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <SettingsHelp label="More about this setting" target={<details><summary>Custom element colors</summary>
             <label className="setting-field">Customize mode<select aria-label="Customize color mode" value={customMode} onChange={(event) => setCustomMode(event.target.value === "light" ? "light" : "dark")}><option value="dark">Dark</option><option value="light">Light</option></select></label>
             <div className="theme-color-grid">{(Object.keys(appearanceColors(draft.appearance, customMode)) as ThemeColor[]).map((key) => <label className="setting-field" key={`${customMode}:${key}`}>{key.replace(/[A-Z]/g, (value) => ` ${value.toLowerCase()}`)}
-              <SettingsInput type="color" aria-label={`Custom ${customMode} ${key}`} value={draft.appearance.custom?.[customMode]?.[key] ?? appearanceColors({ theme: customMode }, customMode)[key]} onChange={(event) => change("appearance", { ...draft.appearance,
-                custom: { ...draft.appearance.custom, [customMode]: { ...draft.appearance.custom?.[customMode], [key]: event.target.value } } })} /></label>)}</div>
-            {saveButton("appearance", "Save custom theme colors")}
-          </details>}>Custom colors apply when Custom is selected. Saving validates text, control, focus, selection and semantic contrast in both modes; unreadable combinations are rejected, not silently replaced.</SettingsHelp>
+              <SettingsCommitInput type="color" aria-label={`Custom ${customMode} ${key}`} value={draft.appearance.custom?.[customMode]?.[key] ?? appearanceColors({ theme: customMode }, customMode)[key]} onChange={(event) => change("appearance", { ...draft.appearance,
+                custom: { ...draft.appearance.custom, [customMode]: { ...draft.appearance.custom?.[customMode], [key]: event.target.value } } })}
+                onCommit={(value) => automatic("appearance", { custom: { ...committedValues.current.appearance.custom, [customMode]: { ...committedValues.current.appearance.custom?.[customMode], [key]: value } } })} /></label>)}</div>
+          </details>}>Custom colors apply when Custom is selected and save when you pick a color. Saving validates text, control, focus, selection and semantic contrast in both modes; unreadable combinations are rejected, not silently replaced.</SettingsHelp>
           <button onClick={() => void reset("appearance")} aria-label="Restore defaults for appearance">Restore defaults</button></>}
         {tab === "interactions" && <><SettingsHelp label="More about this setting" target={<h2>Confirmations</h2>}>Saved in this profile. Hiding a terminal pane leaves its consoles running; the console's X button terminates it without confirmation. Snapshot and ownership checks always apply.</SettingsHelp>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} onChange={(event) => change("interactions", { ...draft.interactions, confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionDetach !== false} onChange={(event) => change("interactions", { ...draft.interactions, confirmSessionDetach: event.target.checked })} />Confirm before detaching a child session</label>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmRepositoryImport !== false} onChange={(event) => change("interactions", { ...draft.interactions, confirmRepositoryImport: event.target.checked })} />Ask before importing a repository a chat wrote code in</label>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.nativeRetryRestaging === true} onChange={(event) => change("interactions", { ...draft.interactions, nativeRetryRestaging: event.target.checked })} />Allow exact private-snapshot restaging for native model retries</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} disabled={saving} onChange={(event) => automatic("interactions", { confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} disabled={saving} onChange={(event) => automatic("interactions", { confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionDetach !== false} disabled={saving} onChange={(event) => automatic("interactions", { confirmSessionDetach: event.target.checked })} />Confirm before detaching a child session</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmRepositoryImport !== false} disabled={saving} onChange={(event) => automatic("interactions", { confirmRepositoryImport: event.target.checked })} />Ask before importing a repository a chat wrote code in</label>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.nativeRetryRestaging === true} disabled={saving} onChange={(event) => automatic("interactions", { nativeRetryRestaging: event.target.checked })} />Allow exact private-snapshot restaging for native model retries</label>
           <p className="fine-print">Off by default. Requires verified original guest cleanup and unchanged request, profile, Env and current permissions. Never captures changed live source or replays tools, Git or unknown work.</p>
-          <label className="setting-field">Scheduling in an idle chat<select value={draft.interactions.idleScheduleAction ?? "ask"} onChange={(event) => change("interactions", { ...draft.interactions, idleScheduleAction: parse(SettingsSchema.properties.interactions.properties.idleScheduleAction, event.target.value) })}>
+          <label className="setting-field">Scheduling in an idle chat<select aria-label="Scheduling in an idle chat" value={draft.interactions.idleScheduleAction ?? "ask"} disabled={saving} onChange={(event) => automatic("interactions", { idleScheduleAction: parse(SettingsSchema.properties.interactions.properties.idleScheduleAction, event.target.value) })}>
             <option value="ask">Ask whether to send now</option><option value="send">Send now without asking</option><option value="schedule">Open scheduling without asking</option>
           </select></label>
           <button type="button" onClick={() => void reset("interactions")} aria-label="Restore defaults for confirmations">Restore defaults</button></>}
@@ -844,8 +868,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.subagents.enabled} onChange={(event) => automatic("subagents", { enabled: event.target.checked })} />Enable optional read-only subagents</label>
           <label className="setting-field">Maximum parallel children<select aria-label="Maximum parallel children" value={draft.subagents.maxParallel} onChange={(event) => automatic("subagents", { maxParallel: Number(event.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
           <label className="setting-field">Read-only assignment<SettingsTextarea value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={!session || !input || !snapshot.settings.values.subagents.enabled} onClick={() => void run(() => sdk.subagents.run(session!.id, input))} aria-label="Run bounded subagent">Run</button></>}
-        {tab === "skills" && <><SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => change("skillSources", sources)}
-          save={() => void save("skillSources")} dirty={sectionDirty("skillSources")} disabled={saving} onDirty={setIntegrationDirty} />
+        {tab === "skills" && <><SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => commitSection("skillSources", sources)}
+          dirty={sectionDirty("skillSources")} disabled={saving} onDirty={setIntegrationDirty} />
           {resourceSession ? <fieldset className="settings-fields" disabled={dirty || saving || integrationDirty}>
             {(dirty || integrationDirty) && <p className="fine-print">Save or cancel source changes before reviewing session admission.</p>}
             <SkillAdmissionsPanel key={`${sdk.profileId}:${resourceSession.id}`} sdk={sdk} session={resourceSession} snapshot={snapshot} />

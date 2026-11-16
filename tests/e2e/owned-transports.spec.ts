@@ -112,7 +112,6 @@ test("hidden desktop leaves private native restaging off until the actual user e
     await openSettingsSection(page, "Confirmations");
     const policy = page.getByLabel("Allow exact private-snapshot restaging for native model retries", { exact: true });
     await expect(policy).not.toBeChecked(); await policy.check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => f.sdk.settings.get()!.values.interactions.nativeRetryRestaging).toBe(true);
     expect(f.requests).toHaveLength(0); expect(f.solver.requests).toHaveLength(0);
   } finally { await app.close(); await f.close(); }

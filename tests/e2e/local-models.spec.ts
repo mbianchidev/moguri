@@ -47,7 +47,7 @@ test("local model setup is independent of Copilot and startup controls are inher
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await categories.getByRole("button", { name: "Startup defaults", exact: true }).click();
     await page.getByRole("button", { name: "Use current controls for this profile", exact: true }).click();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     await categories.getByRole("button", { name: "Project", exact: true }).click();
     await page.getByLabel("Project startup control overrides", { exact: true }).fill('{"modelOptions":{"contextWindow":16384}}');
     await page.getByRole("button", { name: "Save project settings", exact: true }).click();
