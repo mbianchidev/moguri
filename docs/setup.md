@@ -5011,8 +5011,9 @@ accepted-work validation/commit and exact billing integration remain separate.
 
 The model's `ask_user` tool creates a real typed question with optional choices.
 This is distinct from a heuristic question badge. Desktop shows the exact
-question with a scrollable list of offered answers; clicking one sends that
-choice immediately. Its blank **Other** field sends on Enter, including for
+question with a scrollable list of offered answers, numbered 1-8 and aligned
+with the composer; clicking one, or pressing its number in the card or in an
+empty composer, sends that choice immediately. Its blank **Other** field sends on Enter, including for
 choice-only questions. The ordinary saved composer remains available; its
 primary **Answer question** action atomically consumes only its own text.
 Choosing a list option or sending Other preserves unrelated draft text. In TUI, **F6**

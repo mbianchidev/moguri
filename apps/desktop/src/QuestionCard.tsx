@@ -14,6 +14,20 @@ export function QuestionCard({ sdk, question, decisionPending = false, onDirty }
     const unsaved = (event: BeforeUnloadEvent) => { if (text && question.status === "open") { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", unsaved); return () => window.removeEventListener("beforeunload", unsaved);
   }, [text, question.status]);
+  const card = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // 1-8 picks an offered answer from inside this card, or from this session's composer while it is empty.
+    const press = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || busy || question.status !== "open") return;
+      const index = /^[1-8]$/.test(event.key) ? Number(event.key) - 1 : -1, target = event.target instanceof Element ? event.target : null;
+      if (index < 0 || index >= choices.length || !target) return;
+      const editable = Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+      const composer = target.closest<HTMLElement>("[data-composer-session]")?.dataset.composerSession === question.sessionId && target instanceof HTMLTextAreaElement && !target.value;
+      if (!(card.current?.contains(target) ? !editable : composer)) return;
+      event.preventDefault(); void answer(choices[index]!);
+    };
+    window.addEventListener("keydown", press); return () => window.removeEventListener("keydown", press);
+  });
   const answer = async (value: string, custom = false) => {
     if (pending.current) return;
     pending.current = true;
@@ -22,13 +36,14 @@ export function QuestionCard({ sdk, question, decisionPending = false, onDirty }
     catch (error) { setError(error instanceof Error ? error.message : "The question changed. Review the actual pending question; no answer was invented."); }
     finally { pending.current = false; setBusy(false); }
   };
-  return <section className="user-question" aria-label="User question" aria-busy={busy} tabIndex={0}>
+  return <section ref={card} className="user-question" aria-label="User question" aria-busy={busy} tabIndex={0}>
     <h2><Icon name="Question" />Your answer is needed</h2>
     {decisionPending && <p className="fine-print" role="status">A separately metered decision provider is evaluating this exact user-delegated technical choice. You can override it now. Your real answer wins; automated advice is never recorded as you.</p>}
     <div className="question-context" role="group" aria-label="Question and model advice" tabIndex={0}><p className="question-text">{question.question}</p>
       {question.recommendation && <ModelAdvice source={question.recommendation} text={question.recommendation.reason} choice={question.recommendation.choice} />}</div>
-    {choices.length > 0 && <ul className="question-choices" aria-label="Offered answers">{choices.map((choice) => <li key={choice}>
-      <button type="button" disabled={busy} onClick={() => void answer(choice)}>{choice}</button>
+    {choices.length > 0 && <ul className="question-choices" aria-label="Offered answers">{choices.map((choice, index) => <li key={choice}>
+      <button type="button" disabled={busy} aria-keyshortcuts={String(index + 1)} title={`Press ${index + 1} to choose`} onClick={() => void answer(choice)}>
+        <kbd className="question-choice-key" aria-hidden="true">{index + 1}</kbd><span>{choice}</span></button>
     </li>)}</ul>}
     <form className="question-other" onSubmit={(event) => {
       event.preventDefault(); event.stopPropagation();
