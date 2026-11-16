@@ -32,7 +32,17 @@ reserved for code, paths, IDs and measurements.
 
 An original small face-and-purple-bat-wing mascot with a red pom-pom anchors the titlebar and empty
 state. One SVG source generates PNG/ICNS native icons; the SDK exports its ASCII
-counterpart for terminal loading. No supplied third-party artwork is embedded.
+counterpart for terminal loading. The only third-party artwork is the set of
+monochrome provider marks on Settings / Model providers, which identify each
+service and inherit the text color ([third-party notice](third-party.md)).
+
+Model providers uses one card per account or agent harness: a neutral logo
+tile, name, one-line subtitle, a status badge and trailing actions. The badge
+states Connected, Not connected, Checking..., Needs attention or Disabled in
+words, with a filled or hollow dot, so state never depends on color alone. API
+key forms open as disclosures (`aria-expanded`), focus their field, and return
+focus to the trigger on Escape or Cancel. Longer explanations stay in the
+information popovers.
 
 Projects/sessions sit left; the conversation remains central; the main-session
 sidebar sits beside it with a separate seven-panel rail. Explicit grid placement

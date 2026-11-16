@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
 
 type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string } | { kind: "refresh" };
 export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
@@ -21,12 +22,15 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
   const providerName = (id?: string) => catalogue.providers.find((provider) => provider.id === id)?.name ?? id ?? "Unknown provider";
   const models = catalogue.models.filter((model) => fuzzyMatch(search, `${model.name} ${model.apiModelId} ${model.offerings.map((entry) => providerName(entry.model.providerId)).join(" ")}`));
   return <section className="model-availability" aria-label="Provider and model availability">
-    <button type="button" disabled={disabled || busy} aria-label="Refresh available models" onClick={() => void run({ kind: "refresh" }, () => sdk.models.refresh())}>
-      {change?.kind === "refresh" ? "Refreshing models..." : "Refresh available models"}
-    </button>
-    <p className="fine-print">Available models refresh when the app opens. Refresh here after changing your provider account or running models; no sign-in or inference is started.</p>
-    <SettingsHelp label="About provider availability" target={<h3>Generative providers</h3>}>These preferences belong to this profile. Disabling a provider retains its login and configuration but blocks new model selections and admissions. Existing calls keep their actual outcome and charges. Enabling never signs in or starts inference.</SettingsHelp>
+    <div className="provider-section-header">
+      <SettingsHelp label="About provider availability" target={<h3>Availability</h3>}>These preferences belong to this profile. Disabling a provider retains its login and configuration but blocks new model selections and admissions. Existing calls keep their actual outcome and charges. Enabling never signs in or starts inference.</SettingsHelp>
+      <button type="button" disabled={disabled || busy} aria-label="Refresh available models" onClick={() => void run({ kind: "refresh" }, () => sdk.models.refresh())}>
+        {change?.kind === "refresh" ? "Refreshing models..." : "Refresh available models"}
+      </button>
+    </div>
+    <p className="fine-print">Available models refresh when the app opens. Refresh after changing an account or starting a local server; no sign-in or inference is started.</p>
     <div className="model-provider-list">{catalogue.providers.map((provider) => <div className="model-provider-row" key={provider.id}>
+      <ProviderLogo logo={providerLogoId(provider)} fallback={provider.scope === "remote" ? "Globe" : "House"} />
       <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : provider.scope === "agent" ? `Your installed ${provider.source === "codex-agent" ? "Codex" : "Claude Code"}` : provider.scope === "hosted" ? "Your hosted account" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
         {provider.diagnostic && <small>{provider.diagnostic}</small>}</div>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable provider ${provider.name}`}

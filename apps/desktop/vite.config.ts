@@ -23,7 +23,8 @@ export default defineConfig({
   build: {
     outDir: "../../dist/desktop/renderer", emptyOutDir: true, target: "chrome148",
     // Splitting the shared protocol/SDK code needs strict order: its schemas reference each other across modules.
-    rolldownOptions: { output: { strictExecutionOrder: true, codeSplitting: { groups: [
+    // Keep `/*! @license */` notices, such as the vendored provider marks' MIT notice, in the shipped renderer.
+    rolldownOptions: { output: { comments: { legal: true, annotation: false, jsdoc: false }, strictExecutionOrder: true, codeSplitting: { groups: [
       { name: "shared", test: /[\\/]packages[\\/](?:protocol|sdk|client)[\\/]src[\\/]/, maxSize: 450 * 1024 },
     ] } } },
   },

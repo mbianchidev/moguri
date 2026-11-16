@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -17,6 +17,7 @@ import { LinearWorkflowPanel } from "./LinearWorkflowPanel.tsx";
 import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
 import { ProviderConnect } from "./ProviderConnect.tsx";
 import { HostedProviderConnect } from "./HostedProviderConnect.tsx";
+import { ProviderCard, providerStatus } from "./ProviderLogo.tsx";
 import { SessionManagement } from "./SessionManagement.tsx";
 import { GitHubConnectionPanel, LinearConnectionPanel } from "./IntegrationConnections.tsx";
 import { useDictation, useDictationTranscript } from "./useDictation.ts";
@@ -393,27 +394,54 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             selectConfigurationProject(id); setTab("project");
           }} />}
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
+          <p className="settings-lead">Connect the accounts and tools Moguri can use for models. Credentials stay in your OS keychain.</p>
+          <SettingsHelp label="About hosted providers" target={<h3>Accounts</h3>}>Connect GitHub Copilot or your own OpenRouter, Anthropic API, OpenAI API or ChatGPT account. Keys and sign-in tokens stay in your OS keychain and never reach the renderer, logs or model context. API keys bill the provider's API; Sign in with ChatGPT uses your ChatGPT plan. Claude.ai subscription sign-in is not offered because Anthropic does not permit it for third-party apps.</SettingsHelp>
+          <div className="provider-list">
+            <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
+            <HostedProviderConnect provider={snapshot.provider} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
+          </div>
+          <SettingsHelp label="About agent harnesses" target={<h3>Agent harnesses</h3>}>Off by default. Each harness runs your own installed command-line agent with your own sign-in; Moguri never installs it or collects its credentials. Local only, Unlimited budget, text and pasted text. Save, then refresh available models to recheck its version and sign-in.</SettingsHelp>
+          <div className="provider-list">
+            {([["claudeAgent", CLAUDE_AGENT_PROVIDER_ID, "Claude Agent", "claude-code", "Your installed Claude Code, with every tool call approved in Moguri."],
+              ["codexAgent", CODEX_AGENT_PROVIDER_ID, "Codex Agent", "codex", "Your installed Codex CLI through codex app-server."]] as const).map(([key, id, name, logo, subtitle]) => {
+              const value = { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...draft[key] };
+              const entry = snapshot.provider.catalogue?.providers.find((provider) => provider.id === id), active = committed[key]?.enabled === true;
+              const update = (patch: { enabled?: boolean; executablePath?: string | null }) => key === "claudeAgent" ?
+                change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, ...patch }) : change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, ...patch });
+              return <ProviderCard key={id} label={`${name} harness`} logo={logo} name={name} subtitle={subtitle}
+                status={value.enabled !== active ? undefined : active ? providerStatus(entry?.status, entry?.enabled ?? true) : "disabled"}
+                help={{ label: `About ${name}`, content: key === "claudeAgent" ?
+                  "Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text and pasted text." :
+                  "Runs your own installed Codex CLI through `codex app-server` with your own `codex login` (ChatGPT or API key). Moguri never installs Codex or collects Codex credentials. Codex asks Moguri before commands and file changes; anything it runs without asking (its own exec-policy rules, or known-safe reads in older versions) is checked against your policy afterwards. Local only, Unlimited budget, text and pasted text." }}
+                actions={<label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable ${name}`} checked={value.enabled === true}
+                  onChange={(event) => update({ enabled: event.target.checked })} /><span className="sr-only">Enable {name}</span></label>}>
+                {value.enabled && <div className="provider-card-fields">
+                  {key === "claudeAgent" && <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"}
+                    onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, transport: event.target.value === "stream-json" ? "stream-json" : "sdk" })}>
+                    <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
+                  </select></label>}
+                  <label className="setting-field">{key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}<SettingsInput aria-label={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}
+                    placeholder="Found on PATH or in its install location" value={value.executablePath ?? ""}
+                    onChange={(event) => update({ executablePath: event.target.value.trim() || null })} /></label>
+                  <p className="fine-print">{key === "claudeAgent" ? "Both transports launch the same executable. Moguri never runs a Claude binary bundled with the SDK." :
+                    "Codex models come from your login's `model/list`."} Save, then refresh available models to recheck its version and sign-in.</p>
+                </div>}
+                {active && entry?.diagnostic && <Alert as="p" className="inline-error" role="status">{entry.diagnostic}</Alert>}
+              </ProviderCard>;
+            })}
+          </div>
+          <h3>Local models</h3>
+          <div className="provider-list">
+            <ProviderCard label="Local model servers" logo={null} fallback="House" name="Local model servers"
+              subtitle="OpenAI-compatible servers you run, such as ds4, Ollama or llama.cpp."
+              actions={<button disabled={saving || sandboxBusy || lineageBusy} onClick={() => {
+                if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; }
+                setTab("localModels"); setOutput(""); setInput("");
+              }}>Configure local models</button>} />
+          </div>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
-          <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
-          <HostedProviderConnect provider={snapshot.provider} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
-          <SettingsHelp label="About Claude Agent" target={<h3>Claude Agent</h3>}>Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
-          <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Claude Agent" checked={draft.claudeAgent?.enabled === true}
-            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, enabled: event.target.checked })} />Enable Claude Agent</label>
-          <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"}
-            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, transport: event.target.value === "stream-json" ? "stream-json" : "sdk" })}>
-            <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
-          </select></label>
-          <label className="setting-field">Claude Code executable<SettingsInput aria-label="Claude Code executable" placeholder="Found on PATH or in its install location" value={draft.claudeAgent?.executablePath ?? ""}
-            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath: event.target.value.trim() || null })} /></label>
-          <p className="fine-print">Both transports launch the same executable. Moguri never runs a Claude binary bundled with the SDK. Save, then refresh available models to recheck its version and sign-in.</p>
-          <SettingsHelp label="About Codex Agent" target={<h3>Codex Agent</h3>}>Runs your own installed Codex CLI through `codex app-server` with your own `codex login` (ChatGPT or API key). Moguri never installs Codex or collects Codex credentials. Codex asks Moguri before commands and file changes; anything it runs without asking (its own exec-policy rules, or known-safe reads in older versions) is checked against your policy afterwards. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
-          <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Codex Agent" checked={draft.codexAgent?.enabled === true}
-            onChange={(event) => change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, enabled: event.target.checked })} />Enable Codex Agent</label>
-          <label className="setting-field">Codex executable<SettingsInput aria-label="Codex executable" placeholder="Found on PATH or in its install location" value={draft.codexAgent?.executablePath ?? ""}
-            onChange={(event) => change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, executablePath: event.target.value.trim() || null })} /></label>
-          <p className="fine-print">Codex models come from your login's `model/list`. Save, then refresh available models to recheck its version, sign-in and models.</p>
           <h3>Chat names</h3>
-          <label className="setting-toggle"><input type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
+          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
             setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
           <label className="setting-field">Naming model<select aria-label="Chat naming model" value={draft.chatTitles?.modelId ?? ""} onChange={(event) =>
             setDraft({ ...draft, chatTitles: { enabled: draft.chatTitles?.enabled !== false, modelId: event.target.value || null } })}>

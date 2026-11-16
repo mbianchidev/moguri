@@ -6,7 +6,7 @@ export const SETTINGS_GROUPS = [
     { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization" },
   ] },
   { label: "Models", items: [
-    { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection", aliases: ["chat topic naming", "small local naming model"] },
+    { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection OpenRouter Anthropic OpenAI ChatGPT Claude Codex", aliases: ["chat topic naming", "small local naming model"] },
     { id: "localModels", label: "Local models", keywords: "Ollama llama.cpp ds4 endpoints provider API key credentials" },
     { id: "kupo", label: "Kupo routing", keywords: "automatic configured capabilities single cascade critique classifier solver" },
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },

@@ -17,9 +17,9 @@ tool call and records the conversation. See the
 2. Sign in from your own terminal with `claude auth login`, or set your own
    `ANTHROPIC_API_KEY` or cloud-provider variables before starting Moguri. Moguri
    never shows a Claude sign-in button or reads Claude credentials.
-3. In **Settings / Model providers / Claude Agent**, enable Claude Agent. Optionally
-   choose the transport (`Claude Agent SDK`, the default, or
-   `Claude Code stream-json protocol`) and an absolute executable path if `claude`
+3. In **Settings / Model providers / Agent harnesses**, turn on the **Claude Agent**
+   switch. Its card then shows the transport (`Claude Agent SDK`, the default, or
+   `Claude Code stream-json protocol`) and an optional absolute executable path if `claude`
    is not on `PATH` or in its standard install locations. Save, then
    **Refresh available models**.
 4. Choose **Claude Agent / Sonnet**, **Opus** or **Haiku** in the composer's Model
@@ -41,8 +41,8 @@ Moguri chat. See the [Codex Agent contract](architecture/agent-harnesses.md#code
    Moguri never installs it.
 2. Sign in from your own terminal with `codex login` (Sign in with ChatGPT or an
    API key). Moguri never reads Codex credentials.
-3. In **Settings / Model providers / Codex Agent**, enable it and optionally set an
-   absolute executable path. Save, then **Refresh available models**. Your login's
+3. In **Settings / Model providers / Agent harnesses**, turn on the **Codex Agent**
+   switch and optionally set an absolute executable path in its card. Save, then **Refresh available models**. Your login's
    Codex models appear as **Codex Agent / ...**.
 
 Codex asks Moguri before commands and file changes. Anything it runs without
@@ -54,21 +54,23 @@ show Codex's token totals without a cost estimate.
 
 ## Hosted providers and custom endpoints
 
-Settings / Model providers lists OpenRouter, Anthropic API, OpenAI API and ChatGPT
-account next to GitHub Copilot. See the
+Settings / Model providers shows one card per account under **Accounts**:
+GitHub Copilot, OpenRouter, Anthropic API, OpenAI API and ChatGPT account. Each
+card shows the provider's logo, a text status (Connected, Not connected,
+Checking..., Needs attention or Disabled) and its actions. See the
 [hosted provider contract](architecture/hosted-providers.md).
 
-- **OpenRouter:** paste an API key, or **Sign in with OpenRouter**, which creates a
-  key you control.
-- **Anthropic API:** paste an API key from the Claude Console. Claude.ai
-  subscription sign-in and subscription tokens are not supported.
-- **OpenAI API:** paste an API key; usage is billed by the OpenAI API.
+- **OpenRouter:** **Add API key** and paste a key, or **Sign in with OpenRouter**,
+  which creates a key you control.
+- **Anthropic API:** **Add API key** and paste a key from the Claude Console.
+  Claude.ai subscription sign-in and subscription tokens are not supported.
+- **OpenAI API:** **Add API key**; usage is billed by the OpenAI API.
 - **ChatGPT account:** **Continue with ChatGPT** uses your ChatGPT plan through
   Sign in with ChatGPT. If the browser cannot reach this computer, paste the final
   redirect URL. Port 1455 must be free (cancel a pending `codex login` first).
 
-Keys and sign-in tokens are stored in the OS keychain. **Sign out and remove
-credential** deletes them. In the TUI use `/api-key openrouter|anthropic|openai`,
+Keys and sign-in tokens are stored in the OS keychain. **Sign out** on a
+provider's card deletes them. In the TUI use `/api-key openrouter|anthropic|openai`,
 `/connect chatgpt|openrouter`, `/login-code PROVIDER`, `/cancel-login PROVIDER`
 and `/disconnect PROVIDER`. Hosted models run in the Local Env only.
 
