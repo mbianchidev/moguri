@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
+import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sentPromptHistory, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -62,6 +62,24 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const literalMentions = useRef<{ text: string; ids: Set<string> }>({ text: "", ids: new Set() });
   const mentionPending = useRef(false);
   const chosenSkill = useRef<GatewaySkill | null>(null);
+  const recalled = useRef<{ index: number; text: string } | null>(null);
+  /** Up on an empty draft (or while browsing) recalls earlier sent prompts; Down walks back toward the empty draft. */
+  const recallPrompt = (event: ReactKeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return false;
+    const current = editor.getState(), field = event.currentTarget, up = event.key === "ArrowUp";
+    if (recalled.current && current.text !== recalled.current.text) recalled.current = null;
+    const browsing = recalled.current !== null;
+    if (!browsing && (!up || current.text)) return false;
+    if (browsing && field.selectionStart !== field.selectionEnd) return false;
+    if (browsing && (up ? field.value.slice(0, field.selectionStart).includes("\n") : field.value.slice(field.selectionEnd).includes("\n"))) return false;
+    const prompts = sentPromptHistory(session.messages), next = (recalled.current?.index ?? -1) + (up ? 1 : -1);
+    if (next >= prompts.length) return browsing || prompts.length > 0;
+    const text = next < 0 ? "" : prompts[next]!;
+    recalled.current = next < 0 ? null : { index: next, text };
+    editor.edit(text, current.attachments);
+    requestAnimationFrame(() => { if (input.current) input.current.setSelectionRange(text.length, text.length); });
+    return true;
+  };
   const [contextReview, setContextReview] = useState(false);
   const [scheduleReview, setScheduleReview] = useState<"ask" | "schedule" | null>(null);
   const [heldPending, setHeldPending] = useState(false);
@@ -395,6 +413,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         else if (sessionOptions.length && event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey) { event.preventDefault(); chooseAttachmentTrigger(); }
         else if (event.key === "Tab" && suggestions[slashOption]) { event.preventDefault(); selectSlash(suggestions[slashOption]); }
         else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
+        else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && recallPrompt(event)) event.preventDefault();
         else {
           const action = chatSubmission(event);
           if (!action) return;

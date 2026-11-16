@@ -284,3 +284,38 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     expect(failures).toEqual([]);
   } finally { await app.close(); await fixture.close(); }
 });
+
+test("Up recalls earlier sent prompts to resend or edit, Down returns to the empty draft, and the turn rail reaches the pane bottom", async () => {
+  const fixture = await setupFixture({ responseMode: "text" });
+  await fixture.configure();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    for (const [index, text] of ["ciao", "Generated second prompt."].entries()) {
+      await prompt.fill(text); await prompt.press("Enter");
+      await expect.poll(() => fixture.requests.length).toBe(index + 1);
+      await expect.poll(() => fixture.session().status).toBe("completed");
+      await expect(prompt).toHaveValue("");
+    }
+    await prompt.press("ArrowUp"); await expect(prompt).toHaveValue("Generated second prompt.");
+    await prompt.press("ArrowUp"); await expect(prompt).toHaveValue("ciao");
+    await prompt.press("ArrowUp"); await expect(prompt).toHaveValue("ciao");
+    await prompt.press("ArrowDown"); await expect(prompt).toHaveValue("Generated second prompt.");
+    await prompt.press("ArrowDown"); await expect(prompt).toHaveValue("");
+    await prompt.press("ArrowUp"); await prompt.press("ArrowUp"); await expect(prompt).toHaveValue("ciao");
+    await prompt.press("Enter");
+    await expect.poll(() => fixture.requests.length).toBe(3);
+    await expect.poll(() => fixture.session().messages.filter((message) => message.role === "user").map((message) => message.text)).toEqual(["ciao", "Generated second prompt.", "ciao"]);
+    await prompt.fill("Generated typed draft");
+    await prompt.press("ArrowUp"); await expect(prompt).toHaveValue("Generated typed draft");
+    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
+    const rail = page.getByRole("navigation", { name: "Conversation turns", exact: true });
+    await expect(rail.getByRole("button", { name: "Checkpoints and rewind", exact: true })).toBeVisible();
+    const [railBox, composerBox, paneBox] = await Promise.all([rail.boundingBox(), page.locator(".main-pane > .composer").boundingBox(), page.locator(".main-pane").boundingBox()]);
+    expect(Math.round(railBox!.y + railBox!.height)).toBe(Math.round(paneBox!.y + paneBox!.height));
+    expect(railBox!.y).toBeLessThan(composerBox!.y);
+    expect(composerBox!.x + composerBox!.width).toBeLessThanOrEqual(railBox!.x);
+    await page.screenshot({ path: test.info().outputPath("full-height-rail.png") });
+  } finally { await app.close(); await fixture.close(); }
+});

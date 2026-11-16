@@ -4100,6 +4100,12 @@ links into credential or key locations are skipped and logged. Folder-existence,
 source-freshness and Local-only checks remain, and complete inspection/admission
 is still separate from discovery.
 
+**Up** in an empty composer recalls your previous sent prompt in this chat; keep
+pressing Up for older ones and Down to go back toward the empty draft. Edit the
+recalled text or press Enter to send it again. Editing it ends the recall, so
+arrows move the caret again. The turn rail with **Checkpoints and rewind** runs
+from the transcript top to the bottom of the chat, beside the composer.
+
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
