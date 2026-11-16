@@ -26,14 +26,14 @@ export function HostedProviderConnect({ provider, run, client, disabled }: {
   return HOSTED_PROVIDERS.map((definition) => {
     const id = definition.id, state = connected(id), account = state?.account, login = account?.login ?? null, methods: readonly string[] = definition.methods;
     const keyOpen = editing === id, formId = `hosted-key-${id}`, models = provider.models.filter((model) => model.providerId === id).length;
-    const save = (key: string) => run(async () => { await client.models.hosted.setKey(id as "openrouter", key); closeKey(id); });
-    const signIn = methods.includes("oauth") && !login && !account?.credential;
+    const save = (key: string) => run(async () => { await client.models.hosted.setKey(id as "openrouter", key); closeKey(id, true); });
+    const signIn = methods.includes("oauth") && !login && (!account?.credential || state?.status === "error");
     const keyLabel = definition.name.endsWith(" API") ? `${definition.name} key` : `${definition.name} API key`;
     return <ProviderCard key={id} label={definition.name.endsWith(" account") ? definition.name : `${definition.name} account`} logo={providerLogoId({ id, scope: "hosted" })} name={definition.name}
       help={{ label: `About ${definition.name}`, content: definition.description }}
       status={login ? "connecting" : state ? providerStatus(state.status, state.enabled) : "disconnected"}
       subtitle={subtitles[id]}
-      meta={account?.credential ? `Connected with ${account.credential === "oauth" ? "sign-in" : "an API key"}. ${models} model${models === 1 ? "" : "s"} selectable.` : undefined}
+      meta={account?.credential && state?.status === "connected" ? `Connected with ${account.credential === "oauth" ? "sign-in" : "an API key"}. ${models} model${models === 1 ? "" : "s"} selectable.` : undefined}
       actions={<>
         {methods.includes("api_key") && !login && <button aria-expanded={keyOpen} aria-controls={formId} disabled={disabled} onClick={() => keyOpen ? closeKey(id) : setEditing(id)}>
           {account?.credential === "api_key" ? "Replace key" : account?.credential ? "Use an API key" : "Add API key"}</button>}

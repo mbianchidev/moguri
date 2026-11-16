@@ -1,5 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
@@ -68,4 +70,34 @@ test("provider cards show each service's logo and text status, and the API key f
     expect(fixture.requests).toHaveLength(0);
     expect(errors).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("saving a hosted API key keeps it out of the window, connects the card and returns focus to its trigger", async () => {
+  const server = createServer((request, response) => {
+    if (request.method === "GET" && new URL(request.url ?? "/", "http://127.0.0.1").pathname.endsWith("/models")) {
+      response.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ data: [{ id: "generated-anthropic-model" }] }));
+    } else response.writeHead(404).end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`, secrets = new Map<string, string>();
+  const vault = { read: async (id: string) => secrets.get(id) ?? null, write: async (id: string, value: string) => { secrets.set(id, value); }, remove: async (id: string) => { secrets.delete(id); } };
+  const fixture = await setupFixture({ platform: { models: { vault, hosted: { baseUrls: { anthropic: base } } } } });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), key = "sk-ant-api03-generated-ui-key";
+    await openSettingsSection(page, "Providers");
+    const card = page.getByRole("region", { name: "Anthropic API account", exact: true });
+    await card.getByRole("button", { name: "Add API key", exact: true }).click();
+    await card.getByLabel("Anthropic API key", { exact: true }).fill(key);
+    await card.getByLabel("Anthropic API key", { exact: true }).press("Enter");
+    await expect(card.locator(".provider-status")).toHaveText("Connected");
+    await expect(card.getByLabel("Anthropic API key", { exact: true })).toHaveCount(0);
+    const trigger = card.getByRole("button", { name: "Replace key", exact: true });
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(card.getByRole("button", { name: "Sign out of Anthropic API and remove credential", exact: true })).toBeVisible();
+    expect([...secrets.values()].some((value) => value.includes(key))).toBe(true);
+    expect(await page.content()).not.toContain(key);
+  } finally { await app.close(); await fixture.close(); server.close(); }
 });
