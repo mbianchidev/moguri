@@ -11,32 +11,32 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
   useEffect(() => {
     let current = true;
     void sdk.application.storage.status().then((result) => { if (current) { setStorage(result.storage); setPath(result.storage.directory); } })
-      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The authoritative storage location could not be read."); });
+      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The storage location could not be read."); });
     return () => { current = false; };
   }, [sdk]);
   useEffect(() => { onBusy(busy || Boolean(review) || Boolean(storage && path !== storage.directory)); return () => onBusy(false); }, [busy, review, path, storage, onBusy]);
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError("");
-    try { await action(); } catch (error) { setError(error instanceof Error ? error.message : "Storage maintenance is unconfirmed. Original data was preserved; no copy was retried."); }
+    try { await action(); } catch (error) { setError(error instanceof Error ? error.message : "The storage move couldn't be confirmed. Your data was kept and nothing was retried."); }
     finally { setBusy(false); }
   };
   const change = (value: string) => { setPath(value); setReview(null); setConfirmed(false); setOutput(""); };
-  return <section aria-label="Whole-store location"><SettingsHelp label="More about this setting" target={<h3>Change storage location</h3>}>The entire encrypted store moves together: all profiles, sessions, independent artifacts, credentials references and budget holds. Project files, managed worktrees, model/cache files and terminal owners remain at their captured resource roots.</SettingsHelp>
+  return <section aria-label="Whole-store location"><SettingsHelp label="More about this setting" target={<h3>Change storage location</h3>}>Moves all profiles, sessions and artifacts together. Project files, worktrees and model or cache files stay where they are.</SettingsHelp>
     <label className="setting-field">Session storage location<SettingsInput aria-label="Session storage location" value={path} disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onChange={(event) => change(event.target.value)} /></label>
     <div className="button-row"><button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onClick={() => void run(async () => { const path = await window.moguri.chooseStorageDirectory(); if (path) change(path); })} aria-label="Choose storage parent">Choose</button>
       <button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride || path === storage.directory} onClick={() => void run(async () => { setReview((await sdk.application.storage.preview(path)).review); setConfirmed(false); })} aria-label="Review storage relocation">Review</button>
       <button type="button" disabled={busy} onClick={() => { if (storage) change(storage.directory); }} aria-label="Discard storage edit">Discard</button></div>
-    {storage?.explicitOverride && <Alert as="p" tone="warning" className="settings-warning">This launch explicitly selected MOGURI_STATE_DIR. Restart without the override before changing default storage. It is never silently cleared or rewritten.</Alert>}
+    {storage?.explicitOverride && <Alert as="p" tone="warning" className="settings-warning">MOGURI_STATE_DIR is set for this launch. Restart without it to change the storage location.</Alert>}
     {storage?.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{storage.diagnostic}</Alert>}
-    {review && <><dl className="facts"><dt>Encrypted source</dt><dd className="path">{review.source}</dd><dt>New data directory</dt><dd className="path">{review.destination}</dd>
-      <dt>Original resources retained</dt><dd className="path">{review.resourceBase}</dd><dt>Profiles / actual owners</dt><dd>{review.profiles.length} / {review.activeOwners.length}</dd></dl>
-      <Alert as="p" tone="warning" className="settings-warning">Confirmation stops owned model/tool work and closes every SQLite writer before copying. Unknown accounting remains held. Authenticated user terminals survive this explicit restart without input replay. The old encrypted database remains a retired backup, not a second writer. Neither source nor partial destination is automatically deleted.</Alert>
-      <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the exact source, destination, retained resources and restart impact</label>
+    {review && <><dl className="facts"><dt>Current location</dt><dd className="path">{review.source}</dd><dt>New location</dt><dd className="path">{review.destination}</dd>
+      <dt>Resources left in place</dt><dd className="path">{review.resourceBase}</dd><dt>Profiles / active owners</dt><dd>{review.profiles.length} / {review.activeOwners.length}</dd></dl>
+      <Alert as="p" tone="warning" className="settings-warning">Moving stops running model and tool work, copies the store and restarts Moguri. Your terminals stay open, and the old copy is kept as a backup.</Alert>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed these locations and want to move storage and restart</label>
       <button type="button" className="primary" disabled={disabled || busy || !confirmed} onClick={() => void run(async () => {
         await prepareMaintenance();
         const result = await window.moguri.relocateStorage(review.destination, review.digest);
         setReview(null); setConfirmed(false); setPath(result.directory); setStorage((current) => current ? { ...current, directory: result.directory } : current);
-        setOutput(`Encrypted store copied and discovery published at ${result.directory}. Restart was suppressed in the generated hidden window.`);
+        setOutput(`Storage copied to ${result.directory}. Restart was suppressed in the generated hidden window.`);
       })} aria-label="Move and restart Moguri with relocated storage">Move and restart</button></>}
     {storage?.operation && <p className="fine-print">Last relocation: {storage.operation.status}. {storage.operation.diagnostic}</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{output && <Alert as="p" role="status">{output}</Alert>}

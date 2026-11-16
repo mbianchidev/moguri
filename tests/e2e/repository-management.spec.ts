@@ -31,11 +31,11 @@ test("Settings reviews and imports an actual generated 38-URL bullet list, retai
     await preview.focus(); await page.keyboard.press("Enter");
     const reviewed = panel.getByRole("region", { name: "Repository import preview", exact: true });
     await expect(reviewed.locator("li")).toHaveCount(38); expect(source.requests()).toBe(0);
-    await expect(reviewed.getByRole("button", { name: "Import reviewed repositories", exact: true })).toBeDisabled();
+    await expect(reviewed.getByRole("button", { name: "Import repositories", exact: true })).toBeDisabled();
     await reviewed.getByRole("switch").check();
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/repository-import-review.png") });
-    await reviewed.getByRole("button", { name: "Import reviewed repositories", exact: true }).click();
+    await reviewed.getByRole("button", { name: "Import repositories", exact: true }).click();
     const results = panel.getByRole("region", { name: "Repository import results", exact: true });
     await expect(results.getByRole("status")).toContainText("completed: 38 of 38", { timeout: 40_000 });
     expect(f.service.controller.snapshot().projects).toHaveLength(39);
@@ -58,7 +58,7 @@ test("Settings cancel preserves a partial destination and original service-owned
     await page.getByLabel("Import parent folder", { exact: true }).fill(f.directory);
     await page.getByRole("button", { name: "Preview repository import", exact: true }).click();
     await page.getByRole("region", { name: "Repository import preview", exact: true }).getByRole("switch").check();
-    await page.getByRole("button", { name: "Import reviewed repositories", exact: true }).click();
+    await page.getByRole("button", { name: "Import repositories", exact: true }).click();
     await expect.poll(source.held).toBe(true);
     await page.getByRole("button", { name: "Cancel repository import", exact: true }).click();
     await expect(page.getByRole("region", { name: "Repository import results", exact: true }).getByRole("status")).toContainText("partial:");
@@ -101,6 +101,6 @@ test("Project Settings changes a shared remote only after exact confirmation and
     expect(await readFile(join(f.root, "fixture.txt"), "utf8")).toBe("Generated Settings dirty bytes.\n");
     await expect(panel.getByLabel("New remote URL", { exact: true })).toHaveValue("");
     await panel.getByRole("button", { name: "Inspect remote change", exact: true }).click();
-    await expect(panel.getByText("Original remote change and retained outcome", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Remote change details", { exact: true })).toBeVisible();
   } finally { if (app) await close(app); await f.close(); }
 });

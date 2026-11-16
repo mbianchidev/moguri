@@ -19,7 +19,7 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt"); await panel.getByRole("button", { name: "Load source file", exact: true }).click();
-    await panel.getByText("Generate a separate model proposal", { exact: true }).click();
+    await panel.getByText("Generate a proposal with a model", { exact: true }).click();
     await panel.getByLabel("Candidate generation task", { exact: true }).fill(f.input.task);
     await panel.getByRole("button", { name: "Review model generation", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact model generation review", exact: true });
@@ -53,7 +53,7 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     await expect(artifacts.getByLabel("Artifact text", { exact: true })).toHaveAttribute("readonly", "");
     await artifacts.getByLabel("Artifact name", { exact: true }).fill("Generated immutable model proposal name");
     await artifacts.getByRole("button", { name: "Save artifact", exact: true }).click();
-    await expect(artifacts).toContainText("Retained independently"); expect(errors).toEqual([]);
+    await expect(artifacts).toContainText("Document saved"); expect(errors).toEqual([]);
   } finally { await app.close(); await f.close(); }
 });
 
@@ -70,7 +70,7 @@ test("a held generation review cannot spend in a changed read-only scope or disc
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
     await panel.getByLabel("Candidate staging worktree", { exact: true }).selectOption(f.workspace.id);
     await panel.getByLabel("Candidate file path", { exact: true }).fill("fixture.txt"); await panel.getByRole("button", { name: "Load source file", exact: true }).click();
-    await panel.getByText("Generate a separate model proposal", { exact: true }).click();
+    await panel.getByText("Generate a proposal with a model", { exact: true }).click();
     await panel.getByLabel("Candidate generation task", { exact: true }).fill("Generated preserved task.");
     await panel.getByRole("button", { name: "Review model generation", exact: true }).click(); await expect.poll(() => held).toBe(true);
     await f.sdk.sessions.mode(f.sessionId, "read-only"); release();

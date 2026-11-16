@@ -135,8 +135,8 @@ revive those old loads. Skills from a remote HTTPS archive still need the
 explicit review below.
 
 Discovery and diagnostic source reading do not admit instructions. In desktop
-open **Settings / Skills**, select the actual **Source chat for skill admission**,
-then open **Skill source reviews** and choose **Find current skills**.
+open **Settings / Skills**, select the actual **Chat for skill review** (the source chat for skill admission),
+then open **Skill approvals for this session** and choose **Find current skills**.
 There is no source-review management panel in chat. With no source chat selected,
 settings does not infer a session or workspace. For a Local source chat,
 review the complete supported package, dependencies, exact version/root
@@ -478,7 +478,7 @@ Local parent folder. **Preview repository import** shows every normalized URL,
 absolute destination, duplicate, existing registration and matching checkout.
 Host/namespace-qualified folder names keep repositories with identical names
 separate. Correct invalid/conflicting entries, review the complete set, then
-choose **Import reviewed repositories**.
+choose **Import repositories**.
 
 The service owns one sequential batch with retained per-repository progress.
 **Cancel repository import** stops remaining dispatches, preserves successful
@@ -745,7 +745,7 @@ xhigh/max transport support and reviewed frontier evidence for substantive work;
 lower-effort aliases or unknown classes cannot qualify it. No hosted API fee
 does not erase tokens, configured rates, unknown accounting or actual costs.
 
-**Settings / Kupo routing / Review model evaluations and reference prices**
+**Settings / Kupo routing / Add model scores and prices**
 prepares an exact user-reviewed source profile. Supply genuine source text,
 normalized observations, observation/expiry dates, limitations, a comparable
 evaluation-set digest, cost class and reference prices. Then acknowledge that
@@ -799,8 +799,8 @@ Protocol86 transactionally adds `native_retry_restaging_schema` and
 
 ### Exact native retry and transport checkpoint review
 
-**Settings / Confirmations / Allow exact private-snapshot restaging for native
-model retries** is off by default. Enabling it allows only a new qualified
+**Settings / Confirmations / Allow Sandbox model retries from the saved workspace
+snapshot** (exact private-snapshot restaging for native model retries) is off by default. Enabling it allows only a new qualified
 request's complete byte-verified signed private after-snapshot, with its exact
 original model/request/profile/Env and verified guest absence. Live checkout
 changes are never recaptured, prior tools/Git never replay, and unknown charges
@@ -809,9 +809,9 @@ incomplete snapshot blocks retry. Stop during preparation remains stopped
 across restart without another guest or model call.
 
 In **Settings / Candidates / Budget wind-down checkpoints**, select the original
-idle source chat. For SSH, select exact paths, **Review peer source**, inspect
+idle source chat. For SSH, select exact paths, **Review files**, inspect
 any original quarantined work and explicitly **Resume after source inspection**
-when needed, then separately **Accept peer source**. Only afterward review the
+when needed, then separately **Accept files**. Only afterward review the
 new peer branch, base, files/modes, message and Git confirmation. All Git executes
 at the original pinned SSH root; the Local checkout is never substituted.
 
@@ -824,10 +824,10 @@ staged files; they never checkout, push, merge, delete a branch or start another
 model.
 
 A partial attempted publication retains its exact writer/root and independent
-report across restart. **Inspect original checkpoint effects** is read-only and
+report across restart. **Inspect checkpoint result** is read-only and
 verifies authenticated peer receipts where applicable, the current ref/blobs,
-source bytes/modes and original HEAD/index. Separate **Acknowledge original
-writer inspection** settles only that known ended writer. Job/task status stays
+source bytes/modes and original HEAD/index. Separate **Acknowledge
+inspection** settles only that known ended writer. Job/task status stays
 partial, Stop remains recorded and model charges remain unchanged. Missing
 terminal receipts, changed refs/source and unknown cleanup stay blocked. A
 generic Resume, archive or report deletion cannot erase this writer.
@@ -855,7 +855,7 @@ Kupo share the same actual parent, actor and all-role ledger. SSH/native private
 calls run tool-less inside that original pinned worker/guest; they are not
 rootless OS processes, a second executor or a Local fallback.
 
-**Artifacts / Decision-provider observations** shows the real Env, execution,
+**Artifacts / Decision-provider history** shows the real Env, execution,
 model step and `owned-role-acknowledged` cleanup. That proves only private-role
 release, not parent/guest exit. Stop cancels only that private call; the original
 question still needs its real answer. Missing terminal release may require
@@ -959,8 +959,8 @@ The original checkout, branch, index and unrelated edits stay untouched.
 Existing conversations keep their roots. Non-Git folders remain attached
 folders, without fabricated worktree/PR claims.
 
-**Settings / Project / New Local Git tasks** can explicitly opt future tasks
-into **Original checkout**. CLI supports `moguri session create --project ID
+**Settings / Project / New Local Git tasks run in** can explicitly opt future tasks
+into **This folder's checkout**. CLI supports `moguri session create --project ID
 --workspace-mode checkout`. Unqualified multi-repository automatic worktrees
 fail clearly rather than using original Git checkouts; choose one project or
 explicitly opt each member into an attached checkout. Remote/native boundaries
@@ -968,7 +968,7 @@ remain separately qualified and never fall back to Local.
 
 For code changes, first-party agent guidance now targets a **draft PR by
 default**, unless you opt out or the task clearly makes no repository changes.
-**Code-change completion** can opt a project out. Existing exact source-bound
+**After code changes** can opt a project out. Existing exact source-bound
 PRs are reused, not duplicated or implicitly stacked. This is a workflow target,
 not publication, authentication, rebase or merge permission; blockers are
 reported rather than represented as completed PRs.
@@ -1246,7 +1246,7 @@ retain partial work and unknown model charges; they never replay the task.
 Inspect an interrupted task's actual branch, jobs and results before **I
 inspected this task; release card**. Inspection neither resumes nor deletes it.
 
-**Settings / Budgets / Provider API-equivalent prices** supplies current
+**Settings / Budgets / Model prices** supplies current
 originating-provider reference rates, including name-matched Copilot/reseller
 models. For example, Opus 5.5 uses Anthropic's API rate, not a claimed GitHub
 invoice. Public reference refresh is explicit, credential-free and bounded;
@@ -2877,7 +2877,7 @@ physical execution.
 ### Reviewed Local compound source checkpoint
 
 Current source uses protocol/database **38**. In **Settings / kupo routing**,
-choose **Reviewed Cascade / Critique**, review the complete explicit policy
+choose **Cascade / Critique in a worktree**, review the complete explicit policy
 JSON and save it. Models remain unselected until the user chooses kupo.
 Declare exact Cascade draft/escalation IDs or Critique draft/critic IDs from
 the available configured catalog. Hosted/network data needs explicit consent.
@@ -2887,7 +2887,7 @@ to matching routes, then separately Save settings. This never fetches a URL
 or inspects provider metadata, and the claim is not proof about training or
 model quality.
 
-In a Local project agent, open **Candidates / Reviewed Cascade / Critique**.
+In a Local project agent, open **Candidates / Cascade / Critique**.
 Select two distinct clean owned worktrees and an actual user-configured
 project validation script. Review the exact task, optional request plan and
 architecture, selected source/new files, bases, eligible roles, privacy and
@@ -3021,7 +3021,7 @@ moguri decisions read DECISION_ID
 moguri decisions stop DECISION_ID
 ```
 
-Desktop **Artifacts / Decision-provider observations** shows the actual
+Desktop **Artifacts / Decision-provider history** shows the actual
 actor/model/step, raw evidence, charges and cleanup. Generic document editing
 is metadata-only. A human can answer/approve while the decision is in flight;
 that real answer wins, cancels stale advice and never refunds unknown usage.
@@ -3561,7 +3561,7 @@ selecting a model or starting work.
 
 ## Explicit Single routing policy
 
-In **Settings / Kupo routing**, choose **Explicit Single policy**, enable the profile policy, choose one
+In **Settings / Kupo routing**, choose **Single (approved solvers)**, enable the profile policy, choose one
 discovered classifier, approve up to eight exact solver models and separately
 allow hosted/network task-data transfer if any selected role uses Copilot, a
 non-loopback URL or an unknown endpoint boundary. The configured provider's
@@ -3726,7 +3726,7 @@ password prompts, proxy commands and shared control sockets.
 
 Save, then **Probe** or use `/remote probe` / `moguri remote probe`.
 The probe verifies the actual installed worker digest and compatible Node.
-Each project separately sets **Project / Canonical remote path** (`remotePath`);
+Each project separately sets **Project / Remote path** (`remotePath`);
 Moguri never substitutes the local project folder. Project-free Remote chats
 keep a null filesystem root. A symlink alias or changed root blocks execution.
 Switching env never chooses another model: an incompatible selection is cleared
@@ -3748,7 +3748,7 @@ worker/model/file operations, changed host keys, images, disconnect and a real
 control-plane SIGKILL/restart. It is not proof of an external Linux deployment
 or live Copilot entitlement.
 
-**Owned execution recovery** in Remote settings or Insights exposes the run
+**Remote runs** in Remote settings or Insights exposes the run
 identity and actual state. `/remote reconcile ID` / `moguri remote reconcile ID`
 reads existing encrypted receipts and late usage without starting a second
 worker or replaying tools. Partial turns stay partial. If cleanup cannot be
@@ -4890,7 +4890,7 @@ Shared `/artifacts`, `/artifact new KIND NAME`, `/artifact ID`,
 `/artifact edit ID`, `history/archive/restore ID`, and
 `delete ID REV confirm-delete` expose the same operations.
 
-**Retain a completed message** first previews exact canonical text/digest.
+**Save a chat message** first previews exact canonical text/digest.
 Model output remains labeled model output, not a human answer; later edits
 preserve that provenance. File captures have unknown authorship and manual text
 is labeled user-entered, not verified authorship. Sources remain traceable after
@@ -5746,7 +5746,7 @@ partial/stopped work cannot become code proposers.
 For CLI preview/stage, use `--role-sequence ID` to bind that exact origin into
 the preview digest, then the normal `--confirm-write`. Shared preview/stage JSON
 uses `roleSequenceId`. Do not mix it with a generation ID. Desktop's existing
-Candidates panel exposes **Load a retained role proposal** when completed
+Candidates panel exposes **Load a proposal from a model role** when completed
 proposers exist; loading only fills its local editor. Dirty summary/files/tasks
 and changed scopes remain protected. Edits clear verified attribution.
 
@@ -5971,7 +5971,7 @@ Qualified **0.23.0-alpha.1 / protocol and database 31** includes the planned
 budget foundation and owned proposal generation.
 [Owned proposal generation](architecture/candidate-generations.md) adds one
 explicitly cost-reviewed, tool-less fixed-model Local draft through the existing
-worker/ledger. Desktop **Candidates / Generate a separate model proposal** uses
+worker/ledger. Desktop **Candidates / Generate a proposal with a model** uses
 original selected source, a separate clean managed staging worktree and current
 model/authority. Review the cost and independent input/result retention first.
 Generation never stages, applies or commits.

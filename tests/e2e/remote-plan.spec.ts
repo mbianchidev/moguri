@@ -45,7 +45,7 @@ test("desktop saves a reviewed SSH plan without a selected model, preserves the 
     const save = f.controller.snapshot().planSaves.at(-1)!;
     await openSettingsSection(page, "Artifacts");
     await page.getByLabel("Retained artifact", { exact: true }).selectOption(save.artifactId!);
-    await expect(page.getByText("User-requested Remote file snapshot, not a chat answer or permission.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Snapshot of a Remote file you requested.", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Artifact text", { exact: true })).toHaveValue(text);
     expect(failures).toEqual([]);
   } finally { await app?.close(); await f.close(); }

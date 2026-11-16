@@ -46,7 +46,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     await expect(review).toContainText("shared-cloud");
     await expect(review).toContainText("hourly");
     expect(imports).toBe(0); expect(probes).toBe(0);
-    await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
+    await review.getByLabel("I reviewed this SendBox runtime, worker image", { exact: false }).check();
     await enable.click();
     await expect.poll(() => controller.snapshot().settings.values.sandboxManagement?.enabled).toBe(true);
     await expect(panel.getByRole("status").filter({ hasText: "Setup completed" })).toBeVisible();
@@ -115,7 +115,7 @@ for (const projectFree of [false, true]) test(`actual first-use SendBox sends in
     await page.getByRole("dialog", { name: "Execution environment", exact: true }).getByRole("button", { name: /^Sandbox / }).click();
     const setup = page.getByRole("dialog", { name: "Set up SendBox", exact: true });
     const review = setup.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
-    await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
+    await review.getByLabel("I reviewed this SendBox runtime, worker image", { exact: false }).check();
     await review.getByRole("button", { name: "Enable SendBox", exact: true }).click();
     await expect.poll(() => session().controls.env, { timeout: 30_000 }).toBe("Sandbox");
     await expect(setup).toBeHidden();

@@ -9,17 +9,17 @@ type Read = Extract<GithubResponse, { type: "github.read" }>;
 type Browse = Extract<GithubResponse, { type: "github.browse" }>;
 type PanelAction = Exclude<GithubAction["kind"], "git.remote.set">;
 const actions: Array<[PanelAction, string]> = [
-  ["git.branch.create", "Create exact local branch"], ["git.branch.rename", "Rename current branch"], ["git.switch", "Switch to existing local branch"],
-  ["git.stage", "Stage exact files"], ["git.unstage", "Unstage exact files"], ["git.commit", "Commit selected staged paths"],
-  ["git.revert", "Roll back current commit with a new revert commit"],
-  ["git.push", "Push branch / exact force-with-lease"], ["git.rebase", "Rebase / continue / abort"],
-  ["git.tag.create", "Create local tag"], ["git.tag.push", "Push exact tag"], ["git.tag.delete", "Delete explicit tag"],
+  ["git.branch.create", "Create local branch"], ["git.branch.rename", "Rename current branch"], ["git.switch", "Switch to existing local branch"],
+  ["git.stage", "Stage files"], ["git.unstage", "Unstage files"], ["git.commit", "Commit staged files"],
+  ["git.revert", "Revert current commit"],
+  ["git.push", "Push branch (optional force-with-lease)"], ["git.rebase", "Rebase / continue / abort"],
+  ["git.tag.create", "Create local tag"], ["git.tag.push", "Push tag"], ["git.tag.delete", "Delete tag"],
   ["github.issue.create", "Create GitHub issue"], ["github.issue.update", "Edit / close / reopen issue"], ["github.issue.comment", "Comment on issue"],
   ["github.pr.create", "Create pull request"], ["github.pr.update", "Edit / close / reopen pull request"], ["github.pr.comment", "Comment on pull request"],
-  ["github.comment.update", "Edit existing issue/PR/review comment"], ["github.comment.delete", "Delete existing issue/PR/review comment"],
-  ["github.review.submit", "Submit exact-head PR review"], ["github.review.reply", "Reply inside review thread"], ["github.review.resolve", "Resolve / reopen review thread"],
-  ["github.pr.merge", "Merge exact-head pull request"], ["github.release.create", "Create GitHub release"],
-  ["github.release.update", "Update GitHub release"], ["github.release.publish", "Publish reviewed draft release"], ["github.ci.watch", "Watch CI at exact head"],
+  ["github.comment.update", "Edit issue, PR or review comment"], ["github.comment.delete", "Delete issue, PR or review comment"],
+  ["github.review.submit", "Submit PR review"], ["github.review.reply", "Reply to review thread"], ["github.review.resolve", "Resolve / reopen review thread"],
+  ["github.pr.merge", "Merge pull request"], ["github.release.create", "Create GitHub release"],
+  ["github.release.update", "Update GitHub release"], ["github.release.publish", "Publish draft release"], ["github.ci.watch", "Watch CI for a commit"],
 ];
 export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: MoguriSdk; project?: Project | null; session?: Session; snapshot: Snapshot }) {
   const uid = useId();
@@ -48,7 +48,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const inferred = useRef({ repository: "", account: "", base: "", head: "", branch: "" });
   const configuration = snapshot.projectConfigurations.find((value) => value.projectId === project?.id);
   const scope: GithubScope | null = project ? { env: "Local", projectId: project.id, ...(session?.workspaceId ? { workspaceId: session.workspaceId } : {}), ...(session ? { sessionId: session.id } : {}) } : null;
-  const requiredScope = (): GithubScope => { if (!scope) throw new Error("Choose an explicit Local project for new Git/GitHub work. Retained inspection needs no source root."); return scope; };
+  const requiredScope = (): GithubScope => { if (!scope) throw new Error("Choose a Local project for new Git or GitHub work. Past results stay viewable without one."); return scope; };
   const scopeKey = JSON.stringify([sdk.profileId, project?.id, project?.path, scope, session?.controls.env, session?.kind, session?.mode, session?.pendingMode, session?.status,
     configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, snapshot.settings.values.permissions,
     kind, repository, account, remote, branch, force, onto, checkout, pathsText, rebaseMode, tag, target, annotated, message, deleteLocation, number, title, body, editTitle, editBody,
@@ -70,7 +70,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       setHead((current) => !current || current === previous.head ? branch : current);
       setBranch((current) => !current || current === previous.branch ? branch : current);
       inferred.current = { repository: value.repository, account: value.account, base: value.defaultBranch, head: branch, branch };
-    }).catch((error: unknown) => { if (current) setNotice(`GitHub defaults unavailable: ${error instanceof Error ? error.message : "check the exact upstream and CLI account"}. Explicit Git-only inputs remain available.`); });
+    }).catch((error: unknown) => { if (current) setNotice(`GitHub defaults unavailable: ${error instanceof Error ? error.message : "check the upstream remote and gh account"}. Git-only actions still work.`); });
     return () => { current = false; };
   }, [api, allowed, project?.id, session?.id, session?.workspaceId, configuration?.revision]);
   const selected = records.find((value) => value.id === selectedId), value = read?.operation.id === selected?.id && read?.operation.revision === selected?.revision ? read : null;
@@ -86,17 +86,17 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       if (generation.current !== token) return;
       setRead(value);
       if (focusResult.current && value.operation.status !== "running") { focusResult.current = false; requestAnimationFrame(() => resultHeading.current?.focus()); }
-    }).catch((error: unknown) => { if (generation.current === token) setError(error instanceof Error ? error.message : "The independently retained Git/GitHub result could not be read."); });
+    }).catch((error: unknown) => { if (generation.current === token) setError(error instanceof Error ? error.message : "The operation result could not be read."); });
     return () => { generation.current++; };
   }, [api, selected?.id, selected?.revision]);
   const run = async (label: string, action: (isCurrent: () => boolean) => Promise<void>) => {
     if (pending.current) return;
     pending.current = true; const captured = scopeKey; setBusy(label); setError(""); setNotice("");
     try { await action(() => current.current === captured); }
-    catch (error) { setError(error instanceof Error ? error.message : "The original operation was not acknowledged. Inspect retained history; no input was replayed."); }
+    catch (error) { setError(error instanceof Error ? error.message : "The operation wasn't acknowledged. Check the history below; nothing was retried."); }
     finally { pending.current = false; setBusy(""); }
   };
-  const positive = (value: string, label: string) => { const parsed = Number(value); if (!Number.isSafeInteger(parsed) || parsed < 1) throw new Error(`Enter an explicit positive ${label}.`); return parsed; };
+  const positive = (value: string, label: string) => { const parsed = Number(value); if (!Number.isSafeInteger(parsed) || parsed < 1) throw new Error(`Enter a positive ${label}.`); return parsed; };
   const action = (): GithubAction => {
     const gh = { repository, account }, n = () => positive(number, "issue/PR number");
     switch (kind) {
@@ -127,7 +127,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       case "github.ci.watch": return { kind, ...gh, headSha, timeoutMs: positive(seconds, "CI deadline in seconds") * 1000, pollMs: 2000 };
     }
   };
-  const browse = (page = 1) => run("Reading bounded GitHub metadata", async (isCurrent) => {
+  const browse = (page = 1) => run("Reading GitHub...", async (isCurrent) => {
     const gh = { repository, account, page, perPage: 20 };
     let input: GithubBrowse;
     switch (resource) {
@@ -144,91 +144,91 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     const result = await api.browse(requiredScope(), input); if (isCurrent()) setBrowsed({ result, scope: scopeKey });
   });
   return <section className="candidate-panel" aria-label="Reviewed Git and GitHub workflows" aria-busy={Boolean(busy)}>
-    <SettingsHelp label="More about this setting" target={<h2>Git &amp; GitHub workflows</h2>}>Explicit Local project/workspace operations. Review exact HEAD, index, remote/resource revision and protected actions before each write. Git hooks/configuration are honored, not sandboxed. GitHub uses only the named controller gh account, never SSH credentials.</SettingsHelp>
-    {!allowed && <Alert as="p" tone="warning" className="settings-warning">New work requires an explicitly allowed Local project. No Remote/Sandbox fallback or inherited root. Independently retained inspection remains available without a source project.</Alert>}
+    <SettingsHelp label="More about this setting" target={<h2>Git &amp; GitHub workflows</h2>}>Run Git and GitHub actions on a Local project; you review each write before it runs. Git hooks and config apply as usual and aren't sandboxed.</SettingsHelp>
+    {!allowed && <Alert as="p" tone="warning" className="settings-warning">Choose an allowed Local project to run new Git or GitHub actions. Past results stay viewable without one.</Alert>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<Alert as="p" role="status">{busy || notice}</Alert>
-    <fieldset disabled={Boolean(busy)} style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}><legend>Exact operation inputs</legend>
+    <fieldset disabled={Boolean(busy)} style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}><legend>Operation</legend>
       <label className="setting-field"><span id={`${uid}-operation`}>Git/GitHub operation</span><select aria-labelledby={`${uid}-operation`} value={kind} onChange={(event) => setKind(event.target.value as PanelAction)}>{actions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <div className="generation-review">
         <label className="setting-field">GitHub repository (owner/name)<SettingsInput value={repository} onChange={(event) => setRepository(event.target.value)} /></label>
-        <label className="setting-field">Explicit controller gh login<SettingsInput value={account} onChange={(event) => setAccount(event.target.value)} autoComplete="off" /></label>
+        <label className="setting-field">gh account login<SettingsInput value={account} onChange={(event) => setAccount(event.target.value)} autoComplete="off" /></label>
       </div>
-      {(kind === "git.push" || kind === "git.tag.push" || kind === "git.tag.delete" && deleteLocation === "remote") && <label className="setting-field">Configured Git remote<SettingsInput value={remote} onChange={(event) => setRemote(event.target.value)} /></label>}
-      {["git.branch.create", "git.branch.rename", "git.switch"].includes(kind) && <label className="setting-field">{kind === "git.branch.create" ? "New local branch" : kind === "git.branch.rename" ? "Exact current branch" : "Existing local branch"}<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>}
-      {(kind === "git.branch.create" || kind === "git.branch.rename") && <label className="setting-field">{kind === "git.branch.rename" ? "New branch name" : "Exact starting branch or commit"}<SettingsInput value={target} onChange={(event) => setTarget(event.target.value)} /></label>}
+      {(kind === "git.push" || kind === "git.tag.push" || kind === "git.tag.delete" && deleteLocation === "remote") && <label className="setting-field">Git remote<SettingsInput value={remote} onChange={(event) => setRemote(event.target.value)} /></label>}
+      {["git.branch.create", "git.branch.rename", "git.switch"].includes(kind) && <label className="setting-field">{kind === "git.branch.create" ? "New local branch" : kind === "git.branch.rename" ? "Current branch" : "Existing local branch"}<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>}
+      {(kind === "git.branch.create" || kind === "git.branch.rename") && <label className="setting-field">{kind === "git.branch.rename" ? "New branch name" : "Start from branch or commit"}<SettingsInput value={target} onChange={(event) => setTarget(event.target.value)} /></label>}
       {kind === "git.branch.create" && <label className="check-setting"><SettingsInput type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} />Also switch to the new branch (requires a clean checkout)</label>}
-      {["git.stage", "git.unstage", "git.commit"].includes(kind) && <label className="setting-field">Exact file paths, one per line<SettingsTextarea value={pathsText} onChange={(event) => setPathsText(event.target.value)} /></label>}
-      {kind === "git.commit" && <label className="setting-field">Exact commit message<SettingsTextarea value={message} maxLength={4096} onChange={(event) => setMessage(event.target.value)} /></label>}
-      {kind === "git.revert" && <><label className="setting-field">Exact current commit SHA to revert<SettingsInput value={headSha} aria-describedby={`${uid}-revert-help`} onChange={(event) => setHeadSha(event.target.value)} /></label><small id={`${uid}-revert-help`}>Creates a new commit with the previous tree. History is preserved; dirty work is never reset.</small></>}
+      {["git.stage", "git.unstage", "git.commit"].includes(kind) && <label className="setting-field">File paths, one per line<SettingsTextarea value={pathsText} onChange={(event) => setPathsText(event.target.value)} /></label>}
+      {kind === "git.commit" && <label className="setting-field">Commit message<SettingsTextarea value={message} maxLength={4096} onChange={(event) => setMessage(event.target.value)} /></label>}
+      {kind === "git.revert" && <><label className="setting-field">Current commit SHA to revert<SettingsInput value={headSha} aria-describedby={`${uid}-revert-help`} onChange={(event) => setHeadSha(event.target.value)} /></label><small id={`${uid}-revert-help`}>Adds a new commit that undoes this one. History and uncommitted changes are kept.</small></>}
       {kind === "git.push" && <>
-        <label className="setting-field">Exact destination branch<SettingsInput value={branch} placeholder={configuration?.values.repo.mainBranch} onChange={(event) => setBranch(event.target.value)} /></label>
-        <label className="check-setting"><SettingsInput type="checkbox" checked={force} onChange={(event) => setForce(event.target.checked)} />Request force-with-lease at the exact captured remote SHA (never raw force)</label>
+        <label className="setting-field">Destination branch<SettingsInput value={branch} placeholder={configuration?.values.repo.mainBranch} onChange={(event) => setBranch(event.target.value)} /></label>
+        <label className="check-setting"><SettingsInput type="checkbox" checked={force} onChange={(event) => setForce(event.target.checked)} />Force push with lease (never a plain force push)</label>
       </>}
       {kind === "git.rebase" && <>
-        <label className="setting-field"><span id={`${uid}-rebase`}>Rebase action</span><select aria-labelledby={`${uid}-rebase`} value={rebaseMode} onChange={(event) => setRebaseMode(event.target.value as typeof rebaseMode)}><option value="start">Start on a clean current branch</option><option value="continue">Continue explicitly resolved/staged conflicts</option><option value="abort">Explicitly abort this rebase</option></select></label>
-        {rebaseMode === "start" && <label className="setting-field">Exact onto branch/tag/commit<SettingsInput value={onto} onChange={(event) => setOnto(event.target.value)} /></label>}
+        <label className="setting-field"><span id={`${uid}-rebase`}>Rebase action</span><select aria-labelledby={`${uid}-rebase`} value={rebaseMode} onChange={(event) => setRebaseMode(event.target.value as typeof rebaseMode)}><option value="start">Start on a clean current branch</option><option value="continue">Continue after resolving and staging conflicts</option><option value="abort">Abort this rebase</option></select></label>
+        {rebaseMode === "start" && <label className="setting-field">Rebase onto branch, tag or commit<SettingsInput value={onto} onChange={(event) => setOnto(event.target.value)} /></label>}
       </>}
-      {(kind.startsWith("git.tag.") || releasing) && <label className="setting-field">Exact tag name<SettingsInput value={tag} onChange={(event) => setTag(event.target.value)} /></label>}
-      {(kind === "git.tag.create" || releasing) && <label className="setting-field">Exact target branch/tag/commit<SettingsInput value={target} onChange={(event) => setTarget(event.target.value)} /></label>}
+      {(kind.startsWith("git.tag.") || releasing) && <label className="setting-field">Tag name<SettingsInput value={tag} onChange={(event) => setTag(event.target.value)} /></label>}
+      {(kind === "git.tag.create" || releasing) && <label className="setting-field">Target branch, tag or commit<SettingsInput value={target} onChange={(event) => setTarget(event.target.value)} /></label>}
       {kind === "git.tag.create" && <>
         <label className="check-setting"><SettingsInput type="checkbox" checked={annotated} onChange={(event) => setAnnotated(event.target.checked)} />Annotated tag (otherwise lightweight)</label>
-        {annotated && <label className="setting-field">Exact annotation<SettingsTextarea value={message} maxLength={4096} onChange={(event) => setMessage(event.target.value)} /></label>}
+        {annotated && <label className="setting-field">Annotation message<SettingsTextarea value={message} maxLength={4096} onChange={(event) => setMessage(event.target.value)} /></label>}
       </>}
-      {kind === "git.tag.delete" && <label className="setting-field"><span id={`${uid}-tag-location`}>Delete tag only in</span><select aria-labelledby={`${uid}-tag-location`} value={deleteLocation} onChange={(event) => setDeleteLocation(event.target.value as typeof deleteLocation)}><option value="local">Local repository</option><option value="remote">Explicit remote</option></select></label>}
+      {kind === "git.tag.delete" && <label className="setting-field"><span id={`${uid}-tag-location`}>Delete tag only in</span><select aria-labelledby={`${uid}-tag-location`} value={deleteLocation} onChange={(event) => setDeleteLocation(event.target.value as typeof deleteLocation)}><option value="local">Local repository</option><option value="remote">Remote</option></select></label>}
       {(numbered || ["issue", "pull", "reviews", "comments", "review-comments", "threads"].includes(resource)) && <label className="setting-field">Issue/PR number<SettingsInput type="number" min={1} value={number} onChange={(event) => setNumber(event.target.value)} /></label>}
       {editing && <div className="button-row">
         <label className="check-setting"><SettingsInput type="checkbox" checked={editTitle} onChange={(event) => setEditTitle(event.target.checked)} />Change title</label>
         <label className="check-setting"><SettingsInput type="checkbox" checked={editBody} onChange={(event) => setEditBody(event.target.checked)} />Change body</label>
-        <label className="setting-field"><span id={`${uid}-state`}>State</span><select aria-labelledby={`${uid}-state`} value={state} onChange={(event) => setState(event.target.value as typeof state)}><option value="">Preserve current state</option><option value="closed">Close</option><option value="open">Reopen</option></select></label>
+        <label className="setting-field"><span id={`${uid}-state`}>State</span><select aria-labelledby={`${uid}-state`} value={state} onChange={(event) => setState(event.target.value as typeof state)}><option value="">Keep current state</option><option value="closed">Close</option><option value="open">Reopen</option></select></label>
       </div>}
-      {(releasing || kind === "github.issue.create" || kind === "github.pr.create" || editing && editTitle) && <label className="setting-field">{releasing ? "Release name" : "Exact title"}<SettingsInput value={title} maxLength={256} onChange={(event) => setTitle(event.target.value)} /></label>}
+      {(releasing || kind === "github.issue.create" || kind === "github.pr.create" || editing && editTitle) && <label className="setting-field">{releasing ? "Release name" : "Title"}<SettingsInput value={title} maxLength={256} onChange={(event) => setTitle(event.target.value)} /></label>}
       {(releasing || kind === "github.issue.create" || kind === "github.pr.create" || kind.endsWith(".comment") || kind === "github.review.submit" || kind === "github.review.reply" || kind === "github.comment.update" || editing && editBody) &&
-        <label className="setting-field">Exact body<SettingsTextarea value={body} maxLength={64 * 1024} onChange={(event) => setBody(event.target.value)} /></label>}
+        <label className="setting-field">Body<SettingsTextarea value={body} maxLength={64 * 1024} onChange={(event) => setBody(event.target.value)} /></label>}
       {kind === "github.pr.create" && <>
         <label className="setting-field">PR base branch<SettingsInput value={base} onChange={(event) => setBase(event.target.value)} /></label>
         <label className="setting-field">PR head branch (optional owner:branch)<SettingsInput value={head} onChange={(event) => setHead(event.target.value)} /></label>
-        <label className="setting-field">Explicit head repository for a fork (owner/name; blank means this repository)<SettingsInput value={headRepository} onChange={(event) => setHeadRepository(event.target.value)} /></label>
+        <label className="setting-field">Fork head repository (owner/name, blank for this repository)<SettingsInput value={headRepository} onChange={(event) => setHeadRepository(event.target.value)} /></label>
       </>}
-      {(releasing || kind === "github.pr.create") && <label className="check-setting"><SettingsInput type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />Draft (publishing requires separate explicit confirmation)</label>}
+      {(releasing || kind === "github.pr.create") && <label className="check-setting"><SettingsInput type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />Draft (publishing needs a separate confirmation)</label>}
       {releasing && <label className="check-setting"><SettingsInput type="checkbox" checked={prerelease} onChange={(event) => setPrerelease(event.target.checked)} />Prerelease</label>}
       {kind === "github.review.submit" && <label className="setting-field"><span id={`${uid}-review-outcome`}>Review outcome</span><select aria-labelledby={`${uid}-review-outcome`} value={reviewEvent} onChange={(event) => setReviewEvent(event.target.value as typeof reviewEvent)}><option value="COMMENT">Comment</option><option value="APPROVE">Approve</option><option value="REQUEST_CHANGES">Request changes</option></select></label>}
-      {(kind === "github.review.reply" || kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field">Original comment ID<SettingsInput type="number" min={1} value={commentId} onChange={(event) => setCommentId(event.target.value)} /></label>}
-      {(kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field"><span id={`${uid}-comment-channel`}>Original comment channel</span><select aria-labelledby={`${uid}-comment-channel`} value={commentChannel} onChange={(event) => setCommentChannel(event.target.value as typeof commentChannel)}><option value="conversation">Issue/PR conversation</option><option value="review">Inline PR review</option></select></label>}
+      {(kind === "github.review.reply" || kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field">Comment ID<SettingsInput type="number" min={1} value={commentId} onChange={(event) => setCommentId(event.target.value)} /></label>}
+      {(kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field"><span id={`${uid}-comment-channel`}>Comment location</span><select aria-labelledby={`${uid}-comment-channel`} value={commentChannel} onChange={(event) => setCommentChannel(event.target.value as typeof commentChannel)}><option value="conversation">Issue/PR conversation</option><option value="review">Inline PR review</option></select></label>}
       {kind === "github.review.resolve" && <>
-        <label className="setting-field">Exact GitHub review-thread node ID<SettingsInput value={threadId} onChange={(event) => setThreadId(event.target.value)} /></label>
-        <label className="check-setting"><SettingsInput type="checkbox" checked={resolveThread} onChange={(event) => setResolveThread(event.target.checked)} />Resolve thread (unchecked explicitly reopens it)</label>
+        <label className="setting-field">Review thread node ID<SettingsInput value={threadId} onChange={(event) => setThreadId(event.target.value)} /></label>
+        <label className="check-setting"><SettingsInput type="checkbox" checked={resolveThread} onChange={(event) => setResolveThread(event.target.checked)} />Resolve thread (uncheck to reopen it)</label>
       </>}
-      {kind === "github.pr.merge" && <label className="setting-field"><span id={`${uid}-merge-method`}>Explicit merge method</span><select aria-labelledby={`${uid}-merge-method`} value={mergeMethod} onChange={(event) => setMergeMethod(event.target.value as typeof mergeMethod)}><option value="merge">Merge commit</option><option value="squash">Squash</option><option value="rebase">GitHub rebase merge</option></select></label>}
-      {(kind === "github.release.update" || kind === "github.release.publish" || resource === "release") && <label className="setting-field">Exact release ID<SettingsInput type="number" min={1} value={releaseId} onChange={(event) => setReleaseId(event.target.value)} /></label>}
-      {(kind === "github.ci.watch" || ["checks", "runs", "files", "jobs"].includes(resource)) && <label className="setting-field">{resource === "files" ? "Exact PR head SHA" : "Exact CI head SHA"}<SettingsInput value={headSha} onChange={(event) => setHeadSha(event.target.value)} /></label>}
-      {kind === "github.ci.watch" && <label className="setting-field">Bounded CI deadline (seconds, at most 1800)<SettingsInput type="number" min={1} max={1800} value={seconds} onChange={(event) => setSeconds(event.target.value)} /></label>}
-      <button disabled={!(kind === "github.ci.watch" ? allowed : canWrite)} onClick={() => void run("Reviewing exact Git/GitHub intent", async (isCurrent) => {
+      {kind === "github.pr.merge" && <label className="setting-field"><span id={`${uid}-merge-method`}>Merge method</span><select aria-labelledby={`${uid}-merge-method`} value={mergeMethod} onChange={(event) => setMergeMethod(event.target.value as typeof mergeMethod)}><option value="merge">Merge commit</option><option value="squash">Squash</option><option value="rebase">GitHub rebase merge</option></select></label>}
+      {(kind === "github.release.update" || kind === "github.release.publish" || resource === "release") && <label className="setting-field">Release ID<SettingsInput type="number" min={1} value={releaseId} onChange={(event) => setReleaseId(event.target.value)} /></label>}
+      {(kind === "github.ci.watch" || ["checks", "runs", "files", "jobs"].includes(resource)) && <label className="setting-field">{resource === "files" ? "PR head SHA" : "Commit SHA for CI"}<SettingsInput value={headSha} onChange={(event) => setHeadSha(event.target.value)} /></label>}
+      {kind === "github.ci.watch" && <label className="setting-field">Wait up to (seconds, max 1800)<SettingsInput type="number" min={1} max={1800} value={seconds} onChange={(event) => setSeconds(event.target.value)} /></label>}
+      <button disabled={!(kind === "github.ci.watch" ? allowed : canWrite)} onClick={() => void run("Preparing review...", async (isCurrent) => {
         const result = await api.preview(requiredScope(), action()); if (isCurrent()) { setPreview({ value: result.preview, scope: scopeKey }); setConfirmations([]); }
       })} aria-label="Review exact operation">Review</button>
     </fieldset>
     {preview?.scope === scopeKey && <section className="candidate-section candidate-binding" aria-label="Exact Git/GitHub operation review">
-      <h3>Review exact scope and effects</h3>
+      <h3>Review this operation</h3>
       <p className="fine-print path">Local root: {preview.value.document.root.root}<br />HEAD: {preview.value.document.git.head}<br />Index: {preview.value.document.git.indexDigest}<br />
         {preview.value.document.remote && <>Remote: {preview.value.document.remote.name} / {preview.value.document.remote.url}<br />Destination: {preview.value.document.remote.ref} / {preview.value.document.remote.sha ?? "absent"}<br /></>}
-        {preview.value.document.accountId && <>Controller GitHub identity: {preview.value.document.accountId}<br /></>}Review digest: {preview.value.digest}</p>
+        {preview.value.document.accountId && <>GitHub account: {preview.value.document.accountId}<br /></>}Review digest: {preview.value.digest}</p>
       <pre>{JSON.stringify(preview.value.document.action, null, 2)}</pre>
       {preview.value.document.warnings.map((text) => <Alert as="p" tone="warning" className="settings-warning" key={text}>{text}</Alert>)}
-      {preview.value.document.resource && <details><summary>Exact untrusted remote resource revision</summary><pre>{preview.value.document.resource.content}</pre></details>}
+      {preview.value.document.resource && <details><summary>Current remote content (untrusted)</summary><pre>{preview.value.document.resource.content}</pre></details>}
       {preview.value.document.confirmations.map((text) => <label className="check-setting" key={text}><SettingsInput type="checkbox" role={preview.value.document.confirmations.length > 1 ? "checkbox" : "switch"} checked={confirmations.includes(text)} disabled={Boolean(busy)}
         onChange={(event) => setConfirmations(event.target.checked ? [...confirmations, text] : confirmations.filter((value) => value !== text))} />{text}</label>)}
       <button className="primary" disabled={Boolean(busy) || !(kind === "github.ci.watch" ? allowed : canWrite) || preview.value.document.confirmations.some((text) => !confirmations.includes(text))}
-        onClick={() => void run("Admitting original reviewed Git/GitHub operation", async (isCurrent) => {
+        onClick={() => void run("Starting operation...", async (isCurrent) => {
           const captured = preview.value; setPreview(null); setConfirmations([]);
           const result = await api.execute(captured, captured.document.confirmations.filter((text) => confirmations.includes(text)), true);
-          if (isCurrent() && result.id) { setSelectedId(result.id); focusResult.current = true; setNotice("Original reviewed intent admitted. Inspect its retained result; no retry or branch cleanup is automatic."); }
+          if (isCurrent() && result.id) { setSelectedId(result.id); focusResult.current = true; setNotice("Operation started. Check its result below; nothing is retried or cleaned up automatically."); }
         })} aria-label="Execute only this reviewed operation">Execute</button>
     </section>}
     <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs and releases</summary>
       <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
         {["search", "issues", "issue", "pulls", "pull", "files", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "jobs", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
-      </select></label>} descriptionFirst>Read-only, bounded pages. Enter the explicit repository/account above. No endpoint editor, account substitution or implicit refresh.</SettingsHelp>
+      </select></label>} descriptionFirst>Read-only, one page at a time, using the repository and gh account above.</SettingsHelp>
       {resource === "search" && <label className="setting-field">Issue and PR search terms<SettingsInput value={searchQuery} maxLength={2000} placeholder="is:issue is:open (UI OR UX OR redesign OR polish)" onChange={(event) => setSearchQuery(event.target.value)} /></label>}
-      {(resource === "run" || resource === "jobs" || resource === "logs") && <label className="setting-field">Exact workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
+      {(resource === "run" || resource === "jobs" || resource === "logs") && <label className="setting-field">Workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
       <button disabled={Boolean(busy) || !allowed || !repository || !account} onClick={() => void browse()}>Read GitHub page</button>
       {browsed?.scope === scopeKey && <><p className="fine-print">{browsed.result.warning} Page {browsed.result.page}.</p>
         {browsed.result.items.map((item) => <details key={`${item.kind}-${item.nodeId ?? item.id}`}><summary>{item.number ? `#${item.number} ` : ""}{item.title || item.kind} / {item.state} {item.conclusion}</summary>
@@ -237,27 +237,27 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         {browsed.result.nextPage && <button disabled={Boolean(busy)} onClick={() => void browse(browsed.result.nextPage!)}>Next GitHub page</button>}
       </>}
     </details>
-    <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-retained`}>Independently retained Git/GitHub operation</span><select aria-labelledby={`${uid}-retained`} value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
-      <option value="">Choose retained operation</option>{records.map((value) => <option key={value.id} value={value.id}>{value.kind} / {value.status} / {value.projectId} / {value.createdAt}</option>)}
-    </select></label>}>History includes this profile's independently retained operations from all projects, including deleted sources. Selecting history never grants that source root.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-retained`}>Operation history</span><select aria-labelledby={`${uid}-retained`} value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
+      <option value="">Choose an operation</option>{records.map((value) => <option key={value.id} value={value.id}>{value.kind} / {value.status} / {value.projectId} / {value.createdAt}</option>)}
+    </select></label>}>Shows this profile's Git and GitHub operations from every project, including deleted ones.</SettingsHelp>
     {value && <section className="candidate-section" aria-label="Retained Git/GitHub outcome">
-      <SettingsHelp label="More about this setting" target={<h3 tabIndex={-1} ref={resultHeading}>Git/GitHub operation {value.operation.status}</h3>}>Deletion of a source session does not erase this operation. Interrupted/ambiguous writes are partial, never automatically replayed, rolled back or reported successful. Conflict resolution, rebase continue/abort and every new write need their own fresh review.</SettingsHelp>
-      <p className="fine-print path">Original command: {value.operation.commandId}<br />Root: {value.operation.root.root}<br />Job: {value.operation.jobId}<br />
+      <SettingsHelp label="More about this setting" target={<h3 tabIndex={-1} ref={resultHeading}>Git/GitHub operation {value.operation.status}</h3>}>Interrupted writes are marked partial and never retried or rolled back automatically. Each new write, including rebase continue or abort, needs its own review.</SettingsHelp>
+      <p className="fine-print path">Command: {value.operation.commandId}<br />Root: {value.operation.root.root}<br />Job: {value.operation.jobId}<br />
         Dispatched: {String(value.operation.dispatched)}. Cancel requested: {String(value.operation.cancelRequested)}.</p>
       {value.operation.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.operation.diagnostic}</Alert>}
-      {value.result?.ci && <p role="status">CI at {value.result.ci.headSha}: {value.result.ci.state}. {value.result.ci.deadlineReached ? "Bounded deadline reached; pending/no-checks is not success." : "Observed exact-head result, not branch-protection clearance."}</p>}
-      {value.result && <details open><summary>Original acknowledged/partial result (untrusted data)</summary><pre>{JSON.stringify(value.result, null, 2)}</pre></details>}
-      <details><summary>Original independently retained user review</summary><pre>{JSON.stringify(value.document, null, 2)}</pre></details>
+      {value.result?.ci && <p role="status">CI at {value.result.ci.headSha}: {value.result.ci.state}. {value.result.ci.deadlineReached ? "Wait time ran out; pending or missing checks don't count as success." : "Result for this commit only, not branch protection status."}</p>}
+      {value.result && <details open><summary>Result (untrusted data)</summary><pre>{JSON.stringify(value.result, null, 2)}</pre></details>}
+      <details><summary>Your review</summary><pre>{JSON.stringify(value.document, null, 2)}</pre></details>
       {value.operation.status === "partial" && value.operation.kind.startsWith("git.") && !value.operation.inspection && <section className="candidate-binding" aria-label="Partial Git inspection acknowledgement">
-        <Alert as="p" tone="warning" className="settings-warning">Inspection acknowledgement is NOT cleanup proof or success. It does not stop, signal, replay, undo or resume work, infer PID ownership, or clear other root uncertainty. The original operation stays partial.</Alert>
-        <label className="check-setting"><SettingsInput type="checkbox" checked={inspectionReviewed} disabled={Boolean(busy)} onChange={(event) => setInspectionReviewed(event.target.checked)} />I inspected this exact retained partial Git operation, original input and possible effects; record only my inspection acknowledgement.</label>
-        <button disabled={Boolean(busy) || !inspectionReviewed} onClick={() => void run("Recording actual-user inspection without source authority", async (isCurrent) => {
+        <Alert as="p" tone="warning" className="settings-warning">Acknowledging only records that you checked the repository. The operation stays partial, and nothing is stopped, undone or retried.</Alert>
+        <label className="check-setting"><SettingsInput type="checkbox" checked={inspectionReviewed} disabled={Boolean(busy)} onChange={(event) => setInspectionReviewed(event.target.checked)} />I checked this partial Git operation, its input and its possible effects on the repository</label>
+        <button disabled={Boolean(busy) || !inspectionReviewed} onClick={() => void run("Recording your inspection...", async (isCurrent) => {
           await api.acknowledge(value.operation.id, value.operation.revision, value.operation.inputDigest, true);
-          if (isCurrent()) { setInspectionReviewed(false); setNotice("Inspection recorded only. The original operation remains partial; no cleanup, execution, signal or replay was performed."); }
+          if (isCurrent()) { setInspectionReviewed(false); setNotice("Inspection recorded. The operation stays partial."); }
         })} aria-label="Confirm inspection of partial Git operation">Confirm inspection</button>
       </section>}
-      {value.operation.inspection && <p className="fine-print" role="status">Inspected by actual user at {value.operation.inspection.at}, observed revision {value.operation.inspection.observedRevision}. This acknowledgement is not cleanup proof, success or permission to replay; status remains {value.operation.status}.</p>}
-      {value.operation.status === "running" && <button disabled={Boolean(busy)} onClick={() => void run("Requesting cancellation of original operation", async () => { await api.cancel(value.operation.id); })} aria-label="Cancel this owned operation">Cancel</button>}
+      {value.operation.inspection && <p className="fine-print" role="status">You inspected this at {value.operation.inspection.at} (revision {value.operation.inspection.observedRevision}). Status remains {value.operation.status}.</p>}
+      {value.operation.status === "running" && <button disabled={Boolean(busy)} onClick={() => void run("Requesting cancellation...", async () => { await api.cancel(value.operation.id); })} aria-label="Cancel this owned operation">Cancel</button>}
     </section>}
   </section>;
 }

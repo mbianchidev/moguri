@@ -28,7 +28,7 @@ test("repository trust is an explicit keyboard-usable baseline decision, indepen
     const panel = page.getByRole("region", { name: "Repository script trust", exact: true });
     await panel.getByRole("button", { name: "Review repo trust", exact: true }).press("Enter");
     await expect(panel).toContainText(f.project);
-    await panel.getByText("Exact trusted script baseline", { exact: true }).click();
+    await panel.getByText("Scripts to trust", { exact: true }).click();
     await expect(panel.getByLabel("Repository trust source baseline", { exact: true })).toContainText("generated-existing.sh");
     const approve = panel.getByRole("button", { name: "Trust existing repo scripts", exact: true });
     await expect(approve).toBeDisabled();
@@ -36,7 +36,7 @@ test("repository trust is an explicit keyboard-usable baseline decision, indepen
     await panel.getByRole("checkbox").press("Space");
     await approve.press("Enter");
     await expect.poll(() => sdk.repositoryTrust.get(f.session().projectId)?.status).toBe("trusted");
-    await expect(panel).toContainText("Trusted baseline: 1 existing script");
+    await expect(panel).toContainText("Trusted: 1 existing script");
     expect(sdk.repositoryTrust.get(f.session().projectId)?.actor).toBe("user");
     expect(f.requests).toHaveLength(0); expect(sdk.approvals.list()).toHaveLength(0);
     await panel.getByRole("button", { name: "Revoke repo trust", exact: true }).press("Enter");

@@ -44,12 +44,12 @@ test("recovered partial peer status cannot masquerade as an acknowledged termina
     await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Original candidate transport recovery", exact: true });
     await panel.getByLabel("Retained candidate transport", { exact: true }).selectOption(id);
-    await expect(panel).toContainText("Original controller terminal-ACK event: false");
-    await expect(panel).toContainText("Original peer status: partial");
-    await expect(panel).toContainText("Peer ACK cursor: 5/8");
-    await expect(panel).toContainText("Retained terminal frame: 8");
-    await expect(panel).not.toContainText("Original peer terminal ACK: true");
-    await expect(panel.getByRole("button", { name: "Reconcile original receipts read-only", exact: true })).toBeDisabled();
+    await expect(panel).toContainText("Moguri acknowledged the final result: false");
+    await expect(panel).toContainText("Worker status: partial");
+    await expect(panel).toContainText("acknowledged frames: 5/8");
+    await expect(panel).toContainText("final frame: 8");
+    await expect(panel).not.toContainText("Moguri acknowledged the final result: true");
+    await expect(panel.getByRole("button", { name: "Reconcile (read-only)", exact: true })).toBeDisabled();
     expect(service.controller.snapshot().budgetEntries).toHaveLength(0); expect(f.requests).toHaveLength(0);
   } finally { try { await app?.close(); } finally { try { await service.close(); } finally { await f.close(); } } }
 });

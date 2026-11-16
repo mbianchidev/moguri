@@ -29,7 +29,7 @@ test("desktop reads exact retained role data, preserves immutable input and edit
     await page.setViewportSize({ width: 900, height: 740 }); await page.screenshot({ path: resolve(".moguri/artifacts/retained-role-compact.png") });
     await panel.getByLabel("Artifact name", { exact: true }).fill("Generated renamed role evidence");
     await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
-    await expect(panel).toContainText("Retained independently");
+    await expect(panel).toContainText("Document saved");
     expect(f.current().inputDigest).toBe(original); expect(f.requests).toHaveLength(0);
   } finally { await app.close(); await f.close(); }
 });
@@ -44,7 +44,7 @@ test("desktop cannot archive/delete an active retained role and observes partial
     const panel = page.getByRole("region", { name: "Retained artifacts", exact: true });
     await panel.getByLabel("Retained artifact", { exact: true }).selectOption(f.initial.id);
     await expect(panel.getByRole("button", { name: "Archive artifact", exact: true })).toBeDisabled();
-    await panel.getByText("Delete this retained copy", { exact: true }).click();
+    await panel.getByText("Delete this document", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "Delete artifact", exact: true })).toBeDisabled();
     await f.sdk.command({ type: "session.stop", sessionId: f.sessionId });
     await expect(panel.getByRole("region", { name: "Retained role sequence", exact: true })).toContainText("Sequence partial");

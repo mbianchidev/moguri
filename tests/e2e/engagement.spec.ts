@@ -75,9 +75,9 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Notifications", exact: true }).click();
     await expect(page.getByLabel("Show in-app attention dots and icons")).toBeChecked();
-    await expect(page.getByLabel("Enable OS banners while Moguri desktop runs in the background")).not.toBeChecked();
+    await expect(page.getByLabel("Show OS banners when Moguri is in the background")).not.toBeChecked();
     await expect(page.getByLabel("Include session title and message preview in OS banners")).not.toBeChecked();
-    await page.getByLabel("Enable OS banners while Moguri desktop runs in the background").check();
+    await page.getByLabel("Show OS banners when Moguri is in the background").check();
     await expect.poll(() => sdk.settings.get()!.values.notifications.os).toBe(true);
     expect(failures).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }

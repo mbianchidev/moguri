@@ -26,10 +26,10 @@ test("application, command-line and wrapped toggle explanations stay aligned wit
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const application = page.getByRole("region", { name: "Application preferences", exact: true });
     const command = page.getByRole("region", { name: "Command line installation", exact: true });
-    const update = application.getByRole("switch", { name: "Automatically check and stage updates at app startup and every four hours", exact: true });
+    const update = application.getByRole("switch", { name: "Check for and download updates automatically", exact: true });
     const title = application.getByRole("heading", { name: "Application", exact: true });
     const titleHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("heading", { name: "Application", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
-    const updateHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("switch", { name: "Automatically check and stage updates at app startup and every four hours", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
+    const updateHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("switch", { name: "Check for and download updates automatically", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
     const background = application.getByRole("switch", { name: "Keep agents running when the last window closes", exact: true });
     const backgroundHelp = application.locator(".settings-help-row").filter({ has: page.getByRole("switch", { name: "Keep agents running when the last window closes", exact: true }) }).getByRole("button", { name: "More about this setting", exact: true });
     await expect(update).toBeEnabled();
@@ -45,7 +45,7 @@ test("application, command-line and wrapped toggle explanations stay aligned wit
       await aligned(update, updateHelp);
       const checked = await update.isChecked();
       await updateHelp.click();
-      await expect(page.getByRole("tooltip")).toContainText("Installation and restart always require actual confirmation");
+      await expect(page.getByRole("tooltip")).toContainText("Installing and restarting always waits for your confirmation");
       await expect(update).toBeChecked({ checked });
       await updateHelp.focus(); await page.keyboard.press("Escape");
       await expect(page.getByRole("tooltip")).toHaveCount(0);

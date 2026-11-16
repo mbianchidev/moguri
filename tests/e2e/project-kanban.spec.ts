@@ -72,8 +72,8 @@ test("Budgets shows originating-provider references and explicit finite-limit co
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Budgets", exact: true }).click();
     const region = page.getByRole("region", { name: "Provider API-equivalent prices", exact: true });
-    await expect(region).toContainText("not subscription charges");
-    const consent = page.getByLabel("I accept fresh API-equivalent estimates for finite USD limits, not exact billing caps", { exact: true });
+    await expect(region).toContainText("aren't your subscription cost");
+    const consent = page.getByLabel("Use API-price estimates for USD limits (not exact billing caps)", { exact: true });
     await expect(consent).not.toBeChecked(); await consent.check();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.budgets.useProviderRatesForLimits).toBe(true);
     expect(fixture.service.controller.snapshot().budgetPolicy.limit).toBeNull();

@@ -996,7 +996,7 @@ summary:hover { color: var(--text); }
 .settings-help-row > details { flex: 1; margin: 0; }
 .settings-help-row > details > summary { min-height: 26px; padding-block: 3px; }
 /* Settings disclosures are labelled rows with a visible Show/Hide control, not a bare arrow. */
-.settings-content details { max-width: 850px; margin: 12px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--subtle); }
+.settings-content details { max-width: 850px; margin: 12px 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--subtle); }
 .settings-content details details { background: var(--surface); }
 .settings-content details > summary, .settings-help-row > details > summary { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 7px 10px 7px 14px; border-radius: 8px; color: var(--text); font-size: 12px; font-weight: 550; line-height: 20px; overflow-wrap: anywhere; }
 .settings-content details > summary::before { content: none; }
@@ -1007,8 +1007,8 @@ summary:hover { color: var(--text); }
 .settings-content details > summary:focus-visible { outline-offset: -2px; }
 .settings-content details[open] > summary { border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; }
 .settings-content details[open] { padding-bottom: 14px; }
-.settings-content details > :not(summary) { margin-inline: 14px; }
-.settings-content details > summary + * { margin-top: 12px; }
+.settings-content details > summary { margin-inline: -14px; }
+.settings-content details[open] > summary { margin-bottom: 12px; }
 .settings-content .settings-help-row > details { margin: 0; }
 .settings-help-row:has(> details) > .setting-help { margin-top: 7px; }
 .settings-help-row > fieldset { flex: 1; margin: 0; }

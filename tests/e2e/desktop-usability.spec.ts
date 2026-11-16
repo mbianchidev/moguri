@@ -136,7 +136,7 @@ test("toggle and dropdown preferences autosave without committing a pending text
     await expect.poll(() => settings().appearance.theme).toBe("light");
     expect(settings().instructions).toBe("");
     await categories.getByRole("button", { name: "Subagents", exact: true }).click();
-    await page.getByLabel("Enable optional read-only subagents").check();
+    await page.getByLabel("Enable read-only subagents").check();
     await expect.poll(() => settings().subagents.enabled).toBe(true);
     await page.getByLabel("Maximum parallel children", { exact: true }).selectOption("2");
     await expect.poll(() => settings().subagents.maxParallel).toBe(2);
@@ -217,7 +217,7 @@ test("project dropdowns and toggles save only their changed fields, while nearby
     expect(configuration()?.repo.upstream).toBe(originalUpstream);
     await expect(upstream).toHaveValue("generated-upstream");
     expect(configuration()?.instructions).toBe("");
-    await page.getByLabel("Enable optional Porto inventory access").check();
+    await page.getByLabel("Enable Porto inventory").check();
     await expect.poll(() => configuration()?.porto.enabled).toBe(true);
     expect(configuration()?.instructions).toBe("");
     await expect(instructions).toHaveValue("Generated uncommitted project guidance.");

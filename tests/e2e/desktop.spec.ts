@@ -89,10 +89,10 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     await page.getByRole("button", { name: "Inspect current lock", exact: true }).click();
     const prepare = page.getByRole("button", { name: "Prepare verified cache", exact: true });
     await expect(prepare).toBeDisabled();
-    await page.getByLabel("I approve sending these exact dependency names and versions to OSV or the explicitly reviewed private advisory destinations above.", { exact: true }).check();
+    await page.getByLabel("I agree to send these package names and versions to OSV, or to the private advisory services above.", { exact: true }).check();
     await prepare.click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "cache.prepare" && job.status === "completed")).toBe(true);
-    await page.getByLabel("I approve replacing root/member node_modules with a managed, script-free workspace install.", { exact: true }).check();
+    await page.getByLabel("I want to replace node_modules (root and workspace members) with an install that runs no scripts.", { exact: true }).check();
     await page.getByRole("button", { name: "Install with scripts blocked", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "cache.install" && job.status === "completed")).toBe(true);
     expect(downloads).toBe(1);
@@ -202,7 +202,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(page.getByRole("alert")).toContainText("Your edit is preserved");
     await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await expect(page.getByRole("button", { name: "Save settings", exact: true })).toBeDisabled();
-    await page.getByLabel("I understand this can break functionality. Hard permissions cannot be overridden.").check();
+    await page.getByLabel("I understand editing this can break Moguri. Permissions still apply.").check();
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.systemPrompt).toBe("Generated user-edited instructions. Never invent results.");
     await page.getByRole("button", { name: "Preview effective committed prompt" }).click();
@@ -223,7 +223,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(async () => JSON.parse(await page.getByLabel("Tool and exact-command permissions", { exact: true }).inputValue())).toEqual(permission);
     await categories.getByRole("button", { name: "Repository memory", exact: true }).click();
-    await page.getByLabel("Enable explicit repository indexing and retrieval").check();
+    await page.getByLabel("Enable repository indexing and search").check();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.memory.enabled).toBe(true);
     await page.getByRole("button", { name: "Index Local repository", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().jobs.some((job) => job.kind === "memory.index" && job.status === "completed")).toBe(true);
@@ -234,9 +234,9 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByRole("button", { name: "Discover tools", exact: true }).click();
     await expect(page.getByRole("button", { name: /^grep_logs/ })).toBeVisible();
     await categories.getByRole("button", { name: "Subagents", exact: true }).click();
-    await expect(page.getByLabel("Enable optional read-only subagents")).not.toBeChecked();
+    await expect(page.getByLabel("Enable read-only subagents")).not.toBeChecked();
     await categories.getByRole("button", { name: "Skills", exact: true }).click();
-    await expect(page.getByLabel("Allow model-proposed skills, scripts and style knowledge for human review")).not.toBeChecked();
+    await expect(page.getByLabel("Let models propose skills, scripts and style knowledge for your review")).not.toBeChecked();
     await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "About supported dictation languages", exact: true }).focus();

@@ -61,7 +61,7 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await expect(tokenCap).toHaveValue("1000000");
     await controls.getByLabel("session USD cap", { exact: true }).fill("10");
     await expect(tokenCap).toHaveValue("1000000");
-    await controls.getByRole("checkbox", { name: "I accept estimate-based accounting and interruption risk.", exact: true }).check();
+    await controls.getByRole("checkbox", { name: "I understand costs are estimates and a cap can stop a chat mid-task.", exact: true }).check();
     await controls.getByRole("button", { name: "Save session budget", exact: true }).click();
     await expect.poll(() => fixture.session().controls.budget).toEqual({ kind: "limited", basis: "estimate", tokens: 1000000, usd: 10 });
     await page.keyboard.press("Escape");

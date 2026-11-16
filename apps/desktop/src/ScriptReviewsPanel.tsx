@@ -12,12 +12,12 @@ export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReview
   if (!records.length) return null;
   const run = async (action: () => Promise<void>) => {
     setBusy(true); setError("");
-    try { await action(); } catch (error) { setError(error instanceof Error ? error.message : "The exact script review is unavailable. No replacement source or execution was used."); }
+    try { await action(); } catch (error) { setError(error instanceof Error ? error.message : "This script review is no longer available. Nothing was run."); }
     finally { setBusy(false); }
   };
   return <section className="script-reviews" aria-label="Repository script reviews">
     <h3>Repository script reviews ({records.length})</h3>
-      <p className="fine-print">Agent assessments are advice, not a safety guarantee or permission. Unsafe advice never opens an execution-approval prompt by itself.</p>
+      <p className="fine-print">Assessments are model advice, not a safety guarantee. A script marked unsafe can't run unless you force it.</p>
       {records.map((review) => {
         const selected = read?.sdk === sdk && read.value.review.id === review.id && read.value.review.revision === review.revision ? read.value : null;
         const canForce = selected && review.advice?.verdict === "unsafe" && !review.force && !review.attempt && !session.turnId &&
@@ -32,29 +32,29 @@ export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReview
             setConfirmed(false);
             if (selected) { setRead(null); return; }
             void run(async () => { const value = await sdk.scriptReviews.read(session.id, review.id); setRead({ sdk, value }); });
-          }} aria-label={`${selected ? "Collapse" : "Read full"} script review ${review.id}`}>{selected ? "Collapse source and review" : "Read full source and review"}</button>
+          }} aria-label={`${selected ? "Collapse" : "Read full"} script review ${review.id}`}>{selected ? "Hide source" : "Show full source"}</button>
           {selected && <div id={`script-source-${review.id}`}>
             <p className="fine-print">{selected.warning}</p><pre aria-label={`Complete reviewed script ${review.id}`}>{selected.text}</pre>
             {review.advice?.verdict === "safe" && <>
-              <p className="fine-print">Approve this exact assessment to clear its notification. This does not run the script or grant execution permission.</p>
+              <p className="fine-print">Approving clears this notification. It doesn't run the script or grant permission to run it.</p>
               <button type="button" className="primary" disabled={busy} aria-label={`Approve script review ${review.id}`} onClick={() => void run(async () => {
                 await sdk.scriptReviews.approve(session.id, review.id, review.source.digest, review.revision, session.revision);
                 setRead(null); setConfirmed(false); onReviewed();
               })}>Approve script review</button>
             </>}
             {canForce && <>
-              <Alert as="p" tone="warning">This agent reported unsafe behavior. Forcing overrides only this advice. Hard policy, the exact source/root and normal execution approval still apply. {session.controls.env === "Sandbox" ? "A new model-free guest uses the same verified private stage and reviewed native network boundary, never the Local source. Isolation does not make the code safe." : "Code may change your files or contact external services without OS isolation."}</Alert>
-              <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the complete source and findings and explicitly want to force this exact unsafe script.</label>
+              <Alert as="p" tone="warning">Forcing overrides only the agent's unsafe verdict; policy and the normal run approval still apply. {session.controls.env === "Sandbox" ? "If approved, it runs in a new model-free guest with the reviewed network rules; isolation doesn't make the code safe." : "If approved, it runs on this Mac without isolation and may change your files or contact external services."}</Alert>
+              <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed the full source and findings and want to override the unsafe verdict.</label>
               <button type="button" className="danger" disabled={busy || !confirmed} onClick={() => void run(async () => {
                 await sdk.scriptReviews.force(session.id, review.id, review.source.digest, review.revision, session.revision);
                 setRead(null); setConfirmed(false); onReviewed();
               })}>Force unsafe script under normal policy</button>
             </>}
           </div>}
-          {review.attempt && <p className="fine-print">One original attempt is retained. Inspect its actual tool/job outcome; it cannot be replayed.</p>}
+          {review.attempt && <p className="fine-print">This script already ran once; check that run's result in the session. It won't be retried.</p>}
         </article>;
       })}
-    {busy && <p role="status">Reading or admitting the exact original script review...</p>}
+    {busy && <p role="status">Updating script review...</p>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
   </section>;
 }

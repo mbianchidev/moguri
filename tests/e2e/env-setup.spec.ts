@@ -51,7 +51,7 @@ for (const projectFree of [false, true]) test(`first Sandbox selection sets up $
     const enable = review.getByRole("button", { name: "Enable SendBox", exact: true });
     await expect(enable).toBeDisabled();
     expect(installs).toBe(0); expect(imports).toBe(0); expect(probes).toBe(0);
-    await review.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
+    await review.getByLabel("I reviewed this SendBox runtime, worker image", { exact: false }).check();
     await enable.click(); await expect.poll(() => imports).toBe(1);
     expect(installs).toBe(1); expect(probes).toBe(0);
     expect(session().controls.env).toBe("Local");
@@ -97,7 +97,7 @@ test("first-use cancellation waits for its original import, preserves the draft 
     };
     await open();
     const setup = page.getByRole("dialog", { name: "Set up SendBox", exact: true });
-    await setup.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
+    await setup.getByLabel("I reviewed this SendBox runtime, worker image", { exact: false }).check();
     await setup.getByRole("button", { name: "Enable SendBox", exact: true }).click();
     await expect.poll(() => imports).toBe(1);
     const id = (await sdk.sandbox.setup.status()).setup.operation!.id;
@@ -138,7 +138,7 @@ test("completed setup cannot select Env through a stale original session revisio
     const env = page.getByRole("dialog", { name: "Execution environment", exact: true });
     await env.getByRole("button", { name: /^Sandbox / }).click();
     const setup = page.getByRole("dialog", { name: "Set up SendBox", exact: true });
-    await setup.getByLabel("I reviewed this runtime, pinned worker", { exact: false }).check();
+    await setup.getByLabel("I reviewed this SendBox runtime, worker image", { exact: false }).check();
     await setup.getByRole("button", { name: "Enable SendBox", exact: true }).click();
     await expect.poll(() => imports).toBe(1);
     await sdk.sessions.rename(f.sessionId, "Generated peer retained title");

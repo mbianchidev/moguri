@@ -38,7 +38,7 @@ test("Linear key actions use concise visible verbs and preserve storage, explici
     await mkdir(".moguri/artifacts", { recursive: true }); await page.screenshot({ path: ".moguri/artifacts/settings-linear-actions.png" });
     await remove.focus(); await page.keyboard.press("Enter");
     await expect.poll(() => secrets.size).toBe(0);
-    await expect(panel).toContainText("Profile credential removed.");
+    await expect(panel).toContainText("API key removed.");
     expect(JSON.stringify(fixture.service.controller.events(0))).not.toContain("generated-concise-linear-key");
     expect(await page.content()).not.toContain("generated-concise-linear-key");
     expect(fixture.requests).toHaveLength(0);

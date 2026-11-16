@@ -17,7 +17,7 @@ test("desktop loads exact final-role provenance without overwriting a summary an
     await openSettingsSection(page, "Candidates");
     await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
-    await panel.getByText("Load a retained role proposal", { exact: true }).click();
+    await panel.getByText("Load a proposal from a model role", { exact: true }).click();
     await panel.getByLabel("Retained role proposal", { exact: true }).selectOption(f.sequence.id);
     const load = panel.getByRole("button", { name: "Load for review final-role proposal", exact: true });
     await expect(load).toBeEnabled(); expect(f.requests).toHaveLength(3);
@@ -25,7 +25,7 @@ test("desktop loads exact final-role provenance without overwriting a summary an
     await expect(load).toBeDisabled(); await expect(panel.getByLabel("Candidate summary", { exact: true })).toHaveValue("Generated unsaved summary must survive.");
     await panel.getByRole("button", { name: "Discard local proposal", exact: true }).click();
     await expect(load).toBeEnabled();
-    await panel.getByText("Load a retained role proposal", { exact: true }).scrollIntoViewIfNeeded();
+    await panel.getByText("Load a proposal from a model role", { exact: true }).scrollIntoViewIfNeeded();
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/role-proposal-desktop.png") });
     await page.setViewportSize({ width: 900, height: 740 }); await page.screenshot({ path: resolve(".moguri/artifacts/role-proposal-compact.png") });
@@ -67,7 +67,7 @@ test("a held final-role read cannot populate a changed read-only scope or overwr
     await openSettingsSection(page, "Candidates");
     await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Reviewed repository candidates", exact: true });
-    await panel.getByText("Load a retained role proposal", { exact: true }).click();
+    await panel.getByText("Load a proposal from a model role", { exact: true }).click();
     await panel.getByLabel("Retained role proposal", { exact: true }).selectOption(f.sequence.id); await expect.poll(() => held).toBe(true);
     await panel.getByLabel("Candidate summary", { exact: true }).fill("Generated preserved summary-only draft.");
     await f.sdk.sessions.mode(f.sessionId, "read-only"); gate.resolve();

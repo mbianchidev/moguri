@@ -21,11 +21,11 @@ export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void
       const value = await window.moguri.cliInstallation(input);
       if (request === generation.current) setStatus(value);
     } catch (error) {
-      if (request === generation.current) setError(error instanceof Error ? error.message : "The command installation did not complete. Refresh its actual status before retrying.");
+      if (request === generation.current) setError(error instanceof Error ? error.message : "The command installation did not complete. Refresh the status before retrying.");
     } finally { if (request === generation.current) setBusy(false); }
   };
   return <section aria-label="Command line installation">
-    <SettingsHelp label="More about this setting" target={<h3>Command line</h3>}>Install the bundled CLI and TUI launcher for this macOS user, across profiles. It uses the app's Node runtime, needs no administrator access and does not edit shell startup files. The app must stay at its installed location.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Command line</h3>}>Installs the <code>moguri</code> command for your macOS user. It needs no admin access and doesn't edit your shell files.</SettingsHelp>
     {status && <p className="fine-print">Command: <code>{status.path}</code></p>}
     <Alert as="p" role="status">{status?.detail ?? "Reading command installation..."}</Alert>
     <div className="button-row">
@@ -33,9 +33,9 @@ export function CliCommandSettings({ onBusy }: { onBusy: (busy: boolean) => void
       <SettingsAction label="Remove moguri command" icon="Trash" disabled={busy || !status?.digest} onClick={() => { if (status?.digest) void run({ action: "remove", expectedDigest: status.digest }); }} />
       <SettingsAction label="Refresh command status" icon="Refresh" disabled={busy} onClick={() => void run({ action: "status" })} />
     </div>
-    <p className="fine-print">After installation, run this in your terminal to add the command to your current shell's PATH:</p>
+    <p className="fine-print">After installing, add it to your shell's PATH:</p>
     <pre><code>{'export PATH="$HOME/.local/bin:$PATH"'}</code></pre>
-    <p className="fine-print">For future zsh shells, add that line once to <code>~/.zshrc</code>. Run <code>moguri</code> to start the TUI. If you move the app, remove this managed command and install again from the new location. Existing commands, including manual workarounds, are never replaced.</p>
+    <p className="fine-print">Add that line to <code>~/.zshrc</code> to keep it, then run <code>moguri</code> to start the TUI. If you move the app, remove the command and install it again.</p>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }

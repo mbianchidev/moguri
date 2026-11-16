@@ -85,7 +85,7 @@ test("an imported skill is deleted only after inline confirmation, while plugin-
     await expect(page.getByRole("button", { name: "Delete skill generated-bundle/generated-bundled", exact: true })).toHaveCount(0);
     await remove.click();
     const confirmation = page.getByRole("group", { name: "Confirm deleting skill generated-removable", exact: true });
-    await expect(confirmation).toContainText("Chats that admitted it lose access");
+    await expect(confirmation).toContainText("Chats that use it lose access");
     await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(confirmation).toHaveCount(0);
     expect(sdk.getState().snapshot!.registry.some((entry) => entry.name === "generated-removable")).toBe(true);
@@ -126,7 +126,7 @@ test("project configuration lists registered projects, preserves concurrent edit
     await expect(select).toHaveValue(second);
     await expect(select.locator("option:checked")).toContainText("Unavailable project");
     await expect(instructions).toHaveValue("Generated pending second-project edit."); await expect(instructions).toBeDisabled();
-    await expect(page.getByRole("alert").filter({ hasText: "no replacement" })).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "no longer in this profile" })).toBeVisible();
     await page.getByRole("button", { name: "Discard unavailable project edit", exact: true }).click();
     await expect(select).toBeEnabled(); await expect(select).toBeFocused(); await select.selectOption(original.projectId);
     await expect(select).toHaveValue(original.projectId);
@@ -244,7 +244,7 @@ test("private update setup exposes supported owner/Contents prefill and disclose
     const update = page.getByRole("region", { name: "Private application updates", exact: true });
     const setup = update.getByRole("button", { name: "Set up read-only update access", exact: true });
     await expect(setup).toBeVisible();
-    await expect(update.getByText(/GitHub cannot preselect/)).toBeVisible();
+    await expect(update.getByText(/Opens GitHub with read-only Contents access prefilled/)).toBeVisible();
     await expect(update.getByText(/Only select repositories/).first()).toBeVisible();
     await focusByKeyboard(setup); await page.keyboard.press("Enter");
     const opened = await app.evaluate(() => process.env.MOGURI_GENERATED_UPDATE_URL);

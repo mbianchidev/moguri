@@ -27,7 +27,7 @@ test("desktop applies warned estimate-based caps, preserves hard policy through 
     await controls.getByLabel("session token cap", { exact: true }).fill(String(Math.ceil(input) + 16));
     await expect(controls.getByLabel("session USD cap", { exact: true })).toBeDisabled();
     await expect(controls.getByRole("button", { name: "Save session budget", exact: true })).toBeDisabled();
-    await controls.getByText("I accept estimate-based accounting and interruption risk.", { exact: true }).click();
+    await controls.getByText("I understand costs are estimates and a cap can stop a chat mid-task.", { exact: true }).click();
     await controls.getByRole("button", { name: "Save session budget", exact: true }).click();
     await expect(controls).toContainText("Session budget saved.");
     expect(fixture.session().controls.budget.kind).toBe("limited");
@@ -47,7 +47,7 @@ test("desktop applies warned estimate-based caps, preserves hard policy through 
     const policy = page.getByRole("region", { name: "Profile budget policy", exact: true });
     await policy.getByLabel("profile budget mode", { exact: true }).selectOption("limited");
     await policy.getByLabel("profile token cap", { exact: true }).fill("1");
-    await policy.getByText("I accept estimate-based accounting and interruption risk.", { exact: true }).click();
+    await policy.getByText("I understand costs are estimates and a cap can stop a chat mid-task.", { exact: true }).click();
     await policy.getByRole("button", { name: "Save profile budget policy", exact: true }).click();
     await expect(policy).toContainText("Profile policy saved.");
     await page.getByRole("button", { name: "Restore all defaults", exact: true }).click();

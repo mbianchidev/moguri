@@ -196,7 +196,7 @@ test("Local source review, explicit unverified publisher admission and revocatio
     await panel.getByRole("button", { name: "Find current skills", exact: true }).click();
     await panel.getByRole("button", { name: "Review source generated-review", exact: true }).click();
     await expect(panel).toContainText("Generated complete untrusted instructions.");
-    const admit = panel.getByRole("button", { name: "Admit exact source for this session", exact: true });
+    const admit = panel.getByRole("button", { name: "Approve skill for this session", exact: true });
     await expect(admit).toBeDisabled();
     await panel.getByRole("checkbox", { name: "I reviewed all source files and acknowledge the publisher is not verified." }).check();
     await writeFile(join(root, "SKILL.md"), "---\nname: generated-review\ndescription: Generated desktop source review\n---\nGenerated changed untrusted instructions.\n");
@@ -210,7 +210,7 @@ test("Local source review, explicit unverified publisher admission and revocatio
     await admit.click();
     await expect.poll(() => fixture.service.controller.snapshot().skillAdmissions[0]?.state).toBe("active");
     expect(fixture.service.controller.snapshot().skillAdmissions[0]?.sessionId).toBe(fixture.session().id);
-    await panel.getByRole("button", { name: "Revoke source admission", exact: true }).click();
+    await panel.getByRole("button", { name: "Revoke skill approval", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().skillAdmissions[0]?.state).toBe("revoked");
     await expect(panel).toContainText("revoked");
     expect(fixture.requests.length).toBe(0);
@@ -247,7 +247,7 @@ test("Settings skill reviews clear across explicit source chats and profiles wit
     await inspect();
     await source.selectOption("");
     await expect(panel).toHaveCount(0);
-    await expect(page.getByText("Choose a source chat to review exact skill admission. No session or workspace is inferred.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Choose a chat above to review which skills it can use.", { exact: true })).toBeVisible();
     await source.selectOption(first); await inspect();
     const current = f.sdk.settings.get()!;
     await f.sdk.settings.update({ ...current.values, skillSources: [] }, current.revision);
@@ -260,7 +260,7 @@ test("Settings skill reviews clear across explicit source chats and profiles wit
     await openSettingsSection(page, "Skills");
     await expect(source).toHaveValue("");
     await expect(panel).toHaveCount(0);
-    await expect(page.getByText("Choose a source chat to review exact skill admission. No session or workspace is inferred.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Choose a chat above to review which skills it can use.", { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     expect(f.service.controller.snapshot().skillAdmissions).toHaveLength(0);
     expect(f.service.controller.snapshot().budgetEntries).toHaveLength(0);

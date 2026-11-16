@@ -25,7 +25,7 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const token = `ghp_${"g".repeat(30)}`;
     await page.getByLabel("Private release PAT", { exact: true }).fill(token);
-    await page.getByLabel("Automatically check and stage updates at app startup and every four hours", { exact: true }).uncheck();
+    await page.getByLabel("Check for and download updates automatically", { exact: true }).uncheck();
     await expect.poll(async () => (await sdk.application.status()).configuration.values.automaticUpdates).toBe(false);
     expect(values.size).toBe(0); expect(feed.requests.length).toBe(0);
     await expect(page.getByLabel("Private release PAT", { exact: true })).toHaveValue(token);
@@ -36,7 +36,7 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     await expect.poll(async () => (await sdk.application.updates.status()).update.operation?.status).toBe("ready");
     await expect(page.getByText("Installing updates requires Moguri's packaged app.", { exact: true })).toBeVisible();
     await focusByKeyboard(page.getByRole("button", { name: "About source-runtime update limits", exact: true }));
-    await expect(page.getByRole("tooltip")).toContainText("This unpackaged/source runtime can inspect and stage releases, but cannot replace the checkout.");
+    await expect(page.getByRole("tooltip")).toContainText("This development build can check for and download updates, but it can't install them.");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "Install and restart with verified update", exact: true })).toHaveCount(0);
     expect(fixture.requests.length).toBe(0); expect(failures).toEqual([]);

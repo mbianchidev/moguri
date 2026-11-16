@@ -45,7 +45,7 @@ test("settings choices save as soon as they change, without the toolbar Save", a
     await board.getByLabel("GitHub backlog column", { exact: true }).selectOption("review");
     await expect.poll(() => fixture.service.controller.snapshot().boards.find((entry) => entry.projectId === fixture.session().projectId)?.githubSync?.phases.backlog).toBe("review");
     await expect(board.getByRole("button", { name: "Save GitHub mapping", exact: true })).toHaveCount(0);
-    await expect(board.getByRole("status")).toHaveText("The selected board field was saved. Other pending text was preserved.");
+    await expect(board.getByRole("status")).toHaveText("Saved. Your other unsaved edits are kept.");
     await expect(toolbar).toHaveText("Saved");
     expect(fixture.requests).toHaveLength(0);
     expect(errors).toEqual([]);

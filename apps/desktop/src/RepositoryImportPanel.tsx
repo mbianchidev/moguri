@@ -25,13 +25,13 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
     if (pending.current) return;
     pending.current = true; const captured = sdk; setBusy(true); setError("");
     try { await operation(() => owner.current === captured); }
-    catch (error) { if (owner.current === captured) setError(error instanceof Error ? error.message : "The original import acknowledgement is unavailable. Inspect retained batches before starting new work; nothing was retried."); }
+    catch (error) { if (owner.current === captured) setError(error instanceof Error ? error.message : "The import didn't respond. Check the import history before starting again; nothing was retried."); }
     finally { pending.current = false; if (owner.current === captured) setBusy(false); }
   };
   return <section aria-label="Repository management" aria-busy={busy}>
     <h2>Repositories</h2>
-    <p className="fine-print">Import a list into this profile's Local projects. Preview every normalized URL and destination first. Existing registrations stay intact; failures never delete partial folders or undo successful imports.</p>
-    {!localAllowed && <Alert as="p" tone="warning">Local import is blocked by execution policy. No SSH/Sandbox root or account will be substituted.</Alert>}
+    <p className="fine-print">Clone a list of repositories into this profile's Local projects, after previewing each URL and destination.</p>
+    {!localAllowed && <Alert as="p" tone="warning">Your execution policy blocks Local, so repositories can't be imported here.</Alert>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <form onSubmit={(event) => { event.preventDefault(); void run(async (owned) => {
       const result = await sdk.projects.imports.preview({ text, parent }); if (owned()) { setPreview(result.preview); setReviewed(false); }
@@ -47,23 +47,23 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
         <button type="submit" disabled={busy || Boolean(active) || !localAllowed || !text.trim() || !parent}>Preview repository import</button></div>
     </form>
     {preview && <section aria-label="Repository import preview" className="github-write-review">
-      <p>Canonical parent: <code>{preview.document.parent.root}</code></p>
-      <p className="fine-print">Credential-free HTTPS/SSH only, up to 100 repositories. Clones run one at a time with existing SSH keys/known-hosts, without hooks, filters, submodules, model calls or login. Private/auth failures and moved URLs are explicit. URL redirects require a new reviewed URL.</p>
+      <p>Parent folder: <code>{preview.document.parent.root}</code></p>
+      <p className="fine-print">HTTPS or SSH URLs without credentials, up to 100. Clones run one at a time with your existing SSH keys, and skip hooks and submodules.</p>
       {preview.document.warnings.map((warning, index) => <Alert as="p" tone="warning" key={index}>{warning}</Alert>)}
       <ol className="repository-import-list">{preview.document.entries.map((entry) => <li key={entry.line}>
         <strong>{entry.disposition}</strong> <code>{entry.repository ?? entry.source}</code><span className="path">{entry.path ?? "No destination"}</span>
         {entry.diagnostic && <small>{entry.diagnostic}</small>}
       </li>)}</ol>
       <label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} disabled={busy || Boolean(active)}
-        onChange={(event) => setReviewed(event.target.checked)} />I reviewed every source, destination and existing-checkout decision.</label>
+        onChange={(event) => setReviewed(event.target.checked)} />I reviewed these sources and destinations and want to import them</label>
       <button type="button" className="primary" disabled={!canImport || busy || Boolean(active)} onClick={() => void run(async (owned) => {
         const result = await sdk.projects.imports.start(preview, true);
         if (owned()) { setSelectedId(result.id!); setPreview(null); setReviewed(false); setText(""); setOriginal(null); }
-      })}>Import reviewed repositories</button>
+      })}>Import repositories</button>
     </section>}
     {selected && <section aria-label="Repository import results">
-      <h3>Retained import batches</h3>
-      <label className="setting-field">Original batch<select aria-label="Original import batch" value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setOriginal(null); }}>
+      <h3>Import history</h3>
+      <label className="setting-field">Batch<select aria-label="Original import batch" value={selected.id} onChange={(event) => { setSelectedId(event.target.value); setOriginal(null); }}>
         {batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.createdAt} / {batch.status} / {batch.items.length} entries</option>)}
       </select></label>
       <p role="status">{selected.status}: {selected.items.filter(successfulImportItem).length} of {selected.items.length} entries resolved{selected.status === "running" ? ", one repository at a time" : ""}.</p>
@@ -75,21 +75,21 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
         {item.status === "partial" && !item.inspection && selected.status !== "running" && <>
           <label className="check-setting"><SettingsInput type="checkbox" checked={inspected.includes(item.line)} onChange={(event) =>
             setInspected((current) => event.target.checked ? [...current, item.line] : current.filter((line) => line !== item.line))} />
-            I inspected the original files and possible processes for entry {item.line}. This is not proof of cleanup.</label>
+            I checked the leftover files and any running processes for entry {item.line}.</label>
           <button type="button" disabled={busy || !inspected.includes(item.line)} onClick={() => void run(async () => {
             await sdk.projects.imports.acknowledge(selected.id, item.line, selected.revision, true);
           })}>Acknowledge inspected entry {item.line}</button>
         </>}
-        {item.inspection && <small>Original uncertainty acknowledged by the user. No clone was replayed or partial outcome relabeled.</small>}
+        {item.inspection && <small>You acknowledged this partial import. It stays partial and isn't retried.</small>}
         {item.projectId && successfulImportItem(item) && snapshot.projects.some((project) => project.id === item.projectId) &&
           <button type="button" disabled={Boolean(text) || busy} onClick={() => configureProject(item.projectId!)}>Configure imported project</button>}
       </li>)}</ol>
       <button type="button" disabled={busy} onClick={() => void run(async (owned) => {
         const result = await sdk.projects.imports.read(selected.id); if (owned()) setOriginal(result.review);
-      })}>Inspect original import review</button>
-      {original && <details open><summary>Original reviewed sources and destinations</summary><pre>{JSON.stringify(original, null, 2)}</pre></details>}
+      })}>Show import review</button>
+      {original && <details open><summary>Reviewed sources and destinations</summary><pre>{JSON.stringify(original, null, 2)}</pre></details>}
     </section>}
-    <h3>Registered projects</h3><p className="fine-print">Change an existing repository's remote in its Project settings. That review shows every affected linked worktree, not just its display name.</p>
+    <h3>Registered projects</h3><p className="fine-print">To change a repository's remote, open its Project settings.</p>
     <div className="button-row">{snapshot.projects.map((project) => <button type="button" key={project.id} disabled={Boolean(text) || busy}
       onClick={() => configureProject(project.id)}>Manage {project.name}</button>)}</div>
   </section>;

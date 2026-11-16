@@ -113,7 +113,8 @@ Every Settings page follows one anatomy so pages read alike:
 | Scope control | A page that acts on a chosen chat (Artifacts, Candidates, Sandbox, Skills) shows its source-chat select on the title row, right-aligned, like the Suggestions scope. It never sits above the title. |
 | Column | Fields, editors, cards, tables and warnings share one 850px column; running text keeps a 76ch measure. |
 | Groups | A fieldset with a `legend` is a titled card (subtle surface, 10px radius; nested cards use the main surface). A fieldset without a legend is an invisible wrapper. A titled group that carries its own information button stays unboxed so the title lines up with the button. |
-| Disclosures | Every `details` uses one chevron that rotates when open; rows with their own chevron or folder icon opt out. A collapsed disclosure is never boxed. |
+| Disclosures | In Settings, every `details` is a bordered row: its label on the left and a visible Show/Hide pill on the right; the opened content sits inside the same card. Elsewhere disclosures use one rotating chevron, and rows with their own chevron or folder icon opt out. |
+| Copy | One sentence per page intro and per helper; info popovers at most two short sentences; warnings only for real risk. Internal implementation detail lives in [the Settings reference](settings/README.md), not on screen. |
 | Switches | Choices that save immediately are switches with 12px row rhythm; review or consent acknowledgements stay checkboxes. |
 | Tables | Left-aligned, muted 11px headers, row dividers, no outer border. |
 | Actions in flex panels | Buttons keep their natural width (`align-self: flex-start`) instead of stretching across the column. |

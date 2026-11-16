@@ -44,7 +44,7 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     for (const [region, scope, tokens] of [[policy, "profile", "100000"], [global, "global", "200000"]] as const) {
       await region.getByLabel(`${scope} budget mode`, { exact: true }).selectOption("limited");
       await region.getByLabel(`${scope} token cap`, { exact: true }).fill(tokens);
-      await region.getByText("I accept estimate-based accounting and interruption risk.", { exact: true }).click();
+      await region.getByText("I understand costs are estimates and a cap can stop a chat mid-task.", { exact: true }).click();
     }
     await policy.getByRole("button", { name: "Save profile budget policy", exact: true }).click();
     await expect(policy).toContainText("Profile policy saved.");

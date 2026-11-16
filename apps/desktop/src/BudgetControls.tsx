@@ -9,30 +9,30 @@ export const callEstimate = (totals: BudgetTotals) => totals.calls === 0 ? "No m
 const count = (value: number) => new Intl.NumberFormat().format(value);
 export function useBudgetStatus(sdk: MoguriSdk, session: Session, snapshot: Snapshot) {
   const saved = snapshot.profileId === sdk.profileId ? snapshot.sessionTelemetry?.[session.id] : undefined;
-  return { status: saved?.budget ?? null, error: saved?.budgetDiagnostic ?? (saved ? "" : "No retained accounting snapshot is available. No free usage was assumed.") };
+  return { status: saved?.budget ?? null, error: saved?.budgetDiagnostic ?? (saved ? "" : "Usage data isn't available yet; it isn't treated as zero.") };
 }
 export function BudgetSummary({ status }: { status: BudgetStatus }) {
   const totals = status.totals, cappedTokens = status.limits.some((limit) => limit.tokens !== null), cappedUsd = status.limits.some((limit) => limit.usd !== null);
   return <section className="budget-summary" aria-label="Cumulative session budget">
-    <SettingsHelp label="More about this setting" target={<strong>Accounting</strong>}>Estimates are not a billing guarantee. Missing completion keeps reservations held. Resume, deletion and model changes do not reset this ledger.
-      {totals.plannedHolds > 0 && <><br /><br />Planned capacity is not a model call or provider report. Only provably undispatched holds can be released automatically after their owner stops. Dispatched or uncertain usage stays held.</>}
+    <SettingsHelp label="More about this setting" target={<strong>Accounting</strong>}>Costs are estimates, not your bill. Tokens reserved for a call stay held until its usage is reported, and totals carry over across resumes, deletions and model changes.
+      {totals.plannedHolds > 0 && <><br /><br />Planned holds reserve budget before calls start. Unused holds are released when their work stops; anything that may have run stays held.</>}
     </SettingsHelp>
     <dl className="facts"><dt>Reported tokens</dt><dd>{totals.reportedTokens === null ? `${count(totals.knownReportedTokens)} known + ${totals.unknownTokenCalls} unknown calls` : count(totals.reportedTokens)}</dd>
-      <dt>Held tokens</dt><dd>{totals.heldTokens === null ? "Unbounded / blocks finite admission" : count(totals.heldTokens)}</dd>
-      {totals.plannedHolds > 0 && <><dt>Undispatched model holds</dt><dd>{count(totals.plannedHolds)} / {totals.plannedHeldTokens === null ? "Unknown capacity" : `${count(totals.plannedHeldTokens)} tokens`}</dd></>}
+      <dt>Held tokens</dt><dd>{totals.heldTokens === null ? "Unknown (blocks capped budgets)" : count(totals.heldTokens)}</dd>
+      {totals.plannedHolds > 0 && <><dt>Planned holds</dt><dd>{count(totals.plannedHolds)} / {totals.plannedHeldTokens === null ? "Unknown capacity" : `${count(totals.plannedHeldTokens)} tokens`}</dd></>}
       <dt>Remaining tokens</dt><dd>{status.remainingTokens === null ? cappedTokens ? "Unknown / blocked" : "Unlimited" : count(status.remainingTokens)}</dd>
       <dt>Estimated USD</dt><dd>{callEstimate(totals)}</dd>
       <dt>Held estimated USD</dt><dd>{totals.heldUsd === null ? "Unknown" : dollars(totals.heldUsd)}</dd>
       <dt>Remaining estimated USD</dt><dd>{status.remainingUsd === null ? cappedUsd ? "Unknown / blocked" : "Unlimited" : dollars(status.remainingUsd)}</dd>
       <dt>Provider / billed USD</dt><dd>Not reported</dd></dl>
-    {status.ownerSessionId !== status.sessionId && <p className="fine-print">Charged to owning session {status.ownerSessionId}, including its other model-created legs.</p>}
+    {status.ownerSessionId !== status.sessionId && <p className="fine-print">Counts toward parent chat {status.ownerSessionId}, together with its other model-started chats.</p>}
     {status.limits.map((limit) => <p className="fine-print" key={limit.scope}>{limit.scope === "global" ? "Global hard cap" : limit.scope === "profile" ? "Profile hard cap" : "Session cap"}: {limit.tokens === null ? "no token cap" : `${count(limit.tokens)} tokens`}; {limit.usd === null ? "no USD cap" : `${dollars(limit.usd)} estimated`}.</p>)}
     {status.diagnostics.map((diagnostic) => <Alert as="p" tone="warning" className="settings-warning" key={diagnostic}>{diagnostic}</Alert>)}
   </section>;
 }
 export function SessionBudgetSummary({ sdk, snapshot, session }: { sdk: MoguriSdk; snapshot: Snapshot; session: Session }) {
   const { status, error } = useBudgetStatus(sdk, session, snapshot);
-  return <>{status ? <BudgetSummary status={status} /> : error ? <Alert as="p" className="inline-error" role="alert">{error}</Alert> : <p role="status">Loading cumulative budget...</p>}</>;
+  return <>{status ? <BudgetSummary status={status} /> : error ? <Alert as="p" className="inline-error" role="alert">{error}</Alert> : <p role="status">Loading budget...</p>}</>;
 }
 export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDirty, disabled = false, globalPolicy }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; scope: "session" | "profile" | "global"; status?: BudgetStatus | null; globalPolicy?: GlobalBudgetPolicy;
@@ -53,53 +53,53 @@ export function BudgetLimitEditor({ sdk, snapshot, session, scope, status, onDir
   useEffect(() => {
     let current = true; setWinddown(null); setWinddownError("");
     if (routed && session) void sdk.winddown.status(session.id).then((value) => { if (current) setWinddown(value); })
-      .catch((error: unknown) => { if (current) setWinddownError(error instanceof Error ? error.message : "Actual reserved finishing readiness could not be read. No finite control was enabled."); });
+      .catch((error: unknown) => { if (current) setWinddownError(error instanceof Error ? error.message : "Couldn't check Kupo's wind-down reserve, so caps can't be set."); });
     return () => { current = false; };
   }, [sdk, routed, session?.id, snapshot.settings.revision, snapshot.policy.revision, winddownInputs]);
   const base = useRef(revision);
   const edited = useRef(false), committing = useRef(false);
   const load = () => { setLimited(Boolean(current)); setTokens(String(current?.tokens ?? "")); setUsd(String(current?.usd ?? "")); base.current = revision; edited.current = false; setDirty(false); setAccepted(false); setError(""); setNotice(""); };
-  useEffect(() => { if (revision <= base.current) return; if (!edited.current && !committing.current) load(); else if (!committing.current) setError("Budget controls changed elsewhere. Your edit is preserved; reload before saving."); }, [revision, dirty, saving]);
+  useEffect(() => { if (revision <= base.current) return; if (!edited.current && !committing.current) load(); else if (!committing.current) setError("Budget changed elsewhere. Your edit is kept; reload before saving."); }, [revision, dirty, saving]);
   useEffect(() => { onDirty?.(dirty || saving); return () => onDirty?.(false); }, [dirty, saving, onDirty]);
   const change = () => { edited.current = true; setDirty(true); setAccepted(false); setNotice(""); };
   const save = async () => {
     committing.current = true; setSaving(true); setError(""); setNotice("");
     try {
-      if (!accepted) throw new Error("Accept the estimate-based accounting and interruption warning first.");
+      if (!accepted) throw new Error("Confirm that costs are estimates and a cap can stop a chat first.");
       let limit: BudgetLimit | null = null;
       if (limited) {
         if (tokens && (!/^\d+$/.test(tokens) || !Number.isSafeInteger(Number(tokens)) || Number(tokens) < 1)) throw new Error("Use a positive whole-token cap, or leave it empty.");
         if (usd && (!Number.isFinite(Number(usd)) || Number(usd) < 0.000001)) throw new Error("Use a positive USD estimate cap of at least 0.000001, or leave it empty.");
-        if (!tokens && !usd) throw new Error("Set at least one cumulative limit.");
+        if (!tokens && !usd) throw new Error("Set a token cap, a USD cap or both.");
         limit = { basis: "estimate", ...(tokens ? { tokens: Number(tokens) } : {}), ...(usd ? { usd: Number(usd) } : {}) };
       }
       if (scope === "session" && session?.turnId) {
         await sdk.commands.control(session.id, "budget", limit ? `set ${limit.tokens ?? "-"} ${limit.usd ?? "-"} confirm-estimates` : "Unlimited");
         edited.current = false; setDirty(false); setAccepted(false);
-        setNotice("Queued for after the current turn. The cap applies when the queue reaches it; profile and global policy still apply now.");
+        setNotice("Saved for after the current turn. Profile and global caps still apply now.");
         return;
       }
       const result = scope === "global" ? await sdk.profiles.globalBudget(limit, base.current, true) : scope === "profile" ? await sdk.budgets.policy(limit, base.current, true) : session ?
         await sdk.sessions.configure(session.id, { ...session.controls, budget: limit ? { kind: "limited", ...limit } : { kind: "unlimited" } }, base.current) :
-        (() => { throw new Error("Choose a session for this budget."); })();
-      base.current = result.revision!; edited.current = false; setDirty(false); setAccepted(false); setNotice(scope === "global" ? "Global policy saved. Profile switching, source deletion and defaults cannot refund it." : scope === "profile" ? "Profile policy saved. Factory/default resets cannot remove it." : "Session budget saved. Existing usage was not reset.");
-    } catch (error) { setError(error instanceof Error ? error.message : "Budget was not saved. No cap was silently lifted."); }
+        (() => { throw new Error("Choose a chat first."); })();
+      base.current = result.revision!; edited.current = false; setDirty(false); setAccepted(false); setNotice(scope === "global" ? "Global policy saved. Switching profiles or deleting chats doesn't reset its usage." : scope === "profile" ? "Profile policy saved. Restoring defaults doesn't remove it." : "Session budget saved. Usage so far still counts.");
+    } catch (error) { setError(error instanceof Error ? error.message : "Budget wasn't saved. Existing caps still apply."); }
     finally { committing.current = false; setSaving(false); }
   };
   const locked = disabled || saving || routed && !winddown?.ready || scope === "global" && !globalPolicy || scope === "session" && Boolean(status && status.ownerSessionId !== session?.id);
   const usdUnavailable = scope === "session" && (routed ? !winddown?.usdReady : !status || !status.rate || status.totals.unpricedCalls > 0 || status.totals.plannedHolds > 0 && status.totals.plannedHeldUsd === null);
   return <section aria-label={scope === "global" ? "Global budget policy" : scope === "profile" ? "Profile budget policy" : "Session budget controls"} onKeyDown={(event) => { if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault(); }}>
-    {routed && <Alert as="p" tone="warning" className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Reading exact reserved finishing readiness..."} Profile/global caps still apply; no policy is removed here.</Alert>}
-    <label className="setting-field">{scope === "global" ? "Global hard policy" : scope === "profile" ? "Profile hard policy" : "Session preference"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited, subject to hard policy"}</option><option value="limited">Estimate-based cumulative limits</option></select></label>
+    {routed && <Alert as="p" tone="warning" className={winddown?.ready ? "fine-print" : "settings-warning"}>{winddownError || winddown?.reason || "Checking Kupo's wind-down reserve..."} Profile and global caps still apply.</Alert>}
+    <label className="setting-field">{scope === "global" ? "Global cap" : scope === "profile" ? "Profile cap" : "Session budget"}<select aria-label={`${scope} budget mode`} value={limited ? "limited" : "unlimited"} disabled={locked} onChange={(event) => { setLimited(event.target.value === "limited"); change(); }}><option value="unlimited">{scope === "global" ? "No global cap" : scope === "profile" ? "No profile cap" : "Unlimited (profile and global caps still apply)"}</option><option value="limited">Set limits (estimated)</option></select></label>
     {limited && <><label className="setting-field">Token cap<SettingsInput aria-label={`${scope} token cap`} type="number" min="1" step="1" value={tokens} disabled={locked} onChange={(event) => { setTokens(event.target.value); change(); }} /></label>
       <SettingsHelp label="More about this setting" target={<label className="setting-field">Estimated USD cap<SettingsInput aria-label={`${scope} USD cap`} type="number" min="0.000001" step="0.000001" value={usd} disabled={locked || usdUnavailable} onChange={(event) => { setUsd(event.target.value); change(); }} /></label>}>
-        {usdUnavailable && "USD caps need fresh model-specific rates and priced prior calls. Configure estimates in Settings / Budgets; unknown history cannot be reset to free."}
+        {usdUnavailable && "USD caps need current prices for this chat's models and for every earlier call. Set prices in Settings > Budgets."}
       </SettingsHelp>
       {usdUnavailable && usd && <SettingsAction label="Remove session USD limit" icon="Close" disabled={locked} onClick={() => { setUsd(""); change(); }} />}</>}
     <Alert as="p" tone="warning" className="settings-warning">{BUDGET_WARNING}</Alert>
-    <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I accept estimate-based accounting and interruption risk.</label>} descriptionFirst>Input reservations are estimated; the actual output limit is forwarded. Provider totals reconcile once. Reported overages and missing telemetry remain visible; in-flight charges cannot be undone.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" disabled={locked || !dirty} checked={accepted} onChange={(event) => setAccepted(event.target.checked)} />I understand costs are estimates and a cap can stop a chat mid-task.</label>} descriptionFirst>Moguri reserves an estimate before each call and corrects it once the provider reports usage. Calls already running can still go over.</SettingsHelp>
     <div className="button-row"><button type="button" className="primary" disabled={locked || !dirty || !accepted} aria-label={scope === "global" ? "Save global budget policy" : scope === "profile" ? "Save profile budget policy" : "Save session budget"} onClick={() => void save()}>Save</button><button type="button" disabled={saving || revision < base.current} onClick={load} aria-label="Reload budget">Reload</button></div>
-    {scope === "session" && session?.turnId && <p className="fine-print">A turn is running: saving queues this preference to apply after it. A profile policy can still block further calls now.</p>}
+    {scope === "session" && session?.turnId && <p className="fine-print">A turn is running, so this applies after it. Profile and global caps apply now.</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
   </section>;
 }

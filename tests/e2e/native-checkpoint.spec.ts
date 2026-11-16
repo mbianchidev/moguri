@@ -33,7 +33,7 @@ test("hidden desktop publishes separately accepted native work only through its 
     await review.getByLabel("Reviewed accepted-work checkpoint Git branch", { exact: true }).check();
     await review.getByRole("button", { name: "Commit on new branch from reviewed checkpoint", exact: true }).click();
     await expect.poll(() => f.sdk.winddown.list(f.sessionId)[0]?.status).toBe("completed");
-    await expect(panel.getByRole("status").filter({ hasText: "Original actual-user Git intent admitted." })).toBeVisible();
+    await expect(panel.getByRole("status").filter({ hasText: "Commit started." })).toBeVisible();
     await expect(panel).toHaveAttribute("aria-busy", "false");
     expect(f.git(["show", "moguri/generated-hidden-native-checkpoint:fixture.txt"])).toBe("Generated separately accepted native checkpoint bytes.");
     expect(f.git(["rev-parse", "HEAD"])).toBe(head); expect(await readFile(join(f.project, ".git/index"))).toEqual(index);
