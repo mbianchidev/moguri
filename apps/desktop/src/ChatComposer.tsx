@@ -649,6 +649,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         snapshot.settings.values.kupo.workflow === "auto" ? "Automatic Single / Cascade / Critique using configured models; every role is metered" :
           snapshot.settings.values.kupo.workflow === "compound" ? "Moguri / separately metered classifier, proposal and conditional roles" : "Moguri / separately metered router and solver" :
         model.source === "claude-agent" ? "Runs your installed Claude Code / Local / every tool needs Moguri approval" :
+        model.source === "codex-agent" ? "Runs your installed Codex / Local / commands and edits need Moguri approval" :
         `${model.source === "local" ? model.providerId : "GitHub Copilot"} / ${compact(model.contextWindow)} maximum context`;
       const disabled = locked || dirty || unavailable || requiresImages && !model.imageInput;
       return <div className="model-choice-row" key={model.id}><button type="button" role="menuitemradio" className="composer-menu-option" aria-checked={model.id === session.controls.modelId}

@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultClaudeAgentSettings, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -347,7 +347,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const retainedServers = [...new Set(snapshot.settings.values.remote?.mcpGrants?.map((grant) => grant.serverId) ?? [])].filter((id) => id !== "builtin" && !configuredServers.some((server) => server.id === id));
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
-  const routingModels = snapshot.provider.models.filter((model) => !model.synthetic && model.source !== "claude-agent");
+  const routingModels = snapshot.provider.models.filter((model) => !model.synthetic && !isAgentHarnessModel(model));
   const routingReady = (model: ModelInfo) => snapshot.policy.allowedEnvs.some((env) =>
     env !== "Sandbox" && routingModelReady(model, draft.kupo, env));
   const routingSolverReady = (model: ModelInfo) => routingReady(model) && model.maxTokens !== undefined &&
@@ -404,6 +404,12 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="setting-field">Claude Code executable<SettingsInput aria-label="Claude Code executable" placeholder="Found on PATH or in its install location" value={draft.claudeAgent?.executablePath ?? ""}
             onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath: event.target.value.trim() || null })} /></label>
           <p className="fine-print">Both transports launch the same executable. Moguri never runs a Claude binary bundled with the SDK. Save, then refresh available models to recheck its version and sign-in.</p>
+          <SettingsHelp label="About Codex Agent" target={<h3>Codex Agent</h3>}>Runs your own installed Codex CLI through `codex app-server` with your own `codex login` (ChatGPT or API key). Moguri never installs Codex or collects Codex credentials. Codex asks Moguri before each command and file change; it runs its own trusted read-only commands in its sandbox, and Moguri checks those against your policy afterwards. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
+          <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Codex Agent" checked={draft.codexAgent?.enabled === true}
+            onChange={(event) => change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, enabled: event.target.checked })} />Enable Codex Agent</label>
+          <label className="setting-field">Codex executable<SettingsInput aria-label="Codex executable" placeholder="Found on PATH or in its install location" value={draft.codexAgent?.executablePath ?? ""}
+            onChange={(event) => change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, executablePath: event.target.value.trim() || null })} /></label>
+          <p className="fine-print">Codex models come from your login's `model/list`. Save, then refresh available models to recheck its version, sign-in and models.</p>
           <h3>Chat names</h3>
           <label className="setting-toggle"><input type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
             setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
@@ -412,7 +418,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <option value="">Automatic in the original Env</option>
             {draft.chatTitles?.modelId && !snapshot.provider.models.some((model) => model.id === draft.chatTitles!.modelId) &&
               <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
-            {snapshot.provider.models.filter((model) => !model.synthetic && model.source !== "claude-agent").map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
+            {snapshot.provider.models.filter((model) => !model.synthetic && !isAgentHarnessModel(model)).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
           </select></label>
           <p className="fine-print">One tool-less, separately charged call after the first reply, using the first prompt's text. It prefers a configured loopback model, a current price estimate, then the actual solver model. Your Env, budget and chosen names are preserved. Legacy chats are not renamed; saving this setting does not run a model.</p>
         </>}

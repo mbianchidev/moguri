@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { approvalProject, commandFamily, type MoguriSdk, type RememberApproval, type Session } from "../../../packages/sdk/src/index.ts";
+import { agentHarnessProduct, approvalProject, commandFamily, type MoguriSdk, type RememberApproval, type Session } from "../../../packages/sdk/src/index.ts";
 
 export function ApprovalActions({ sdk, session, busy, run }: {
   sdk: MoguriSdk; session: Session; busy: boolean; run: (action: () => Promise<unknown>) => Promise<void>;
@@ -9,7 +9,7 @@ export function ApprovalActions({ sdk, session, busy, run }: {
   const approval = session.pendingApproval;
   if (!approval) return null;
   if (approval.call.harness) return <div className="approval-footer">
-    <p className="fine-print">Claude Code runs this tool itself after you approve. Approval applies to this exact call only; Moguri's file safeguards and remembered grants do not cover Claude Code tools.</p>
+    <p className="fine-print">{agentHarnessProduct(approval.call.harness)} runs this tool itself after you approve. Approval applies to this exact call only; Moguri's file safeguards and remembered grants do not cover {agentHarnessProduct(approval.call.harness)} tools.</p>
     <div className="approval-actions"><button disabled={busy} onClick={() => void run(() => sdk.approvals.respond(session.id, approval.id, false))}>Deny</button>
       <button className="primary" disabled={busy} onClick={() => void run(() => sdk.approvals.respond(session.id, approval.id, true))}>Approve this action</button></div>
   </div>;
