@@ -37,7 +37,9 @@ export function HostedProviderConnect({ provider, run, client, disabled }: {
           </form>
           <button className="quiet" onClick={() => void run(() => client.models.hosted.cancel(definition.id))}>Cancel sign-in</button>
         </div> : <button className={methods.length === 1 ? "primary" : undefined} disabled={disabled || state?.status === "connecting"}
-          onClick={() => void run(() => client.models.hosted.login(definition.id as "chatgpt"))}>{definition.id === "chatgpt" ? "Sign in with ChatGPT" : "Sign in with OpenRouter"}</button>)}
+          onClick={() => void run(() => client.models.hosted.login(definition.id as "chatgpt"))}>{definition.id === "chatgpt" ? "Continue with ChatGPT" : "Sign in with OpenRouter"}</button>)}
+        {definition.id === "chatgpt" && account?.credential && <p className="fine-print">You're using your ChatGPT plan. Eligible usage in Moguri uses your ChatGPT plan; manage it in your ChatGPT settings.{" "}
+          <button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://chatgpt.com/settings/usage"))}>Manage usage</button></p>}
         {state && <div className="button-row">
           {account?.credential && <button onClick={() => void run(() => client.models.refresh())} disabled={disabled}>Refresh</button>}
           <button className="quiet" disabled={disabled} onClick={() => void run(() => client.models.hosted.remove(definition.id))}>{account?.credential ? "Sign out and remove credential" : "Remove provider"}</button>
