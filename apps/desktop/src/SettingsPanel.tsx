@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { defaultClaudeAgentSettings, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -394,6 +394,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
           <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
+          <SettingsHelp label="About Claude Agent" target={<h3>Claude Agent</h3>}>Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text prompts.</SettingsHelp>
+          <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Claude Agent" checked={draft.claudeAgent?.enabled === true}
+            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, enabled: event.target.checked })} />Enable Claude Agent</label>
+          <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"}
+            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, transport: event.target.value === "stream-json" ? "stream-json" : "sdk" })}>
+            <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
+          </select></label>
+          <label className="setting-field">Claude Code executable<SettingsInput aria-label="Claude Code executable" placeholder="Found on PATH or in its install location" value={draft.claudeAgent?.executablePath ?? ""}
+            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath: event.target.value.trim() || null })} /></label>
+          <p className="fine-print">Both transports launch the same executable. Moguri never runs a Claude binary bundled with the SDK. Save, then refresh available models to recheck its version and sign-in.</p>
           <h3>Chat names</h3>
           <label className="setting-toggle"><input type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
             setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
