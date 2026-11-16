@@ -453,8 +453,9 @@ else {
     });
     ipcMain.handle("moguri:choose-project", async (event, purpose: unknown) => {
       trusted(event);
-      if (purpose !== undefined && purpose !== "import" && purpose !== "clone") throw new Error("Choose an import or clone folder explicitly.");
-      const result = await dialog.showOpenDialog(mainWindow!, { title: purpose === "clone" ? "Choose the parent folder for this clone" : "Import a local project folder", properties: ["openDirectory"] });
+      if (purpose !== undefined && purpose !== "import" && purpose !== "clone" && purpose !== "workspace") throw new Error("Choose an import, clone or workspace folder explicitly.");
+      const title = purpose === "clone" ? "Choose the parent folder for this clone" : purpose === "workspace" ? "Choose the workspace folder that holds your repositories" : "Import a local project folder";
+      const result = await dialog.showOpenDialog(mainWindow!, { title, message: purpose === "workspace" ? "Moguri will read this folder to find Git repositories." : undefined, buttonLabel: purpose === "workspace" ? "Choose folder" : undefined, properties: ["openDirectory"] });
       return result.canceled ? null : result.filePaths[0] ?? null;
     });
     ipcMain.handle("moguri:choose-file", async (event, projectPath: unknown) => {

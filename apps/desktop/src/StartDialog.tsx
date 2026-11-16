@@ -5,8 +5,10 @@ import { GitHubRepositoryPicker } from "./GitHubPickers.tsx";
 import { PolicyHint } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
 
-export function StartDialog({ sdk, snapshot, start, close, modal }: {
+export function StartDialog({ sdk, snapshot, start, close, modal, openRepositories }: {
   sdk: MoguriSdk; snapshot: Snapshot; start: (projectId: string | null) => Promise<void>; close: () => void; modal: (open: boolean) => void;
+  /** Opens Settings > Repositories, where workspace folders are added. */
+  openRepositories?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null), opening = useRef<string | null>(null);
   const [mode, setMode] = useState<"choose" | "clone">("choose"), [search, setSearch] = useState("");
@@ -40,14 +42,14 @@ export function StartDialog({ sdk, snapshot, start, close, modal }: {
       <button type="button" className="start-option" disabled={busy} onClick={() => void run(() => start(null))}><Icon name="Side chat" /><span><strong>New chat</strong><small>No project or workspace access</small></span></button>
       <label className="setting-field">Project<input aria-label="Find a project" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a project" /></label>
       <div className="start-projects" aria-label="Existing projects">{projects.map((project) => <button type="button" className="start-option" key={project.id} disabled={busy} onClick={() => void run(() => start(project.id))}><Icon name="Files" /><span><strong>{project.name}</strong><small>{project.path}</small></span></button>)}
-        {!projects.length && <p className="fine-print">{snapshot.projects.length ? "No matching project." : "Import a folder or clone a repository to start coding."}</p>}</div>
+        {!projects.length && <p className="fine-print">{snapshot.projects.length ? "No matching project." : "Add a workspace folder, import a folder or clone a repository to start coding."}</p>}</div>
       <footer><button type="button" disabled={busy} onClick={() => void run(async () => {
         const path = await window.moguri.chooseProject("import");
         if (!path) return;
         const project = await sdk.projects.add(path);
         if (!project.id) throw new Error("The selected folder was not registered. No chat was created.");
         await start(project.id);
-      })}><Icon name="Files" />Import local folder</button><button type="button" disabled={busy || !localAllowed} title={localAllowed ? undefined : "Local cloning is blocked by execution policy"} onClick={() => { setMode("clone"); setError(""); }}><Icon name="PR" />Clone repository</button>
+      })}><Icon name="Files" />Import local folder</button>{openRepositories && <button type="button" disabled={busy} onClick={openRepositories}><Icon name="Group" />Add workspace folder</button>}<button type="button" disabled={busy || !localAllowed} title={localAllowed ? undefined : "Local cloning is blocked by execution policy"} onClick={() => { setMode("clone"); setError(""); }}><Icon name="PR" />Clone repository</button>
         {!localAllowed && <PolicyHint label="Why cloning is unavailable" target="environments" beforeNavigate={close} navigationBlocked={busy || cloning ? "Finish or cancel the current owned action before leaving this dialog." : undefined}>Cloning runs on this Local host, which global execution policy excludes. Opening policy does not clone, authenticate or grant Local execution.</PolicyHint>}
       </footer>
     </> : <form onSubmit={(event) => {

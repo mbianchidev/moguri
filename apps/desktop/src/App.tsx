@@ -780,7 +780,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         await client.commands.choose(owned.context.clientId, owned.context.claim, choice);
         owned.settle({ outcome: "completed" });
       } : undefined} />}
-    {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} /></Suspense>}
+    {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} openRepositories={() => openSettings("repositories", undefined, closeStart)} /></Suspense>}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
       { name: "Connect GitHub Copilot", action: async () => openSettings("providers") },

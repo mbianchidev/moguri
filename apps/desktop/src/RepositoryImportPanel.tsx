@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { successfulImportItem, type MoguriSdk, type RepositoryImportPreview, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { WorkspaceFolderPanel } from "./WorkspaceFolderPanel.tsx";
 
 export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject }: {
   sdk: MoguriSdk; snapshot: Snapshot; onDirty: (dirty: boolean) => void; configureProject: (id: string) => void;
@@ -10,7 +11,7 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
   const [preview, setPreview] = useState<RepositoryImportPreview | null>(null), [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [selectedId, setSelectedId] = useState("");
   const [original, setOriginal] = useState<RepositoryImportPreview["document"] | null>(null);
-  const [inspected, setInspected] = useState<number[]>([]);
+  const [inspected, setInspected] = useState<number[]>([]), [folderDirty, setFolderDirty] = useState(false);
   const pending = useRef(false), owner = useRef(sdk); owner.current = sdk;
   const batches = [...snapshot.repositoryImports].reverse(), selected = batches.find((batch) => batch.id === selectedId) ?? batches[0];
   const active = batches.find((batch) => batch.status === "running"), localAllowed = snapshot.policy.allowedEnvs.includes("Local");
@@ -19,7 +20,7 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
     snapshot.projects.map((project) => [project.id, project.path]), snapshot.projectConfigurations.map((configuration) => [configuration.projectId, configuration.revision])]);
   useEffect(() => { setPreview(null); setReviewed(false); }, [revisionKey]);
   useEffect(() => { setInspected([]); }, [selected?.id, selected?.revision]);
-  useEffect(() => { onDirty(Boolean(text) || busy); return () => onDirty(false); }, [text, busy, onDirty]);
+  useEffect(() => { onDirty(Boolean(text) || busy || folderDirty); return () => onDirty(false); }, [text, busy, folderDirty, onDirty]);
   const invalidate = () => { setPreview(null); setReviewed(false); setError(""); };
   const run = async (operation: (owned: () => boolean) => Promise<void>) => {
     if (pending.current) return;
@@ -30,8 +31,11 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
   };
   return <section aria-label="Repository management" aria-busy={busy}>
     <h2>Repositories</h2>
-    <p className="fine-print">Clone a list of repositories into this profile's Local projects, after previewing each URL and destination.</p>
-    {!localAllowed && <Alert as="p" tone="warning">Your execution policy blocks Local, so repositories can't be imported here.</Alert>}
+    <p className="fine-print">Add projects from a folder on this Mac, or clone them from their URLs.</p>
+    <WorkspaceFolderPanel sdk={sdk} snapshot={snapshot} onDirty={setFolderDirty} />
+    <h3>Clone from URLs</h3>
+    <p className="fine-print">Clone a list of repositories into a folder you choose, after previewing each URL and destination.</p>
+    {!localAllowed && <Alert as="p" tone="warning">Your execution policy blocks Local, so repositories can't be cloned here.</Alert>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <form onSubmit={(event) => { event.preventDefault(); void run(async (owned) => {
       const result = await sdk.projects.imports.preview({ text, parent }); if (owned()) { setPreview(result.preview); setReviewed(false); }

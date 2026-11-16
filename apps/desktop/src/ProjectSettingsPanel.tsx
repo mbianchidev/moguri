@@ -13,6 +13,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   available?: boolean; discardUnavailable?: () => void;
 }) {
   const [values, setValues] = useState<ProjectSettings>(defaultProjectSettings);
+  const sourceFolder = project.workspaceFolderId ? snapshot.workspaceFolders.find((folder) => folder.id === project.workspaceFolderId)?.root.root ?? "a workspace folder" : null;
   const [committed, setCommitted] = useState<ProjectSettings>(defaultProjectSettings);
   const [revision, setRevision] = useState(0);
   const [loaded, setLoaded] = useState(false);
@@ -123,7 +124,9 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       <label className="setting-field">{label}<SettingsTextarea aria-label={`Project ${label}`} maxLength={65536} readOnly={!Object.hasOwn(values.guidance ?? {}, key)} value={values.guidance?.[key] ?? snapshot.settings.values.guidance?.[key] ?? ""} onChange={(event) => change("guidance", { ...values.guidance, [key]: event.target.value })} /></label>
       <button type="button" className="primary" aria-label={`Save project ${label}`} disabled={!Object.hasOwn(values.guidance ?? {}, key) || values.guidance?.[key] === committed.guidance?.[key]} onClick={() => void workflow(key, "save")}>Save</button>
     </div>)}
-    <h3>Repository</h3><div className="project-settings-grid">
+    <h3>Repository</h3>
+    {sourceFolder && <p className="fine-print project-source">Added from <code className="path">{sourceFolder}</code>. Moguri only reads this repository: every session works in its own worktree.</p>}
+    <div className="project-settings-grid">
       {repositories?.complete && repositories.roots.length === 1 && <label className="setting-field">Upstream<SettingsInput value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>}
       <label className="setting-field">Main branch<SettingsInput value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
     <p className="fine-print">{!repositories ? "Checking the repository layout..."
@@ -131,9 +134,9 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
         : `${repositories.complete ? "No Git repository found in this folder." : repositories.diagnostic} Upstream needs exactly one, including nested ones.`}</p>
     <label className="setting-field">Branch name pattern<SettingsInput value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     <div className="project-settings-grid">
-      <label className="setting-field">New Local Git tasks run in<select aria-label="Default project workspace" value={values.repo.workspaceMode ?? "worktree"}
-        onChange={(event) => automatic("repo", { workspaceMode: parse(ProjectWorkspaceModeSchema, event.target.value) })}>
-        <option value="worktree">A new worktree (default)</option><option value="checkout">This folder's checkout</option>
+      <label className="setting-field">New Local Git tasks run in<select aria-label="Default project workspace" value={sourceFolder ? "worktree" : values.repo.workspaceMode ?? "worktree"}
+        disabled={Boolean(sourceFolder)} onChange={(event) => automatic("repo", { workspaceMode: parse(ProjectWorkspaceModeSchema, event.target.value) })}>
+        <option value="worktree">{sourceFolder ? "A new worktree (always)" : "A new worktree (default)"}</option>{!sourceFolder && <option value="checkout">This folder's checkout</option>}
       </select></label>
       <label className="setting-field">After code changes<select aria-label="Default pull request workflow" value={values.repo.pullRequests ?? "draft"}
         onChange={(event) => automatic("repo", { pullRequests: parse(ProjectPullRequestModeSchema, event.target.value) })}>
@@ -144,8 +147,9 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     {saveButton("repo", "Save repository settings")}
     <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
       disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />
-    <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={committed.repo.upstream}
-      disabled={!available || !loaded || dirty || busy} onDirty={setRemoteDirty} />
+    {project.workspaceFolderId ? <p className="fine-print">Moguri doesn't change this repository's remotes because it only reads projects from a workspace folder.</p> :
+      <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={committed.repo.upstream}
+        disabled={!available || !loaded || dirty || busy} onDirty={setRemoteDirty} />}
     <p className="fine-print">Branch pattern placeholders: {"{slug}"}, {"{id}"}. This folder's checkout never switches on its own.</p>
     <SettingsHelp label="More about this setting" target={<label className="setting-field">GitHub read access<select aria-label="GitHub read access" value={values.repo.githubAccess} onChange={(event) => automatic("repo", { githubAccess: event.target.value === "gh-cli" ? "gh-cli" : "public" })}><option value="public">Public GitHub API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>}>How Moguri reads this repository's GitHub data. Remote chats use the SSH host's account, shown before each lookup; linked-PR checks always run from this Mac.</SettingsHelp>
     <SettingsHelp label="More about this setting" target={<h3>New-session defaults</h3>}>Applies only to new sessions in this project. Policy limits still apply.</SettingsHelp>{json("defaults", "Project startup control overrides")}

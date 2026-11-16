@@ -20,7 +20,7 @@ export interface DesktopBridge {
   startupStatus(): Promise<DesktopStartupStatus>;
   reconnectStartup(revision: number): Promise<{ requested: true }>;
   profile(profileId?: string): Promise<string>;
-  chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
+  chooseProject(purpose?: "import" | "clone" | "workspace"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   chooseVoiceModel(): Promise<string | null>;
