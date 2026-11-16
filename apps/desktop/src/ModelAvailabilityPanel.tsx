@@ -27,7 +27,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
     <p className="fine-print">Available models refresh when the app opens. Refresh here after changing your provider account or running models; no sign-in or inference is started.</p>
     <SettingsHelp label="About provider availability" target={<h3>Generative providers</h3>}>These preferences belong to this profile. Disabling a provider retains its login and configuration but blocks new model selections and admissions. Existing calls keep their actual outcome and charges. Enabling never signs in or starts inference.</SettingsHelp>
     <div className="model-provider-list">{catalogue.providers.map((provider) => <div className="model-provider-row" key={provider.id}>
-      <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
+      <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : provider.scope === "agent" ? `Your installed ${provider.source === "codex-agent" ? "Codex" : "Claude Code"}` : provider.scope === "hosted" ? "Your hosted account" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
         {provider.diagnostic && <small>{provider.diagnostic}</small>}</div>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable provider ${provider.name}`}
         checked={change?.kind === "provider" && change.id === provider.id ? change.enabled : provider.enabled} disabled={disabled || busy}

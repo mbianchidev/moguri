@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -16,6 +16,7 @@ import { GitHubWorkflowPanel } from "./GitHubWorkflowPanel.tsx";
 import { LinearWorkflowPanel } from "./LinearWorkflowPanel.tsx";
 import { ProfileSwitcher } from "./ProfileSwitcher.tsx";
 import { ProviderConnect } from "./ProviderConnect.tsx";
+import { HostedProviderConnect } from "./HostedProviderConnect.tsx";
 import { SessionManagement } from "./SessionManagement.tsx";
 import { GitHubConnectionPanel, LinearConnectionPanel } from "./IntegrationConnections.tsx";
 import { useDictation, useDictationTranscript } from "./useDictation.ts";
@@ -347,7 +348,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const retainedServers = [...new Set(snapshot.settings.values.remote?.mcpGrants?.map((grant) => grant.serverId) ?? [])].filter((id) => id !== "builtin" && !configuredServers.some((server) => server.id === id));
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
-  const routingModels = snapshot.provider.models.filter((model) => !model.synthetic);
+  const routingModels = snapshot.provider.models.filter((model) => !model.synthetic && !isAgentHarnessModel(model));
   const routingReady = (model: ModelInfo) => snapshot.policy.allowedEnvs.some((env) =>
     env !== "Sandbox" && routingModelReady(model, draft.kupo, env));
   const routingSolverReady = (model: ModelInfo) => routingReady(model) && model.maxTokens !== undefined &&
@@ -394,6 +395,23 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Model-provider authentication is separate from GitHub repository integration. Configure Local endpoints under Local models. No provider is substituted when a connection fails.</SettingsHelp>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
           <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
+          <HostedProviderConnect provider={snapshot.provider} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
+          <SettingsHelp label="About Claude Agent" target={<h3>Claude Agent</h3>}>Runs your own installed, unmodified Claude Code with your own sign-in. Sign in with `claude auth login` in your terminal; Moguri never installs Claude Code or collects Claude credentials. Claude Code makes its own model calls and runs its own tools after Moguri approves each call. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
+          <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Claude Agent" checked={draft.claudeAgent?.enabled === true}
+            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, enabled: event.target.checked })} />Enable Claude Agent</label>
+          <label className="setting-field">Claude Agent transport<select aria-label="Claude Agent transport" value={draft.claudeAgent?.transport ?? "sdk"}
+            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, transport: event.target.value === "stream-json" ? "stream-json" : "sdk" })}>
+            <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
+          </select></label>
+          <label className="setting-field">Claude Code executable<SettingsInput aria-label="Claude Code executable" placeholder="Found on PATH or in its install location" value={draft.claudeAgent?.executablePath ?? ""}
+            onChange={(event) => change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath: event.target.value.trim() || null })} /></label>
+          <p className="fine-print">Both transports launch the same executable. Moguri never runs a Claude binary bundled with the SDK. Save, then refresh available models to recheck its version and sign-in.</p>
+          <SettingsHelp label="About Codex Agent" target={<h3>Codex Agent</h3>}>Runs your own installed Codex CLI through `codex app-server` with your own `codex login` (ChatGPT or API key). Moguri never installs Codex or collects Codex credentials. Codex asks Moguri before commands and file changes; anything it runs without asking (its own exec-policy rules, or known-safe reads in older versions) is checked against your policy afterwards. Local only, Unlimited budget, text and pasted text.</SettingsHelp>
+          <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable Codex Agent" checked={draft.codexAgent?.enabled === true}
+            onChange={(event) => change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, enabled: event.target.checked })} />Enable Codex Agent</label>
+          <label className="setting-field">Codex executable<SettingsInput aria-label="Codex executable" placeholder="Found on PATH or in its install location" value={draft.codexAgent?.executablePath ?? ""}
+            onChange={(event) => change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, executablePath: event.target.value.trim() || null })} /></label>
+          <p className="fine-print">Codex models come from your login's `model/list`. Save, then refresh available models to recheck its version, sign-in and models.</p>
           <h3>Chat names</h3>
           <label className="setting-toggle"><input type="checkbox" checked={draft.chatTitles?.enabled !== false} onChange={(event) =>
             setDraft({ ...draft, chatTitles: { enabled: event.target.checked, modelId: draft.chatTitles?.modelId ?? null } })} />Summarize new chat topics automatically</label>
@@ -402,7 +420,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <option value="">Automatic in the original Env</option>
             {draft.chatTitles?.modelId && !snapshot.provider.models.some((model) => model.id === draft.chatTitles!.modelId) &&
               <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
-            {snapshot.provider.models.filter((model) => !model.synthetic).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
+            {snapshot.provider.models.filter((model) => !model.synthetic && !isAgentHarnessModel(model)).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
           </select></label>
           <p className="fine-print">One tool-less, separately charged call after the first reply, using the first prompt's text. It prefers a configured loopback model, a current price estimate, then the actual solver model. Your Env, budget and chosen names are preserved. Legacy chats are not renamed; saving this setting does not run a model.</p>
         </>}
@@ -553,8 +571,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
 
           {snapshot.provider.connections?.filter((connection) => connection.id.startsWith("local.")).map((connection) => <div className="capability-row" key={connection.id}><div><strong>{connection.name}</strong><small>{connection.status}{connection.diagnostic ? ` / ${connection.diagnostic}` : ""}</small></div></div>)}
           <button disabled={dirty || saving} onClick={() => void run(() => sdk.models.refresh())} aria-label="Refresh models">Refresh</button>
-          <SettingsHelp label="More about this setting" target={<h3>Endpoint credentials</h3>}>Save bearer-auth configuration first. Keys bind to the exact endpoint and stay in the profile's secret backend, never this JSON or model context.</SettingsHelp>
-          <label className="setting-field">Credential endpoint<select aria-label="Local model credential endpoint" value={modelEndpoint} onChange={(event) => { setModelEndpoint(event.target.value); setModelKey(""); }}><option value="">Choose endpoint</option>{snapshot.settings.values.localModels.filter((endpoint) => endpoint.enabled && endpoint.auth === "bearer").map((endpoint) => <option key={endpoint.id} value={endpoint.id}>{endpoint.name}</option>)}</select></label>
+          <SettingsHelp label="More about this setting" target={<h3>Endpoint credentials</h3>}>Save bearer or header auth configuration first (`"auth": "header"` with `"authHeader": "api-key"` sends the key in that header). Keys bind to the exact endpoint and stay in the profile's secret backend, never this JSON or model context. Plain `headers` must not carry credentials; `"discovery": false` uses only the listed model IDs.</SettingsHelp>
+          <label className="setting-field">Credential endpoint<select aria-label="Local model credential endpoint" value={modelEndpoint} onChange={(event) => { setModelEndpoint(event.target.value); setModelKey(""); }}><option value="">Choose endpoint</option>{snapshot.settings.values.localModels.filter((endpoint) => endpoint.enabled && endpoint.auth !== "none").map((endpoint) => <option key={endpoint.id} value={endpoint.id}>{endpoint.name}</option>)}</select></label>
           <label className="setting-field">API key<SettingsInput type="password" autoComplete="off" value={modelKey} maxLength={32768} onChange={(event) => setModelKey(event.target.value)} /></label>
           <div className="button-row"><button disabled={dirty || saving || !modelEndpoint || !modelKey} onClick={() => void run(async () => { await sdk.models.setToken(modelEndpoint, modelKey); setModelKey(""); return "Credential stored. Inspect endpoint discovery status before selecting a model."; })} aria-label="Store endpoint key">Store</button><button disabled={dirty || saving || !modelEndpoint} onClick={() => void run(() => sdk.models.clearToken(modelEndpoint))} aria-label="Remove endpoint key">Remove</button></div></>}
         {tab === "remote" && <><SettingsHelp label="More about this setting" target={<h2>Remote SSH</h2>}>Run the agent, its file/command tools and inference on an explicitly approved SSH host. The local service keeps authority and history. SSH is not SendBox isolation.<br /><br />Set each project's canonical remotePath in Project settings. A localhost model endpoint belongs to the SSH host, not this Mac. Declare remote endpoints in models with the same explicit limits as Local models.<br /><br />Review Remote MCP resources and separate access-forwarding grants under MCP gateway. Selecting Remote never grants MCP access. Explicit user consoles use their own captured SSH owner/root, not a Local shell or SendBox isolation. Repository-memory retrieval and transferred Local scripts remain unavailable.</SettingsHelp>

@@ -1,9 +1,83 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **101**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **108**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Claude Agent
+
+Claude Agent runs your own installed Claude Code inside a Moguri chat. Claude Code
+makes its own model calls and runs its own tools; Moguri asks you to approve each
+tool call and records the conversation. See the
+[Claude Agent contract](architecture/agent-harnesses.md).
+
+1. Install Claude Code with its official installer
+   (<https://code.claude.com/docs/en/setup>). Moguri never installs it.
+2. Sign in from your own terminal with `claude auth login`, or set your own
+   `ANTHROPIC_API_KEY` or cloud-provider variables before starting Moguri. Moguri
+   never shows a Claude sign-in button or reads Claude credentials.
+3. In **Settings / Model providers / Claude Agent**, enable Claude Agent. Optionally
+   choose the transport (`Claude Agent SDK`, the default, or
+   `Claude Code stream-json protocol`) and an absolute executable path if `claude`
+   is not on `PATH` or in its standard install locations. Save, then
+   **Refresh available models**.
+4. Choose **Claude Agent / Sonnet**, **Opus** or **Haiku** in the composer's Model
+   control, in a project or a Home-bound chat.
+
+Limits in this release: Local only, Unlimited budget with no profile or global
+cap, ordinary single-root chats, text and pasted text only, Queue or Interrupt delivery
+(no Steer), and Manual, Guided or Autopilot. Each tool approval applies once.
+Read-only chats run Claude in plan mode and deny edits and commands. The usage
+notice after each turn shows Claude Code's cumulative session totals and its own
+cost estimate, which is not a bill and never counts toward Moguri budgets.
+
+## Codex Agent
+
+Codex Agent runs your own installed Codex CLI through `codex app-server` inside a
+Moguri chat. See the [Codex Agent contract](architecture/agent-harnesses.md#codex-agent).
+
+1. Install Codex with OpenAI's installer (<https://developers.openai.com/codex/cli>).
+   Moguri never installs it.
+2. Sign in from your own terminal with `codex login` (Sign in with ChatGPT or an
+   API key). Moguri never reads Codex credentials.
+3. In **Settings / Model providers / Codex Agent**, enable it and optionally set an
+   absolute executable path. Save, then **Refresh available models**. Your login's
+   Codex models appear as **Codex Agent / ...**.
+
+Codex asks Moguri before commands and file changes. Anything it runs without
+asking (your own Codex exec-policy rules, or known-safe reads in Codex before
+0.149) is accepted only when Moguri's read policy allows it, otherwise recorded as
+unconfirmed. Web search is disabled for these threads. Codex Agent is blocked when
+your default tool decision is deny. Other limits match Claude Agent; usage notices
+show Codex's token totals without a cost estimate.
+
+## Hosted providers and custom endpoints
+
+Settings / Model providers lists OpenRouter, Anthropic API, OpenAI API and ChatGPT
+account next to GitHub Copilot. See the
+[hosted provider contract](architecture/hosted-providers.md).
+
+- **OpenRouter:** paste an API key, or **Sign in with OpenRouter**, which creates a
+  key you control.
+- **Anthropic API:** paste an API key from the Claude Console. Claude.ai
+  subscription sign-in and subscription tokens are not supported.
+- **OpenAI API:** paste an API key; usage is billed by the OpenAI API.
+- **ChatGPT account:** **Continue with ChatGPT** uses your ChatGPT plan through
+  Sign in with ChatGPT. If the browser cannot reach this computer, paste the final
+  redirect URL. Port 1455 must be free (cancel a pending `codex login` first).
+
+Keys and sign-in tokens are stored in the OS keychain. **Sign out and remove
+credential** deletes them. In the TUI use `/api-key openrouter|anthropic|openai`,
+`/connect chatgpt|openrouter`, `/login-code PROVIDER`, `/cancel-login PROVIDER`
+and `/disconnect PROVIDER`. Hosted models run in the Local Env only.
+
+Custom OpenAI-compatible endpoints (Settings / Local models) accept any HTTPS base
+URL or loopback HTTP. Optional fields: `"auth": "header"` with `"authHeader":
+"api-key"` sends the stored key in that header; `"headers": {"X-Org": "..."}` adds
+plain, non-secret headers; `"discovery": false` uses only the listed model IDs
+without calling `GET /models`. Store the key under **Endpoint credentials** or with
+`/model-token ENDPOINT`. Credential-like header names are rejected in `headers`.
 
 ## Inbox and explicit skill loading
 
