@@ -63,7 +63,7 @@ export function CompoundPanel({ sdk, snapshot, session, envStages = [], reposito
     setInputOwner(null); setBaseline(""); setPreview(null); setCostReviewed(false); setError("");
   };
   return <section className="candidate-section" aria-label="Public compound workflows" aria-busy={Boolean(busy)}>
-    <SettingsHelp label="More about this setting" target={<h2>Reviewed Cascade / Critique</h2>}>Roles and reviewed project scripts execute on the selected Env. Local/SSH commands do not imply OS isolation. Sandbox uses its original owned private snapshot, never controller Git. Exact project-test approval and source application are separate decisions.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Reviewed Cascade / Critique</h3>}>Roles and reviewed project scripts execute on the selected Env. Local/SSH commands do not imply OS isolation. Sandbox uses its original owned private snapshot, never controller Git. Exact project-test approval and source application are separate decisions.</SettingsHelp>
     <p className="fine-print">{COMPOUND_EVIDENCE_WARNING}</p>
 
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
@@ -119,7 +119,7 @@ export function CompoundPanel({ sdk, snapshot, session, envStages = [], reposito
     <label className="setting-field">Retained compound workflow<select aria-label="Retained compound workflow" value={selected?.id ?? ""} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       {!workflows.length && <option value="">No retained public workflows</option>}{workflows.map((workflow) => <option key={workflow.id} value={workflow.id}>{snapshot.artifacts.find((artifact) => artifact.id === workflow.id)?.name ?? workflow.id} / {workflow.status}</option>)}</select></label>
     {value && <div className="candidate-section">
-      <h3 ref={outcomeHeading} tabIndex={-1}>Compound {value.workflow.status}</h3>
+      <h4 ref={outcomeHeading} tabIndex={-1}>Compound {value.workflow.status}</h4>
       <p className="fine-print">Phase: {value.workflow.phase}. {value.workflow.route ? `Classifier selected ${value.workflow.route.pattern}.` : "No route accepted."} No source acceptance or Git operation is implied.</p>
       {value.workflow.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.workflow.diagnostic}</Alert>}
       {ownRunning && <button disabled={Boolean(busy)} onClick={() => void run("Requesting owned workflow stop", async () => { await sdk.compound.stop(value.workflow.id); })} aria-label="Stop this compound workflow">Stop</button>}
@@ -129,8 +129,8 @@ export function CompoundPanel({ sdk, snapshot, session, envStages = [], reposito
         <p className="fine-print path">{document.stage.root}<br /><code>{document.command}</code></p><p className="fine-print">Decision: {validation.decision?.actor ?? "not supplied"}. Dispatched: {String(validation.dispatched)}. Exit: {result?.exitCode ?? "unreported"}. Candidate unchanged: {result ? String(result.candidateUnchanged) : "unreported"}.</p>
         {result && <pre>{result.text}</pre>}{validation.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{validation.diagnostic}</Alert>}</details>)}
       {review && <section className="candidate-binding" aria-label="Exact compound staging and test review">
-        <h3 ref={reviewHeading} tabIndex={-1}>Review exact candidate staging and host tests</h3>
-        <h4>Plan</h4><pre>{review.document.proposal.plan}</pre><h4>Architecture</h4><pre>{review.document.proposal.architecture}</pre>
+        <h4 ref={reviewHeading} tabIndex={-1}>Review exact candidate staging and host tests</h4>
+        <h5>Plan</h5><pre>{review.document.proposal.plan}</pre><h5>Architecture</h5><pre>{review.document.proposal.architecture}</pre>
         <p className="fine-print path">Source unchanged: {review.document.source.root}<br />Owned candidate: {review.document.stage.root}</p>
         {review.document.proposal.patch.edits.map((edit) => <details key={edit.path} open><summary>{edit.path} / original base {edit.baseDigest}</summary><pre>{edit.text}</pre></details>)}
         <Alert as="p" tone="warning" className="settings-warning">This executes project code on {review.document.stage.env === "Sandbox" ? "the actual native guest's private candidate snapshot, not the live Local repository" : review.document.stage.env === "Remote" ? "the original pinned SSH peer, not the controller; SSH is not OS isolation" : "the Local host, not in Sandbox"}. No automatic dependency install. Hard denials and folder restrictions still win.</Alert>

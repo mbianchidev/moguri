@@ -105,6 +105,20 @@ like adding, enabling or removing a skill source, or confirming a global skill
 folder, also save immediately. A refused save keeps the attempted value visible
 with the error and never overwrites another client's revision.
 
+Every Settings page follows one anatomy so pages read alike:
+
+| Element | Rule |
+| --- | --- |
+| Page title | One `h2` per page (22px). Sections are `h3`, subsections `h4`, detail groups `h5`; embedded panels never add a second page-level `h2`. |
+| Scope control | A page that acts on a chosen chat (Artifacts, Candidates, Sandbox, Skills) shows its source-chat select on the title row, right-aligned, like the Suggestions scope. It never sits above the title. |
+| Column | Fields, editors, cards, tables and warnings share one 850px column; running text keeps a 76ch measure. |
+| Groups | A fieldset with a `legend` is a titled card (subtle surface, 10px radius; nested cards use the main surface). A fieldset without a legend is an invisible wrapper. A titled group that carries its own information button stays unboxed so the title lines up with the button. |
+| Disclosures | Every `details` uses one chevron that rotates when open; rows with their own chevron or folder icon opt out. A collapsed disclosure is never boxed. |
+| Switches | Choices that save immediately are switches with 12px row rhythm; review or consent acknowledgements stay checkboxes. |
+| Tables | Left-aligned, muted 11px headers, row dividers, no outer border. |
+| Actions in flex panels | Buttons keep their natural width (`align-self: flex-start`) instead of stretching across the column. |
+| Empty lists | A section heading is always followed by content or a one-line empty state. |
+
 Settings is a full main-pane task surface, with a category rail, persistent save
 state and explicit warning/reset actions. It exposes the shared SDK rather than
 owning capability behavior. Dirty settings survive tab changes and block

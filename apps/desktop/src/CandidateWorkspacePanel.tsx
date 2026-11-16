@@ -29,7 +29,7 @@ export function CandidateWorkspacePanel({ sdk, session, scope, writable, onWorks
     finally { pending.current = false; setBusy(false); }
   };
   return <section className="candidate-section" aria-label="Owned candidate Env workspaces" aria-busy={busy}>
-    <h3>{session.controls.env} owned candidate stages</h3>
+    <h4>{session.controls.env} owned candidate stages</h4>
     <p className="fine-print">Create each resource explicitly. Remote uses a detached peer Git worktree; Sandbox uses only its original private snapshot. No branch, live Local source, source acceptance or native-to-Local publication is implied. Resources are retained independently when a proposal/session is removed.</p>
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <label className="setting-field">Resource name<SettingsInput aria-label="Candidate workspace name" value={name} disabled={busy || !writable}

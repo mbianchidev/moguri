@@ -76,8 +76,9 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   };
   return <section className="artifact-panel" aria-label="Retained artifacts" aria-busy={busy}
     data-editing-artifact-id={draft?.id ?? (draft ? "new" : "")} data-editing-revision={draft?.revision}>
-    <p className="fine-print">Retained text, independent of sessions. Never automatic instructions or model context; media is not copied.</p>
     <DecisionPanel sdk={sdk} snapshot={snapshot} session={session} selection={decision?.id} />
+    <h3>Retained documents</h3>
+    <p className="fine-print">Retained text, independent of sessions. Never automatic instructions or model context; media is not copied.</p>
     <div className="panel-toolbar"><label className="setting-field">Document<select aria-label="Retained artifact" value={draft?.id ?? ""} disabled={busy || dirty} onChange={(event) => { const id = event.target.value; if (id) void run(() => load(id)); }}>
       <option value="">Choose a retained document</option>{documents.map((artifact) => <option key={artifact.id} value={artifact.id}>{artifact.name} / {artifact.kind} / {artifact.projectId ? snapshot.projects.find((project) => project.id === artifact.projectId)?.name ?? "Former project" : "Profile"}{artifact.folderId ? ` / ${snapshot.projectFolders.find((folder) => folder.id === artifact.folderId)?.name ?? "Former folder"}` : ""}{artifact.workItemId ? ` / #${snapshot.issues.find((issue) => issue.id === artifact.workItemId)?.number ?? "?"}` : ""}{artifact.status === "archived" ? " / archived" : ""}</option>)}
     </select></label><button className="icon-button" aria-label="New artifact" title="New retained document" disabled={busy || dirty} onClick={fresh}><Icon name="Plus" /></button></div>

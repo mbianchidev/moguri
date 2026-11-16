@@ -71,6 +71,7 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
     </>}
     <button disabled={busy} onClick={() => { setDirty(false); setReviewed(false); setPreview(null); setError(""); }} aria-label="Discard uncommitted review">Discard</button>
     <h3>Installed capabilities</h3>
+    {!entries.length && <p className="fine-print">Nothing installed yet. Reviewed bundles appear here after Install.</p>}
     <div className="button-row">{entries.map((entry) => <button key={entry.id} disabled={busy} onClick={() => void run(async () => { await read(entry); setHistory([]); })}>{entry.name}: {entry.retired ? "removed" : entry.enabled ? "enabled" : "disabled"}</button>)}</div>
     {selected && actual && <><h3>{selected.entry.name}</h3><pre>{selected.content}</pre><p className="fine-print">Content SHA-256 <code>{selected.entry.contentDigest}</code>, current revision {selected.currentRevision}.</p>
       {stale && <Alert as="p" role="alert" className="settings-warning">Another client changed this capability. Review its current content again; this old review cannot enable or replace it.</Alert>}

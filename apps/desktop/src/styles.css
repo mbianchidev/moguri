@@ -144,8 +144,11 @@ svg { flex-shrink: 0; }
 .artifact-panel .artifact-role-sequence p { margin: 0; }
 .artifact-history { display: flex; flex-direction: column; align-items: start; gap: 6px; margin-top: 8px; }
 .candidate-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.settings-content .candidate-panel { max-width: 850px; }
+.settings-content :is(.candidate-panel, .candidate-section) > button { align-self: flex-start; }
 .candidate-panel p { margin: 0; }
 .candidate-panel .setting-field { margin: 0; min-width: 0; }
+.candidate-panel details > :is(.setting-field, .setting-editor) { margin-top: 12px; }
 .candidate-panel input, .candidate-panel select, .candidate-panel textarea { width: 100%; }
 .candidate-panel textarea { min-height: 180px; padding: 9px; line-height: 1.6; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; tab-size: 2; }
 .candidate-panel textarea.generation-task { min-height: 104px; font-family: inherit; font-size: inherit; }
@@ -509,7 +512,13 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: auto; line-hei
 .markdown :not(pre) > code { background: var(--code); padding: 2px 4px; border-radius: 3px; }
 .markdown table { border-collapse: collapse; font-size: 12px; max-width: 100%; display: block; overflow: auto; }
 .markdown th, .markdown td { border: 1px solid var(--line); padding: 7px 10px; }
-summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
+summary { font-size: 12px; line-height: 1.7; color: var(--muted); list-style: none; }
+summary::-webkit-details-marker { display: none; }
+/* One disclosure affordance app-wide; rows with their own chevron or folder icon opt out. */
+summary::before { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 10px 2px 2px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform 120ms ease-out; vertical-align: middle; }
+details[open] > summary::before { transform: rotate(45deg); }
+:is(.activity-row, .project-folder) > summary::before { content: none; }
+summary:hover { color: var(--text); }
 .reasoning { white-space: pre-wrap; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .outcome { color: var(--muted); font-size: 10px; }
 .load-history { display: block; margin: 0 auto 24px; font-size: 12px; }
@@ -750,6 +759,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .event-trace summary { font: 10px/1.7 ui-monospace, monospace; overflow-wrap: anywhere; }
 .call-record { padding: 10px 0; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; font-size: 10px; overflow-wrap: anywhere; }
 .call-record small { color: var(--muted); }
+.budget-summary { margin-top: 20px; }
+.budget-summary > strong, .budget-summary > .settings-help-row > strong { display: block; margin-bottom: 4px; }
 .policy-settings p { line-height: 1.75; font-size: 12px; color: var(--muted); margin: 10px 0 16px; }
 .settings-content .settings-lead { margin: -4px 0 8px; }
 .provider-list { container-type: inline-size; display: flex; flex-direction: column; gap: 10px; max-width: 850px; margin-bottom: 8px; }
@@ -927,6 +938,27 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .settings-fields, .project-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .settings-fields > h2, .settings-fields > .settings-help-row > h2 { font-size: 22px; font-weight: 550; letter-spacing: -.4px; margin: 0 0 14px; }
 .settings-content h3 { font-size: 14px; font-weight: 650; margin: 32px 0 14px; }
+.settings-content h4 { font-size: 13px; font-weight: 600; margin: 22px 0 10px; }
+.settings-content h5 { font-size: 12px; font-weight: 600; margin: 16px 0 8px; color: var(--muted); }
+/* Page title with an optional scope control on the same row, matching the Suggestions header. */
+.settings-page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; margin: 0 0 18px; }
+.settings-page-header > h2, .settings-page-header > .settings-help-row > h2 { font-size: 22px; font-weight: 550; letter-spacing: -.4px; margin: 0; }
+.settings-content .settings-page-header > .settings-help-row { margin: 0; }
+.settings-scope { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.settings-scope select { min-height: 32px; width: auto; max-width: 280px; color: var(--text); }
+/* Fieldsets are invisible wrappers unless they carry a legend; a titled group reads as one card. */
+.settings-content fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.settings-content fieldset:has(> legend) { border: 1px solid var(--line); border-radius: 10px; background: var(--subtle); padding: 14px 16px 16px; margin: 16px 0; max-width: 850px; }
+.settings-content fieldset fieldset:has(> legend) { background: var(--surface); }
+.settings-content fieldset:has(> legend) > legend { float: left; width: 100%; padding: 0; margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+.settings-content fieldset:has(> legend) > legend + * { clear: both; }
+.settings-content fieldset:has(> legend) > :last-child { margin-bottom: 0; }
+/* A titled group with its own information button keeps the title on the button's line. */
+.settings-content .settings-help-row > fieldset:has(> legend) { border: 0; padding: 0; margin: 0; background: transparent; }
+.settings-content .settings-help-row > fieldset:has(> legend) > legend { padding-block: 3px; line-height: 20px; }
+:where(.settings-content) table { width: 100%; max-width: 850px; border-collapse: collapse; font-size: 12px; margin: 8px 0 16px; }
+:where(.settings-content) :is(th, td) { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+:where(.settings-content) th { color: var(--muted); font-size: 11px; font-weight: 600; }
 .settings-content p { color: var(--muted); line-height: 1.8; font-size: 13px; max-width: 76ch; }
 .settings-content .fine-print { font-size: 12px; line-height: 1.65; }
 .setting-editor { margin-bottom: 22px; max-width: 850px; }
@@ -938,20 +970,21 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .setting-field .json-editor { min-height: 260px; font: 12px/1.7 ui-monospace, monospace; }
 .setting-field .json-editor.short { min-height: 110px; }
 .settings-page :is(pre, code, .json-editor) { font-family: inherit; }
-.check-setting { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.7; margin: 16px 0; max-width: 76ch; }
-.check-setting input { width: 15px; height: 15px; margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
-:is(.check-setting, .agent-follow) input[role="switch"] { appearance: none; position: relative; width: 30px; min-width: 30px; height: 18px; padding: 0; margin-top: 2px; border-radius: 12px; background: var(--hover); cursor: pointer; }
-:is(.check-setting, .agent-follow) input[role="switch"]::before { content: ""; display: block; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--muted); transition: transform 120ms ease-out; }
-:is(.check-setting, .agent-follow) input[role="switch"]:checked { background: var(--accent); border-color: var(--accent); }
-:is(.check-setting, .agent-follow) input[role="switch"]:checked::before { transform: translateX(12px); background: var(--on-accent); }
-:is(.check-setting, .agent-follow) input[role="switch"]:disabled { cursor: not-allowed; opacity: .5; }
+.check-setting, .setting-toggle { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; line-height: 1.7; margin: 12px 0; max-width: 76ch; }
+:is(.check-setting, .setting-toggle) input { width: 15px; height: 15px; margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+:is(.check-setting, .setting-toggle, .agent-follow) input[role="switch"] { appearance: none; position: relative; width: 30px; min-width: 30px; height: 18px; padding: 0; margin-top: 2px; border-radius: 12px; background: var(--hover); cursor: pointer; }
+:is(.check-setting, .setting-toggle, .agent-follow) input[role="switch"]::before { content: ""; display: block; position: absolute; width: 12px; height: 12px; top: 2px; left: 2px; border-radius: 50%; background: var(--muted); transition: transform 120ms ease-out; }
+:is(.check-setting, .setting-toggle, .agent-follow) input[role="switch"]:checked { background: var(--accent); border-color: var(--accent); }
+:is(.check-setting, .setting-toggle, .agent-follow) input[role="switch"]:checked::before { transform: translateX(12px); background: var(--on-accent); }
+:is(.check-setting, .setting-toggle, .agent-follow) input[role="switch"]:disabled { cursor: not-allowed; opacity: .5; }
 .settings-help-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; margin: 14px 0; }
 .settings-help-row > :not(.setting-help) { min-width: 0; }
-.settings-help-row:has(> :is(h2, h3, h4, strong, button)) { align-items: center; }
+.settings-help-row:has(> :is(h2, h3, h4, h5, strong, button)) { align-items: center; }
 .settings-help-row:has(> h2) { margin: 0 0 14px; }
-.settings-help-row:has(> :is(h3, h4)) { margin: 32px 0 14px; }
-.settings-content .settings-help-row > :is(h2, h3, h4) { margin: 0; }
-.settings-help-row:has(> .check-setting) { margin: 16px 0; }
+.settings-help-row:has(> :is(h3, h4, h5)) { margin: 32px 0 14px; }
+.settings-help-row:has(> :is(h4, h5)) { margin: 22px 0 10px; }
+.settings-content .settings-help-row > :is(h2, h3, h4, h5) { margin: 0; }
+.settings-help-row:has(> .check-setting) { margin: 12px 0; }
 .settings-help-row > .check-setting { margin: 0; padding-block: 3px; }
 .settings-help-row:has(> :is(.setting-field, .setting-editor)) { margin: 22px 0 14px; }
 .settings-help-row > :is(.setting-field, .setting-editor) { flex: 1; margin: 0; }
@@ -976,7 +1009,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
   .model-availability-row > .model-source-choice, .model-availability-row > .fine-print { grid-column: 1 / -1; grid-row: 2; }
 }
 .settings-warning { color: var(--warning-text); background: var(--warning-bg); padding: 12px 14px; border: 1px solid var(--warning-line); border-radius: 5px; font-family: inherit; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
-.settings-content .settings-warning { color: var(--warning-text); font-size: 12px; line-height: 1.65; }
+.settings-content .settings-warning { color: var(--warning-text); font-size: 12px; line-height: 1.65; max-width: 850px; }
 .capability-row, .proposal-row, .job-row { padding: 14px 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .capability-row > div, .job-row > div { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .capability-row small, .job-row small, .proposal-row > span { font-size: 11px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
@@ -1022,7 +1055,8 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .kanban-eligible { display: flex; flex-wrap: wrap; gap: 10px; border: 0; padding: 0; }
 .kanban-eligible legend { font-size: 12px; margin-bottom: 8px; }
 .kanban-work-item { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
-.kanban-link { gap: 8px; }
+.kanban-link { gap: 8px; font-size: 12px; }
+.kanban-link > svg { width: 15px; height: 15px; }
 .kanban-link.selected { background: var(--selected); color: var(--selection-text); }
 .project-row[draggable="true"] { cursor: grab; }
 .project-row[draggable="true"]:active { cursor: grabbing; }
@@ -1225,6 +1259,7 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .side-read-only { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; color: var(--muted); }
 .side-read-only svg { width: 14px; }
 .coordination-panel { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--subtle); flex-shrink: 0; max-height: 65vh; overflow: auto; }
+.coordination-panel:not([open]) { padding: 0; border: 0; background: transparent; }
 .coordination-panel label { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin: 8px 0; }
 .coordination-panel textarea { min-height: 70px; padding: 8px; width: 100%; }
 .coordination-panel pre { max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }

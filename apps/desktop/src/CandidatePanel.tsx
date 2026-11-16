@@ -104,7 +104,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
     setNotice("Canonical final-role bytes loaded locally. Review staging and source application separately. No model or file write was started.");
   };
   return <section className="candidate-panel" aria-label="Reviewed repository candidates" aria-busy={Boolean(busy)}>
-    <SettingsHelp label="More about this setting" target={<h2>Repository candidates</h2>}>Stage in a separate owned worktree. Review exact bytes before publishing to the source. Manual staging/application use no model; optional generation is explicit and metered. No commit or push.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Repository candidates</h3>}>Stage in a separate owned worktree. Review exact bytes before publishing to the source. Manual staging/application use no model; optional generation is explicit and metered. No commit or push.</SettingsHelp>
     <p className="fine-print">Checks cover roots, bases and exact bytes. No project tests or code-quality validation is implied.</p>
     <SettingsHelp label="More about this setting" target={<label className="setting-field">Retained proposal<select aria-label="Retained candidate" value={selectedId} disabled={Boolean(busy)} onChange={(event) => setSelectedId(event.target.value)}>
       <option value="">Choose a retained proposal</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / {candidate.status}</option>)}

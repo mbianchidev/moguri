@@ -386,12 +386,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
       <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
       <div className="settings-content"><fieldset className="settings-fields" disabled={saving && tab !== "voice"}>
-        {["artifacts", "candidates", "sendbox", "skills"].includes(tab) && <label className="setting-field">{tab === "skills" ? "Source chat for skill admission" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
-          if (resourceDirty) { setError("Save or cancel the current resource edit before choosing another source chat."); return; }
-          setResourceSessionId(event.target.value);
-        }}><option value="">{tab === "skills" ? "Choose a source chat" : "Profile records"}</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
-          {snapshot.sessions.filter((value) => value.kind !== "subagent").map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
-        </select></label>}
+        {["artifacts", "candidates", "sendbox", "skills"].includes(tab) && <div className="settings-page-header">
+          {tab === "sendbox" ? <SettingsHelp label="About Sandbox" target={<h2 id="sandbox-configuration">Sandbox</h2>}>Sandbox is a real execution boundary, not a badge. Missing or unqualified prerequisites block protected turns, without Local fallback.</SettingsHelp> :
+            <h2>{tab === "artifacts" ? "Artifacts" : tab === "candidates" ? "Candidates" : "Skills"}</h2>}
+          <label className="settings-scope">{tab === "skills" ? "Source chat for skill admission" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
+            if (resourceDirty) { setError("Save or cancel the current resource edit before choosing another source chat."); return; }
+            setResourceSessionId(event.target.value);
+          }}><option value="">{tab === "skills" ? "Choose a source chat" : "Profile records"}</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
+            {snapshot.sessions.filter((value) => value.kind !== "subagent").map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
+          </select></label>
+        </div>}
         {tab === "artifacts" && <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setResourceDirty} onRequestHandled={onArtifactRequestHandled} />}
         {tab === "candidates" && <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} />}
         {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
@@ -828,7 +832,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               scope.kind === "project" ? snapshot.projects.find((entry) => entry.id === scope.projectId)?.name ?? `Project ${scope.projectId}` : scope.kind === "session" ? `Session ${scope.sessionId}` : ""}</small></div>
             <button type="button" disabled={dirty || saving} onClick={() => void run(() => sdk.approvals.revoke(grant.id))}>Revoke</button></div>; })}
           <button type="button" onClick={() => void reset("permissions")} aria-label="Restore defaults for permissions">Restore defaults</button></>}
-        {tab === "sendbox" && <><SettingsHelp label="About Sandbox" target={<h2 id="sandbox-configuration">Sandbox</h2>}>Sandbox is a real execution boundary, not a badge. Missing or unqualified prerequisites block protected turns, without Local fallback.</SettingsHelp>
+        {tab === "sendbox" && <>
           <SandboxSetupPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} value={draft.sandboxManagement} disabled={dirty || saving || otherNestedDirty} onBusy={setSandboxBusy} onDirty={setSandboxDraftDirty}
             update={(patch) => automatic("sandboxManagement", patch)} />
           <SettingsHelp label="More about this setting" target={<details className="candidate-section"><summary>Advanced manual configuration</summary>
@@ -879,7 +883,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             {(dirty || integrationDirty) && <p className="fine-print">Save or cancel source changes before reviewing session admission.</p>}
             <SkillAdmissionsPanel key={`${sdk.profileId}:${resourceSession.id}`} sdk={sdk} session={resourceSession} snapshot={snapshot} />
           </fieldset> : <p className="fine-print">Choose a source chat to review exact skill admission. No session or workspace is inferred.</p>}</>}
-        {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <><h2>{tab === "skills" ? "Imported skills" : tab === "scripts" ? "Foundational and approved scripts" : "Plugins"}</h2>
+        {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <>{tab === "skills" ? <h3>Imported skills</h3> : <h2>{tab === "scripts" ? "Foundational and approved scripts" : "Plugins"}</h2>}
           <p>{tab === "skills" ? "Import standard SKILL.md front matter and instructions. A skill grants no tool permissions." : tab === "scripts" ? "Built-in grep_logs, fetch_page, search_memory and memory_graph are exposed through the single internal MCP, without generated one-off scripts." : "Version-1 Moguri plugin manifests bundle declarative standard skills. Importing a plugin does not execute a JavaScript entrypoint or install dependencies."}</p>
           {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(() => tab === "skills" ? sdk.capabilities.importSkill(project!.id, input) : sdk.capabilities.importPlugin(project!.id, input))}>Import</button></>}
           {tab === "skills" && <><button type="button" aria-label="Enable all skills" disabled={capabilityBusy || !registry.some((entry) => !entry.enabled)}

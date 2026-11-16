@@ -27,7 +27,7 @@ export function CandidateRecoveryPanel({ sdk, session, scope }: { sdk: MoguriSdk
     finally { pending.current = false; setBusy(false); }
   };
   return <section className="candidate-section" aria-label="Original candidate transport recovery" aria-busy={busy}>
-    <h3>Original transport receipts</h3>
+    <h4>Original transport receipts</h4>
     <p className="fine-print">Read-only reconciliation reads only the original pinned worker/root/journal and retained key. It never reruns files, Git, models or tests, starts/stops a guest, switches Env, accepts source or upgrades a partial operation into success. Missing cleanup proof stays quarantined.</p>
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <label className="setting-field">Retained transport<select aria-label="Retained candidate transport" value={selected?.id ?? ""} disabled={busy}

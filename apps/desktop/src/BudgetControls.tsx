@@ -13,7 +13,7 @@ export function useBudgetStatus(sdk: MoguriSdk, session: Session, snapshot: Snap
 }
 export function BudgetSummary({ status }: { status: BudgetStatus }) {
   const totals = status.totals, cappedTokens = status.limits.some((limit) => limit.tokens !== null), cappedUsd = status.limits.some((limit) => limit.usd !== null);
-  return <section aria-label="Cumulative session budget">
+  return <section className="budget-summary" aria-label="Cumulative session budget">
     <SettingsHelp label="More about this setting" target={<strong>Accounting</strong>}>Estimates are not a billing guarantee. Missing completion keeps reservations held. Resume, deletion and model changes do not reset this ledger.
       {totals.plannedHolds > 0 && <><br /><br />Planned capacity is not a model call or provider report. Only provably undispatched holds can be released automatically after their owner stops. Dispatched or uncertain usage stays held.</>}
     </SettingsHelp>

@@ -46,9 +46,9 @@ export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDi
     if (current()) setBody(`${loaded.authority}\n\n${loaded.body}`);
   });
   return <section className="skill-gateway-settings" aria-label="Skill gateway settings">
-    <SettingsHelp label="About the skill gateway" target={<h2>Skill gateway</h2>}>Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
+    <SettingsHelp label="About the skill gateway" target={<h3>Skill gateway</h3>}>Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
-    <h3>Global skill folders</h3>
+    <h4>Global skill folders</h4>
     <p className="fine-print">Use either folder or both. Confirming a folder creates it if missing and saves it. A missing folder offers no skills and never blocks the others.</p>
     {globalError && <div className="alert-recovery"><Alert as="p" role="alert">{globalError}</Alert><button type="button" onClick={() => setGlobalRevision((value) => value + 1)}>Retry global folders</button></div>}
     {globalSources?.sdk === sdk && globalSources.sources.map((source) => {
@@ -79,7 +79,7 @@ export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDi
       }}>Add source</button>
       {draft && <button type="button" className="quiet" onClick={() => { setName(""); setLocation(""); }}>Cancel new source</button>}</div>
     </div>
-    <SettingsHelp label="About skill discovery" target={<h3>Find skills</h3>}>Only saved, enabled sources are read. All downloads are checked again when a selected skill is opened; a changed body needs a fresh search. Preview is not permission to run instructions or to access a different execution host.</SettingsHelp>
+    <SettingsHelp label="About skill discovery" target={<h4>Find skills</h4>}>Only saved, enabled sources are read. All downloads are checked again when a selected skill is opened; a changed body needs a fresh search. Preview is not permission to run instructions or to access a different execution host.</SettingsHelp>
     <label className="setting-field">Source<select aria-label="Search skill source" value={sourceId} disabled={busy} onChange={(event) => { setSourceId(event.target.value); setResult(null); setBody(""); }}><option value="">All enabled sources and skills</option>{value.filter((source) => source.enabled).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
     <label className="setting-field">Search<SettingsInput aria-label="Find skills" value={query} maxLength={200} disabled={busy} onChange={(event) => { setQuery(event.target.value); setResult(null); setBody(""); }} onKeyDown={(event) => { if (event.key === "Enter" && !busy && !disabled && !dirty) { event.preventDefault(); void find(); } }} /></label>
     <button type="button" disabled={disabled || busy || dirty} onClick={() => void find()}>Find skills</button>

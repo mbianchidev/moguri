@@ -58,12 +58,12 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
     finally { pending.current = false; setBusy(""); }
   };
   return <section className="candidate-section" aria-label="Budget wind-down checkpoints" aria-busy={Boolean(busy)}>
-    <SettingsHelp label="More about this setting" target={<h2>Budget wind-down checkpoints</h2>}>Reserved capacity is not a model call. A bounded metadata-only finishing role cannot accept code or approve Git. Checkpoint branches require actual-user accepted source bytes and this separate exact review. No checkout, push, merge or branch deletion.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Budget wind-down checkpoints</h3>}>Reserved capacity is not a model call. A bounded metadata-only finishing role cannot accept code or approve Git. Checkpoint branches require actual-user accepted source bytes and this separate exact review. No checkout, push, merge or branch deletion.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" role="status" className="fine-print">{notice}</Alert>}{busy && <p role="status">{busy}</p>}
     <label className="setting-field">Retained budget checkpoint<select aria-label="Retained budget checkpoint" value={record?.id ?? ""} disabled={Boolean(busy) || dirty} onChange={(event) => setSelectedId(event.target.value)}>
       {!records.length && <option value="">No retained finishing envelopes</option>}{records.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id} / {record.status}</option>)}</select></label>
     {value && <>
-      <h3 ref={outcome} tabIndex={-1}>Checkpoint {value.winddown.status}</h3>
+      <h4 ref={outcome} tabIndex={-1}>Checkpoint {value.winddown.status}</h4>
       <p className="fine-print">Actual finishing model: {value.winddown.step.modelId}. Env: {value.winddown.env}. Observation: {value.winddown.step.state}. Original turn: {value.winddown.turnId}.</p>
       {value.winddown.version !== 1 && value.winddown.transport && <p className="fine-print path">Original owned execution: {value.winddown.transport.executionId}<br />Worker: {value.winddown.transport.workerDigest}</p>}
       {value.winddown.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.winddown.diagnostic}</Alert>}
@@ -98,12 +98,12 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
       {value.winddown.status === "ready" && (value.winddown.env === "Local" || (native || remote) && ownSource) && <>
         {!ownSource && <Alert as="p" tone="warning" className="settings-warning">Choose the exact original restored Local source agent after owned work ends. A deleted/moved/project-free source cannot inherit another checkout.</Alert>}
         {native ? <>
-          <h4>Separately accepted native source</h4><p className="fine-print">First publish exact native output through its separate actual-user source review. This later action creates a new Local Git branch only in that original source repository. It never runs Git in the guest or substitutes a checkout.</p>
+          <h5>Separately accepted native source</h5><p className="fine-print">First publish exact native output through its separate actual-user source review. This later action creates a new Local Git branch only in that original source repository. It never runs Git in the guest or substitutes a checkout.</p>
           {publications.map((publication) => <label className="check-setting" key={publication.id}><SettingsInput type="checkbox" aria-label={`Include accepted native publication ${publication.id}`} checked={nativeIds.includes(publication.id)} disabled={Boolean(busy) || !ownSource}
             onChange={(event) => setNativeIds(event.target.checked ? [...nativeIds, publication.id] : nativeIds.filter((id) => id !== publication.id))} />{publication.id} / {publication.root} / accepted by actual user</label>)}
           {!publications.length && <p className="fine-print">No completed separate native-source acceptance exists for this exact execution.</p>}
         </> : remote ? <>
-          <h4>Separate peer source acceptance</h4>
+          <h5>Separate peer source acceptance</h5>
           {acceptedRemote ? <p className="fine-print path">Actual user source acceptance: {acceptedRemote.reviewDigest}. Git still needs its separate new-branch review.</p> : <>
             <label className="setting-field">Exact peer files, one path per line<SettingsTextarea aria-label="Remote checkpoint source paths" value={sourcePaths} disabled={Boolean(busy)} onChange={(event) => setSourcePaths(event.target.value)} /></label>
             <button disabled={Boolean(busy) || !sourcePaths.trim()} onClick={() => void run("Reading exact peer source for separate acceptance", async (current) => {
@@ -122,7 +122,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
             </section>}
           </>}
         </> : <>
-          <SettingsHelp label="More about this setting" target={<h4>Accepted candidates</h4>}>Select retained actual-user applied candidates, never a merely staged or model/critic-approved proposal. No new project tests or code-quality proof is implied by this commit.</SettingsHelp>
+          <SettingsHelp label="More about this setting" target={<h5>Accepted candidates</h5>}>Select retained actual-user applied candidates, never a merely staged or model/critic-approved proposal. No new project tests or code-quality proof is implied by this commit.</SettingsHelp>
           {candidates.map((candidate) => <label className="check-setting" key={candidate.id}><SettingsInput type="checkbox" aria-label={`Include accepted checkpoint candidate ${candidate.id}`} checked={candidateIds.includes(candidate.id)} disabled={Boolean(busy) || !ownSource}
             onChange={(event) => setCandidates(event.target.checked ? [...candidateIds, candidate.id] : candidateIds.filter((id) => id !== candidate.id))} />{snapshot.artifacts.find((artifact) => artifact.id === candidate.id)?.name ?? candidate.id} / accepted by actual user</label>)}
         </>}
