@@ -125,7 +125,7 @@ test("model tuning slash shortcuts share the real controls and keep an exact non
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("the scrollable slash list contains all builtins before skills, loads the exact chosen skill and routes /side text without touching an existing side draft", async () => {
+test("the scrollable slash list contains all builtins before skills, sends the exact chosen skill as a normal prompt and routes /side text without touching an existing side draft", async () => {
   const fixture = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure();
   const root = join(fixture.directory, "generated-ui-command-skills"); await mkdir(root);
@@ -154,17 +154,28 @@ test("the scrollable slash list contains all builtins before skills, loads the e
     ]);
     expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
     await list.getByRole("option", { name: /generated-ui-command-9/ }).click();
-    await expect(prompt).toHaveValue(/Generated exact UI skill 9/);
-    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
-    expect(fixture.requests).toHaveLength(0);
+    await expect(prompt).toHaveValue("/generated-ui-command-9 ");
+    expect(fixture.service.controller.events(0).some((event) => event.event_type === "skill.loaded")).toBe(false);
+    await prompt.pressSequentially("Generated skill prompt.");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    await expect(transcript.getByRole("button", { name: "Preview attachment generated-ui-command-9", exact: true })).toBeVisible();
+    await expect(transcript).toContainText("Generated skill prompt.");
+    await expect(transcript).not.toContainText("Generated exact UI skill 9");
+    await expect(transcript.locator(".activity-row[data-kind='load-skill']")).toHaveCount(0);
+    await page.screenshot({ path: test.info().outputPath("skill-message.png") });
+    await expect(prompt).toHaveValue("");
+    await expect.poll(() => fixture.requests.length).toBe(1);
+    expect(JSON.stringify(fixture.requests[0]?.messages)).toContain("Generated exact UI skill 9");
+    await expect.poll(() => fixture.session().status).toBe("completed");
     await prompt.fill("/side Generated real slash side question.");
     await page.getByRole("button", { name: "Run command", exact: true }).click();
     const panel = page.locator(".side-chat-panel");
     await expect(panel.getByRole("log", { name: "Side chat transcript", exact: true })).toContainText("Generated Copilot response.");
     await expect(panel.getByLabel("Side question", { exact: true })).toHaveValue("Generated earlier side draft.");
     await expect(prompt).toHaveValue("");
-    expect(fixture.session().messages).toHaveLength(0); expect(fixture.requests).toHaveLength(1);
-    expect(JSON.stringify(fixture.requests[0]?.messages)).toContain("Generated real slash side question.");
+    expect(fixture.session().messages.some((message) => message.text.includes("Generated real slash side question."))).toBe(false); expect(fixture.requests).toHaveLength(2);
+    expect(JSON.stringify(fixture.requests[1]?.messages)).toContain("Generated real slash side question.");
     await expect(panel.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

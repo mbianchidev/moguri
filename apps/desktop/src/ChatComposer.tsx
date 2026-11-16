@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
+import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -61,6 +61,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const literalMentions = useRef<{ text: string; ids: Set<string> }>({ text: "", ids: new Set() });
   const mentionPending = useRef(false);
+  const chosenSkill = useRef<GatewaySkill | null>(null);
   const [contextReview, setContextReview] = useState(false);
   const [scheduleReview, setScheduleReview] = useState<"ask" | "schedule" | null>(null);
   const [heldPending, setHeldPending] = useState(false);
@@ -106,6 +107,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const voiceShortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
   const voiceActive = Boolean(voiceJob) || ["starting", "recording", "transcribing"].includes(dictation.state.phase) || dictation.state.cleanupPending;
   const isSlash = draft.text.startsWith("/");
+  // `/skill-name [prompt]` sends a normal prompt with the skill attached; every other slash runs as a queued command.
+  const slashName = isSlash ? parseSlash(draft.text)?.name : undefined;
+  const commandSlash = isSlash && (!slashName || isSharedSlash(slashName));
   const attachmentTrigger = isSlash || dismissedTrigger === draft.text ? null : parseAttachmentTrigger(draft.text);
   const sessionOptions = attachmentTrigger && [":", "!"].includes(attachmentTrigger.prefix) ? matchingContextSessions(snapshot, session.id, attachmentTrigger.query) : [];
   useEffect(() => { setSessionOption(0); }, [attachmentTrigger?.prefix, attachmentTrigger?.query]);
@@ -161,17 +165,26 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const selectSlash = (suggestion: SlashSuggestion) => {
     const selectedText = editor.getState().text;
     if (selectedText !== draft.text) { void run(async () => { throw new Error("The slash draft changed. Select the command again; the newer text was preserved."); }); return; }
-    if (suggestion.kind === "builtin") { editor.edit(`/${suggestion.name} `); input.current?.focus(); return; }
-    void run(async () => {
-      await editor.flush();
-      const current = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id);
-      if (!current) throw new Error("The selected skill's owning session was removed. No draft was substituted.");
-      if (editor.getState().text !== selectedText || current.draft.text !== selectedText) throw new Error("The slash draft changed while saving. The newer text was preserved; select the skill again.");
-      await client.skills.use(session.id, suggestion.skill.id, suggestion.skill.digest, current.draft.revision, "");
-      const saved = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id)?.draft;
-      if (saved) editor.receive(saved);
-      input.current?.focus();
-    });
+    if (suggestion.kind === "skill") chosenSkill.current = suggestion.skill;
+    editor.edit(`/${suggestion.name} `); input.current?.focus();
+  };
+  const sendSkill = async (text: string, name: string, prompt: string, hold: boolean) => {
+    const chosen = chosenSkill.current?.name === name ? chosenSkill.current : undefined;
+    const matches = (await client.commands.list(session.id)).flatMap((entry) => entry.kind === "skill" && entry.name === name ? [entry.skill] : []);
+    const skill = matches.find((value) => value.id === chosen?.id) ?? (matches.length === 1 ? matches[0] : undefined);
+    if (!skill) {
+      if (matches.length > 1) throw new Error(`Several skills are named ${name}. Pick the exact one from the slash list; your draft was preserved.`);
+      return await onSlash(session, editor, text, hold);
+    }
+    if (!(hold ? canQueueDraft : canSendDraft)(editor.getState())) throw new Error("This chat can't send right now (check the model, Env and connection). The skill was not loaded; your draft was preserved.");
+    await editor.flush();
+    const current = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id);
+    if (!current || editor.getState().text !== text || current.draft.text !== text) throw new Error("The draft changed while saving. The newer text was preserved; send it again.");
+    await client.skills.use(session.id, skill.id, skill.digest, current.draft.revision, prompt);
+    const saved = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id)?.draft;
+    if (saved) editor.receive(saved);
+    chosenSkill.current = null;
+    return await editor.send(hold ? "queue" : delivery, hold);
   };
   useEffect(() => { onMenuChange(menu !== null || sandboxSetup !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null); return () => onMenuChange(false); }, [menu, sandboxSetup, attachmentReview, previewOpen, contextReview, scheduleReview, onMenuChange]);
   useEffect(() => { onPendingChange?.(configuring || heldPending || resuming || retrying); return () => onPendingChange?.(false); }, [configuring, heldPending, resuming, retrying, onPendingChange]);
@@ -272,6 +285,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       try {
         if (answering && question && !hold) { await editor.flush(); return await client.questions.answerDraft(question.id, question.revision); }
         if (!hold && session.projectId && (isSlash || delivery === "queue" || delivery === "auto" && !session.turnId) && continueWorkInput(text)) return await onSlash(session, editor, text);
+        const slash = isSlash ? parseSlash(text) : null;
+        if (slash && !isSharedSlash(slash.name)) return await sendSkill(text, slash.name, slash.argument, hold);
         if (isSlash) return await onSlash(session, editor, text, hold);
         return await editor.send(hold ? "queue" : delivery, hold);
       } finally { if (pendingHold) setHeldPending(false); }
@@ -321,7 +336,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
-  const sendLabel = isSlash ? "Run command" : held || heldPending ? session.turnId ? "Queue prompt without starting work" : "Schedule prompt" : retryAction ? "Retry last model request" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? delivery === "auto" ? "Send now" : "Queue" : "Send";
+  const sendLabel = commandSlash ? "Run command" : held || heldPending ? session.turnId ? "Queue prompt without starting work" : "Schedule prompt" : retryAction ? "Retry last model request" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? delivery === "auto" ? "Send now" : "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className={`composer compact-composer ${dragging ? "session-drop-target" : ""}`} data-composer-session={session.id} onSubmit={(event) => submit(event)} onKeyDown={(event) => { if (event.key === "Escape") { setTrigger(null); setDismissedTrigger(draft.text); setDismissedSlash(draft.text); } }}
     onDragOver={(event) => { if (event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setDragging(true); } }}
@@ -461,10 +476,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
             `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.` : `Press ${shortcutLabel(voiceShortcut)} to record; press again to finish.`}`}
           toggle={() => void dictate()} />
         <div className="composer-send-group">
-          {session.turnId && !holdingNext && (draft.text.trim() || draft.attachments.length > 0) && !isSlash &&
+          {session.turnId && !holdingNext && (draft.text.trim() || draft.attachments.length > 0) && !commandSlash &&
             <button className="primary icon-button composer-send" type="button" aria-label={sendLabel} title="Send to the active agent at its next safe boundary. The current operation is not cancelled." disabled={!canSend} onClick={() => submit(undefined, false)}><Icon name="Send" /></button>}
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
-            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || retrying || undefined} title={retryAction ? "Retry the exact failed model request. Earlier tools/hooks are not replayed; your new draft is not sent or cleared." : resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? session.turnId ? "Queue without starting (Cmd/Ctrl+Enter)" : "Schedule this idle prompt (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || retrying || (retryAction ? !canRetry : resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : retryAction ? "Refresh" : resumeAction ? "Play" : "Send"} /></button>}
+            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || retrying || undefined} title={retryAction ? "Retry the exact failed model request. Earlier tools/hooks are not replayed; your new draft is not sent or cleared." : resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? session.turnId ? "Queue without starting (Cmd/Ctrl+Enter)" : "Schedule this idle prompt (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || retrying || (retryAction ? !canRetry : resumeAction ? !canResume : commandSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !commandSlash); }}><Icon name={held || heldPending ? "Clock" : retryAction ? "Refresh" : resumeAction ? "Play" : "Send"} /></button>}
           <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
             <h2>Delivery</h2>{(["auto", "queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && value !== "auto" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" || value === "auto" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "auto" ? "Send now; steer an active solver" : value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}
             {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); submit(undefined, held); }}>{sendLabel}</button>}

@@ -66,7 +66,7 @@ export function SkillAdmissionsPanel({ sdk, session, snapshot }: { sdk: MoguriSd
         <code>{grant.origin.artifactDigest}</code>
         {grant.reason && <p>{grant.reason}</p>}
         {grant.state === "active" && <div className="button-row">
-          <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.skills.use(session.id, grant.skillId, grant.contentDigest, session.draft.revision); })}>Insert admitted skill into draft</button>
+          <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.skills.use(session.id, grant.skillId, grant.contentDigest, session.draft.revision); })}>Attach admitted skill to draft</button>
           <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.skills.revoke(session.id, grant.id, grant.revision, "Actual user revoked this source admission."); })}>Revoke source admission</button>
         </div>}
       </article>)}

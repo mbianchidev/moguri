@@ -33,6 +33,12 @@ instructions. Discovery, diagnostic reads and source review do not count as
 loads. A successful complete source load shows **Loaded skill** with its real
 name and a book icon in desktop/TUI chat, without starting an extra model call.
 All existing source-admission, permission and revocation gates still apply.
+
+To use a skill yourself, type `/` and pick it, or type `/skill-name`, then add an
+optional prompt and press **Send**. The skill loads only then: chat shows your
+prompt with a skill chip (click it to read the skill), and only the model receives
+the skill text. No separate **Loaded skill** row is added. TUI/CLI `/skill-name
+prompt` loads the skill and attaches it to the draft; send the draft to use it.
 The [shared Inbox/load contract](architecture/session-inbox.md) records the
 atomic genuine98 upgrade and the distinction between deletion and approval.
 

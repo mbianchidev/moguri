@@ -844,11 +844,14 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
         <header><strong>Tool outputs</strong><span>{message.outcome}</span></header>{renderOutputs(visible)}</article> : null;
     }
     const hidden = message.role === "assistant" && !message.text.trim() && !outputs.length;
+    // The projection appends "Attached: ..." for text-only clients; here the chips below already name each attachment.
+    const attachedSuffix = message.role === "user" && message.attachments?.length ? `\n\nAttached: ${message.attachments.map((attachment) => attachment.path).join(", ")}` : "";
+    const shownText = attachedSuffix && message.text.endsWith(attachedSuffix) ? message.text.slice(0, -attachedSuffix.length) : message.text;
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
       aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
           {message.role !== "notice" && <CopyButton className="message-copy" title="Copy message" label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} text={message.text} />}</header>
-        {message.text && <div className="markdown"><Suspense fallback={<p>{message.text}</p>}><RichMessage text={message.text} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
+        {shownText && <div className="markdown"><Suspense fallback={<p>{shownText}</p>}><RichMessage text={shownText} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><div className="reasoning markdown"><Suspense fallback={<p>{message.reasoning}</p>}><RichMessage text={message.reasoning} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div></details>}
         {message.attachments?.some((attachment) => attachment.kind === "image") && <div className="message-images">{message.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
         {message.attachments?.filter((attachment): attachment is Extract<typeof attachment, { kind: "html" }> => attachment.kind === "html")
