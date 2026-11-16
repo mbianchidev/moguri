@@ -327,8 +327,9 @@ Since [D38](architecture/decisions.md#d38-covering-array-milestone-regression),
 `npm test` runs a 78-cell
 [covering array](architecture/milestone-combination-matrix.md#regression-method-covering-array)
 (55 Local/SSH cells in about a minute) plus the 72 manual-Kupo-effort refusals,
-instead of the 2-hour full product. The 23-cell native slice runs only with
-native receipts and has a 30-minute bound. `npm run test:matrix` runs the
+instead of the 2-hour full product; a full run took 57 minutes instead of 111.
+The 23-cell native slice runs only with native receipts, has a 30-minute bound
+and took 63 seconds. `npm run test:matrix` runs the
 10,080-cell full product on request, and `npm run generate:covering`
 regenerates the checked-in array after an axis change.
 Fresh macOS source-test environments also require the matching installed
