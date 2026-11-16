@@ -2,10 +2,11 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile, utimes, writeFile } from "node:fs/promises";
 import { audioFromBase64, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture } from "../fixture.ts";
+import { sha256, transcribeStreamingGguf } from "../fixtures/voice-models.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop audio qualification is macOS-only.");
@@ -525,7 +526,7 @@ test("interrupted push-to-talk reports discard, and an empty recognition result 
   }
 });
 
-test("Ctrl+Space streams words into the textbox while held and release flushes once without an Insert action", async () => {
+test("Ctrl+Space streams words into the textbox while held and release flushes once without an Insert action, even after reload", async () => {
   const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
@@ -544,6 +545,9 @@ test("Ctrl+Space streams words into the textbox while held and release flushes o
     await expect(prompt).toHaveValue("Generated local dictation.");
     await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+    await page.reload();
+    await expect(prompt).toHaveValue("Generated local dictation.");
+    await expect(page.locator(".composer-transcript")).toHaveCount(0);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
@@ -713,6 +717,54 @@ test("failed onset preparation closes its exact silent context without opening a
     await expect(page.locator(".composer-mic")).toBeEnabled();
     await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     expect(fixture.service.controller.snapshot().jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(0);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("an existing streaming model file is reviewed, trusted, dictated with and reviewed again after it changes", async () => {
+  const fixture = await setupFixture({ platform: { speech: { executable: process.execPath, prefixArgs: [resolve("tests/fixtures/fake-speech.mjs")],
+    transcribeHost: [process.execPath, resolve("tests/fixtures/fake-transcribe-host.mjs")] } } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready(), path = join(fixture.directory, "shared-models", "moonshine.gguf"), bytes = transcribeStreamingGguf();
+  await mkdir(join(fixture.directory, "shared-models")); await writeFile(path, bytes);
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
+    args: [...process.env.MOGURI_TEST_APP ? [] : ["."], "--use-fake-device-for-media-stream"],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_VOICE_MODEL_FILE: path } });
+  try {
+    const page = await app.firstWindow(), categories = page.getByRole("navigation", { name: "Settings categories" });
+    const openVoice = async () => { await page.getByRole("button", { name: "Settings", exact: true }).click(); await categories.getByRole("button", { name: "Voice dictation", exact: true }).click(); };
+    const trust = async (digest: string) => {
+      const review = page.getByRole("region", { name: "Model review" });
+      await expect(review).toContainText("Generated Moonshine Streaming");
+      await expect(review).toContainText(digest);
+      await review.getByRole("button", { name: "Trust this model", exact: true }).click();
+      await expect.poll(() => sdk.settings.get()!.values.voice.model?.sha256).toBe(digest);
+    };
+    await openVoice();
+    await page.getByRole("button", { name: "Use existing model file", exact: true }).click();
+    await trust(sha256(bytes));
+    await expect(page.getByLabel("Dictation model")).toHaveText("Generated Moonshine Streaming (moonshine_streaming, transcribe.cpp)");
+    await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Back to session", exact: true }).click();
+    const prompt = page.getByLabel("Prompt", { exact: true }), microphone = page.locator(".composer-mic");
+    await microphone.click(); await expect(microphone).toHaveAttribute("aria-pressed", "true");
+    await microphone.click();
+    await expect(prompt).toHaveValue("Generated transcribe dictation.");
+    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
+
+    const changed = Buffer.from(bytes); changed.writeUInt8(changed.readUInt8(changed.length - 1) ^ 1, changed.length - 1);
+    await writeFile(path, changed); await utimes(path, new Date(), new Date(Date.now() + 5000));
+    await microphone.click();
+    const blocked = page.getByRole("alert").filter({ hasText: "trusted dictation model file changed" });
+    await expect(blocked).toBeVisible();
+    await expect(prompt).toHaveValue("Generated transcribe dictation.");
+    await blocked.getByRole("button", { name: "Review model", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "This trusted file changed" })).toContainText(sha256(changed));
+    await page.getByRole("button", { name: "Review changed file before trusting it again", exact: true }).click();
+    await trust(sha256(changed));
+    await expect(page.getByRole("alert").filter({ hasText: "This trusted file changed" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Use managed Nemotron model", exact: true }).click();
+    await expect.poll(() => sdk.settings.get()!.values.voice.model).toBeUndefined();
+    expect(await readFile(path)).toEqual(changed);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

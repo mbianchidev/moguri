@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sessionTitle, slashCommands, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport } from "../../../packages/sdk/src/index.ts";
+import { configuredReadinessModels, continueWorkInput, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sentPromptHistory, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -43,12 +43,12 @@ export function chatSubmission(event: ReactKeyboardEvent<HTMLTextAreaElement>): 
   return (event.metaKey || event.ctrlKey) && !event.shiftKey ? "hold" : "send";
 }
 
-export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails, onLocalModels, onRemote, onSandbox, onRouting, onDecisions, inputLabel = "Prompt", autoFocus = false, onPendingChange }: {
+export function ChatComposer({ session, project, snapshot, client, editor, run, busy, connected, onConnect, onSlash, onMenuChange, onGuardrails, onLocalModels, onRemote, onSandbox, onRouting, onDecisions, onVoiceSettings, inputLabel = "Prompt", autoFocus = false, onPendingChange }: {
   session: Session; project?: Project; snapshot: Snapshot; client: MoguriSdk; editor: DraftEditor; run: Run; busy: boolean; connected: boolean;
   onConnect: () => void; onMenuChange: (open: boolean) => void; onGuardrails: () => void;
   onLocalModels: () => void; onRemote: () => void; onSandbox: () => void; onRouting: () => void; onDecisions: () => void;
   onSlash: (session: Session, editor: DraftEditor, text: string, held?: boolean) => Promise<void>;
-  inputLabel?: string; autoFocus?: boolean; onPendingChange?: (pending: boolean) => void;
+  inputLabel?: string; autoFocus?: boolean; onPendingChange?: (pending: boolean) => void; onVoiceSettings?: () => void;
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const input = useRef<HTMLTextAreaElement>(null), dictated = useRef<DraftDictation | null>(null);
@@ -61,6 +61,25 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const [attachmentReview, setAttachmentReview] = useState<AttachmentReviewRequest | null>(null);
   const literalMentions = useRef<{ text: string; ids: Set<string> }>({ text: "", ids: new Set() });
   const mentionPending = useRef(false);
+  const chosenSkill = useRef<GatewaySkill | null>(null);
+  const recalled = useRef<{ index: number; text: string } | null>(null);
+  /** Up on an empty draft (or while browsing) recalls earlier sent prompts; Down walks back toward the empty draft. */
+  const recallPrompt = (event: ReactKeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) return false;
+    const current = editor.getState(), field = event.currentTarget, up = event.key === "ArrowUp";
+    if (recalled.current && current.text !== recalled.current.text) recalled.current = null;
+    const browsing = recalled.current !== null;
+    if (!browsing && (!up || current.text)) return false;
+    if (browsing && field.selectionStart !== field.selectionEnd) return false;
+    if (browsing && (up ? field.value.slice(0, field.selectionStart).includes("\n") : field.value.slice(field.selectionEnd).includes("\n"))) return false;
+    const prompts = sentPromptHistory(session.messages), next = (recalled.current?.index ?? -1) + (up ? 1 : -1);
+    if (next >= prompts.length) return browsing || prompts.length > 0;
+    const text = next < 0 ? "" : prompts[next]!;
+    recalled.current = next < 0 ? null : { index: next, text };
+    editor.edit(text, current.attachments);
+    requestAnimationFrame(() => { if (input.current) input.current.setSelectionRange(text.length, text.length); });
+    return true;
+  };
   const [contextReview, setContextReview] = useState(false);
   const [scheduleReview, setScheduleReview] = useState<"ask" | "schedule" | null>(null);
   const [heldPending, setHeldPending] = useState(false);
@@ -90,21 +109,25 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       dictated.current?.close();
       dictated.current = editor.startDictation(input.current?.selectionStart, input.current?.selectionEnd);
     },
-    onTranscript: (text, id, final) => {
+    onTranscript: (text, _jobId, final) => {
       if (!dictated.current) throw new Error("The original dictation composer is closed. No transcript was inserted elsewhere.");
       dictated.current.update(text);
-      if (final) { dictated.current.close(); setInsertedTranscript(id); void run(() => editor.flush()); }
+      if (final) { dictated.current.close(); void run(() => editor.flush()); }
     } });
   useEffect(() => () => dictated.current?.close(), [editor]);
   const voiceJob = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.capture"].includes(job.kind) && job.status === "running");
   const voiceOutcome = snapshot.jobs.findLast((job) => job.sessionId === session.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
-  const transcript = voiceOutcome?.status === "completed" ? voiceOutcome : undefined;
+  // Streamed captures already wrote their words into this draft; only batch transcripts await an explicit Insert.
+  const transcript = voiceOutcome?.status === "completed" && voiceOutcome.kind !== "voice.capture" ? voiceOutcome : undefined;
   const transcriptPreview = useDictationTranscript(client, session.id, transcript?.id);
   const voiceFinalizing = finishingVoice || dictation.state.phase === "transcribing" || Boolean(voiceJob?.progress?.startsWith("Finalizing"));
   const voicePreparing = voiceJob?.kind === "voice.record" && Boolean(voiceJob.progress?.startsWith("Preparing"));
   const voiceShortcut = snapshot.settings.values.voice.shortcut ?? "Control+Space";
   const voiceActive = Boolean(voiceJob) || ["starting", "recording", "transcribing"].includes(dictation.state.phase) || dictation.state.cleanupPending;
   const isSlash = draft.text.startsWith("/");
+  // `/skill-name [prompt]` sends a normal prompt with the skill attached; every other slash runs as a queued command.
+  const slashName = isSlash ? parseSlash(draft.text)?.name : undefined;
+  const commandSlash = isSlash && (!slashName || isSharedSlash(slashName));
   const attachmentTrigger = isSlash || dismissedTrigger === draft.text ? null : parseAttachmentTrigger(draft.text);
   const sessionOptions = attachmentTrigger && [":", "!"].includes(attachmentTrigger.prefix) ? matchingContextSessions(snapshot, session.id, attachmentTrigger.query) : [];
   useEffect(() => { setSessionOption(0); }, [attachmentTrigger?.prefix, attachmentTrigger?.query]);
@@ -160,17 +183,26 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const selectSlash = (suggestion: SlashSuggestion) => {
     const selectedText = editor.getState().text;
     if (selectedText !== draft.text) { void run(async () => { throw new Error("The slash draft changed. Select the command again; the newer text was preserved."); }); return; }
-    if (suggestion.kind === "builtin") { editor.edit(`/${suggestion.name} `); input.current?.focus(); return; }
-    void run(async () => {
-      await editor.flush();
-      const current = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id);
-      if (!current) throw new Error("The selected skill's owning session was removed. No draft was substituted.");
-      if (editor.getState().text !== selectedText || current.draft.text !== selectedText) throw new Error("The slash draft changed while saving. The newer text was preserved; select the skill again.");
-      await client.skills.use(session.id, suggestion.skill.id, suggestion.skill.digest, current.draft.revision, "");
-      const saved = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id)?.draft;
-      if (saved) editor.receive(saved);
-      input.current?.focus();
-    });
+    if (suggestion.kind === "skill") chosenSkill.current = suggestion.skill;
+    editor.edit(`/${suggestion.name} `); input.current?.focus();
+  };
+  const sendSkill = async (text: string, name: string, prompt: string, hold: boolean) => {
+    const chosen = chosenSkill.current?.name === name ? chosenSkill.current : undefined;
+    const matches = (await client.commands.list(session.id)).flatMap((entry) => entry.kind === "skill" && entry.name === name ? [entry.skill] : []);
+    const skill = matches.find((value) => value.id === chosen?.id) ?? (matches.length === 1 ? matches[0] : undefined);
+    if (!skill) {
+      if (matches.length > 1) throw new Error(`Several skills are named ${name}. Pick the exact one from the slash list; your draft was preserved.`);
+      return await onSlash(session, editor, text, hold);
+    }
+    if (!(hold ? canQueueDraft : canSendDraft)(editor.getState())) throw new Error("This chat can't send right now (check the model, Env and connection). The skill was not loaded; your draft was preserved.");
+    await editor.flush();
+    const current = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id);
+    if (!current || editor.getState().text !== text || current.draft.text !== text) throw new Error("The draft changed while saving. The newer text was preserved; send it again.");
+    await client.skills.use(session.id, skill.id, skill.digest, current.draft.revision, prompt);
+    const saved = client.getState().snapshot?.sessions.find((entry) => entry.id === session.id)?.draft;
+    if (saved) editor.receive(saved);
+    chosenSkill.current = null;
+    return await editor.send(hold ? "queue" : delivery, hold);
   };
   useEffect(() => { onMenuChange(menu !== null || sandboxSetup !== null || attachmentReview !== null || previewOpen || contextReview || scheduleReview !== null); return () => onMenuChange(false); }, [menu, sandboxSetup, attachmentReview, previewOpen, contextReview, scheduleReview, onMenuChange]);
   useEffect(() => { onPendingChange?.(configuring || heldPending || resuming || retrying); return () => onPendingChange?.(false); }, [configuring, heldPending, resuming, retrying, onPendingChange]);
@@ -271,6 +303,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       try {
         if (answering && question && !hold) { await editor.flush(); return await client.questions.answerDraft(question.id, question.revision); }
         if (!hold && session.projectId && (isSlash || delivery === "queue" || delivery === "auto" && !session.turnId) && continueWorkInput(text)) return await onSlash(session, editor, text);
+        const slash = isSlash ? parseSlash(text) : null;
+        if (slash && !isSharedSlash(slash.name)) return await sendSkill(text, slash.name, slash.argument, hold);
         if (isSlash) return await onSlash(session, editor, text, hold);
         return await editor.send(hold ? "queue" : delivery, hold);
       } finally { if (pendingHold) setHeldPending(false); }
@@ -302,7 +336,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const selectAutonomy = (autonomy: Controls["autonomy"]) => run(async () => {
     trackConfiguration(true); setConfigurationError("");
-    try { await client.sessions.autonomy(session.id, autonomy, session.revision); setMenu(null); }
+    try {
+      if (session.turnId) await client.commands.control(session.id, "autonomy", autonomy);
+      else await client.sessions.autonomy(session.id, autonomy, session.revision);
+      setMenu(null);
+    }
     catch (error) { setConfigurationError(error instanceof Error ? error.message : "The autonomy selection was not acknowledged. Existing controls were preserved."); throw error; }
     finally { trackConfiguration(false); }
   });
@@ -316,7 +354,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   };
   const close = (value: Menu) => setMenu((current) => current === value ? null : current);
   const status = draft.conflict ? "Draft conflict" : draft.saving ? "Saving..." : draft.dirty ? "Unsent edits" : "Draft saved";
-  const sendLabel = isSlash ? "Run command" : held || heldPending ? session.turnId ? "Queue prompt without starting work" : "Schedule prompt" : retryAction ? "Retry last model request" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? delivery === "auto" ? "Send now" : "Queue" : "Send";
+  const sendLabel = commandSlash ? "Run command" : held || heldPending ? session.turnId ? "Queue prompt without starting work" : "Schedule prompt" : retryAction ? "Retry last model request" : needsResume ? "Resume" : answering ? "Answer question" : delivery === "steer" ? "Steer" : delivery === "interrupt" ? "Interrupt" : session.turnId ? delivery === "auto" ? "Send now" : "Queue" : "Send";
   const item = (name: Menu, label: string, icon: string, children: ReactNode) => <ComposerPopover name={name} label={label} description={name === "env" ? `${session.controls.env}. ${session.controls.env === "Remote" ? "SSH-host execution, not SendBox isolation." : session.controls.env === "Sandbox" ? "Native SendBox guest; exact qualification and private staging are required." : "Host execution is not sandboxed."}` : name === "autonomy" ? session.controls.autonomy : name === "budget" ? session.controls.budget.kind === "unlimited" ? hardBudget ? "Unlimited preference; hard policy applies" : "Unlimited" : "Estimate-based cap" : undefined} open={menu === name} toggle={() => toggle(name)} close={() => close(name)} trigger={<Icon name={icon} />}>{children}</ComposerPopover>;
   return <form className={`composer compact-composer ${dragging ? "session-drop-target" : ""}`} data-composer-session={session.id} onSubmit={(event) => submit(event)} onKeyDown={(event) => { if (event.key === "Escape") { setTrigger(null); setDismissedTrigger(draft.text); setDismissedSlash(draft.text); } }}
     onDragOver={(event) => { if (event.dataTransfer.types.includes(SESSION_DRAG_TYPE)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; setDragging(true); } }}
@@ -375,6 +413,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         else if (sessionOptions.length && event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey) { event.preventDefault(); chooseAttachmentTrigger(); }
         else if (event.key === "Tab" && suggestions[slashOption]) { event.preventDefault(); selectSlash(suggestions[slashOption]); }
         else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
+        else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && recallPrompt(event)) event.preventDefault();
         else {
           const action = chatSubmission(event);
           if (!action) return;
@@ -394,10 +433,12 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {draft.error && <div className="draft-error"><Alert as="p" role="alert">{draft.error}</Alert><div className="button-row">{draft.conflict ? <><button type="button" onClick={() => editor.reload()}>Reload saved draft</button><button type="button" onClick={() => void run(() => editor.keepMine())}>Keep my draft</button></> : <button type="button" onClick={() => void run(() => editor.flush())}>Retry save</button>}</div></div>}
     {(voiceJob || dictation.state.phase === "starting" || dictation.state.cleanupPending) && <p className="composer-voice-status fine-print" role="status">{dictation.state.cleanupPending ? "Original audio cleanup is unconfirmed. Retry discard before starting another microphone." : dictation.state.phase === "transcribing" ? "Flushing the original local audio buffer. Inserted words are preserved." : voiceJob?.progress || "Preparing the exact local microphone; Stop cancels pending startup."}
       <button type="button" className="quiet" onClick={() => { if (voiceJob && voiceJob.id !== dictation.state.id) void run(() => client.jobs.cancel(voiceJob.id)); else void dictation.cancel(); }}>Cancel and discard dictation</button></p>}
-    {dictation.state.error && dictation.state.error !== voiceOutcome?.error && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.state.error}</Alert>}
-    {dictation.preparationError && dictation.preparationError !== dictation.state.error && dictation.preparationError !== voiceOutcome?.error &&
+    {!dictation.modelChanged && dictation.state.error && dictation.state.error !== voiceOutcome?.error && <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.state.error}</Alert>}
+    {dictation.modelChanged ? <Alert as="p" className="composer-voice-status inline-error" role="alert">Your trusted dictation model file changed, so dictation is blocked until you review it again.
+      {onVoiceSettings && <button type="button" className="quiet" onClick={onVoiceSettings}>Review model</button>}</Alert> :
+      dictation.preparationError && dictation.preparationError !== dictation.state.error && dictation.preparationError !== voiceOutcome?.error &&
       <Alert as="p" className="composer-voice-status inline-error" role="alert">{dictation.preparationError}</Alert>}
-    {voiceOutcome?.status === "failed" && <Alert as="p" className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</Alert>}
+    {!dictation.modelChanged && voiceOutcome?.status === "failed" && <Alert as="p" className="composer-voice-status inline-error" role="alert">{voiceOutcome.error || "Local dictation failed. Already inserted words were preserved."}</Alert>}
     {transcript && transcript.id !== insertedTranscript && !voiceFinalizing && <div className="composer-transcript"><Icon name="Mic" /><div className="composer-transcript-text"><strong>Dictation ready</strong>
       {transcriptPreview?.error ? <Alert as="p" className="inline-error" role="alert">{transcriptPreview.error}</Alert> : <p aria-label="Dictation transcript">{transcriptPreview?.text ?? "Loading the local transcript..."}</p>}</div>
       <button type="button" disabled={!transcriptPreview?.text} onClick={() => void run(() => insertTranscript(transcript.id))}>Insert</button></div>}
@@ -415,10 +456,14 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
           const policyBlocked = !snapshot.policy.allowedEnvs.includes(capability.env);
           const groupUnavailable = Boolean(session.repositories && capability.env === "Remote");
           const setup = capability.env === "Sandbox" && (!capability.ready || Boolean(session.repositories && !automaticNative));
-          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={Boolean(session.turnId) || !connected || configuring || !capability.ready && !setup || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
+          return <div className="composer-option-row" key={capability.env}><button className="composer-menu-option" type="button" disabled={setup && Boolean(session.turnId) || !connected || configuring || !capability.ready && !setup || policyBlocked || groupUnavailable} aria-pressed={session.controls.env === capability.env}
             title={groupUnavailable ? "Captured groups have no qualified SSH execution transport." : capability.reason} onClick={() => {
               if (setup) { setMenu(null); setSandboxSetup({ revision: session.revision }); }
-              else void run(async () => { await client.sessions.env(session.id, capability.env, session.revision); setMenu(null); });
+              else void run(async () => {
+                if (session.turnId) await client.commands.control(session.id, "env", capability.env);
+                else await client.sessions.env(session.id, capability.env, session.revision);
+                setMenu(null);
+              });
             }}>
             <Icon name={envIcon[capability.env]} /><span>{capability.env}<small>{policyBlocked ? "Blocked by policy" : groupUnavailable ? "Group transport not qualified" : setup ? "Set up SendBox" : capability.env === "Local" ? "Host execution, not sandboxed" : !capability.ready ? "Not ready" : capability.env === "Sandbox" ? session.repositories ? "Private copies of every captured repository" : automaticNative ? "Verified SendBox guest; workspaces managed" : "Verified SendBox guest; private stage required" : "Verified SSH host, not SendBox isolation"}</small></span>{session.controls.env === capability.env && <Icon name="Check" />}</button>
             {policyBlocked && <PolicyHint label={`Why ${capability.env} is unavailable`} target="environments">Global execution policy excludes {capability.env}. Opening its setting does not widen policy, change this session's Env or restart work.</PolicyHint>}
@@ -432,14 +477,13 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         {item("autonomy", "Autonomy level", autonomyIcon[session.controls.autonomy], <><h2>Autonomy</h2>{(["Manual", "Guided", "Autopilot", "Autopilot Max"] as const).map((autonomy) => {
           const reason = autonomy === "Manual" ? "You approve tools or remember a grant" : autonomy === "Guided" ? "Advice, then your confirmation" : autonomy === "Autopilot" ? "Automatically approve all tools and commands" :
             decisions.ready ? "Automatic approvals plus bounded System One decisions" : decisions.reason;
-          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={configuring || Boolean(session.turnId) || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void selectAutonomy(autonomy)}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
+          return <div className="composer-option-row" key={autonomy}><button className="composer-menu-option" type="button" aria-pressed={autonomy === session.controls.autonomy} disabled={configuring || autonomy === "Autopilot Max" && !decisions.ready} title={reason} onClick={() => void selectAutonomy(autonomy)}><Icon name={autonomyIcon[autonomy]} /><span>{autonomy}<small>{reason}</small></span>{autonomy === session.controls.autonomy && <Icon name="Check" />}</button>
             {autonomy === "Autopilot Max" && !decisions.ready && <PolicyHint label="Why Autopilot Max is unavailable" target="decisions">{reason} Reviewing the actual decision configuration does not start inference or enable an unqualified transport.</PolicyHint>}
             {autonomy === "Autopilot" && <button type="button" className="icon-button quiet composer-env-settings" aria-label="Guardrails" title="Guardrails" onClick={() => { setMenu(null); onGuardrails(); }}><Icon name="Settings" /></button>}
             {autonomy === "Autopilot Max" && <button type="button" className="icon-button quiet composer-env-settings" aria-label="Decision provider settings" title="Decision provider settings" onClick={() => { setMenu(null); onDecisions(); }}><Icon name="Settings" /></button>}
           </div>;
         })}<p>Autopilot modes are unattended. Hard deny rules, read-only mode, environment policy and budgets still apply.</p>
           {snapshot.settings.values.permissions.defaultDecision === "deny" && <p>Automatic approvals cannot bypass the saved tool policy.<PolicyHint label="About automatic approval policy" target="tools">Default-deny and explicit deny rules remain authoritative. Changing autonomy or opening this setting does not remove a hard rule.</PolicyHint></p>}
-          {["Autopilot", "Autopilot Max"].includes(session.controls.autonomy) && !session.controls.automaticApprovals && <Alert as="p" tone="warning" className="settings-warning">This saved mode uses legacy bounded grants. Select it again to enable automatic approvals explicitly.</Alert>}
           {decisions.error && <Alert as="p" className="inline-error" role="alert">{decisions.error}</Alert>}</>)}
       </div>
       <div className="composer-trailing">
@@ -451,10 +495,10 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
             `Hold ${shortcutLabel(voiceShortcut)} for push-to-talk.` : `Press ${shortcutLabel(voiceShortcut)} to record; press again to finish.`}`}
           toggle={() => void dictate()} />
         <div className="composer-send-group">
-          {session.turnId && !holdingNext && (draft.text.trim() || draft.attachments.length > 0) && !isSlash &&
+          {session.turnId && !holdingNext && (draft.text.trim() || draft.attachments.length > 0) && !commandSlash &&
             <button className="primary icon-button composer-send" type="button" aria-label={sendLabel} title="Send to the active agent at its next safe boundary. The current operation is not cancelled." disabled={!canSend} onClick={() => submit(undefined, false)}><Icon name="Send" /></button>}
           {session.turnId && !holdingNext ? <button className="icon-button composer-send composer-stop" type="button" aria-label={session.status === "stopping" ? "Stopping turn" : "Stop turn"} title="Stop the current turn and hold queued work. Your unsent draft is preserved." disabled={!connected || session.status === "stopping"} onClick={() => void run(() => client.command({ type: "session.stop", sessionId: session.id }))}><Icon name="Stop" /></button> :
-            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || retrying || undefined} title={retryAction ? "Retry the exact failed model request. Earlier tools/hooks are not replayed; your new draft is not sent or cleared." : resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? session.turnId ? "Queue without starting (Cmd/Ctrl+Enter)" : "Schedule this idle prompt (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || retrying || (retryAction ? !canRetry : resumeAction ? !canResume : isSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !isSlash); }}><Icon name={held || heldPending ? "Clock" : retryAction ? "Refresh" : resumeAction ? "Play" : "Send"} /></button>}
+            <button className="primary icon-button composer-send" type="submit" aria-label={sendLabel} aria-busy={resuming || retrying || undefined} title={retryAction ? "Retry the exact failed model request. Earlier tools/hooks are not replayed; your new draft is not sent or cleared." : resumeAction ? "Resume this session after inspecting unconfirmed effects. Your draft is not sent, and cleanup is not marked successful." : held || heldPending ? session.turnId ? "Queue without starting (Cmd/Ctrl+Enter)" : "Schedule this idle prompt (Cmd/Ctrl+Enter)" : `${sendLabel}. Hold Cmd/Ctrl to queue without starting.`} disabled={heldPending || resuming || retrying || (retryAction ? !canRetry : resumeAction ? !canResume : commandSlash || held ? !canQueue : !canSend)} onClick={(event) => { event.preventDefault(); submit(undefined, (event.metaKey || event.ctrlKey || held) && !commandSlash); }}><Icon name={held || heldPending ? "Clock" : retryAction ? "Refresh" : resumeAction ? "Play" : "Send"} /></button>}
           <ComposerPopover name="delivery" label="Delivery mode" open={menu === "delivery"} toggle={() => toggle("delivery")} close={() => close("delivery")} trigger={<Icon name="Down" />}>
             <h2>Delivery</h2>{(["auto", "queue", "steer", "interrupt"] as const).map((value) => <button className="composer-menu-option" type="button" key={value} aria-pressed={delivery === value} disabled={value !== "queue" && value !== "auto" && !session.turnId} onClick={() => { setDelivery(value); setMenu(null); }}><Icon name={value === "queue" || value === "auto" ? "Send" : value === "steer" ? "Agent" : "Stop"} /><span>{value === "auto" ? "Send now; steer an active solver" : value === "queue" ? question && !isSlash ? "Answer actual question" : session.turnId ? "Queue after current turn" : "Send" : value === "steer" ? "Steer at next boundary" : "Interrupt current turn"}</span></button>)}
             {session.turnId && <button className="primary" type="button" disabled={held || isSlash ? !canQueue : !canSend} onClick={() => { setMenu(null); submit(undefined, held); }}>{sendLabel}</button>}
@@ -518,7 +562,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const [window, setWindow] = useState(session.controls.modelOptions?.contextWindow?.toString() ?? "");
   const [effort, setEffort] = useState<ThinkingEffort | "">(session.controls.modelOptions?.thinkingEffort ?? "");
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false), [queued, setQueued] = useState("");
   const [submenu, setSubmenu] = useState<"models" | "effort" | "context" | "mode" | null>(null);
   const [modeChoices, setModeChoices] = useState<KupoModeAvailability[]>([]), [modeError, setModeError] = useState("");
   const [poolControls, setPoolControls] = useState<KupoOptionsReport | null>(null);
@@ -553,7 +597,16 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
   const reload = () => { revision.current = session.revision; setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? ""); setEffort(session.controls.modelOptions?.thinkingEffort ?? ""); setError(""); onError(""); };
   const options: ModelOptions = { ...(window ? { contextWindow: Number(window) } : {}), ...(effort ? { thinkingEffort: effort } : {}) };
   const dirty = options.contextWindow !== session.controls.modelOptions?.contextWindow || options.thinkingEffort !== session.controls.modelOptions?.thinkingEffort;
+  const turnActive = Boolean(session.turnId);
+  // During a turn, each change becomes its exact slash command in the session queue; local edit state is left untouched.
+  const queue = async (name: QueueableControlCommand, argument: string) => {
+    setSaving(true); onSaving(true); setError(""); onError(""); setSubmenu(null);
+    try { await sdk.commands.control(session.id, name, argument); setQueued(`Queued /${name} ${argument} to apply after this turn.`); }
+    catch (error) { const message = error instanceof Error ? error.message : "The change was not queued. Current settings were preserved."; setError(message); onError(message); }
+    finally { setSaving(false); onSaving(false); }
+  };
   const select = async (model: ModelInfo) => {
+    if (turnActive) return queue("model", model.id);
     setSaving(true); onSaving(true); setError(""); onError("");
     try {
       const result = await sdk.sessions.selectModel(session.id, model.id, revision.current);
@@ -573,12 +626,13 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     finally { setSaving(false); onSaving(false); }
   };
   const chooseMode = async (mode: KupoMode) => {
+    if (turnActive) return queue("kupo-mode", mode);
     setSaving(true); onSaving(true); setError(""); onError("");
     try { const result = await sdk.sessions.kupoMode(session.id, mode, revision.current); revision.current = result.revision!; setSubmenu(null); }
     catch (error) { const message = error instanceof Error ? error.message : "The original Kupo mode was not saved. No model or effort was substituted."; setError(message); onError(message); }
     finally { setSaving(false); onSaving(false); }
   };
-  const locked = saving || pending || Boolean(session.turnId);
+  const locked = saving || pending;
   const effortChoices: Array<ThinkingEffort | ""> = ["", ...thinkingLevels];
   return <>{isModelDiscoveryPending(snapshot.provider) ? <p role="status">Refreshing current model availability. Cached labels do not enable a model call.</p> :
     snapshot.provider.status !== "connected" && <><p>Connect GitHub Copilot or configure a local model to use Kupo.</p><button type="button" onClick={onConnect}>Connect Copilot</button></>}
@@ -619,7 +673,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     </ModelSubmenu> : <ModelSubmenu label="Thinking effort" text="Effort" value={current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
       open={submenu === "effort"} disabled={locked || !current?.thinkingLevels?.length && !staleEffort} toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
       {effortChoices.map((value) => <button key={value} type="button" role="menuitemradio" aria-checked={effort === value}
-        onClick={() => { setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
+        onClick={() => { if (turnActive) { void queue("effort", value || "default"); return; } setEffort(value); setSubmenu(null); void save({ ...(window ? { contextWindow: Number(window) } : {}), ...(value ? { thinkingEffort: value } : {}) }, true); }}>
         <span>{effortLabel(value)}</span>{effort === value && <Icon name="Check" />}</button>)}
     </ModelSubmenu>}
     {current?.synthetic && <p className="fine-print">Thinking is automatic: Kupo's classifier selects each role's supported effort.</p>}
@@ -631,14 +685,19 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
-        onClick={() => { setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) }); }}>
+        onClick={() => {
+          if (turnActive) { void (value ? queue("context-window", String(value)) : queue("model-settings", JSON.stringify(effort ? { thinkingEffort: effort } : {}))); return; }
+          setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) });
+        }}>
         <span>{value === null ? "Model default" : `${count(value)} tokens`}</span>{window === (value?.toString() ?? "") && <Icon name="Check" />}</button>)}
       {current?.synthetic && <p className="fine-print">Shared exact ceiling for the eligible pool, rechecked before every role. Default uses each model's qualified window; history and attachments are never truncated.</p>}
     </ModelSubmenu>
     {current?.synthetic && poolControls && !poolControls.available && <Alert as="p" className="inline-error" role="alert">{poolControls.diagnostic}
       {effort ? <button type="button" disabled={locked} onClick={() => {
+        if (turnActive) { void queue("model-settings", JSON.stringify(window ? { contextWindow: Number(window) } : {})); return; }
         setEffort(""); void save(window ? { contextWindow: Number(window) } : {});
       }}>Use automatic thinking</button> : Object.keys(session.controls.modelOptions ?? {}).length > 0 && <button type="button" disabled={locked} onClick={() => {
+        if (turnActive) { void queue("model-settings", "{}"); return; }
         setWindow(""); setEffort(""); void save({});
       }}>Clear pooled overrides</button>}
     </Alert>}
@@ -658,7 +717,8 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       {detailsOpen && inspectedId && !inspectedModel && <Alert as="p" className="inline-error" role="alert">This exact inspection choice is no longer configured for this execution machine. Choose explicitly; no model or machine was substituted.</Alert>}
       <button className="quiet" type="button" disabled={saving || pending} onClick={onContext}>Review context and compactions</button><button className="quiet" type="button" onClick={onLocalModels}>Configure local models</button><button className="quiet" type="button" onClick={onRouting}>{snapshot.settings.values.kupo.workflow === "auto" ? "Kupo settings" : snapshot.settings.values.kupo.workflow === "compound" ? "kupo Compound settings" : "kupo Single settings"}</button>
     </details>
-      {session.turnId && <p>Stop the active turn before changing model settings.</p>}
+      {turnActive && <p className="fine-print">A turn is running: changes are queued as commands and apply after it.</p>}
+      {queued && <p className="fine-print" role="status">{queued}</p>}
       {staleWindow && <Alert as="p" className="inline-error" role="alert">The saved working window is no longer supported. Choose an offered window explicitly. History and saved settings were not clamped.</Alert>}
       {staleEffort && <Alert as="p" className="inline-error" role="alert">The saved thinking effort is no longer supported. Choose an offered effort or provider default explicitly. The model and context were not substituted.</Alert>}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}

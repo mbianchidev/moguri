@@ -17,7 +17,8 @@ test("the session header shows a copyable short ID and a typed :short mention op
   const app = await launch(f.directory);
   try {
     const page = await app.firstWindow();
-    await expect(page.locator(".session-heading").getByRole("button", { name: `Copy session ID ${f.sessionId.slice(0, 8)}`, exact: true })).toBeVisible();
+    await expect(page.locator(".session-heading > h1")).toBeVisible();
+    await expect(page.locator(".session-heading > span")).toHaveCount(0);
     const prompt = page.getByLabel("Prompt", { exact: true });
     await prompt.fill(`Compare with :${short} before answering.`);
     await prompt.press("Enter");

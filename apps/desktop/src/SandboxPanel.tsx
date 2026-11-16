@@ -64,7 +64,10 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
       {session?.repositories && <p className="fine-print">Captured groups require managed automatic preparation of their complete original member set. A single-project text review cannot replace that group scope.</p>}
       <p className="fine-print">Only selected text snapshots enter the VM. Model root is {session?.repositories ? "one explicitly selected captured repository, never a default" : session?.projectId ? <code>/workspace</code> : "null in a project-free chat"}; the Local source is never mounted or written by native tools.</p>
       {!session ? <p>Choose an existing session before preparing its private workspace.</p> : <>
-        {session.controls.env !== "Sandbox" && <button type="button" disabled={Boolean(busy) || !available || Boolean(session.turnId)} onClick={() => void run("Selecting Sandbox", async () => { await sdk.sessions.env(session.id, "Sandbox", session.revision); })} aria-label="Use for session: reviewed Sandbox">Use for session</button>}
+        {session.controls.env !== "Sandbox" && <button type="button" disabled={Boolean(busy) || !available} onClick={() => void run("Selecting Sandbox", async () => {
+          if (session.turnId) await sdk.commands.control(session.id, "env", "Sandbox");
+          else await sdk.sessions.env(session.id, "Sandbox", session.revision);
+        })} aria-label="Use for session: reviewed Sandbox">Use for session</button>}
         {workspace && <p className="fine-print path">Prepared record: {workspace.id} / {workspace.status}. Actual root ownership is rechecked before every admission.{workspace.diagnostic && ` ${workspace.diagnostic}`}</p>}
         <label className="setting-field">Exact source file paths, one per line<SettingsTextarea aria-label="Native source paths" value={paths} readOnly={!session.projectId} disabled={Boolean(busy)} spellCheck={false}
           placeholder={session.projectId ? "src/example.ts\npackage.json" : "Empty private workspace. No host root is inherited."} onChange={(event) => setPaths(event.target.value)} /></label>

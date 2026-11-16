@@ -19,7 +19,7 @@ export function ApprovalActions({ sdk, session, busy, run }: {
   const selectedOption = selectedScope === "global" && selectedMatch === "family" ? "family" : selectedScope;
   const label = selectedScope === "once" ? "Approve this action" : selectedMatch === "tool" ? `Always approve ${approval.call.name}` : selectedMatch === "family" ? `Always approve ${family}` :
     selectedScope === "session" ? "Approve for this session" : selectedScope === "project" ? "Approve for this project" : nested ? "Always approve this MCP tool" : "Always approve this action";
-  return <>
+  return <div className="approval-footer">
     <div className="approval-options"><label className="setting-field">Approval scope<select aria-label="Approval scope" disabled={busy || script} value={selectedOption}
       onChange={(event) => { const value = event.target.value; if (value === "family" && family) { setScope("global"); setMatch("family"); }
         else if (value === "once" || value === "session" || value === "project" || value === "global") { setScope(value); if (value === "global") setMatch("exact"); } }}>
@@ -38,5 +38,5 @@ export function ApprovalActions({ sdk, session, busy, run }: {
     <div className="approval-actions"><button disabled={busy} onClick={() => void run(() => sdk.approvals.respond(session.id, approval.id, false))}>Deny</button>
       <button className="primary" disabled={busy} onClick={() => void run(() => sdk.approvals.respond(session.id, approval.id, true,
         selectedScope === "once" ? undefined : { scope: selectedScope, match: selectedMatch }))}>{label}</button></div>
-  </>;
+  </div>;
 }

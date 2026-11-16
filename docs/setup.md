@@ -33,10 +33,28 @@ instructions. Discovery, diagnostic reads and source review do not count as
 loads. A successful complete source load shows **Loaded skill** with its real
 name and a book icon in desktop/TUI chat, without starting an extra model call.
 All existing source-admission, permission and revocation gates still apply.
+
+To use a skill yourself, type `/` and pick it, or type `/skill-name`, then add an
+optional prompt and press **Send**. The skill loads only then: chat shows your
+prompt with a skill chip (click it to read the skill), and only the model receives
+the skill text. No separate **Loaded skill** row is added. TUI/CLI `/skill-name
+prompt` loads the skill and attaches it to the draft; send the draft to use it.
 The [shared Inbox/load contract](architecture/session-inbox.md) records the
 atomic genuine98 upgrade and the distinction between deletion and approval.
 
 ## Local skill admission and per-turn rewind
+
+Skills from a folder you enabled in **Settings / Skills**, and skills you
+imported, load without a separate review: enabling the folder (or importing the
+skill) is the trust decision. Each load re-reads the current files and checks
+their hashes. The chat records a read-only *trusted-folder* admission tied to
+the Settings change that enabled the folder. Binary or oversized files in the
+skill folder are left out of the load and listed by path. Trusted skills are
+instructions only: every tool call still goes through your normal permissions
+and Autopilot choices. Revoking a skill in a chat stops it loading there.
+Disabling the folder blocks chats that used it, and re-enabling it doesn't
+revive those old loads. Skills from a remote HTTPS archive still need the
+explicit review below.
 
 Discovery and diagnostic source reading do not admit instructions. In desktop
 open **Settings / Skills**, select the actual **Source chat for skill admission**,
@@ -71,14 +89,17 @@ root, expiry or revocation require fresh review. The outward
 consumption; it cannot approve itself. Diagnostic `skills read` remains a
 user-facing source preview, not model admission.
 
-Consumed guidance restricts subsequent model calls and tools in that active
-context. Its source restrictions only narrow current permissions. Disabling a
+Explicitly reviewed (non-trusted-folder) guidance restricts subsequent model
+calls and tools in that active context. Its source restrictions only narrow current permissions. Disabling a
 source or revoking a grant blocks future use and dispatch, including an approval
 that was already waiting. It cannot retract text already delivered to a model
 or undo an already-running effect. A clean conversation branch or a new chat is
 required to stop carrying revoked/obsolete guidance; old grants never revive.
-Unsupported authority-bearing metadata and foreign compatibility declarations
-are rejected, not translated.
+Standard Agent Skills frontmatter (`license`, free-text `compatibility`,
+`metadata`, `allowed-tools`) and other harness fields such as `user-invocable`
+are read as informational text: they never grant tools, permissions or trust,
+and only Moguri's own `moguri:` block carries semantics. In a Local folder an
+invalid `SKILL.md` is skipped and logged rather than hiding the other skills.
 
 The prompt timeline's session sidebar has a **Checkpoints and rewind** action.
 It opens the selected session's review dialog, not an inline conversation panel.
@@ -192,8 +213,10 @@ provider settings** beside **Autopilot Max**, including when Max needs setup.
 An explicit Autopilot selection automatically approves qualified tools and
 commands, even with ask rules. Hard denials, actual authentication, source
 qualification, read-only modes, Env policy and budgets still apply. Actual-user
-questions are not permission prompts. Retained legacy bounded selections still
-require explicit reselection; opening settings never changes autonomy.
+questions are not permission prompts. A saved Autopilot or Max default, or an
+older session saved in Autopilot/Max before the explicit marker existed, also
+approves automatically; nothing needs reselecting. Opening settings never
+changes autonomy.
 
 The main approval menu offers **This family of commands** across the active
 profile and selected Env. It does not cover another profile, shell composition,
@@ -1934,6 +1957,13 @@ prompt or parallel calls. Stop holds undispatched work; reopening the app does
 not drain it. The delivery chevron's explicit prompt Interrupt remains separate.
 Typed `/steer TEXT` and `/interrupt TEXT` join the command queue and derive their
 exact follow-up only when reached; they never interrupt earlier work eagerly.
+
+Composer controls stay usable during a turn. Changing Model, Effort, Context
+window, Kupo routing, Env, Autonomy or the session Budget queues the matching
+slash command (`/model`, `/effort`, `/context-window`, `/model-settings`,
+`/kupo-mode`, `/env`, `/autonomy`, `/budget`) after the work already queued;
+your draft is untouched and the change applies when the queue reaches it.
+Hard profile/global policy still applies immediately.
 
 Slash text is queued as a command, never ordinary model input. This includes
 view navigation and `/theme`. **Cmd/Ctrl+Enter holds every input**, including
@@ -4058,11 +4088,23 @@ bound to the exact active profile, not agent permissions. Missing/unsupported
 remotes show an error; no repository URL or account is guessed.
 
 Under **Settings / Skills**, global-folder switches support `~/.agents/skills`
-and `~/.moguri/skills`. Each requires confirmation showing its actual absolute
-Local folder, then **Save** before discovery. They are off until selected for
-this profile. Opening Settings does not enumerate either folder. Existing
-folder-existence, canonical-path, symlink, source-freshness and Local-only
-checks remain; complete inspection/admission is still separate from discovery.
+and `~/.moguri/skills`; use either or both. Each requires confirmation showing
+its actual absolute Local folder, which Moguri creates if it doesn't exist, then
+**Save** before discovery. They are off until selected for this profile and are
+listed once (not again under the custom sources). An enabled folder that is
+missing offers no skills and never blocks the others. Opening Settings does not
+enumerate either folder. Linked skill
+folders and files are followed, as in other agent harnesses, even when they
+point outside the source. Broken links, links back into a parent folder and
+links into credential or key locations are skipped and logged. Folder-existence,
+source-freshness and Local-only checks remain, and complete inspection/admission
+is still separate from discovery.
+
+**Up** in an empty composer recalls your previous sent prompt in this chat; keep
+pressing Up for older ones and Down to go back toward the empty draft. Edit the
+recalled text or press Enter to send it again. Editing it ends the recall, so
+arrows move the caret again. The turn rail with **Checkpoints and rewind** runs
+from the transcript top to the bottom of the chat, beside the composer.
 
 **Cmd/Ctrl+Enter queues without starting work**, even when idle or no model is
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
@@ -4468,6 +4510,36 @@ size/SHA-256 verified and atomically installed under the private state directory
 Recording passes an existing local GGUF path, never an alias that might
 auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
+### Use an existing streaming model file
+
+Instead of downloading Nemotron, you can point a profile at a model file you
+already have, for example in a folder shared with other dictation apps. In
+**Settings / Voice dictation / Model**, choose **Use existing model file…**.
+Moguri runs a read-only review: it reads the header, confirms the model can
+stream live dictation, and hashes the whole file. The review card shows the
+name, architecture, runtime, size, license metadata and SHA-256. **Trust this
+model** locks that path, size and digest for the profile and turns dictation on.
+
+- **Accepted:** streaming models only. NeMo-Speech GGUF with a cache-aware
+  streaming encoder (Nemotron 3.5 or Nemotron EN streaming) runs on the pinned
+  NeMo-Speech.cpp runtime. transcribe.cpp GGUF that reports streaming, such
+  as Handy's Parakeet and Moonshine streaming models, runs on the pinned
+  transcribe.cpp 0.4.2 runtime.
+- **Rejected:** Whisper (`.bin` or GGUF) and other offline-only models, such as
+  NeMo Parakeet TDT GGUF, because they can't stream. ONNX, CoreML and MLX files
+  aren't read.
+- **Integrity:** whenever the file changes on disk, Moguri hashes it again
+  before use. A different digest blocks dictation; Settings and the composer
+  show **Review changed file** so you can approve the new digest.
+- **Ownership:** Moguri never copies, moves or deletes the file. Disabling
+  dictation still removes only the managed Nemotron download. **Use managed
+  Nemotron** switches back without touching the external file. Files inside
+  Moguri's own model folder are refused so a later disable can't delete them.
+- **Limits:** the language setting applies to managed Nemotron only; external
+  models use their own language handling. transcribe.cpp models work for
+  desktop dictation and mono 16-kHz PCM16 WAV transcription. Native microphone
+  recording (TUI and `dictate record`) needs a NeMo-Speech model.
+
 Desktop dictation requests audio-only OS permission only on explicit activation.
 **Voice input device** lists microphones after a separate explicit request;
 non-default selection is exact, never silently substituted. Browser capture
@@ -4564,6 +4636,9 @@ node bin/moguri.mjs dictate status
 node bin/moguri.mjs dictate download --accept-license
 node bin/moguri.mjs dictate record --session SESSION_ID
 node bin/moguri.mjs dictate file /absolute/path/recording.wav --session SESSION_ID
+node bin/moguri.mjs dictate model inspect /absolute/path/model.gguf
+node bin/moguri.mjs dictate model trust REVIEW_JOB_ID
+node bin/moguri.mjs dictate model managed
 ```
 
 Ctrl+C finalizes a recording or cancels a download/file transcription.
@@ -4936,9 +5011,12 @@ accepted-work validation/commit and exact billing integration remain separate.
 
 The model's `ask_user` tool creates a real typed question with optional choices.
 This is distinct from a heuristic question badge. Desktop shows the exact
-question with a scrollable list of offered answers; clicking one sends that
-choice immediately. Its blank **Other** field sends on Enter, including for
-choice-only questions. The ordinary saved composer remains available; its
+question with a scrollable list of offered answers, numbered 1-8 and aligned
+with the composer; clicking one, or pressing its number in the card or in an
+empty composer, sends that choice immediately. Its blank **Other, specify...**
+field sends on Enter (there is no separate send button), including for
+choice-only questions. **Skip** (top right) answers nothing: the agent is told
+you skipped and continues with its best judgment; a skip is never consent. The ordinary saved composer remains available; its
 primary **Answer question** action atomically consumes only its own text.
 Choosing a list option or sending Other preserves unrelated draft text. In TUI, **F6**
 opens actual choices; Shift+Cmd/Ctrl+Enter answers from saved composer text.

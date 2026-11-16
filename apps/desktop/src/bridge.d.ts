@@ -23,10 +23,12 @@ export interface DesktopBridge {
   chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
+  chooseVoiceModel(): Promise<string | null>;
   openExternal(url: string): Promise<void>;
   projectLocation(profileId: string, projectId: string, expectedPath: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
   sessionLocation(profileId: string, sessionId: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
   globalSkillSources(profileId: string): Promise<Array<Extract<SkillSource, { kind: "local" }>>>;
+  createGlobalSkillFolder(profileId: string, id: string): Promise<Extract<SkillSource, { kind: "local" }>>;
   audioPermission(input: { profileId: string; purpose: "capture" | "devices"; sessionId?: string; jobId?: string }): Promise<string>;
   audioPermission(input: { profileId: string; purpose: "standby"; sessionId: string }): Promise<string | null>;
   releaseAudioPermission(id: string): Promise<void>;

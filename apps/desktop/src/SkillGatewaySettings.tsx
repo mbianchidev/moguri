@@ -48,7 +48,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
     <SettingsHelp label="About the skill gateway" target={<h2>Skill gateway</h2>}>Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <h3>Global skill folders</h3>
-    <p className="fine-print">Add these Local folders only after confirming their exact location. Save before discovery. Global skills still need separate complete-source admission before model use.</p>
+    <p className="fine-print">Use either folder or both. Confirming a folder creates it if missing; Save before discovery. A missing folder offers no skills and never blocks the others.</p>
     {globalError && <div className="alert-recovery"><Alert as="p" role="alert">{globalError}</Alert><button type="button" onClick={() => setGlobalRevision((value) => value + 1)}>Retry global folders</button></div>}
     {globalSources?.sdk === sdk && globalSources.sources.map((source) => {
       const existing = value.find((entry) => entry.kind === "local" && entry.path === source.path);
@@ -59,7 +59,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
           else if (existing) change(value.map((entry) => entry.id === existing.id ? { ...entry, enabled: false } : entry));
         }} /><span><strong>{label}</strong><code>{source.path}</code></span></label>;
     })}
-    {value.map((source) => <article className="skill-source" key={source.id}>
+    {value.filter((source) => !(source.kind === "local" && globalSources?.sdk === sdk && globalSources.sources.some((preset) => preset.path === source.path))).map((source) => <article className="skill-source" key={source.id}>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill source ${source.name}`} checked={source.enabled} disabled={disabled || busy}
         onChange={(event) => change(value.map((entry) => entry.id === source.id ? { ...entry, enabled: event.target.checked } : entry))} /><strong>{source.name}</strong></label>
       <code>{source.kind === "local" ? source.path : source.url}</code>
@@ -88,22 +88,27 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
     {body && <details className="settings-result" open><summary>Checked skill content</summary><pre>{body}</pre></details>}
     {globalReview && <GlobalSkillConfirmation source={globalReview.source} close={() => {
       const trigger = globalReview.trigger; setGlobalReview(null); queueMicrotask(() => { if (trigger.isConnected) trigger.focus(); });
-    }} confirm={() => {
-      if (sdk !== globalReview.sdk || currentScope.current !== globalReview.scope) { setError("The original skill settings changed. Review the current folder before enabling it."); setGlobalReview(null); return; }
-      const existing = value.find((source) => source.kind === "local" && source.path === globalReview.source.path);
+    }} confirm={async () => {
+      const review = globalReview;
+      if (sdk !== review.sdk || currentScope.current !== review.scope) { setError("The original skill settings changed. Review the current folder before enabling it."); setGlobalReview(null); return; }
+      try { await window.moguri.createGlobalSkillFolder(review.sdk.profileId, review.source.id); }
+      catch (error) { setError(`${review.source.path} could not be created: ${error instanceof Error ? error.message : "unknown error"}. The folder was not enabled.`); setGlobalReview(null); return; }
+      if (sdk !== review.sdk || currentScope.current !== review.scope) { setError("The original skill settings changed. Review the current folder before enabling it."); setGlobalReview(null); return; }
+      const existing = value.find((source) => source.kind === "local" && source.path === review.source.path);
       change(existing ? value.map((source) => source.id === existing.id ? { ...source, enabled: true } : source) :
-        [...value, { ...globalReview.source, id: crypto.randomUUID(), enabled: true }]);
+        [...value, { ...review.source, id: crypto.randomUUID(), enabled: true }]);
       setGlobalReview(null);
     }} />}
   </section>;
 }
 
-function GlobalSkillConfirmation({ source, close, confirm }: { source: Extract<SkillSource, { kind: "local" }>; close: () => void; confirm: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
+function GlobalSkillConfirmation({ source, close, confirm }: { source: Extract<SkillSource, { kind: "local" }>; close: () => void; confirm: () => Promise<void> }) {
+  const ref = useRef<HTMLDialogElement>(null), [pending, setPending] = useState(false);
   useEffect(() => { ref.current?.showModal(); }, []);
   return <dialog ref={ref} className="workspace-dialog" aria-label="Confirm global skill folder" onClose={close}>
     <h2>Use this global skill folder?</h2><p>After Save, enabled skill discovery will read this exact Local folder for this profile:</p>
-    <p className="path">{source.path}</p><p>No folder is scanned now. Adding it does not install skills, run instructions or grant model/tool permissions.</p>
-    <div className="button-row"><button type="button" onClick={close}>Cancel</button><button type="button" className="primary" onClick={confirm}>Use this folder</button></div>
+    <p className="path">{source.path}</p><p>Moguri creates the folder if it doesn't exist. No folder is scanned now. Adding it does not install skills, run instructions or grant model/tool permissions.</p>
+    <div className="button-row"><button type="button" disabled={pending} onClick={close}>Cancel</button><button type="button" className="primary" disabled={pending}
+      onClick={() => { setPending(true); void confirm().finally(() => setPending(false)); }}>Use this folder</button></div>
   </dialog>;
 }

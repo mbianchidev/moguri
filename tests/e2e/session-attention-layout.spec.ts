@@ -38,7 +38,7 @@ for (const kind of ["approval", "question"] as const) test(`${kind} stays a smal
     await expect(link.getByRole("img", { name: label, exact: true })).toBeVisible();
     await compact(link, label);
     if (kind === "approval") {
-      await expect(page.getByRole("region", { name: "Tool approval", exact: true })).toHaveCSS("padding-top", "14px");
+      await expect(page.getByRole("region", { name: "Tool approval", exact: true }).locator(".approval-body")).toHaveCSS("padding-top", "14px");
       await mkdir(".moguri/artifacts", { recursive: true });
       await page.screenshot({ path: ".moguri/artifacts/desktop-session-attention.png", animations: "disabled" });
     }

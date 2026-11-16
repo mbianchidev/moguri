@@ -99,7 +99,7 @@ export function AttachmentChip({ sdk, sessionId, attachment, remove, onOpenChang
   return <span className={`attachment-chip${attachment.kind === "image" ? " attachment-chip-image" : ""}`} title={`${attachment.kind} / ${attachment.bytes} bytes / SHA-256 ${attachment.digest}`}>
     {attachment.kind === "document" ? <ContextDocument sdk={sdk} sessionId={sessionId} attachment={attachment} remove={remove} onOpenChange={onOpenChange} /> :
       <button className="attachment-preview-button" type="button" aria-label={`Preview attachment ${attachment.path}`} onClick={() => setOpen(true)}>
-        {attachment.kind === "image" ? <ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} onError={setImageError} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind.startsWith("github") ? "PR" : "File"} />}<span>{attachment.path}</span>
+        {attachment.kind === "image" ? <ContextImage sdk={sdk} sessionId={sessionId} attachment={attachment} onError={setImageError} /> : <Icon name={attachment.kind === "session" ? "Side chat" : attachment.kind === "skill" ? "Skill" : attachment.kind.startsWith("github") ? "PR" : "File"} />}<span>{attachment.path}</span>
       </button>}
     {remove && <button type="button" aria-label={`Remove attachment ${attachment.path}`} onClick={() => void remove().catch((error: unknown) => setError(error instanceof Error ? error.message : "The attachment could not be removed."))}><Icon name="Close" /></button>}
     {error && <Alert as="span" className="inline-error" role="alert">{error}</Alert>}

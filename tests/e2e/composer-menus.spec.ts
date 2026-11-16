@@ -125,7 +125,7 @@ test("model tuning slash shortcuts share the real controls and keep an exact non
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("the scrollable slash list contains all builtins before skills, loads the exact chosen skill and routes /side text without touching an existing side draft", async () => {
+test("the scrollable slash list contains all builtins before skills, sends the exact chosen skill as a normal prompt and routes /side text without touching an existing side draft", async () => {
   const fixture = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure();
   const root = join(fixture.directory, "generated-ui-command-skills"); await mkdir(root);
@@ -154,17 +154,28 @@ test("the scrollable slash list contains all builtins before skills, loads the e
     ]);
     expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
     await list.getByRole("option", { name: /generated-ui-command-9/ }).click();
-    await expect(prompt).toHaveValue(/Generated exact UI skill 9/);
-    await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
-    expect(fixture.requests).toHaveLength(0);
+    await expect(prompt).toHaveValue("/generated-ui-command-9 ");
+    expect(fixture.service.controller.events(0).some((event) => event.event_type === "skill.loaded")).toBe(false);
+    await prompt.pressSequentially("Generated skill prompt.");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    await expect(transcript.getByRole("button", { name: "Preview attachment generated-ui-command-9", exact: true })).toBeVisible();
+    await expect(transcript).toContainText("Generated skill prompt.");
+    await expect(transcript).not.toContainText("Generated exact UI skill 9");
+    await expect(transcript.locator(".activity-row[data-kind='load-skill']")).toHaveCount(0);
+    await page.screenshot({ path: test.info().outputPath("skill-message.png") });
+    await expect(prompt).toHaveValue("");
+    await expect.poll(() => fixture.requests.length).toBe(1);
+    expect(JSON.stringify(fixture.requests[0]?.messages)).toContain("Generated exact UI skill 9");
+    await expect.poll(() => fixture.session().status).toBe("completed");
     await prompt.fill("/side Generated real slash side question.");
     await page.getByRole("button", { name: "Run command", exact: true }).click();
     const panel = page.locator(".side-chat-panel");
     await expect(panel.getByRole("log", { name: "Side chat transcript", exact: true })).toContainText("Generated Copilot response.");
     await expect(panel.getByLabel("Side question", { exact: true })).toHaveValue("Generated earlier side draft.");
     await expect(prompt).toHaveValue("");
-    expect(fixture.session().messages).toHaveLength(0); expect(fixture.requests).toHaveLength(1);
-    expect(JSON.stringify(fixture.requests[0]?.messages)).toContain("Generated real slash side question.");
+    expect(fixture.session().messages.some((message) => message.text.includes("Generated real slash side question."))).toBe(false); expect(fixture.requests).toHaveLength(2);
+    expect(JSON.stringify(fixture.requests[1]?.messages)).toContain("Generated real slash side question.");
     await expect(panel.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
@@ -187,5 +198,34 @@ test("side-chat controls keep their original owner and restore focus after the p
     await expect(menu).toHaveCount(0); await expect(button).toBeFocused();
     expect(fixture.session().controls).toEqual(original);
     expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("composer controls stay usable during a turn and queue their exact slash commands for after it", async () => {
+  const fixture = await setupFixture({ respond: () => ({ text: "Generated slow reply.", delayMs: 6000 }) });
+  await fixture.configure();
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await sdk.routing.configure({ ...sdk.routing.policy()!, enabled: false }, sdk.settings.get()!.revision);
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await fixture.send("Generated running prompt.");
+    await expect.poll(() => Boolean(fixture.session().turnId)).toBe(true);
+    await composer.getByRole("button", { name: "Autonomy level", exact: true }).click();
+    const autonomy = page.getByRole("dialog", { name: "Autonomy level", exact: true });
+    await autonomy.getByRole("button", { name: /^Guided/ }).click();
+    await page.getByRole("button", { name: /^Model:/ }).click();
+    const root = page.getByRole("dialog", { name: "Model", exact: true });
+    await expect(root).toContainText("A turn is running: changes are queued as commands and apply after it.");
+    await root.getByRole("button", { name: "Choose model", exact: true }).click();
+    await page.getByRole("menu", { name: "Models", exact: true }).getByRole("menuitemradio", { name: /^Generated Copilot model/ }).click();
+    await expect(root.getByRole("status").filter({ hasText: `Queued /model ${fixture.modelId}` })).toBeVisible();
+    await expect.poll(() => fixture.session().queue.map((item) => item.text)).toEqual(["/autonomy Guided", `/model ${fixture.modelId}`]);
+    expect(fixture.session().controls.autonomy).toBe("Manual");
+    await expect.poll(() => fixture.session().controls.autonomy, { timeout: 20_000 }).toBe("Guided");
+    await expect.poll(() => fixture.session().queue.length).toBe(0);
+    expect(fixture.requests).toHaveLength(1);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

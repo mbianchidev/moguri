@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -103,6 +103,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [input, setInput] = useState("");
   const [preview, setPreview] = useState("");
   const [voice, setVoice] = useState<VoiceStatus | null>(null);
+  const [modelReview, setModelReview] = useState<{ jobId: string; inspection: VoiceModelInspection | null } | null>(null);
   const dictation = useDictation(sdk, session, snapshot, { active: tab === "voice" });
   const [microphones, setMicrophones] = useState<MicrophoneChoice[]>([]), [devicesBusy, setDevicesBusy] = useState(false);
   const deviceRequest = useRef<AbortController | null>(null);
@@ -178,7 +179,21 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   };
   useEffect(() => {
     if (tab === "voice") void run(async () => { const result = await sdk.voice.status(); setVoice(result.voice); });
-  }, [tab, snapshot.settings.values.voice.enabled, snapshot.jobs.filter((job) => ["voice.download", "voice.disable"].includes(job.kind) && job.status !== "running").length]);
+  }, [tab, snapshot.settings.values.voice.enabled, snapshot.settings.values.voice.model?.sha256, snapshot.settings.values.voice.model?.trustedAt,
+    snapshot.jobs.filter((job) => ["voice.download", "voice.disable", "voice.prepare", "voice.capture", "voice.record", "voice.transcribe"].includes(job.kind) && job.status !== "running").length]);
+  const reviewJob = modelReview ? snapshot.jobs.find((job) => job.id === modelReview.jobId) : undefined;
+  useEffect(() => {
+    if (!modelReview || modelReview.inspection || reviewJob?.status !== "completed") return;
+    let current = true;
+    void sdk.voice.inspection(modelReview.jobId).then((inspection) => { if (current) setModelReview((value) => value?.jobId === modelReview.jobId ? { ...value, inspection } : value); },
+      (failure: unknown) => { if (current) setError(failure instanceof Error ? failure.message : "The model review could not be read. Nothing was trusted."); });
+    return () => { current = false; };
+  }, [sdk, modelReview, reviewJob?.status]);
+  const reviewModel = (path: string) => void run(async () => {
+    const result = await sdk.voice.inspectModel(path);
+    if (!result.id) throw new Error("The model review was not acknowledged. Nothing was trusted.");
+    setModelReview({ jobId: result.id, inspection: null });
+  });
   useEffect(() => { if (tab === "remote") void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [tab, snapshot.settings.revision]);
   useEffect(() => {
     if (tab !== "retention") return;
@@ -830,9 +845,28 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <pre>moguri mcp --session {session?.id ?? "SESSION_ID"}</pre></>}
         {tab === "voice" && <><SettingsHelp label="More about this setting" target={<h2>Local voice dictation</h2>}>Native NVIDIA Nemotron 3.5 ASR. Download the model once yourself; audio never goes to an ASR cloud or the Copilot provider.</SettingsHelp>
           <p>{voice?.diagnostic ?? "Reading local runtime status..."}</p>
+          <h3>Model</h3>
+          <p aria-label="Dictation model">{committed.voice.model ? `${committed.voice.model.name} (${committed.voice.model.architecture}, ${committed.voice.model.runtime === "transcribe" ? "transcribe.cpp" : "NeMo-Speech"})` : "Moguri-managed Nemotron 3.5 ASR Streaming 0.6B"}</p>
+          {committed.voice.model && <p className="fine-print path">{committed.voice.model.path}<br />Trusted SHA-256 {committed.voice.model.sha256}</p>}
+          {committed.voice.model && voice?.model?.trust === "changed" && <Alert as="p" className="inline-error" role="alert">This trusted file changed{voice.model.observedSha256 ? ` (SHA-256 is now ${voice.model.observedSha256})` : ""}. Dictation is blocked until you review and trust it again.</Alert>}
+          <div className="button-row">
+            <button type="button" disabled={saving || reviewJob?.status === "running"} onClick={() => void run(async () => { const path = await window.moguri.chooseVoiceModel(); if (path) reviewModel(path); })} aria-label="Use existing model file">Use existing model file…</button>
+            {committed.voice.model && voice?.model?.trust === "changed" && <button type="button" disabled={saving || reviewJob?.status === "running"} onClick={() => reviewModel(committed.voice.model!.path)} aria-label="Review changed file before trusting it again">Review changed file</button>}
+            {committed.voice.model && <button type="button" className="quiet" disabled={saving || Boolean(activeVoice)} onClick={() => void run(() => sdk.voice.useManagedModel())} aria-label="Use managed Nemotron model">Use managed Nemotron</button>}
+          </div>
+          <p className="fine-print">Reuse a streaming model you already have, such as Nemotron streaming (NeMo-Speech GGUF) or Handy's Parakeet and Moonshine streaming models (transcribe.cpp GGUF). Whisper can't stream, so it isn't accepted. Moguri hashes the file once for your approval, locks that SHA-256, asks again if the file ever changes, and never moves or deletes it.</p>
+          {reviewJob?.status === "running" && <div className="button-row"><p role="status">{reviewJob.progress}</p><button type="button" onClick={() => void run(() => sdk.jobs.cancel(reviewJob.id))} aria-label="Cancel model review">Cancel</button></div>}
+          {reviewJob && ["failed", "cancelled", "partial"].includes(reviewJob.status) && <Alert as="p" className="inline-error" role="alert">{reviewJob.error ?? `Model review ${reviewJob.status}. Nothing was trusted.`}</Alert>}
+          {modelReview?.inspection && <section className="voice-model-review" aria-label="Model review">
+            <p><strong>{modelReview.inspection.name}</strong> · {modelReview.inspection.architecture} · {modelReview.inspection.runtime === "transcribe" ? "transcribe.cpp" : "NeMo-Speech"} · streaming · {Math.ceil(modelReview.inspection.bytes / 1024 / 1024)} MiB{modelReview.inspection.license ? ` · license ${modelReview.inspection.license}` : ""}</p>
+            <p className="fine-print path">{modelReview.inspection.path}<br />SHA-256 {modelReview.inspection.sha256}</p>
+            <div className="button-row"><button type="button" disabled={saving || Boolean(activeVoice)} onClick={() => void run(async () => { await sdk.voice.trustModel(modelReview.jobId); setModelReview(null); })} aria-label="Trust this model">Trust this model</button>
+              <button type="button" className="quiet" onClick={() => setModelReview(null)}>Discard review</button></div>
+          </section>}
           <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable voice dictation" checked={committed.voice.enabled !== false}
             disabled={saving || Boolean(voiceDownload || voiceDisable)} onChange={(event) => {
               const enabled = event.target.checked;
+              if (enabled && committed.voice.model) { void run(() => sdk.settings.update({ ...committed, voice: { ...committed.voice, enabled: true } }, snapshot.settings.revision)); return; }
               if (enabled && !acceptLicense) { setError("Review the pinned model license and download below before enabling dictation."); return; }
               void run(async () => {
                 const result = enabled ? await sdk.voice.enable(true) : await sdk.voice.disable(true);
@@ -859,10 +893,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <SettingsHelp label="About dictation controls" target={<p className="fine-print">Click the microphone to record, then click again to confirm. {committed.voice.shortcut === "none" ? "No dictation shortcut is assigned." :
             voiceShortcutMode(committed.voice) === "hold" ? <>Hold <kbd>{shortcutLabel(committed.voice.shortcut ?? "Control+Space")}</kbd> for push-to-talk.</> :
               <>Press <kbd>{shortcutLabel(committed.voice.shortcut ?? "Control+Space")}</kbd> to record; press again to finish.</>}</p>}>Ctrl+Space defaults to held push-to-talk, independently of the microphone button. Release finishes the recording; releasing before capture starts discards that original pending capture. Uncheck Hold only to explicitly choose shortcut toggle mode. Both stream words into the owning composer without sending a message. Native/TUI capture supports Default only and explicitly rejects a selected desktop device.</SettingsHelp>
-          <SettingsHelp label="About supported dictation languages" target={<label className="setting-field">Language<select aria-label="Dictation language" disabled={saving} value={draft.voice.language} onChange={(event) => automatic("voice", { language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>} descriptionFirst>NVIDIA documents 40 locales: 19 ready, 13 broad coverage, 8 adaptation-only. The last group needs fine-tuning and is not advertised as ready.</SettingsHelp>
+          <SettingsHelp label="About supported dictation languages" target={<label className="setting-field">Language<select aria-label="Dictation language" disabled={saving} value={draft.voice.language} onChange={(event) => automatic("voice", { language: event.target.value })}><option value="auto">Automatic language detection</option>{voice?.languageLocales.map((locale) => <option key={locale.code} value={locale.code} disabled={locale.tier === "adaptation"}>{locale.code} ({locale.tier})</option>)}</select></label>} descriptionFirst>{committed.voice.model ? "This choice applies to the managed Nemotron model. Your external model uses its own language handling." : "NVIDIA documents 40 locales: 19 ready, 13 broad coverage, 8 adaptation-only. The last group needs fine-tuning and is not advertised as ready."}</SettingsHelp>
           <label className="setting-field">Native speech backend<select aria-label="Native speech backend" disabled={saving} value={draft.voice.backend} onChange={(event) => automatic("voice", { backend: event.target.value === "cpu" ? "cpu" : event.target.value === "metal" ? "metal" : "auto" })}><option value="auto">Automatic</option><option value="cpu">CPU</option><option value="metal" disabled={navigator.platform !== "MacIntel"}>Metal (macOS)</option></select></label>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={acceptLicense} onChange={(event) => setAcceptLicense(event.target.checked)} />I reviewed OpenMDW-1.1 and approve the {voice ? Math.ceil(voice.bytes / 1024 / 1024) : 708} MiB local model download.</label>
-          <div className="button-row"><button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"))} aria-label="View license and model card">View license</button><button disabled={!acceptLicense || voice?.modelReady || Boolean(voiceDownload || voiceDisable)} onClick={() => void run(() => sdk.voice.enable(true))} aria-label="Enable and download voice model">Enable and download</button></div>
+          {!committed.voice.model && <><label className="check-setting"><SettingsInput type="checkbox" checked={acceptLicense} onChange={(event) => setAcceptLicense(event.target.checked)} />I reviewed OpenMDW-1.1 and approve the {voice ? Math.ceil(voice.bytes / 1024 / 1024) : 708} MiB local model download.</label>
+          <div className="button-row"><button className="quiet" onClick={() => void run(() => window.moguri.openExternal("https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b"))} aria-label="View license and model card">View license</button><button disabled={!acceptLicense || voice?.modelReady || Boolean(voiceDownload || voiceDisable)} onClick={() => void run(() => sdk.voice.enable(true))} aria-label="Enable and download voice model">Enable and download</button></div></>}
           {voiceDownload && <div className="button-row"><p role="status">{voiceDownload.progress}</p><button type="button" onClick={() => void run(() => sdk.jobs.cancel(voiceDownload.id))} aria-label="Cancel model download">Cancel</button></div>}
           {voiceDisable && <p role="status">{voiceDisable.progress}</p>}
           {snapshot.jobs.findLast((job) => job.kind === "voice.disable")?.error && <Alert as="p" className="inline-error" role="alert">{snapshot.jobs.findLast((job) => job.kind === "voice.disable")!.error}</Alert>}

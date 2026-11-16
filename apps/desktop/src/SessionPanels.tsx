@@ -6,6 +6,7 @@ import { TaskPlanPanel } from "./TaskProgress.tsx";
 import { QuestionCard } from "./QuestionCard.tsx";
 import { SessionCoordinationPanel } from "./SessionCoordination.tsx";
 import { ApprovalActions } from "./ApprovalActions.tsx";
+import { ApprovalCall } from "./ApprovalCall.tsx";
 import type { SettingsTab } from "./settings-catalog.ts";
 import { RepositoryPicker } from "./RepositoryPicker.tsx";
 import { Alert } from "./Alert.tsx";
@@ -304,7 +305,8 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty,
     <p className="side-read-only" data-side-session-id={session.id}><Icon name="ReadOnly" /><strong>Read-only</strong> / main chat context refreshes for each new question</p>
     {renderTranscript(session)}
     {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}
-    {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><strong>Read access: {session.pendingApproval.call.name}</strong><pre>{JSON.stringify(session.pendingApproval.call.arguments, null, 2)}</pre>
+    {session.pendingApproval && <section className="side-approval" aria-label="Side read approval"><div className="approval-body">
+      <ApprovalCall call={session.pendingApproval.call} snapshot={snapshot} /></div>
       <ApprovalActions key={session.pendingApproval.id} sdk={sdk} session={session} busy={busy} run={run} /></section>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {session.queue.length > 0 && renderQueue(session)}
@@ -312,6 +314,6 @@ function SideConversation({ sdk, session, snapshot, onSlash, editorFor, onDirty,
       connected={sdk.getState().status === "connected"} inputLabel="Side question" autoFocus onPendingChange={setComposerPending}
       onSlash={onSlash} onMenuChange={modal} onConnect={() => openSettings("providers")} onGuardrails={() => openSettings("permissions")}
       onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")}
-      onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} />
+      onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} onVoiceSettings={() => openSettings("voice")} />
   </>;
 }
