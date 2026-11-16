@@ -1,9 +1,36 @@
 # Setup and usage
 
-Current source service/SDK/desktop protocol is **101**. Upgrades preserve existing
+Current source service/SDK/desktop protocol is **108**. Upgrades preserve existing
 history, identities and budget holds, with exact provenance-based rekeying for
 candidate-owned generation output described below. Restart matching
 clients and service; never delete state to upgrade.
+
+## Claude Agent
+
+Claude Agent runs your own installed Claude Code inside a Moguri chat. Claude Code
+makes its own model calls and runs its own tools; Moguri asks you to approve each
+tool call and records the conversation. See the
+[Claude Agent contract](architecture/claude-agent.md).
+
+1. Install Claude Code with its official installer
+   (<https://code.claude.com/docs/en/setup>). Moguri never installs it.
+2. Sign in from your own terminal with `claude auth login`, or set your own
+   `ANTHROPIC_API_KEY` or cloud-provider variables before starting Moguri. Moguri
+   never shows a Claude sign-in button or reads Claude credentials.
+3. In **Settings / Model providers / Claude Agent**, enable Claude Agent. Optionally
+   choose the transport (`Claude Agent SDK`, the default, or
+   `Claude Code stream-json protocol`) and an absolute executable path if `claude`
+   is not on `PATH` or in its standard install locations. Save, then
+   **Refresh available models**.
+4. Choose **Claude Agent / Sonnet**, **Opus** or **Haiku** in the composer's Model
+   control, in a project or a Home-bound chat.
+
+Limits in this release: Local only, Unlimited budget with no profile or global
+cap, ordinary single-root chats, text prompts only, Queue or Interrupt delivery
+(no Steer), and Manual, Guided or Autopilot. Each tool approval applies once.
+Read-only chats run Claude in plan mode and deny edits and commands. The usage
+notice after each turn shows Claude Code's cumulative session totals and its own
+cost estimate, which is not a bill and never counts toward Moguri budgets.
 
 ## Inbox and explicit skill loading
 
