@@ -322,6 +322,15 @@ native gates and the full source, hidden desktop, SDK and package runs. The
 maps each milestone criterion to its evidence and records the user-directed
 replacement of hosted CI with that local evidence. Physical native runs need
 the reviewed receipts from `npm run prepare:sandbox` and `scripts/qualify-sandbox.mjs`.
+
+Since [D38](architecture/decisions.md#d38-covering-array-milestone-regression),
+`npm test` runs a 78-cell
+[covering array](architecture/milestone-combination-matrix.md#regression-method-covering-array)
+(55 Local/SSH cells in about a minute) plus the 72 manual-Kupo-effort refusals,
+instead of the 2-hour full product. The 23-cell native slice runs only with
+native receipts and has a 30-minute bound. `npm run test:matrix` runs the
+10,080-cell full product on request, and `npm run generate:covering`
+regenerates the checked-in array after an axis change.
 Fresh macOS source-test environments also require the matching installed
 Chromium revision: run `npm exec -- playwright install chromium` explicitly
 after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
