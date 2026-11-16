@@ -132,6 +132,9 @@ svg { flex-shrink: 0; }
 .remembered-approval { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 10px; border-bottom: 1px solid var(--line); }
 .remembered-approval > div { min-width: 0; overflow-wrap: anywhere; }
 .artifact-panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.settings-content .artifact-panel { max-width: 850px; }
+.artifact-panel > p { margin: 0; }
+.settings-content .artifact-panel > h3 { margin: 20px 0 0; }
 .artifact-panel .panel-toolbar { align-items: end; }
 .artifact-panel .panel-toolbar .setting-field { flex: 1; }
 .artifact-panel .panel-toolbar select { width: 100%; flex: initial; }
