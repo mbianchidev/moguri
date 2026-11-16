@@ -756,6 +756,11 @@ summary { font-size: 12px; line-height: 1.7; color: var(--muted); }
 .provider-setup .fine-print { font-size: 10px; margin-top: 16px; }
 .provider-setup .connected-label { color: var(--accent); font-weight: 550; }
 .provider-setup .button-row button { font-size: 11px; }
+.provider-setup .hosted-provider { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.provider-setup .hosted-provider h3 { font-size: 13px; margin: 0; }
+.provider-setup .hosted-provider .fine-print { margin: 4px 0 10px; }
+.provider-setup .hosted-provider button:not(.primary) { font-size: 11px; }
+.provider-setup .hosted-provider form.button-row { align-items: center; margin-bottom: 8px; }
 .device-flow { padding-top: 7px; }
 .device-flow code { display: block; font-size: 26px; font-weight: 600; letter-spacing: 2px; padding: 16px 0 24px; }
 .device-flow .primary { width: 100%; }
