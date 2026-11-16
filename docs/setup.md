@@ -38,6 +38,18 @@ atomic genuine98 upgrade and the distinction between deletion and approval.
 
 ## Local skill admission and per-turn rewind
 
+Skills from a folder you enabled in **Settings / Skills**, and skills you
+imported, load without a separate review: enabling the folder (or importing the
+skill) is the trust decision. Each load re-reads the current files and checks
+their hashes. The chat records a read-only *trusted-folder* admission tied to
+the Settings change that enabled the folder. Binary or oversized files in the
+skill folder are left out of the load and listed by path. Trusted skills are
+instructions only: every tool call still goes through your normal permissions
+and Autopilot choices. Revoking a skill in a chat stops it loading there.
+Disabling the folder blocks chats that used it, and re-enabling it doesn't
+revive those old loads. Skills from a remote HTTPS archive still need the
+explicit review below.
+
 Discovery and diagnostic source reading do not admit instructions. In desktop
 open **Settings / Skills**, select the actual **Source chat for skill admission**,
 then open **Skill source reviews** and choose **Find current skills**.
@@ -71,8 +83,8 @@ root, expiry or revocation require fresh review. The outward
 consumption; it cannot approve itself. Diagnostic `skills read` remains a
 user-facing source preview, not model admission.
 
-Consumed guidance restricts subsequent model calls and tools in that active
-context. Its source restrictions only narrow current permissions. Disabling a
+Explicitly reviewed (non-trusted-folder) guidance restricts subsequent model
+calls and tools in that active context. Its source restrictions only narrow current permissions. Disabling a
 source or revoking a grant blocks future use and dispatch, including an approval
 that was already waiting. It cannot retract text already delivered to a model
 or undo an already-running effect. A clean conversation branch or a new chat is
