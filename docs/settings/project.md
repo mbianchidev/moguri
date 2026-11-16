@@ -21,6 +21,7 @@ this page keeps the full detail.
 ## New Local Git tasks / After code changes
 
 - Default workspace mode is a managed worktree: new Local Git tasks create Moguri-owned worktrees before they run. "This folder's checkout" (formerly "Original checkout (explicit opt-out)") is an explicit opt-out.
+- Projects added from a workspace folder are read-only sources. The choice is locked to "A new worktree (always)", the Repository section names the source folder, and remote changes are not offered. Contract: `docs/architecture/workspace-folders.md`.
 - Existing sessions keep their exact root.
 - The draft PR default is workflow guidance only. It never grants publication (push), authentication or merge permission; ordinary approvals still apply.
 - Contract: `docs/architecture/repository-workflow-defaults.md`, `docs/architecture/managed-workspaces.md`, `docs/setup.md` (New Local Git tasks section).

@@ -574,6 +574,12 @@ See [repository trust and workflow defaults](architecture/repository-workflow-de
 for exact existing-script baseline trust, Inbox filters and honest partial-result
 continuation. Trust never grants execution approval or covers new/package code.
 
+Projects can also come from a trusted [workspace folder](architecture/workspace-folders.md):
+Moguri reads the folder, registers the Git repositories the user picks and can
+keep that list in sync. These projects are permanent read-only sources. They
+always use service-owned worktrees, and project-level writes to the original
+checkout are refused. Sync adds projects but never removes them.
+
 Creating work items or sessions from GitHub issues or pull requests requires an installed and authorized GitHub integration or MCP. Linear and Jira entry points follow the same explicit connector model.
 
 Initial behavior:

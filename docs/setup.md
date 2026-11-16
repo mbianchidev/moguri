@@ -470,6 +470,30 @@ The [released native runtime blocker](architecture/managed-sandbox.md#current-ve
 still requires fresh exact-byte physical qualification; these mechanisms do
 not declare milestone1 or a signed/notarized public v1 complete.
 
+## Adding a workspace folder
+
+If your repositories already live in one folder, such as `~/workspace`, open
+**Settings / Repositories** (or **New > Add workspace folder**) and choose
+**Add workspace folder**. Moguri lists the Git repositories it finds up to three
+levels down; uncheck any you don't want. Choose **Keep in sync** to have new
+repositories added automatically (at startup, every five minutes or with
+**Check now**), or **Import once**. Turn on **I trust this folder and allow
+Moguri to read it**, then add the projects.
+
+Projects added this way are read-only sources: Moguri never edits the original
+checkout. Every Local session works in its own worktree in Moguri's state
+directory, and project-level writes to the folder are refused. Sync never
+removes projects; a missing repository is reported so you can remove it from
+Project settings. From the terminal:
+
+```sh
+moguri project folder-preview ~/workspace --json        # note the digest
+moguri project folder-import ~/workspace --digest SHA --trust-folder [--once]
+moguri project folders
+```
+
+Details and limits: [workspace folders](architecture/workspace-folders.md).
+
 ## Importing repositories and changing a remote
 
 Open **Settings / Repositories**, paste one HTTPS/SSH repository URL per line
