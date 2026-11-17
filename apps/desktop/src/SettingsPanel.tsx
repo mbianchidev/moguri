@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -310,11 +310,14 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     void write({ ...committedValues.current, guidance: { ...committedValues.current.guidance, [key]: value } },
       () => setDraft((current) => ({ ...current, guidance: { ...current.guidance, [key]: value } })));
   };
-  const saveRetentionAge = (key: "afterDays" | "archiveAfterDays") => {
-    const value = draft.retention[key];
-    void write({ ...committedValues.current, retention: { ...committedValues.current.retention, [key]: value } },
-      () => setDraft((current) => ({ ...current, retention: { ...current.retention, [key]: value } })));
-  };
+  const retentionDays = (current: number | undefined) => [...new Set<number>([...RETENTION_DAY_CHOICES, current ?? 7])].sort((a, b) => a - b);
+  const retentionRule = (label: string, enabled: boolean, toggle: (checked: boolean) => void, days: number | undefined, daysLabel: string, setDays: (value: number) => void) =>
+    <div className="retention-rule">
+      <label className="check-setting"><SettingsInput type="checkbox" checked={enabled} disabled={saving} onChange={(event) => toggle(event.target.checked)} />{label}</label>
+      <label className="retention-age">After<select aria-label={daysLabel} value={days ?? 7} disabled={saving} onChange={(event) => setDays(Number(event.target.value))}>
+        {retentionDays(days).map((value) => <option key={value} value={value}>{value === 1 ? "1 day" : `${value} days`}</option>)}
+      </select></label>
+    </div>;
   const voiceShortcut = () => {
     const shortcut = draft.voice.shortcut ?? "Control+Space";
     void write({ ...committedValues.current, voice: { ...committedValues.current.voice, shortcut } }, () => {});
@@ -511,6 +514,23 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <dt>Move between controls</dt><dd><kbd>Tab / Shift+Tab</kbd></dd><dt>Activate a focused control</dt><dd><kbd>Enter / Space</kbd></dd>
           </dl></>}
         {tab === "github" && <><GitHubConnectionPanel sdk={sdk} openTerminal={session?.controls.env === "Local" && session.status !== "archived" && snapshot.policy.allowedEnvs.includes("Local") ? openTerminal : undefined} />
+          {(() => {
+            const prefix = draft.git?.branchPrefix ?? "", saved = committed.git?.branchPrefix ?? "", valid = new RegExp(BRANCH_PREFIX_PATTERN).test(prefix);
+            return <section aria-label="Branch names">
+              <SettingsHelp label="About branch names" target={<h3>Branch names</h3>}>Applies to branches Moguri creates for new tasks, Kanban work and suggested worktrees. Existing branches keep their names.</SettingsHelp>
+              <form className="branch-prefix-form" onSubmit={(event) => {
+                event.preventDefault();
+                if (!valid || prefix === saved) return;
+                void write({ ...committedValues.current, git: prefix ? { branchPrefix: prefix } : undefined }, () => setDraft((current) => ({ ...current, git: prefix ? { branchPrefix: prefix } : undefined })));
+              }}>
+                <label className="setting-field">Branch name prefix<SettingsInput aria-label="Branch name prefix" value={prefix} placeholder="yourname/" maxLength={60} spellCheck={false}
+                  onChange={(event) => change("git", { branchPrefix: event.target.value })} /></label>
+                <button type="submit" className="primary" aria-label="Save branch name prefix" disabled={saving || !valid || prefix === saved}>Save</button>
+              </form>
+              {!valid ? <Alert as="p" className="inline-error" role="alert">Use letters, numbers, ".", "_" and "-", with "/" between parts, such as yourname/ or team-.</Alert> :
+                <p className="fine-print">{prefix ? `New branches look like ${prefix}moguri/fix-login-1a2b3c4d.` : "Optional. New branches look like moguri/fix-login-1a2b3c4d."}</p>}
+            </section>;
+          })()}
           <details><summary>Advanced Git and GitHub operations</summary><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></details></>}
         {tab === "linear" && <><LinearConnectionPanel sdk={sdk} onDirty={setIntegrationDirty} />{project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p className="fine-print">Choose a project to set up its Linear team and workflows.</p>}</>}
         {tab === "sql" && <><SettingsHelp label="More about this setting" target={<h2>sql-not-so-lite</h2>}>Connects to a sql-not-so-lite daemon you already run; Moguri never starts it or triggers its scans. The connection is made from this Mac, not from a Remote host.</SettingsHelp>
@@ -784,14 +804,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="setting-field">When deleting a session with subsessions<select aria-label="When deleting a session with subsessions" value={draft.retention.deleteChildren ?? "ask"}
             onChange={(event) => updateChildrenPreference("delete", event.target.value)}><option value="ask">Ask me each time</option><option value="delete">Delete all attached subsessions</option><option value="detach">Detach direct children</option></select></label>
           <p className="fine-print">Archiving or deleting all includes nested subsessions. Detaching keeps direct children and their own subsessions; subagents can't be detached.</p>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.archiveCompleted ?? false} onChange={(event) => automatic("retention", { archiveCompleted: event.target.checked })} />Automatically archive completed sessions after the configured age</label>
-          <label className="setting-field">Completed-session archive days<SettingsInput aria-label="Completed archive days" type="number" min={1} max={3650} value={draft.retention.archiveAfterDays ?? 7} onChange={(event) => change("retention", { ...draft.retention, archiveAfterDays: Number(event.target.value) })} /></label>
-          <button type="button" className="primary" aria-label="Save archive age" disabled={saving || draft.retention.archiveAfterDays === committed.retention.archiveAfterDays} onClick={() => saveRetentionAge("archiveAfterDays")}>Save</button>
-          <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.deleteArchived} onChange={(event) => automatic("retention", { deleteArchived: event.target.checked })} />Automatically delete archived sessions after the configured age</label>
-          <label className="setting-field">Days<SettingsInput aria-label="Archived retention days" type="number" min={1} max={3650} value={draft.retention.afterDays} onChange={(event) => change("retention", { ...draft.retention, afterDays: Number(event.target.value) })} /></label>
-          <button type="button" className="primary" aria-label="Save retention age" disabled={saving || draft.retention.afterDays === committed.retention.afterDays} onClick={() => saveRetentionAge("afterDays")}>Save</button>
+          <fieldset className="retention-rules"><legend>Automatic cleanup</legend>
+            {retentionRule("Archive completed sessions", draft.retention.archiveCompleted ?? false, (checked) => automatic("retention", { archiveCompleted: checked }),
+              draft.retention.archiveAfterDays, "Completed archive days", (value) => automatic("retention", { archiveAfterDays: value }))}
+            {retentionRule("Archive sessions whose pull request merged", draft.retention.archiveMerged ?? false, (checked) => automatic("retention", { archiveMerged: checked }),
+              draft.retention.archiveMergedAfterDays, "Merged archive days", (value) => automatic("retention", { archiveMergedAfterDays: value }))}
+            {retentionRule("Delete archived sessions", draft.retention.deleteArchived, (checked) => automatic("retention", { deleteArchived: checked }),
+              draft.retention.afterDays, "Archived retention days", (value) => automatic("retention", { afterDays: value }))}
+            <p className="fine-print">Merged sessions count from when Moguri saw the pull request merge. Sessions with unsent drafts or running work are skipped.</p>
+          </fieldset>
           <Alert as="p" tone="warning" className="settings-warning">Automatic deletion is permanent and includes candidate proposals. It doesn't touch backups, applied code or PRs.</Alert>
-          <button disabled={!snapshot.settings.values.retention.deleteArchived && !snapshot.settings.values.retention.archiveCompleted} onClick={() => void run(() => sdk.command({ type: "retention.run" }))} aria-label="Run cleanup with configured retention">Run cleanup</button>
+          <button disabled={!snapshot.settings.values.retention.deleteArchived && !snapshot.settings.values.retention.archiveCompleted && !snapshot.settings.values.retention.archiveMerged} onClick={() => void run(() => sdk.command({ type: "retention.run" }))} aria-label="Run cleanup with configured retention">Run cleanup</button>
           <SessionManagement sdk={sdk} snapshot={snapshot} openSession={openSession} onDirty={setSessionsDirty} />
           <h3>Structured answers</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.artifacts.retainAnswers} onChange={(event) => automatic("artifacts", { retainAnswers: event.target.checked })} />Keep my answers to questions as artifacts</label>}>Only your own answers are kept; answers from a model or Autopilot never count as your instructions or permissions.</SettingsHelp>
           <button onClick={() => void reset("artifacts")} aria-label="Restore defaults for answer retention">Restore defaults</button></>}

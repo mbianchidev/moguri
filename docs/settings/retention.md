@@ -54,11 +54,20 @@ The switch was previously labeled "Prevent idle sleep while this profile owns wo
 field "Minutes after owned work finishes". Only work this profile owns keeps the Mac awake. The
 idle-sleep helper does not override manual sleep, lid closure or a remote host's sleep policy.
 
-## Automatic retention
+## Automatic cleanup
 
-Only actual completion qualifies. Unsent drafts, queues, user input, active descendants, live consoles
-and uncertain effects keep a session open. Archive and deletion each start off with seven-day factory
-thresholds.
+Three rules, each off by default with a seven-day age. The switch and the age select save immediately;
+ages are 1, 7, 30, 60 or 90 days (an older custom value stays listed).
+
+- **Archive completed sessions:** counts from the session's actual completion time.
+- **Archive sessions whose pull request merged:** counts from when Moguri first saw the session's pull
+  request as merged (the persisted observation time; unchanged checks don't move it). Completed, stopped,
+  failed and idle sessions qualify; partial or running ones don't.
+- **Delete archived sessions:** counts from the archive time. Deletion is permanent, as described above.
+
+The cleanup runs every minute and on **Run cleanup**. Unsent drafts, queues, pending input, active
+descendants, live consoles and uncertain effects keep a session open. Subsession choices below apply to
+automatic archive and deletion too.
 
 ## Subsession choices
 

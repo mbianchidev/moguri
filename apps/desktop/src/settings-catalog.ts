@@ -12,7 +12,7 @@ export const SETTINGS_GROUPS = [
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },
   ] },
   { label: "Integrations", items: [
-    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews" },
+    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews branch prefix names" },
     { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },

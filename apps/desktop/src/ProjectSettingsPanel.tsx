@@ -31,7 +31,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const [sources, setSources] = useState<{ instructions: string | null; mcp: string | null; mcpDigest: string | null } | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [publish, setPublish] = useState(false);
-  const [branch, setBranch] = useState(`moguri/repo-defaults-${crypto.randomUUID().slice(0, 8)}`);
+  const [branch, setBranch] = useState(() => `${snapshot.settings.values.git?.branchPrefix ?? ""}moguri/repo-defaults-${crypto.randomUUID().slice(0, 8)}`);
   const ownSave = useRef(false);
   const committedValues = useRef(committed);
   const run = async (operation: () => Promise<unknown>) => {

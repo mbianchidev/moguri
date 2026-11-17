@@ -23,6 +23,16 @@ this page keeps the full detail.
 - Open terminal needs a selected Local session; Moguri does not create a global console or a hidden chat for
   it.
 
+## Branch names
+
+- **Branch name prefix** (optional, profile-wide) is added in front of every branch name Moguri generates:
+  default task worktrees, Kanban "Continue work" branches, the suggested branch for a new managed worktree
+  and the repository-defaults branch. With `yourname/`, a task branch becomes `yourname/moguri/fix-login-1a2b3c4d`.
+- The project's **Branch name pattern** (Project settings) still shapes the rest of the name. A pattern that
+  already starts with the prefix isn't prefixed twice. Existing branches keep their names.
+- Allowed: letters, digits, `.`, `_` and `-`, with `/` between parts, optionally ending with `/` or `-`.
+  No leading `/`, `-` or `.`, no `..`, and no part ending in `.lock`. Saving uses the explicit Save button.
+
 ## Advanced Git and GitHub operations
 
 - These are explicit operations on a Local project or managed workspace. Before each write you review the exact

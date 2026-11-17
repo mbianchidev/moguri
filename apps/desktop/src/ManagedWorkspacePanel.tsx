@@ -1,13 +1,13 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useState } from "react";
-import { type MoguriSdk, type Project, type ProjectSettings, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { generatedBranchName, type MoguriSdk, type Project, type ProjectSettings, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 
 export function ManagedWorkspacePanel({ sdk, project, settings, snapshot, disabled, openSession }: {
   sdk: MoguriSdk; project: Project; settings: ProjectSettings; snapshot: Snapshot; disabled: boolean; openSession: (id: string) => void;
 }) {
-  const [branch, setBranch] = useState(() => settings.repo.branchPattern.replaceAll("{slug}", "work").replaceAll("{id}", crypto.randomUUID().slice(0, 8)));
+  const [branch, setBranch] = useState(() => generatedBranchName(settings.repo.branchPattern, "work", crypto.randomUUID().slice(0, 8), snapshot.settings.values.git?.branchPrefix));
   const [baseRef, setBaseRef] = useState(settings.repo.mainBranch);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [output, setOutput] = useState("");
   const [removal, setRemoval] = useState<{ id: string; revision: number } | null>(null);

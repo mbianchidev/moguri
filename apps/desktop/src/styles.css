@@ -1455,3 +1455,12 @@ summary:hover { color: var(--text); }
 .voice-model-list li.unsupported strong { color: var(--muted); }
 .voice-model-list .model-status { display: inline-block; padding: 0 8px; border: 1px solid var(--control-line); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 18px; }
 .voice-model-list .model-status.streaming { color: var(--text); border-color: var(--accent); }
+/* Automatic cleanup rules (Settings > Retention) */
+.retention-rules .retention-rule { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; }
+.retention-rules .retention-rule + .retention-rule { border-top: 1px solid var(--line); }
+.retention-rules .retention-rule .check-setting { flex: 1; margin: 0; align-items: center; }
+.retention-age { display: flex; align-items: center; gap: 8px; flex-shrink: 0; color: var(--muted); font-size: 12px; }
+.retention-age select { width: auto; min-width: 110px; min-height: 32px; }
+.retention-rules > .fine-print { margin: 8px 0 0; }
+.branch-prefix-form { max-width: 850px; }
+.branch-prefix-form .setting-field { margin-bottom: 10px; }

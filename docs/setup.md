@@ -2142,6 +2142,22 @@ leave the selector while their ownership/cleanup evidence remains retained.
 Existing PTYs are never replaced merely to change their shell. See the
 [protocol-51 interaction contract](architecture/session-interactions.md).
 
+## Session cleanup and branch names
+
+**Settings / Sessions / Retention > Automatic cleanup** has three switches, each
+off by default with an age select (1, 7, 30, 60 or 90 days, default 7) that saves
+immediately: archive completed sessions, archive sessions whose pull request
+merged (counted from when Moguri saw the merge), and delete archived sessions.
+Sessions with unsent drafts, queued prompts, pending input or running work are
+skipped. Deletion is permanent; see [the Retention reference](settings/retention.md).
+
+**Settings / Integrations / GitHub workflows > Branch names** sets an optional
+**Branch name prefix**, such as `yourname/`, for every branch Moguri generates:
+new task worktrees, Kanban "Continue work", suggested worktree branches and the
+repository-defaults branch. A task branch then looks like
+`yourname/moguri/fix-login-1a2b3c4d`. The project's branch pattern still shapes
+the rest of the name; existing branches are not renamed.
+
 ## Shared session and instruction preferences
 
 Protocol/database **45** adds nested preference normalization without rewriting
