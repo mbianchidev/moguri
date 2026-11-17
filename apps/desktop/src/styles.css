@@ -733,6 +733,18 @@ summary:hover { color: var(--text); }
 .context-content { padding: 20px 16px; overflow: auto; flex: 1; min-height: 0; font-size: 12px; line-height: 1.65; }
 .anchored-menu { position: fixed; inset: auto; margin: 0; padding: 8px; color: var(--text); background: var(--surface); border: 1px solid var(--control-line); border-radius: 8px; box-shadow: 0 6px 24px #0004; overflow: auto; max-height: min(420px, calc(100dvh - 24px)); }
 .anchored-menu::backdrop { background: transparent; }
+.select-search { position: fixed; inset: auto; margin: 0; padding: 6px; flex-direction: column; gap: 6px; color: var(--text); background: var(--surface); border: 1px solid var(--control-line); border-radius: 8px; box-shadow: 0 6px 24px #0004; overflow: hidden; }
+.select-search:popover-open { display: flex; }
+.select-search::backdrop { background: transparent; }
+.select-search-input { flex: 0 0 auto; width: 100%; min-height: 32px; }
+.select-search-list { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.select-search-group { padding: 8px 9px 3px; color: var(--muted); font-size: 11px; font-weight: 550; }
+.select-search-option { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 5px 9px; border-radius: 5px; font-size: 12px; line-height: 18px; overflow-wrap: anywhere; cursor: default; }
+.select-search-option.active { background: var(--hover); }
+.select-search-option[aria-selected="true"] { color: var(--selection-text); font-weight: 550; }
+.select-search-option[aria-disabled="true"] { color: var(--muted); }
+.select-search-option > svg { flex: 0 0 auto; width: 14px; height: 14px; margin-inline-start: auto; }
+.select-search-empty { margin: 4px 9px; color: var(--muted); font-size: 12px; }
 .context-content h2 { font-size: 12px; margin: 24px 0 14px; font-weight: 650; }
 .context-content > h2:first-child { margin-top: 0; }
 .context-binding { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
@@ -992,6 +1004,9 @@ summary:hover { color: var(--text); }
 .settings-help-row:has(> :is(.setting-field, .setting-editor)) { margin: 22px 0 14px; }
 .settings-help-row > :is(.setting-field, .setting-editor) { flex: 1; margin: 0; }
 .settings-help-row > .setting-field, .settings-help-row > .setting-editor > .setting-field { margin-top: 0; padding-top: 3px; line-height: 20px; }
+.settings-help-row.field-help { position: relative; anchor-scope: --setting-field-title; }
+.settings-help-row.field-help .setting-field-title { anchor-name: --setting-field-title; align-self: flex-start; max-width: calc(100% - 34px); }
+.settings-help-row.field-help > .setting-help { position: absolute; position-anchor: --setting-field-title; left: calc(anchor(right) + 6px); top: anchor(center); translate: 0 -50%; }
 .settings-help-row > p { margin: 0; padding-block: 3px; }
 .settings-help-row > details { flex: 1; margin: 0; }
 .settings-help-row > details > summary { min-height: 26px; padding-block: 3px; }

@@ -1,4 +1,4 @@
-import { createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState, type ComponentPropsWithoutRef, type ReactElement, type ReactNode, type RefObject } from "react";
+import { Children, cloneElement, createContext, forwardRef, useContext, useEffect, useImperativeHandle, useRef, useState, type ComponentPropsWithoutRef, type ReactElement, type ReactNode, type RefObject } from "react";
 import { Icon } from "./Icon.tsx";
 import { InfoTip, Tooltip } from "./Tooltip.tsx";
 import { useCopyFeedback } from "./CopyButton.tsx";
@@ -8,11 +8,21 @@ const SettingsContext = createContext(false);
 export function SettingsFieldsProvider({ children }: { children: ReactNode }) {
   return <SettingsContext.Provider value>{children}</SettingsContext.Provider>;
 }
+// Wraps a field label's leading text so its information button can sit beside the title instead of at the end of a full-width control.
+function titledField(target: ReactElement): ReactElement | null {
+  const props = target.props as { className?: unknown; children?: ReactNode };
+  if (target.type !== "label" || typeof props.className !== "string" || !props.className.split(/\s+/).includes("setting-field")) return null;
+  const children = Children.toArray(props.children), split = children.findIndex((child) => typeof child !== "string" && typeof child !== "number");
+  const title = children.slice(0, split);
+  if (split <= 0 || !title.join("").trim()) return null;
+  return cloneElement(target, {}, <span key="setting-field-title" className="setting-field-title">{title}</span>, ...children.slice(split));
+}
 export function SettingsHelp({ label, children, target, descriptionFirst = false }: { label: string; children: ReactNode; target: ReactElement; descriptionFirst?: boolean }) {
   const active = useContext(SettingsContext);
   if (!children) return target;
   const description = active ? <InfoTip label={label}>{children}</InfoTip> : <p className="fine-print">{children}</p>;
-  return active ? <div className="settings-help-row">{target}{description}</div> :
+  const field = active ? titledField(target) : null;
+  return active ? <div className={`settings-help-row${field ? " field-help" : ""}`}>{field ?? target}{description}</div> :
     <>{descriptionFirst && description}{target}{!descriptionFirst && description}</>;
 }
 export function SettingsAction({ label, icon, className = "", ...props }: Omit<ComponentPropsWithoutRef<"button">, "children" | "aria-label"> & { label: string; icon: string }) {
