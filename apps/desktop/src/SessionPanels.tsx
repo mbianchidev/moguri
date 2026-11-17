@@ -55,7 +55,7 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   return <section className="changes-panel" aria-label="Bound workspace changes" aria-busy={loading}><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={loading || Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Refresh" /></button></header>
     {loading && <p className="fine-print" role="status">Loading changes from the bound workspace...</p>}
     <PanelError failure={error} projectId={session.projectId} />
-    {data && <>{data.status ? <pre className="git-status" tabIndex={0} aria-label="Changed files">{data.status}</pre> : <p className="panel-empty-text" role="status">Working tree is clean.</p>}
+    {data && <>{data.status ? <pre className="git-status" tabIndex={0} role="region" aria-label="Changed files">{data.status}</pre> : <p className="panel-empty-text" role="status">Working tree is clean.</p>}
       {data.diff ? <UnifiedDiff text={data.diff} label="Tracked changes" /> : data.status && <p className="panel-empty-text">No tracked diff. Untracked files are listed above.</p>}</>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;

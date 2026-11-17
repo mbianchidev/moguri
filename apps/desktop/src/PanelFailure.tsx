@@ -11,7 +11,7 @@ export function panelFailure(error: unknown, fallback: string): PanelFailure {
 }
 
 /** Git reports a folder without a repository as a failed read; panels show it as an expected empty state with the exact detail on demand. */
-export const notGitRepository = (failure: PanelFailure) => /\bnot a git repository\b/i.test(failure.message);
+const notGitRepository = (failure: PanelFailure) => /\bnot a git repository\b/i.test(failure.message);
 
 export function PanelError({ failure, projectId }: { failure: PanelFailure | null; projectId: string | null }) {
   const act = useContext(ProjectFolderActions);
