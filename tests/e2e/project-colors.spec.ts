@@ -44,7 +44,7 @@ test("project context menus offer rainbow presets and preserve project settings,
     const current = () => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === projectId)!;
     await expect.poll(() => current().color).toBe("#3b82f6");
     expect(current().folderId).toBe(group.id); expect(current().order).toBe(4); expect(current().values).toEqual(before.values);
-    const folderIcon = page.getByRole("button", { name: "Collapse project project", exact: true }).locator(".project-color");
+    const folderIcon = project.locator(".project-color");
     await expect(folderIcon).toHaveCSS("color", "rgb(59, 130, 246)");
     await expect(folderIcon.locator('svg[data-icon="FolderOpen"]')).toBeVisible();
     await page.reload();
@@ -67,14 +67,16 @@ test("project colors work from keyboard and two-finger context menus without a s
     await expect(menu).toHaveCount(0); await expect(project).toBeFocused();
     await project.click({ button: "right" }); await expect(menu).toBeVisible();
     await page.keyboard.press("Escape"); await expect(menu).toHaveCount(0);
-    await project.click({ button: "right" }); await page.keyboard.press("Home");
-    await expect(menu.getByRole("menuitemradio", { name: "Red", exact: true })).toBeFocused();
+    await project.click({ button: "right" });
+    await expect(menu.getByRole("menuitem", { name: "New session", exact: true })).toBeFocused();
+    await page.keyboard.press("End"); await expect(menu.getByRole("menuitem", { name: "Remove", exact: true })).toBeFocused();
+    await menu.getByRole("menuitemradio", { name: "Red", exact: true }).focus();
     for (let step = 0; step < 4; step++) await page.keyboard.press("ArrowRight");
     await expect(menu.getByRole("menuitemradio", { name: "Blue", exact: true })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().projectConfigurations[0]?.color).toBe("#3b82f6");
     await expect(project).toBeFocused();
-    await project.click({ button: "right" }); await page.keyboard.press("Home"); await page.keyboard.press("ArrowLeft");
+    await project.click({ button: "right" }); await menu.getByRole("menuitemradio", { name: "Red", exact: true }).focus(); await page.keyboard.press("ArrowLeft");
     await expect(menu.getByRole("menuitemradio", { name: "Custom project color", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowLeft");
     await expect(menu.getByRole("menuitemradio", { name: "Violet", exact: true })).toBeFocused();

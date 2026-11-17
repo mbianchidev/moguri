@@ -59,20 +59,43 @@ test("an individual project collapses only its navigation sessions and remains e
   try {
     const page = await app.firstWindow(), section = page.getByRole("region", { name: `Project ${project.name}`, exact: true });
     const session = section.getByRole("button", { name: fixture.session().title, exact: true });
-    await expect(session).toBeVisible();
-    await section.getByRole("button", { name: `Collapse project ${project.name}`, exact: true }).click();
+    const row = section.getByRole("button", { name: project.name, exact: true });
+    await expect(session).toBeVisible(); await expect(row).toHaveAttribute("aria-expanded", "true");
+    await row.locator(".project-color").click();
+    await expect(session).not.toBeVisible(); await expect(row).toHaveAttribute("aria-expanded", "false");
+    await expect(row.locator('svg[data-icon="Files"]')).toBeVisible();
+    await expect(page.getByRole("region", { name: "Per-project settings", exact: true })).toHaveCount(0);
+    await row.focus(); await page.keyboard.press("Enter"); await expect(session).toBeVisible();
+    await row.locator(".project-label").click();
     await expect(session).not.toBeVisible();
-    await expect(section.getByRole("button", { name: project.name, exact: true })).toBeVisible();
-    await section.getByRole("button", { name: `Expand project ${project.name}`, exact: true }).focus();
-    await page.keyboard.press("Enter"); await expect(session).toBeVisible();
-    await section.getByRole("button", { name: `Collapse project ${project.name}`, exact: true }).click();
+    await expect(page.getByRole("region", { name: "Per-project settings", exact: true })).toHaveCount(0);
     await (await openSessionSearch(page)).fill(sessionTitle(fixture.session(), 160, "New chat"));
     await expect(session).toBeVisible();
     await page.getByRole("searchbox", { name: "Search sessions", exact: true }).press("Escape");
     await expect(page.getByRole("searchbox", { name: "Search sessions", exact: true })).toHaveValue("");
-    await expect(section.getByRole("button", { name: `Expand project ${project.name}`, exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(row).toHaveAttribute("aria-expanded", "false");
     await expect(session).not.toBeVisible();
     expect(fixture.service.controller.snapshot().sessions[0]!.id).toBe(fixture.sessionId);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); await fixture.close(); }
+});
+
+test("a project's hover plus starts a session in that project and reopens it when collapsed", async () => {
+  const fixture = await setupFixture(), project = fixture.service.controller.snapshot().projects[0]!, app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), section = page.getByRole("region", { name: `Project ${project.name}`, exact: true });
+    const row = section.getByRole("button", { name: project.name, exact: true });
+    const plus = section.getByRole("button", { name: `New session in ${project.name}`, exact: true });
+    await expect(row).toBeVisible(); await expect(plus).toHaveCSS("opacity", "0");
+    await row.hover(); await expect(plus).toHaveCSS("opacity", "1");
+    await row.click(); await expect(row).toHaveAttribute("aria-expanded", "false");
+    const before = new Set(fixture.service.controller.snapshot().sessions.map((session) => session.id));
+    await plus.click();
+    await expect.poll(() => fixture.service.controller.snapshot().sessions.filter((session) => !before.has(session.id)).length).toBe(1);
+    const created = fixture.service.controller.snapshot().sessions.find((session) => !before.has(session.id))!;
+    expect(created.projectId).toBe(project.id);
+    await expect(row).toHaveAttribute("aria-expanded", "true");
+    await expect(section.locator(`button[data-session-id="${created.id}"]`)).toHaveAttribute("aria-current", "page");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
 });

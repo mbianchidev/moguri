@@ -37,7 +37,7 @@ test("project secondary-click and keyboard menus share Kanban visibility; draggi
     await expect(page.getByRole("button", { name: "Kanban for Alpha", exact: true })).toHaveCount(0);
     await sdk.refresh(); expect(kanbanPreferences((await sdk.issues.board(ids[0]!)).board).visible).toBe(false);
     await alpha.focus(); await alpha.press("Shift+F10");
-    await expect(menu.getByRole("menuitemradio", { name: "Custom project color", exact: true })).toBeFocused();
+    await expect(menu.getByRole("menuitem", { name: "New session", exact: true })).toBeFocused();
     await menu.getByRole("menuitem", { name: "Show Kanban", exact: true }).click();
     await page.getByRole("button", { name: "Kanban for Alpha", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Kanban", exact: true })).toBeVisible();

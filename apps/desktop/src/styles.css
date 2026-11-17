@@ -244,9 +244,13 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .project-group { padding-bottom: 18px; }
 .project-name { border: 0; background: transparent; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 650; padding: 7px 9px; width: 100%; text-align: left; }
 .project-name svg { width: 15px; }
-.project-collapse { width: 26px; height: 28px; min-height: 28px; padding: 4px; }
-.project-collapse svg { width: 15px; height: 15px; }
-.project-row > .project-collapse + .project-name { padding-inline-start: 2px; }
+.project-name .project-color svg { width: 15px; height: 15px; }
+.project-row:not(.drop-inside):hover { background: var(--hover); border-radius: 5px; }
+.project-row > .project-name:hover:not(:disabled), .project-row > .project-new-session:not(:hover) { background: transparent; }
+.project-row > .project-new-session { color: var(--muted); opacity: 0; pointer-events: none; transition: opacity 120ms ease-out; }
+.project-row:hover > .project-new-session, .project-row:focus-within > .project-new-session, .project-new-session[aria-busy="true"] { opacity: 1; pointer-events: auto; }
+@media (hover: none) { .project-row > .icon-button.project-new-session { opacity: 1; pointer-events: auto; width: 44px; min-width: 44px; height: 44px; min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .project-row > .project-new-session { transition: none; } }
 .nav-show-more { width: 100%; min-height: 28px; padding: 4px 12px; text-align: left; font-size: 11px; }
 .session-link { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left; padding: 10px; margin: 2px 0; border-color: transparent; background: transparent; }
 .session-link.selected { background: var(--selected); color: var(--selection-text); }
@@ -1159,10 +1163,14 @@ summary:hover { color: var(--text); }
 .inline-session-rename .icon-button { min-width: 28px; min-height: 32px; width: 28px; padding: 3px; }
 .session-row.selected .session-link { color: var(--selection-text); }
 .session-link > svg { width: 12px; height: 12px; color: var(--muted); }
-.session-context-menu { position: fixed; z-index: 60; width: 222px; max-height: calc(100dvh - 64px); overflow: auto; padding: 5px; border: 1px solid var(--control-line); border-radius: 7px; background: var(--surface); box-shadow: 0 6px 24px #0004; }
+.session-context-menu { position: fixed; z-index: 60; width: 236px; max-height: calc(100dvh - 64px); overflow: auto; padding: 5px; border: 1px solid var(--control-line); border-radius: 7px; background: var(--surface); box-shadow: 0 6px 24px #0004; }
 .session-context-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 6px 9px; border-color: transparent; text-align: left; font-size: 12px; }
-.session-context-menu svg { width: 14px; height: 14px; }
-.project-color-palette { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 5px 2px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.session-context-menu svg { width: 14px; height: 14px; flex-shrink: 0; }
+.session-context-menu [role="menuitem"]:not(.danger) > svg { color: var(--muted); }
+.session-context-menu .menu-separator { height: 1px; margin: 4px 6px; background: var(--line); }
+.session-context-menu .menu-section-label { padding: 4px 9px 0; color: var(--muted); font-size: 11px; }
+.session-context-menu .menu-shortcut { margin-inline-start: auto; color: var(--muted); font: 11px ui-monospace, "SFMono-Regular", monospace; }
+.project-color-palette { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; padding: 4px 2px; }
 .project-color-palette button { position: relative; justify-content: center; padding: 4px 0; }
 .project-color-swatch { display: inline-block; width: 18px; height: 18px; border: 1px solid var(--control-line); border-radius: 50%; flex-shrink: 0; }
 .project-color-swatch.custom { display: grid; place-items: center; background-image: linear-gradient(135deg, #fff 50%, #111 50%); }

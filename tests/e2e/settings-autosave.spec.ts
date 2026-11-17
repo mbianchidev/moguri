@@ -40,7 +40,8 @@ test("settings choices save as soon as they change, without the toolbar Save", a
     await expect(page.getByRole("button", { name: "Save routing threshold", exact: true })).toHaveCount(0);
     await expect(toolbar).toHaveText("Saved");
 
-    await page.locator(`.project-name[data-project-id="${fixture.session().projectId}"]`).click();
+    await page.locator(`.project-name[data-project-id="${fixture.session().projectId}"]`).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
     const board = page.getByRole("region", { name: "Board configuration", exact: true });
     await board.getByLabel("GitHub backlog column", { exact: true }).selectOption("review");
     await expect.poll(() => fixture.service.controller.snapshot().boards.find((entry) => entry.projectId === fixture.session().projectId)?.githubSync?.phases.backlog).toBe("review");

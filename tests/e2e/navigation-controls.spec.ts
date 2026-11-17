@@ -30,7 +30,7 @@ test("search opens explicitly, prompt order flattens every group and filters/ord
     await prompt.fill("Generated original navigation draft."); await expect(page.getByText("Draft saved", { exact: true })).toBeVisible();
     await page.screenshot({ path: test.info().outputPath("navigation-controls.png") });
     const project = page.getByRole("region", { name: "Project project", exact: true });
-    await project.getByRole("button", { name: "Collapse project project", exact: true }).click();
+    await project.getByRole("button", { name: "project", exact: true }).click();
     await page.getByRole("button", { name: "Filter sessions", exact: true }).click();
     await page.screenshot({ path: test.info().outputPath("session-filter-menu.png") });
     await page.getByRole("menu", { name: "Session status filters", exact: true }).getByRole("menuitemcheckbox", { name: "Finished", exact: true }).click();
@@ -38,7 +38,7 @@ test("search opens explicitly, prompt order flattens every group and filters/ord
     await expect(page.getByRole("button", { name: "Generated older unsent chat", exact: true })).toHaveCount(0);
     const reset = page.getByRole("button", { name: "Reset session filters and ordering", exact: true });
     await reset.click(); await expect(reset).toHaveCount(0);
-    await expect(project.getByRole("button", { name: "Expand project project", exact: true })).toHaveAttribute("aria-expanded", "false");
+    await expect(project.getByRole("button", { name: "project", exact: true })).toHaveAttribute("aria-expanded", "false");
     await page.getByRole("button", { name: "Filter sessions", exact: true }).click();
     await page.getByRole("menu", { name: "Session status filters", exact: true }).getByRole("menuitemcheckbox", { name: "Error", exact: true }).click();
     await expect(page.getByText("No sessions match these filters. Change a status or reset filters.", { exact: true })).toBeVisible();
@@ -124,7 +124,8 @@ test("a session's two-finger context menu opens its actual worktree folder and r
     menu = await sessionMenu(task.id!, "Generated worktree task");
     await menu.getByRole("menuitem", { name: "Open remote", exact: true }).click();
     await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true }).getByRole("alert")).toContainText("no supported repository remote");
-    await page.locator(`.project-name[data-project-id="${projectId}"]`).click();
+    await page.locator(`.project-name[data-project-id="${projectId}"]`).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("region", { name: "Per-project settings", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Show local folder", exact: true })).toHaveCount(0);
     expect(f.requests).toHaveLength(0);

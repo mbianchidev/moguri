@@ -204,11 +204,11 @@ test("project-group menu collapses and expands only its actual member projects w
     await expect(page.getByRole("status", { name: "Workspace navigation updates", exact: true })).toHaveText("Collapsed 2 projects in Generated selected group.");
     for (const id of ids.slice(0, 2)) {
       const project = sdk.getState().snapshot!.projects.find((project) => project.id === id)!;
-      await expect(folder.getByRole("button", { name: `Expand project ${project.name}`, exact: true })).toHaveAttribute("aria-expanded", "false");
+      await expect(folder.getByRole("button", { name: project.name, exact: true })).toHaveAttribute("aria-expanded", "false");
     }
     await expect(folder.getByRole("button", { name: "Generated second member session", exact: true })).toHaveCount(0);
     await expect(unrelated).not.toHaveAttribute("open");
-    await expect(page.getByRole("button", { name: "Collapse project generated-standalone", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "generated-standalone", exact: true })).toHaveAttribute("aria-expanded", "true");
     await folder.locator("summary").click(); await folder.locator("summary").press("Shift+F10");
     await menu.getByRole("menuitem", { name: "Expand all projects", exact: true }).press("Enter");
     await expect(folder.locator("summary")).toBeFocused(); await expect(folder).toHaveAttribute("open", "");
@@ -220,10 +220,10 @@ test("project-group menu collapses and expands only its actual member projects w
     await sdk.projects.organize(ids[1]!, { folderId: null, order: moved.order, color: moved.color }, moved.revision);
     const outside = page.getByRole("region", { name: "Project generated-member", exact: true });
     await expect(folder.getByRole("region", { name: "Project generated-member", exact: true })).toHaveCount(0);
-    await expect(outside.getByRole("button", { name: "Collapse project generated-member", exact: true })).toBeVisible();
+    await expect(outside.getByRole("button", { name: "generated-member", exact: true })).toHaveAttribute("aria-expanded", "true");
     await menu.getByRole("menuitem", { name: "Collapse all projects", exact: true }).click();
     await expect(page.getByRole("status", { name: "Workspace navigation updates", exact: true })).toHaveText("Collapsed 1 project in Generated selected group.");
-    await expect(outside.getByRole("button", { name: "Collapse project generated-member", exact: true })).toBeVisible();
+    await expect(outside.getByRole("button", { name: "generated-member", exact: true })).toHaveAttribute("aria-expanded", "true");
     await expect(outside.getByRole("button", { name: "Generated second member session", exact: true })).toBeVisible();
     await expect(unrelated).not.toHaveAttribute("open");
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated draft preserved by group folding.");

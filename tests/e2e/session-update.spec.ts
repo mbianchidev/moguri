@@ -252,7 +252,8 @@ test("settings use switches and phase grips instead of text Up/Remove controls, 
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
-    await page.locator(`.project-name[data-project-id="${fixture.session().projectId}"]`).click();
+    await page.locator(`.project-name[data-project-id="${fixture.session().projectId}"]`).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
     const board = page.getByRole("region", { name: "Board configuration", exact: true });
     await expect(board.getByRole("switch", { name: "Show Kanban in this project's sessions", exact: true })).toBeVisible();
     const phases = board.getByRole("list", { name: "Board phases", exact: true });
