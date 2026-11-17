@@ -1146,7 +1146,10 @@ records coverage and the exact local development installer's identity.
 
 ## Folder sessions and shared controls
 
-Drop a project onto the center of another project and name the new folder.
+Drop a project onto the center of an ungrouped project and name the new folder.
+Dropping a project onto a group header or any project already in a group adds
+it to the end of that group without a dialog; groups never nest, so center
+drops between members of the same group reorder them instead.
 The files are not moved. Its **+** starts a Local chat with every current member
 repository captured explicitly; each nested project's **+** still starts a
 single-repository chat. Click the folder header to expand/collapse it, or use
@@ -1194,7 +1197,10 @@ the same session when its effective context no longer fits.
 
 ## Project Kanban, continuation and provider prices
 
-Each project has a **Kanban** row and special board chat. Opening it does not run
+Each project has a special board chat. Its **Kanban** sidebar row is hidden by
+default; choose **Show Kanban** in the project menu, **Project settings /
+Project Kanban** or `/kanban show` to show it for that project. **Issues** still
+opens the selected project's board. Opening it does not run
 a model. Board shows local cards and imported Linear cards; **GitHub issues**
 and **GitHub PRs** load that repository's source picker in the same view. **Chat**
 uses the normal saved composer, model controls, approvals and transcript.
@@ -4873,7 +4879,8 @@ protection to force a retry.
 
 ## Local project Kanban and optional Linear
 
-Desktop's per-project **Kanban** row, or **Issues**, opens the special board
+Desktop's per-project **Kanban** row (hidden until **Show Kanban** is chosen for
+that project), or **Issues**, opens the special board
 chat. **New** creates a
 feature, bug or misc ticket with title, description, phase and optional
 connected GitHub PR. There is no assignee and no hosted issue upload. Use

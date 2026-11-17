@@ -27,6 +27,8 @@ const groupColor = (folder: NavigationFolder) => folder.color ?? "#a8d7bc";
 const SESSION_DRAG = SESSION_DRAG_TYPE;
 const PROJECT_DRAG = "application/x-moguri-project";
 type ProjectPosition = { id: string; folderId: string | null; order: number; name: string };
+type ProjectDragIntent = { id: string; siblings: ProjectPosition[]; profileId: string };
+const sourceFolder = (intent: ProjectDragIntent) => intent.siblings.find((entry) => entry.id === intent.id)?.folderId ?? null;
 type SessionPosition = { id: string; scope: string; order: number };
 const position = (session: Session): SessionPosition => ({ id: session.id, scope: sessionOrderScope(session), order: session.order ?? 0 });
 function samePositions(expected: SessionPosition[], sessions: Session[]): boolean {
@@ -36,9 +38,18 @@ function samePositions(expected: SessionPosition[], sessions: Session[]): boolea
     return value?.scope === entry.scope && value.order === entry.order;
   });
 }
+const dropRatio = (element: HTMLElement, y: number) => { const bounds = element.getBoundingClientRect(); return (y - bounds.top) / bounds.height; };
 const dropEdge = (element: HTMLElement, y: number): "before" | "after" | "inside" => {
-  const bounds = element.getBoundingClientRect(), ratio = (y - bounds.top) / bounds.height;
+  const ratio = dropRatio(element, y);
   return ratio < 0.3 ? "before" : ratio > 0.7 ? "after" : "inside";
+};
+type ProjectDrop = { kind: "join"; folderId: string } | { kind: "new-group" } | { kind: "order"; edge: "before" | "after" };
+// Project groups never nest: any drop on a member of another group joins that group, and center drops inside one group reorder.
+const projectDrop = (sourceFolder: string | null, target: ProjectPosition, ratio: number): ProjectDrop | null => {
+  if (target.folderId && target.folderId !== sourceFolder) return { kind: "join", folderId: target.folderId };
+  if (target.folderId) return { kind: "order", edge: ratio < 0.5 ? "before" : "after" };
+  if (ratio >= 0.3 && ratio <= 0.7) return { kind: "new-group" };
+  return sourceFolder === null ? { kind: "order", edge: ratio < 0.3 ? "before" : "after" } : null;
 };
 export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, startChat, openKanban, settings, terminal, modal, allow, prepareSession,
   sessionActionRequest, onSessionActionRequestHandled, projectActionRequest, onProjectActionRequestHandled, setupSandbox }: {
@@ -150,7 +161,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
   const [savingColor, setSavingColor] = useState(false);
   const [drop, setDrop] = useState<{ id: string; edge: "before" | "after" | "detach" | "inside" } | null>(null);
   const dragging = useRef<{ source: SessionPosition; siblings: SessionPosition[]; profileId: string } | null>(null);
-  const projectDrag = useRef<{ id: string; siblings: ProjectPosition[]; profileId: string } | null>(null);
+  const projectDrag = useRef<ProjectDragIntent | null>(null);
   const [ordering, setOrdering] = useState(false), orderPending = useRef(false);
   const actions = useSessionActions(sdk, snapshot, { prepare: prepareSession, inspect: chooseSession });
   const handledSessionAction = useRef<number | null>(null);
@@ -346,29 +357,60 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     [ordered[index], ordered[target]] = [ordered[target]!, ordered[index]!];
     await saveProjectOrder(project, ordered, expected);
   });
+  const projectDragSource = (event: DragEvent, intent: ProjectDragIntent) => {
+    const state = sdk.getState().snapshot, source = state?.projects.find((entry) => entry.id === intent.id);
+    if (!event.dataTransfer.types.includes(PROJECT_DRAG) || intent.profileId !== sdk.profileId || !state || !source || !sameProjects(intent.siblings, source, state)) {
+      throw new Error("The original project/profile/folder arrangement changed. Start the drag again; no newer structure was overwritten.");
+    }
+    return { state, source };
+  };
+  const joinProjectGroup = async (source: Project, folderId: string, state: Snapshot) => {
+    const group = state.projectFolders.find((entry) => entry.id === folderId);
+    if (!group) throw new Error("This project group is no longer available. No project was moved.");
+    const configuration = state.projectConfigurations.find((entry) => entry.projectId === source.id) ?? defaultProjectConfiguration(source.id);
+    if (configuration.folderId === group.id) return;
+    const order = Math.max(-1, ...state.projects.map((entry) => projectPosition(entry, state)).filter((entry) => entry.folderId === group.id).map((entry) => entry.order)) + 1;
+    await sdk.projects.organize(source.id, { folderId: group.id, color: configuration.color, order }, configuration.revision);
+    setNavigationStatus(`Added ${source.name} to ${group.name}.`);
+  };
   const dropProject = (event: DragEvent<HTMLElement>, target: Project) => {
     const intent = projectDrag.current;
     if (!intent) return;
     event.preventDefault(); event.stopPropagation(); setDrop(null);
-    const edge = dropEdge(event.currentTarget, event.clientY);
+    const ratio = dropRatio(event.currentTarget, event.clientY);
     void run(async () => {
       if (!allow()) return;
-      const state = sdk.getState().snapshot, source = state?.projects.find((entry) => entry.id === intent.id);
-      const currentTarget = state?.projects.find((entry) => entry.id === target.id);
-      if (!event.dataTransfer.types.includes(PROJECT_DRAG) || intent.profileId !== sdk.profileId || !state || !source || !currentTarget ||
-        !sameProjects(intent.siblings, source, state)) {
-        throw new Error("The original project/profile/folder arrangement changed. Start the drag again; no newer structure was overwritten.");
-      }
+      const { state, source } = projectDragSource(event, intent), currentTarget = state.projects.find((entry) => entry.id === target.id);
+      if (!currentTarget) throw new Error("The target project is no longer available. Start the drag again; no newer structure was overwritten.");
       if (source.id === currentTarget.id) return;
-      if (edge === "inside") {
+      const action = projectDrop(sourceFolder(intent), projectPosition(currentTarget, state), ratio);
+      if (!action) throw new Error("Reorder at the edges of sibling projects, drop on a grouped project to join its group, or drop in the center of an ungrouped project to name a new group.");
+      if (action.kind === "join") { await joinProjectGroup(source, action.folderId, state); return; }
+      if (action.kind === "new-group") {
         open({ kind: "merge-projects", projects: [currentTarget, source].map((project) => ({ projectId: project.id,
           revision: state.projectConfigurations.find((configuration) => configuration.projectId === project.id)?.revision ?? 0 })) });
         return;
       }
-      if (projectPosition(source, state).folderId !== projectPosition(currentTarget, state).folderId) throw new Error("Reorder at the edges of sibling projects, or drop in the center to name a new folder.");
       const next = projectSiblings(source, state).filter((entry) => entry.id !== source.id), index = next.findIndex((entry) => entry.id === target.id);
-      next.splice(index + (edge === "after" ? 1 : 0), 0, source);
+      next.splice(index + (action.edge === "after" ? 1 : 0), 0, source);
       await saveProjectOrder(source, next, intent.siblings);
+    });
+  };
+  const dragProjectGroup = (event: DragEvent<HTMLElement>, group: NavigationFolder) => {
+    const intent = projectDrag.current;
+    if (!intent) return;
+    event.stopPropagation();
+    if (sourceFolder(intent) === group.id) { event.dataTransfer.dropEffect = "none"; setDrop(null); return; }
+    event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDrop({ id: `folder:${group.id}`, edge: "inside" });
+  };
+  const dropProjectGroup = (event: DragEvent<HTMLElement>, group: NavigationFolder) => {
+    const intent = projectDrag.current;
+    if (!intent) return;
+    event.preventDefault(); event.stopPropagation(); setDrop(null);
+    void run(async () => {
+      if (!allow()) return;
+      const { state, source } = projectDragSource(event, intent);
+      await joinProjectGroup(source, group.id, state);
     });
   };
   const toggleKanban = (project: Project) => run(async () => {
@@ -455,16 +497,17 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
           const intent = projectDrag.current;
           if (!intent) return;
           event.stopPropagation();
-          const edge = dropEdge(event.currentTarget, event.clientY);
-          if (edge !== "inside" && !intent.siblings.some((entry) => entry.id === project.id) || intent.id === project.id) { event.dataTransfer.dropEffect = "none"; setDrop(null); return; }
-          event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDrop({ id: `project:${project.id}`, edge });
+          const action = intent.id === project.id ? null : projectDrop(sourceFolder(intent), projectPosition(project, snapshot), dropRatio(event.currentTarget, event.clientY));
+          if (!action) { event.dataTransfer.dropEffect = "none"; setDrop(null); return; }
+          event.preventDefault(); event.dataTransfer.dropEffect = "move";
+          setDrop(action.kind === "join" ? { id: `folder:${action.folderId}`, edge: "inside" } : { id: `project:${project.id}`, edge: action.kind === "new-group" ? "inside" : action.edge });
         }} onDrop={(event) => dropProject(event, project)}>
       <button type="button" className="icon-button project-collapse" aria-label={`${collapsedProjects.has(project.id) ? "Expand" : "Collapse"} project ${project.name}`}
         aria-expanded={!collapsedProjects.has(project.id)} onClick={() => setCollapsedProjects((current) => {
           const next = new Set(current); if (next.has(project.id)) next.delete(project.id); else next.add(project.id); return next;
         })}><span className="project-color" style={{ color: configuration.color }}><Icon name={collapsedProjects.has(project.id) ? "Files" : "FolderOpen"} /></span></button>
       <button className="project-name" data-project-id={project.id} aria-haspopup="menu" aria-expanded={menu?.kind === "project" && menu.id === project.id}
-        aria-description="Open settings. Right-click or Shift+F10 for actions and icon color. Drop onto another project to name a folder; use row edges or Alt+Up/Down to reorder siblings." title={`Project settings: ${project.path}`} onClick={() => settings(project.id)}
+        aria-description="Open settings. Right-click or Shift+F10 for actions and icon color. Drop onto an ungrouped project to name a new group, or onto a group or its projects to join it; use row edges or Alt+Up/Down to reorder siblings." title={`Project settings: ${project.path}`} onClick={() => settings(project.id)}
         onKeyDown={(event) => {
           if (event.altKey && ["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); void moveProject(project, event.key === "ArrowUp" ? -1 : 1); return; }
           if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
@@ -537,7 +580,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
         }}><Icon name="Plus" /></button></header>{bulk(null)}{generalTree(null)}</section>}
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
     {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
-      <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)}><summary onClick={(event) => {
+      <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)} onDragOver={(event) => dragProjectGroup(event, group)} onDrop={(event) => dropProjectGroup(event, group)}
+        onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === `folder:${group.id}` ? null : value); }}>
+        <summary className={drop?.id === `folder:${group.id}` ? "drop-inside" : undefined} onClick={(event) => {
         if (event.target instanceof Element && event.target.closest("button")) return;
         event.preventDefault();
         setCollapsedFolders((current) => { const next = new Set(current); if (next.has(group.id)) next.delete(group.id); else next.add(group.id); return next; });
@@ -547,7 +592,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
             event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); openMenu("folder", group.id, event.currentTarget, bounds.right, bounds.top);
           }
         }}
-        aria-description="Click to collapse or expand. Right-click or Shift+F10 for group actions."><span className="folder-icon" style={{ color: groupColor(group) }}><Icon name={collapsedFolders.has(group.id) ? "Files" : "FolderOpen"} /></span><span className="folder-name">{group.name}</span>
+        aria-description="Click to collapse or expand. Right-click or Shift+F10 for group actions. Drop a project here to add it to this group."><span className="folder-icon" style={{ color: groupColor(group) }}><Icon name={collapsedFolders.has(group.id) ? "Files" : "FolderOpen"} /></span><span className="folder-name">{group.name}</span>
       </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
     </>}
     {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">{statusFilters.length ?

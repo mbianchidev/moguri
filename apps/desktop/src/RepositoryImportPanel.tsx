@@ -6,7 +6,7 @@ import { WorkspaceFolderPanel } from "./WorkspaceFolderPanel.tsx";
 import { PathField, localPath } from "./PathField.tsx";
 
 export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject }: {
-  sdk: MoguriSdk; snapshot: Snapshot; onDirty: (dirty: boolean) => void; configureProject: (id: string) => void;
+  sdk: MoguriSdk; snapshot: Snapshot; onDirty: (dirty: boolean) => void; configureProject: (id?: string) => void;
 }) {
   const [text, setText] = useState(""), [parent, setParent] = useState("");
   const [preview, setPreview] = useState<RepositoryImportPreview | null>(null), [reviewed, setReviewed] = useState(false);
@@ -92,8 +92,7 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
       })}>Show import review</button>
       {original && <details open><summary>Reviewed sources and destinations</summary><pre>{JSON.stringify(original, null, 2)}</pre></details>}
     </section>}
-    <h3>Registered projects</h3><p className="fine-print">To change a repository's remote, open its Project settings.</p>
-    <div className="button-row">{snapshot.projects.map((project) => <button type="button" key={project.id} disabled={Boolean(text) || busy}
-      onClick={() => configureProject(project.id)}>Manage {project.name}</button>)}</div>
+    <h3>Registered projects</h3><p className="fine-print">{snapshot.projects.length} project{snapshot.projects.length === 1 ? "" : "s"} in this profile. Change a repository's remote and other options in Project settings.</p>
+    <div className="button-row"><button type="button" disabled={Boolean(text) || busy || !snapshot.projects.length} onClick={() => configureProject()}>Manage projects</button></div>
   </section>;
 }

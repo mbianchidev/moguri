@@ -28,6 +28,11 @@ test("project secondary-click and keyboard menus share Kanban visibility; draggi
     await expect(menu).toBeVisible();
     await expect(menu.getByRole("menuitem", { name: "Move up", exact: true })).toHaveCount(0);
     await expect(menu.getByRole("menuitem", { name: "Move down", exact: true })).toHaveCount(0);
+    for (const name of ["Alpha", "Beta", "Gamma"]) await expect(page.getByRole("button", { name: `Kanban for ${name}`, exact: true })).toHaveCount(0);
+    await menu.getByRole("menuitem", { name: "Show Kanban", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Kanban for Alpha", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Kanban for Beta", exact: true })).toHaveCount(0);
+    await alpha.click({ button: "right" });
     await menu.getByRole("menuitem", { name: "Hide Kanban", exact: true }).click();
     await expect(page.getByRole("button", { name: "Kanban for Alpha", exact: true })).toHaveCount(0);
     await sdk.refresh(); expect(kanbanPreferences((await sdk.issues.board(ids[0]!)).board).visible).toBe(false);

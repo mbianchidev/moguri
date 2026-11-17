@@ -1,7 +1,12 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { kanbanPreferences, type MoguriSdk } from "../../packages/sdk/src/index.ts";
 
 export async function waitForWorkspace(page: Page) {
   await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true })).toBeVisible();
+}
+export async function showKanban(sdk: MoguriSdk, projectId: string) {
+  const { board } = await sdk.issues.board(projectId);
+  await sdk.issues.configure(projectId, { ...board, kanban: { ...kanbanPreferences(board), visible: true } }, board.revision);
 }
 export async function openSessionSearch(page: Page) {
   const search = page.getByRole("searchbox", { name: "Search sessions", exact: true });

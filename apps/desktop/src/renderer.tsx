@@ -1,6 +1,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { StartupWorkspace } from "./StartupWorkspace.tsx";
+import { SelectSearch } from "./SelectSearch.tsx";
 import type { StartupView } from "./startup-cache.ts";
 import type { AppProps } from "./App.tsx";
 import type { MoguriSdk } from "../../../packages/sdk/src/index.ts";
@@ -83,4 +84,4 @@ function DesktopStartup() {
     <StartupWorkspace phase={phase} error={error ?? reconnectError ?? waiting?.diagnostic ?? null} cacheError={cacheError}
       unconfirmed={Boolean(waiting && !error)} reconnect={waiting ? () => { void reconnect(); } : undefined} reconnecting={reconnecting} />;
 }
-root.render(<DesktopStartup />);
+root.render(<><DesktopStartup /><SelectSearch /></>);
