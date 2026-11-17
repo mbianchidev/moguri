@@ -50,6 +50,11 @@ source folder changes before reviewing session admission.
 
 Import standard SKILL.md front matter and instructions. A skill grants no tool permissions.
 
+Built-in slash commands always take precedence. A skill named like one (for example `review`, or a
+TUI command such as `trace`) shows "Rename the skill (the name in its SKILL.md) to use it with /." on
+its row, after import, in Find skills and in the slash menu. It still works when attached by its
+exact entry.
+
 ## Skill changes status
 
 Toggling skills reports "N of M skill changes acknowledged"; existing source reviews and permissions are

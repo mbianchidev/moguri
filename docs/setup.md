@@ -783,7 +783,8 @@ and complete UTF-8 result bytes. Every new-mode revision/escalation is reviewed
 again; exhaustion cannot accept unreviewed output or proposed tools.
 
 Each selected model uses its genuine maximum qualified context. **Enable
-automatic Kupo compaction** is off by default and is an explicit policy choice.
+automatic Kupo compaction** follows **Settings / Sessions / Context compaction**
+(on by default since protocol 110) until you change it on the Kupo page.
 It permits bounded metered tool-less summaries of complete older text, keeping
 recent complete turns and original sources. Images are not silently compacted
 or dropped. Read original public history through `read_tool_result action=history`,
@@ -3225,6 +3226,14 @@ Palette-only changes preserve the mode and saved custom colors. Dark remains
 the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
+Both clients use the same state words: Running, Needs attention, Completed,
+Failed, Partial result, Stopped, Queued, Idle and Unknown. The desktop pairs
+each word with a dot; the TUI shows it in the session list, the state row and
+message outcomes. Color only reinforces the word. When the desktop is zoomed
+or narrow, the supporting panel keeps its own column down to 561 CSS pixels and
+never covers a pending approval, question or the composer below that. The
+[design record](design.md#visual-system) lists the tokens and components.
+
 The merged independent themes source used protocol/schema 78 with
 `theme_catalog_schema='1'`. The current follow-up uses protocol82, preserving
 all six combined80 markers plus its independent request-recovery and Git
@@ -3449,9 +3458,29 @@ or use TUI `/detach path-or-snapshot-ID`.
 Desktop also captures explicitly selected local text/images and pasted PNG,
 JPEG or WebP. Images are bounded/normalized locally with metadata removed;
 there is no conversion service. Folder, GitHub issue/PR and session-text
-snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:`, `#` and
-`!` stay literal until the user selects an attachment; Tab offers the typed
-picker without attaching or executing anything.
+snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:` and `#`
+stay literal until the user selects an attachment; Tab offers the typed picker
+without attaching or executing anything.
+
+### Run a shell line from the composer
+
+Start a message with `!` to run that line in the chat's terminal instead of
+sending it to the model, for example:
+
+```text
+!gh auth login --hostname github.com --web --git-protocol ssh
+```
+
+Enter (or **Run in terminal**) types the line and Return into the chat's private
+user console: the project folder (or its managed worktree), or your Home folder
+in a project-free chat. Desktop opens the Terminal panel so you can answer
+interactive prompts. Moguri reuses the chat's running console and opens one only
+when none is running. Nothing reaches the model: no message, steer, queue item,
+turn or model call, even while the agent is working. It works in Local and
+Remote chats; Sandbox chats have no interactive console. Send one line at a time.
+The line is your ordinary draft until it runs; the terminal input and output are
+never recorded. In the TUI the line runs the same way and `/terminals read ID`
+shows the output, but interactive prompts need the desktop Terminal.
 
 Text pastes over 50 logical lines become encrypted, immutable `paste_file`
 attachments, preserving exact UTF-8 text and CRLF/CR/LF endings up to 128 KiB.
@@ -3484,13 +3513,36 @@ before admission and preserve the complete draft/queue, including prior image
 history; no image is silently dropped. Session snapshots disclose their bounded
 public-text scope, not private continuation or tool/binary payloads.
 
+## Smart compaction (default)
+
+Smart compaction is on by default. When a chat's estimated request reaches 75%
+of its model's working window (or 200,000 tokens, whichever comes first, and
+always before admission headroom would refuse it), Moguri summarizes older
+complete turns with that chat's model in one separately metered call, keeps the
+last two turns intact and continues. A notice in the transcript marks each
+summary. Original history stays saved and readable through `read_tool_result
+action=history`; `/compact restore` brings it back.
+
+Change or turn it off in **Settings / Sessions / Context compaction** (start
+point, token ceiling, recent turns, summary length). Kupo follows the same
+setting until you change its own toggle on the Kupo page.
+
+Type `/compact` in an idle chat to compact now with the chat's model (Kupo
+chats name one: `/compact now MODEL_ID`). It applies the summary only if it is
+complete and smaller; otherwise it stays reviewable in the Context review.
+
+If a summary fails or its usage is not reported, the turn stops with the reason,
+original context stays active and the usage stays held. Send again to continue;
+Moguri waits for the chat to grow further before trying automatically again.
+Images are never compacted. Details: [context compaction](architecture/context-compaction.md#smart-compaction-default).
+
 ## Reviewed context compaction
 
 Desktop: **Model / Review context and compactions**. Choose a real compactor and
 how many complete recent turns to keep, then **Preview source**. Previewing does
 not call a model. Inspect the contract/request estimate before **Generate
 proposal**. Read the actual summary, check its review acknowledgement, and use
-**Apply reviewed summary**. Context is never automatically replaced.
+**Apply reviewed summary**. Proposals made here are never applied without that review.
 
 The same capability is available through `sdk.compactions` and CLI/native TUI
 `/compact`. Examples:
@@ -3521,8 +3573,8 @@ Original append-only history, complete recent turns and your draft stay
 retained. Restoring originals makes no call and never refunds charges or
 replays tools; normal context-window limits still apply. Session deletion may
 delete its compaction text along with its transcript, but cannot erase the
-independent ledger's real/unknown charges. There is no automatic compaction,
-summary-to-memory promotion, user-answer forgery or new sandbox claim.
+independent ledger's real/unknown charges. There is no summary-to-memory
+promotion, user-answer forgery or new sandbox claim.
 
 ## Provider and model availability
 

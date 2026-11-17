@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { activeDecision, automaticApprovalsEnabled, sentPromptText, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, automaticApprovalsEnabled, outcomeLabel, sessionStatusLabel, sentPromptText, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -8,6 +8,7 @@ import type { RendererTrayAction } from "./tray-menu.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
+import { StatusBadge } from "./StatusBadge.tsx";
 import { ApprovalCall, approvalBoundary } from "./ApprovalCall.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
 import { BrowserPanel, ChangesPanel, FilesPanel, HomeWriterReview, PlanPanel, SideChat } from "./SessionPanels.tsx";
@@ -713,7 +714,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       </div><ApprovalActions key={session.pendingApproval.id} sdk={client} session={session} busy={busy} run={run} />
     </section>}
     {session.queue.length > 0 && <Queue key={JSON.stringify(["queue", client.profileId, session.id])} session={session} command={command} client={client} modal={setNativeModal} />}
-    {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} onVoiceSettings={() => openSettings("voice")} />}
+    {editor && <ChatComposer key={session.id} session={session} project={project && activeWorkspace ? { ...project, path: activeWorkspace.path } : project} snapshot={snapshot} client={client} editor={editor} run={run} busy={busy} connected={status === "connected"} onConnect={() => openSettings("providers")} onSlash={handleSlash} onTerminal={() => void showPanel("Terminal")} onMenuChange={setComposerMenuOpen} onGuardrails={() => openSettings("permissions")} onLocalModels={() => openSettings("localModels")} onRemote={() => openSettings("remote")} onSandbox={() => openSettings("sendbox")} onRouting={() => openSettings("kupo")} onDecisions={() => openSettings("decisions")} onVoiceSettings={() => openSettings("voice")} />}
   </> : null;
   const presentationModels = status === "connected" && snapshot && isModelDiscoveryPending(snapshot.provider) &&
     cachedModels.profileId === client.profileId && cachedModels.storeId === client.connection.storeId ? cachedModels.models : [];
@@ -744,7 +745,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
         <Tooltip content="Settings"><button className="icon-button" aria-label="Settings" aria-pressed={settingsTab !== null} onClick={() => { if (settingsTab) leaveSettings(); else openSettings("general"); }}><Icon name="Settings" /></button></Tooltip>
         </div>
-        <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : "failed"}`} />Local service {status}</div>
+        <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : status === "connecting" ? "running" : "failed"}`} />Local service {status}</div>
       </div>
     </nav>
     <main className="main-pane" inert={panelExpanded} style={panelExpanded ? { display: "none" } : undefined}>
@@ -870,14 +871,14 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
     if (message.role === "tool") {
       const visible = outputs.filter((attachment) => !session.messages.some((other) => other.role === "assistant" && other.attachments?.some((item) => item.id === attachment.id)));
       return visible.length ? <article className="message notice" key={`output-${message.id}`} aria-label="Original tool outputs">
-        <header><strong>Tool outputs</strong><span>{message.outcome}</span></header>{renderOutputs(visible)}</article> : null;
+        <header><strong>Tool outputs</strong><StatusBadge className="outcome" status={outcomeLabel(message.outcome)} /></header>{renderOutputs(visible)}</article> : null;
     }
     const hidden = message.role === "assistant" && !message.text.trim() && !outputs.length;
     // The chips below already name each attachment.
     const shownText = message.role === "user" ? sentPromptText(message) : message.text;
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
       aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
-        <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <span className="outcome">{message.outcome}</span>}
+        <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <StatusBadge className="outcome" status={outcomeLabel(message.outcome)} />}
           {message.role !== "notice" && <CopyButton className="message-copy" title="Copy message" label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} text={message.text} />}</header>
         {shownText && <div className="markdown"><Suspense fallback={<p>{shownText}</p>}><RichMessage text={shownText} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
         {message.reasoning && !entries.some((entry) => entry.messageId === message.id && entry.kind === "thought") && <details><summary>Provider-exposed reasoning</summary><div className="reasoning markdown"><Suspense fallback={<p>{message.reasoning}</p>}><RichMessage text={message.reasoning} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div></details>}
@@ -988,7 +989,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
     const unknown = session.usage.some((usage) => usage.totalTokens === null);
     const total = known.reduce((sum, usage) => sum + (usage.totalTokens ?? 0), 0);
     return <>
-      <div className="context-binding"><span className={`status-dot ${session.status}`} /><strong>{title(session)}</strong><small>{session.status.replace("_", " ")}</small></div>
+      <div className="context-binding"><strong>{title(session)}</strong><StatusBadge status={sessionStatusLabel(session.status)} /></div>
       <h2>Execution</h2><dl className="facts">
         <dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
         <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>

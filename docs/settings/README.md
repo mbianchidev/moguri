@@ -40,6 +40,7 @@ Settings presents them; the linked architecture contracts remain authoritative f
 - [Startup defaults](startup-defaults.md)
 - [Confirmations](confirmations.md)
 - [Retention](retention.md)
+- [Context compaction](context-compaction.md)
 - [Budgets](budgets.md)
 - [Artifacts](artifacts.md)
 - [Candidates](candidates.md)

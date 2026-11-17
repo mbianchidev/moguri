@@ -133,6 +133,8 @@ test("the scrollable slash list contains all builtins before skills, sends the e
     const path = join(root, `skill-${index}`); await mkdir(path);
     await writeFile(join(path, "SKILL.md"), `---\nname: generated-ui-command-${index}\ndescription: Generated selectable UI skill\n---\nGenerated exact UI skill ${index}.\n`);
   }
+  await mkdir(join(root, "review"));
+  await writeFile(join(root, "review", "SKILL.md"), "---\nname: review\ndescription: Generated skill shadowed by a built-in\n---\nGenerated shadowed skill.\n");
   const settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, skillSources: [{ id: "generated-ui-commands", name: "Generated UI commands", enabled: true, kind: "local", path: root }] }, settings.revision);
   const selected = (await sdk.skills.find("generated-ui-command-9", { sessionId: fixture.sessionId })).skills[0]!;
@@ -148,10 +150,16 @@ test("the scrollable slash list contains all builtins before skills, sends the e
     await expect(list).toBeVisible();
     expect(await list.evaluate((element) => !element.closest("#session-sidebar") && Boolean(element.closest(".composer")))).toBe(true);
     await expect(prompt).toBeFocused();
-    await expect(list.getByRole("option")).toHaveCount(slashCommands.length + 10);
+    await expect(list.getByRole("option")).toHaveCount(slashCommands.length + 11);
     expect(await list.getByRole("option").evaluateAll((items) => items.map((item) => item.getAttribute("data-command-kind")))).toEqual([
-      ...slashCommands.map(() => "builtin"), ...Array.from({ length: 10 }, () => "skill"),
+      ...slashCommands.map(() => "builtin"), ...Array.from({ length: 10 }, () => "skill"), "shadowed",
     ]);
+    const shadowed = list.locator("[data-command-kind='shadowed']");
+    await expect(shadowed).toHaveAttribute("aria-disabled", "true");
+    await expect(shadowed).toContainText("Skill to rename");
+    await expect(shadowed).toContainText("built-in /review command");
+    await shadowed.dispatchEvent("click");
+    await expect(prompt).toHaveValue("/");
     expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
     await list.getByRole("option", { name: /generated-ui-command-9/ }).click();
     await expect(prompt).toHaveValue("/generated-ui-command-9 ");

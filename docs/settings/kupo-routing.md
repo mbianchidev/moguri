@@ -74,7 +74,9 @@ under Saved-policy availability.
 
 The switch was previously labeled "Allow bounded automatic text summaries at safe model boundaries".
 
-Off by default. Enabling it explicitly permits Kupo to spend metered compaction calls and apply
+Until you change it here, it follows [Context compaction](context-compaction.md), which is on by
+default since protocol 110; the page says "Follows Context compaction until you change it here."
+Changing it saves an explicit Kupo policy that permits (or forbids) metered compaction calls and
 source-bound summaries, not permissions or human answers. Complete recent turns and original history
 remain retained and readable. Images are not compacted or silently dropped. The advanced policy sets the
 exact compactor, trigger fraction, recent turns, output bound and per-turn call limit.

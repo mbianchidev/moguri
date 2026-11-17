@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { automaticCompactionPolicy, builtinClashNotice, builtinSlashClash, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -48,7 +48,7 @@ import { PathField, localPath } from "./PathField.tsx";
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
-type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
+type AutomaticSection = "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
@@ -601,10 +601,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             {!sdk.routing.capabilities().length && <p>No eligible configured models. See the diagnostics below.</p>}
             <h3>Automatic context compaction</h3>
             <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable automatic Kupo compaction" disabled={saving}
-              checked={draft.kupo.autoCompaction?.enabled === true} onChange={(event) => automatic("kupo", {
+              checked={automaticCompactionPolicy(draft, true) !== null} onChange={(event) => automatic("kupo", {
                 autoCompaction: { ...defaultKupoCompaction(), ...(draft.kupo.workflow === "auto" ? draft.kupo.autoCompaction : {}), enabled: event.target.checked },
               })} />Summarize long chats automatically</label>
-            <p className="fine-print">When a chat gets long, Kupo summarizes older turns at safe points. Each summary is a billed model call; the full history stays saved.</p>
+            <p className="fine-print">When a chat gets long, Kupo summarizes older turns at safe points. Each summary is a billed model call; the full history stays saved. {draft.kupo.workflow === "auto" && !draft.kupo.autoCompaction ? "Follows Context compaction until you change it here." : ""}</p>
             <Alert as="p" tone="warning" className="settings-warning">Only Kupo's selected response can use tools, under your normal approvals. Cascade and Critique also need reviewed model evaluations, and Sandbox needs a verified setup (no Local fallback).</Alert>
             <KupoModelProfiles sdk={sdk} models={routingModels} disabled={saving || lineageBusy} onDirty={setModelProfileDirty} onBusy={setModelProfileBusy}
               onPrepared={(profile) => {
@@ -859,6 +859,23 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
                 }} /></label>)}</div>
           </details>}>Custom colors apply when Custom is selected and save when you pick a color. Combinations with unreadable contrast are rejected.</SettingsHelp>
           <button onClick={() => void reset("appearance")} aria-label="Restore defaults for appearance">Restore defaults</button></>}
+        {tab === "compaction" && (() => {
+          const value = draft.compaction ?? defaultCompactionSettings(), off = saving || !value.automatic;
+          const set = (patch: Partial<typeof value>) => automatic("compaction", patch, false, defaultCompactionSettings());
+          const choices = <T extends number>(values: T[], current: T) => [...new Set([...values, current])].sort((a, b) => a - b);
+          return <><SettingsHelp label="More about this setting" target={<h2>Context compaction</h2>}>When a chat nears its model's working window, Moguri summarizes older turns with that chat's model. Each summary is a billed model call; the full history stays saved.</SettingsHelp>
+            <label className="check-setting"><SettingsInput type="checkbox" aria-label="Compact long chats automatically" checked={value.automatic} disabled={saving} onChange={(event) => set({ automatic: event.target.checked })} />Compact long chats automatically</label>
+            <label className="setting-field">Start compacting at<select aria-label="Start compacting at" value={value.triggerFraction} disabled={off} onChange={(event) => set({ triggerFraction: Number(event.target.value) })}>
+              {choices([0.5, 0.6, 0.7, 0.75, 0.8, 0.9], value.triggerFraction).map((fraction) => <option key={fraction} value={fraction}>{Math.round(fraction * 100)}% of the working window</option>)}</select></label>
+            <label className="setting-field">Token ceiling<select aria-label="Token ceiling" value={value.triggerTokens ?? "none"} disabled={off} onChange={(event) => set({ triggerTokens: event.target.value === "none" ? null : Number(event.target.value) })}>
+              {choices([100_000, 200_000, 400_000], value.triggerTokens ?? 200_000).map((tokens) => <option key={tokens} value={tokens}>Start by {tokens.toLocaleString()} tokens</option>)}<option value="none">No ceiling</option></select></label>
+            <label className="setting-field">Keep recent turns<select aria-label="Keep recent turns" value={value.keepRecentTurns} disabled={off} onChange={(event) => set({ keepRecentTurns: Number(event.target.value) })}>
+              {choices([1, 2, 3, 4, 5], value.keepRecentTurns).map((turns) => <option key={turns} value={turns}>{turns} {turns === 1 ? "turn" : "turns"}</option>)}</select></label>
+            <label className="setting-field">Summary length<select aria-label="Summary length" value={value.outputTokens} disabled={off} onChange={(event) => set({ outputTokens: Number(event.target.value) })}>
+              {choices([1024, 2048, 4096], value.outputTokens).map((tokens) => <option key={tokens} value={tokens}>Up to {tokens.toLocaleString()} tokens</option>)}</select></label>
+            <p className="fine-print">A summary replaces older turns only when it is complete and smaller. Images are never compacted. Type /compact to compact now and /compact restore to bring the original history back.</p>
+          </>;
+        })()}
         {tab === "interactions" && <><SettingsHelp label="More about this setting" target={<h2>Confirmations</h2>}>Saved per profile. Hiding the terminal pane leaves its consoles running; a console's X button closes it without asking.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} disabled={saving} onChange={(event) => automatic("interactions", { confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} disabled={saving} onChange={(event) => automatic("interactions", { confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
@@ -947,11 +964,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           </fieldset> : <p className="fine-print">Choose a chat above to review which skills it can use.</p>}</>}
         {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <>{tab === "skills" ? <h3>Imported skills</h3> : <h2>{tab === "scripts" ? "Scripts" : "Plugins"}</h2>}
           <p>{tab === "skills" ? "Import a standard SKILL.md file. Skills add instructions, not tool permissions." : tab === "scripts" ? "Built-in scripts (grep_logs, fetch_page, search_memory and memory_graph) reach the agent through Moguri's internal MCP server." : "A Moguri plugin bundles standard skills. Importing one doesn't run its code or install dependencies."}</p>
-          {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(() => tab === "skills" ? sdk.capabilities.importSkill(project!.id, input) : sdk.capabilities.importPlugin(project!.id, input))}>Import</button></>}
+          {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(async () => {
+            if (tab !== "skills") return sdk.capabilities.importPlugin(project!.id, input);
+            const result = await sdk.capabilities.importSkill(project!.id, input);
+            setCapabilityProgress(result.notice ?? "Skill imported disabled. Enable it to use it.");
+          })}>Import</button></>}
           {tab === "skills" && <><button type="button" aria-label="Enable all skills" disabled={capabilityBusy || !registry.some((entry) => !entry.enabled)}
             onClick={() => toggleSkills(registry.filter((entry) => !entry.enabled), true)}>Enable all</button>
             <p className="fine-print" role="status" aria-label="Skill changes">{capabilityProgress}</p></>}
-          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code></div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
+          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code>
+            {tab === "skills" && builtinSlashClash(entry.name) && <Alert as="p" tone="warning" className="skill-clash">{builtinClashNotice(entry.name, builtinSlashClash(entry.name)!)}</Alert>}</div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
             {tab === "skills" ? <><label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
               onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label>
               {entry.ownerPluginId ? <span className="fine-print">Plugin bundle</span> : <button type="button" className="icon-button danger" aria-label={`Delete skill ${entry.name}`} title="Delete skill"

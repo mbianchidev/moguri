@@ -42,7 +42,7 @@ test("Kupo offers three real modes instead of effort, keeps unsupported Performa
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("startup defaults show Kupo modes rather than fixed-model effort, and automatic compaction requires an explicit setting", async () => {
+test("startup defaults show Kupo modes rather than fixed-model effort, and Kupo compaction follows the smart compaction default until changed", async () => {
   const fixture = await routedFixture({ configured: false, legacy: false });
   const app = await electron.launch({ executablePath: require("electron"), args: ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -59,12 +59,20 @@ test("startup defaults show Kupo modes rather than fixed-model effort, and autom
     await page.getByLabel("Default Kupo mode", { exact: true }).selectOption("savings");
     await expect.poll(() => fixture.sdk.settings.get()?.values.startup.profile.kupoMode).toBe("savings");
     await openSettingsSection(page, "Kupo routing");
-    await expect(page.getByLabel("Enable automatic Kupo compaction", { exact: true })).not.toBeChecked();
-    await page.getByLabel("Enable automatic Kupo compaction", { exact: true }).check();
+    await expect(page.getByLabel("Enable automatic Kupo compaction", { exact: true })).toBeChecked();
+    await expect(page.getByText("Follows Context compaction until you change it here.")).toBeVisible();
+    await page.getByLabel("Enable automatic Kupo compaction", { exact: true }).uncheck();
     await expect.poll(() => {
       const policy = fixture.sdk.settings.get()?.values.kupo;
       return policy?.workflow === "auto" ? policy.autoCompaction?.enabled : undefined;
-    }).toBe(true);
+    }).toBe(false);
+    await openSettingsSection(page, "Context compaction");
+    await expect(page.getByLabel("Compact long chats automatically", { exact: true })).toBeChecked();
+    await page.getByLabel("Start compacting at", { exact: true }).selectOption("0.6");
+    await expect.poll(() => fixture.sdk.settings.get()?.values.compaction?.triggerFraction).toBe(0.6);
+    await page.getByLabel("Compact long chats automatically", { exact: true }).uncheck();
+    await expect.poll(() => fixture.sdk.settings.get()?.values.compaction?.automatic).toBe(false);
+    await expect(page.getByLabel("Start compacting at", { exact: true })).toBeDisabled();
     expect(fixture.requests).toHaveLength(0); expect(fixture.solver.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
 });

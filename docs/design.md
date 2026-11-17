@@ -135,11 +135,89 @@ blank or success-looking fallback. Workspace-plan reloads retain the original
 text and dirty indicator until successful reconciliation, lock conflicting
 edits while pending, and recover from failed reads without losing text.
 
+## Visual system
+
+Every desktop surface draws from one token layer at the top of
+`apps/desktop/src/styles.css`; components use tokens rather than their own
+values. The [design audit](design-audit.md) records why and what remains.
+`tests/design-tokens.test.ts` keeps the layer honest: palette fallbacks match
+the SDK, every `var()` resolves, raw colors stay inside the token blocks, and
+the contrast pairs below hold for every palette in Dark and Light.
+
+### Tokens
+
+| Group | Tokens | Rule |
+| --- | --- | --- |
+| Palette roles | `--text`, `--muted`, `--canvas`, `--surface`, `--sidebar`, `--subtle`, `--line`, `--control-line`, `--accent` (+ hover/active/on-accent), `--selected`, `--selection-text`, `--danger`, `--warning-*`, `--error-*`, `--code` | Mirrors the SDK Moguri palette; `appearanceColors()` replaces them at runtime for every preset and custom colors. |
+| Status | `--status-running`, `-attention`, `-completed`, `-merged`, `-failed`, `-partial`, `-stopped`, `-queued`, `-neutral`, `-unknown` | Derived from palette roles or the runtime session-indicator colors. Never the only signal. |
+| Spacing | `--space-0` 2px, `--space-1` 4px, `--space-2` 8px, `--space-3` 12px, `--space-4` 16px, `--space-5` 20px, `--space-6` 24px, `--space-7` 32px, `--space-8` 48px | 4px grid with one hairline step. |
+| Radius | `--radius-xs` 3px (kbd, small tags), `-sm` 5px (inputs), `-md` 6px (buttons, tooltips, warnings), `-lg` 8px (cards, popovers, menus, approval), `-xl` 10px (composer, dialogs, Settings cards), `-pill` | One radius per component class. |
+| Type | `--font-sans`, `--font-mono`; `--font-size-2xs` 10px to `--font-size-3xl` 28px; `--line-height-tight/normal/relaxed`; `--font-weight-medium/semibold/bold` | System sans for UI; mono only for code, paths, IDs and measurements. |
+| Targets | `--target-size` 32px, `--target-size-coarse` 44px | Coarse pointers get 44px targets. |
+| Elevation | `--elevation-raised`, `-tooltip`, `-popover`, `-dialog`, `-drawer-start`, `-drawer-end`; `--backdrop`, `--backdrop-soft` | Dark dialogs and drawers use deeper shadows so they separate from slate surfaces. |
+| Focus | `--focus-ring` (`--focus-ring-width` 2px, `--focus-ring-color` accent), `--focus-ring-offset` 3px | Applied by the global `:focus-visible` rule. |
+| Motion | `--duration-fast` 120ms, `--duration-base` 140ms, `--duration-slow` 200ms, `--ease-standard` | Reduced motion disables transitions and every infinite animation. |
+| Fixed identity | `--brand-*` (startup screen), `--terminal-canvas`, `--chart-*` (analytics lanes, Dark and Light), `--swatch-*` | Intentionally palette-independent. |
+
+Measured minimums across all ten presets in both modes: body text 11.03:1,
+secondary text 5.82:1, failed/attention/partial/unknown status text 5.16:1,
+focus ring and status dots 3.08:1 against canvas, surface, navigation and
+subtle backgrounds.
+
+### Components
+
+| Component | Implementation | Rules |
+| --- | --- | --- |
+| Button | global `button`, `.primary`, `.quiet`, `.danger`, `.composer-stop` | One primary per decision. Destructive actions say what they do. Global hover/active rules have 0,2,1 specificity, so custom-colored buttons need a more specific selector. |
+| IconButton | `.icon-button` with `Icon.tsx` and a `Tooltip`; `SettingsAction` in `SettingsFields.tsx` | Always has an accessible name that matches its tooltip. |
+| StatusBadge | `StatusBadge.tsx` (`.status-badge[data-tone]`), `.provider-status` in `ProviderLogo.tsx`, `SessionIndicators` in `WorkspaceNavigation.tsx` | Dot plus a word from the shared vocabulary; stopped and unknown use a hollow dot. |
+| Card | Settings `fieldset` with `legend`, `.approval`, `.user-question` (`QuestionCard.tsx`), `.my-work-card` | Subtle surface, `--radius-lg` or `--radius-xl`, one title. |
+| Popover and menu | `AnchoredMenu.tsx`, `.composer-popover`, `ModelSubmenu.tsx`, `SelectSearch.tsx`, `WorkspaceContextMenu.tsx` | Native `popover`, `--elevation-popover`, Escape returns focus to the trigger. |
+| Dialog | native `dialog.workspace-dialog`, `.command-palette` | Modal, `--backdrop`, explicit primary and cancel actions. |
+| Field | `.setting-field` via `SettingsFields.tsx`, `PathField.tsx`, `SettingsCommitInput` | Label above; information button after the title. |
+| Switch | `input[role="switch"]` inside `.check-setting`, `.setting-toggle`, `.agent-follow` | Saves on change in Settings. |
+| Tooltip | `Tooltip` and `InfoTip` in `Tooltip.tsx` (`.compact-tooltip`), `.sidebar-tooltip` | Opens on hover or keyboard focus, closes on Escape. |
+| Alert | `Alert.tsx` (`.app-alert[data-alert-tone]`, `.notice`), `.settings-warning`, `.inline-error`, `PanelError` in `PanelFailure.tsx` | Errors use `role="alert"`; warnings only for real risk; dismissal restores focus. |
+| Empty, loading, error | `.session-empty`, `.panel-empty`, `.nav-empty`, `.loading-state` with `role="status"`, `PanelError` | A heading is always followed by content or a one-line state. |
+
+### State vocabulary
+
+`packages/protocol/src/status-labels.ts` (exported through the SDK) gives both
+clients the same words. Desktop shows them in `StatusBadge`; the TUI uses them
+in its session list, state row and message outcomes.
+
+| Raw value | Label | Tone |
+| --- | --- | --- |
+| `running`, `stopping` | Running, Stopping | running |
+| `waiting_input`, pending approval or question | Needs attention | attention |
+| `completed` | Completed | completed |
+| `failed` | Failed | failed |
+| `partial` | Partial result | partial |
+| `stopped`, `cancelled`, `denied` | Stopped, Cancelled, Denied | stopped |
+| `queued` | Queued | queued |
+| `idle`, `archived` | Idle, Archived | neutral |
+| missing or unrecognized | Unknown, Unconfirmed, Unknown (value) | unknown |
+
+An unrecognized value is shown as unknown, never as success.
+
+### Layout
+
+The primary path is project/session (left), conversation and composer
+(center), supporting panel (right), rail (far right). Down to 761 CSS pixels
+all four sit side by side. From 760 to 561 the navigation becomes a drawer and
+the open supporting panel keeps its own column. At 560 and below the panel
+overlays as a drawer, but pending approvals, questions and the composer stack
+above it, so a decision is never hidden. The window minimum is 840px, so the
+narrower layouts appear when the page is zoomed.
+
 ## Terminal
 
 The TUI inherits terminal-oriented density rather than the desktop sidebar.
 Its dark slate surfaces reduce the transition from an existing terminal;
-desaturated green, amber and error text convey the same state vocabulary.
+desaturated green, amber and error text convey the same state vocabulary,
+and the words themselves come from the shared status labels, so the session
+list, state row and message outcomes read Needs attention, Partial result or
+Unknown exactly as the desktop does.
 Navigation appears beside the conversation when space allows. The four controls
 remain visible in a fixed-height footer. Full approval arguments are scrollable
 and accessible with Ctrl+V; model choice, cancellation and draft conflict
@@ -149,8 +227,13 @@ resolution have explicit keyboard paths.
 
 Controls have labels, visible keyboard focus, disabled explanations, status
 announcements and non-color state text. Desktop command palette uses a native
-dialog. Reduced-motion preference disables transitions; ordinary hover/focus
-feedback is brief and no page-load choreography delays work.
+dialog. Reduced-motion preference disables transitions and stops every looping
+animation; ordinary hover/focus feedback is brief and no page-load choreography
+delays work. `tests/e2e/design-system.spec.ts` walks session, compose, approval
+and review by keyboard alone, checks the 2px focus ring at each step, and proves
+narrow and zoomed layouts neither overflow horizontally nor cover a pending
+approval or the composer. This is automated evidence, not a human
+screen-reader audit or WCAG certification.
 
 The verification artifacts use generated transcripts and a synthetic Copilot
 account catalog. They are demonstrations of the local protocol, not evidence
