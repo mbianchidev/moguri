@@ -26,6 +26,18 @@ this page keeps the full detail.
 - The draft PR default is workflow guidance only. It never grants publication (push), authentication or merge permission; ordinary approvals still apply.
 - Contract: `docs/architecture/repository-workflow-defaults.md`, `docs/architecture/managed-workspaces.md`, `docs/setup.md` (New Local Git tasks section).
 
+## Screenshots of UI changes / Installer when session work is done
+
+- **Screenshots of UI changes** (default: take them as the UI changes) tells the agent to capture affected screens
+  with its browser or Playwright tools while it works and include them in its final response. "Only when asked"
+  turns that off.
+- **Installer when session work is done:** "Ask me" (default), "Build it" or "Don't build". With "Build it", the agent
+  runs **Installer command** once as the last step of a task that changed the repository, after checks pass, and
+  reports where the installer is. Commands still need your normal approvals.
+- Moguri lists installer-like commands it finds in the project's root `package.json` scripts and `Makefile`. While the
+  choice is "Ask me", a finished session in this project shows a one-time card offering **Build at the end**,
+  **Don't build** or **Not now**. Contract: `docs/architecture/repository-workflow-defaults.md`.
+
 ## GitHub read access
 
 - Repository attribution uses the selected session's Local account (public API or signed-in GitHub CLI, per this setting) or, for Remote sessions, the pinned SSH host's account.

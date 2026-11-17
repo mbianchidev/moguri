@@ -31,6 +31,7 @@ import type { CommandClientAttachment, CommandExecution, CommandViewContext, Com
 import { Queue } from "./QueuedPrompts.tsx";
 import { usePanelBadges } from "./PanelBadges.ts";
 import { RepositoryProposal } from "./RepositoryProposal.tsx";
+import { InstallerPreference } from "./InstallerPreference.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProjectFolderActions, type ProjectFolderAction } from "./PanelFailure.tsx";
@@ -673,6 +674,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
     {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
     <RepositoryProposal key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
+    <InstallerPreference key={`installer:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     {session.pendingApproval && <section className="approval" aria-label="Tool approval"><div className="approval-body">
       <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
       {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&

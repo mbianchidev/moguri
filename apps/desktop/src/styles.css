@@ -1464,3 +1464,5 @@ summary:hover { color: var(--text); }
 .retention-rules > .fine-print { margin: 8px 0 0; }
 .branch-prefix-form { max-width: 850px; }
 .branch-prefix-form .setting-field { margin-bottom: 10px; }
+.installer-preference .setting-field { margin: 8px 0 0; max-width: 360px; }
+.installer-preference code { font-size: 12px; }

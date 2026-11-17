@@ -2158,6 +2158,18 @@ repository-defaults branch. A task branch then looks like
 `yourname/moguri/fix-login-1a2b3c4d`. The project's branch pattern still shapes
 the rest of the name; existing branches are not renamed.
 
+## Screenshots and installers
+
+By default the agent takes screenshots of any screen its change affects, using
+its Browser pane or Playwright tools, and shows them in its final reply. When a
+project can build an installer (for example `npm run package:mac` or a `make dmg`
+target), Moguri asks once, after a session in that project finishes, whether to
+build it at the end of each session's work; your answer is saved in Project
+settings. Change either choice in **Project settings > Repository**:
+**Screenshots of UI changes** and **Installer when session work is done** (with
+the **Installer command**). Both guide the agent; commands still need your
+normal approvals.
+
 ## Shared session and instruction preferences
 
 Protocol/database **45** adds nested preference normalization without rewriting

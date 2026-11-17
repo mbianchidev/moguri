@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, WORKFLOW_GUIDANCE_FIELDS, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, ProjectScreenshotModeSchema, ProjectInstallerModeSchema, WORKFLOW_GUIDANCE_FIELDS, type InstallerCandidate, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
@@ -14,6 +14,12 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   available?: boolean; discardUnavailable?: () => void;
 }) {
   const [values, setValues] = useState<ProjectSettings>(defaultProjectSettings);
+  const [installers, setInstallers] = useState<InstallerCandidate[] | null>(null);
+  useEffect(() => {
+    let current = true; setInstallers(null);
+    void sdk.projects.installers(project.id).then((value) => { if (current) setInstallers(value); }, () => { if (current) setInstallers([]); });
+    return () => { current = false; };
+  }, [sdk, project.id, project.path]);
   const sourceFolder = project.workspaceFolderId ? snapshot.workspaceFolders.find((folder) => folder.id === project.workspaceFolderId)?.root.root ?? "a workspace folder" : null;
   const [committed, setCommitted] = useState<ProjectSettings>(defaultProjectSettings);
   const [revision, setRevision] = useState(0);
@@ -143,8 +149,25 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
         onChange={(event) => automatic("repo", { pullRequests: parse(ProjectPullRequestModeSchema, event.target.value) })}>
         <option value="draft">Open a draft pull request (default)</option><option value="none">Open a PR only when asked</option>
       </select></label>
+      <label className="setting-field">Screenshots of UI changes<select aria-label="Screenshots of UI changes" value={values.repo.screenshots ?? "ui-changes"}
+        onChange={(event) => automatic("repo", { screenshots: parse(ProjectScreenshotModeSchema, event.target.value) })}>
+        <option value="ui-changes">Take them as the UI changes (default)</option><option value="off">Only when asked</option>
+      </select></label>
+      <label className="setting-field">Installer when session work is done<select aria-label="Installer when session work is done" value={values.repo.installers ?? "ask"}
+        onChange={(event) => {
+          const choice = event.target.value;
+          if (choice === "ask") automatic("repo", { installers: undefined });
+          else automatic("repo", { installers: parse(ProjectInstallerModeSchema, choice),
+            ...(choice === "build" && !values.repo.installerCommand && installers?.[0] ? { installerCommand: installers[0].run } : {}) });
+        }}>
+        <option value="ask">Ask me (default)</option><option value="build">Build it</option><option value="skip">Don't build</option>
+      </select></label>
     </div>
-    <p className="fine-print">Existing sessions keep their workspace. The PR choice is guidance; pushing and merging follow your normal approvals.</p>
+    {values.repo.installers === "build" && <label className="setting-field">Installer command<SettingsInput aria-label="Installer command" value={values.repo.installerCommand ?? ""}
+      placeholder={installers?.[0]?.run ?? "npm run package:mac"} spellCheck={false}
+      onChange={(event) => change("repo", { ...values.repo, installerCommand: event.target.value || undefined })} /></label>}
+    {installers && installers.length > 0 && <p className="fine-print">Found {installers.map((candidate) => candidate.run).join(", ")} in this project.</p>}
+    <p className="fine-print">Existing sessions keep their workspace. These choices guide the agent; pushing, merging and running commands follow your normal approvals.</p>
     {saveButton("repo", "Save repository settings")}
     <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
       disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />
