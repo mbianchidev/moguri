@@ -571,9 +571,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           }} aria-label="Verify daemon connection">Verify</button>
           <button type="button" disabled={saving || sectionDirty("integrations") || !committed.integrations?.sql.enabled} onClick={() => void run(() => window.moguri.openExternal(committed.integrations!.sql.endpoint))} aria-label="Open interface for existing daemon">Open interface</button>
           <p role="status">{sql ? `${sql.healthy ? "Daemon reports healthy" : "Not connected"}${sql.version ? ` / ${sql.version}` : ""}. ${sql.diagnostic}` : "Connection not verified yet."}</p></>}
-        {tab === "stainless" && <StainlessSettingsPanel sdk={sdk} revision={snapshot.settings.revision} settings={committed.integrations?.stainless} saving={saving}
-          save={(stainless) => write({ ...committedValues.current, integrations: { ...(committedValues.current.integrations ?? defaultSettings().integrations!), stainless } },
-            (settings) => setDraft((current) => ({ ...current, integrations: structuredClone(settings.integrations) })))} />}
+        {tab === "stainless" && <StainlessSettingsPanel sdk={sdk} revision={snapshot.settings.revision} settings={draft.integrations?.stainless} saving={saving}
+          save={(stainless) => {
+            setDraft((current) => ({ ...current, integrations: { ...(current.integrations ?? defaultSettings().integrations!), stainless } }));
+            return write({ ...committedValues.current, integrations: { ...(committedValues.current.integrations ?? defaultSettings().integrations!), stainless } }, () => {});
+          }} />}
         {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
         {(tab === "hooks" || tab === "marketplace") && <ExtensionPanel key={`${snapshot.profileId}:${project?.id}:${tab}`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode={tab} onDirty={setProjectDirty} />}
         {tab === "decisions" && <><SettingsHelp label="More about this setting" target={<h2 id="policy-decisions" data-policy-target tabIndex={-1}>Decision providers and Local Max</h2>}>Autopilot Max asks a decision model to pick answers to technical-choice questions for you. It stays off until you set its provider, model, limits and hosted-data consent below.</SettingsHelp>
