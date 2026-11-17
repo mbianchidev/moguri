@@ -1146,7 +1146,10 @@ records coverage and the exact local development installer's identity.
 
 ## Folder sessions and shared controls
 
-Drop a project onto the center of another project and name the new folder.
+Drop a project onto the center of an ungrouped project and name the new folder.
+Dropping a project onto a group header or any project already in a group adds
+it to the end of that group without a dialog; groups never nest, so center
+drops between members of the same group reorder them instead.
 The files are not moved. Its **+** starts a Local chat with every current member
 repository captured explicitly; each nested project's **+** still starts a
 single-repository chat. Click the folder header to expand/collapse it, or use

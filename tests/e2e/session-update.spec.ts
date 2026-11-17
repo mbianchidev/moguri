@@ -220,6 +220,34 @@ test("dropping a project on another names a folder, starts a captured multi-repo
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("dropping a project into an existing group joins it without proposing a new or nested group", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const add = async (name: string) => { const path = join(fixture.directory, name); await mkdir(path); return (await sdk.command({ type: "project.add", path })).id!; };
+  const member = await add("generated-member"), viaProject = await add("generated-via-project"), viaHeader = await add("generated-via-header");
+  const configuration = (projectId: string) => fixture.service.controller.snapshot().projectConfigurations.find((entry) => entry.projectId === projectId);
+  const grouped = await sdk.projects.group("Generated music", [fixture.session().projectId!, member].map((projectId) => ({ projectId, revision: configuration(projectId)?.revision ?? 0 })));
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow();
+    const row = (projectId: string) => page.locator(`.project-row:has(> button[data-project-id="${projectId}"])`);
+    const folder = page.locator(".project-folder").filter({ hasText: "Generated music" });
+    await row(viaProject).dragTo(row(member));
+    await expect.poll(() => configuration(viaProject)?.folderId).toBe(grouped.id);
+    expect(configuration(viaProject)?.order).toBe(2);
+    await row(viaHeader).dragTo(folder.locator(":scope > summary"));
+    await expect.poll(() => configuration(viaHeader)?.folderId).toBe(grouped.id);
+    expect(configuration(viaHeader)?.order).toBe(3);
+    const box = (await row(member).boundingBox())!;
+    await row(fixture.session().projectId!).dragTo(row(member), { targetPosition: { x: box.width / 2, y: box.height * 0.6 } });
+    await expect.poll(() => configuration(fixture.session().projectId!)?.order).toBe(1);
+    expect(configuration(member)?.order).toBe(0);
+    await expect(page.getByRole("dialog", { name: "New project group", exact: true })).toHaveCount(0);
+    await expect(folder.locator(".project-row")).toHaveCount(4);
+    expect(fixture.service.controller.snapshot().projectFolders).toHaveLength(1);
+    expect(fixture.requests).toHaveLength(0);
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("settings use switches and phase grips instead of text Up/Remove controls, saving actual dragged order", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   try {

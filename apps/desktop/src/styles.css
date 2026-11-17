@@ -230,7 +230,7 @@ kbd { font: 10px ui-monospace, monospace; padding: 2px 4px; border: 1px solid va
 .project-folder > summary { display: flex; align-items: center; gap: 7px; }
 .project-folder > summary > .folder-name { flex: 1; min-width: 0; }
 .project-folder > summary > .folder-icon { display: flex; flex: 0 0 auto; }
-.project-group.project-drop-inside > .project-row { background: var(--selected); box-shadow: inset 0 0 0 1px var(--accent); border-radius: 5px; }
+.project-row.drop-inside, .project-folder > summary.drop-inside { background: var(--selected); box-shadow: inset 0 0 0 1px var(--accent); border-radius: 5px; }
 .repository-picker { margin: 0 0 8px; }
 .reorder-list { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .reorder-item { display: flex; align-items: center; gap: 3px; border-radius: 5px; min-width: 0; }
