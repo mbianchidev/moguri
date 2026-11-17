@@ -97,7 +97,7 @@ selection, system type. Polish comes from consistency, not decoration:
 | P2 | TUI tool rows, pending requests and the approval box use the shared `describeActivityCall` label and subject (O20). | Done |
 | P3 | TUI compact approval shows the command subject before raw JSON at 52x24 (O10). | Done |
 | P3 | Convert the remaining per-component spacing, font sizes and radii in long-tail Settings, analytics and every other rule to scale tokens; add 6, 10 and 14px half steps and a titlebar inset token; a test keeps literals out (O19). | Done |
-| P3 | Activity labels never wrap and the composer's controls stay on one row, truncating the model name first (O15). | Done |
+| P3 | Activity labels never wrap, and at 760 CSS px the composer's controls stay on one row by truncating the model name first (O15). | Done |
 | P3 | Command palette: focus starts in the search field, header and close button match other dialogs, icon chevrons, and a worded no-match state (O16). | Done |
 | P3 | Analytics uses `StatusBadge` and the shared words; Dashboard tiles render words in the UI face (O17). | Done |
 | P3 | Automations uses the shared main-pane column; Suggestions headings nest under the section title and Refresh uses the refresh icon; Budgets shows provider names (O18, O19). | Done |
@@ -108,7 +108,7 @@ selection, system type. Polish comes from consistency, not decoration:
 ## Before and after
 
 All screenshots use generated fixtures. Before is `52f1752` for the first ten
-rows and `f2a1684` for the rest; after is the current `main`.
+rows and `f2a1684` for the rest; after is the change that finished #53.
 
 | Screen | Before | After |
 | --- | --- | --- |
