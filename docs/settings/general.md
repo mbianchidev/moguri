@@ -75,7 +75,7 @@ this page keeps the full detail.
   gauge (metrics) export. Logs are not sampled; each says whether its trace was. Sampled traces are never
   billing data or complete execution totals.
 - Review step: shows the profile, collector, signals, credential header names, enabled state and trace
-  ratio, plus the metadata-only disclosure version (currently 2; 1 meant traces and metrics only). The export
+  ratio, plus the metadata-only disclosure version (1 for traces and metrics only, 2 when logs or credential headers are included). The export
   is best effort and bounded, with no retries and no history backfill. Metadata already sent cannot be unsent.
 - Status line fields: "sent" is the number of spans the receiver acknowledged. Receiver acceptance does not
   prove the backend ingested the data. "dropped" counts dropped or unconfirmed spans; "sampled out" counts
