@@ -1,10 +1,10 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
-import { openSettingsSection } from "./navigation.ts";
+import { openSettingsSection, showKanban } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -18,7 +18,7 @@ async function savedSession(page: Page) {
 test("card moves are informational, keyboard-dismissible and do not resurrect on an ordinary snapshot update", async () => {
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, { board: initial } = await sdk.issues.board(projectId);
-  await sdk.issues.configure(projectId, { ...initial, autoRefreshPrs: false }, initial.revision);
+  await sdk.issues.configure(projectId, { ...initial, autoRefreshPrs: false, kanban: { ...kanbanPreferences(initial), visible: true } }, initial.revision);
   const created = await sdk.issues.create(projectId, { title: "Generated alert card", body: "Generated original content.", kind: "feature", phaseId: "in-progress", pullRequestUrl: null });
   const app = await launch(f.directory);
   try {
@@ -89,7 +89,7 @@ test("a dismissed draft-save failure preserves the exact text and leaves its rea
 });
 
 test("Kanban refresh survives presentation changes and dismissing a real sync error never acknowledges or changes its failed job", async () => {
-  const f = await githubBoardFixture(); await f.configure(true); expect((await f.refresh()).status).toBe("completed");
+  const f = await githubBoardFixture(); await f.configure(true); expect((await f.refresh()).status).toBe("completed"); await showKanban(f.sdk, f.projectId);
   const original = (await f.sdk.issues.board(f.projectId)).board.githubSource, app = await launch(f.directory);
   try {
     const page = await app.firstWindow(), project = f.service.controller.snapshot().projects.find((project) => project.id === f.projectId)!;

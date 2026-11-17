@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
-import { openSessionSearch, waitForWorkspace } from "./navigation.ts";
+import { openSessionSearch, showKanban, waitForWorkspace } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({
@@ -187,7 +187,9 @@ test("fenced-code copy stays reachable after horizontal scrolling while inline c
 });
 
 test("Kanban Add item aligns its plus with the label and still creates in the chosen phase", async () => {
-  const fixture = await setupFixture(), app = await launch(fixture.directory);
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await showKanban(sdk, fixture.session().projectId!);
+  const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Kanban for project", exact: true }).click();
@@ -206,12 +208,12 @@ test("Kanban Add item aligns its plus with the label and still creates in the ch
     await title.fill("Generated aligned item"); await title.press("Enter");
     await expect(board.getByRole("region", { name: "In progress issues", exact: true }).getByRole("button", { name: "Generated aligned item", exact: true })).toBeVisible();
     expect(fixture.requests).toHaveLength(0);
-  } finally { await app.close(); await fixture.close(); }
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
 test("the project menu hides a synced Kanban without recapturing a stale GitHub binding or removing cards", async () => {
   const fixture = await githubBoardFixture();
-  await fixture.configure(true); expect((await fixture.refresh()).status).toBe("completed");
+  await fixture.configure(true); expect((await fixture.refresh()).status).toBe("completed"); await showKanban(fixture.sdk, fixture.projectId);
   const configuration = (await fixture.sdk.projects.configuration(fixture.projectId)).configuration;
   await fixture.sdk.projects.organize(fixture.projectId, { folderId: configuration.folderId, color: "#3b82f6", order: configuration.order }, configuration.revision);
   const original = await fixture.sdk.issues.board(fixture.projectId), calls = fixture.calls.length, reads = fixture.reads.length;

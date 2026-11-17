@@ -1,9 +1,10 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
+import { showKanban } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -12,6 +13,7 @@ test.skip(process.platform !== "darwin", "Generated Kanban desktop interactions 
 
 test("each column creates its own item while the toolbar exposes synchronization instead of action buttons", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await showKanban(sdk, fixture.session().projectId!);
   const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow();
@@ -38,7 +40,7 @@ test("native card drags reorder their column and move to another phase without c
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const projectId = fixture.session().projectId!;
   const { board: initial } = await sdk.issues.board(projectId);
-  await sdk.issues.configure(projectId, { ...initial, autoRefreshPrs: false }, initial.revision);
+  await sdk.issues.configure(projectId, { ...initial, autoRefreshPrs: false, kanban: { ...kanbanPreferences(initial), visible: true } }, initial.revision);
   const ids: string[] = [];
   for (const title of ["Generated first", "Generated dragged", "Generated review"]) ids.push((await sdk.issues.create(projectId, {
     title, body: "Generated immutable drag source.", kind: "feature", phaseId: title === "Generated review" ? "review" : "backlog", pullRequestUrl: null,
@@ -102,7 +104,9 @@ test("plain and slash continue-work prompts ask each time and cancel preserves t
 });
 
 test("the read-only sync toggle imports linked issues, displays real PR state and keeps synchronized columns authoritative", async () => {
-  const fixture = await githubBoardFixture(), app = await launch(fixture.directory);
+  const fixture = await githubBoardFixture();
+  await showKanban(fixture.sdk, fixture.projectId);
+  const app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), project = fixture.service.controller.snapshot().projects.find((project) => project.id === fixture.projectId)!;
     await page.getByRole("button", { name: `Kanban for ${project.name}`, exact: true }).click();
