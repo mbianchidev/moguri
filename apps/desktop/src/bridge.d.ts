@@ -1,6 +1,7 @@
 import type { ArtifactExport, BrowserState, Connection, SkillSource } from "../../../packages/protocol/src/index.ts";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 import type { StartupContext } from "./startup-cache.ts";
+import type { RendererTrayAction } from "./tray-menu.ts";
 
 export type DesktopStartupPhase = "window" | "service" | "profile" | "preferences" | "native" | "ready" | "failed";
 export interface DesktopStartupStatus {
@@ -43,6 +44,8 @@ export interface DesktopBridge {
   onNotificationAudio(listener: (profileId: string, audio: string) => void): () => void;
   onNavigateInbox(listener: (attentionId: string, profileId: string) => void): () => void;
   onNavigateSuggestions(listener: (profileId: string) => void): () => void;
+  onTrayAction(listener: (action: RendererTrayAction, profileId: string) => void): () => void;
+  takeTrayAction(): Promise<{ action: RendererTrayAction; profileId: string } | null>;
   onNativeError(listener: (profileId: string, message: string) => void): () => void;
   applyApplicationPreferences(): Promise<{ menuBar: boolean; suppressed: boolean }>;
   cliInstallation(input: CliInstallationRequest): Promise<CliInstallationStatus>;

@@ -4071,7 +4071,10 @@ ownership, recovery and qualification boundaries.
 **Settings / General / Application** controls the actual menu-bar icon across
 all profiles. Profile settings remain independent. Native failures are visible
 and can be retried from the saved application preference; hidden checks never
-create a real menu-bar item.
+create a real menu-bar item. Its menu lists open chats grouped by project with
+"Working" or "Needs you", per-chat Open, Stop and Archive, then Create
+Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
+in **Settings / Keyboard shortcuts**), Settings and Quit.
 
 **Settings / General / Private GitHub updates** uses a separate PAT stored in the
 secure secret backend. It is not Copilot sign-in or `gh` authentication. Prefer

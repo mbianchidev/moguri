@@ -6,13 +6,15 @@ import { PolicyHint } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
 import { PathField, localPath } from "./PathField.tsx";
 
-export function StartDialog({ sdk, snapshot, start, close, modal, openRepositories }: {
+export function StartDialog({ sdk, snapshot, start, close, modal, openRepositories, initialMode = "choose" }: {
   sdk: MoguriSdk; snapshot: Snapshot; start: (projectId: string | null) => Promise<void>; close: () => void; modal: (open: boolean) => void;
+  /** "import" opens straight to adding a project from a local folder; Back still shows every option. */
+  initialMode?: "choose" | "import";
   /** Opens Settings > Repositories, where workspace folders are added. */
   openRepositories?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null), opening = useRef<string | null>(null);
-  const [mode, setMode] = useState<"choose" | "clone" | "import">("choose"), [search, setSearch] = useState(""), [importPath, setImportPath] = useState("");
+  const [mode, setMode] = useState<"choose" | "clone" | "import">(initialMode), [search, setSearch] = useState(""), [importPath, setImportPath] = useState("");
   const [repository, setRepository] = useState(""), [parent, setParent] = useState(""), [folder, setFolder] = useState("");
   const [jobId, setJobId] = useState<string | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const job = snapshot.jobs.find((job) => job.id === jobId), cloning = job?.status === "running" || job?.status === "waiting_input";

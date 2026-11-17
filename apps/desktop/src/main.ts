@@ -1,6 +1,7 @@
-import { app, BrowserWindow, Menu, nativeImage, Notification, Tray, WebContentsView, clipboard, dialog, ipcMain, powerMonitor, protocol, session as electronSession, shell, systemPreferences } from "electron";
+import { app, BrowserWindow, Menu, nativeImage, Notification, Tray, WebContentsView, globalShortcut, type MenuItemConstructorOptions, clipboard, dialog, ipcMain, powerMonitor, protocol, session as electronSession, shell, systemPreferences } from "electron";
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
+import { DEFAULT_OPEN_APP_SHORTCUT, electronAccelerator, trayMenu, trayTemplate, type TrayAction } from "./tray-menu.ts";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
@@ -9,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
 import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
-import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
+import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, shortcutLabel, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
@@ -30,6 +31,9 @@ const htmlPreview = new HtmlPreviewHost();
 let audioGrant: { id: string; profileId: string; epoch: number; expires: number; sessionId: string | null; jobId: string | null; purpose: "capture" | "devices" | "standby" } | null = null;
 let audioPending = false;
 let tray: Tray | null = null;
+let trayMenuKey = "", trayRefresh: ReturnType<typeof setTimeout> | null = null;
+let openShortcut: { value: string; accelerator: string | null } | null = null;
+let pendingTrayAction: { action: TrayAction; profileId: string } | null = null;
 let maintenancePending = false;
 let closeRequested = false;
 let serviceStoppedForRestart = false;
@@ -294,16 +298,57 @@ else {
         const image = nativeImage.createFromPath(join(app.getAppPath(), "dist", "branding", "moguri-tray.png"));
         if (image.isEmpty()) throw new Error("Moguri's menu-bar image is missing. The configured flag is retained; no empty icon was reported as visible.");
         image.setTemplateImage(true);
-        tray = new Tray(image); tray.setToolTip("Moguri");
-        tray.setContextMenu(Menu.buildFromTemplate([
-          { label: "Show Moguri", click: () => { mainWindow?.show(); mainWindow?.focus(); } },
-          { label: "Settings", click: () => { mainWindow?.show(); mainWindow?.focus(); mainWindow?.webContents.send("moguri:open-settings"); } },
-          { type: "separator" }, { label: "Quit Moguri", role: "quit" },
-        ]));
-        tray.on("click", () => { mainWindow?.show(); mainWindow?.focus(); });
+        tray = new Tray(image); tray.setToolTip("Moguri"); trayMenuKey = "";
+        refreshTray();
+        // macOS opens the context menu on click; other platforms bring the window forward.
+        if (process.platform !== "darwin") tray.on("click", showMain);
       }
       return { menuBar: Boolean(tray), suppressed };
     };
+    function showMain() {
+      if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); }
+      else if (!closeRequested && !maintenancePending) void createWindow().catch((error: unknown) => console.error("Moguri window could not reopen:", error instanceof Error ? error.message : "window"));
+    }
+    /** Renderer flows own confirmations and unsaved-edit guards; a fresh window takes the action once it mounts. */
+    const rendererAction = (action: TrayAction, profileId: string) => {
+      if (mainWindow && !mainWindow.webContents.isLoading()) { showMain(); mainWindow.webContents.send("moguri:tray-action", action, profileId); }
+      else { pendingTrayAction = { action, profileId }; showMain(); }
+    };
+    const trayAction = (action: TrayAction, profileId: string) => {
+      if (action.kind === "open-app") showMain();
+      else if (action.kind === "settings") { showMain(); mainWindow?.webContents.send("moguri:open-settings"); }
+      else if (action.kind === "open-session") { showMain(); mainWindow?.webContents.send("moguri:navigate-session", action.sessionId, profileId); }
+      else if (action.kind === "stop") {
+        const scoped = attentionClient;
+        if (!scoped || scoped.profileId !== profileId) { soundError(profileId, new Error("That session belongs to a profile that is no longer active. Nothing was stopped.")); return; }
+        void scoped.command({ type: "session.stop", sessionId: action.sessionId }).catch((error: unknown) => soundError(profileId, error));
+      } else rendererAction(action, profileId);
+    };
+    /** Registers the system-wide Open Moguri shortcut from the active profile's settings. */
+    const syncOpenShortcut = (value: string, profileId: string) => {
+      if (openShortcut?.value === value) return;
+      if (openShortcut?.accelerator) globalShortcut.unregister(openShortcut.accelerator);
+      let accelerator: string | null = null;
+      try { accelerator = electronAccelerator(value); } catch { accelerator = null; }
+      if (accelerator && process.env.MOGURI_TEST_WINDOW !== "hidden" && !globalShortcut.register(accelerator, showMain)) {
+        soundError(profileId, new Error(`${shortcutLabel(value)} is already used by another app, so the Open Moguri shortcut is off. Choose another one in Settings / Keyboard shortcuts.`));
+        accelerator = null;
+      }
+      openShortcut = { value, accelerator: process.env.MOGURI_TEST_WINDOW === "hidden" ? null : accelerator };
+      trayMenuKey = "";
+    };
+    function refreshTray() {
+      const scoped = attentionClient, state = scoped?.getState();
+      if (scoped && state?.snapshot && state.status === "connected") syncOpenShortcut(state.snapshot.settings.values.shortcuts?.openApp ?? DEFAULT_OPEN_APP_SHORTCUT, scoped.profileId);
+      if (!tray || !scoped) return;
+      const items = trayMenu(state?.status === "connected" ? state.snapshot ?? null : null, { openShortcut: openShortcut?.accelerator ?? null });
+      const key = `${scoped.profileId}:${JSON.stringify(items)}`;
+      if (key === trayMenuKey) return;
+      trayMenuKey = key;
+      tray.setContextMenu(Menu.buildFromTemplate(trayTemplate(items, (action) => trayAction(action, scoped.profileId)) as MenuItemConstructorOptions[]));
+    }
+    const scheduleTray = () => { if (!trayRefresh) trayRefresh = setTimeout(() => { trayRefresh = null; refreshTray(); }, 400); };
+    ipcMain.handle("moguri:take-tray-action", (event) => { trusted(event); const value = pendingTrayAction; pendingTrayAction = null; return value; });
     const soundError = (profileId: string, error: unknown) => {
       const message = error instanceof Error ? error.message : "Notification audio failed. No alternate sound was substituted.";
       console.error("Moguri native capability:", message);
@@ -342,6 +387,7 @@ else {
       let applicationRevision = -1, wasConnected = true;
       scoped.subscribe(() => {
         if (attentionClient !== scoped) return;
+        scheduleTray();
         const state = scoped.getState();
         if (!state.snapshot || state.status !== "connected") { wasConnected = false; return; }
         if (!wasConnected) { notifier.synchronize(state.snapshot.seq); wasConnected = true; }
@@ -810,5 +856,5 @@ else {
     console.error("Moguri desktop startup failed:", error instanceof Error ? error.message : "Unknown startup error.");
     if (process.env.MOGURI_TEST_WINDOW !== "hidden") dialog.showErrorBox("Moguri could not start", error instanceof Error ? error.message : "Inspect the service log.");
   });
-  app.on("will-quit", () => { clearInterval(updateTimer); tray?.destroy(); tray = null; });
+  app.on("will-quit", () => { clearInterval(updateTimer); if (trayRefresh) clearTimeout(trayRefresh); globalShortcut.unregisterAll(); tray?.destroy(); tray = null; });
 }

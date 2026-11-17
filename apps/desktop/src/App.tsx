@@ -4,6 +4,7 @@ import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.t
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import type { DesktopStartupStatus } from "./bridge.d.ts";
+import type { RendererTrayAction } from "./tray-menu.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
@@ -158,7 +159,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const [panelTooltip, setPanelTooltip] = useState<{ panel: Panel; top: number } | null>(null);
   const [palette, setPalette] = useState(false);
-  const [startOpen, setStartOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false), [startMode, setStartMode] = useState<"choose" | "import">("choose");
   const [navOpen, setNavOpen] = useState(false);
   const [notice, updateNotice] = useState<{ text: string; info: boolean } | null>(null);
   const setNotice = useCallback((text: string | null, info = false) => updateNotice(text ? { text, info } : null), []);
@@ -414,6 +415,22 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       } else openInbox(id);
     })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The exact notification profile/item could not be opened."));
   }), [client.profileId, openProfile]);
+  const trayAction = useRef<(action: RendererTrayAction, profileId: string) => void>(() => {});
+  trayAction.current = (action, profileId) => {
+    if (profileId !== client.profileId) { setNotice("That menu-bar action belongs to another profile. Switch to it first; nothing was changed."); return; }
+    if (action.kind === "new-chat") void run(() => startSession(null));
+    else if (action.kind === "new-session") {
+      if (!snapshot?.projects.some((project) => project.id === action.projectId)) setNotice("That project is no longer available. No session was created.");
+      else void run(() => startSession(action.projectId));
+    } else if (action.kind === "new-project") { if (canNavigate()) { setStartMode("import"); setStartOpen(true); } }
+    else setSessionActionRequest({ sessionId: action.sessionId, action: "archive", nonce: ++sessionActionRequestNonce.current });
+  };
+  useEffect(() => {
+    const off = window.moguri.onTrayAction((action, profileId) => trayAction.current(action, profileId));
+    void window.moguri.takeTrayAction().then((pending) => { if (pending) trayAction.current(pending.action, pending.profileId); })
+      .catch((error: unknown) => console.error("Pending menu-bar action could not be read:", error instanceof Error ? error.message : "tray"));
+    return off;
+  }, []);
   useEffect(() => window.moguri.onNavigateSuggestions((profileId) => {
     void (async () => {
       if (profileId === client.profileId && !canNavigate()) return;
@@ -649,7 +666,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   }, [client, status]);
   useEffect(() => { commandAttachment.current?.wake(); }, [selectedId, settingsTab, settingsUnsaved, panelDirty, profilePending, nativeModal, terminalDismiss, startOpen, palette]);
   const closeStart = () => { setStartOpen(false); document.querySelector<HTMLButtonElement>(".start-trigger")?.focus(); };
-  const openStart = () => { if (canNavigate()) setStartOpen(true); };
+  const openStart = () => { if (canNavigate()) { setStartMode("choose"); setStartOpen(true); } };
   const startSession = async (projectId: string | null) => {
     if (!canNavigate()) throw new Error("Save existing edits before starting a new chat.");
     if (!await confirmTerminalNavigation()) return;
@@ -792,7 +809,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         await client.commands.choose(owned.context.clientId, owned.context.claim, choice);
         owned.settle({ outcome: "completed" });
       } : undefined} />}
-    {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} openRepositories={() => openSettings("repositories", undefined, closeStart)} /></Suspense>}
+    {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog key={startMode} initialMode={startMode} sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} openRepositories={() => openSettings("repositories", undefined, closeStart)} /></Suspense>}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
       { name: "Connect GitHub Copilot", action: async () => openSettings("providers") },

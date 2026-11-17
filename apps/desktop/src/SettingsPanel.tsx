@@ -322,8 +322,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     const shortcut = draft.voice.shortcut ?? "Control+Space";
     void write({ ...committedValues.current, voice: { ...committedValues.current.voice, shortcut } }, () => {});
   };
-  const saveShortcut = (key: "commands" | "terminalCopy") => {
-    const value = draft.shortcuts?.[key] ?? (key === "commands" ? "Primary+KeyK" : "Primary+Shift+KeyC");
+  const saveShortcut = (key: "commands" | "terminalCopy" | "openApp") => {
+    const value = draft.shortcuts?.[key] ?? (key === "commands" ? "Primary+KeyK" : key === "openApp" ? "Primary+Shift+KeyO" : "Primary+Shift+KeyC");
     const shortcuts = { commands: "Primary+KeyK", terminalCopy: "Primary+Shift+KeyC", ...committedValues.current.shortcuts, [key]: value };
     void write({ ...committedValues.current, shortcuts }, () => {});
   };
@@ -504,14 +504,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         </>}
         {tab === "accessibility" && <><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a shortcut or type one, then Save. Shortcuts that clash with editing or system keys are rejected; enter none to turn an optional shortcut off.</SettingsHelp><p>Shortcuts never interrupt typing, and a focused terminal keeps its own keys.</p>
 
-          <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />
-          <ShortcutEditor label="Terminal copy shortcut" value={draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC"} change={(terminalCopy) => change("shortcuts", { commands: draft.shortcuts?.commands ?? "Primary+KeyK", terminalCopy })} save={() => saveShortcut("terminalCopy")} dirty={draft.shortcuts?.terminalCopy !== committed.shortcuts?.terminalCopy} disabled={saving} />
+          <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { ...draft.shortcuts, commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />
+          <ShortcutEditor label="Terminal copy shortcut" value={draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC"} change={(terminalCopy) => change("shortcuts", { ...draft.shortcuts, commands: draft.shortcuts?.commands ?? "Primary+KeyK", terminalCopy })} save={() => saveShortcut("terminalCopy")} dirty={draft.shortcuts?.terminalCopy !== committed.shortcuts?.terminalCopy} disabled={saving} />
+          <ShortcutEditor label="Open Moguri shortcut" value={draft.shortcuts?.openApp ?? "Primary+Shift+KeyO"} change={(openApp) => change("shortcuts", { commands: draft.shortcuts?.commands ?? "Primary+KeyK", terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC", ...draft.shortcuts, openApp })} save={() => saveShortcut("openApp")} dirty={(draft.shortcuts?.openApp ?? "Primary+Shift+KeyO") !== (committed.shortcuts?.openApp ?? "Primary+Shift+KeyO")} disabled={saving} />
+          <p className="fine-print">Open Moguri works from any app while Moguri runs, and shows in the menu-bar menu. Enter none to turn it off.</p>
           <ShortcutEditor label="Voice shortcut" value={draft.voice.shortcut ?? "Control+Space"} change={(shortcut) => change("voice", { ...draft.voice, shortcut })} save={voiceShortcut} dirty={draft.voice.shortcut !== committed.voice.shortcut} disabled={saving} />
           <dl className="facts shortcut-map">
             <dt>Send or answer in chat</dt><dd><kbd>Enter</kbd></dd><dt>Insert a new line</dt><dd><kbd>Shift+Enter</kbd></dd>
             <dt>Hold a prompt without running</dt><dd><kbd>Cmd/Ctrl+Enter</kbd></dd><dt>Show held-prompt action</dt><dd>Hold Cmd or Ctrl</dd>
             <dt>Commands</dt><dd><kbd>{shortcutLabel(committed.shortcuts?.commands ?? "Primary+KeyK")}</kbd></dd><dt>Hold to dictate</dt><dd><kbd>{shortcutLabel(committed.voice.shortcut ?? "Control+Space")}</kbd></dd>
-            <dt>Copy terminal selection</dt><dd><kbd>{shortcutLabel(committed.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC")}</kbd></dd><dt>Close a dialog or popover</dt><dd><kbd>Escape</kbd></dd>
+            <dt>Copy terminal selection</dt><dd><kbd>{shortcutLabel(committed.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC")}</kbd></dd><dt>Open Moguri from any app</dt><dd><kbd>{shortcutLabel(committed.shortcuts?.openApp ?? "Primary+Shift+KeyO")}</kbd></dd><dt>Close a dialog or popover</dt><dd><kbd>Escape</kbd></dd>
             <dt>Resize a focused sidebar separator</dt><dd><kbd>Left / Right</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move through popover choices</dt><dd><kbd>Up / Down</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move between controls</dt><dd><kbd>Tab / Shift+Tab</kbd></dd><dt>Activate a focused control</dt><dd><kbd>Enter / Space</kbd></dd>

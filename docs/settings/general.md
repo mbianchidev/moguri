@@ -8,6 +8,20 @@ this page keeps the full detail.
 - Application preferences belong to the encrypted store as a whole (not to one profile) and apply across
   every profile. Profile appearance and voice settings are stored separately per profile.
 
+## Show Moguri in the menu bar
+
+- The menu-bar menu follows the active profile:
+  - a count of open chats, then each project's top-level chats in sidebar order and project-free chats under
+    **Chats** (archived, Kanban and nested subsession chats are left out);
+  - a status after busy chats: "Working", "Needs you" or "Failed". Over 25 chats, working and waiting ones
+    stay and a "more in Moguri" item opens the window;
+  - per chat: its status (and linked PR), **Open**, **Stop** while it works, and **Archive…** otherwise;
+  - **Create Session…** (one entry per project), **New Chat**, **New Project** (opens New at Import local
+    folder), **Open Moguri** with its shortcut, **Settings…** and **Quit**.
+- Archive, new chats and new projects run through the window's own flows, so archive confirmations and the
+  unsaved-edit guard still apply. Stop sends the same stop as the chat's Stop button.
+- The menu refreshes at most a few times a second. Hidden test runs never create a real menu-bar item.
+
 ## Keep agents running when the last window closes
 
 - Closing the last window quits the desktop client but leaves the same local service, active agent work and
