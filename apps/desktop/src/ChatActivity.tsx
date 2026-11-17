@@ -100,7 +100,7 @@ export function ActivityRow({ sdk, entry, version }: { sdk: MoguriSdk; entry: Ac
     </section>;
   };
   return <details className={`activity-row activity-${entry.kind} activity-status-${observed.status}`} data-activity-id={entry.id} data-kind={entry.kind} onToggle={(event) => setOpen(event.currentTarget.open)}>
-    <summary><span className="activity-chevron"><Icon name="Down" /></span><Icon name={icons[entry.kind]} /><span className="activity-title">{entry.label}{entry.subject && <span className="activity-subject" title={entry.subject}>{entry.subject}</span>}</span>
+    <summary><span className="activity-chevron"><Icon name="Down" /></span><Icon name={icons[entry.kind]} /><span className="activity-title"><span className="activity-label">{entry.label}</span>{entry.subject && <span className="activity-subject" title={entry.subject}>{entry.subject}</span>}</span>
       {observed.status !== "completed" && <StatusBadge className="activity-state" status={observed.errorCode === "not_found" ? { label: "Not Found", tone: "failed" } : outcomeLabel(observed.status)} />}
     </summary>
     {open && <div className="activity-expansion">
@@ -128,7 +128,7 @@ export function CurrentActivity({ entries, hasMore = false }: { entries: Activit
   const elapsed = useElapsed(current?.startedAt ?? null, Boolean(current));
   if (!current) return null;
   return <div className="current-activity" aria-label="Current operation"><span className={current.status === "waiting_input" ? "activity-waiting" : "activity-spinner"}><Icon name={current.status === "waiting_input" ? "Question" : "Progress"} /></span>
-    <span>{current.status === "waiting_input" ? "Waiting for your answer" : current.label}{current.subject && <span className="activity-subject" title={current.subject}>{current.subject}</span>}</span>
+    <span><span className="activity-label">{current.status === "waiting_input" ? "Waiting for your answer" : current.label}</span>{current.subject && <span className="activity-subject" title={current.subject}>{current.subject}</span>}</span>
     {(running.length > 1 || hasMore) && <small>{running.length}{hasMore ? "+" : ""} concurrent</small>}<time role="timer" aria-live="off" aria-label="Elapsed operation time">{activityDuration(elapsed)}</time>
   </div>;
 }
