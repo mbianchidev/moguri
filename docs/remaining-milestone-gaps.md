@@ -150,7 +150,9 @@ digest-named folder on the SSH host and its scripts run through normal command
 approval. The
 [AST category matrix](architecture/file-access.md#owasp-source-and-review-boundary)
 records controls, evidence and those exclusions. Neither change is OWASP
-certification or a claim of zero risk.
+certification or a claim of zero risk. Protocol 111 also lets a user steer move
+a running agent command to the background instead of waiting for it
+([D42](architecture/decisions.md#d42-steer-backgrounded-commands)).
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,

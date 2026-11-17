@@ -3843,6 +3843,14 @@ and Cmd/Ctrl+Enter still holds prompts. The delivery chevron retains explicit
 Send/Answer/Queue, Steer and Interrupt actions while Stop occupies the main slot.
 Unavailable execution/autonomy modes remain disabled with their reasons.
 
+If you steer while the agent waits on a command, the command keeps running in
+the background and the agent reads your steer right away; anything else it had
+planned in that response waits. The command's tool row shows **Running in
+background**, the Agent terminal keeps its live output, and the agent gets the
+result when the command ends. The turn doesn't finish until then; Stop cancels
+the command. See
+[steering while a command runs](architecture/session-interactions.md#steering-while-a-command-runs-protocol-111).
+
 In both desktop chat composers, **Enter** sends and **Shift+Enter** inserts a
 newline. **Cmd/Ctrl+Enter** still holds the prompt without running it;
 **Shift+Cmd/Ctrl+Enter** retains the explicit send-now shortcut. Input-method
