@@ -7,7 +7,8 @@ this page keeps the full detail.
 
 Contract: `docs/architecture/workspace-folders.md`.
 
-- "Add workspace folder" opens the macOS folder picker. Moguri lists the Git repositories it finds, up to
+- Type the folder path (absolute or starting with `~/`) and click "Find repositories", or use "Choose
+  folder…" for the macOS picker. Moguri lists the Git repositories it finds, up to
   three levels down. It skips links, dot folders, `node_modules`, linked worktrees and repositories nested
   inside another repository. Large folders stop at 20,000 entries, 10 seconds or 500 repositories, and the
   review says so.

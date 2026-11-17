@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Snapshot, WorkspaceFolderObservation, WorkspaceFolderPreview } from "../../../packages/sdk/src/index.ts";
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { PathField, localPath } from "./PathField.tsx";
 
 const plural = (count: number, word: string, many = `${word}s`) => `${count} ${count === 1 ? word : many}`;
 const checkedLabel = (status: WorkspaceFolderObservation | undefined) => {
@@ -17,6 +18,7 @@ export function WorkspaceFolderPanel({ sdk, snapshot, onDirty }: { sdk: MoguriSd
   const [preview, setPreview] = useState<WorkspaceFolderPreview | null>(null), [include, setInclude] = useState<string[]>([]);
   const [sync, setSync] = useState(true), [trusted, setTrusted] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [folderPath, setFolderPath] = useState("");
   const [status, setStatus] = useState<WorkspaceFolderObservation[]>([]), [syncing, setSyncing] = useState<Record<string, boolean>>({});
   const pending = useRef(false), owner = useRef(sdk); owner.current = sdk;
   const folders = snapshot.workspaceFolders, localAllowed = snapshot.policy.allowedEnvs.includes("Local");
@@ -47,7 +49,7 @@ export function WorkspaceFolderPanel({ sdk, snapshot, onDirty }: { sdk: MoguriSd
     setSync(existing?.sync ?? true);
     setInclude(result.preview.document.entries.filter((entry) => entry.disposition === "new").map((entry) => entry.relative));
   };
-  const close = () => { setPreview(null); setInclude([]); setTrusted(false); };
+  const close = () => { setPreview(null); setInclude([]); setTrusted(false); setFolderPath(""); };
   const selectable = preview?.document.entries.filter((entry) => entry.disposition !== "registered") ?? [];
   const registered = preview?.document.entries.filter((entry) => entry.disposition === "registered") ?? [];
   return <section aria-label="Workspace folders" aria-busy={busy}>
@@ -56,10 +58,11 @@ export function WorkspaceFolderPanel({ sdk, snapshot, onDirty }: { sdk: MoguriSd
     {!localAllowed && <Alert as="p" tone="warning">Your execution policy blocks Local, so Moguri can't read folders on this Mac.</Alert>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
     {notice && <p role="status" className="fine-print">{notice}</p>}
-    {!preview && <div className="button-row"><button type="button" disabled={busy || !localAllowed} onClick={() => void run(async (owned) => {
-      const path = await window.moguri.chooseProject("workspace");
-      if (owned() && path) await load(path, owned);
-    })}>Add workspace folder</button></div>}
+    {!preview && <PathField label="Folder" ariaLabel="Workspace folder path" value={folderPath} onChange={setFolderPath} kind="folder"
+      choose={() => window.moguri.chooseProject("workspace")} chooseLabel="Choose folder…" chooseAriaLabel="Choose workspace folder"
+      onChosen={(path) => void run((owned) => load(path, owned))} disabled={busy || !localAllowed} placeholder="~/workspace or /path/to/folder">
+      <button type="button" disabled={busy || !localAllowed || !folderPath.trim()} onClick={() => void run((owned) => load(localPath(folderPath), owned))}>Find repositories</button>
+    </PathField>}
     {preview && <section aria-label="Workspace folder review" className="github-write-review workspace-folder-review">
       <p>Folder: <code className="path">{preview.document.root.root}</code></p>
       {preview.document.diagnostic && <Alert as="p" tone="warning">{preview.document.diagnostic}</Alert>}

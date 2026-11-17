@@ -1,4 +1,5 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
+import { PathField, localPath } from "./PathField.tsx";
 import { useEffect, useState } from "react";
 import type { MoguriSdk, StorageMoveReview, StorageStatus } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
@@ -22,10 +23,11 @@ export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {
   };
   const change = (value: string) => { setPath(value); setReview(null); setConfirmed(false); setOutput(""); };
   return <section aria-label="Whole-store location"><SettingsHelp label="More about this setting" target={<h3>Change storage location</h3>}>Moves all profiles, sessions and artifacts together. Project files, worktrees and model or cache files stay where they are.</SettingsHelp>
-    <label className="setting-field">Session storage location<SettingsInput aria-label="Session storage location" value={path} disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onChange={(event) => change(event.target.value)} /></label>
-    <div className="button-row"><button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride} onClick={() => void run(async () => { const path = await window.moguri.chooseStorageDirectory(); if (path) change(path); })} aria-label="Choose storage parent">Choose</button>
-      <button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride || path === storage.directory} onClick={() => void run(async () => { setReview((await sdk.application.storage.preview(path)).review); setConfirmed(false); })} aria-label="Review storage relocation">Review</button>
-      <button type="button" disabled={busy} onClick={() => { if (storage) change(storage.directory); }} aria-label="Discard storage edit">Discard</button></div>
+    <PathField label="Session storage location" ariaLabel="Session storage location" value={path} onChange={change} kind="folder"
+      choose={() => window.moguri.chooseStorageDirectory()} chooseLabel="Choose" chooseAriaLabel="Choose storage parent" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride}>
+      <button type="button" disabled={disabled || busy || !storage?.enabled || storage.explicitOverride || path === storage.directory} onClick={() => void run(async () => { setReview((await sdk.application.storage.preview(localPath(path))).review); setConfirmed(false); })} aria-label="Review storage relocation">Review</button>
+      <button type="button" disabled={busy} onClick={() => { if (storage) change(storage.directory); }} aria-label="Discard storage edit">Discard</button>
+    </PathField>
     {storage?.explicitOverride && <Alert as="p" tone="warning" className="settings-warning">MOGURI_STATE_DIR is set for this launch. Restart without it to change the storage location.</Alert>}
     {storage?.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{storage.diagnostic}</Alert>}
     {review && <><dl className="facts"><dt>Current location</dt><dd className="path">{review.source}</dd><dt>New location</dt><dd className="path">{review.destination}</dd>

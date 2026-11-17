@@ -29,7 +29,7 @@ test("a trusted workspace folder adds chosen repositories as read-only projects 
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, root);
     await openSettingsSection(page, "Repositories");
     const section = page.getByRole("region", { name: "Workspace folders", exact: true });
-    await section.getByRole("button", { name: "Add workspace folder", exact: true }).click();
+    await section.getByRole("button", { name: "Choose workspace folder", exact: true }).click();
     const review = page.getByRole("region", { name: "Workspace folder review", exact: true });
     await expect(review).toContainText(canonical);
     await expect(review.getByRole("checkbox", { name: /generated-alpha/ })).toBeChecked();

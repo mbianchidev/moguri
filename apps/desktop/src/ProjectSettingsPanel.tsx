@@ -5,6 +5,7 @@ import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
 import { RepositoryRemotePanel } from "./RepositoryRemotePanel.tsx";
+import { PathField } from "./PathField.tsx";
 import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -174,8 +175,9 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <label className="setting-field">Preview port<SettingsInput type="number" min={1} max={65535} value={values.port ?? ""} onChange={(event) => change("port", event.target.value ? Number(event.target.value) : null)} /></label>
     {saveButton("port", "Save preview port")}
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.porto.enabled} onChange={(event) => automatic("porto", { enabled: event.target.checked })} />Enable Porto inventory</label>
-    <div className="project-settings-grid"><label className="setting-field">Porto project<SettingsInput value={values.porto.project} onChange={(event) => change("porto", { ...values.porto, project: event.target.value })} /></label>
-      <label className="setting-field">Porto executable<SettingsInput value={values.porto.executable} onChange={(event) => change("porto", { ...values.porto, executable: event.target.value })} /></label></div>
+    <label className="setting-field">Porto project<SettingsInput value={values.porto.project} onChange={(event) => change("porto", { ...values.porto, project: event.target.value })} /></label>
+    <PathField label="Porto executable" ariaLabel="Porto executable" kind="file" title="Choose the Porto executable" chooseAriaLabel="Choose Porto executable"
+      placeholder="porto (on PATH) or /path/to/porto" value={values.porto.executable} onChange={(value) => change("porto", { ...values.porto, executable: value })} />
     {saveButton("porto", "Save Porto settings")}
     <SettingsHelp label="More about this setting" target={<button disabled={dirty || busy || !values.porto.enabled} onClick={() => void run(async () => (await sdk.projects.porto(project.id)).output)}>Read Porto inventory</button>}>Lists services from your installed Porto CLI without starting or stopping anything. Set the preview port yourself; Moguri doesn't manage Porto services.</SettingsHelp>
 

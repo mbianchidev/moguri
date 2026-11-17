@@ -1437,3 +1437,21 @@ summary:hover { color: var(--text); }
 .workspace-folder-actions .check-setting { align-items: center; margin: 0; white-space: nowrap; }
 .workspace-folder-available { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .workspace-folder-available p { margin: 0; }
+/* Typed-or-chosen local paths */
+.path-field { max-width: 850px; }
+.path-field > .setting-field { margin-bottom: 6px; }
+.path-field-actions { margin: 0 0 12px; flex-wrap: wrap; }
+.path-field-error { color: var(--danger, var(--text)); }
+/* Found speech models (Settings > Voice dictation) */
+.voice-model-results { max-width: 850px; margin: 8px 0 16px; }
+.voice-model-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--subtle); max-height: 360px; overflow: auto; }
+.voice-model-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; }
+.voice-model-list li + li { border-top: 1px solid var(--line); }
+.voice-model-list li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.voice-model-list .model-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.voice-model-list .model-title strong { font-size: 13px; }
+.voice-model-searched { overflow-wrap: anywhere; margin-top: 0; }
+.voice-model-list small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.voice-model-list li.unsupported strong { color: var(--muted); }
+.voice-model-list .model-status { display: inline-block; padding: 0 8px; border: 1px solid var(--control-line); border-radius: 999px; color: var(--muted); font-size: 11px; font-weight: 500; line-height: 18px; }
+.voice-model-list .model-status.streaming { color: var(--text); border-color: var(--accent); }

@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -43,6 +43,7 @@ import { WebAllowlistPanel } from "./WebAllowlistPanel.tsx";
 import { PolicyHint, policyLocations, type PolicyFocusRequest } from "./PolicyHint.tsx";
 import { ReorderList } from "./ReorderList.tsx";
 import { Alert } from "./Alert.tsx";
+import { PathField, localPath } from "./PathField.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
@@ -108,6 +109,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [preview, setPreview] = useState("");
   const [voice, setVoice] = useState<VoiceStatus | null>(null);
   const [modelReview, setModelReview] = useState<{ jobId: string; inspection: VoiceModelInspection | null } | null>(null);
+  const [modelPath, setModelPath] = useState(""), [modelSearch, setModelSearch] = useState<{ discovery: VoiceModelDiscovery; installed: boolean } | null>(null);
+  const [searchingModels, setSearchingModels] = useState(false);
   const dictation = useDictation(sdk, session, snapshot, { active: tab === "voice" });
   const [microphones, setMicrophones] = useState<MicrophoneChoice[]>([]), [devicesBusy, setDevicesBusy] = useState(false);
   const deviceRequest = useRef<AbortController | null>(null);
@@ -197,6 +200,22 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     const result = await sdk.voice.inspectModel(path);
     if (!result.id) throw new Error("The model review was not acknowledged. Nothing was trusted.");
     setModelReview({ jobId: result.id, inspection: null });
+  });
+  /** Searches the default caches (no path) or one typed/chosen file or folder. A single usable file goes straight to review. */
+  const findModels = (path?: string) => void run(async () => {
+    setSearchingModels(true);
+    try {
+      const discovery = await sdk.voice.discoverModels(path === undefined ? undefined : localPath(path));
+      const target = discovery.searched[0];
+      if (path !== undefined && !target?.found) throw new Error("Nothing exists at that path. Check it and try again.");
+      if (path !== undefined && target?.kind === "file") {
+        const model = discovery.models[0];
+        if (!model) throw new Error("This file isn't a speech model Moguri can use. Choose a streaming GGUF such as Nemotron, Parakeet or Moonshine.");
+        if (model.status === "unsupported") throw new Error(model.reason ?? "This model can't stream dictation.");
+        setModelSearch(null); reviewModel(model.path); return;
+      }
+      setModelSearch({ discovery, installed: path === undefined });
+    } finally { setSearchingModels(false); }
   });
   useEffect(() => { if (tab === "remote") void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [tab, snapshot.settings.revision]);
   useEffect(() => {
@@ -422,7 +441,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               const entry = snapshot.provider.catalogue?.providers.find((provider) => provider.id === id), active = committed[key]?.enabled === true;
               const choose = (patch: { enabled?: boolean; transport?: "sdk" | "stream-json" }) => key === "claudeAgent" ?
                 automatic("claudeAgent", patch, false, defaultClaudeAgentSettings()) : automatic("codexAgent", { enabled: patch.enabled }, false, defaultCodexAgentSettings());
-              const path = value.executablePath ?? null, savedPath = committed[key]?.executablePath ?? null;
+              const path = value.executablePath ? localPath(value.executablePath) || null : null, savedPath = committed[key]?.executablePath ?? null;
               const savePath = () => void write({ ...committedValues.current, [key]: { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...committedValues.current[key], executablePath: path } },
                 () => setDraft((current) => ({ ...current, [key]: { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...current[key], executablePath: path } })));
               return <ProviderCard key={id} label={`${name} harness`} logo={logo} name={name} subtitle={subtitle}
@@ -438,14 +457,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
                     <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
                   </select></label>}
                   <form className="provider-key-form" onSubmit={(event) => { event.preventDefault(); if (path !== savedPath) savePath(); }}>
-                    <label className="setting-field">{key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}<SettingsInput aria-label={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}
-                      placeholder="Found on PATH or in its install location" value={value.executablePath ?? ""}
-                      onChange={(event) => {
-                        const executablePath = event.target.value.trim() || null;
+                    <PathField label={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"} ariaLabel={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}
+                      kind="file" title={`Choose the ${name} executable`} chooseAriaLabel={`Choose ${name} executable`}
+                      placeholder="Found on PATH or in its install location" value={value.executablePath ?? ""} disabled={saving}
+                      onChange={(text) => {
+                        const executablePath = text || null;
                         if (key === "claudeAgent") change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath });
                         else change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, executablePath });
-                      }} /></label>
-                    <button type="submit" className="primary" aria-label={`Save ${name} executable`} disabled={saving || path === savedPath}>Save</button>
+                      }}>
+                      <button type="submit" className="primary" aria-label={`Save ${name} executable`} disabled={saving || path === savedPath}>Save</button>
+                    </PathField>
                   </form>
                   <p className="fine-print">{key === "claudeAgent" ? "Both transports run this executable." : "Models come from your Codex login."} Refresh available models after a change.</p>
                 </div>}
@@ -927,12 +948,37 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <p aria-label="Dictation model">{committed.voice.model ? `${committed.voice.model.name} (${committed.voice.model.architecture}, ${committed.voice.model.runtime === "transcribe" ? "transcribe.cpp" : "NeMo-Speech"})` : "Moguri-managed Nemotron 3.5 ASR Streaming 0.6B"}</p>
           {committed.voice.model && <p className="fine-print path">{committed.voice.model.path}<br />Trusted SHA-256 {committed.voice.model.sha256}</p>}
           {committed.voice.model && voice?.model?.trust === "changed" && <Alert as="p" className="inline-error" role="alert">This trusted file changed{voice.model.observedSha256 ? ` (SHA-256 is now ${voice.model.observedSha256})` : ""}. Dictation is blocked until you review and trust it again.</Alert>}
-          <div className="button-row">
-            <button type="button" disabled={saving || reviewJob?.status === "running"} onClick={() => void run(async () => { const path = await window.moguri.chooseVoiceModel(); if (path) reviewModel(path); })} aria-label="Use existing model file">Use existing model file…</button>
+          {(committed.voice.model && voice?.model?.trust === "changed" || committed.voice.model) && <div className="button-row">
             {committed.voice.model && voice?.model?.trust === "changed" && <button type="button" disabled={saving || reviewJob?.status === "running"} onClick={() => reviewModel(committed.voice.model!.path)} aria-label="Review changed file before trusting it again">Review changed file</button>}
             {committed.voice.model && <button type="button" className="quiet" disabled={saving || Boolean(activeVoice)} onClick={() => void run(() => sdk.voice.useManagedModel())} aria-label="Use managed Nemotron model">Use managed Nemotron</button>}
-          </div>
-          <p className="fine-print">Use a streaming GGUF model you already have, such as Nemotron, Parakeet or Moonshine (Whisper can't stream). Moguri asks again if the file changes and never moves or deletes it.</p>
+          </div>}
+          <SettingsHelp label="About using your own model" target={<h4>Use a model you already have</h4>}>Moguri reads Nemotron, Parakeet, Moonshine and other streaming speech GGUFs in place. It asks again if the file changes, and never copies, moves or deletes it.</SettingsHelp>
+          <PathField label="Model file or folder" ariaLabel="Speech model path" value={modelPath} onChange={(value) => { setModelPath(value); setModelSearch(null); }}
+            kind="file-or-folder" choose={() => window.moguri.chooseVoiceModel()} chooseLabel="Choose…" chooseAriaLabel="Choose model file or folder"
+            onChosen={(path) => findModels(path)} disabled={saving || searchingModels || reviewJob?.status === "running"}
+            placeholder="~/.cache/huggingface/… or /path/to/model.gguf">
+            <button type="button" disabled={saving || searchingModels || !modelPath.trim() || reviewJob?.status === "running"} onClick={() => findModels(modelPath)} aria-label="Review model at this path">Review</button>
+            <button type="button" disabled={saving || searchingModels || reviewJob?.status === "running"} onClick={() => findModels()}>Find installed models</button>
+          </PathField>
+          <p className="fine-print">Find installed models checks Handy's model folder and your Hugging Face cache, only when you click it.</p>
+          {searchingModels && <p role="status">Looking for speech models...</p>}
+          {modelSearch && <section className="voice-model-results" aria-label="Found speech models">
+            <p className="fine-print">{modelSearch.discovery.models.length ? `Found ${modelSearch.discovery.models.length} speech ${modelSearch.discovery.models.length === 1 ? "model" : "models"}.` : "No speech models found."}
+              {modelSearch.discovery.skipped > 0 ? ` Skipped ${modelSearch.discovery.skipped} other model ${modelSearch.discovery.skipped === 1 ? "file" : "files"}, such as language models.` : ""}</p>
+            <p className="fine-print path voice-model-searched">Searched: {modelSearch.discovery.searched.map((entry) => entry.found ? entry.path : `${entry.path} (not found)`).join(" · ")}</p>
+            {modelSearch.discovery.diagnostic && <Alert as="p" tone="warning">{modelSearch.discovery.diagnostic}</Alert>}
+            {modelSearch.discovery.models.length > 0 && <ul className="voice-model-list">{modelSearch.discovery.models.map((model) => {
+              const inUse = committed.voice.model?.path === model.path;
+              return <li key={model.path} className={model.status === "unsupported" ? "unsupported" : undefined}>
+                <div><span className="model-title"><strong>{model.name}</strong><span className={`model-status ${model.status}`}>{inUse ? "In use" : model.status === "streaming" ? "Streaming" : model.status === "review" ? "Checked on review" : "Can't stream"}</span></span>
+                  <small>{model.architecture} · {Math.max(1, Math.round(model.bytes / 1024 / 1024))} MiB</small>
+                  <small className="path">{model.path}</small>
+                  {model.reason && <small>{model.reason}</small>}</div>
+                {model.status !== "unsupported" && !inUse && <button type="button" disabled={saving || reviewJob?.status === "running"} aria-label={`Review ${model.name}`} onClick={() => { setModelPath(model.path); reviewModel(model.path); }}>Review</button>}
+              </li>;
+            })}</ul>}
+            {modelSearch.installed && !modelSearch.discovery.models.length && <p className="fine-print">Enter the folder where your models were downloaded, or choose it.</p>}
+          </section>}
           {reviewJob?.status === "running" && <div className="button-row"><p role="status">{reviewJob.progress}</p><button type="button" onClick={() => void run(() => sdk.jobs.cancel(reviewJob.id))} aria-label="Cancel model review">Cancel</button></div>}
           {reviewJob && ["failed", "cancelled", "partial"].includes(reviewJob.status) && <Alert as="p" className="inline-error" role="alert">{reviewJob.error ?? `Model review ${reviewJob.status}. Nothing was trusted.`}</Alert>}
           {modelReview?.inspection && <section className="voice-model-review" aria-label="Model review">
@@ -984,7 +1030,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <p role="status" aria-label="Local microphone status">Microphone: {dictation.state.phase}. {activeVoice?.progress}</p>
           {dictation.state.error && <Alert as="p" className="inline-error" role="alert">{dictation.state.error}</Alert>}
           {lastVoice?.status === "failed" && lastVoice.error !== dictation.state.error && <Alert as="p" className="inline-error" role="alert">{lastVoice.error}</Alert>}
-          <label className="setting-field">Or use a local WAV path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder="/path/to/recording.wav" /></label><button disabled={saving || !session || !input || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, input))} aria-label="Transcribe local WAV">Transcribe</button>
+          <PathField label="Or transcribe a WAV file" ariaLabel="Local WAV path" value={input} onChange={setInput} kind="file" extensions={["wav"]} title="Choose a WAV recording"
+            placeholder="/path/to/recording.wav or ~/recording.wav">
+            <button disabled={saving || !session || !input.trim() || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, localPath(input)))} aria-label="Transcribe local WAV">Transcribe</button>
+          </PathField>
           {completedVoice && <>{voiceTranscript?.error ? <Alert as="p" className="inline-error" role="alert">{voiceTranscript.error}</Alert> : <p aria-label="Dictation transcript">{voiceTranscript?.text ?? "Loading the local transcript..."}</p>}
             <div className="button-row"><button disabled={!session || !voiceTranscript?.text} onClick={() => void run(() => sdk.voice.insert(session!.id, completedVoice.id, session!.draft.revision))} aria-label="Insert into saved draft, never send">Insert</button></div></>}
           </>}

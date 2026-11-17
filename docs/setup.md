@@ -473,8 +473,8 @@ not declare milestone1 or a signed/notarized public v1 complete.
 ## Adding a workspace folder
 
 If your repositories already live in one folder, such as `~/workspace`, open
-**Settings / Repositories** (or **New > Add workspace folder**) and choose
-**Add workspace folder**. Moguri lists the Git repositories it finds up to three
+**Settings / Repositories** (or **New > Add workspace folder**), type the folder
+path and click **Find repositories**, or use **Choose folder…**. Moguri lists the Git repositories it finds up to three
 levels down; uncheck any you don't want. Choose **Keep in sync** to have new
 repositories added automatically (at startup, every five minutes or with
 **Check now**), or **Import once**. Turn on **I trust this folder and allow
@@ -4627,8 +4627,28 @@ auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
 Instead of downloading Nemotron, you can point a profile at a model file you
 already have, for example in a folder shared with other dictation apps. In
-**Settings / Voice dictation / Model**, choose **Use existing model file…**.
-Moguri runs a read-only review: it reads the header, confirms the model can
+**Settings / Voice dictation / Use a model you already have**:
+
+- Type a file or folder path (absolute, or starting with `~/`) and click
+  **Review**, or use **Choose…** to pick it. A single model file goes straight
+  to review; a folder lists the speech models found in it.
+- Click **Find installed models** to search Handy's model folder
+  (`~/Library/Application Support/com.pais.handy/models`) and your Hugging Face
+  cache (`~/.cache/huggingface`, or `HF_HOME`, `HF_HUB_CACHE` and
+  `HUGGINGFACE_HUB_CACHE` when set). Moguri searches only when you click, never
+  in the background, and saves nothing about the search. Each model shows
+  **Streaming**, **Checked on review** or **Can't stream** (with the reason);
+  choose **Review** next to one to continue. From a terminal:
+  `moguri dictate model discover [FILE_OR_FOLDER]`.
+
+The search reads only a small header from each `.gguf` or `.bin` file and
+classifies it by its declared architecture, not its name. Language models and
+other non-speech GGUFs are counted and skipped. It never follows folder links,
+skips hidden folders, partial downloads and Hugging Face's internal `blobs` and
+`refs` folders, and deduplicates snapshot links to the same blob. It stops after
+six folder levels, 50,000 entries, 300 model files or ten seconds and says so.
+
+Moguri then runs a read-only review: it reads the header, confirms the model can
 stream live dictation, and hashes the whole file. The review card shows the
 name, architecture, runtime, size, license metadata and SHA-256. **Trust this
 model** locks that path, size and digest for the profile and turns dictation on.

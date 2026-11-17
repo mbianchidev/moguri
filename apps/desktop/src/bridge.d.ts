@@ -24,6 +24,11 @@ export interface DesktopBridge {
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   chooseVoiceModel(): Promise<string | null>;
+  /** Native file or folder picker; typed paths remain available next to every picker. */
+  choosePath(input: { kind: "file" | "folder"; title: string; extensions?: string[]; defaultPath?: string }): Promise<string | null>;
+  /** The user's home folder, used to expand `~` in typed paths. */
+  readonly homeDirectory: string;
+  loadNotificationSound(profileId: string, path: string): Promise<{ name: string; audio: string }>;
   openExternal(url: string): Promise<void>;
   projectLocation(profileId: string, projectId: string, expectedPath: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
   sessionLocation(profileId: string, sessionId: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;

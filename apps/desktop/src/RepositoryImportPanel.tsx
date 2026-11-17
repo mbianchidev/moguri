@@ -3,6 +3,7 @@ import { successfulImportItem, type MoguriSdk, type RepositoryImportPreview, typ
 import { SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { WorkspaceFolderPanel } from "./WorkspaceFolderPanel.tsx";
+import { PathField, localPath } from "./PathField.tsx";
 
 export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject }: {
   sdk: MoguriSdk; snapshot: Snapshot; onDirty: (dirty: boolean) => void; configureProject: (id: string) => void;
@@ -38,17 +39,15 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
     {!localAllowed && <Alert as="p" tone="warning">Your execution policy blocks Local, so repositories can't be cloned here.</Alert>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <form onSubmit={(event) => { event.preventDefault(); void run(async (owned) => {
-      const result = await sdk.projects.imports.preview({ text, parent }); if (owned()) { setPreview(result.preview); setReviewed(false); }
+      const result = await sdk.projects.imports.preview({ text, parent: localPath(parent) }); if (owned()) { setPreview(result.preview); setReviewed(false); }
     }); }}>
       <label className="setting-field">Repository URLs, one per line<SettingsTextarea aria-label="Repository URLs" value={text} maxLength={65536} rows={8} spellCheck={false}
         disabled={busy || Boolean(active)} placeholder={"- https://github.com/generated-owner/project\n- git@github.com:another-owner/project.git"}
         onChange={(event) => { setText(event.target.value); invalidate(); }} /></label>
-      <label className="setting-field">Import parent folder<SettingsInput aria-label="Import parent folder" value={parent} disabled={busy || Boolean(active)}
-        placeholder="/absolute/existing/folder" onChange={(event) => { setParent(event.target.value); invalidate(); }} /></label>
-      <div className="button-row"><button type="button" disabled={busy || Boolean(active)} onClick={() => void run(async (owned) => {
-        const path = await window.moguri.chooseProject("clone"); if (owned() && path) { setParent(path); invalidate(); }
-      })}>Choose import folder</button>
-        <button type="submit" disabled={busy || Boolean(active) || !localAllowed || !text.trim() || !parent}>Preview repository import</button></div>
+      <PathField label="Import parent folder" ariaLabel="Import parent folder" value={parent} onChange={(value) => { setParent(value); invalidate(); }} kind="folder"
+        choose={() => window.moguri.chooseProject("clone")} chooseLabel="Choose import folder" disabled={busy || Boolean(active)} placeholder="/path/to/existing/folder or ~/folder">
+        <button type="submit" disabled={busy || Boolean(active) || !localAllowed || !text.trim() || !parent.trim()}>Preview repository import</button>
+      </PathField>
     </form>
     {preview && <section aria-label="Repository import preview" className="github-write-review">
       <p>Parent folder: <code>{preview.document.parent.root}</code></p>

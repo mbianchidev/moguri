@@ -2,6 +2,7 @@ import { app, BrowserWindow, Menu, nativeImage, Notification, Tray, WebContentsV
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
 import { dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -464,6 +465,28 @@ else {
       const result = await dialog.showOpenDialog(mainWindow!, { title: "Attach a project text file", defaultPath: projectPath, properties: ["openFile"] });
       return result.canceled ? null : result.filePaths[0] ?? null;
     });
+    ipcMain.handle("moguri:choose-path", async (event, input: unknown) => {
+      trusted(event);
+      if (!isRecord(input) || input.kind !== "file" && input.kind !== "folder" || typeof input.title !== "string" || input.title.length > 200 ||
+        input.extensions !== undefined && (!Array.isArray(input.extensions) || input.extensions.length > 10 || input.extensions.some((value) => typeof value !== "string" || !/^[a-z0-9]{1,10}$/i.test(value))) ||
+        input.defaultPath !== undefined && (typeof input.defaultPath !== "string" || !input.defaultPath.startsWith("/") || input.defaultPath.length > 4096)) {
+        throw new Error("Choose a file or folder with a short title.");
+      }
+      const extensions = input.extensions as string[] | undefined;
+      const result = await dialog.showOpenDialog(mainWindow!, { title: input.title, properties: [input.kind === "folder" ? "openDirectory" : "openFile"],
+        ...(typeof input.defaultPath === "string" ? { defaultPath: input.defaultPath } : {}),
+        ...(extensions?.length ? { filters: [{ name: "Supported files", extensions }] } : {}) });
+      return result.canceled ? null : result.filePaths[0] ?? null;
+    });
+    ipcMain.handle("moguri:load-notification-sound", async (event, profileId: unknown, path: unknown) => {
+      trusted(event);
+      const epoch = profileEpoch;
+      if (profileId !== activeProfileId) throw new Error("Import a sound only for the active profile.");
+      if (typeof path !== "string" || !path.startsWith("/") || path.length > 4096) throw new Error("Enter the sound file's full path, or one starting with ~/.");
+      const sound = await loadNotificationSoundFile(path);
+      if (epoch !== profileEpoch || profileId !== activeProfileId) throw new Error("The original profile changed while reading the sound. No audio was rebound.");
+      return sound;
+    });
     ipcMain.handle("moguri:choose-notification-sound", async (event, profileId: unknown) => {
       trusted(event);
       const epoch = profileEpoch;
@@ -494,7 +517,7 @@ else {
         if (!process.env.MOGURI_TEST_VOICE_MODEL_FILE) throw new Error("Hidden model checks require a generated model file. No personal file picker was opened.");
         return process.env.MOGURI_TEST_VOICE_MODEL_FILE;
       }
-      const result = await dialog.showOpenDialog(mainWindow!, { title: "Choose an existing streaming speech model", properties: ["openFile"], filters: [{ name: "Speech models", extensions: ["gguf", "bin"] }] });
+      const result = await dialog.showOpenDialog(mainWindow!, { title: "Choose a speech model file or a folder of models", properties: ["openFile", "openDirectory"], filters: [{ name: "Speech models", extensions: ["gguf", "bin"] }] });
       return result.canceled ? null : result.filePaths[0] ?? null;
     });
     ipcMain.handle("moguri:choose-attachment", async (event, kind: unknown) => {
@@ -735,7 +758,8 @@ else {
         title: "Moguri", width: 1440, height: 940, minWidth: 840, minHeight: 620,
         show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#000000",
         icon: join(app.getAppPath(), "dist", "branding", "moguri.png"),
-        webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true },
+        webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
+          additionalArguments: [`--moguri-home=${homedir()}`] },
       });
       mainWindow.webContents.session.setPermissionRequestHandler((contents, permission, callback, details) => callback(
         contents === mainWindow?.webContents && permission === "media" && details.isMainFrame && details.requestingUrl.startsWith("moguri://app/") &&

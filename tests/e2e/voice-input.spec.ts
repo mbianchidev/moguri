@@ -740,7 +740,7 @@ test("an existing streaming model file is reviewed, trusted, dictated with and r
       await expect.poll(() => sdk.settings.get()!.values.voice.model?.sha256).toBe(digest);
     };
     await openVoice();
-    await page.getByRole("button", { name: "Use existing model file", exact: true }).click();
+    await page.getByRole("button", { name: "Choose model file or folder", exact: true }).click();
     await trust(sha256(bytes));
     await expect(page.getByLabel("Dictation model")).toHaveText("Generated Moonshine Streaming (moonshine_streaming, transcribe.cpp)");
     await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toHaveCount(0);

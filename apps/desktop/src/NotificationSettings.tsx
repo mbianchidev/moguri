@@ -2,6 +2,7 @@ import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.ts
 import { useEffect, useState } from "react";
 import { audioFromBase64, type MoguriSdk, type NotificationToneKind, type Snapshot, type UserSettings } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
+import { PathField, localPath } from "./PathField.tsx";
 
 type Preferences = UserSettings["notifications"];
 const sounds = [{ key: "needsInputSound", kind: "needs-input", label: "Needs attention" }, { key: "completedSound", kind: "completed", label: "Session completed" }] as const;
@@ -9,7 +10,7 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
   sdk: MoguriSdk; snapshot: Snapshot; values: Preferences; disabled: boolean;
   onChange: (patch: Partial<Preferences>) => void; onBusy: (busy: boolean) => void; onError: (error: string) => void; onOutput: (text: string) => void;
 }) {
-  const [busy, setBusy] = useState(false), [remove, setRemove] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false), [remove, setRemove] = useState<string | null>(null), [soundPath, setSoundPath] = useState("");
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const run = async (action: () => Promise<void>) => {
     setBusy(true); onError("");
@@ -41,12 +42,15 @@ export function NotificationSettings({ sdk, snapshot, values, disabled, onChange
     })}
     <label className="check-setting"><SettingsInput type="checkbox" checked={values.soundWhileFocused ?? true} disabled={disabled || busy} onChange={(event) => onChange({ soundWhileFocused: event.target.checked })} />Play application sounds while Moguri is focused</label>
     <SettingsHelp label="More about this setting" target={<h3>Custom sounds</h3>}>Import a mono 16 kHz, 16-bit PCM WAV file up to ten seconds long. Moguri keeps its own copy for this profile.</SettingsHelp>
-    <button type="button" disabled={disabled || busy || snapshot.notificationSounds.length >= 32} onClick={() => void run(async () => {
-      const selection = await window.moguri.chooseNotificationSound(sdk.profileId);
-      if (!selection) return;
-      await sdk.notifications.importSound(selection.name, audioFromBase64(selection.audio));
-      onOutput("Sound imported. Choose it for either alert above.");
-    })} aria-label="Import notification sound">Import</button>
+    <PathField label="Sound file" ariaLabel="Notification sound path" value={soundPath} onChange={setSoundPath} kind="file" extensions={["wav"]}
+      title="Choose a mono 16 kHz PCM16 WAV" chooseAriaLabel="Choose sound file" placeholder="/path/to/sound.wav or ~/sound.wav" disabled={disabled || busy}>
+      <button type="button" disabled={disabled || busy || snapshot.notificationSounds.length >= 32} onClick={() => void run(async () => {
+        const selection = soundPath.trim() ? await window.moguri.loadNotificationSound(sdk.profileId, localPath(soundPath)) : await window.moguri.chooseNotificationSound(sdk.profileId);
+        if (!selection) return;
+        await sdk.notifications.importSound(selection.name, audioFromBase64(selection.audio));
+        setSoundPath(""); onOutput("Sound imported. Choose it for either alert above.");
+      })} aria-label="Import notification sound">Import</button>
+    </PathField>
     {snapshot.notificationSounds.some((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)) && <label className="setting-field">Sound to remove
       <select aria-label="Sound reviewed for removal" value={remove ?? ""} disabled={busy} onChange={(event) => setRemove(event.target.value || null)}>
         <option value="">None selected</option>{snapshot.notificationSounds.filter((sound) => !sounds.some(({ key }) => values[key]?.id === sound.id)).map((sound) => <option key={sound.id} value={sound.id}>Remove {sound.name}</option>)}
