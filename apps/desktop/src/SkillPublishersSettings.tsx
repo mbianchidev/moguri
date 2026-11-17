@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { outcomeLabel, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
+import { StatusBadge } from "./StatusBadge.tsx";
 import { SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 
 /** Settings / Skills: saved Ed25519 publisher keys and permanent key/version blocks for this profile. */
@@ -32,7 +33,7 @@ export function SkillPublishersSettings({ sdk, snapshot }: { sdk: MoguriSdk; sna
     <p className="fine-print">Save an Ed25519 key once to verify signed skill archives without pasting it each time. A valid signature proves the publisher holds the key, not who they are.</p>
     {snapshot.skillPublishers.length === 0 && <p className="fine-print">No saved publisher keys.</p>}
     {snapshot.skillPublishers.map((publisher) => <article key={publisher.fingerprint}>
-      <strong>{publisher.identity}</strong> {blocked("key", publisher.fingerprint) && <span>(blocked)</span>}
+      <strong>{publisher.identity}</strong> {blocked("key", publisher.fingerprint) && <StatusBadge status={outcomeLabel("blocked")} />}
       <p className="fine-print path">SHA-256 {publisher.fingerprint} · saved {publisher.createdAt}</p>
       {!blocked("key", publisher.fingerprint) && blocking?.digest !== publisher.fingerprint &&
         <button type="button" disabled={busy} aria-label={`Block publisher key ${publisher.identity}`} onClick={() => { setBlocking({ kind: "key", digest: publisher.fingerprint }); setReason(""); }}>Block key</button>}
