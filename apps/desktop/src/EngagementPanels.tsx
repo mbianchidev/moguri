@@ -35,6 +35,7 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
   return <section className="suggestions-panel" aria-label="Moguri suggestions"><header className="panel-toolbar"><strong>Improve your Moguri workflow</strong><button className="icon-button" aria-label="Refresh suggestion sources" title="Refresh sources" disabled={busy} onClick={() => void load()}><Icon name="Down" /></button></header>
     <p className="fine-print">Scope: {session?.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name : allProjects ? "All projects in this profile" : "Project-free chats only"}. Preview is local; nothing is sent automatically.</p>
     {session?.projectId === null && <label className="check-setting"><input type="checkbox" role="switch" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
+    <CapabilityProposals sdk={sdk} snapshot={snapshot} projectId={session?.projectId ?? null} />
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {preview && <><p className="fine-print">{preview.diagnostic}</p>
       <h2>Usage gaps</h2>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
@@ -51,6 +52,35 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
       {preview.sources.length || preview.gaps.length ? <><label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I approve sending these usage gaps and scoped excerpts to the selected model for suggestions.</label><button className="primary" disabled={busy || !confirmed || !preview.modelId} onClick={() => void generate()}>Generate suggestions</button>{!preview.modelId && <p className="fine-print">Choose a chat with a model, or configure a profile startup model first. Preview and local checks make no model call.</p>}</> : <p className="fine-print">No earlier prompts or usage gaps in this scope yet.</p>}
     </>}
     {session && <ConfigurationProposals sdk={sdk} session={session} snapshot={snapshot} modal={modal} scope />}
+  </section>;
+}
+/** Model-proposed skill, script, memory and hook improvements waiting for the user's review. */
+function CapabilityProposals({ sdk, snapshot, projectId }: { sdk: MoguriSdk; snapshot: Snapshot; projectId: string | null }) {
+  const [open, setOpen] = useState<{ id: string; content: string; digest: string } | null>(null);
+  const [reviewed, setReviewed] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const pending = snapshot.proposals.filter((proposal) => proposal.status === "pending" && (!projectId || proposal.projectId === projectId));
+  if (!pending.length) return null;
+  const run = (action: () => Promise<unknown>) => {
+    setBusy(true); setError("");
+    void action().catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The proposal was not updated. Reload and try again.")).finally(() => setBusy(false));
+  };
+  const decide = (approve: boolean) => open && run(async () => { await sdk.capabilities.decide(open.id, approve, open.digest); setOpen(null); });
+  return <section className="capability-proposals" aria-label="Suggested skill improvements">
+    <h2>Suggested improvements</h2>
+    <p className="fine-print">Proposed after a request that used them. Approving installs a disabled copy; you enable it separately.</p>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    <ul>{pending.map((proposal) => <li key={proposal.id}>
+      <div><strong>{proposal.name}</strong><small>{proposal.kind} · {proposal.baseDigest ? "updates an existing one" : "new"} · {snapshot.projects.find((project) => project.id === proposal.projectId)?.name ?? "Project unavailable"}</small></div>
+      <button type="button" disabled={busy} aria-pressed={open?.id === proposal.id} aria-label={`Review ${proposal.kind} ${proposal.name}`} onClick={() => open?.id === proposal.id ? setOpen(null) :
+        run(async () => { const content = await sdk.capabilities.proposal(proposal.id); setOpen({ id: proposal.id, content: content.content, digest: content.digest }); setReviewed(false); })}>
+        {open?.id === proposal.id ? "Hide" : "Review"}</button>
+      {open?.id === proposal.id && <div className="capability-proposal-review">
+        <pre>{open.content}</pre>
+        <label className="check-setting"><input type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this content. Approving it doesn't let it run.</label>
+        <div className="button-row"><button type="button" className="primary" disabled={busy || !reviewed} onClick={() => decide(true)}>Approve disabled</button>
+          <button type="button" disabled={busy} onClick={() => decide(false)}>Reject</button></div>
+      </div>}
+    </li>)}</ul>
   </section>;
 }
 export function ConfigurationProposals({ sdk, session, snapshot, modal, scope = false }: {

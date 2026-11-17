@@ -13,7 +13,7 @@ test("desktop authenticated search uses the exact project account and shows a co
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
-    await page.getByText("Advanced reviewed Git and GitHub operations", { exact: true }).click();
+    await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     await expect(panel.getByLabel("GitHub repository (owner/name)", { exact: true })).toHaveValue("generated-owner/fixture");
     await panel.getByText("Read GitHub issues, PRs, reviews, checks, runs, logs and releases", { exact: true }).click();
@@ -37,13 +37,13 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
-    await page.getByText("Advanced reviewed Git and GitHub operations", { exact: true }).click();
+    await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     await expect(panel).toBeVisible();
     await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.tag.create");
-    await panel.getByLabel("Exact tag name", { exact: true }).fill("generated-desktop-tag");
+    await panel.getByLabel("Tag name", { exact: true }).fill("generated-desktop-tag");
     const head = f.git(["rev-parse", "HEAD"]), index = await readFile(join(f.root, ".git/index"));
-    await panel.getByLabel("Exact target branch/tag/commit", { exact: true }).fill(head);
+    await panel.getByLabel("Target branch, tag or commit", { exact: true }).fill(head);
     await panel.getByLabel("Annotated tag (otherwise lightweight)", { exact: true }).uncheck();
     await panel.getByRole("button", { name: "Review exact operation", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact Git/GitHub operation review", exact: true });
@@ -51,7 +51,7 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     const execute = review.getByRole("button", { name: "Execute only this reviewed operation", exact: true });
     await expect(execute).toBeDisabled();
     await review.getByRole("switch").check();
-    await panel.getByLabel("Exact tag name", { exact: true }).fill("generated-desktop-reviewed-tag");
+    await panel.getByLabel("Tag name", { exact: true }).fill("generated-desktop-reviewed-tag");
     await expect(review).not.toBeVisible(); expect(f.git(["for-each-ref", "--format=%(refname)", "refs/tags/generated-desktop-tag"])).toBe("");
     await panel.getByRole("button", { name: "Review exact operation", exact: true }).click();
     await review.getByRole("switch").check(); await execute.click();
@@ -62,7 +62,7 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     expect(f.git(["rev-parse", "refs/tags/generated-desktop-reviewed-tag"])).toBe(head);
     expect(await readFile(join(f.root, ".git/index"))).toEqual(index);
     await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.push");
-    await panel.getByLabel("Exact destination branch", { exact: true }).fill("main");
+    await panel.getByLabel("Destination branch", { exact: true }).fill("main");
     await panel.getByRole("button", { name: "Review exact operation", exact: true }).click();
     await expect(review).toContainText("I explicitly approve pushing protected/main branch main.");
     const confirmations = review.getByRole("checkbox"); expect(await confirmations.count()).toBe(3);
@@ -83,7 +83,7 @@ test("desktop built-in branch creation, rename and history-preserving rollback u
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
-    await page.getByText("Advanced reviewed Git and GitHub operations", { exact: true }).click();
+    await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     const execute = async () => {
       const previous = new Set(f.service.controller.snapshot().githubOperations.map((operation) => operation.id));
@@ -98,18 +98,18 @@ test("desktop built-in branch creation, rename and history-preserving rollback u
     const base = f.git(["rev-parse", "HEAD"]);
     await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.branch.create");
     await panel.getByLabel("New local branch", { exact: true }).fill("generated/desktop-built-in");
-    await panel.getByLabel("Exact starting branch or commit", { exact: true }).fill(base);
+    await panel.getByLabel("Start from branch or commit", { exact: true }).fill(base);
     await panel.getByLabel("Also switch to the new branch (requires a clean checkout)", { exact: true }).check();
     await execute(); expect(f.git(["branch", "--show-current"])).toBe("generated/desktop-built-in");
     await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.branch.rename");
-    await panel.getByLabel("Exact current branch", { exact: true }).fill("generated/desktop-built-in");
+    await panel.getByLabel("Current branch", { exact: true }).fill("generated/desktop-built-in");
     await panel.getByLabel("New branch name", { exact: true }).fill("generated/desktop-renamed");
     await execute(); expect(f.git(["branch", "--show-current"])).toBe("generated/desktop-renamed");
     await writeFile(join(f.root, "fixture.txt"), "Generated hidden rollback target.\n");
     f.git(["add", "--", "fixture.txt"]); f.git(["commit", "--no-gpg-sign", "-m", "Generated hidden rollback target"]);
     const target = f.git(["rev-parse", "HEAD"]);
     await panel.getByLabel("Git/GitHub operation", { exact: true }).selectOption("git.revert");
-    await panel.getByLabel("Exact current commit SHA to revert", { exact: true }).fill(target);
+    await panel.getByLabel("Current commit SHA to revert", { exact: true }).fill(target);
     await execute();
     expect(f.git(["rev-parse", "HEAD^"])).toBe(target);
     expect(f.git(["rev-parse", "HEAD^{tree}"])).toBe(f.git(["rev-parse", `${base}^{tree}`]));

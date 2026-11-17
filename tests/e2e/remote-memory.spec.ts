@@ -16,7 +16,7 @@ test("desktop explicitly indexes and searches its captured SSH repository and sh
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click(); await page.getByRole("button", { name: "Repository memory", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Repository memory", exact: true })).toBeVisible();
-    await expect(page.locator("body")).toContainText("Pinned SSH repository memory");
+    await expect(page.locator("body")).toContainText("Remote memory indexes the repository on the SSH host");
     expect(f.controller.snapshot().jobs.filter((job) => job.kind === "memory.index")).toHaveLength(0);
     await page.getByRole("button", { name: "Index Remote repository", exact: true }).click();
     await expect(page.locator("body")).toContainText("Remote repository index / completed");

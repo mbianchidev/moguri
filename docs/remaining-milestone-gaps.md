@@ -99,12 +99,13 @@ not a milestone gate.
 | --- | --- |
 | #51; closed #36/#37 | Shared runtime/hardware readiness, one-use reviewed executable probes, exact pooled window/effort, finite all-role reservations and reviewed Local/SSH/private-native candidates. Shared sessions, queues, profiles, independent artifacts, worktrees, typed context and Ghostty ownership already exist. |
 | #52; closed #7 | Retained exact-PR CI watches, deduplication, original observations, loss/restart recovery and notifications across SDK/CLI/TUI/desktop. [PR/CI contract](architecture/github-workflows.md#protocol93-qualification). |
-| #56; #38 is closed | Complete required Local/SSH source cell/criterion mapping, GitHub/input and control repairs. The [matrix](architecture/milestone-combination-matrix.md) retains all 10,080 nominal cells; #56 itself disclaimed native acceptance, which the final qualification later completed. |
+| #56; #38 is closed | Complete required Local/SSH source cell/criterion mapping, GitHub/input and control repairs. The [matrix](architecture/milestone-combination-matrix.md) retains all 10,080 nominal cells as the opt-in full product; #56 itself disclaimed native acceptance, which the final qualification later completed. |
 | #57 | Narrow actual DS4/DeepSeek compatibility and cache-accounting evidence, not a general model-quality/capacity or all-Env claim. [Exact contract](architecture/ds4-compatibility.md). |
 | #58; closed #9 | Unified authorized cross-repository GitHub My Work inbox, distinct from the existing active-session dashboard and the session notification Inbox. Refresh is read-only and profile/account/repository-bound. [My Work contract](architecture/my-work.md). |
 | #59; selected #23 slice | Original-owner startup/reconnect, background-window lifecycle and opt-in metadata-only OTLP traces/metrics over control-plane records. Export is off by default; logs, content capture and peer/guest-internal auto-instrumentation are not implemented. [Startup](architecture/startup-responsiveness.md) and [OTLP](architecture/otlp-export.md). |
 | #60; closed #13 and selected #45 slice | Governed complete Local skill-source admission/provenance/least privilege/revocation, justified complete-source/envelope limits, per-turn checkpoints and reviewed Local/pinned-SSH/private-Sandbox rewind. Also actual named skill-load indicators, session Inbox and centered empty states. [Source/rewind](architecture/skills-and-rewind.md) and [Inbox/load](architecture/session-inbox.md) contracts. |
 | #71; closes #63 | All five #63 connection options through the shared service, SDK, desktop and TUI: GitHub Copilot (unchanged), OpenAI-compatible endpoints with custom headers, header-scoped keys and explicit-only models, OpenRouter (key or sign-in), the Anthropic API (key only; Claude.ai sign-in and subscription tokens refused) and OpenAI API keys separate from Sign in with ChatGPT. Separately decided D36 adds off-by-default Claude Agent and Codex Agent harnesses that run the user's own CLI. Tested against generated fakes only, not real accounts. [Hosted provider](architecture/hosted-providers.md) and [agent harness](architecture/agent-harnesses.md) contracts. |
+| #72; closes #69 (owner sign-off 2026-11-16) | [D38](architecture/decisions.md#d38-covering-array-milestone-regression): `npm test` runs a checked-in 78-cell covering array (pairwise plus Env x selection x budget/input/effort tuples and the 15 client journeys) and 72 exact manual-Kupo-effort refusals instead of the 10,080-cell product; the full product is opt-in `npm run test:matrix`. Milestone 1's full-product acceptance is not re-qualified or relabeled. [Method and measured times](architecture/milestone-combination-matrix.md#regression-method-covering-array). |
 
 Closed #35 keeps its historical exact-artifact scope. Closed #22 is a completed
 Rust feasibility study, not production adoption; #1 is reference material.
@@ -113,15 +114,14 @@ No closed implementation/research issue certifies first-milestone acceptance.
 ## Ordered remaining roadmap
 
 Ordering is triage, not permission to implement or an invented dependency chain.
-Delivered #7/#9/#13/#36/#37/#38/#63 do not reappear as new implementation work.
+Delivered #7/#9/#13/#36/#37/#38/#63/#69 do not reappear as new implementation work.
 
 | Order | Actual remaining scope |
 | --- | --- |
 | 1. Everyday UX and existing integrations | #53 design/UX polish, #55 default smart-compaction direction, #45 remaining applicable AST controls, #23 scope beyond the delivered metadata exporter, #12 actual Stainless qualification. |
 | 2. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. Repository visibility/access, license and signing/notarization need explicit decisions, not assumed publication. |
 | 3. Optional providers and automation | #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions, #54 GetMoshi integration and #64 global/repository flags for evidence-gated flaky-CI retries (provider status preflight, bounded attempts) and feature-preserving conflict resolution. Existing one-time schedules, exact-PR CI watches (#52), the reviewed rebase/conflict workflow and reviewed compaction are not those broader features. |
-| 4. Regression upkeep | #69 replaces the 10,080-cell full product in future regression runs with collapsed `routing_effort` refusals and a checked-in covering array, and moves the 2-hour Local/SSH matrix out of `npm test`. It does not re-qualify Milestone 1; reinterpreting #38/#39 coverage needs user sign-off. |
-| 5. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |
+| 4. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |
 
 #23 remains open for its broader requested scope: do not claim that OTLP export
 is absent or implement a second ledger. Current export has no diagnostic-log

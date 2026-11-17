@@ -3,16 +3,16 @@ import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
 export const SETTINGS_GROUPS = [
   { label: "General", items: [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart OpenTelemetry OTLP collector metadata export sampling" },
-    { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization" },
+    { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization", aliases: ["workspace folder sync trust"] },
   ] },
   { label: "Models", items: [
-    { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection", aliases: ["chat topic naming", "small local naming model"] },
+    { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection OpenRouter Anthropic OpenAI ChatGPT Claude Codex", aliases: ["chat topic naming", "small local naming model"] },
     { id: "localModels", label: "Local models", keywords: "Ollama llama.cpp ds4 endpoints provider API key credentials" },
     { id: "kupo", label: "Kupo routing", keywords: "automatic configured capabilities single cascade critique classifier solver" },
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },
   ] },
   { label: "Integrations", items: [
-    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews" },
+    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions"] },
     { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },

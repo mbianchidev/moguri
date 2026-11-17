@@ -17,10 +17,11 @@ tool call and records the conversation. See the
 2. Sign in from your own terminal with `claude auth login`, or set your own
    `ANTHROPIC_API_KEY` or cloud-provider variables before starting Moguri. Moguri
    never shows a Claude sign-in button or reads Claude credentials.
-3. In **Settings / Model providers / Claude Agent**, enable Claude Agent. Optionally
-   choose the transport (`Claude Agent SDK`, the default, or
-   `Claude Code stream-json protocol`) and an absolute executable path if `claude`
-   is not on `PATH` or in its standard install locations. Save, then
+3. In **Settings / Model providers / Agent harnesses**, turn on the **Claude Agent**
+   switch. Its card then shows the transport (`Claude Agent SDK`, the default, or
+   `Claude Code stream-json protocol`) and an optional absolute executable path if `claude`
+   is not on `PATH` or in its standard install locations. The switch and transport
+   save immediately; a typed path needs its **Save** button. Then
    **Refresh available models**.
 4. Choose **Claude Agent / Sonnet**, **Opus** or **Haiku** in the composer's Model
    control, in a project or a Home-bound chat.
@@ -41,8 +42,9 @@ Moguri chat. See the [Codex Agent contract](architecture/agent-harnesses.md#code
    Moguri never installs it.
 2. Sign in from your own terminal with `codex login` (Sign in with ChatGPT or an
    API key). Moguri never reads Codex credentials.
-3. In **Settings / Model providers / Codex Agent**, enable it and optionally set an
-   absolute executable path. Save, then **Refresh available models**. Your login's
+3. In **Settings / Model providers / Agent harnesses**, turn on the **Codex Agent**
+   switch (it saves immediately) and optionally save an absolute executable path in its card.
+   Then **Refresh available models**. Your login's
    Codex models appear as **Codex Agent / ...**.
 
 Codex asks Moguri before commands and file changes. Anything it runs without
@@ -54,21 +56,23 @@ show Codex's token totals without a cost estimate.
 
 ## Hosted providers and custom endpoints
 
-Settings / Model providers lists OpenRouter, Anthropic API, OpenAI API and ChatGPT
-account next to GitHub Copilot. See the
+Settings / Model providers shows one card per account under **Accounts**:
+GitHub Copilot, OpenRouter, Anthropic API, OpenAI API and ChatGPT account. Each
+card shows the provider's logo, a text status (Connected, Not connected,
+Checking..., Needs attention or Disabled) and its actions. See the
 [hosted provider contract](architecture/hosted-providers.md).
 
-- **OpenRouter:** paste an API key, or **Sign in with OpenRouter**, which creates a
-  key you control.
-- **Anthropic API:** paste an API key from the Claude Console. Claude.ai
-  subscription sign-in and subscription tokens are not supported.
-- **OpenAI API:** paste an API key; usage is billed by the OpenAI API.
+- **OpenRouter:** **Add API key** and paste a key, or **Sign in with OpenRouter**,
+  which creates a key you control.
+- **Anthropic API:** **Add API key** and paste a key from the Claude Console.
+  Claude.ai subscription sign-in and subscription tokens are not supported.
+- **OpenAI API:** **Add API key**; usage is billed by the OpenAI API.
 - **ChatGPT account:** **Continue with ChatGPT** uses your ChatGPT plan through
   Sign in with ChatGPT. If the browser cannot reach this computer, paste the final
   redirect URL. Port 1455 must be free (cancel a pending `codex login` first).
 
-Keys and sign-in tokens are stored in the OS keychain. **Sign out and remove
-credential** deletes them. In the TUI use `/api-key openrouter|anthropic|openai`,
+Keys and sign-in tokens are stored in the OS keychain. **Sign out** on a
+provider's card deletes them. In the TUI use `/api-key openrouter|anthropic|openai`,
 `/connect chatgpt|openrouter`, `/login-code PROVIDER`, `/cancel-login PROVIDER`
 and `/disconnect PROVIDER`. Hosted models run in the Local Env only.
 
@@ -131,8 +135,8 @@ revive those old loads. Skills from a remote HTTPS archive still need the
 explicit review below.
 
 Discovery and diagnostic source reading do not admit instructions. In desktop
-open **Settings / Skills**, select the actual **Source chat for skill admission**,
-then open **Skill source reviews** and choose **Find current skills**.
+open **Settings / Skills**, select the actual **Chat for skill review** (the source chat for skill admission),
+then open **Skill approvals for this session** and choose **Find current skills**.
 There is no source-review management panel in chat. With no source chat selected,
 settings does not infer a session or workspace. For a Local source chat,
 review the complete supported package, dependencies, exact version/root
@@ -322,6 +326,16 @@ native gates and the full source, hidden desktop, SDK and package runs. The
 maps each milestone criterion to its evidence and records the user-directed
 replacement of hosted CI with that local evidence. Physical native runs need
 the reviewed receipts from `npm run prepare:sandbox` and `scripts/qualify-sandbox.mjs`.
+
+Since [D38](architecture/decisions.md#d38-covering-array-milestone-regression),
+`npm test` runs a 78-cell
+[covering array](architecture/milestone-combination-matrix.md#regression-method-covering-array)
+(55 Local/SSH cells in about a minute) plus the 72 manual-Kupo-effort refusals,
+instead of the 2-hour full product; a full run took 57 minutes instead of 111.
+The 23-cell native slice runs only with native receipts, has a 30-minute bound
+and took 63 seconds. `npm run test:matrix` runs the
+10,080-cell full product on request, and `npm run generate:covering`
+regenerates the checked-in array after an axis change.
 Fresh macOS source-test environments also require the matching installed
 Chromium revision: run `npm exec -- playwright install chromium` explicitly
 after `npm ci`. CI prepares that pinned generated-test prerequisite on macOS.
@@ -456,6 +470,30 @@ The [released native runtime blocker](architecture/managed-sandbox.md#current-ve
 still requires fresh exact-byte physical qualification; these mechanisms do
 not declare milestone1 or a signed/notarized public v1 complete.
 
+## Adding a workspace folder
+
+If your repositories already live in one folder, such as `~/workspace`, open
+**Settings / Repositories** (or **New > Add workspace folder**), type the folder
+path and click **Find repositories**, or use **Choose folder…**. Moguri lists the Git repositories it finds up to three
+levels down; uncheck any you don't want. Choose **Keep in sync** to have new
+repositories added automatically (at startup, every five minutes or with
+**Check now**), or **Import once**. Turn on **I trust this folder and allow
+Moguri to read it**, then add the projects.
+
+Projects added this way are read-only sources: Moguri never edits the original
+checkout. Every Local session works in its own worktree in Moguri's state
+directory, and project-level writes to the folder are refused. Sync never
+removes projects; a missing repository is reported so you can remove it from
+Project settings. From the terminal:
+
+```sh
+moguri project folder-preview ~/workspace --json        # note the digest
+moguri project folder-import ~/workspace --digest SHA --trust-folder [--once]
+moguri project folders
+```
+
+Details and limits: [workspace folders](architecture/workspace-folders.md).
+
 ## Importing repositories and changing a remote
 
 Open **Settings / Repositories**, paste one HTTPS/SSH repository URL per line
@@ -464,7 +502,7 @@ Local parent folder. **Preview repository import** shows every normalized URL,
 absolute destination, duplicate, existing registration and matching checkout.
 Host/namespace-qualified folder names keep repositories with identical names
 separate. Correct invalid/conflicting entries, review the complete set, then
-choose **Import reviewed repositories**.
+choose **Import repositories**.
 
 The service owns one sequential batch with retained per-repository progress.
 **Cancel repository import** stops remaining dispatches, preserves successful
@@ -731,7 +769,7 @@ xhigh/max transport support and reviewed frontier evidence for substantive work;
 lower-effort aliases or unknown classes cannot qualify it. No hosted API fee
 does not erase tokens, configured rates, unknown accounting or actual costs.
 
-**Settings / Kupo routing / Review model evaluations and reference prices**
+**Settings / Kupo routing / Add model scores and prices**
 prepares an exact user-reviewed source profile. Supply genuine source text,
 normalized observations, observation/expiry dates, limitations, a comparable
 evaluation-set digest, cost class and reference prices. Then acknowledge that
@@ -785,8 +823,8 @@ Protocol86 transactionally adds `native_retry_restaging_schema` and
 
 ### Exact native retry and transport checkpoint review
 
-**Settings / Confirmations / Allow exact private-snapshot restaging for native
-model retries** is off by default. Enabling it allows only a new qualified
+**Settings / Confirmations / Allow Sandbox model retries from the saved workspace
+snapshot** (exact private-snapshot restaging for native model retries) is off by default. Enabling it allows only a new qualified
 request's complete byte-verified signed private after-snapshot, with its exact
 original model/request/profile/Env and verified guest absence. Live checkout
 changes are never recaptured, prior tools/Git never replay, and unknown charges
@@ -795,9 +833,9 @@ incomplete snapshot blocks retry. Stop during preparation remains stopped
 across restart without another guest or model call.
 
 In **Settings / Candidates / Budget wind-down checkpoints**, select the original
-idle source chat. For SSH, select exact paths, **Review peer source**, inspect
+idle source chat. For SSH, select exact paths, **Review files**, inspect
 any original quarantined work and explicitly **Resume after source inspection**
-when needed, then separately **Accept peer source**. Only afterward review the
+when needed, then separately **Accept files**. Only afterward review the
 new peer branch, base, files/modes, message and Git confirmation. All Git executes
 at the original pinned SSH root; the Local checkout is never substituted.
 
@@ -810,10 +848,10 @@ staged files; they never checkout, push, merge, delete a branch or start another
 model.
 
 A partial attempted publication retains its exact writer/root and independent
-report across restart. **Inspect original checkpoint effects** is read-only and
+report across restart. **Inspect checkpoint result** is read-only and
 verifies authenticated peer receipts where applicable, the current ref/blobs,
-source bytes/modes and original HEAD/index. Separate **Acknowledge original
-writer inspection** settles only that known ended writer. Job/task status stays
+source bytes/modes and original HEAD/index. Separate **Acknowledge
+inspection** settles only that known ended writer. Job/task status stays
 partial, Stop remains recorded and model charges remain unchanged. Missing
 terminal receipts, changed refs/source and unknown cleanup stay blocked. A
 generic Resume, archive or report deletion cannot erase this writer.
@@ -841,7 +879,7 @@ Kupo share the same actual parent, actor and all-role ledger. SSH/native private
 calls run tool-less inside that original pinned worker/guest; they are not
 rootless OS processes, a second executor or a Local fallback.
 
-**Artifacts / Decision-provider observations** shows the real Env, execution,
+**Artifacts / Decision-provider history** shows the real Env, execution,
 model step and `owned-role-acknowledged` cleanup. That proves only private-role
 release, not parent/guest exit. Stop cancels only that private call; the original
 question still needs its real answer. Missing terminal release may require
@@ -945,8 +983,8 @@ The original checkout, branch, index and unrelated edits stay untouched.
 Existing conversations keep their roots. Non-Git folders remain attached
 folders, without fabricated worktree/PR claims.
 
-**Settings / Project / New Local Git tasks** can explicitly opt future tasks
-into **Original checkout**. CLI supports `moguri session create --project ID
+**Settings / Project / New Local Git tasks run in** can explicitly opt future tasks
+into **This folder's checkout**. CLI supports `moguri session create --project ID
 --workspace-mode checkout`. Unqualified multi-repository automatic worktrees
 fail clearly rather than using original Git checkouts; choose one project or
 explicitly opt each member into an attached checkout. Remote/native boundaries
@@ -954,7 +992,7 @@ remain separately qualified and never fall back to Local.
 
 For code changes, first-party agent guidance now targets a **draft PR by
 default**, unless you opt out or the task clearly makes no repository changes.
-**Code-change completion** can opt a project out. Existing exact source-bound
+**After code changes** can opt a project out. Existing exact source-bound
 PRs are reused, not duplicated or implicitly stacked. This is a workflow target,
 not publication, authentication, rebase or merge permission; blockers are
 reported rather than represented as completed PRs.
@@ -1232,7 +1270,7 @@ retain partial work and unknown model charges; they never replay the task.
 Inspect an interrupted task's actual branch, jobs and results before **I
 inspected this task; release card**. Inspection neither resumes nor deletes it.
 
-**Settings / Budgets / Provider API-equivalent prices** supplies current
+**Settings / Budgets / Model prices** supplies current
 originating-provider reference rates, including name-matched Copilot/reseller
 models. For example, Opus 5.5 uses Anthropic's API rate, not a claimed GitHub
 invoice. Public reference refresh is explicit, credential-free and bounded;
@@ -1457,6 +1495,14 @@ not invented time savings or a proven productivity increase. Unknown tokens,
 unpriced calls and invoices stay distinct. CLI/TUI share
 `/dashboard work|usage|cost|velocity` and `moguri dashboard` projections; F7
 includes the shared overview.
+
+**Dashboard / Analytics** is a live timeline of running and recent sessions:
+prompts, answers, thinking, commands, files, web, tools and context on separate
+lanes, with zoom, pan, search and per-event detail. It is kept only in the
+service's memory for the last 60 minutes, pruned every 30 seconds and cleared
+on restart; nothing is saved or exported. `moguri dashboard analytics
+[SESSION_ID]` and `/dashboard analytics [SESSION_ID]` print the same data. See
+[live session analytics](architecture/session-analytics.md).
 
 ## Unified My Work
 
@@ -2104,6 +2150,34 @@ leave the selector while their ownership/cleanup evidence remains retained.
 Existing PTYs are never replaced merely to change their shell. See the
 [protocol-51 interaction contract](architecture/session-interactions.md).
 
+## Session cleanup and branch names
+
+**Settings / Sessions / Retention > Automatic cleanup** has three switches, each
+off by default with an age select (1, 7, 30, 60 or 90 days, default 7) that saves
+immediately: archive completed sessions, archive sessions whose pull request
+merged (counted from when Moguri saw the merge), and delete archived sessions.
+Sessions with unsent drafts, queued prompts, pending input or running work are
+skipped. Deletion is permanent; see [the Retention reference](settings/retention.md).
+
+**Settings / Integrations / GitHub workflows > Branch names** sets an optional
+**Branch name prefix**, such as `yourname/`, for every branch Moguri generates:
+new task worktrees, Kanban "Continue work", suggested worktree branches and the
+repository-defaults branch. A task branch then looks like
+`yourname/moguri/fix-login-1a2b3c4d`. The project's branch pattern still shapes
+the rest of the name; existing branches are not renamed.
+
+## Screenshots and installers
+
+By default the agent takes screenshots of any screen its change affects, using
+its Browser pane or Playwright tools, and shows them in its final reply. When a
+project can build an installer (for example `npm run package:mac` or a `make dmg`
+target), Moguri asks once, after a session in that project finishes, whether to
+build it at the end of each session's work; your answer is saved in Project
+settings. Change either choice in **Project settings > Repository**:
+**Screenshots of UI changes** and **Installer when session work is done** (with
+the **Installer command**). Both guide the agent; commands still need your
+normal approvals.
+
 ## Shared session and instruction preferences
 
 Protocol/database **45** adds nested preference normalization without rewriting
@@ -2119,9 +2193,10 @@ guidance enters future recorded prompts, never grants permissions or rewrites
 an in-flight turn.
 
 **Appearance** offers Moguri, Ocean, Orchid and Custom palettes in dark/light
-modes. Custom element colors are saved together and validated against measured
-text, focus, control, selection and semantic contrast. Invalid combinations
-remain editable and never replace committed colors.
+modes. Each custom element color saves when you pick it and is validated with
+the other saved colors against measured text, focus, control, selection and
+semantic contrast. An invalid combination stays visible for correction and never
+replaces committed colors.
 
 **Sessions / Startup defaults** exposes a shared **Global default model** and
 supported global thinking effort, plus separate current-profile model/effort
@@ -2862,7 +2937,7 @@ physical execution.
 ### Reviewed Local compound source checkpoint
 
 Current source uses protocol/database **38**. In **Settings / kupo routing**,
-choose **Reviewed Cascade / Critique**, review the complete explicit policy
+choose **Cascade / Critique in a worktree**, review the complete explicit policy
 JSON and save it. Models remain unselected until the user chooses kupo.
 Declare exact Cascade draft/escalation IDs or Critique draft/critic IDs from
 the available configured catalog. Hosted/network data needs explicit consent.
@@ -2872,7 +2947,7 @@ to matching routes, then separately Save settings. This never fetches a URL
 or inspects provider metadata, and the claim is not proof about training or
 model quality.
 
-In a Local project agent, open **Candidates / Reviewed Cascade / Critique**.
+In a Local project agent, open **Candidates / Cascade / Critique**.
 Select two distinct clean owned worktrees and an actual user-configured
 project validation script. Review the exact task, optional request plan and
 architecture, selected source/new files, bases, eligible roles, privacy and
@@ -3006,7 +3081,7 @@ moguri decisions read DECISION_ID
 moguri decisions stop DECISION_ID
 ```
 
-Desktop **Artifacts / Decision-provider observations** shows the actual
+Desktop **Artifacts / Decision-provider history** shows the actual
 actor/model/step, raw evidence, charges and cleanup. Generic document editing
 is metadata-only. A human can answer/approve while the decision is in flight;
 that real answer wins, cancels stale advice and never refunds unknown usage.
@@ -3546,7 +3621,7 @@ selecting a model or starting work.
 
 ## Explicit Single routing policy
 
-In **Settings / Kupo routing**, choose **Explicit Single policy**, enable the profile policy, choose one
+In **Settings / Kupo routing**, choose **Single (approved solvers)**, enable the profile policy, choose one
 discovered classifier, approve up to eight exact solver models and separately
 allow hosted/network task-data transfer if any selected role uses Copilot, a
 non-loopback URL or an unknown endpoint boundary. The configured provider's
@@ -3711,7 +3786,7 @@ password prompts, proxy commands and shared control sockets.
 
 Save, then **Probe** or use `/remote probe` / `moguri remote probe`.
 The probe verifies the actual installed worker digest and compatible Node.
-Each project separately sets **Project / Canonical remote path** (`remotePath`);
+Each project separately sets **Project / Remote path** (`remotePath`);
 Moguri never substitutes the local project folder. Project-free Remote chats
 keep a null filesystem root. A symlink alias or changed root blocks execution.
 Switching env never chooses another model: an incompatible selection is cleared
@@ -3733,7 +3808,7 @@ worker/model/file operations, changed host keys, images, disconnect and a real
 control-plane SIGKILL/restart. It is not proof of an external Linux deployment
 or live Copilot entitlement.
 
-**Owned execution recovery** in Remote settings or Insights exposes the run
+**Remote runs** in Remote settings or Insights exposes the run
 identity and actual state. `/remote reconcile ID` / `moguri remote reconcile ID`
 reads existing encrypted receipts and late usage without starting a second
 worker or replaying tools. Partial turns stay partial. If cleanup cannot be
@@ -3996,7 +4071,10 @@ ownership, recovery and qualification boundaries.
 **Settings / General / Application** controls the actual menu-bar icon across
 all profiles. Profile settings remain independent. Native failures are visible
 and can be retried from the saved application preference; hidden checks never
-create a real menu-bar item.
+create a real menu-bar item. Its menu lists open chats grouped by project with
+"Working" or "Needs you", per-chat Open, Stop and Archive, then Create
+Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
+in **Settings / Keyboard shortcuts**), Settings and Quit.
 
 **Settings / General / Private GitHub updates** uses a separate PAT stored in the
 secure secret backend. It is not Copilot sign-in or `gh` authentication. Prefer
@@ -4588,8 +4666,28 @@ auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
 Instead of downloading Nemotron, you can point a profile at a model file you
 already have, for example in a folder shared with other dictation apps. In
-**Settings / Voice dictation / Model**, choose **Use existing model file…**.
-Moguri runs a read-only review: it reads the header, confirms the model can
+**Settings / Voice dictation / Use a model you already have**:
+
+- Type a file or folder path (absolute, or starting with `~/`) and click
+  **Review**, or use **Choose…** to pick it. A single model file goes straight
+  to review; a folder lists the speech models found in it.
+- Click **Find installed models** to search Handy's model folder
+  (`~/Library/Application Support/com.pais.handy/models`) and your Hugging Face
+  cache (`~/.cache/huggingface`, or `HF_HOME`, `HF_HUB_CACHE` and
+  `HUGGINGFACE_HUB_CACHE` when set). Moguri searches only when you click, never
+  in the background, and saves nothing about the search. Each model shows
+  **Streaming**, **Checked on review** or **Can't stream** (with the reason);
+  choose **Review** next to one to continue. From a terminal:
+  `moguri dictate model discover [FILE_OR_FOLDER]`.
+
+The search reads only a small header from each `.gguf` or `.bin` file and
+classifies it by its declared architecture, not its name. Language models and
+other non-speech GGUFs are counted and skipped. It never follows folder links,
+skips hidden folders, partial downloads and Hugging Face's internal `blobs` and
+`refs` folders, and deduplicates snapshot links to the same blob. It stops after
+six folder levels, 50,000 entries, 300 model files or ten seconds and says so.
+
+Moguri then runs a read-only review: it reads the header, confirms the model can
 stream live dictation, and hashes the whole file. The review card shows the
 name, architecture, runtime, size, license metadata and SHA-256. **Trust this
 model** locks that path, size and digest for the profile and turns dictation on.
@@ -4875,7 +4973,7 @@ Shared `/artifacts`, `/artifact new KIND NAME`, `/artifact ID`,
 `/artifact edit ID`, `history/archive/restore ID`, and
 `delete ID REV confirm-delete` expose the same operations.
 
-**Retain a completed message** first previews exact canonical text/digest.
+**Save a chat message** first previews exact canonical text/digest.
 Model output remains labeled model output, not a human answer; later edits
 preserve that provenance. File captures have unknown authorship and manual text
 is labeled user-entered, not verified authorship. Sources remain traceable after
@@ -5329,7 +5427,16 @@ Double-click/F2/contextual Rename edits the name inline.
 New factory-named chats may receive one separately budgeted topic-summary call
 after their first reply. Configure it in **Settings / Providers / Chat names**;
 existing or explicitly named chats are not inferred to need naming.
-See the [exact naming lifecycle](architecture/chat-titles.md).
+See the [exact naming lifecycle](architecture/chat-titles.md). A model-named chat
+may be renamed when a later request clearly changes topic, at most three times.
+
+When the last request of a round finishes after edits in a Moguri worktree,
+the chat runs one **Wrap-up** turn: resolve conflicts, commit, push, open or
+update the draft PR, check CI and reviews, and report to a delegating parent
+chat. Afterwards Moguri follows the PR for a day and queues a follow-up for new
+reviews or a failing check, asking you when the same failure repeats. Turn
+these off in **Settings / GitHub workflows / After each request**. See
+[session lifecycle](architecture/session-lifecycle.md).
 
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows
@@ -5731,7 +5838,7 @@ partial/stopped work cannot become code proposers.
 For CLI preview/stage, use `--role-sequence ID` to bind that exact origin into
 the preview digest, then the normal `--confirm-write`. Shared preview/stage JSON
 uses `roleSequenceId`. Do not mix it with a generation ID. Desktop's existing
-Candidates panel exposes **Load a retained role proposal** when completed
+Candidates panel exposes **Load a proposal from a model role** when completed
 proposers exist; loading only fills its local editor. Dirty summary/files/tasks
 and changed scopes remain protected. Edits clear verified attribution.
 
@@ -5956,7 +6063,7 @@ Qualified **0.23.0-alpha.1 / protocol and database 31** includes the planned
 budget foundation and owned proposal generation.
 [Owned proposal generation](architecture/candidate-generations.md) adds one
 explicitly cost-reviewed, tool-less fixed-model Local draft through the existing
-worker/ledger. Desktop **Candidates / Generate a separate model proposal** uses
+worker/ledger. Desktop **Candidates / Generate a proposal with a model** uses
 original selected source, a separate clean managed staging worktree and current
 model/authority. Review the cost and independent input/result retention first.
 Generation never stages, applies or commits.

@@ -1,7 +1,7 @@
 import type { Attention, Snapshot, StoredEvent } from "../../../packages/protocol/src/index.ts";
 import { scriptReviewNeedsApproval } from "../../../packages/protocol/src/script-reviews.ts";
 
-export interface Banner { id: string; sessionId: string | null; itemId?: string; inbox?: true; title: string; body: string; kind: Attention["kind"] }
+export interface Banner { id: string; sessionId: string | null; itemId?: string; inbox?: true; suggestions?: true; title: string; body: string; kind: Attention["kind"] }
 export type NotificationTone = { sessionId: string; kind: "completed"; soundId: string } |
   { sessionId: string | null; kind: "needs-input"; soundId: string; attentionId: string };
 const bounded = (text: string, limit: number) => Array.from(text.replace(/[\x00-\x1f\x7f]/g, " ")).slice(0, limit).join("");
@@ -49,6 +49,13 @@ export class AttentionNotifier {
       if (event.event_type === "turn.finished" && event.payload.outcome === "completed" && event.session_id && lastFinished.get(event.session_id) === event.seq) {
         const tone: NotificationTone = { sessionId: event.session_id, kind: "completed", soundId: preferences.completedSound?.id ?? "default" };
         if (notificationToneAllowed(snapshot, tone, focused)) play?.(tone);
+      }
+      if (event.event_type === "capability.proposed" && event.payload.proposal.actor === "model") {
+        if (!preferences.os || focused) continue;
+        const proposal = event.payload.proposal;
+        show({ id: `proposal:${proposal.id}`, sessionId: null, suggestions: true, kind: "bell", title: "Moguri",
+          body: `Suggested ${proposal.kind} improvement: ${bounded(proposal.name, 80)}. Review it in Suggestions.` });
+        continue;
       }
       if (event.event_type !== "attention.raised") continue;
       const attention = snapshot.attention.find((entry) => entry.id === event.payload.attention.id);

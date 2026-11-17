@@ -6,7 +6,7 @@ import { KUPO_MODEL_ID } from "../../packages/sdk/src/index.ts";
 import { reviewNativeTools } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { generatedDocx } from "../fixtures/documents.ts";
-import { configureMilestoneRouting, milestoneAxes, milestoneCellId, milestoneCalls, milestoneResponses } from "../fixtures/milestone-combinations.ts";
+import { configureMilestoneRouting, milestoneCellId, milestoneCalls, milestoneClientCells, milestoneResponses } from "../fixtures/milestone-combinations.ts";
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeMilestoneFixture } from "../fixtures/native-milestone-api.ts";
 import { chooseContextWindow } from "./navigation.ts";
@@ -15,7 +15,8 @@ const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Required client combinations use a generated hidden macOS app, not physical native qualification.");
 
 const native = await nativeConfiguration(true);
-for (const env of ["Local", "Remote", "Sandbox"] as const) for (const selection of milestoneAxes.selection)
+for (const cell of milestoneClientCells()) {
+const { env, selection } = cell;
 test(`desktop ${env}/${selection} preserves its document draft while configuring exact controls and separately approving the selected tool`, async () => {
   test.skip(env === "Sandbox" && !native, "This client needs exact reviewed native installation/current payload receipts.");
   test.setTimeout(45000);
@@ -32,7 +33,6 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
       env: { ...process.env, MOGURI_STATE_DIR: dirname(fixture.service.store.path), MOGURI_TEST_WINDOW: "hidden" },
     });
     const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
-    const cell = { env, selection, autonomy: "Manual", budget: "both", window: "half", effort: selection === "fixed" ? "high" : "default", input: "document" } as const;
     const text = `Generated real desktop matrix document question. ${milestoneCellId(cell)}`;
     await prompt.fill(text);
     const path = join(fixture.directory, "generated-desktop-matrix.docx");
@@ -61,7 +61,7 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await expect(tokenCap).toHaveValue("1000000");
     await controls.getByLabel("session USD cap", { exact: true }).fill("10");
     await expect(tokenCap).toHaveValue("1000000");
-    await controls.getByRole("checkbox", { name: "I accept estimate-based accounting and interruption risk.", exact: true }).check();
+    await controls.getByRole("checkbox", { name: "I understand costs are estimates and a cap can stop a chat mid-task.", exact: true }).check();
     await controls.getByRole("button", { name: "Save session budget", exact: true }).click();
     await expect.poll(() => fixture.session().controls.budget).toEqual({ kind: "limited", basis: "estimate", tokens: 1000000, usd: 10 });
     await page.keyboard.press("Escape");
@@ -83,6 +83,7 @@ test(`desktop ${env}/${selection} preserves its document draft while configuring
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
   } finally { try { await app?.close(); } finally { await fixture.close(); } }
 });
+}
 
 test("unchanged model snapshots do not restart finishing readiness or erase pending caps; actual policy changes still block them", async () => {
   const fixture = await routedFixture({ env: "Remote", configured: false, legacy: false, reasoningRoles: true, imageInput: true, toolInput: true });

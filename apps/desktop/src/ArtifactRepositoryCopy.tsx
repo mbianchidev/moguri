@@ -22,39 +22,39 @@ export function ArtifactRepositoryCopy({ sdk, snapshot, projectId, expectedSetDi
   const run = async (operation: () => Promise<void>) => {
     setBusy(true); onBusy?.(true); setError("");
     try { await operation(); }
-    catch (error) { setError(error instanceof Error ? error.message : "Repository copy failed. Stored documents were preserved."); }
+    catch (error) { setError(error instanceof Error ? error.message : "Copy failed. Your documents weren't changed."); }
     finally { setBusy(false); onBusy?.(false); }
   };
   const review = async () => {
     const token = ++generation.current, value = (await sdk.artifacts.materializePreview(projectId, options)).preview;
-    if (expectedSetDigest && value.setDigest !== expectedSetDigest) throw new Error("The artifact set changed. Reload the removal preview before writing a repository copy.");
+    if (expectedSetDigest && value.setDigest !== expectedSetDigest) throw new Error("The documents changed. Review the removal again before copying.");
     if (generation.current === token) { setPreview(value); setSaved(null); onSaved?.(null); }
   };
   const write = async () => {
-    if (!preview) throw new Error("Review the exact repository destination first.");
+    if (!preview) throw new Error("Review the destination first.");
     const token = generation.current, started = await sdk.artifacts.materialize(projectId, preview.digest, options);
     setJobId(started.id!);
     const job = await sdk.jobs.wait(started.id!);
-    if (job.status !== "completed") throw new Error(job.error ?? `Artifact materialization ${job.status}. Inspect its destination; no source documents were deleted.`);
+    if (job.status !== "completed") throw new Error(job.error ?? `Copy ${job.status}. Check the destination; no documents were deleted.`);
     const result = (await sdk.artifacts.materialization(started.id!)).result;
-    if (!result) throw new Error("The completed copy has no verified receipt. Stored documents were preserved.");
-    if (token !== generation.current) throw new Error("The source set or destination changed during publication. Inspect the completed job and review again; stored documents were preserved.");
+    if (!result) throw new Error("The copy finished but couldn't be verified. Your documents weren't changed.");
+    if (token !== generation.current) throw new Error("The documents or destination changed while copying. Check the result and review again; your documents weren't changed.");
     setSaved(result); onSaved?.(result);
   };
   return <section aria-label="Repository artifact copy" onKeyDown={(event) => { if (event.key === "Enter" && (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)) event.preventDefault(); }}>
 
-    {allowWorkspaces && <label className="setting-field">Destination root<select aria-label="Artifact destination root" disabled={busy} value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)}>
-      <option value="">Attached base folder: {project?.path ?? "unavailable"}</option>
+    {allowWorkspaces && <label className="setting-field">Destination<select aria-label="Artifact destination root" disabled={busy} value={workspaceId} onChange={(event) => setWorkspaceId(event.target.value)}>
+      <option value="">Project folder: {project?.path ?? "unavailable"}</option>
       {snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === projectId && workspace.status === "ready").map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.branch} / {workspace.path}</option>)}
     </select></label>}
     <label className="check-setting"><SettingsInput type="checkbox" checked={commit} disabled={busy} onChange={(event) => setCommit(event.target.checked)} />Also commit to a new local branch</label>
-    {commit && <label className="setting-field">New local branch<SettingsInput aria-label="Artifact commit branch" value={branch} maxLength={200} disabled={busy} onChange={(event) => setBranch(event.target.value)} placeholder="docs/retained-artifacts" /></label>}
-    <SettingsHelp label="More about this setting" target={<button type="button" disabled={busy || !project || commit && !branch.trim()} onClick={() => void run(review)} aria-label="Review repository copy">Review</button>} descriptionFirst>Copy all retained project revisions, including archived documents, into a new private JSON file under artifacts/. Review sensitive content before an optional local Git commit. No overwrite, checkout, push or automatic instruction loading.</SettingsHelp>
-    {preview && <><p className="fine-print">{preview.count} document{preview.count === 1 ? "" : "s"} / {preview.bytes.toLocaleString()} bytes. Exact destination:</p><pre aria-label="Reviewed artifact destination">{`${preview.root}/${preview.path}`}</pre>
-      {preview.commit && <p className="fine-print">New local branch {preview.commit.branch}, parent {preview.commit.base}. Current checkout and index remain unchanged.</p>}
+    {commit && <label className="setting-field">New local branch<SettingsInput aria-label="Artifact commit branch" value={branch} maxLength={200} disabled={busy} onChange={(event) => setBranch(event.target.value)} placeholder="docs/moguri-artifacts" /></label>}
+    <SettingsHelp label="More about this setting" target={<button type="button" disabled={busy || !project || commit && !branch.trim()} onClick={() => void run(review)} aria-label="Review repository copy">Review</button>} descriptionFirst>Writes every project document and revision, archived ones too, to a new JSON file under artifacts/. Check it for sensitive content before committing; nothing is overwritten or pushed.</SettingsHelp>
+    {preview && <><p className="fine-print">{preview.count} document{preview.count === 1 ? "" : "s"} / {preview.bytes.toLocaleString()} bytes, written to:</p><pre aria-label="Reviewed artifact destination">{`${preview.root}/${preview.path}`}</pre>
+      {preview.commit && <p className="fine-print">Commits to new branch {preview.commit.branch} from {preview.commit.base}. Your current branch and index don't change.</p>}
       <button className="primary" type="button" disabled={busy || Boolean(saved)} onClick={() => void run(write)} aria-label={commit ? "Write and commit reviewed copy" : "Write reviewed repository copy"}>{commit ? "Write and commit" : "Write"}</button></>}
-    {busy && jobId && <><p className="fine-print" role="status">{job?.progress ?? "Waiting for the owned repository job."}</p><button type="button" onClick={() => void sdk.jobs.cancel(jobId).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop was not acknowledged. Inspect the owned job."))}>Stop repository copy</button></>}
+    {busy && jobId && <><p className="fine-print" role="status">{job?.progress ?? "Copying..."}</p><button type="button" onClick={() => void sdk.jobs.cancel(jobId).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop wasn't confirmed."))}>Stop repository copy</button></>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
-    {saved && <p className="fine-print" role="status">Exact repository copy verified{saved.commit ? `; local commit ${saved.commit.commit}` : ""}. Stored Moguri documents remain until a separate explicit deletion.</p>}
+    {saved && <p className="fine-print" role="status">Repository copy verified{saved.commit ? `; local commit ${saved.commit.commit}` : ""}. Your documents stay in Moguri until you delete them.</p>}
   </section>;
 }

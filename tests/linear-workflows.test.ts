@@ -723,7 +723,7 @@ test("Linear desktop panel renders an explicit opt-in/review surface without fet
     const sdk = new MoguriSdk({ protocolVersion: PROTOCOL_VERSION, baseUrl: "http://127.0.0.1:1", wsUrl: "ws://127.0.0.1:1", token: "generated-unused-connection", pid: process.pid });
     const snapshot = f.snapshot(), html = renderToStaticMarkup(createElement(LinearWorkflowPanel, { sdk, project: snapshot.projects[0]!, snapshot }));
     assert.match(html, /Off by default/); assert.match(html, /Local tickets stay local/);
-    assert.match(html, /Choose exact changes/); assert.match(html, /Preview exact Linear operation/);
+    assert.match(html, /Choose changes/); assert.match(html, /Preview exact Linear operation/);
     assert.match(html, /disabled/); assert.equal(f.provider.requests.length, 0);
   } finally { await f.close(); }
 });

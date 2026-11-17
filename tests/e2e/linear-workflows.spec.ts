@@ -70,7 +70,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     await form.getByLabel("Local ticket", { exact: true }).selectOption(local.id);
     await expect(form.getByLabel("Local ticket", { exact: true }).locator("option:checked")).toContainText(`revision ${local.revision}`);
     await form.getByLabel("Direction", { exact: true }).selectOption("pull");
-    const mapping = form.getByRole("group", { name: "Explicit phase to Linear state mapping", exact: true });
+    const mapping = form.getByRole("group", { name: "Map board phases to Linear states", exact: true });
     await mapping.getByLabel("Backlog", { exact: true }).fill(ids.state);
     await mapping.getByLabel("Done", { exact: true }).fill(ids.done);
     await form.getByRole("button", { name: "Preview exact Linear operation", exact: true }).click();
@@ -103,7 +103,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     const createdRow = panel.getByRole("listitem").filter({ has: page.locator("strong").filter({ hasText: /^issue\.create$/ }) });
     await createdRow.getByRole("button", { name: "View receipt and original inputs", exact: true }).click();
     const retained = panel.locator("details").filter({
-      has: page.locator("summary").filter({ hasText: `Original operation ${created.id}: completed` }),
+      has: page.locator("summary").filter({ hasText: `Operation ${created.id}: completed` }),
     });
     await expect(retained).toBeVisible();
     await expect(retained).toContainText("Generated Electron Linear issue");

@@ -19,13 +19,13 @@ test("Local website settings manage real session, project and profile grants wit
     await openSettingsSection(page, "Guardrails");
     const panel = page.getByRole("region", { name: "Local website allowlist", exact: true });
     await expect(panel).toBeVisible();
-    await expect(panel).toContainText("No Local websites are pre-approved.");
+    await expect(panel).toContainText("No websites are allowed yet.");
     const site = panel.getByRole("textbox", { name: "Allowed website", exact: true });
     const scope = panel.getByRole("combobox", { name: "Website allowance scope", exact: true });
     for (const [kind, value] of [["session", `session:${fixture.sessionId}`], ["project", `project:${fixture.session().projectId}`], ["global", "global"]] as const) {
       await site.fill(`${kind}.example.invalid`); await scope.selectOption(value);
       await panel.getByRole("button", { name: "Add", exact: true }).click();
-      await expect(panel.getByRole("status")).toHaveText("Website allowance saved.");
+      await expect(panel.getByRole("status")).toHaveText("Website added.");
       await expect(site).toHaveValue("");
     }
     await expect.poll(() => sdk.webAllowlist.list().length).toBe(3);

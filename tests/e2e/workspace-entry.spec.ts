@@ -45,6 +45,7 @@ test("one Start chooser creates project-free chats, project sessions, imported f
     await app.evaluate(({ ipcMain }, path) => { ipcMain.removeHandler("moguri:choose-project"); ipcMain.handle("moguri:choose-project", () => path); }, imported);
     await page.getByRole("button", { name: "New", exact: true }).click();
     await start.getByRole("button", { name: "Import local folder", exact: true }).click();
+    await start.getByRole("button", { name: "Choose local folder", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().projects.length).toBe(2);
     expect(fixture.service.controller.snapshot().projects.at(-1)?.path).toBe(await realpath(imported));
     await app.evaluate(({ ipcMain }, path) => { ipcMain.removeHandler("moguri:choose-project"); ipcMain.handle("moguri:choose-project", () => path); }, fixture.directory);

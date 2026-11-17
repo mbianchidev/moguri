@@ -33,7 +33,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
         const value = await sdk.sandbox.setup.status();
         if (generation.current === token) { setStatus(value.setup); if (!editedVersion.current) setVersion(reviewDefault(value.setup.selectedVersion, value.setup.bundledVersion)); }
       }
-      catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "Native setup status could not be read."); }
+      catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "Couldn't read SendBox setup status."); }
       finally { loading = false; }
     };
     void load(); const timer = setInterval(() => void load(), 1000);
@@ -44,19 +44,19 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
     pending.current = true; setRequesting(true); setError("");
     const token = generation.current;
     try { await operation(() => generation.current === token); }
-    catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "Managed setup was not confirmed. Original configuration and work remain retained."); }
+    catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "SendBox setup wasn't confirmed. Your existing configuration and work were kept."); }
     finally {
       pending.current = false;
       if (generation.current === token) {
         setRequesting(false);
         try { const value = await sdk.sandbox.setup.status(); if (generation.current === token) setStatus(value.setup); }
-        catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "Original setup status could not be confirmed."); }
+        catch (error) { if (generation.current === token) setError(error instanceof Error ? error.message : "Couldn't confirm SendBox setup status."); }
       }
     }
   };
   const wait = async (id: string) => {
     const result = await sdk.sandbox.setup.wait(id);
-    if (["partial", "failed", "cancelled"].includes(result.operation.status)) throw new Error(result.operation.diagnostic ?? "Original native setup did not complete.");
+    if (["partial", "failed", "cancelled"].includes(result.operation.status)) throw new Error(result.operation.diagnostic ?? "SendBox setup didn't finish.");
     return result.operation;
   };
   const reviewVersion = async (owned: () => boolean) => {
@@ -72,13 +72,13 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
     void run(reviewVersion);
   }, [compact, status?.supported, status?.operation?.status, busy, ready]);
   return <section className="candidate-section" aria-label="Managed SendBox setup" aria-busy={busy}>
-    {!compact && <><SettingsHelp label="More about this setting" target={<h3>Ready-to-use Sandbox</h3>}>Moguri supplies its pinned worker image, Linux Node runtime and native dependencies. Review once; private workspaces and the selected provider's DNS aliases are managed automatically.</SettingsHelp>
-      <p className="fine-print">Configured SendBox: {status?.selectedVersion ?? management.version}. Bundled version: {status ? status.bundledVersion ?? "not included in this runtime" : "checking"}. New versions install side by side, never over your existing SendBox.</p></>}
+    {!compact && <><SettingsHelp label="More about this setting" target={<h3>Ready-to-use Sandbox</h3>}>Moguri supplies the worker image, Linux Node runtime and native dependencies. Review the setup once; Moguri then manages workspaces and provider network access.</SettingsHelp>
+      <p className="fine-print">SendBox {status?.selectedVersion ?? management.version} is configured. Bundled with this app: {status ? status.bundledVersion ?? "none" : "checking"}. New versions install alongside it.</p></>}
     {status && (!compact || !review) && <Alert as="p" className="fine-print" role="status">{status.diagnostic}</Alert>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {status?.operation && <Alert as="p" className="fine-print" role="status">Setup {status.operation.status}. {status.operation.diagnostic}</Alert>}
     {status?.operation && active.has(status.operation.status) && <button type="button" onClick={() => {
-      void sdk.sandbox.setup.cancel(status.operation!.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Original setup cancellation was not confirmed."));
+      void sdk.sandbox.setup.cancel(status.operation!.id).catch((error: unknown) => setError(error instanceof Error ? error.message : "Cancellation wasn't confirmed."));
     }} aria-label="Cancel original setup">Cancel</button>}
     {!compact && <><div className="setting-editor">
       <label className="setting-field">SendBox version to review<SettingsInput aria-label="SendBox version to review" value={version} disabled={disabled || busy}
@@ -98,17 +98,18 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticWorkspaces} disabled={disabled || busy}
       onChange={(event) => update({ automaticWorkspaces: event.target.checked })} />Prepare private session workspaces automatically</label>
     <label className="check-setting"><SettingsInput type="checkbox" checked={management.automaticProviderNetwork} disabled={disabled || busy}
-      onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Automatically allow the selected model provider's actual HTTPS endpoint and public DNS aliases</label>
-    <Alert as="p" tone="warning" className="settings-warning">GitHub website/API access is included. Review the selected release's network delegation below: SendBox expands github.com through GitHub Meta, including shared-cloud IP ranges. No host credentials, private/metadata addresses or Local fallback are granted.</Alert></>}
+      onChange={(event) => update({ automaticProviderNetwork: event.target.checked })} />Allow the selected model provider's HTTPS endpoint and DNS aliases</label>
+    <Alert as="p" tone="warning" className="settings-warning">SendBox always allows GitHub, including every IP range GitHub publishes (some are shared cloud addresses). It never gets your host credentials or private network addresses.</Alert></>}
     {compact && !busy && !review && !ready && <button type="button" disabled={disabled || !status?.supported} onClick={() => void run(reviewVersion)}>Review SendBox setup</button>}
     {compact && onReady && ready && !busy && !error && <button type="button" className="primary" disabled={disabled || !snapshot.policy.allowedEnvs.includes("Sandbox")} onClick={() => void run(async () => { await onReady(); })}>Use SendBox</button>}
     {review && <section className="candidate-binding" aria-label="Exact managed Sandbox review">
-      {compact ? <h3>SendBox {review.version}</h3> : <SettingsHelp label="More about this setting" target={<h4>SendBox {review.version} / Moguri protocol {review.protocol}</h4>}>Linux Node 26.12.0, Moguri's agent worker and native PTY dependencies are included. No build, container command or manual SHA entry is required.</SettingsHelp>}
+      {compact ? <h3>SendBox {review.version}</h3> : <SettingsHelp label="More about this setting" target={<h4>SendBox {review.version}</h4>}>Includes Linux Node 26.12.0, the Moguri agent worker and native terminal dependencies. Nothing to build or enter by hand.</SettingsHelp>}
       <p>{review.diagnostic}</p>
       {!compact && <p className="fine-print path">Release location: {review.destination}</p>}
 
-      <details><summary>Exact runtime and image identities</summary>
-        {compact && <><p className="fine-print">Moguri protocol {review.protocol}; Linux Node 26.12.0 and native dependencies included.</p><p className="fine-print path">Release location: {review.destination}</p></>}
+      <details><summary>Runtime and image checksums</summary>
+        <p className="fine-print">Moguri protocol {review.protocol}.{compact && " Includes Linux Node 26.12.0 and native dependencies."}</p>
+        {compact && <p className="fine-print path">Release location: {review.destination}</p>}
         <p className="fine-print path">Image: {review.configuration.image}</p>
         <p className="fine-print path">Worker SHA-256: {review.configuration.qualification?.workerDigest}</p>
         <p className="fine-print path">Bridge SHA-256: {review.configuration.qualification?.bridgeDigest}</p>
@@ -116,7 +117,7 @@ export function SandboxSetupPanel({ sdk, snapshot, value, disabled, onBusy, onDi
         <p className="fine-print path">Image archive SHA-512: {review.imageArchiveSha512}</p>
       </details>
       <label className="check-setting"><SettingsInput type="checkbox" checked={accepted} disabled={disabled || busy} onChange={(event) => setAccepted(event.target.checked)} />
-        I reviewed this runtime, pinned worker, private-workspace mode and provider/network policy.{review.administratorRequired ? " Installation will request my administrator approval." : " Existing verified release files will be reused."}
+        I reviewed this SendBox runtime, worker image, workspace mode and network access.{review.administratorRequired ? " Installing will ask for my administrator approval." : " Already verified release files will be reused."}
       </label>
       <button type="button" className="primary" disabled={disabled || busy || !accepted || !snapshot.policy.allowedEnvs.includes("Sandbox")} onClick={() => void run(async (owned) => {
         const admitted = await sdk.sandbox.setup.apply(review); await wait(admitted.id!);

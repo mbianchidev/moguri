@@ -1,0 +1,62 @@
+# Skills
+
+Technical reference for **Settings / Skills**. The app shows a short summary;
+this page keeps the full detail.
+
+## Skill gateway
+
+- Sources can be a local skill folder, a public GitHub repository or a direct HTTPS ZIP archive.
+- Each search and each read refreshes and validates the source; a lookup error returns no stale result.
+- No scripts run, no skills are silently installed, and skill text cannot grant permissions.
+- Sources belong only to the current profile and currently use the Local control plane.
+- Contract: `docs/architecture/skills-and-rewind.md`.
+
+## Global skill folders
+
+- `~/.agents/skills` and `~/.moguri/skills` can be used separately or together.
+- Confirming a folder creates it if it is missing and saves it to the profile's sources.
+- A missing folder offers no skills and never blocks the others.
+- Confirming does not scan the folder at that moment; adding it does not install skills, run instructions or grant model or tool permissions.
+- If loading the presets fails, no directory is scanned.
+
+## Find skills
+
+- Only saved, enabled sources are read.
+- All downloads are checked again when a selected skill is opened; a changed body needs a fresh search (the results line used to say "This search used fresh source bytes").
+- Previewing a skill is not permission to run its instructions or to access a different execution host.
+
+## Skill approvals for this session (was "Skill source reviews")
+
+- Discovery and source reads are not admission (approval).
+- A hash or repository label is not publisher identity; neither is a name, description or scanner result.
+- Approved (admitted) skill context is limited to reviewed native file tools: never commands, network, credentials or automatic permission.
+- The source and admission transport is Local-only; there is no controller fallback for non-Local sessions.
+- Excluded protected paths cannot be dependencies of the skill.
+- External references in the skill are not fetched, inspected or authorized.
+- Allowed paths are literal paths. Write access ("Read and write files") is offered only when the skill declares native-file access, and stays under current hard policy.
+- Signed publishers: verify against the documented `moguri-skill-artifact-v1` signature payload with a separately user-pinned Ed25519 key. Pinning proves control of this reviewed key, not an independently verified real-world organization. HTTPS archives require a pinned signature.
+- Unverified publishers record an actual-user Local review acknowledgement.
+- Approvals expire (the UI requests 24 hours; the service allows at most 168).
+- Revocation blocks future consumption and effects. It cannot retract instructions already delivered to a model or undo work already running. A rewind never restores an old source grant.
+- Contract: `docs/architecture/skills-and-rewind.md`, `docs/setup.md` (skill admission section).
+
+## Source chat
+
+The chat picker was previously labeled "Source chat for skill admission". With no chat selected: choose a
+source chat to review exact skill admission; no session or workspace is inferred. Save or cancel skill
+source folder changes before reviewing session admission.
+
+## Imported skills
+
+Import standard SKILL.md front matter and instructions. A skill grants no tool permissions.
+
+## Skill changes status
+
+Toggling skills reports "N of M skill changes acknowledged"; existing source reviews and permissions are
+unchanged. Deleting a skill: sessions that admitted it lose access; no other capability or permission
+changes.
+
+## Delete confirmation
+
+Chats that admitted the skill lose access. Its version history stays in this profile's encrypted event
+history.

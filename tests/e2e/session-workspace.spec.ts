@@ -255,7 +255,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.screenshot({ path: join(artifacts, "desktop-project-settings-compact.png") });
     const categories = page.getByRole("navigation", { name: "Settings categories" });
     await categories.getByRole("button", { name: "Retention", exact: true }).click();
-    await expect(page.getByLabel("Automatically delete archived sessions after the configured age")).not.toBeChecked();
+    await expect(page.getByLabel("Delete archived sessions", { exact: true })).not.toBeChecked();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Open parent session", exact: true }).click();
     await expect(page.getByRole("heading", { name: longName, exact: true })).toBeVisible();

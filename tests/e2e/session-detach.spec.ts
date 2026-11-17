@@ -72,7 +72,6 @@ test("remembered detachment applies to drag and keyboard actions, survives reloa
     const preference = page.getByLabel("Confirm before detaching a child session", { exact: true });
     await expect(preference).not.toBeChecked();
     await preference.check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => sdk.settings.get()?.values.interactions.confirmSessionDetach).toBe(true);
     await expect(preference).toBeChecked();
     await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toHaveCount(1);

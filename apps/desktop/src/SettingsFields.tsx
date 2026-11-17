@@ -39,6 +39,19 @@ function CopyField({ input, name, multiline = false, children }: {
   </span>;
 }
 
+/** A slider or color input that saves once the user lets go (the native `change` event), not on every intermediate value. */
+export function SettingsCommitInput({ onCommit, ...props }: ComponentPropsWithoutRef<"input"> & { onCommit: (value: string) => void }) {
+  const input = useRef<HTMLInputElement>(null), commit = useRef(onCommit);
+  commit.current = onCommit;
+  useEffect(() => {
+    const element = input.current;
+    if (!element) return;
+    const listener = () => commit.current(element.value);
+    element.addEventListener("change", listener);
+    return () => element.removeEventListener("change", listener);
+  }, []);
+  return <SettingsInput {...props} ref={input} />;
+}
 export const SettingsInput = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<"input">>(function SettingsInput({ type = "text", ...props }, ref) {
   const active = useContext(SettingsContext);
   const input = useRef<HTMLInputElement>(null);

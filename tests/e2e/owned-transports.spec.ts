@@ -41,7 +41,7 @@ test("hidden desktop never offers Local Git for a retained SSH finishing report,
     await page.getByLabel("Settings source chat", { exact: true }).selectOption(f.sessionId);
     const panel = page.getByRole("region", { name: "Budget wind-down checkpoints", exact: true });
     await panel.getByLabel("Retained budget checkpoint", { exact: true }).selectOption(report.winddown.id);
-    await expect(panel).toContainText("Env: Remote"); await expect(panel).toContainText("Local checkpoint helpers cannot publish a different root");
+    await expect(panel).toContainText("Env: Remote"); await expect(panel).toContainText("Commits go only to the run's original folder");
     await expect(panel.getByLabel("Checkpoint new local branch", { exact: true })).toHaveCount(0);
     await expect(panel.getByRole("button", { name: "Review accepted-work Git checkpoint", exact: true })).toBeDisabled();
     await expect(panel.getByLabel("Checkpoint new peer branch", { exact: true })).toBeVisible();
@@ -67,13 +67,13 @@ for (const lost of [false, true]) test(`hidden desktop separates SSH source acce
     const panel = page.getByRole("region", { name: "Budget wind-down checkpoints", exact: true });
     await panel.getByLabel("Retained budget checkpoint", { exact: true }).selectOption(report.winddown.id);
     await panel.getByLabel("Remote checkpoint source paths", { exact: true }).fill("fixture.txt");
-    await panel.getByRole("button", { name: "Review peer source", exact: true }).click();
+    await panel.getByRole("button", { name: "Review files", exact: true }).click();
     const source = panel.getByRole("region", { name: "Exact peer source acceptance", exact: true });
     await expect(source).toContainText("Generated hidden peer accepted source.");
     await source.getByRole("button", { name: "Resume after source inspection", exact: true }).click();
     await source.getByLabel("Reviewed exact peer source", { exact: true }).check();
-    await source.getByRole("button", { name: "Accept peer source", exact: true }).click();
-    await expect(panel).toContainText("Actual user source acceptance:");
+    await source.getByRole("button", { name: "Accept files", exact: true }).click();
+    await expect(panel).toContainText("Files accepted:");
     await panel.getByLabel("Checkpoint new peer branch", { exact: true }).fill("moguri/generated-hidden-peer-checkpoint");
     await panel.getByRole("button", { name: "Review accepted-work Git checkpoint", exact: true }).click();
     const review = panel.getByRole("region", { name: "Exact accepted-work checkpoint Git review", exact: true });
@@ -87,13 +87,13 @@ for (const lost of [false, true]) test(`hidden desktop separates SSH source acce
     await review.getByRole("button", { name: "Commit on new branch from reviewed checkpoint", exact: true }).click();
     await expect.poll(() => f.sdk.winddown.list(f.sessionId)[0]?.status).toBe(lost ? "partial" : "completed");
     if (lost) {
-      await expect(panel).toContainText("This original writer remains quarantined.");
-      await panel.getByRole("button", { name: "Inspect original checkpoint effects", exact: true }).click();
+      await expect(panel).toContainText("This interrupted commit is on hold.");
+      await panel.getByRole("button", { name: "Inspect checkpoint result", exact: true }).click();
       const inspection = panel.getByRole("region", { name: "Original checkpoint effect inspection", exact: true });
-      await expect(inspection).toContainText("Current exact ref:");
-      await expect(inspection.getByRole("button", { name: "Acknowledge original writer inspection", exact: true })).toBeDisabled();
+      await expect(inspection).toContainText("Branch now at:");
+      await expect(inspection.getByRole("button", { name: "Acknowledge inspection", exact: true })).toBeDisabled();
       await inspection.getByLabel("Reviewed original checkpoint effects", { exact: true }).check();
-      await inspection.getByRole("button", { name: "Acknowledge original writer inspection", exact: true }).click();
+      await inspection.getByRole("button", { name: "Acknowledge inspection", exact: true }).click();
       await expect.poll(() => f.sdk.winddown.list(f.sessionId)[0]?.commit?.inspection?.actor).toBe("user");
       expect(f.sdk.winddown.list(f.sessionId)[0]?.status).toBe("partial"); expect(f.service.controller.ownedWriteRoots()).toEqual([]);
     }
@@ -110,9 +110,8 @@ test("hidden desktop leaves private native restaging off until the actual user e
   try {
     const page = await app.firstWindow();
     await openSettingsSection(page, "Confirmations");
-    const policy = page.getByLabel("Allow exact private-snapshot restaging for native model retries", { exact: true });
+    const policy = page.getByLabel("Allow Sandbox model retries from the saved workspace snapshot", { exact: true });
     await expect(policy).not.toBeChecked(); await policy.check();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => f.sdk.settings.get()!.values.interactions.nativeRetryRestaging).toBe(true);
     expect(f.requests).toHaveLength(0); expect(f.solver.requests).toHaveLength(0);
   } finally { await app.close(); await f.close(); }

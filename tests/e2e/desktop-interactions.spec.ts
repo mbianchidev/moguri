@@ -212,7 +212,8 @@ test("settings use one font family, omit capability-job history and left navigat
     const categories = page.getByRole("navigation", { name: "Settings categories" });
     await categories.getByRole("button", { name: "Confirmations", exact: true }).click();
     await page.getByLabel("Ask before closing the terminal pane").uncheck();
-    await page.getByRole("button", { name: "Save settings", exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().settings.values.interactions.confirmTerminalClose).toBe(false);
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     await categories.getByRole("button", { name: "Startup defaults", exact: true }).click();
     const fonts = await page.locator(".settings-page").evaluate((element) => [...element.querySelectorAll("p, textarea, pre, code, select")].map((element) => getComputedStyle(element).fontFamily));
     expect(new Set(fonts).size).toBe(1);

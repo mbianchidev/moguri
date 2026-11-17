@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { DesktopBridge } from "./bridge.d.ts";
+import type { RendererTrayAction } from "./tray-menu.ts";
 
 const bridge: DesktopBridge = {
   previewHtml: (input, profileId) => ipcRenderer.invoke("moguri:html-preview", input, profileId),
@@ -17,6 +18,9 @@ const bridge: DesktopBridge = {
   chooseFile: (path) => ipcRenderer.invoke("moguri:choose-file", path),
   chooseAttachment: (kind) => ipcRenderer.invoke("moguri:choose-attachment", kind),
   chooseVoiceModel: () => ipcRenderer.invoke("moguri:choose-voice-model"),
+  choosePath: (input) => ipcRenderer.invoke("moguri:choose-path", input),
+  homeDirectory: process.argv.find((value) => value.startsWith("--moguri-home="))?.slice("--moguri-home=".length) ?? "",
+  loadNotificationSound: (profileId, path) => ipcRenderer.invoke("moguri:load-notification-sound", profileId, path),
   openExternal: (url) => ipcRenderer.invoke("moguri:open-external", url),
   projectLocation: (profileId, projectId, expectedPath, action) => ipcRenderer.invoke("moguri:project-location", profileId, projectId, expectedPath, action),
   sessionLocation: (profileId, sessionId, action) => ipcRenderer.invoke("moguri:session-location", profileId, sessionId, action),
@@ -43,6 +47,25 @@ const bridge: DesktopBridge = {
     };
     ipcRenderer.on("moguri:navigate-inbox", receive);
     return () => ipcRenderer.removeListener("moguri:navigate-inbox", receive);
+  },
+  onTrayAction: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, action: unknown, profileId: unknown) => {
+      if (trayAction(action) && typeof profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) listener(action, profileId);
+    };
+    ipcRenderer.on("moguri:tray-action", receive);
+    return () => ipcRenderer.removeListener("moguri:tray-action", receive);
+  },
+  takeTrayAction: async () => {
+    const value: unknown = await ipcRenderer.invoke("moguri:take-tray-action");
+    return value && typeof value === "object" && "action" in value && "profileId" in value && trayAction(value.action) &&
+      typeof value.profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value.profileId) ? { action: value.action, profileId: value.profileId } : null;
+  },
+  onNavigateSuggestions: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, profileId: unknown) => {
+      if (typeof profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) listener(profileId);
+    };
+    ipcRenderer.on("moguri:navigate-suggestions", receive);
+    return () => ipcRenderer.removeListener("moguri:navigate-suggestions", receive);
   },
   onNativeError: (listener) => {
     const receive = (_event: Electron.IpcRendererEvent, profileId: unknown, message: unknown) => { if (typeof profileId === "string" && typeof message === "string" && message.length <= 2048) listener(profileId, message); };
@@ -86,4 +109,11 @@ const bridge: DesktopBridge = {
     return () => ipcRenderer.removeListener("moguri:navigate-work", receive);
   },
 };
+const RENDERER_TRAY_ACTIONS = new Set(["new-chat", "new-project", "new-session", "archive"]);
+/** Only the window-owned tray actions cross into the renderer, with well-formed IDs. */
+function trayAction(value: unknown): value is RendererTrayAction {
+  if (!value || typeof value !== "object" || !("kind" in value) || typeof value.kind !== "string" || !RENDERER_TRAY_ACTIONS.has(value.kind)) return false;
+  const id = (key: string) => key in value && typeof (value as Record<string, unknown>)[key] === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(String((value as Record<string, unknown>)[key]));
+  return value.kind === "new-session" ? id("projectId") : value.kind === "archive" ? id("sessionId") : true;
+}
 contextBridge.exposeInMainWorld("moguri", bridge);

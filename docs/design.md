@@ -32,7 +32,17 @@ reserved for code, paths, IDs and measurements.
 
 An original small face-and-purple-bat-wing mascot with a red pom-pom anchors the titlebar and empty
 state. One SVG source generates PNG/ICNS native icons; the SDK exports its ASCII
-counterpart for terminal loading. No supplied third-party artwork is embedded.
+counterpart for terminal loading. The only third-party artwork is the set of
+monochrome provider marks on Settings / Model providers, which identify each
+service and inherit the text color ([third-party notice](third-party.md)).
+
+Model providers uses one card per account or agent harness: a neutral logo
+tile, name, one-line subtitle, a status badge and trailing actions. The badge
+states Connected, Not connected, Checking..., Needs attention or Disabled in
+words, with a filled or hollow dot, so state never depends on color alone. API
+key forms open as disclosures (`aria-expanded`), focus their field, and return
+focus to the trigger on Escape or Cancel. Longer explanations stay in the
+information popovers.
 
 Projects/sessions sit left; the conversation remains central; the main-session
 sidebar sits beside it with a separate seven-panel rail. Explicit grid placement
@@ -85,6 +95,31 @@ explicit Local user-console boundary, not a custom terminal emulation surface.
 Native browser previews are hidden while dialogs or other task surfaces own
 focus. Project settings and destructive dialogs use the same restrained layout
 and clear source/retention boundaries.
+
+Settings choices save as soon as they change: switches, checkboxes, selects,
+sliders and color pickers commit on change (sliders and colors when released),
+on top of the committed values, so other unsaved text is untouched. Explicit
+Save is reserved for written values such as text, paths, numbers, shortcuts and
+JSON/YAML editors, and for flows gated by a review or consent step. List actions
+like adding, enabling or removing a skill source, or confirming a global skill
+folder, also save immediately. A refused save keeps the attempted value visible
+with the error and never overwrites another client's revision.
+
+Every Settings page follows one anatomy so pages read alike:
+
+| Element | Rule |
+| --- | --- |
+| Page title | One `h2` per page (22px). Sections are `h3`, subsections `h4`, detail groups `h5`; embedded panels never add a second page-level `h2`. |
+| Scope control | A page that acts on a chosen chat (Artifacts, Candidates, Sandbox, Skills) shows its source-chat select on the title row, right-aligned, like the Suggestions scope. It never sits above the title. |
+| Column | Fields, editors, cards, tables and warnings share one 850px column; running text keeps a 76ch measure. |
+| Groups | A fieldset with a `legend` is a titled card (subtle surface, 10px radius; nested cards use the main surface). A fieldset without a legend is an invisible wrapper. A titled group that carries its own information button stays unboxed so the title lines up with the button. |
+| Disclosures | In Settings, every `details` is a bordered row: its label on the left and a visible Show/Hide pill on the right; the opened content sits inside the same card. Elsewhere disclosures use one rotating chevron, and rows with their own chevron or folder icon opt out. |
+| Local paths | Every setting that needs a file or folder on this Mac uses `PathField`: a text field that accepts an absolute path or one starting with `~/`, plus a **Choose…** button for the native picker. Both ways always work; the typed value is kept exactly apart from `~` and surrounding quotes. |
+| Copy | One sentence per page intro and per helper; info popovers at most two short sentences; warnings only for real risk. Internal implementation detail lives in [the Settings reference](settings/README.md), not on screen. |
+| Switches | Choices that save immediately are switches with 12px row rhythm; review or consent acknowledgements stay checkboxes. |
+| Tables | Left-aligned, muted 11px headers, row dividers, no outer border. |
+| Actions in flex panels | Buttons keep their natural width (`align-self: flex-start`) instead of stretching across the column. |
+| Empty lists | A section heading is always followed by content or a one-line empty state. |
 
 Settings is a full main-pane task surface, with a category rail, persistent save
 state and explicit warning/reset actions. It exposes the shared SDK rather than

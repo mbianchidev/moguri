@@ -28,7 +28,7 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
     pending.current = true; setBusy(true); setError(""); setNotice("");
     try {
       const result = await sdk.issues.configure(project.id, value, base.current);
-      actual.current = value; base.current = result.revision!; setCommitted(value); setNotice("The selected board field was saved. Other pending text was preserved.");
+      actual.current = value; base.current = result.revision!; setCommitted(value); setNotice("Saved. Your other unsaved edits are kept.");
     } catch (error) { setError(error instanceof Error ? error.message : "Board settings were not saved. Your edit is preserved."); }
     finally { pending.current = false; setBusy(false); }
   };
@@ -42,16 +42,16 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
     void write({ ...actual.current, [key]: value });
   };
   const kanban = kanbanPreferences(draft);
-  return <section className="board-configuration" aria-label="Board configuration"><SettingsHelp label="More about this setting" target={<h3>Project Kanban</h3>}>Each project has a special Kanban chat. Continue work takes one item in an isolated Local checkout, uses this chat's selected model and budget, then stops at its draft PR. It never merges or drains the backlog. GitHub uses this Mac's signed-in CLI account, not Copilot login or SSH credentials.</SettingsHelp>
+  return <section className="board-configuration" aria-label="Board configuration"><SettingsHelp label="More about this setting" target={<h3>Project Kanban</h3>}>Continue work takes one item at a time into a new Local worktree, using the Kanban chat's model and budget, and stops at a draft PR. GitHub access uses this Mac's GitHub CLI login.</SettingsHelp>
     <fieldset className="settings-fields" disabled={busy}>
       <label className="check-setting"><SettingsInput type="checkbox" checked={kanban.visible} onChange={(event) => automatic("kanban", { ...kanban, visible: event.target.checked })} />Show Kanban in this project's sessions</label>
       <label className="setting-field">Continue work from<select aria-label="Continue work from" value={kanban.source} onChange={(event) => automatic("kanban", { ...kanban, source: event.target.value as KanbanSource })}>
-        <option value="kanban">Open Kanban cards, including imported Linear cards</option><option value="github-issues">Open GitHub issues</option><option value="github-prs">Open GitHub pull requests</option>
+        <option value="kanban">Kanban cards (including Linear imports)</option><option value="github-issues">Open GitHub issues</option><option value="github-prs">Open GitHub pull requests</option>
       </select></label>
       <SettingsHelp label="More about this setting" target={<fieldset className="kanban-eligible"><legend>Eligible Kanban phases</legend>{committed.columns.filter((column) => column.id !== committed.mergedColumnId).map((column) =>
         <label className="check-setting" key={column.id}><SettingsInput type="checkbox" role="checkbox" checked={kanban.phaseIds.includes(column.id)} onChange={(event) => automatic("kanban", {
           ...kanban, phaseIds: event.target.checked ? [...kanban.phaseIds, column.id] : kanban.phaseIds.filter((id) => id !== column.id),
-        })} />{column.name}</label>)}</fieldset>}>Selected phases are tried in their saved order. In progress precedes Backlog by default. Hiding Kanban preserves its cards, chat and ongoing tasks.</SettingsHelp>
+        })} />{column.name}</label>)}</fieldset>}>Continue work checks the selected phases in order (In progress before Backlog by default). Hiding Kanban keeps its cards, chat and running work.</SettingsHelp>
 
       <h3>Ticket workflow</h3>
       <ReorderList items={draft.columns} scope={`${sdk.profileId}:board:${project.id}`} label="Board phases" name={(column) => column.name} disabled={busy}
@@ -64,21 +64,19 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
           setDraft((current) => ({ ...current, kanban })); void write({ ...actual.current, columns: draft.columns, kanban });
         }}>Save</button></div>
       <label className="setting-field">Move merged PR tickets to<select aria-label="Merged PR destination" value={draft.mergedColumnId} onChange={(event) => automatic("mergedColumnId", event.target.value)}>{committed.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>
-      <label className="check-setting"><SettingsInput type="checkbox" checked={draft.autoRefreshPrs} onChange={(event) => automatic("autoRefreshPrs", event.target.checked)} />Sync with GitHub, read-only into Kanban</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={draft.autoRefreshPrs} onChange={(event) => automatic("autoRefreshPrs", event.target.checked)} />Sync from GitHub (read-only)</label>
       <label className="check-setting"><SettingsInput type="checkbox" checked={githubSyncSettings(draft).importIssues} onChange={(event) => {
         const importIssues = event.target.checked, githubSync = { ...githubSyncSettings(actual.current), importIssues };
         setDraft((current) => ({ ...current, githubSync, githubAccess: importIssues ? "gh-cli" : current.githubAccess }));
         void write({ ...actual.current, githubSync, githubAccess: importIssues ? "gh-cli" : actual.current.githubAccess });
-      }} />Import open issues from this repository and keep existing links updated</label>
+      }} />Import open issues and keep linked cards updated</label>
       {(["backlog", "inProgress", "review", "done"] as const).map((state) => <label className="setting-field" key={state}>GitHub {state === "inProgress" ? "draft PR" : state === "review" ? "open PR" : state === "done" ? "closed issue" : "open issue"} column
         <select aria-label={`GitHub ${state} column`} value={githubSyncSettings(draft).phases[state]} onChange={(event) => {
-          const value = event.target.value;
-          setDraft((current) => ({ ...current, githubSync: { ...githubSyncSettings(current), phases: { ...githubSyncSettings(current).phases, [state]: value } } }));
+          const saved = githubSyncSettings(actual.current);
+          automatic("githubSync", { ...saved, phases: { ...saved.phases, [state]: event.target.value } });
         }}>{committed.columns.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}</select></label>)}
-      <button type="button" disabled={JSON.stringify(githubSyncSettings(draft).phases) === JSON.stringify(githubSyncSettings(committed).phases)}
-        onClick={() => void write({ ...actual.current, githubSync: { ...githubSyncSettings(actual.current), phases: githubSyncSettings(draft).phases } })}>Save GitHub mapping</button>
-      <label className="setting-field">Linked-PR GitHub read access<select aria-label="Linked-PR GitHub read access" value={draft.githubAccess} onChange={(event) => automatic("githubAccess", event.target.value === "gh-cli" ? "gh-cli" : "public")}><option value="public">Public GitHub API, no account</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
-      <SettingsHelp label="More about this setting" target={<h3>Optional Linear team</h3>}>Authentication lives in Integrations / Linear. Save the exact team UUID before enabling import. Importing is explicit and read-only; enabling a team never exports local tickets or starts a scan.</SettingsHelp>
+      <label className="setting-field">GitHub access for linked PRs<select aria-label="Linked-PR GitHub read access" value={draft.githubAccess} onChange={(event) => automatic("githubAccess", event.target.value === "gh-cli" ? "gh-cli" : "public")}><option value="public">Public GitHub API, no account</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>
+      <SettingsHelp label="More about this setting" target={<h3>Optional Linear team</h3>}>Sign in under Linear workflows, then save the team UUID before enabling import. Import is read-only and runs only when you ask.</SettingsHelp>
       <label className="check-setting"><SettingsInput type="checkbox" checked={draft.linear.enabled} disabled={!draft.linear.enabled && !/^[A-Za-z0-9-]{1,128}$/.test(committed.linear.teamId)} onChange={(event) => {
         const enabled = event.target.checked; setDraft((current) => ({ ...current, linear: { ...current.linear, enabled } }));
         void write({ ...actual.current, linear: { ...actual.current.linear, enabled } });

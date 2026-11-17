@@ -131,7 +131,7 @@ test("a session's two-finger context menu opens its actual worktree folder and r
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
-test("global skill folders require exact source confirmation and Save before discovery", async () => {
+test("global skill folders require exact source confirmation and save once confirmed", async () => {
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const agentRoot = join(f.directory, ".agents", "skills", "generated", "nested"); await mkdir(agentRoot, { recursive: true });
   await writeFile(join(agentRoot, "SKILL.md"), "---\nname: generated-agent-global\ndescription: Generated global source\n---\nGenerated instructions, not authority.\n");
@@ -149,8 +149,7 @@ test("global skill folders require exact source confirmation and Save before dis
     for (const name of ["~/.agents/skills", "~/.moguri/skills"]) {
       await settings.getByRole("switch", { name: `Use ${name}`, exact: true }).click();
       await review.getByRole("button", { name: "Use this folder", exact: true }).click();
-      expect(sdk.settings.get()!.values.skillSources ?? []).toHaveLength(name === "~/.agents/skills" ? 0 : 1);
-      await settings.getByRole("button", { name: "Save skill sources", exact: true }).click();
+      await expect.poll(() => (sdk.settings.get()!.values.skillSources ?? []).length).toBe(name === "~/.agents/skills" ? 1 : 2);
       await expect(page.getByRole("status").filter({ hasText: /^Saved$/ })).toBeVisible();
     }
     expect((await stat(moguriRoot)).isDirectory()).toBe(true);

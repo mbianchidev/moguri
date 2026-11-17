@@ -20,10 +20,10 @@ test("desktop requires exact metadata review, retains concurrent edits and share
     await page.getByLabel("OTLP collector origin", { exact: true }).fill("http://127.0.0.1:4318");
     await page.getByLabel("OTLP trace sampling ratio", { exact: true }).fill("0.5");
     await page.getByRole("button", { name: "Review metadata export", exact: true }).click();
-    const apply = page.getByRole("button", { name: "Apply reviewed metadata export", exact: true });
+    const apply = page.getByRole("button", { name: "Apply export settings", exact: true });
     await expect(apply).toBeDisabled();
     expect((await sdk.telemetry.export.status()).configuration.enabled).toBe(false);
-    await page.getByLabel("I reviewed this profile, collector and metadata-only disclosure", { exact: true }).check();
+    await page.getByLabel("I reviewed this collector and want to send this profile's metadata to it", { exact: true }).check();
     await apply.click();
     await expect(page.getByText("Export settings saved", { exact: true })).toBeVisible();
     const saved = (await sdk.telemetry.export.status()).configuration;

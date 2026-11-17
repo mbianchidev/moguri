@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
 
 type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string } | { kind: "refresh" };
 export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
@@ -14,26 +15,29 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
     if (pending.current) return;
     pending.current = true; setChange(next); if (next.kind !== "refresh") onBusy(true); setError("");
     try { await action(); }
-    catch (error) { setError(error instanceof Error ? error.message : "The model preference was not acknowledged. Inspect the saved state before retrying."); }
+    catch (error) { setError(error instanceof Error ? error.message : "The change couldn't be confirmed. Check the current setting before retrying."); }
     finally { pending.current = false; setChange(null); if (next.kind !== "refresh") onBusy(false); }
   };
-  if (!catalogue) return <p role="status">Waiting for this profile's authoritative provider inventory. No default models were substituted.</p>;
+  if (!catalogue) return <p role="status">Loading providers...</p>;
   const providerName = (id?: string) => catalogue.providers.find((provider) => provider.id === id)?.name ?? id ?? "Unknown provider";
   const models = catalogue.models.filter((model) => fuzzyMatch(search, `${model.name} ${model.apiModelId} ${model.offerings.map((entry) => providerName(entry.model.providerId)).join(" ")}`));
   return <section className="model-availability" aria-label="Provider and model availability">
-    <button type="button" disabled={disabled || busy} aria-label="Refresh available models" onClick={() => void run({ kind: "refresh" }, () => sdk.models.refresh())}>
-      {change?.kind === "refresh" ? "Refreshing models..." : "Refresh available models"}
-    </button>
-    <p className="fine-print">Available models refresh when the app opens. Refresh here after changing your provider account or running models; no sign-in or inference is started.</p>
-    <SettingsHelp label="About provider availability" target={<h3>Generative providers</h3>}>These preferences belong to this profile. Disabling a provider retains its login and configuration but blocks new model selections and admissions. Existing calls keep their actual outcome and charges. Enabling never signs in or starts inference.</SettingsHelp>
+    <div className="provider-section-header">
+      <SettingsHelp label="About provider availability" target={<h3>Availability</h3>}>Turning a provider off hides its models from new chats in this profile but keeps its sign-in. Calls already made are unaffected.</SettingsHelp>
+      <button type="button" disabled={disabled || busy} aria-label="Refresh available models" onClick={() => void run({ kind: "refresh" }, () => sdk.models.refresh())}>
+        {change?.kind === "refresh" ? "Refreshing models..." : "Refresh available models"}
+      </button>
+    </div>
+    <p className="fine-print">Models refresh when the app opens. Refresh again after changing an account or starting a local server.</p>
     <div className="model-provider-list">{catalogue.providers.map((provider) => <div className="model-provider-row" key={provider.id}>
+      <ProviderLogo logo={providerLogoId(provider)} fallback={provider.scope === "remote" ? "Globe" : "House"} />
       <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : provider.scope === "agent" ? `Your installed ${provider.source === "codex-agent" ? "Codex" : "Claude Code"}` : provider.scope === "hosted" ? "Your hosted account" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
         {provider.diagnostic && <small>{provider.diagnostic}</small>}</div>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable provider ${provider.name}`}
         checked={change?.kind === "provider" && change.id === provider.id ? change.enabled : provider.enabled} disabled={disabled || busy}
         onChange={(event) => { const enabled = event.target.checked; void run({ kind: "provider", id: provider.id, enabled }, () => sdk.models.setProviderEnabled(provider.id, enabled, snapshot.settings.revision)); }} /><span className="sr-only">Enable {provider.name}</span></label>
     </div>)}</div>
-    <SettingsHelp label="About selectable models" target={<h3>Enabled models and sources</h3>}>Only enabled, available, selected sources appear in model pickers or work through /model and routing. Exact matching upstream IDs share one row; choose one provider when multiple sources offer that ID. A saved source never silently changes when unavailable. These declarations are not model-family, independence or quality proof.</SettingsHelp>
+    <SettingsHelp label="About selectable models" target={<h3>Enabled models and sources</h3>}>Only enabled models appear in model pickers, /model and routing. When several providers offer the same model ID, choose which one to use.</SettingsHelp>
     <label className="setting-field">Search models<SettingsInput type="search" aria-label="Search model availability" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Model, ID or provider" /></label>
     <p className="fine-print">{catalogue.models.filter((model) => model.diagnostic === null).length} selectable / {catalogue.models.length} known model{catalogue.models.length === 1 ? "" : "s"}.</p>
     <p className="fine-print" role="status" aria-label="Model availability saving">{change?.kind === "refresh" ? "Refreshing available models..." : busy ? "Saving availability..." : "Changes save automatically."}</p>
@@ -53,7 +57,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
         checked={change?.kind === "model" && change.id === model.apiModelId ? change.enabled : model.enabled} disabled={disabled || busy}
         onChange={(event) => { const enabled = event.target.checked; void run({ kind: "model", id: model.apiModelId, enabled }, () => sdk.models.setEnabled(model.apiModelId, enabled, snapshot.settings.revision)); }} /><span className="sr-only">Enable {model.name}</span></label>
     </div>)}
-    {!models.length && <p className="fine-print">{search ? "No matching model in this profile's inventory." : "No model has been advertised or explicitly configured. Sign in or configure a provider; none will be guessed."}</p>}
+    {!models.length && <p className="fine-print">{search ? "No matching models." : "No models yet. Sign in or configure a provider."}</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }

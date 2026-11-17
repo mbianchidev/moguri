@@ -8,20 +8,20 @@ export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; o
   useEffect(() => {
     let current = true; setBusy(true);
     void sdk.integrations.githubConnection().then((value) => { if (current) { setConnection(value.connection); setError(""); } })
-      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The GitHub CLI account is unavailable. No other credential was used."); })
+      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The GitHub CLI account is unavailable."); })
       .finally(() => { if (current) setBusy(false); });
     return () => { current = false; };
   }, [sdk]);
-  return <section aria-label="GitHub integration connection"><SettingsHelp label="About GitHub integration" target={<h2>GitHub integration</h2>}>One existing GitHub CLI account for repository discovery, issues and pull requests on this Mac. No client ID, copied token or account name to configure. Copilot model login and the private updater PAT stay separate. Remote operations retain their separately captured SSH account.<br /><br />Use New to import a repository. Use Code change for pull requests and Work item for GitHub issues. Project menus start sessions from either source.</SettingsHelp>
+  return <section aria-label="GitHub integration connection"><SettingsHelp label="About GitHub integration" target={<h2>GitHub integration</h2>}>Moguri uses your GitHub CLI (gh) account on this Mac for repositories, issues and pull requests. It's separate from your Copilot sign-in and the update token.</SettingsHelp>
     <button type="button" disabled={busy} onClick={() => {
       setBusy(true); setError(""); setConnection(null);
-      void sdk.integrations.githubConnection().then((value) => setConnection(value.connection)).catch((error: unknown) => setError(error instanceof Error ? error.message : "The CLI account was not verified. No alternative credential was used.")).finally(() => setBusy(false));
+      void sdk.integrations.githubConnection().then((value) => setConnection(value.connection)).catch((error: unknown) => setError(error instanceof Error ? error.message : "The GitHub CLI account could not be verified.")).finally(() => setBusy(false));
     }} aria-label={busy ? "Checking account..." : "Verify GitHub CLI account"}>{busy ? "Checking..." : "Verify"}</button>
-    {connection && <p role="status">Verified CLI account: {connection.login} / {connection.id}. This does not grant repository access or approve an operation.</p>}
+    {connection && <p role="status">Verified gh account: {connection.login} / {connection.id}</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
-    <details><summary>Sign in or fix repository access</summary><p>In a Local session terminal or your own terminal on this Mac, run <code>gh auth login --hostname github.com --web --git-protocol ssh</code>, then return and check the account. You complete authorization yourself. Private repositories need access through this account; organizations may also require SSO authorization.</p>
-      <p className="fine-print">For background linked-PR observations, choose your signed-in GitHub CLI account under Project settings. Remote metadata retains its separately selected SSH account. No account switching or authentication is automatic.</p></details>
-    {!openTerminal && <p className="fine-print">Select a Local session to open its terminal. No global console or hidden chat will be created.</p>}
+    <details><summary>Sign in or fix repository access</summary><p>In a terminal on this Mac, run <code>gh auth login --hostname github.com --web --git-protocol ssh</code>, then click Verify. Private repositories need access through this account, and some organizations also require SSO.</p>
+      <p className="fine-print">To watch linked PRs in the background, choose this account in Project settings.</p></details>
+    {!openTerminal && <p className="fine-print">Select a Local session to open its terminal here.</p>}
     <button type="button" disabled={busy || !openTerminal} onClick={openTerminal} aria-label="Open terminal for selected session">Open terminal</button>
   </section>;
 }
@@ -33,22 +33,22 @@ export function LinearConnectionPanel({ sdk, onDirty }: { sdk: MoguriSdk; onDirt
   useEffect(() => {
     let current = true;
     void sdk.linear.connection().then((value) => { if (current) setConnection(value.connection); })
-      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The profile credential backend is unavailable."); });
+      .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "The credential store is unavailable."); });
     return () => { current = false; };
   }, [sdk]);
   const run = async (operation: () => Promise<void>) => {
     setBusy(true); setError(""); setNotice("");
-    try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Linear authentication was not confirmed. No credential fallback was used."); }
+    try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Linear sign-in could not be confirmed."); }
     finally { setBusy(false); }
   };
-  return <section aria-label="Linear integration connection"><SettingsHelp label="More about this setting" target={<h2>Linear connection</h2>}>Use this profile's personal API key in the secure secret backend. No project is needed to store or verify it. Project/team access and each external write still need their own configuration and review.</SettingsHelp>
-    <p role="status">Credential: {connection?.credential ?? "unobserved"}.{connection?.account ? ` Verified ${connection.account.name} / ${connection.account.workspaceName}.` : " No account identity has been verified."}</p>
+  return <section aria-label="Linear integration connection"><SettingsHelp label="More about this setting" target={<h2>Linear connection</h2>}>Stores this profile's Linear personal API key in the keychain. You choose a team per project, and every change sent to Linear is reviewed first.</SettingsHelp>
+    <p role="status">API key: {connection?.credential ?? "unobserved"}{connection?.account ? ` · verified ${connection.account.name} / ${connection.account.workspaceName}` : " · account not verified"}</p>
     <label className="setting-field">Linear personal API key<SettingsInput type="password" aria-label="Linear personal API key" autoComplete="off" maxLength={4096} value={token} disabled={busy} onChange={(event) => setToken(event.target.value)} /></label>
     <div className="button-row"><button type="button" className="primary" disabled={busy || !token} onClick={() => void run(async () => {
-      await sdk.linear.setToken(token); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("Credential stored only in this profile's secure backend. Verify the actual account explicitly.");
+      await sdk.linear.setToken(token); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("API key saved. Click Verify to check the account.");
     })} aria-label="Store Linear key in keychain">Store</button>
       <button type="button" disabled={busy || Boolean(token)} onClick={() => void run(async () => { setConnection((await sdk.linear.connection(true)).connection); })} aria-label="Verify Linear account">Verify</button>
-      <button type="button" className="quiet" aria-label="Remove Linear key" disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("Profile credential removed. Existing requests and reviews were invalidated."); })}>Remove</button></div>
+      <button type="button" className="quiet" aria-label="Remove Linear key" disabled={busy} onClick={() => void run(async () => { await sdk.linear.clearToken(); setToken(""); setConnection((await sdk.linear.connection()).connection); setNotice("API key removed. Open reviews no longer apply."); })}>Remove</button></div>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
   </section>;
 }

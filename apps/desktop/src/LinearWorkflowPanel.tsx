@@ -10,14 +10,14 @@ import { Alert } from "./Alert.tsx";
 
 type Action = LinearWorkflowInput["action"];
 const actions: { value: Action; label: string }[] = [
-  { value: "issue.create", label: "Create Linear issue" }, { value: "issue.update", label: "Update selected issue fields" },
+  { value: "issue.create", label: "Create Linear issue" }, { value: "issue.update", label: "Update issue fields" },
   { value: "issue.move", label: "Move issue to workflow state" }, { value: "issue.archive", label: "Archive or restore issue" },
-  { value: "issue.delete", label: "Delete issue to Linear trash" }, { value: "comment.create", label: "Add issue comment" },
+  { value: "issue.delete", label: "Delete issue (to Linear trash)" }, { value: "comment.create", label: "Add issue comment" },
   { value: "comment.update", label: "Edit my issue comment" }, { value: "comment.delete", label: "Delete my issue comment" },
   { value: "project.create", label: "Create Linear project" }, { value: "project.update", label: "Update Linear project" },
   { value: "project.archive", label: "Archive or restore Linear project" }, { value: "relation.create", label: "Relate issues" },
-  { value: "relation.delete", label: "Remove issue relationship" }, { value: "ticket.sync", label: "Sync one linked local ticket" },
-  { value: "ticket.publish", label: "Publish one local ticket to Linear" },
+  { value: "relation.delete", label: "Remove issue relationship" }, { value: "ticket.sync", label: "Sync a linked local ticket" },
+  { value: "ticket.publish", label: "Publish a local ticket to Linear" },
 ];
 const resources: LinearCatalogResource[] = ["teams", "states", "projects", "cycles", "labels", "users", "issues", "comments", "relations"];
 const issueOptions = ["stateId", "projectId", "cycleId", "priority", "estimate", "assigneeId", "labelIds", "parentId", "dueDate"] as const;
@@ -71,7 +71,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     const scope = currentScope.current;
     setBusy(true); setError(""); setNotice("");
     try { await operation(() => currentScope.current === scope); }
-    catch (value) { setError(value instanceof Error ? value.message : "Linear could not complete this operation. Your fields were preserved; inspect the retained result before a new review."); }
+    catch (value) { setError(value instanceof Error ? value.message : "Linear couldn't complete this operation. Your fields were kept; check the operation history before trying again."); }
     finally { setBusy(false); }
   };
   const remember = (items: LinearEntity[]) => setEntities((previous) => [...previous.filter((entry) => !items.some((item) => item.id === entry.id)), ...items]);
@@ -81,13 +81,13 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     });
     if (!isCurrent()) return;
     setCatalog(result); remember(result.items);
-    setNotice(`${result.identity.actorName} / ${result.identity.workspaceName} / ${result.team.name}. Read page ${result.page}; ${result.items.length} results.${result.limitReached ? " The five-page bound was reached; this is not a complete collection." : ""}`);
+    setNotice(`${result.identity.actorName} / ${result.identity.workspaceName} / ${result.team.name}. Read page ${result.page}; ${result.items.length} results.${result.limitReached ? " Stopped after five pages, so the list may be incomplete." : ""}`);
   });
   const loadChoices = () => run(async (isCurrent) => {
     const result = await Promise.all((["states", "projects", "cycles", "labels", "users"] as const).map((name) => linear.catalog(project.id, name)));
     if (!isCurrent()) return;
     remember(result.flatMap((entry) => entry.items));
-    setNotice("Read the first bounded page of states, projects, cycles, labels and team members. Browse later pages explicitly; no content was uploaded.");
+    setNotice("Loaded the first page of states, projects, cycles, labels and team members.");
   });
   const toggle = (key: string, checked: boolean) => { invalidate(); setIncluded((previous) => checked ? [...previous.filter((entry) => entry !== key), key] : previous.filter((entry) => entry !== key)); };
   const setValue = (key: string, value: string) => { invalidate(); setValues((previous) => ({ ...previous, [key]: value })); };
@@ -98,11 +98,11 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       const value = values[key] ?? "";
       if (key === "labelIds") fields.labelIds = selectedLabels;
       else if (key === "priority") {
-        if (value === "") throw new Error("Choose the exact priority, including 0 for none.");
+        if (value === "") throw new Error("Choose a priority (0 means none).");
         fields.priority = Number(value);
       } else if (key === "estimate") fields.estimate = value === "" ? null : Number(value);
       else if (key === "stateId") {
-        if (!value) throw new Error("Select an exact workflow state; it cannot be cleared.");
+        if (!value) throw new Error("Choose a workflow state; it can't be cleared.");
         fields.stateId = value;
       } else fields[key] = value || null;
     }
@@ -126,7 +126,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
           if (!included.includes(key) && !(key === "name" && action === "project.create")) continue;
           const value = key === "name" ? title : key === "description" ? body : values[key] ?? "";
           if (key === "priority") {
-            if (!value) throw new Error("Choose an exact project priority (0-4).");
+            if (!value) throw new Error("Choose a project priority (0-4).");
             fields.priority = Number(value);
           } else if (["leadId", "startDate", "targetDate"].includes(key)) (fields as Record<string, unknown>)[key] = value || null;
           else (fields as Record<string, unknown>)[key] = value;
@@ -137,10 +137,10 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       case "relation.create": return { action, issueId, relatedIssueId: secondaryId, relationType };
       case "relation.delete": return { action, issueId, relationId: secondaryId };
       case "ticket.sync":
-        if (!local) throw new Error("Choose an exact linked local ticket.");
+        if (!local) throw new Error("Choose a linked local ticket.");
         return { action, localIssueId: local.id, expectedLocalRevision: local.revision, direction, mapping: phaseMapping() };
       case "ticket.publish":
-        if (!local) throw new Error("Choose an exact local ticket to publish.");
+        if (!local) throw new Error("Choose a local ticket to publish.");
         return { action, localIssueId: local.id, expectedLocalRevision: local.revision, mapping: phaseMapping(), fields: optionalFields() };
     }
   };
@@ -150,9 +150,9 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   ));
   const field = (key: string) => {
     const list = `${uid}-${key}`;
-    if (key === "labelIds") return <label className="setting-field">Exact replacement label set<select aria-label="Replacement Linear labels" multiple value={selectedLabels} onChange={(event) => setSelectedLabels(Array.from(event.target.selectedOptions, (option) => option.value))}>
+    if (key === "labelIds") return <label className="setting-field">Replace labels with<select aria-label="Replacement Linear labels" multiple value={selectedLabels} onChange={(event) => setSelectedLabels(Array.from(event.target.selectedOptions, (option) => option.value))}>
       {entities.filter((entry) => entry.kind === "label").map((entry) => <option key={entry.id} value={entry.id}>{entityName(entry)}</option>)}
-    </select><small>An empty selected set explicitly removes all labels.</small></label>;
+    </select><small>Selecting none removes all labels.</small></label>;
     if (key === "priority") return <label className="setting-field"><span id={`${uid}-priority`}>{labels[key]}</span><select aria-labelledby={`${uid}-priority`} value={values[key] ?? ""} onChange={(event) => setValue(key, event.target.value)}>
       <option value="">Choose priority</option>{["None", "Urgent", "High", "Normal", "Low"].map((label, index) => <option value={index} key={index}>{index} - {label}</option>)}
     </select></label>;
@@ -161,7 +161,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       type={["dueDate", "startDate", "targetDate"].includes(key) ? "date" : key === "estimate" ? "number" : "text"}
       min={key === "estimate" ? 0 : undefined} max={key === "estimate" ? 1000 : undefined} step={key === "estimate" ? 1 : undefined}
       value={values[key] ?? ""} list={optionsFor(key).length ? list : undefined}
-      placeholder={key === "stateId" ? "Exact workflow state UUID" : "Blank explicitly clears this optional field"}
+      placeholder={key === "stateId" ? "Workflow state UUID" : "Leave blank to clear"}
       onChange={(event) => setValue(key, event.target.value)} />
       {optionsFor(key).length > 0 && <datalist id={list}>{optionsFor(key).map((entry) => <option key={entry.id} value={entry.id}>{entityName(entry)}</option>)}</datalist>}
     </label>;
@@ -169,7 +169,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const projectAction = action.startsWith("project.");
   const ticketAction = action.startsWith("ticket.");
   const issueTarget = !projectAction && !ticketAction && action !== "issue.create";
-  const secondaryLabel = action.startsWith("comment.") ? "Exact comment UUID" : action === "relation.create" ? "Related issue UUID (same team)" : action === "relation.delete" ? "Exact relationship UUID" : "Exact Linear project UUID";
+  const secondaryLabel = action.startsWith("comment.") ? "Comment UUID" : action === "relation.create" ? "Related issue UUID (same team)" : action === "relation.delete" ? "Relationship UUID" : "Linear project UUID";
   const hasSecondary = ["comment.update", "comment.delete", "project.update", "project.archive", "relation.create", "relation.delete"].includes(action);
   const titleField = ["issue.create", "issue.update", "project.create", "project.update"].includes(action);
   const descriptionField = titleField || ["comment.create", "comment.update"].includes(action);
@@ -177,13 +177,13 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const localPreview = review?.document.local;
   const showOperation = (operation: LinearOperation) => run(async () => { setRetained(await linear.read(operation.id)); });
   return <section className="board-configuration linear-workflow-panel" aria-label="Reviewed Linear workflows">
-    <header><h2>Linear workflows</h2><p>Local tickets stay local until you explicitly publish or push. Pull and push are separate reviewed actions.</p></header>
-    <p className="fine-print">Profile {snapshot.profileId} · {enabled ? `Enabled team ${board.linear.teamId}` : "Off by default. Enable an exact team and store a personal API key in board configuration."} · Local control-plane connection</p>
-    {!snapshot.policy.allowedEnvs.includes("Local") && <p role="status">Global policy excludes Local. No Linear connection or credential fallback is available here.</p>}
-    {prohibitedSession && <p role="status">This session is Remote, side or read-only. It cannot mutate Linear or local tickets.</p>}
+    <header><h2>Linear workflows</h2><p>Local tickets stay local until you publish or push them.</p></header>
+    <p className="fine-print">Profile {snapshot.profileId} · {enabled ? `Enabled team ${board.linear.teamId}` : "Off by default. Choose a team and add an API key in the board settings."}</p>
+    {!snapshot.policy.allowedEnvs.includes("Local") && <p role="status">Your execution policy blocks Local, so Linear isn't available here.</p>}
+    {prohibitedSession && <p role="status">This session is Remote, a side chat or read-only, so it can't change Linear or local tickets.</p>}
     {(error || notice) && <Alert as="p" className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</Alert>}
     <fieldset disabled={busy || !enabled || !snapshot.policy.allowedEnvs.includes("Local")}>
-      <legend>Read explicitly</legend>
+      <legend>Browse Linear</legend>
       <div className="button-row"><label className="setting-field"><span id={`${uid}-collection`}>Collection</span><select aria-labelledby={`${uid}-collection`} value={resource} onChange={(event) => { setResource(event.target.value as LinearCatalogResource); setCatalog(null); }}>
         {resources.map((value) => <option key={value} value={value}>{value === "users" ? "Team members / assignees" : value}</option>)}
       </select></label>
@@ -191,8 +191,8 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         <button type="button" disabled={!catalog?.nextCursor || catalog.resource !== resource} onClick={() => void readPage(true)}>Read next page</button>
         <button type="button" onClick={() => void loadChoices()}>Load field choices</button>
       </div>
-      {["comments", "relations"].includes(resource) && <label className="setting-field">Read comments / relationships for issue UUID<SettingsInput value={issueId} onChange={(event) => { invalidate(); setCatalog(null); setIssueId(event.target.value); }} /></label>}
-      {catalog && <details open><summary>{catalog.items.length} {catalog.resource}, page {catalog.page}{catalog.limitReached ? " - collection bound reached" : ""}</summary>
+      {["comments", "relations"].includes(resource) && <label className="setting-field">Issue UUID for comments or relationships<SettingsInput value={issueId} onChange={(event) => { invalidate(); setCatalog(null); setIssueId(event.target.value); }} /></label>}
+      {catalog && <details open><summary>{catalog.items.length} {catalog.resource}, page {catalog.page}{catalog.limitReached ? " (page limit reached)" : ""}</summary>
         <ul>{catalog.items.map((entry) => <li key={entry.id}><code>{entry.id}</code> - {entityName(entry)}
           {entry.kind === "issue" && <button type="button" onClick={() => { invalidate(); setIssueId(entry.id); }}>Use issue</button>}
           {(entry.kind === "comment" || entry.kind === "relation" || entry.kind === "project") && <button type="button" onClick={() => { invalidate(); setSecondaryId(entry.id); }}>Use {entry.kind}</button>}
@@ -206,11 +206,11 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       });
     }}>
       <fieldset disabled={busy || !canWrite}>
-        <legend>Choose exact changes</legend>
+        <legend>Choose changes</legend>
         <label className="setting-field"><span id={`${uid}-operation`}>Operation</span><select aria-labelledby={`${uid}-operation`} value={action} onChange={(event) => { invalidate(); setAction(event.target.value as Action); setIncluded([]); }}>
           {actions.map((entry) => <option key={entry.value} value={entry.value}>{entry.label}</option>)}
         </select></label>
-        {issueTarget && <label className="setting-field">Exact Linear issue UUID<SettingsInput value={issueId} required onChange={(event) => setIssueId(event.target.value)} /></label>}
+        {issueTarget && <label className="setting-field">Linear issue UUID<SettingsInput value={issueId} required onChange={(event) => setIssueId(event.target.value)} /></label>}
         {hasSecondary && <label className="setting-field">{secondaryLabel}<SettingsInput value={secondaryId} required onChange={(event) => setSecondaryId(event.target.value)} /></label>}
         {ticketAction && <>
           <label className="setting-field"><span id={`${uid}-local-ticket`}>Local ticket</span><select aria-labelledby={`${uid}-local-ticket`} required value={localId} onChange={(event) => setLocalId(event.target.value)}>
@@ -218,13 +218,13 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
               <option key={entry.id} value={entry.id}>#{entry.number} {entry.title} · revision {entry.revision}{entry.linear ? ` · ${entry.linear.identifier}` : ""}</option>)}
           </select></label>
           {action === "ticket.sync" && <label className="setting-field"><span id={`${uid}-direction`}>Direction</span><select aria-labelledby={`${uid}-direction`} value={direction} onChange={(event) => setDirection(event.target.value as "pull" | "push")}>
-            <option value="pull">Pull Linear title, description, state and archive into local</option><option value="push">Push local title, description and mapped state to Linear</option>
+            <option value="pull">Pull title, description, state and archive status from Linear</option><option value="push">Push local title, description and mapped state to Linear</option>
           </select></label>}
-          <SettingsHelp label="More about this setting" target={<fieldset><legend>Explicit phase to Linear state mapping</legend>
+          <SettingsHelp label="More about this setting" target={<fieldset><legend>Map board phases to Linear states</legend>
             {board.columns.map((column) => <label className="setting-field" key={column.id}>{column.name}<SettingsInput value={mapping[column.id] ?? ""} list={`${uid}-mapping`}
-              placeholder="Exact state UUID, or leave this phase unmapped" onChange={(event) => setMapping((previous) => ({ ...previous, [column.id]: event.target.value }))} /></label>)}
+              placeholder="State UUID, or blank to leave unmapped" onChange={(event) => setMapping((previous) => ({ ...previous, [column.id]: event.target.value }))} /></label>)}
             <datalist id={`${uid}-mapping`}>{entities.filter((entry) => entry.kind === "state").map((entry) => <option key={entry.id} value={entry.id}>{entityName(entry)}</option>)}</datalist>
-          </fieldset>}>Only the chosen direction runs. A changed local revision or remote base invalidates review; no background sync or automatic export is enabled.</SettingsHelp>
+          </fieldset>}>Only the chosen direction runs, once. If the ticket changes on either side before you send, review it again.</SettingsHelp>
 
         </>}
         {titleField && <>{updateFields && <label className="check-setting"><SettingsInput type="checkbox" checked={included.includes(projectAction ? "name" : "title")} onChange={(event) => toggle(projectAction ? "name" : "title", event.target.checked)} />Replace {projectAction ? "project name" : "issue title"}</label>}
@@ -234,7 +234,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
           <label className="setting-field">{action.startsWith("comment.") ? "Comment body" : "Description"}<SettingsTextarea value={body}
             maxLength={projectAction ? 255 : 64 * 1024} required={action.startsWith("comment.")}
             disabled={(updateFields || action === "project.create") && !included.includes("description")} onChange={(event) => setBody(event.target.value)} /></label></>}
-        {["issue.create", "issue.update", "ticket.publish"].includes(action) && <fieldset><legend>Optional issue fields - omitted fields stay unchanged</legend>
+        {["issue.create", "issue.update", "ticket.publish"].includes(action) && <fieldset><legend>Optional issue fields (unchecked fields stay unchanged)</legend>
           {issueOptions.filter((key) => action !== "ticket.publish" || key !== "stateId").map((key) => <div key={key}>
             <label className="check-setting"><SettingsInput type="checkbox" checked={included.includes(key)} onChange={(event) => toggle(key, event.target.checked)} />Set {labels[key]!.toLowerCase()}</label>
             {included.includes(key) && field(key)}
@@ -245,36 +245,36 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         {action.endsWith(".archive") && <label className="check-setting"><SettingsInput type="checkbox" checked={archive} onChange={(event) => setArchive(event.target.checked)} />Archive (uncheck to restore)</label>}
         {action === "relation.create" && <label className="setting-field"><span id={`${uid}-relationship`}>Relationship</span><select aria-labelledby={`${uid}-relationship`} value={relationType} onChange={(event) => setRelationType(event.target.value as typeof relationType)}><option value="related">Related</option><option value="blocks">Selected issue blocks related issue</option><option value="duplicate">Selected issue duplicates related issue</option></select></label>}
 
-        <SettingsHelp label="More about this setting" target={<button type="submit" aria-label="Preview exact Linear operation">Preview</button>} descriptionFirst>{action === "issue.delete" && <>Uses Linear's non-permanent issue deletion. Recovery and retention follow Linear's trash policy; Moguri does not claim an undo.</>}</SettingsHelp>
+        <SettingsHelp label="More about this setting" target={<button type="submit" aria-label="Preview exact Linear operation">Preview</button>} descriptionFirst>{action === "issue.delete" && <>Moves the issue to Linear's trash. Recovery follows Linear's trash policy; Moguri can't undo it.</>}</SettingsHelp>
       </fieldset>
     </form>
     {review && <section aria-label="Exact Linear review" className="notice">
       <h3>{review.remoteWrite ? "Review before sending to Linear" : "Review before pulling into local"}</h3>
       <p><strong>{review.document.identity.actorName}</strong> in {review.document.identity.workspaceName} / {review.document.team.name} · {review.document.input.action}</p>
       {localPreview && <dl><dt>Local base</dt><dd>#{localPreview.number}, revision {localPreview.revision} · {localPreview.phaseId}</dd>
-        <dt>Remote base</dt><dd>{review.document.remote.filter((entry) => entry.kind === "issue").map((entry) => `${entry.id} · updated ${"updatedAt" in entry ? entry.updatedAt : ""}`).join(", ") || "New explicitly published issue"}</dd>
+        <dt>Remote base</dt><dd>{review.document.remote.filter((entry) => entry.kind === "issue").map((entry) => `${entry.id} · updated ${"updatedAt" in entry ? entry.updatedAt : ""}`).join(", ") || "New issue"}</dd>
         {review.document.localAfter && <><dt>Pull result</dt><dd>{review.document.localAfter.title} · {review.document.localAfter.phaseId} · local revision {review.document.localAfter.revision}</dd></>}
       </dl>}
-      <details open><summary>Exact fields, original snapshots, account, root and request</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }} tabIndex={0}>{pretty(review.document)}</pre></details>
+      <details open><summary>Full request details</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }} tabIndex={0}>{pretty(review.document)}</pre></details>
       <p className="fine-print">{review.diagnostic}</p>
-      <label className="check-setting"><SettingsInput type="checkbox" checked={consent} disabled={busy} onChange={(event) => setConsent(event.target.checked)} />I reviewed these exact inputs, account, team and direction. Retain the original operation and result independently of this session.</label>
+      <label className="check-setting"><SettingsInput type="checkbox" checked={consent} disabled={busy} onChange={(event) => setConsent(event.target.checked)} />I reviewed these changes, the account, team and direction</label>
       <div className="button-row"><button type="button" className={review.destructive ? "danger" : "primary"} disabled={busy || !consent || !canWrite} onClick={() => void run(async () => {
         const accepted = review; setReview(null); setConsent(false);
-        const result = await linear.accept(accepted, true); setNotice(`Original user operation ${result.id} was admitted. Its retained status is authoritative; it will not be replayed.`);
+        const result = await linear.accept(accepted, true); setNotice(`Operation ${result.id} started. Check its status in the history below.`);
       })} aria-label={review.remoteWrite ? "Send reviewed operation to Linear" : "Apply locally: reviewed Linear pull"}>{review.remoteWrite ? "Send" : "Apply locally"}</button>
         <button type="button" disabled={busy} onClick={invalidate}>Discard review</button></div>
     </section>}
-    {operations.length > 0 && <details open><summary>Retained Linear operations</summary>
+    {operations.length > 0 && <details open><summary>Linear operation history</summary>
       <ul>{operations.map((operation) => <li key={operation.id}>
-        <strong>{operation.action}</strong> · {operation.status} · actual user
-        <button type="button" disabled={busy} onClick={() => void showOperation(operation)} aria-label="View receipt and original inputs">View receipt</button>
+        <strong>{operation.action}</strong> · {operation.status} · by you
+        <button type="button" disabled={busy} onClick={() => void showOperation(operation)} aria-label="View receipt and original inputs">Details</button>
         {operation.status === "running" && <button type="button" disabled={busy || operation.stopRequested} onClick={() => void run(async () => {
-          await linear.cancel(operation.id); setNotice("Cancellation requested. Dispatched remote writes remain partial unless their original result is completely acknowledged; nothing is replayed.");
+          await linear.cancel(operation.id); setNotice("Cancellation requested. Writes already sent to Linear stay partial unless Linear confirmed them.");
         })} aria-label={operation.stopRequested ? "Cancellation requested" : "Cancel owned operation"}>{operation.stopRequested ? "Cancellation requested" : "Cancel"}</button>}
         {operation.diagnostic && <p>{operation.diagnostic}</p>}
       </li>)}</ul>
     </details>}
-    {retained && <details open><summary>Original operation {retained.operation.id}: {retained.operation.status}</summary>
+    {retained && <details open><summary>Operation {retained.operation.id}: {retained.operation.status}</summary>
       <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }} tabIndex={0}>{pretty({ operation: retained.operation, document: retained.document, result: retained.result })}</pre>
     </details>}
   </section>;

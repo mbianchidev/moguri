@@ -37,7 +37,7 @@ test("MCP retains its accessible X and Linear uses a concise Remove action, each
     await expect(removeLinear).toHaveText("Remove");
     await removeLinear.focus(); await page.keyboard.press("Enter");
     await expect.poll(() => linear.size).toBe(0);
-    await expect(connection).toContainText("Profile credential removed.");
+    await expect(connection).toContainText("API key removed.");
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
@@ -60,7 +60,7 @@ test("the session USD X edits only that draft limit and still requires the origi
     await expect(controls.getByLabel("session USD cap", { exact: true })).toHaveValue("");
     await expect(controls.getByRole("button", { name: "Save session budget", exact: true })).toBeDisabled();
     expect(fixture.session().controls.budget).toMatchObject({ usd: 1, tokens: 10000 });
-    const acknowledgement = controls.getByRole("checkbox", { name: "I accept estimate-based accounting and interruption risk.", exact: true });
+    const acknowledgement = controls.getByRole("checkbox", { name: "I understand costs are estimates and a cap can stop a chat mid-task.", exact: true });
     await acknowledgement.check(); await controls.getByRole("button", { name: "Save session budget", exact: true }).click();
     await expect(controls).toContainText("Session budget saved.");
     expect(fixture.session().controls.budget).toEqual({ kind: "limited", basis: "estimate", tokens: 10000 });

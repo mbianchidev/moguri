@@ -1,6 +1,7 @@
 import type { ArtifactExport, BrowserState, Connection, SkillSource } from "../../../packages/protocol/src/index.ts";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 import type { StartupContext } from "./startup-cache.ts";
+import type { RendererTrayAction } from "./tray-menu.ts";
 
 export type DesktopStartupPhase = "window" | "service" | "profile" | "preferences" | "native" | "ready" | "failed";
 export interface DesktopStartupStatus {
@@ -20,10 +21,15 @@ export interface DesktopBridge {
   startupStatus(): Promise<DesktopStartupStatus>;
   reconnectStartup(revision: number): Promise<{ requested: true }>;
   profile(profileId?: string): Promise<string>;
-  chooseProject(purpose?: "import" | "clone"): Promise<string | null>;
+  chooseProject(purpose?: "import" | "clone" | "workspace"): Promise<string | null>;
   chooseFile(projectPath: string): Promise<string | null>;
   chooseAttachment(kind: "file" | "image" | "folder" | "document"): Promise<string | null>;
   chooseVoiceModel(): Promise<string | null>;
+  /** Native file or folder picker; typed paths remain available next to every picker. */
+  choosePath(input: { kind: "file" | "folder"; title: string; extensions?: string[]; defaultPath?: string }): Promise<string | null>;
+  /** The user's home folder, used to expand `~` in typed paths. */
+  readonly homeDirectory: string;
+  loadNotificationSound(profileId: string, path: string): Promise<{ name: string; audio: string }>;
   openExternal(url: string): Promise<void>;
   projectLocation(profileId: string, projectId: string, expectedPath: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
   sessionLocation(profileId: string, sessionId: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
@@ -37,6 +43,9 @@ export interface DesktopBridge {
   previewNotificationSound(profileId: string, kind: "needs-input" | "completed", soundId: string): Promise<{ requested: boolean }>;
   onNotificationAudio(listener: (profileId: string, audio: string) => void): () => void;
   onNavigateInbox(listener: (attentionId: string, profileId: string) => void): () => void;
+  onNavigateSuggestions(listener: (profileId: string) => void): () => void;
+  onTrayAction(listener: (action: RendererTrayAction, profileId: string) => void): () => void;
+  takeTrayAction(): Promise<{ action: RendererTrayAction; profileId: string } | null>;
   onNativeError(listener: (profileId: string, message: string) => void): () => void;
   applyApplicationPreferences(): Promise<{ menuBar: boolean; suppressed: boolean }>;
   cliInstallation(input: CliInstallationRequest): Promise<CliInstallationStatus>;

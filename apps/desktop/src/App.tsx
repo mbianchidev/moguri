@@ -4,6 +4,7 @@ import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.t
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import type { DesktopStartupStatus } from "./bridge.d.ts";
+import type { RendererTrayAction } from "./tray-menu.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
@@ -31,6 +32,7 @@ import type { CommandClientAttachment, CommandExecution, CommandViewContext, Com
 import { Queue } from "./QueuedPrompts.tsx";
 import { usePanelBadges } from "./PanelBadges.ts";
 import { RepositoryProposal } from "./RepositoryProposal.tsx";
+import { InstallerPreference } from "./InstallerPreference.tsx";
 import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigation.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProjectFolderActions, type ProjectFolderAction } from "./PanelFailure.tsx";
@@ -157,7 +159,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const [panelTooltip, setPanelTooltip] = useState<{ panel: Panel; top: number } | null>(null);
   const [palette, setPalette] = useState(false);
-  const [startOpen, setStartOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false), [startMode, setStartMode] = useState<"choose" | "import">("choose");
   const [navOpen, setNavOpen] = useState(false);
   const [notice, updateNotice] = useState<{ text: string; info: boolean } | null>(null);
   const setNotice = useCallback((text: string | null, info = false) => updateNotice(text ? { text, info } : null), []);
@@ -413,6 +415,31 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       } else openInbox(id);
     })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The exact notification profile/item could not be opened."));
   }), [client.profileId, openProfile]);
+  const trayAction = useRef<(action: RendererTrayAction, profileId: string) => void>(() => {});
+  trayAction.current = (action, profileId) => {
+    if (profileId !== client.profileId) { setNotice("That menu-bar action belongs to another profile. Switch to it first; nothing was changed."); return; }
+    if (action.kind === "new-chat") void run(() => startSession(null));
+    else if (action.kind === "new-session") {
+      if (!snapshot?.projects.some((project) => project.id === action.projectId)) setNotice("That project is no longer available. No session was created.");
+      else void run(() => startSession(action.projectId));
+    } else if (action.kind === "new-project") { if (canNavigate()) { setStartMode("import"); setStartOpen(true); } }
+    else setSessionActionRequest({ sessionId: action.sessionId, action: "archive", nonce: ++sessionActionRequestNonce.current });
+  };
+  useEffect(() => {
+    const off = window.moguri.onTrayAction((action, profileId) => trayAction.current(action, profileId));
+    void window.moguri.takeTrayAction().then((pending) => { if (pending) trayAction.current(pending.action, pending.profileId); })
+      .catch((error: unknown) => console.error("Pending menu-bar action could not be read:", error instanceof Error ? error.message : "tray"));
+    return off;
+  }, []);
+  useEffect(() => window.moguri.onNavigateSuggestions((profileId) => {
+    void (async () => {
+      if (profileId === client.profileId && !canNavigate()) return;
+      const target = profileId === client.profileId ? client : await openProfile(profileId);
+      if (!target || target.profileId !== profileId) return;
+      if (target === client) openGlobal("Suggestions", null);
+      else { setGlobalSessionId(null); setGlobalView("Suggestions"); }
+    })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Suggestions could not be opened for that profile."));
+  }), [client.profileId, openProfile]);
   useEffect(() => window.moguri.onNavigateInbox((id, profileId) => {
     void (async () => {
       if (profileId === client.profileId && !canNavigate()) return;
@@ -639,7 +666,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   }, [client, status]);
   useEffect(() => { commandAttachment.current?.wake(); }, [selectedId, settingsTab, settingsUnsaved, panelDirty, profilePending, nativeModal, terminalDismiss, startOpen, palette]);
   const closeStart = () => { setStartOpen(false); document.querySelector<HTMLButtonElement>(".start-trigger")?.focus(); };
-  const openStart = () => { if (canNavigate()) setStartOpen(true); };
+  const openStart = () => { if (canNavigate()) { setStartMode("choose"); setStartOpen(true); } };
   const startSession = async (projectId: string | null) => {
     if (!canNavigate()) throw new Error("Save existing edits before starting a new chat.");
     if (!await confirmTerminalNavigation()) return;
@@ -673,6 +700,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     {pendingQuestion && <QuestionCard key={pendingQuestion.id} sdk={client} question={pendingQuestion} onDirty={questionDirtyChanged} decisionPending={decisionReview?.source.kind === "question" && decisionReview.source.questionId === pendingQuestion.id} />}
     {session.kind === "metachat" && <ConfigurationProposals sdk={client} snapshot={snapshot} session={session} modal={setNativeModal} />}
     <RepositoryProposal key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
+    <InstallerPreference key={`installer:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     {session.pendingApproval && <section className="approval" aria-label="Tool approval"><div className="approval-body">
       <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
       {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
@@ -689,6 +717,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   </> : null;
   const presentationModels = status === "connected" && snapshot && isModelDiscoveryPending(snapshot.provider) &&
     cachedModels.profileId === client.profileId && cachedModels.storeId === client.connection.storeId ? cachedModels.models : [];
+  const pendingSuggestions = snapshot?.proposals.filter((proposal) => proposal.status === "pending" && proposal.actor === "model").length ?? 0;
   const inboxUnread = Boolean(snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged));
   return <StartupModelContext.Provider value={presentationModels}><PolicyNavigationContext.Provider value={openPolicy}><ProjectFolderActions.Provider value={requestProjectAction}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
     data-profile-id={client.profileId} data-session-id={selectedId ?? ""} data-side-session-id={sideSessionId ?? ""}
@@ -702,7 +731,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-heading"><span>Workspace</span></div>
       <button className="new-session start-trigger" aria-label="New" onClick={openStart} disabled={busy || !snapshot}><Icon name="Plus" />New</button>
       <div className="nav-scroll">
-      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-label={globalLabel(view)} aria-description={view === "Attention" && inboxUnread ? "Unread notifications" : undefined} aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{globalLabel(view)}{view === "Attention" && inboxUnread && <span className="attention-unread-dot" aria-hidden="true" />}</button>)}</nav>
+      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-label={globalLabel(view)} aria-description={view === "Attention" && inboxUnread ? "Unread notifications" : view === "Suggestions" && pendingSuggestions ? `${pendingSuggestions} suggested improvement${pendingSuggestions === 1 ? "" : "s"} to review` : undefined} aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{globalLabel(view)}{(view === "Attention" && inboxUnread || view === "Suggestions" && pendingSuggestions > 0) && <span className="attention-unread-dot" aria-hidden="true" />}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startChat={() => startSession(null)} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
         setupSandbox={() => openSettings("sendbox")}
@@ -780,7 +809,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         await client.commands.choose(owned.context.clientId, owned.context.claim, choice);
         owned.settle({ outcome: "completed" });
       } : undefined} />}
-    {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} /></Suspense>}
+    {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog key={startMode} initialMode={startMode} sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} openRepositories={() => openSettings("repositories", undefined, closeStart)} /></Suspense>}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
       { name: "Connect GitHub Copilot", action: async () => openSettings("providers") },

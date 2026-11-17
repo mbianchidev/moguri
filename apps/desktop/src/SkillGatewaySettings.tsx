@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { PathField, localPath } from "./PathField.tsx";
 import type { GatewaySkill, MoguriSdk, SkillSource } from "../../../packages/sdk/src/index.ts";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 
-export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled, onDirty }: {
-  sdk: MoguriSdk; value: SkillSource[]; change: (sources: SkillSource[]) => void; save: () => void;
+/** Source list changes (add, enable, remove, confirmed global folder) save immediately through `change`; only the new-source fields are typed before Add. */
+export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDirty }: {
+  sdk: MoguriSdk; value: SkillSource[]; change: (sources: SkillSource[]) => void;
   dirty: boolean; disabled: boolean; onDirty: (dirty: boolean) => void;
 }) {
   const [kind, setKind] = useState<"local" | "remote">("local"), [name, setName] = useState(""), [location, setLocation] = useState("");
@@ -23,7 +25,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
   useEffect(() => {
     let active = true; setGlobalError(""); setGlobalSources(null);
     void window.moguri.globalSkillSources(sdk.profileId).then((sources) => { if (active) setGlobalSources({ sdk, sources }); })
-      .catch((error: unknown) => { if (active) setGlobalError(error instanceof Error ? error.message : "Global folder presets are unavailable. No directory was scanned."); });
+      .catch((error: unknown) => { if (active) setGlobalError(error instanceof Error ? error.message : "Couldn't load the global skill folders."); });
     return () => { active = false; };
   }, [sdk, globalRevision]);
   useEffect(() => () => { generation.current++; request.current?.abort(); }, []);
@@ -33,7 +35,7 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
     const token = ++generation.current, captured = scope, abort = new AbortController(); request.current = abort;
     const current = () => generation.current === token && currentScope.current === captured;
     try { await operation(current, abort.signal); }
-    catch (error) { if (current()) { setResult(null); setError(error instanceof Error ? error.message : "Skill sources could not be refreshed. No stale result was returned."); } }
+    catch (error) { if (current()) { setResult(null); setError(error instanceof Error ? error.message : "Couldn't refresh skill sources."); } }
     finally { if (request.current === abort) request.current = null; pending.current = false; setBusy(false); }
   };
   const find = (offset = 0) => run(async (current, signal) => {
@@ -45,10 +47,10 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
     if (current()) setBody(`${loaded.authority}\n\n${loaded.body}`);
   });
   return <section className="skill-gateway-settings" aria-label="Skill gateway settings">
-    <SettingsHelp label="About the skill gateway" target={<h2>Skill gateway</h2>}>Point Moguri at a local skill folder, a public GitHub repository, or a direct HTTPS ZIP archive. Each search and read refreshes and validates the source. No scripts run, no skills are silently installed, and skill text cannot grant permissions. Sources belong only to this profile and currently use the Local control plane.</SettingsHelp>
+    <SettingsHelp label="About the skill gateway" target={<h3>Skill gateway</h3>}>Add skills from a local folder, a public GitHub repository or an HTTPS ZIP. Searching and reading never runs scripts, installs skills or grants permissions.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
-    <h3>Global skill folders</h3>
-    <p className="fine-print">Use either folder or both. Confirming a folder creates it if missing; Save before discovery. A missing folder offers no skills and never blocks the others.</p>
+    <h4>Global skill folders</h4>
+    <p className="fine-print">Turn on either folder or both; Moguri creates a folder if it's missing.</p>
     {globalError && <div className="alert-recovery"><Alert as="p" role="alert">{globalError}</Alert><button type="button" onClick={() => setGlobalRevision((value) => value + 1)}>Retry global folders</button></div>}
     {globalSources?.sdk === sdk && globalSources.sources.map((source) => {
       const existing = value.find((entry) => entry.kind === "local" && entry.path === source.path);
@@ -67,33 +69,35 @@ export function SkillGatewaySettings({ sdk, value, change, save, dirty, disabled
         onClick={() => change(value.filter((entry) => entry.id !== source.id))}><Icon name="Trash" /></button>
     </article>)}
     <div className="skill-source-editor">
-      <label className="setting-field">Source type<select aria-label="Skill source type" value={kind} disabled={disabled || busy} onChange={(event) => setKind(event.target.value === "remote" ? "remote" : "local")}><option value="local">Local folder</option><option value="remote">GitHub repository / HTTPS ZIP</option></select></label>
+      <label className="setting-field">Source type<select aria-label="Skill source type" value={kind} disabled={disabled || busy} onChange={(event) => setKind(event.target.value === "remote" ? "remote" : "local")}><option value="local">Local folder</option><option value="remote">GitHub repository or HTTPS ZIP</option></select></label>
       <label className="setting-field">Name<SettingsInput aria-label="Skill source name" value={name} maxLength={80} disabled={disabled || busy} onChange={(event) => setName(event.target.value)} /></label>
-      <label className="setting-field">{kind === "local" ? "Folder" : "Repository or ZIP URL"}<SettingsInput aria-label="Skill source location" value={location} type={kind === "remote" ? "url" : "text"} disabled={disabled || busy}
-        placeholder={kind === "local" ? "/absolute/path/to/skills" : "https://github.com/owner/skills"} onChange={(event) => setLocation(event.target.value)} /></label>
+      {kind === "local" ? <PathField label="Folder" ariaLabel="Skill source location" value={location} kind="folder" title="Choose a skills folder" chooseAriaLabel="Choose skills folder"
+        disabled={disabled || busy} placeholder="/path/to/skills or ~/skills" onChange={setLocation} /> :
+        <label className="setting-field">Repository or ZIP URL<SettingsInput aria-label="Skill source location" value={location} type="url" disabled={disabled || busy}
+          placeholder="https://github.com/owner/skills" onChange={(event) => setLocation(event.target.value)} /></label>}
       <div className="button-row"><button type="button" disabled={disabled || busy || !name.trim() || !location.trim() || value.length >= 16} onClick={() => {
         change([...value, { id: crypto.randomUUID(), name: name.trim(), enabled: true,
-          ...(kind === "local" ? { kind: "local" as const, path: location } : { kind: "remote" as const, url: location }) }]);
+          ...(kind === "local" ? { kind: "local" as const, path: localPath(location) } : { kind: "remote" as const, url: location }) }]);
         setName(""); setLocation("");
-      }}>Add source</button><button type="button" className="primary" aria-label="Save skill sources" disabled={disabled || busy || !dirty} onClick={save}>Save</button>
+      }}>Add source</button>
       {draft && <button type="button" className="quiet" onClick={() => { setName(""); setLocation(""); }}>Cancel new source</button>}</div>
     </div>
-    <SettingsHelp label="About skill discovery" target={<h3>Find skills</h3>}>Only saved, enabled sources are read. All downloads are checked again when a selected skill is opened; a changed body needs a fresh search. Preview is not permission to run instructions or to access a different execution host.</SettingsHelp>
-    <label className="setting-field">Source<select aria-label="Search skill source" value={sourceId} disabled={busy} onChange={(event) => { setSourceId(event.target.value); setResult(null); setBody(""); }}><option value="">All enabled sources and skills</option>{value.filter((source) => source.enabled).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
+    <SettingsHelp label="About skill discovery" target={<h4>Find skills</h4>}>Searches your enabled sources. Reading a skill only shows its text; if it changed since the search, search again.</SettingsHelp>
+    <label className="setting-field">Source<select aria-label="Search skill source" value={sourceId} disabled={busy} onChange={(event) => { setSourceId(event.target.value); setResult(null); setBody(""); }}><option value="">All enabled sources</option>{value.filter((source) => source.enabled).map((source) => <option key={source.id} value={source.id}>{source.name}</option>)}</select></label>
     <label className="setting-field">Search<SettingsInput aria-label="Find skills" value={query} maxLength={200} disabled={busy} onChange={(event) => { setQuery(event.target.value); setResult(null); setBody(""); }} onKeyDown={(event) => { if (event.key === "Enter" && !busy && !disabled && !dirty) { event.preventDefault(); void find(); } }} /></label>
     <button type="button" disabled={disabled || busy || dirty} onClick={() => void find()}>Find skills</button>
-    {dirty && <p className="fine-print">Save source changes before discovery.</p>}{busy && <><p role="status">Refreshing and validating skill sources...</p><button type="button" onClick={() => request.current?.abort(new Error("Skill lookup cancelled. No content was applied."))}>Cancel lookup</button></>}
-    {result && <><p className="fine-print">{result.total} matching skills. This search used fresh source bytes.</p>{result.skills.map((skill) => <article className="skill-result" key={skill.id}><div><strong>{skill.name}</strong><p>{skill.description}</p><small>{skill.sourceName}{skill.path ? ` / ${skill.path}` : ""}</small></div><button type="button" disabled={busy} onClick={() => void read(skill)}>Read skill</button></article>)}
+    {dirty && <p className="fine-print" role="status">{disabled ? "Saving source changes..." : "The last source change was not saved. Change a source to retry or reload settings to discard it."}</p>}{busy && <><p role="status">Checking skill sources...</p><button type="button" onClick={() => request.current?.abort(new Error("Skill lookup cancelled. No content was applied."))}>Cancel lookup</button></>}
+    {result && <><p className="fine-print">{result.total} matching skills</p>{result.skills.map((skill) => <article className="skill-result" key={skill.id}><div><strong>{skill.name}</strong><p>{skill.description}</p><small>{skill.sourceName}{skill.path ? ` / ${skill.path}` : ""}</small></div><button type="button" disabled={busy} onClick={() => void read(skill)}>Read skill</button></article>)}
       {result.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void find(result.nextOffset!)}>Next skills</button>}</>}
-    {body && <details className="settings-result" open><summary>Checked skill content</summary><pre>{body}</pre></details>}
+    {body && <details className="settings-result" open><summary>Skill content</summary><pre>{body}</pre></details>}
     {globalReview && <GlobalSkillConfirmation source={globalReview.source} close={() => {
       const trigger = globalReview.trigger; setGlobalReview(null); queueMicrotask(() => { if (trigger.isConnected) trigger.focus(); });
     }} confirm={async () => {
       const review = globalReview;
-      if (sdk !== review.sdk || currentScope.current !== review.scope) { setError("The original skill settings changed. Review the current folder before enabling it."); setGlobalReview(null); return; }
+      if (sdk !== review.sdk || currentScope.current !== review.scope) { setError("Skill settings changed in the meantime. Check the folder again before turning it on."); setGlobalReview(null); return; }
       try { await window.moguri.createGlobalSkillFolder(review.sdk.profileId, review.source.id); }
       catch (error) { setError(`${review.source.path} could not be created: ${error instanceof Error ? error.message : "unknown error"}. The folder was not enabled.`); setGlobalReview(null); return; }
-      if (sdk !== review.sdk || currentScope.current !== review.scope) { setError("The original skill settings changed. Review the current folder before enabling it."); setGlobalReview(null); return; }
+      if (sdk !== review.sdk || currentScope.current !== review.scope) { setError("Skill settings changed in the meantime. Check the folder again before turning it on."); setGlobalReview(null); return; }
       const existing = value.find((source) => source.kind === "local" && source.path === review.source.path);
       change(existing ? value.map((source) => source.id === existing.id ? { ...source, enabled: true } : source) :
         [...value, { ...review.source, id: crypto.randomUUID(), enabled: true }]);
@@ -106,8 +110,8 @@ function GlobalSkillConfirmation({ source, close, confirm }: { source: Extract<S
   const ref = useRef<HTMLDialogElement>(null), [pending, setPending] = useState(false);
   useEffect(() => { ref.current?.showModal(); }, []);
   return <dialog ref={ref} className="workspace-dialog" aria-label="Confirm global skill folder" onClose={close}>
-    <h2>Use this global skill folder?</h2><p>After Save, enabled skill discovery will read this exact Local folder for this profile:</p>
-    <p className="path">{source.path}</p><p>Moguri creates the folder if it doesn't exist. No folder is scanned now. Adding it does not install skills, run instructions or grant model/tool permissions.</p>
+    <h2>Use this global skill folder?</h2><p>Moguri will look for skills in this folder for this profile:</p>
+    <p className="path">{source.path}</p><p>Moguri creates it if it doesn't exist. Adding it doesn't install skills, run anything or grant permissions.</p>
     <div className="button-row"><button type="button" disabled={pending} onClick={close}>Cancel</button><button type="button" className="primary" disabled={pending}
       onClick={() => { setPending(true); void confirm().finally(() => setPending(false)); }}>Use this folder</button></div>
   </dialog>;

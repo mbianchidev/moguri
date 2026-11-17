@@ -20,7 +20,7 @@ test("retained native data is not readiness; desktop source publication needs ex
     await openSettingsSection(page, "Sandbox");
     await page.getByLabel("Settings source chat", { exact: true }).selectOption(fixture.sessionId);
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
-    await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
+    await panel.getByText("Advanced: prepare from chosen files", { exact: true }).click();
     await expect(panel.getByRole("button", { name: "Use for session: reviewed Sandbox", exact: true })).toBeDisabled();
     await panel.getByRole("button", { name: "Inspect retained result", exact: true }).click();
     await panel.getByText(`fixture.txt / ${fixture.result.files[0]!.bytes} bytes`, { exact: true }).click();
@@ -31,7 +31,7 @@ test("retained native data is not readiness; desktop source publication needs ex
     const publish = review.getByRole("button", { name: "Publish reviewed native files", exact: true });
     await expect(publish).toBeDisabled();
     expect(await readFile(join(fixture.root, "fixture.txt"), "utf8")).toBe("generated original\n");
-    const acceptance = review.getByLabel("I reviewed these exact source bases and output bytes.", { exact: false });
+    const acceptance = review.getByLabel("I reviewed these changes and want them copied into my files.", { exact: false });
     await acceptance.focus(); await page.keyboard.press("Space"); await expect(publish).toBeEnabled();
     await publish.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().sandboxPublications?.[0]?.status).toBe("completed");
@@ -75,7 +75,7 @@ test("group result publication has no first repository and changing its explicit
     await expect(review).toContainText(second.root.root);
     const publish = review.getByRole("button", { name: "Publish reviewed native files", exact: true });
     await expect(publish).toBeDisabled();
-    await review.getByLabel("I reviewed these exact source bases and output bytes.", { exact: false }).check(); await publish.click();
+    await review.getByLabel("I reviewed these changes and want them copied into my files.", { exact: false }).check(); await publish.click();
     await expect.poll(() => fixture.service.controller.snapshot().sandboxPublications?.[0]?.status).toBe("completed");
     expect(await readFile(join(first.root.root, "fixture.txt"), "utf8")).toBe("generated original\n");
     expect(await readFile(join(second.root.root, "fixture.txt"), "utf8")).toBe(fixture.result.files[1]!.text);
@@ -102,7 +102,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await page.getByText("Advanced manual configuration", { exact: true }).click();
     await page.getByLabel("SendBox configuration", { exact: true }).fill(JSON.stringify(fixture.reviewedConfiguration));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
-    const review = page.getByLabel("I reviewed these committed native artifacts", { exact: false });
+    const review = page.getByLabel("I reviewed the saved SendBox artifacts", { exact: false });
     await expect(review).toBeEnabled(); await review.check();
     await page.getByRole("button", { name: "Verify reviewed Sandbox", exact: true }).click();
     await expect(panel.getByRole("status").filter({ hasText: `Verified pinned SendBox ${configuration.qualification!.release}` })).toBeVisible();
@@ -115,16 +115,16 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("generated native write");
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: /^Review a private native workspace before starting a turn/ }).click();
-    await panel.getByText("Advanced exact-file workspace preparation", { exact: true }).click();
+    await panel.getByText("Advanced: prepare from chosen files", { exact: true }).click();
     await panel.getByLabel("Native source paths", { exact: true }).fill("fixture.txt");
     await panel.getByRole("button", { name: "Preview native source", exact: true }).click();
     const source = panel.getByRole("region", { name: "Exact native source review", exact: true });
     await source.getByText(`fixture.txt / ${Buffer.byteLength("generated source original\n")} bytes`, { exact: true }).click();
     await expect(source.getByText("generated source original", { exact: true })).toBeVisible();
-    await source.getByLabel("I reviewed this exact file set and its contents.", { exact: true }).check();
+    await source.getByLabel("I reviewed these files and their contents.", { exact: true }).check();
     await source.getByRole("button", { name: "Prepare reviewed native stage", exact: true }).click();
     await expect.poll(() => session().sandboxWorkspaceId).toBeTruthy();
-    await expect(panel.getByRole("status").filter({ hasText: "Reviewed private stage prepared." })).toBeVisible();
+    await expect(panel.getByRole("status").filter({ hasText: "Workspace prepared." })).toBeVisible();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await expect(prompt).toHaveValue("generated native write");
     await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -140,7 +140,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     await panel.getByLabel("Select native output fixture.txt", { exact: true }).check();
     await panel.getByRole("button", { name: "Review publication of selected source", exact: true }).click();
     const publication = panel.getByRole("region", { name: "Exact native source publication", exact: true });
-    await publication.getByLabel("I reviewed these exact source bases and output bytes.", { exact: false }).check();
+    await publication.getByLabel("I reviewed these changes and want them copied into my files.", { exact: false }).check();
     await publication.getByRole("button", { name: "Publish reviewed native files", exact: true }).click();
     await expect.poll(() => service.controller.snapshot().sandboxPublications?.[0]?.status).toBe("completed");
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated native replacement\n");

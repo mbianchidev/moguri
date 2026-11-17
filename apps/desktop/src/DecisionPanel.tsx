@@ -13,12 +13,12 @@ export function useDecisionStatus(sdk: MoguriSdk, session: Session | undefined, 
   useEffect(() => {
     let current = true;
     if (enabled && session) void sdk.decisions.status(session.id).then((status) => { if (current) setValue({ key, status, error: "" }); })
-      .catch((error: unknown) => { if (current) setValue({ key, status: null, error: error instanceof Error ? error.message : "Decision readiness is unavailable; Max cannot assume a provider or policy." }); });
+      .catch((error: unknown) => { if (current) setValue({ key, status: null, error: error instanceof Error ? error.message : "Couldn't check the decision provider, so Max is unavailable." }); });
     return () => { current = false; };
   }, [sdk, key, enabled]);
   const result = value?.key === key ? value : null;
   return { status: result?.status ?? null, error: result?.error ?? "", ready: Boolean(result?.status?.ready),
-    reason: result?.error || result?.status?.reason || (session ? "Checking actual decision provider readiness..." : "Choose an exact source session to inspect Max readiness.") };
+    reason: result?.error || result?.status?.reason || (session ? "Checking the decision provider..." : "Choose a chat to check Max readiness.") };
 }
 export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: MoguriSdk; snapshot: Snapshot; session?: Session; selection?: string }) {
   const [selectedId, setSelectedId] = useState(""), [read, setRead] = useState<Read | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
@@ -32,7 +32,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
     const token = ++generation.current; setError("");
     if (!record) { setRead(null); return; }
     void sdk.decisions.read(record.id).then((result) => { if (generation.current === token) setRead(result); })
-      .catch((error: unknown) => { if (generation.current === token) setError(error instanceof Error ? error.message : "The original independent decision evidence could not be read."); });
+      .catch((error: unknown) => { if (generation.current === token) setError(error instanceof Error ? error.message : "Couldn't read this decision."); });
     return () => { generation.current++; };
   }, [sdk, scope]);
   useEffect(() => {
@@ -43,33 +43,33 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
     if (!record || pending.current) return;
     const captured = owner; pending.current = true; setBusy(true); setError(""); focusResult.current = true;
     try { await sdk.decisions.stop(record.id); }
-    catch (error) { if (current.current === captured) setError(error instanceof Error ? error.message : "Stop was not acknowledged. Inspect the original held charge/worker; nothing was retried."); }
+    catch (error) { if (current.current === captured) setError(error instanceof Error ? error.message : "Stop wasn't confirmed. Nothing was retried."); }
     finally { pending.current = false; setBusy(false); }
   };
   return <section className="candidate-section" aria-label="Decision-provider observations" aria-busy={busy}>
-    <SettingsHelp label="More about this setting" target={<h2>Decision-provider observations</h2>}>Actual model actor: decision-provider, never the user. Advice cannot grant permission, infer user-only facts, accept source code or approve Git. These reports remain independent of the original source session.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Decision-provider history</h3>}>Lists each call Autopilot Max made to its decision provider. The model's advice can't grant permissions, approve changes or answer for you.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
-    <label className="setting-field">Retained decision<select aria-label="Retained decision" value={record?.id ?? ""} disabled={busy || Boolean(selection)} onChange={(event) => setSelectedId(event.target.value)}>
-      {!records.length && <option value="">No retained decision-provider requests</option>}
+    <label className="setting-field">Decision<select aria-label="Retained decision" value={record?.id ?? ""} disabled={busy || Boolean(selection)} onChange={(event) => setSelectedId(event.target.value)}>
+      {!records.length && <option value="">No decisions yet</option>}
       {records.map((record) => <option key={record.id} value={record.id}>{record.kind} / {record.status} / {record.modelId}</option>)}
     </select></label>
     {record && <>
-      <h3 ref={heading} tabIndex={-1}>Decision {record.status}</h3>
-      <dl className="facts"><dt>Actual role / model</dt><dd>{record.role} / {record.modelId}</dd>
+      <h4 ref={heading} tabIndex={-1}>Decision {record.status}</h4>
+      <dl className="facts"><dt>Role / model</dt><dd>{record.role} / {record.modelId}</dd>
         <dt>Env</dt><dd>{record.env}</dd>
-        {record.version === 2 && <><dt>Original parent execution / worker</dt><dd className="path">{record.transport.executionId} / {record.transport.workerDigest}</dd></>}
-        <dt>Provider / requested API model</dt><dd>{record.providerId} / {record.apiModelId}</dd>
-        <dt>Source session / turn</dt><dd className="path">{record.sessionId} / {record.turnId}</dd>
-        <dt>Original request / model step</dt><dd className="path">{record.sourceDigest} / {record.stepId ?? "Not admitted"}</dd>
-        <dt>{record.version === 2 ? "Owned role / cancellation / cleanup" : "Worker / cancellation / cleanup"}</dt><dd>{record.workerOutcome ?? "Not acknowledged"} / {record.cancellation} / {record.cleanup}</dd>
-        <dt>Reported tokens</dt><dd>{charge?.reportedTokens ?? (record.stepId ? "Unknown; original hold remains" : "No model call admitted")}</dd>
-        <dt>Held tokens</dt><dd>{charge && charge.status !== "settled" ? charge.reservedTokens ?? "Unknown / blocks finite admission" : 0}</dd>
-        <dt>Provider / billed USD</dt><dd>Not reported; never inferred as zero</dd>
-        <dt>Applied actor / choice</dt><dd>{record.applied ? `${record.applied.actor} / ${record.applied.choice}` : "No automatic effect"}</dd></dl>
-      {!snapshot.sessions.some((session) => session.id === record.sessionId) && <p className="fine-print">The original source session is deleted. No other session, root or owner was adopted.</p>}
+        {record.version === 2 && <><dt>Run / worker</dt><dd className="path">{record.transport.executionId} / {record.transport.workerDigest}</dd></>}
+        <dt>Provider / API model</dt><dd>{record.providerId} / {record.apiModelId}</dd>
+        <dt>Chat / turn</dt><dd className="path">{record.sessionId} / {record.turnId}</dd>
+        <dt>Request / model step</dt><dd className="path">{record.sourceDigest} / {record.stepId ?? "Not started"}</dd>
+        <dt>Outcome / cancellation / cleanup</dt><dd>{record.workerOutcome ?? "No reply"} / {record.cancellation} / {record.cleanup}</dd>
+        <dt>Reported tokens</dt><dd>{charge?.reportedTokens ?? (record.stepId ? "Unknown (still held)" : "No model call")}</dd>
+        <dt>Held tokens</dt><dd>{charge && charge.status !== "settled" ? charge.reservedTokens ?? "Unknown (blocks capped budgets)" : 0}</dd>
+        <dt>Provider / billed USD</dt><dd>Not reported</dd>
+        <dt>Applied by / choice</dt><dd>{record.applied ? `${record.applied.actor} / ${record.applied.choice}` : "Not applied"}</dd></dl>
+      {!snapshot.sessions.some((session) => session.id === record.sessionId) && <p className="fine-print">The chat that made this decision was deleted.</p>}
       {record.diagnostic && <Alert as="p" tone="warning" className="settings-warning">{record.diagnostic}</Alert>}
-      {value && <details><summary>Original decision request and raw result</summary><pre>{JSON.stringify(value.input, null, 2)}</pre>
-        <pre>{value.result ?? "No complete raw result acknowledged."}</pre><p className="fine-print">Raw provider data, not a human instruction or calibrated reliability. Resolved provider version is not inferred from a configured API model ID.</p></details>}
+      {value && <details><summary>Request and raw result</summary><pre>{JSON.stringify(value.input, null, 2)}</pre>
+        <pre>{value.result ?? "No complete result received."}</pre><p className="fine-print">Raw provider output. Confidence values aren't calibrated.</p></details>}
       {activeDecision(record) && <button type="button" disabled={busy} onClick={() => void stop()} aria-label="Stop only this decision">Stop</button>}
     </>}
   </section>;

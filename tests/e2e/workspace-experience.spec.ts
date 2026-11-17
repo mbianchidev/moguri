@@ -70,11 +70,11 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
     await categories.getByRole("button", { name: "Appearance", exact: true }).click();
     const info = page.getByRole("button", { name: "About appearance", exact: true });
     await focusByKeyboard(info);
-    await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    await expect(page.getByRole("tooltip")).toContainText("default theme");
     const description = await info.getAttribute("aria-describedby");
     await expect(page.getByRole("tooltip")).toHaveAttribute("id", description!);
     await page.getByRole("heading", { name: "Settings", exact: true }).hover();
-    await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    await expect(page.getByRole("tooltip")).toContainText("default theme");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(info).toBeFocused();
@@ -116,10 +116,10 @@ test("clicked icon tooltips leave with the pointer without stealing focus or bre
     const categories = page.getByRole("navigation", { name: "Settings categories" });
     await categories.getByRole("button", { name: "Appearance", exact: true }).click();
     const info = page.getByRole("button", { name: "About appearance", exact: true });
-    await info.click(); await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    await info.click(); await expect(page.getByRole("tooltip")).toContainText("default theme");
     await expect(info).toBeFocused();
     await page.getByRole("tooltip").hover();
-    await expect(page.getByRole("tooltip")).toContainText("factory theme");
+    await expect(page.getByRole("tooltip")).toContainText("default theme");
     await outside.hover(); await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(info).toBeFocused(); await expect(info).not.toHaveAttribute("aria-describedby");
     await outside.click(); await info.focus();
@@ -183,7 +183,6 @@ test("small real cost estimates remain graphically visible and saved skill folde
     await gateway.getByLabel("Skill source name", { exact: true }).fill("Generated desktop skills");
     await gateway.getByLabel("Skill source location", { exact: true }).fill(root);
     await gateway.getByRole("button", { name: "Add source", exact: true }).click();
-    await gateway.getByRole("button", { name: "Save skill sources", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.skillSources?.length).toBe(1);
     expect(fixture.service.controller.snapshot().settings.values.skillSources![0]).toMatchObject({ kind: "local", path: root });
     await gateway.getByRole("button", { name: "Find skills", exact: true }).click();

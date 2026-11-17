@@ -35,19 +35,19 @@ export function WebAllowlistPanel({ sdk, snapshot, session, project, disabled, o
   };
   return <section aria-label="Local website allowlist">
     <SettingsHelp label="About the Local website allowlist" target={<h3>Local website allowlist</h3>} descriptionFirst>
-      Matching session, project and global entries add together within this profile. Exact hostnames allow default-port HTTPS; an exact origin also retains its scheme and port. No wildcards. Unlisted sites ask in Manual/Guided; explicit Autopilot/Max remains automatic. This filters Moguri web and Agent-browser requests, not approved Local shell scripts. Remote does not inherit these entries; Sandbox keeps its enforced firewall.
+      Local web and browser tools open these sites without asking. A hostname allows HTTPS on the default port; enter a full origin for another scheme or port. No wildcards.
     </SettingsHelp>
     <form onSubmit={(event) => {
       event.preventDefault();
-      if (!validScope) { setError("The original scope was removed. Choose an exact remaining scope before saving."); return; }
+      if (!validScope) { setError("That scope no longer exists. Choose another scope before saving."); return; }
       const scope: WebScope = scopeKey.startsWith("session:") ? { kind: "session", sessionId: scopeKey.slice(8) } :
         scopeKey.startsWith("project:") ? { kind: "project", projectId: scopeKey.slice(8) } : { kind: "global" };
-      void run(() => sdk.webAllowlist.add(site, scope, snapshot.settings.revision), "Website allowance saved.", true);
+      void run(() => sdk.webAllowlist.add(site, scope, snapshot.settings.revision), "Website added.", true);
     }}>
       <label className="setting-field">Website<SettingsInput aria-label="Allowed website" value={site} placeholder="example.com or https://example.com:8443"
         disabled={disabled || busy} onChange={(event) => setSite(event.target.value)} /></label>
       <label className="setting-field">Scope<select aria-label="Website allowance scope" value={scopeKey} disabled={disabled || busy} onChange={(event) => setScopeKey(event.target.value)}>
-        {!validScope && <option value={scopeKey} disabled>Original source removed; choose a scope</option>}
+        {!validScope && <option value={scopeKey} disabled>Scope removed; choose another</option>}
         <optgroup label="Sessions">{snapshot.sessions.map((entry) =>
           <option value={`session:${entry.id}`} key={entry.id}>{entry.id === session?.id ? "This session" : entry.title}</option>)}</optgroup>
         <optgroup label="Projects">{snapshot.projects.map((entry) =>
@@ -56,13 +56,13 @@ export function WebAllowlistPanel({ sdk, snapshot, session, project, disabled, o
       </select></label>
       <button type="submit" disabled={disabled || busy || !site.trim() || !validScope}>Add</button>
     </form>
-    {!entries.length && <p className="fine-print">No Local websites are pre-approved.</p>}
+    {!entries.length && <p className="fine-print">No websites are allowed yet.</p>}
     {entries.map((entry) => <div className="remembered-approval" key={entry.id}>
       <div><code>{entry.site}</code><small>{describe(entry.scope)}{effective.has(entry.id) ? " / Applies here" : ""}</small></div>
       <button type="button" className="icon-button" aria-label={`Remove ${entry.site} (${describe(entry.scope)})`} title="Remove" disabled={disabled || busy}
-        onClick={() => void run(() => sdk.webAllowlist.remove(entry.id, snapshot.settings.revision), "Website allowance removed. Pending website authority was revoked.")}><Icon name="Trash" /></button>
+        onClick={() => void run(() => sdk.webAllowlist.remove(entry.id, snapshot.settings.revision), "Website removed.")}><Icon name="Trash" /></button>
     </div>)}
-    {busy && <p role="status">Saving website allowance...</p>}
+    {busy && <p role="status">Saving...</p>}
     {status && <Alert as="p" role="status">{status}</Alert>}
     {error && <Alert as="p" role="alert">{error}</Alert>}
   </section>;

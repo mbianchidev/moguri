@@ -30,10 +30,10 @@ test("desktop retains real model provenance, persists exports and keeps artifact
     await panel.getByLabel("Artifact text", { exact: true }).fill("Generated revised retained decision.");
     await panel.getByRole("button", { name: "Save artifact", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.artifacts[0]?.revision).toBe(1);
-    await panel.getByText("Retain a completed message", { exact: true }).click();
+    await panel.getByText("Save a chat message", { exact: true }).click();
     await panel.getByLabel("Artifact source message", { exact: true }).selectOption(assistant.id);
-    await panel.getByRole("button", { name: "Review exact source", exact: true }).click();
-    await expect(panel).toContainText("Retaining this does not label it as a human answer.");
+    await panel.getByRole("button", { name: "Preview message", exact: true }).click();
+    await expect(panel).toContainText("It stays labeled as model-written.");
     await panel.getByLabel("Promoted artifact name", { exact: true }).fill("Generated reviewed model answer");
     await panel.getByRole("button", { name: "Retain reviewed message", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.artifacts.length).toBe(2);
@@ -61,7 +61,7 @@ test("desktop retains real model provenance, persists exports and keeps artifact
     await expect.poll(() => sdk.getState().snapshot!.projects.length).toBe(0);
     expect((await sdk.artifacts.read(retained.id)).artifact.projectId).toBeNull();
     await panel.getByLabel("Retained artifact", { exact: true }).selectOption(retained.id);
-    await expect(panel).toContainText("Model output, not a human answer");
+    await expect(panel).toContainText("Model output");
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/retained-artifacts-desktop.png") });
     await page.setViewportSize({ width: 900, height: 740 });
@@ -118,14 +118,14 @@ test("desktop organizes actual documents and verifies a reviewed local repositor
     expect(sdk.getState().snapshot!.artifacts[0]?.folderId).toBe(folder.id);
     await mkdir(resolve(".moguri/artifacts"), { recursive: true });
     await page.screenshot({ path: resolve(".moguri/artifacts/artifact-organization-desktop.png") });
-    await panel.getByText("Repository copy of project artifacts", { exact: true }).click();
+    await panel.getByText("Copy project documents into the repository", { exact: true }).click();
     const copy = panel.getByRole("region", { name: "Repository artifact copy" });
     await copy.getByText("Also commit to a new local branch", { exact: true }).click();
     await copy.getByLabel("Artifact commit branch", { exact: true }).fill("generated/ui-artifact-copy");
     await copy.getByRole("button", { name: "Review repository copy", exact: true }).click();
     await expect(copy.getByLabel("Reviewed artifact destination", { exact: true })).toContainText("/artifacts/moguri-");
     await copy.getByRole("button", { name: "Write and commit reviewed copy", exact: true }).click();
-    await expect(copy).toContainText("Exact repository copy verified");
+    await expect(copy).toContainText("Repository copy verified");
     expect(git(["rev-parse", "HEAD"])).toBe(head);
     expect(await readFile(join(fixture.project, ".git/index"))).toEqual(index);
     expect(git(["branch", "--list", "generated/ui-artifact-copy"])).toContain("generated/ui-artifact-copy");
@@ -139,7 +139,7 @@ test("desktop organizes actual documents and verifies a reviewed local repositor
     await page.setViewportSize({ width: 900, height: 740 });
     await page.screenshot({ path: resolve(".moguri/artifacts/artifact-materialization-compact.png") });
     await removal.getByRole("button", { name: "Write reviewed repository copy", exact: true }).click();
-    await expect(removal).toContainText("Exact repository copy verified");
+    await expect(removal).toContainText("Repository copy verified");
     const publication = sdk.getState().snapshot!.jobs.findLast((job) => job.kind === "project.artifacts.materialize")!;
     const result = (await sdk.artifacts.materialization(publication.id)).result!;
     await expect(removal.getByRole("button", { name: "Delete", exact: true })).toBeEnabled();

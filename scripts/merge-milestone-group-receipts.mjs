@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { link, readFile, realpath, stat, unlink, writeFile } from "node:fs/promises";
 import { isAbsolute, resolve, sep } from "node:path";
-import { milestoneCellId, requiredMilestoneCells } from "../tests/fixtures/milestone-combinations.ts";
+import { fullMilestoneProduct, milestoneCellId } from "../tests/fixtures/milestone-combinations.ts";
 
 const [basePath, groupPath, outputPath, extra] = process.argv.slice(2);
 assert.ok(basePath && groupPath && outputPath && !extra,
@@ -11,15 +11,15 @@ assert.ok(basePath && groupPath && outputPath && !extra,
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const digest = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-const caseFile = "tests/milestone-combinations.test.ts";
+const caseFile = "tests/matrix/milestone-full-product.test.ts";
 const inputPaths = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
   "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile", "apps/service/src/native-evidence.ts",
-  caseFile, "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
+  caseFile, "tests/fixtures/milestone-runner.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
   "tests/fixture.ts", "tests/fixtures/native-milestone-api.ts", "tests/fixtures/milestone-combinations.ts",
   "tests/fixtures/milestone-response.ts", "tests/fixtures/native-milestone-provider.mjs"];
 const workspaceRoot = await realpath(".");
 const journalRoot = await realpath(".test-output/milestone-combinations");
-const expected = new Map(requiredMilestoneCells().filter((cell) => cell.env === "Sandbox").map((cell) => [milestoneCellId(cell), cell]));
+const expected = new Map(fullMilestoneProduct().filter((cell) => cell.env === "Sandbox").map((cell) => [milestoneCellId(cell), cell]));
 const groupOf = (cell) => `${cell.selection}/${cell.autonomy}`;
 const allGroups = [...new Set([...expected.values()].map(groupOf))];
 
@@ -59,10 +59,7 @@ function coreSource(source) {
   return {
     setup: source.slice(0, firstTest).replace(
       "\nconst nativeGroups = process.env.MOGURI_NATIVE_GROUPS;\nconst nativeGroupMode = nativeGroups !== undefined;", ""),
-    cell: region(source, "\nasync function runCell(", "\ntest(\"native qualification reads an oversized original signed witness"),
-    group: region(source,
-      "      const required = nativeCells.filter((cell) => groupId(cell) === group), first = required[0]!;",
-      "      completedGroups.add(group);\n    })));"),
+    native: region(source, "\ntest(nativeGroupMode", "requestedGroups: nativeGroups }));"),
   };
 }
 
@@ -132,6 +129,10 @@ function completeGroups(log, identity) {
 }
 
 const base = await document(basePath), fresh = await document(groupPath);
+for (const report of [base, fresh]) {
+  assert.equal(report.value.version, 2, "Only version-2 full-product reports can be combined; earlier reports keep their original meaning.");
+  assert.equal(report.value.method, "full-product", "Covering-array reports never stand in for full-product groups.");
+}
 assert.equal(base.value.required, 3360);
 assert.equal(base.value.nativeNominalStatus, "INCOMPLETE");
 assert.equal(base.value.nativePassed, 0, "The original interrupted report must remain unqualified.");
@@ -156,7 +157,7 @@ for (const [path, value] of Object.entries(fresh.value.identity.inputs)) {
   if (path !== caseFile) assert.equal(base.value.identity.inputs[path], value, `Native input changed between complete groups: ${path}`);
 }
 const originalCore = source(base.value.identity), currentCore = source(fresh.value.identity);
-assert.deepEqual(currentCore, originalCore, "The cell/setup/group executor changed; selective receipts cannot substitute for it.");
+assert.deepEqual(currentCore, originalCore, "The full-product setup/native case changed; selective receipts cannot substitute for it.");
 const original = await journal(base.value), selected = await journal(fresh.value);
 assert.deepEqual(selected.groups.slice().sort(), fresh.value.selectedGroups.slice().sort());
 assert.equal(original.groups.some((group) => selected.groups.includes(group)), false, "Only the missing whole groups may be combined.");
