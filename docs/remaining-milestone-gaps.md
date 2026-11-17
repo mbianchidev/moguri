@@ -142,7 +142,12 @@ loads, per-profile saved publisher keys with permanent key/version blocks, and
 generated-model AST01 qualification. The project owner signed off on
 2026-11-17 on excluding a transparency log/PKI, Local whole-descendant
 isolation, malware/semantic scanning beyond the deterministic rules and
-live-model testing; Remote skills/scripts stay unsupported. The
+live-model testing. Remote reviewed scripts stay unsupported, while Remote
+SSH sessions now load skills on demand
+([D41](architecture/decisions.md#d41-remote-skill-packages-over-ssh)): the same
+admission rules as Local, with the complete admitted package copied to a
+digest-named folder on the SSH host and its scripts run through normal command
+approval. The
 [AST category matrix](architecture/file-access.md#owasp-source-and-review-boundary)
 records controls, evidence and those exclusions. Neither change is OWASP
 certification or a claim of zero risk.

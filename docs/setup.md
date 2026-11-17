@@ -135,6 +135,15 @@ revive those old loads. Skills from a remote HTTPS archive still need the
 explicit review below, and so does a folder skill containing invisible or
 bidirectional control characters, which never loads automatically.
 
+Remote (SSH) sessions load skills the same way. The skill text goes to the
+agent, and the first use copies the skill's files to a Moguri folder on the SSH
+host (`<state>/skills/<SHA-256>/`), checked by hash and checked again before
+any command runs one of them. Bundled scripts run there only through your
+normal command approval; other scripts on the host stay blocked. If the copy
+fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
+load skills yet. See
+[Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-111).
+
 Every review and load lists deterministic indicator findings (pattern matches
 for hidden characters, download-and-run, credential paths, instructions to
 override rules and similar). They are advice, not a safety verdict. Save a

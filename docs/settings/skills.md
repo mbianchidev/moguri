@@ -8,7 +8,8 @@ this page keeps the full detail.
 - Sources can be a local skill folder, a public GitHub repository or a direct HTTPS ZIP archive.
 - Each search and each read refreshes and validates the source; a lookup error returns no stale result.
 - No scripts run, no skills are silently installed, and skill text cannot grant permissions.
-- Sources belong only to the current profile and currently use the Local control plane.
+- Sources belong only to the current profile and are read on the Local control plane, also for Remote sessions.
+- Remote (SSH) sessions load skills with the same approval rules. The first use copies the skill's files to a Moguri folder on the SSH host (`<state>/skills/<SHA-256>/`); its scripts run there only after normal command approval. Sandbox sessions can't load skills yet.
 - Contract: `docs/architecture/skills-and-rewind.md`.
 
 ## Global skill folders
