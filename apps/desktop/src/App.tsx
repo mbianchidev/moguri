@@ -414,6 +414,15 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       } else openInbox(id);
     })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "The exact notification profile/item could not be opened."));
   }), [client.profileId, openProfile]);
+  useEffect(() => window.moguri.onNavigateSuggestions((profileId) => {
+    void (async () => {
+      if (profileId === client.profileId && !canNavigate()) return;
+      const target = profileId === client.profileId ? client : await openProfile(profileId);
+      if (!target || target.profileId !== profileId) return;
+      if (target === client) openGlobal("Suggestions", null);
+      else { setGlobalSessionId(null); setGlobalView("Suggestions"); }
+    })().catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Suggestions could not be opened for that profile."));
+  }), [client.profileId, openProfile]);
   useEffect(() => window.moguri.onNavigateInbox((id, profileId) => {
     void (async () => {
       if (profileId === client.profileId && !canNavigate()) return;
@@ -691,6 +700,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   </> : null;
   const presentationModels = status === "connected" && snapshot && isModelDiscoveryPending(snapshot.provider) &&
     cachedModels.profileId === client.profileId && cachedModels.storeId === client.connection.storeId ? cachedModels.models : [];
+  const pendingSuggestions = snapshot?.proposals.filter((proposal) => proposal.status === "pending" && proposal.actor === "model").length ?? 0;
   const inboxUnread = Boolean(snapshot?.settings.values.notifications.inApp && snapshot.attention.some((entry) => entry.active && !entry.acknowledged));
   return <StartupModelContext.Provider value={presentationModels}><PolicyNavigationContext.Provider value={openPolicy}><ProjectFolderActions.Provider value={requestProjectAction}><div inert={profilePending} aria-busy={profilePending} style={shellStyle}
     data-profile-id={client.profileId} data-session-id={selectedId ?? ""} data-side-session-id={sideSessionId ?? ""}
@@ -704,7 +714,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-heading"><span>Workspace</span></div>
       <button className="new-session start-trigger" aria-label="New" onClick={openStart} disabled={busy || !snapshot}><Icon name="Plus" />New</button>
       <div className="nav-scroll">
-      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-label={globalLabel(view)} aria-description={view === "Attention" && inboxUnread ? "Unread notifications" : undefined} aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{globalLabel(view)}{view === "Attention" && inboxUnread && <span className="attention-unread-dot" aria-hidden="true" />}</button>)}</nav>
+      <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-label={globalLabel(view)} aria-description={view === "Attention" && inboxUnread ? "Unread notifications" : view === "Suggestions" && pendingSuggestions ? `${pendingSuggestions} suggested improvement${pendingSuggestions === 1 ? "" : "s"} to review` : undefined} aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{globalLabel(view)}{(view === "Attention" && inboxUnread || view === "Suggestions" && pendingSuggestions > 0) && <span className="attention-unread-dot" aria-hidden="true" />}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
       {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startChat={() => startSession(null)} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
         setupSandbox={() => openSettings("sendbox")}

@@ -1597,3 +1597,14 @@ summary:hover { color: var(--text); }
 @media (max-width: 1240px) { .analytics-main { grid-template-columns: minmax(0, 1fr); } .analytics-detail { position: static; } }
 @media (max-width: 900px) { .analytics-body { grid-template-columns: minmax(0, 1fr); } .analytics-sessions { position: static; max-height: 260px; } }
 @media (prefers-reduced-motion: reduce) { .analytics-session-title i[data-state="working"] { animation: none; } }
+
+/* Suggested skill improvements in Suggestions. */
+.capability-proposals { margin: 16px 0 24px; }
+.capability-proposals h2 { font-size: 14px; margin: 0 0 4px; }
+.capability-proposals ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.capability-proposals li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.capability-proposals li > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.capability-proposals li small { color: var(--muted); font-size: 11px; }
+.capability-proposals li button { padding: 3px 12px; min-height: 28px; font-size: 12px; }
+.capability-proposal-review { grid-column: 1 / -1; display: grid; gap: 10px; }
+.capability-proposal-review pre { max-height: 260px; margin: 0; padding: 10px; overflow: auto; border-radius: 6px; background: var(--code); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }

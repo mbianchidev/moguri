@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -48,7 +48,7 @@ import { PathField, localPath } from "./PathField.tsx";
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
-type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles";
+type AutomaticSection = "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
@@ -497,7 +497,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               <option value={draft.chatTitles.modelId} disabled>Configured naming model unavailable</option>}
             {snapshot.provider.models.filter((model) => !model.synthetic && !isAgentHarnessModel(model)).map((model) => <option key={model.id} value={model.id}>{model.name} / {model.environments?.join(", ")}</option>)}
           </select></label>
-          <p className="fine-print">After the first reply, Moguri makes one billed model call with your first prompt to name the chat. Names you set yourself are kept.</p>
+          <label className="check-setting"><SettingsInput type="checkbox" role="switch" checked={draft.chatTitles?.enabled !== false && draft.chatTitles?.refresh !== false}
+            disabled={saving || draft.chatTitles?.enabled === false} onChange={(event) =>
+            automatic("chatTitles", { refresh: event.target.checked }, false, { enabled: true, modelId: null })} />Rename the chat when the topic changes</label>
+          <p className="fine-print">After the first reply, Moguri makes one billed model call with your first prompt to name the chat. When a later request clearly changes topic, it may rename it, up to three times. Names you set yourself are kept.</p>
         </>}
         {tab === "accessibility" && <><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a shortcut or type one, then Save. Shortcuts that clash with editing or system keys are rejected; enter none to turn an optional shortcut off.</SettingsHelp><p>Shortcuts never interrupt typing, and a focused terminal keeps its own keys.</p>
 
@@ -516,7 +519,20 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "github" && <><GitHubConnectionPanel sdk={sdk} openTerminal={session?.controls.env === "Local" && session.status !== "archived" && snapshot.policy.allowedEnvs.includes("Local") ? openTerminal : undefined} />
           {(() => {
             const prefix = draft.git?.branchPrefix ?? "", saved = committed.git?.branchPrefix ?? "", valid = new RegExp(BRANCH_PREFIX_PATTERN).test(prefix);
-            return <section aria-label="Branch names">
+            const wrapUp = draft.wrapUp ?? DEFAULT_SESSION_LIFECYCLE;
+            return <><section aria-label="After each request">
+              <SettingsHelp label="About wrapping up" target={<h3>After each request</h3>}>Runs in the chat as a short extra turn, with the same model, autonomy and approvals. Moguri never merges, force-pushes or deletes branches on its own.</SettingsHelp>
+              <label className="check-setting"><SettingsInput type="checkbox" role="switch" checked={wrapUp.enabled} disabled={saving} onChange={(event) =>
+                automatic("wrapUp", { enabled: event.target.checked }, false, DEFAULT_SESSION_LIFECYCLE)} />Wrap up when a request finishes</label>
+              <p className="fine-print">After changes in a Moguri worktree: resolve conflicts, commit, push, open or update the draft PR, then check CI and reviews. Delegated chats report back to their parent.</p>
+              <label className="check-setting"><SettingsInput type="checkbox" role="switch" checked={wrapUp.enabled && wrapUp.followUps} disabled={saving || !wrapUp.enabled} onChange={(event) =>
+                automatic("wrapUp", { followUps: event.target.checked }, false, DEFAULT_SESSION_LIFECYCLE)} />Follow up on new reviews and failed CI</label>
+              <p className="fine-print">For a day after wrapping up, Moguri checks the PR every few minutes. It fixes a failing check once and asks you if the same failure comes back.</p>
+              <label className="check-setting"><SettingsInput type="checkbox" role="switch" checked={draft.evolution.enabled} disabled={saving} onChange={(event) =>
+                automatic("evolution", { enabled: event.target.checked })} />Suggest skill improvements</label>
+              <p className="fine-print">When a skill used in the request was wrong or incomplete, Moguri proposes a fix. You review it in Suggestions; nothing installs on its own.</p>
+            </section>
+            <section aria-label="Branch names">
               <SettingsHelp label="About branch names" target={<h3>Branch names</h3>}>Applies to branches Moguri creates for new tasks, Kanban work and suggested worktrees. Existing branches keep their names.</SettingsHelp>
               <form className="branch-prefix-form" onSubmit={(event) => {
                 event.preventDefault();
@@ -529,7 +545,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               </form>
               {!valid ? <Alert as="p" className="inline-error" role="alert">Use letters, numbers, ".", "_" and "-", with "/" between parts, such as yourname/ or team-.</Alert> :
                 <p className="fine-print">{prefix ? `New branches look like ${prefix}moguri/fix-login-1a2b3c4d.` : "Optional. New branches look like moguri/fix-login-1a2b3c4d."}</p>}
-            </section>;
+            </section></>;
           })()}
           <details><summary>Advanced Git and GitHub operations</summary><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></details></>}
         {tab === "linear" && <><LinearConnectionPanel sdk={sdk} onDirty={setIntegrationDirty} />{project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p className="fine-print">Choose a project to set up its Linear team and workflows.</p>}</>}

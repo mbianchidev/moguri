@@ -42,6 +42,7 @@ export interface DesktopBridge {
   previewNotificationSound(profileId: string, kind: "needs-input" | "completed", soundId: string): Promise<{ requested: boolean }>;
   onNotificationAudio(listener: (profileId: string, audio: string) => void): () => void;
   onNavigateInbox(listener: (attentionId: string, profileId: string) => void): () => void;
+  onNavigateSuggestions(listener: (profileId: string) => void): () => void;
   onNativeError(listener: (profileId: string, message: string) => void): () => void;
   applyApplicationPreferences(): Promise<{ menuBar: boolean; suppressed: boolean }>;
   cliInstallation(input: CliInstallationRequest): Promise<CliInstallationStatus>;

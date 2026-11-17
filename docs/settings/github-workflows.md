@@ -23,6 +23,24 @@ this page keeps the full detail.
 - Open terminal needs a selected Local session; Moguri does not create a global console or a hidden chat for
   it.
 
+## After each request
+
+- **Wrap up when a request finishes** (default on). When the last queued request of a round completes in a
+  Moguri-managed worktree that the round edited, Moguri queues one wrap-up turn in the same chat: resolve
+  conflicts with the base, commit what's left, push, open or update the draft PR (or commit only when the
+  project opted out of PRs), check CI and reviews, and report to a parent session if this chat was delegated.
+  It also runs when skills were used and **Suggest skill improvements** is on. The turn shows as a
+  "Wrap-up" notice, not as your message.
+- **Follow up on new reviews and failed CI** (default on). For a day after a wrap-up, Moguri checks the
+  session's PR every two minutes while the chat is idle. A review by someone other than the PR author queues
+  a review follow-up (up to three per round). A finished, failing check run on the PR head queues one fix
+  (at most two per round, once per head); if the same checks fail again after a fix, the next turn asks you
+  instead of retrying. The PR must track the worktree's current branch.
+- **Suggest skill improvements** is the same switch as Skills / Optional evolution (default off). Proposals
+  appear in Suggestions with a notification; approving installs a disabled copy.
+- These turns use the chat's model, Env, autonomy, approvals and budget. They never merge, force-push,
+  rebase shared history or delete branches. See [session lifecycle](../architecture/session-lifecycle.md).
+
 ## Branch names
 
 - **Branch name prefix** (optional, profile-wide) is added in front of every branch name Moguri generates:

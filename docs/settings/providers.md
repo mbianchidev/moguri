@@ -70,3 +70,8 @@ text. It prefers a configured loopback model, a current price estimate, then the
 (original wording). The "Automatic" naming model choice runs in the chat's original Env. Your
 Env, budget and chosen names are preserved. Legacy chats are not renamed; saving this setting does not
 run a model.
+
+**Rename the chat when the topic changes** (default on) applies only to chats Moguri already named. When a
+new request, plus any steers since the last naming, shares almost no vocabulary with the current title and
+the previous naming source, Moguri makes one more naming call with the current title and the new text. The
+model may keep the title. At most three renames per chat; a title you set yourself is never replaced.

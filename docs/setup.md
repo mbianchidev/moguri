@@ -5424,7 +5424,16 @@ Double-click/F2/contextual Rename edits the name inline.
 New factory-named chats may receive one separately budgeted topic-summary call
 after their first reply. Configure it in **Settings / Providers / Chat names**;
 existing or explicitly named chats are not inferred to need naming.
-See the [exact naming lifecycle](architecture/chat-titles.md).
+See the [exact naming lifecycle](architecture/chat-titles.md). A model-named chat
+may be renamed when a later request clearly changes topic, at most three times.
+
+When the last request of a round finishes after edits in a Moguri worktree,
+the chat runs one **Wrap-up** turn: resolve conflicts, commit, push, open or
+update the draft PR, check CI and reviews, and report to a delegating parent
+chat. Afterwards Moguri follows the PR for a day and queues a follow-up for new
+reviews or a failing check, asking you when the same failure repeats. Turn
+these off in **Settings / GitHub workflows / After each request**. See
+[session lifecycle](architecture/session-lifecycle.md).
 
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows

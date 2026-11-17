@@ -359,6 +359,7 @@ else {
             mainWindow?.show(); mainWindow?.focus();
             if (banner.itemId) mainWindow?.webContents.send("moguri:navigate-work", banner.itemId, profileId);
             else if (banner.inbox) mainWindow?.webContents.send("moguri:navigate-inbox", banner.id, profileId);
+            else if (banner.suggestions) mainWindow?.webContents.send("moguri:navigate-suggestions", profileId);
             else if (banner.sessionId) mainWindow?.webContents.send("moguri:navigate-session", banner.sessionId, profileId);
           });
           notification.on("close", () => banners.delete(banner.id));

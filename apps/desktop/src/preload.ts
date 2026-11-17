@@ -47,6 +47,13 @@ const bridge: DesktopBridge = {
     ipcRenderer.on("moguri:navigate-inbox", receive);
     return () => ipcRenderer.removeListener("moguri:navigate-inbox", receive);
   },
+  onNavigateSuggestions: (listener) => {
+    const receive = (_event: Electron.IpcRendererEvent, profileId: unknown) => {
+      if (typeof profileId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(profileId)) listener(profileId);
+    };
+    ipcRenderer.on("moguri:navigate-suggestions", receive);
+    return () => ipcRenderer.removeListener("moguri:navigate-suggestions", receive);
+  },
   onNativeError: (listener) => {
     const receive = (_event: Electron.IpcRendererEvent, profileId: unknown, message: unknown) => { if (typeof profileId === "string" && typeof message === "string" && message.length <= 2048) listener(profileId, message); };
     ipcRenderer.on("moguri:native-error", receive);
