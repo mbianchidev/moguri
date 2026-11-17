@@ -51,5 +51,8 @@ Contract: `docs/architecture/workspace-folders.md`.
 
 ## Registered projects
 
+- Shows how many projects this profile has. **Manage projects** opens **Settings / Project** for the
+  currently selected project, or its project chooser when none is selected; it no longer lists one button per
+  project.
 - Change an existing repository's remote in its Project settings. That review shows every affected linked
   worktree, not just the project's display name.

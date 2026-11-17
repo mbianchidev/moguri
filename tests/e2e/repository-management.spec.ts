@@ -72,6 +72,21 @@ test("Settings cancel preserves a partial destination and original service-owned
   } finally { if (app) await close(app); await f.close(); await source.close(); }
 });
 
+test("Repositories offers one Manage projects action that lands on Project settings instead of a button per project", async () => {
+  const f = await setupFixture();
+  let app: ElectronApplication | undefined;
+  try {
+    app = await launch(f.directory);
+    const page = await app.firstWindow(); await openSettingsSection(page, "Repositories");
+    const panel = page.getByRole("region", { name: "Repository management", exact: true });
+    await expect(panel.getByRole("button", { name: /^Manage (?!projects$)/ })).toHaveCount(0);
+    await panel.getByRole("button", { name: "Manage projects", exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "Configuration project", exact: true })).toBeVisible();
+    await expect(panel).toHaveCount(0);
+    expect(f.requests).toHaveLength(0);
+  } finally { if (app) await close(app); await f.close(); }
+});
+
 test("Project Settings changes a shared remote only after exact confirmation and preserves staged/dirty bytes", async () => {
   const f = await githubServiceFixture();
   let app: ElectronApplication | undefined;

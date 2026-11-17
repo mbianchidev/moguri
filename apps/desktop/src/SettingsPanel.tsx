@@ -427,7 +427,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "repositories" && <RepositoryImportPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} onDirty={setRepositoriesDirty}
           configureProject={(id) => {
             if (dirty || saving || nestedDirty) { setError("Finish or discard the current edit before choosing a project. No configuration target was changed."); return; }
-            selectConfigurationProject(id); setTab("project");
+            if (id) selectConfigurationProject(id);
+            setTab("project");
           }} />}
         {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Signing in here is separate from GitHub repository access. If a provider fails, Moguri doesn't switch to another one.</SettingsHelp>
           <p className="settings-lead">Connect the accounts and tools Moguri uses for models; credentials stay in your OS keychain.</p>
