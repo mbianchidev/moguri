@@ -181,6 +181,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     else if (item.bottom > bounds.bottom) list.scrollTop += item.bottom - bounds.bottom;
   }, [slashOption]);
   const selectSlash = (suggestion: SlashSuggestion) => {
+    if (suggestion.kind === "shadowed") return;
     const selectedText = editor.getState().text;
     if (selectedText !== draft.text) { void run(async () => { throw new Error("The slash draft changed. Select the command again; the newer text was preserved."); }); return; }
     if (suggestion.kind === "skill") chosenSkill.current = suggestion.skill;
@@ -425,8 +426,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         }
       }} />
     {suggestions.length > 0 && <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
-      aria-selected={index === slashOption} key={suggestion.kind === "skill" ? suggestion.skill.id : suggestion.name} data-command-kind={suggestion.kind}
-      onClick={() => selectSlash(suggestion)}><strong>/{suggestion.name}{suggestion.kind === "skill" && <small>Skill / {suggestion.skill.sourceName}</small>}</strong><span>{suggestion.description}</span></button>)}</div>}
+      aria-selected={index === slashOption} aria-disabled={suggestion.kind === "shadowed" || undefined} key={suggestion.kind === "builtin" ? suggestion.name : suggestion.skill.id} data-command-kind={suggestion.kind}
+      onClick={() => selectSlash(suggestion)}><strong>/{suggestion.name}{suggestion.kind !== "builtin" && <small>{suggestion.kind === "shadowed" ? "Skill to rename" : "Skill"} / {suggestion.skill.sourceName}</small>}</strong><span>{suggestion.description}</span></button>)}</div>}
     {slashOpen && slashCatalog.scope === slashScope && slashCatalog.error && <Alert as="p" className="inline-error" role="alert">{slashCatalog.error} Built-in slash commands remain available.</Alert>}
     {sessionOptions.length > 0 && <div className="attachment-session-suggestions" role="listbox" aria-label="Active context sessions">{sessionOptions.map((source, index) => <button type="button" role="option" aria-selected={index === sessionOption} key={source.id} onClick={() => { setTrigger(attachmentTrigger); void attachSession(source.id); }}><Icon name="Side chat" /><span>{sessionTitle(source)}</span></button>)}</div>}
     {attachmentTrigger && <button className="attachment-trigger-hint quiet" type="button" onClick={chooseAttachmentTrigger}>{attachmentTrigger.prefix} {attachmentTriggers[attachmentTrigger.prefix]}<small>Tab to choose; text stays literal until selection</small></button>}

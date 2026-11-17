@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PathField, localPath } from "./PathField.tsx";
-import type { GatewaySkill, MoguriSdk, SkillSource } from "../../../packages/sdk/src/index.ts";
+import { builtinClashNotice, type GatewaySkill, type MoguriSdk, type SkillSource } from "../../../packages/sdk/src/index.ts";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
@@ -87,7 +87,8 @@ export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDi
     <label className="setting-field">Search<SettingsInput aria-label="Find skills" value={query} maxLength={200} disabled={busy} onChange={(event) => { setQuery(event.target.value); setResult(null); setBody(""); }} onKeyDown={(event) => { if (event.key === "Enter" && !busy && !disabled && !dirty) { event.preventDefault(); void find(); } }} /></label>
     <button type="button" disabled={disabled || busy || dirty} onClick={() => void find()}>Find skills</button>
     {dirty && <p className="fine-print" role="status">{disabled ? "Saving source changes..." : "The last source change was not saved. Change a source to retry or reload settings to discard it."}</p>}{busy && <><p role="status">Checking skill sources...</p><button type="button" onClick={() => request.current?.abort(new Error("Skill lookup cancelled. No content was applied."))}>Cancel lookup</button></>}
-    {result && <><p className="fine-print">{result.total} matching skills</p>{result.skills.map((skill) => <article className="skill-result" key={skill.id}><div><strong>{skill.name}</strong><p>{skill.description}</p><small>{skill.sourceName}{skill.path ? ` / ${skill.path}` : ""}</small></div><button type="button" disabled={busy} onClick={() => void read(skill)}>Read skill</button></article>)}
+    {result && <><p className="fine-print">{result.total} matching skills</p>{result.skills.map((skill) => <article className="skill-result" key={skill.id}><div><strong>{skill.name}</strong><p>{skill.description}</p><small>{skill.sourceName}{skill.path ? ` / ${skill.path}` : ""}</small>
+      {skill.shadowedBy && <Alert as="p" tone="warning" className="skill-clash">{builtinClashNotice(skill.name, skill.shadowedBy)}</Alert>}</div><button type="button" disabled={busy} onClick={() => void read(skill)}>Read skill</button></article>)}
       {result.nextOffset !== null && <button type="button" disabled={busy} onClick={() => void find(result.nextOffset!)}>Next skills</button>}</>}
     {body && <details className="settings-result" open><summary>Skill content</summary><pre>{body}</pre></details>}
     {globalReview && <GlobalSkillConfirmation source={globalReview.source} close={() => {

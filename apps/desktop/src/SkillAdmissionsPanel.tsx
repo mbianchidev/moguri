@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { GatewaySkill, MoguriSdk, Session, SkillInspection, SkillPublisher, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { builtinClashNotice, type GatewaySkill, type MoguriSdk, type Session, type SkillInspection, type SkillPublisher, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 export function SkillAdmissionsPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
@@ -28,6 +28,7 @@ export function SkillAdmissionsPanel({ sdk, session, snapshot }: { sdk: MoguriSd
         if (current()) { setSkills(found.skills); setInspection(null); setReviewed(false); }
       })}>Find current skills</button>
       {skills.map((skill) => <article key={skill.id}><strong>{skill.name}</strong><p>{skill.description}</p><small>{skill.sourceName} / {skill.digest}</small>
+        {skill.shadowedBy && <Alert as="p" tone="warning" className="skill-clash">{builtinClashNotice(skill.name, skill.shadowedBy)}</Alert>}
         <button type="button" disabled={busy} onClick={() => void run(async (current) => {
           const value = (await sdk.skills.inspect(session.id, skill.id, skill.digest)).inspection;
           if (current()) { setInspection(value); setReviewed(false); setSigned(value.origin.kind === "archive"); setAccess("read-only"); }
