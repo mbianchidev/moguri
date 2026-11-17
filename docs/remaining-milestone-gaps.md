@@ -121,25 +121,31 @@ Delivered #7/#9/#13/#36/#37/#38/#53/#55/#63/#69 do not reappear as new implement
 
 | Order | Actual remaining scope |
 | --- | --- |
-| 1. Everyday UX and existing integrations | #77 app-wide accessibility verification (screen reader, WCAG 2.2 AA, keyboard/focus, physical-display contrast), deferred from #53, #45 remaining applicable AST controls, #23 scope beyond the delivered metadata exporter. |
+| 1. Everyday UX and existing integrations | #77 app-wide accessibility verification (screen reader, WCAG 2.2 AA, keyboard/focus, physical-display contrast), deferred from #53, #45 AST controls and #23 OTLP logs/credentials (protocol 112, below). |
 | 2. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. Repository visibility/access, license and signing/notarization need explicit decisions, not assumed publication. |
 | 3. Optional providers and automation | #80 Stainless MCP integration once mbianchidev/stainless#22 ships, #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions, #54 GetMoshi integration and #64 global/repository flags for evidence-gated flaky-CI retries (provider status preflight, bounded attempts) and feature-preserving conflict resolution. Existing one-time schedules, exact-PR CI watches (#52), the reviewed rebase/conflict workflow and reviewed compaction are not those broader features. |
 | 4. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |
 
-#23 remains open for its broader requested scope: do not claim that OTLP export
-is absent or implement a second ledger. Current export has no diagnostic-log
-signal, exporter credentials/custom headers, content capture or peer/guest
-internal propagation. Additional scope needs explicit privacy/transport review.
+Protocol 111 delivers the remaining #23 scope ([D40](architecture/decisions.md#d40-otlp-logs-credential-headers-and-coverage-23)):
+opt-in fixed-template diagnostic logs correlated with trace/span IDs, finite
+failure outcomes, correction logs instead of duplicate spans, secret-backend
+credential headers bound to the collector origin, measured per-turn overhead and
+the [process/Env coverage matrix](architecture/otlp-export.md#process-and-env-coverage-matrix-protocol-111).
+SSH-peer and Sandbox-guest internal propagation stay an explicit documented gap,
+content capture stays out of scope, and there is still no second ledger.
 
-#45 remains open, but its obsolete 64-KiB script ceiling and missing Local
-admission descriptions are not current gaps. Complete reviewed script source
-now permits 512 KiB with a 2-MiB escaped envelope and real next-model
-context/all-role-budget admission. Current [AST category boundaries](architecture/file-access.md#owasp-source-and-review-boundary)
-still disclose unsupported Remote skills/scripts, no semantic/malware scanner or
-external publisher PKI/global revocation infrastructure, and no whole-descendant
-Local isolation or blanket AST01-AST10 certification. Reviewed-script Sandbox
-execution (#66) is qualified on the current approved image; passing native gates
-still never authorizes a script without its own review and approval.
+Protocol 111 also delivers the remaining applicable #45 controls
+([D39](architecture/decisions.md#d39-owasp-agentic-skills-top-10-follow-up-45)):
+a deterministic source indicator scanner that gates model-approved scripts
+(the user may accept the risk) and refuses hidden-character trusted-folder
+loads, per-profile saved publisher keys with permanent key/version blocks, and
+generated-model AST01 qualification. The project owner signed off on
+2026-11-17 on excluding a transparency log/PKI, Local whole-descendant
+isolation, malware/semantic scanning beyond the deterministic rules and
+live-model testing; Remote skills/scripts stay unsupported. The
+[AST category matrix](architecture/file-access.md#owasp-source-and-review-boundary)
+records controls, evidence and those exclusions. Neither change is OWASP
+certification or a claim of zero risk.
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,
