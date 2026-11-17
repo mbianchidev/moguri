@@ -53,6 +53,9 @@ desktop widths the sidebar stays beside the main pane, not over it.
 The composer keeps prompt/snapshot context above one compact toolbar: plus,
 environment icon, model name and autonomy icon; budget/infinity, microphone and
 paper-plane Send trail on the right. Cmd/Ctrl switches Send to a queue clock.
+When the primary action becomes Resume or Retry after a failure, it shows that
+word next to its icon. At narrow widths the model name truncates before the
+controls wrap.
 Native bounded popovers expose the four settings, model context/thinking and
 usage without permanent duplicate labels. Setup and unavailable states explain what must happen
 next. Approval is an inline, protected-focus action with full arguments and
@@ -141,8 +144,10 @@ Every desktop surface draws from one token layer at the top of
 `apps/desktop/src/styles.css`; components use tokens rather than their own
 values. The [design audit](design-audit.md) records why and what remains.
 `tests/design-tokens.test.ts` keeps the layer honest: palette fallbacks match
-the SDK, every `var()` resolves, raw colors stay inside the token blocks, and
-the contrast pairs below hold for every palette in Dark and Light.
+the SDK, every `var()` resolves, raw colors stay inside the token blocks,
+component padding, margin, gap, font size and radius use scale tokens (only 1px
+hairlines and `clamp()`/`calc()` geometry may stay literal), and the contrast
+pairs below hold for every palette in Dark and Light.
 
 ### Tokens
 
@@ -150,10 +155,11 @@ the contrast pairs below hold for every palette in Dark and Light.
 | --- | --- | --- |
 | Palette roles | `--text`, `--muted`, `--canvas`, `--surface`, `--sidebar`, `--subtle`, `--line`, `--control-line`, `--accent` (+ hover/active/on-accent), `--selected`, `--selection-text`, `--danger`, `--warning-*`, `--error-*`, `--code` | Mirrors the SDK Moguri palette; `appearanceColors()` replaces them at runtime for every preset and custom colors. |
 | Status | `--status-running`, `-attention`, `-completed`, `-merged`, `-failed`, `-partial`, `-stopped`, `-queued`, `-neutral`, `-unknown` | Derived from palette roles or the runtime session-indicator colors. Never the only signal. |
-| Spacing | `--space-0` 2px, `--space-1` 4px, `--space-2` 8px, `--space-3` 12px, `--space-4` 16px, `--space-5` 20px, `--space-6` 24px, `--space-7` 32px, `--space-8` 48px | 4px grid with one hairline step. |
+| Spacing | `--space-0` 2px, `--space-1` 4px, `--space-1-5` 6px, `--space-2` 8px, `--space-2-5` 10px, `--space-3` 12px, `--space-3-5` 14px, `--space-4` 16px, `--space-5` 20px, `--space-6` 24px, `--space-7` 32px, `--space-8` 48px | 4px grid with a hairline step and half steps up to 14px for dense controls. Off-scale values snap to the nearest step, ties to the denser one. |
 | Radius | `--radius-xs` 3px (kbd, small tags), `-sm` 5px (inputs), `-md` 6px (buttons, tooltips, warnings), `-lg` 8px (cards, popovers, menus, approval), `-xl` 10px (composer, dialogs, Settings cards), `-pill` | One radius per component class. |
 | Type | `--font-sans`, `--font-mono`; `--font-size-2xs` 10px to `--font-size-3xl` 28px; `--line-height-tight/normal/relaxed`; `--font-weight-medium/semibold/bold` | System sans for UI; mono only for code, paths, IDs and measurements. |
 | Targets | `--target-size` 32px, `--target-size-coarse` 44px | Coarse pointers get 44px targets. |
+| Geometry | `--titlebar-inset` 78px | Clears the macOS window controls. Component sizes (icons, logo tiles, fixed widths) stay literal. |
 | Elevation | `--elevation-raised`, `-tooltip`, `-popover`, `-dialog`, `-drawer-start`, `-drawer-end`; `--backdrop`, `--backdrop-soft` | Dark dialogs and drawers use deeper shadows so they separate from slate surfaces. |
 | Focus | `--focus-ring` (`--focus-ring-width` 2px, `--focus-ring-color` accent), `--focus-ring-offset` 3px | Applied by the global `:focus-visible` rule. |
 | Motion | `--duration-fast` 120ms, `--duration-base` 140ms, `--duration-slow` 200ms, `--ease-standard` | Reduced motion disables transitions and every infinite animation. |
@@ -170,15 +176,17 @@ subtle backgrounds.
 | --- | --- | --- |
 | Button | global `button`, `.primary`, `.quiet`, `.danger`, `.composer-stop` | One primary per decision. Destructive actions say what they do. Global hover/active rules have 0,2,1 specificity, so custom-colored buttons need a more specific selector. |
 | IconButton | `.icon-button` with `Icon.tsx` and a `Tooltip`; `SettingsAction` in `SettingsFields.tsx` | Always has an accessible name that matches its tooltip. |
-| StatusBadge | `StatusBadge.tsx` (`.status-badge[data-tone]`), `.provider-status` in `ProviderLogo.tsx`, `SessionIndicators` in `WorkspaceNavigation.tsx` | Dot plus a word from the shared vocabulary; stopped and unknown use a hollow dot. |
+| StatusBadge | `StatusBadge.tsx` (`.status-badge[data-tone]`, also Analytics sessions and events), `.provider-status` in `ProviderLogo.tsx`, `SessionIndicators` in `WorkspaceNavigation.tsx` | Dot plus a word from the shared vocabulary; stopped and unknown use a hollow dot. |
+| Notice | `.message.notice[data-tone]` in `App.tsx` | Session notices take their outcome's tone: failed uses the error surface, stopped and completed stay neutral, partial, attention and unknown keep the warning surface. A left status rule and the worded badge carry the state. |
+| Diff | `UnifiedDiff.tsx` (`.unified-diff`, `.diff-line[data-kind]`) | Code change and PR patches mark added, removed, hunk and header lines, keep the exact `+`/`-` text, scroll horizontally and by keyboard. |
 | Card | Settings `fieldset` with `legend`, `.approval`, `.user-question` (`QuestionCard.tsx`), `.my-work-card` | Subtle surface, `--radius-lg` or `--radius-xl`, one title. |
 | Popover and menu | `AnchoredMenu.tsx`, `.composer-popover`, `ModelSubmenu.tsx`, `SelectSearch.tsx`, `WorkspaceContextMenu.tsx` | Native `popover`, `--elevation-popover`, Escape returns focus to the trigger. |
-| Dialog | native `dialog.workspace-dialog`, `.command-palette` | Modal, `--backdrop`, explicit primary and cancel actions. |
+| Dialog | native `dialog.workspace-dialog`, `.command-palette` | Modal, `--backdrop`, explicit primary and cancel actions. Header is an `h2` with a labeled close icon; focus starts in the first field. A filtered list says when nothing matches. |
 | Field | `.setting-field` via `SettingsFields.tsx`, `PathField.tsx`, `SettingsCommitInput` | Label above; information button after the title. |
 | Switch | `input[role="switch"]` inside `.check-setting`, `.setting-toggle`, `.agent-follow` | Saves on change in Settings. |
 | Tooltip | `Tooltip` and `InfoTip` in `Tooltip.tsx` (`.compact-tooltip`), `.sidebar-tooltip` | Opens on hover or keyboard focus, closes on Escape. |
 | Alert | `Alert.tsx` (`.app-alert[data-alert-tone]`, `.notice`), `.settings-warning`, `.inline-error`, `PanelError` in `PanelFailure.tsx` | Errors use `role="alert"`; warnings only for real risk; dismissal restores focus. |
-| Empty, loading, error | `.session-empty`, `.panel-empty`, `.nav-empty`, `.loading-state` with `role="status"`, `PanelError` | A heading is always followed by content or a one-line state. |
+| Empty, loading, error | `.session-empty`, `.panel-empty`, `.nav-empty`, `.loading-state` with `role="status"`, `PanelError` | A heading is always followed by content or a one-line state. An expected condition is not an error: `PanelError` shows a folder without Git as an empty state, with the exact Git detail in a disclosure. |
 
 ### State vocabulary
 
@@ -219,8 +227,13 @@ and the words themselves come from the shared status labels, so the session
 list, state row and message outcomes read Needs attention, Partial result or
 Unknown exactly as the desktop does.
 Navigation appears beside the conversation when space allows. The four controls
-remain visible in a fixed-height footer. Full approval arguments are scrollable
-and accessible with Ctrl+V; model choice, cancellation and draft conflict
+remain visible in a fixed-height footer. Tool rows and pending requests use the
+desktop's activity labels (Run command, Read file) with their subject. The
+approval box keeps the exact tool name in its title and leads with the label
+and subject, such as `Run command: printf ...`, so even a 52x24 terminal shows
+what is being approved; full arguments follow, are scrollable and accessible
+with Ctrl+V. Notices use the shared tone: failures in the error color, stopped
+and completed notices neutral. Model choice, cancellation and draft conflict
 resolution have explicit keyboard paths.
 
 ## Accessibility and motion

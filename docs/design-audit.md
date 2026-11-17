@@ -4,7 +4,9 @@ This is the whole-app audit for [#53](https://github.com/mbianchidev/moguri/issu
 It separates what was observed from what changed, records the visual system it
 produced and lists what remains. It is a UI quality pass on the development
 alpha, not first-release acceptance, a human screen-reader audit or WCAG
-certification.
+certification. App-wide accessibility verification (screen reader, WCAG 2.2 AA,
+keyboard and focus, contrast on a physical display) moved to
+[#77](https://github.com/mbianchidev/moguri/issues/77).
 
 ## Method
 
@@ -22,6 +24,12 @@ certification.
 - Stylesheet: a scan of `apps/desktop/src/styles.css` for raw values, undeclared
   variables, radii, shadows and font stacks, plus WCAG ratios computed for all
   ten presets in Dark and Light.
+- Second pass: `main` at `f2a1684` (protocol 110), surveyed 2026-11-17 across
+  about 60 generated screens: every Settings page, every Dashboard page, Inbox,
+  Suggestions, Automations, each sidebar panel, the session context menu, the
+  command palette, the terminal close dialog, and running, failed, stopped,
+  failed-command and diff states at 1280 and 760, plus the TUI frames. It
+  produced O11 to O22.
 
 ## What already worked
 
@@ -45,6 +53,18 @@ audit kept all of that.
 | O8 | Partial results used the failure color in navigation; only the icon told them apart. | `.session-status-dot[data-session-state="partial"]`. | Low |
 | O9 | A missing tool outcome read `result` in the TUI and was blank in the desktop Tool outputs header, rather than unknown. | `TuiMessage`, `App.tsx`. | Low |
 | O10 | At 52x24 the TUI approval box shows only `{` of the arguments; the command needs Ctrl+V. | `before-tui-approval-52x24`. | Low |
+| O11 | Failed and stopped session notices shared one amber warning surface, so a failure read like a stop. | `before-failed-model-1280.png`, `before-stopped-1280.png` | Medium |
+| O12 | After a failed turn the composer's primary action silently became an icon-only Resume (play) or Retry, with no visible word. | `before-failed-model-1280.png` | Medium |
+| O13 | Code change and Work item showed Git's raw `fatal: not a git repository` stderr as a red error for an ordinary folder project. | `before-code-change-folder-1280.png` | Medium |
+| O14 | Diffs were uncolored 11px text, `git status` was 10px and every sidebar `pre` was 10px. | `before-code-change-diff-1280.png` | Medium |
+| O15 | At 760 CSS px activity labels wrapped (`Run` / `command`) and the composer toolbar split into two rows. | `before-failed-command-760.png` | Low |
+| O16 | The command palette focused its Esc button instead of the search field, drew `>` characters instead of icons, used a different header from other dialogs and showed nothing when no command matched. | `before-palette-1280.png` | Low |
+| O17 | Analytics used its own outlined pills and words (Working, Needs you, Done) instead of `StatusBadge`; Dashboard tiles drew words such as Not reported in large monospace numerals. | `before-analytics-1280.png`, `before-cost-1280.png` | Low |
+| O18 | Main-pane pages drifted: Automations had its own narrower, offset column; Suggestions put a larger Usage gaps heading under a smaller section title and used a chevron for Refresh. | `before-automations-1280.png`, `before-suggestions-1280.png` | Low |
+| O19 | Long-tail rules still held 350 literal font sizes, about 1,100 literal spacing values and 120 literal radii; Budgets showed raw provider ids at 10px. | Stylesheet scan, `before-settings-budgets-1280.png` | Low |
+| O20 | The TUI named tools by raw id (`run_command / Pending`) where the desktop says Run command, and colored every notice amber. | TUI frames below | Low |
+| O21 | The Plan panel's workspace plan file toggle looked like centered body text, and Files labeled its root `.`. | Survey | Low |
+| O22 | A provider failure shows the provider's response verbatim, including a JSON body. | `before-failed-model-1280.png` | Low |
 
 ## Direction
 
@@ -70,14 +90,25 @@ selection, system type. Polish comes from consistency, not decoration:
 | P2 | Sync CSS fallbacks with the SDK palette (O5); deeper Dark dialog and drawer shadows (O6). | Done |
 | P2 | Connection dot shows running while connecting (O7); partial uses its own status color (O8). | Done |
 | P2 | Regression coverage: `tests/design-tokens.test.ts` and `tests/e2e/design-system.spec.ts`. | Done |
-| P3 | TUI compact approval should show the command subject before raw JSON at 52x24 (O10). | Remaining |
-| P3 | Convert the remaining per-component spacing and font sizes in long-tail Settings and analytics rules to scale tokens as those surfaces are next touched. | Remaining |
-| P3 | Human screen-reader pass (VoiceOver) and a Light-theme visual review on a physical display. | Remaining |
+| P2 | Session notices take their outcome's tone: failed uses the error surface, stopped and completed stay neutral, partial and unknown keep attention; each keeps its worded badge and a left status rule (O11). The TUI uses the same mapping (O20). | Done |
+| P2 | When the primary composer action becomes Resume or Retry it shows that word next to its icon (O12). | Done |
+| P2 | `PanelError` shows a folder without Git as an expected empty state with the exact Git detail in a disclosure, for Code change, Work item and every other Git-backed panel (O13). | Done |
+| P2 | `UnifiedDiff` renders Code change and PR patches with added, removed, hunk and header line roles, keeps the `+`/`-` text and scrolls by keyboard; sidebar code and `git status` move to 11px (O14). | Done |
+| P2 | TUI tool rows, pending requests and the approval box use the shared `describeActivityCall` label and subject (O20). | Done |
+| P3 | TUI compact approval shows the command subject before raw JSON at 52x24 (O10). | Done |
+| P3 | Convert the remaining per-component spacing, font sizes and radii in long-tail Settings, analytics and every other rule to scale tokens; add 6, 10 and 14px half steps and a titlebar inset token; a test keeps literals out (O19). | Done |
+| P3 | Activity labels never wrap and the composer's controls stay on one row, truncating the model name first (O15). | Done |
+| P3 | Command palette: focus starts in the search field, header and close button match other dialogs, icon chevrons, and a worded no-match state (O16). | Done |
+| P3 | Analytics uses `StatusBadge` and the shared words; Dashboard tiles render words in the UI face (O17). | Done |
+| P3 | Automations uses the shared main-pane column; Suggestions headings nest under the section title and Refresh uses the refresh icon; Budgets shows provider names (O18, O19). | Done |
+| P3 | The plan file toggle is a chevron disclosure; Files names its root Workspace root (O21). | Done |
+| P3 | Provider failure text stays verbatim (O22). It is the exact retained diagnostic; rewording it would need a service change and could hide detail. It wraps within the notice. | Kept by design |
+| P3 | Human screen-reader pass (VoiceOver), WCAG 2.2 AA audit and a Light-theme review on a physical display. | Moved to [#77](https://github.com/mbianchidev/moguri/issues/77) |
 
 ## Before and after
 
-All screenshots use generated fixtures. Before is `52f1752`; after is this
-change.
+All screenshots use generated fixtures. Before is `52f1752` for the first ten
+rows and `f2a1684` for the rest; after is the current `main`.
 
 | Screen | Before | After |
 | --- | --- | --- |
@@ -91,10 +122,25 @@ change.
 | Long conversation, 760 | ![](assets/design/before-conversation-760.png) | ![](assets/design/after-conversation-760.png) |
 | Composer popover | ![](assets/design/before-composer-popover-1280.png) | ![](assets/design/after-composer-popover-1280.png) |
 | Settings / Appearance | ![](assets/design/before-settings-1280.png) | ![](assets/design/after-settings-1280.png) |
+| Failed model request (O11, O12) | ![](assets/design/before-failed-model-1280.png) | ![](assets/design/after-failed-model-1280.png) |
+| Stopped turn (O11) | ![](assets/design/before-stopped-1280.png) | ![](assets/design/after-stopped-1280.png) |
+| Failed command, 760 (O15) | ![](assets/design/before-failed-command-760.png) | ![](assets/design/after-failed-command-760.png) |
+| Code change, folder without Git (O13) | ![](assets/design/before-code-change-folder-1280.png) | ![](assets/design/after-code-change-folder-1280.png) |
+| Code change, Git diff (O14) | ![](assets/design/before-code-change-diff-1280.png) | ![](assets/design/after-code-change-diff-1280.png) |
+| Command palette (O16) | ![](assets/design/before-palette-1280.png) | ![](assets/design/after-palette-1280.png) |
+| Dashboard / Analytics (O17) | ![](assets/design/before-analytics-1280.png) | ![](assets/design/after-analytics-1280.png) |
+| Dashboard / Cost (O17) | ![](assets/design/before-cost-1280.png) | ![](assets/design/after-cost-1280.png) |
+| Automations (O18) | ![](assets/design/before-automations-1280.png) | ![](assets/design/after-automations-1280.png) |
+| Suggestions (O18) | ![](assets/design/before-suggestions-1280.png) | ![](assets/design/after-suggestions-1280.png) |
+| Settings / Budgets (O19) | ![](assets/design/before-settings-budgets-1280.png) | ![](assets/design/after-settings-budgets-1280.png) |
 
-The 760 rows show the main fix: Approve, Deny and the composer are no longer
-under the panel. The 1280 rows show the shared words (Needs attention, Pending,
-Completed) in Insights and activity rows. Settings is intentionally unchanged.
+The 760 rows show the first pass's main fix: Approve, Deny and the composer are
+no longer under the panel. The 1280 rows show the shared words (Needs
+attention, Pending, Completed) in Insights and activity rows. The second-pass
+rows show failure and stop reading differently, the labeled Resume action, the
+Git empty state, colored diffs, the one-row narrow composer and the aligned
+supporting pages. Settings layout is unchanged; its type and spacing now come
+from the scale tokens.
 
 ### TUI, pending approval at 100x30
 
@@ -151,6 +197,38 @@ After:
 
 Session IDs differ because each capture uses a fresh generated fixture.
 
+### TUI, pending approval at 52x24 (O10, O20)
+
+Before:
+
+```text
+ run_command / Pending
+ ...
+ ┌────────────────────────────────────────────────┐
+ │ Approval required: run_command                 │
+ │ {                                            ▀ │
+ │ Unsandboxed Local.                             │
+ │ Ctrl+Y approve | Ctrl+D deny | Ctrl+V args     │
+ └────────────────────────────────────────────────┘
+```
+
+After:
+
+```text
+ Run command / Pending
+ ...
+ ┌────────────────────────────────────────────────┐
+ │ Approval required: run_command                 │
+ │ Run command: printf GENERATED_DESIGN_AUDIT   ▀ │
+ │ Unsandboxed Local.                             │
+ │ Ctrl+Y approve | Ctrl+D deny | Ctrl+V args     │
+ └────────────────────────────────────────────────┘
+```
+
+The title keeps the exact tool name being approved; the first line names what
+it does, and the exact arguments follow under Arguments in the same scrollable
+box and in Ctrl+V.
+
 ## Verification
 
 - `tests/design-tokens.test.ts`: palette fallbacks equal the SDK palette; all
@@ -167,17 +245,30 @@ Session IDs differ because each capture uses a fresh generated fixture.
   with a visible 2px focus ring at each stop and worded status in Insights and
   navigation. At 1280, 840, 760, 600 and 420 CSS px nothing overflows
   horizontally and Approve, Deny and the prompt are not covered.
+- `tests/design-tokens.test.ts` also fails on any literal pixel spacing, font
+  size or radius outside the token blocks (hairlines and `clamp()`/`calc()`
+  geometry excepted).
+- `tests/e2e/design-system.spec.ts` also proves a failed notice uses the failed
+  tone with a worded Resume or Retry action, a folder without Git shows a status
+  rather than an alert with the exact Git detail on demand, the palette focuses
+  its search and states a no-match result, a stopped notice uses the stopped
+  tone and badge, and a real Git diff marks added, removed and hunk lines.
+- `tests/tui-presentation.test.ts` proves the 52x24 approval shows
+  `Run command: printf ...` before its arguments without sending anything, and
+  tool rows read `Read file / Completed  fixture.txt`.
 - Existing desktop and TUI interaction suites keep the approval, question,
   composer, queue and navigation semantics.
 
 ## Remaining limitations
 
-- No human screen-reader or physical-display audit was performed; ratios are
+- App-wide accessibility verification is tracked in
+  [#77](https://github.com/mbianchidev/moguri/issues/77): no human screen-reader,
+  WCAG 2.2 AA or physical-display audit was performed here, and ratios are
   computed from declared colors.
 - Custom user colors are validated by the existing appearance checks, not by
-  the new status-token checks.
-- Long-tail Settings and analytics rules still contain literal spacing and font
-  sizes; they read consistently but are not yet expressed in scale tokens.
-- The TUI compact approval subject (O10) is unchanged.
+  the status-token checks.
+- Snapping to the scale moved some long-tail spacing by 1 to 4px; component
+  sizes such as icons, tiles and fixed widths stay literal by design.
+- Provider failure text stays verbatim (O22).
 - This pass does not change service, SDK capability or permission behavior and
   does not prove first-release readiness.

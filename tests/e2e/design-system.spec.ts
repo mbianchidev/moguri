@@ -1,7 +1,10 @@
 import { _electron as electron, expect, test, type ElectronApplication, type Locator, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
+import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { generatedRepository } from "../fixtures/git.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Design-system interaction is qualified on generated hidden macOS windows.");
@@ -106,4 +109,58 @@ test("narrow layouts keep pending approvals and the composer reachable without h
     expect(fixture.session().pendingApproval).toBeTruthy();
     expect(fixture.requests.length).toBe(1);
   } finally { await app.close(); await fixture.close(); }
+});
+
+test("failed, stopped, non-Git and diff states stay distinct, worded and reachable", async () => {
+  const failed = await setupFixture();
+  await failed.configure(); await failed.send("generated provider failure");
+  await waitFor(() => failed.session().status === "failed");
+  let app = await launch(failed.directory);
+  try {
+    const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer", exact: true });
+    await expect(page.locator('.message.notice[data-tone="failed"]')).toContainText("Generated unavailable provider");
+    const action = composer.locator(".composer-send-labeled");
+    await expect(action).toBeVisible(); await expect(action).toHaveText(/^(Resume|Retry)$/);
+    await expect(action).toHaveAccessibleName(/^(Resume|Retry last model request)$/);
+    const pane = page.getByRole("complementary", { name: "Session sidebar", exact: true });
+    await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Code change", exact: true }).click();
+    await expect(pane.getByRole("status").filter({ hasText: "isn't a Git repository" })).toBeVisible();
+    await expect(pane.getByRole("alert")).toHaveCount(0);
+    await pane.getByText("Details", { exact: true }).click();
+    await expect(pane.locator(".panel-empty-detail")).toContainText("not a git repository");
+    await page.keyboard.press("Meta+k");
+    const search = page.getByRole("dialog", { name: "Commands", exact: true }).getByRole("searchbox", { name: "Find a command", exact: true });
+    await expect(search).toBeFocused();
+    await search.fill("generated-no-such-command");
+    await expect(page.getByRole("dialog", { name: "Commands", exact: true }).getByRole("status")).toContainText("No command matches");
+    await page.keyboard.press("Escape");
+    expect(failed.requests.length).toBe(1);
+  } finally { await app.close(); await failed.close(); }
+
+  const stopped = await setupFixture();
+  await stopped.configure(); await stopped.send("generated slow design-system stop");
+  await waitFor(() => stopped.session().status === "running");
+  const sdk = await new MoguriSdk(stopped.service.connection).ready();
+  await sdk.command({ type: "session.stop", sessionId: stopped.sessionId }); await stopped.terminal();
+  app = await launch(stopped.directory);
+  try {
+    const page = await app.firstWindow();
+    const notice = page.locator(".message.notice").filter({ hasText: "Turn stopped" });
+    await expect(notice).toHaveAttribute("data-tone", "stopped");
+    await expect(notice.locator(".status-badge")).toHaveText("Stopped");
+  } finally { await app.close(); await stopped.close(); }
+
+  const repository = await setupFixture();
+  await generatedRepository(repository.project);
+  await writeFile(join(repository.project, "fixture.txt"), "Generated design-system replacement.\n");
+  app = await launch(repository.directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Code change", exact: true }).click();
+    const diff = page.getByRole("complementary", { name: "Session sidebar", exact: true }).locator(".unified-diff");
+    await expect(diff.locator('.diff-line[data-kind="add"]')).toHaveText("+Generated design-system replacement.");
+    await expect(diff.locator('.diff-line[data-kind="remove"]')).toHaveText("-generated original");
+    await expect(diff.locator('.diff-line[data-kind="hunk"]')).toHaveCount(1);
+    await expect(diff).toHaveAttribute("tabindex", "0");
+  } finally { await app.close(); await repository.close(); }
 });
