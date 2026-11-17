@@ -783,7 +783,8 @@ and complete UTF-8 result bytes. Every new-mode revision/escalation is reviewed
 again; exhaustion cannot accept unreviewed output or proposed tools.
 
 Each selected model uses its genuine maximum qualified context. **Enable
-automatic Kupo compaction** is off by default and is an explicit policy choice.
+automatic Kupo compaction** follows **Settings / Sessions / Context compaction**
+(on by default since protocol 110) until you change it on the Kupo page.
 It permits bounded metered tool-less summaries of complete older text, keeping
 recent complete turns and original sources. Images are not silently compacted
 or dropped. Read original public history through `read_tool_result action=history`,
@@ -3484,13 +3485,36 @@ before admission and preserve the complete draft/queue, including prior image
 history; no image is silently dropped. Session snapshots disclose their bounded
 public-text scope, not private continuation or tool/binary payloads.
 
+## Smart compaction (default)
+
+Smart compaction is on by default. When a chat's estimated request reaches 75%
+of its model's working window (or 200,000 tokens, whichever comes first, and
+always before admission headroom would refuse it), Moguri summarizes older
+complete turns with that chat's model in one separately metered call, keeps the
+last two turns intact and continues. A notice in the transcript marks each
+summary. Original history stays saved and readable through `read_tool_result
+action=history`; `/compact restore` brings it back.
+
+Change or turn it off in **Settings / Sessions / Context compaction** (start
+point, token ceiling, recent turns, summary length). Kupo follows the same
+setting until you change its own toggle on the Kupo page.
+
+Type `/compact` in an idle chat to compact now with the chat's model (Kupo
+chats name one: `/compact now MODEL_ID`). It applies the summary only if it is
+complete and smaller; otherwise it stays reviewable in the Context review.
+
+If a summary fails or its usage is not reported, the turn stops with the reason,
+original context stays active and the usage stays held. Send again to continue;
+Moguri waits for the chat to grow further before trying automatically again.
+Images are never compacted. Details: [context compaction](architecture/context-compaction.md#smart-compaction-default).
+
 ## Reviewed context compaction
 
 Desktop: **Model / Review context and compactions**. Choose a real compactor and
 how many complete recent turns to keep, then **Preview source**. Previewing does
 not call a model. Inspect the contract/request estimate before **Generate
 proposal**. Read the actual summary, check its review acknowledgement, and use
-**Apply reviewed summary**. Context is never automatically replaced.
+**Apply reviewed summary**. Proposals made here are never applied without that review.
 
 The same capability is available through `sdk.compactions` and CLI/native TUI
 `/compact`. Examples:
@@ -3521,8 +3545,8 @@ Original append-only history, complete recent turns and your draft stay
 retained. Restoring originals makes no call and never refunds charges or
 replays tools; normal context-window limits still apply. Session deletion may
 delete its compaction text along with its transcript, but cannot erase the
-independent ledger's real/unknown charges. There is no automatic compaction,
-summary-to-memory promotion, user-answer forgery or new sandbox claim.
+independent ledger's real/unknown charges. There is no summary-to-memory
+promotion, user-answer forgery or new sandbox claim.
 
 ## Provider and model availability
 
