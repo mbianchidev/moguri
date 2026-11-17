@@ -36,6 +36,7 @@ import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 import { SkillAdmissionsPanel } from "./SkillAdmissionsPanel.tsx";
+import { SkillPublishersSettings } from "./SkillPublishersSettings.tsx";
 import { KupoModelProfiles } from "./KupoModelProfiles.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
@@ -49,7 +50,7 @@ import { PathField, localPath } from "./PathField.tsx";
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
-type AutomaticSection = "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
+type AutomaticSection = "scriptReview" | "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
@@ -967,7 +968,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           {resourceSession ? <fieldset className="settings-fields" disabled={dirty || saving || integrationDirty}>
             {(dirty || integrationDirty) && <p className="fine-print">Save or cancel folder changes before reviewing skills for a chat.</p>}
             <SkillAdmissionsPanel key={`${sdk.profileId}:${resourceSession.id}`} sdk={sdk} session={resourceSession} snapshot={snapshot} />
-          </fieldset> : <p className="fine-print">Choose a chat above to review which skills it can use.</p>}</>}
+          </fieldset> : <p className="fine-print">Choose a chat above to review which skills it can use.</p>}
+          <SkillPublishersSettings key={`${sdk.profileId}:publishers`} sdk={sdk} snapshot={snapshot} /></>}
         {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <>{tab === "skills" ? <h3>Imported skills</h3> : <h2>{tab === "scripts" ? "Scripts" : "Plugins"}</h2>}
           <p>{tab === "skills" ? "Import a standard SKILL.md file. Skills add instructions, not tool permissions." : tab === "scripts" ? "Built-in scripts (grep_logs, fetch_page, search_memory and memory_graph) reach the agent through Moguri's internal MCP server." : "A Moguri plugin bundles standard skills. Importing one doesn't run its code or install dependencies."}</p>
           {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(async () => {
@@ -991,6 +993,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               <button type="button" className="danger" disabled={capabilityBusy} onClick={() => deleteSkill(entry)}>Delete skill</button>
             </div>}</section>)}
           {tab === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Custom scripts run as code on this Mac, outside any sandbox. Review the source, approve each call and use only scripts you trust.</Alert>}
+          {tab === "scripts" && <><h3>Script reviews</h3>
+            <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Let the agent approve scripts with download or decode findings"
+              checked={draft.scriptReview?.acceptScannerRisk === true} onChange={(event) => automatic("scriptReview", { acceptScannerRisk: event.target.checked })} />Let the agent approve scripts with download or decode findings</label>}>
+              Moguri flags scripts that download and run code, install packages at run time or decode hidden content. By default only you can run those, by forcing them in the review. Turning this on accepts the risk that the agent's own "safe" verdict runs them; normal approvals still apply.</SettingsHelp></>}
           <h3>Optional evolution</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Let models propose skills, scripts and style knowledge for your review</label>}>Approved proposals install disabled; you enable them separately.</SettingsHelp>
           {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })} aria-label="Review full proposal">Review</button></div>)}
           {proposal && <section className="proposal-review"><h3>Review proposed content</h3><pre>{proposal.content}</pre><code>SHA-256 {proposal.digest}</code><label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this source. Approving it doesn't let it run.</label><div className="button-row"><button disabled={!reviewed} onClick={() => void run(() => sdk.capabilities.decide(proposal.id, true, proposal.digest))} aria-label="Approve disabled capability">Approve disabled</button><button onClick={() => void run(() => sdk.capabilities.decide(proposal.id, false, proposal.digest))}>Reject</button></div></section>}</>}

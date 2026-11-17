@@ -12,7 +12,17 @@ this page keeps the full detail.
 - In Sandbox, a forced script runs in a new model-free guest that uses the same verified private stage and reviewed native network boundary, never the Local source. Isolation does not make the code safe.
 - Locally, code may change your files or contact external services without OS isolation.
 - One original attempt is retained per review. Inspect its actual tool or job outcome; it cannot be replayed.
+- Moguri lists indicator findings (pattern matches such as downloading and running code, installing packages at
+  run time or decoding hidden content) under the full source. They are not a malware or safety verdict.
 - Contract: `docs/architecture/content-review.md`.
+
+## Script reviews switch
+
+**Let the agent approve scripts with download or decode findings** is off by default. Off: when a script has
+download-and-execute, run-time install or decode-and-execute findings, the agent can't mark it safe; it must
+report it as unsafe and only you can force it. On: you accept the risk that the agent's own "safe" verdict
+runs such scripts; normal approvals and hard policy still apply. Changing it counts as a permission change, so
+open script reviews must be inspected again.
 
 ## Scripts (previously "Foundational and approved scripts")
 

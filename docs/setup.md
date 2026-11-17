@@ -132,7 +132,22 @@ instructions only: every tool call still goes through your normal permissions
 and Autopilot choices. Revoking a skill in a chat stops it loading there.
 Disabling the folder blocks chats that used it, and re-enabling it doesn't
 revive those old loads. Skills from a remote HTTPS archive still need the
-explicit review below.
+explicit review below, and so does a folder skill containing invisible or
+bidirectional control characters, which never loads automatically.
+
+Every review and load lists deterministic indicator findings (pattern matches
+for hidden characters, download-and-run, credential paths, instructions to
+override rules and similar). They are advice, not a safety verdict. Save a
+publisher's Ed25519 key once under **Settings / Skills / Publisher keys** and
+pick it when admitting a signed source, or block a key or one exact skill
+version there; a block is permanent and stops new approvals and every later
+load of what it covers. From the terminal:
+
+```sh
+moguri skills publishers
+moguri skills publisher-save "Example publisher" publisher.pem --confirm-review
+moguri skills block artifact ARTIFACT_SHA256 "Withdrawn version" --confirm-review
+```
 
 Discovery and diagnostic source reading do not admit instructions. In desktop
 open **Settings / Skills**, select the actual **Chat for skill review** (the source chat for skill admission),
@@ -907,7 +922,11 @@ or an explicit public HTTPS raw URL, unless that exact existing entrypoint is
 in your current trusted repository baseline described below. Public source reads need normal website
 approval. The agent reports encoded/obfuscated payloads, unexpected API calls
 and other unsafe/uncertain behavior before requesting execution. Only a source
-assessed safe can request `run_script` under the normal tool policy.
+assessed safe can request `run_script` under the normal tool policy. Moguri
+also scans the exact source for download-and-execute, run-time install and
+decode-and-execute patterns; with any of those, the agent can't mark the script
+safe and only you can force it, unless you turn on **Settings / Scripts / Let
+the agent approve scripts with download or decode findings**.
 
 Pending assessments appear as notifications in **Inbox**, grouped by their
 original chat, not as a panel below the conversation. Choose **Read full source
