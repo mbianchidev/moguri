@@ -518,7 +518,8 @@ request, Session, Local file and Local folder. The local-file picker accepts
 source/text, documents and images without duplicate menu entries. Local project
 names contain only ASCII letters, digits, hyphens and underscores. `#137` uses
 the current project's GitHub upstream; project-free chats specify
-`owner/repo#137`. `!` remains a legacy session alias. Workspace reads on SSH or
+`owner/repo#137`. A leading `!` is not an attachment trigger: `!COMMAND` runs
+that one line in the chat's own user console (see [shell lines](architecture/terminal-reattachment.md#shell-lines-from-the-composer)). Workspace reads on SSH or
 native execution retain their separate exact-root APIs and never become a Local
 fallback. Users can paste clipboard images directly into the desktop composer.
 TUI image paste depends on terminal/clipboard capabilities; where unsupported,

@@ -22,10 +22,10 @@ export function AttachmentMenu({ sdk, session, project, snapshot, run, capture, 
 }) {
   const namedProject = initial?.prefix === "@" ? snapshot.projects.find((value) => initial.query === value.name || initial.query.startsWith(`${value.name}/`)) : undefined;
   const remote = initial?.prefix === "@" && !namedProject && /^[^/]+\/[^/]+\/.+/.test(initial.query);
-  const [page, setPage] = useState<"menu" | "project" | "github" | "session">(initial?.prefix === "#" || remote ? "github" : initial?.prefix === "@" ? "project" : [":", "!"].includes(initial?.prefix ?? "") ? "session" : "menu");
+  const [page, setPage] = useState<"menu" | "project" | "github" | "session">(initial?.prefix === "#" || remote ? "github" : initial?.prefix === "@" ? "project" : initial?.prefix === ":" ? "session" : "menu");
   const [url, setUrl] = useState(remote ? `@${initial!.query}` : initial?.prefix === "#" ? initial.query : "");
   const [access, setAccess] = useState<AttachmentAccess>("auto");
-  const [query, setQuery] = useState([":", "!"].includes(initial?.prefix ?? "") ? initial!.query : "");
+  const [query, setQuery] = useState(initial?.prefix === ":" ? initial!.query : "");
   const [projectId, setProjectId] = useState(namedProject?.id ?? project?.id ?? snapshot.projects[0]?.id ?? "");
   const [path, setPath] = useState(namedProject ? initial!.query.slice(namedProject.name.length + 1) || "." : initial?.prefix === "@" && !remote ? initial.query : ".");
   const previewGithub = (reference = url) => run(async () => { await review({ kind: "github", url: reference, access, preview: (await sdk.attachments.githubPreview(session.id, reference, access)).preview }); close(); });

@@ -3458,9 +3458,29 @@ or use TUI `/detach path-or-snapshot-ID`.
 Desktop also captures explicitly selected local text/images and pasted PNG,
 JPEG or WebP. Images are bounded/normalized locally with metadata removed;
 there is no conversion service. Folder, GitHub issue/PR and session-text
-snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:`, `#` and
-`!` stay literal until the user selects an attachment; Tab offers the typed
-picker without attaching or executing anything.
+snapshots require exact preview/digest confirmation. Bare `@`, `^`, `:` and `#`
+stay literal until the user selects an attachment; Tab offers the typed picker
+without attaching or executing anything.
+
+### Run a shell line from the composer
+
+Start a message with `!` to run that line in the chat's terminal instead of
+sending it to the model, for example:
+
+```text
+!gh auth login --hostname github.com --web --git-protocol ssh
+```
+
+Enter (or **Run in terminal**) types the line and Return into the chat's private
+user console: the project folder (or its managed worktree), or your Home folder
+in a project-free chat. Desktop opens the Terminal panel so you can answer
+interactive prompts. Moguri reuses the chat's running console and opens one only
+when none is running. Nothing reaches the model: no message, steer, queue item,
+turn or model call, even while the agent is working. It works in Local and
+Remote chats; Sandbox chats have no interactive console. Send one line at a time.
+The line is your ordinary draft until it runs; the terminal input and output are
+never recorded. In the TUI the line runs the same way and `/terminals read ID`
+shows the output, but interactive prompts need the desktop Terminal.
 
 Text pastes over 50 logical lines become encrypted, immutable `paste_file`
 attachments, preserving exact UTF-8 text and CRLF/CR/LF endings up to 128 KiB.
