@@ -1496,6 +1496,14 @@ unpriced calls and invoices stay distinct. CLI/TUI share
 `/dashboard work|usage|cost|velocity` and `moguri dashboard` projections; F7
 includes the shared overview.
 
+**Dashboard / Analytics** is a live timeline of running and recent sessions:
+prompts, answers, thinking, commands, files, web, tools and context on separate
+lanes, with zoom, pan, search and per-event detail. It is kept only in the
+service's memory for the last 60 minutes, pruned every 30 seconds and cleared
+on restart; nothing is saved or exported. `moguri dashboard analytics
+[SESSION_ID]` and `/dashboard analytics [SESSION_ID]` print the same data. See
+[live session analytics](architecture/session-analytics.md).
+
 ## Unified My Work
 
 **Dashboard / My work / GitHub attention** aggregates PRs, outstanding review

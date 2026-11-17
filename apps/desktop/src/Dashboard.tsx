@@ -6,8 +6,9 @@ import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { InfoTip } from "./Tooltip.tsx";
 import { Alert } from "./Alert.tsx";
 import { MyWorkInbox } from "./MyWorkInbox.tsx";
+import { AnalyticsView } from "./AnalyticsView.tsx";
 
-const pages = ["My work", "Usage", "Cost", "Velocity"] as const;
+const pages = ["My work", "Analytics", "Usage", "Cost", "Velocity"] as const;
 type Page = typeof pages[number];
 const DAY = 86_400_000, day = (time: number) => new Date(time).toISOString().slice(0, 10);
 const count = (value: number) => value.toLocaleString();
@@ -80,20 +81,22 @@ export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFi
     if (value === "custom") setRange({ kind: "custom", ...custom });
     else { const days = presets.find((days) => String(days) === value); if (days) setRange({ kind: "days", days }); }
   };
-  return <section className="workspace-dashboard" aria-label="Profile dashboard">
+  const analytics = page === "Analytics";
+  return <section className="workspace-dashboard" data-page={analytics ? "analytics" : undefined} aria-label="Profile dashboard">
     <nav className="dashboard-pages" aria-label="Dashboard pages">{pages.map((name) => <button key={name} type="button" aria-current={page === name ? "page" : undefined} onClick={() => setPage(name)}>{name}</button>)}</nav>
-    <div className="dashboard-filters"><label>Range<select aria-label="Dashboard date range" value={range.kind === "days" ? String(range.days) : "custom"} onChange={(event) => selectRange(event.target.value)}>
+    {!analytics && <><div className="dashboard-filters"><label>Range<select aria-label="Dashboard date range" value={range.kind === "days" ? String(range.days) : "custom"} onChange={(event) => selectRange(event.target.value)}>
       {presets.map((days) => <option key={days} value={String(days)}>Last {days} days</option>)}<option value="custom">Custom range</option></select></label>
       <label>Project<select aria-label="Dashboard project" value={projectId} onChange={(event) => setProjectId(event.target.value)}><option value="">All projects</option>{snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}{projectId && !snapshot.projects.some((project) => project.id === projectId) && <option value={projectId}>Removed project</option>}</select></label>
       <span className="fine-print">UTC dates</span><InfoTip label="About dashboard measurements">Only this profile's authoritative records. Current open sessions stay visible even if older than the selected range. Completed/archived sessions use their recorded update time. Charts never change budget charges. Deleted source history is not reconstructed.</InfoTip>
     </div>
     {range.kind === "custom" && <div className="dashboard-custom"><label>From<input type="date" aria-label="Dashboard range from" value={custom.from} onChange={(event) => setCustom((value) => ({ ...value, from: event.target.value }))} /></label><label>Through<input type="date" aria-label="Dashboard range through" value={custom.to} onChange={(event) => setCustom((value) => ({ ...value, to: event.target.value }))} /></label>
-      <button type="button" disabled={!custom.from || !custom.to || custom.from > custom.to} onClick={() => setRange({ kind: "custom", ...custom })}>Apply range</button>{custom.from > custom.to && <Alert as="span" role="alert">From must be on or before Through.</Alert>}</div>}
+      <button type="button" disabled={!custom.from || !custom.to || custom.from > custom.to} onClick={() => setRange({ kind: "custom", ...custom })}>Apply range</button>{custom.from > custom.to && <Alert as="span" role="alert">From must be on or before Through.</Alert>}</div>}</>}
     {page === "My work" && <><MyWorkInbox sdk={sdk} snapshot={snapshot} connected={connected} openSession={openSession} projectId={projectId} initialItemId={initialItemId} initialFilters={initialFilters} onDirty={onDirty} />
       <ActiveSessions sdk={sdk} snapshot={snapshot} projectId={projectId} connected={connected} disabled={opening !== null} navigate={navigate} /></>}
-    {current && state.error && <Alert as="p" className="inline-error" role="alert">{state.error}</Alert>}{navigationError && <Alert as="p" className="inline-error" role="alert">{navigationError}</Alert>}
-    {!data && !(current && state.error) && <p role="status">Reading authoritative dashboard data...</p>}
-    {data && <section aria-label={`${page} dashboard`}>
+    {analytics && <AnalyticsView sdk={sdk} connected={connected} openSession={navigate} />}
+    {!analytics && current && state.error && <Alert as="p" className="inline-error" role="alert">{state.error}</Alert>}{navigationError && <Alert as="p" className="inline-error" role="alert">{navigationError}</Alert>}
+    {!analytics && !data && !(current && state.error) && <p role="status">Reading authoritative dashboard data...</p>}
+    {!analytics && data && <section aria-label={`${page} dashboard`}>
       <header className="dashboard-page-heading"><h2>{page}</h2><span>{data.window.from} to {data.window.to}</span></header>
       {data.window.excludedUncertainTimeCalls > 0 && <Alert as="p" tone="warning" className="settings-warning">{data.window.excludedUncertainTimeCalls} calls have no verified date and are excluded here. Detailed all-time accounting retains them.</Alert>}
       {page === "My work" ? <>
