@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 import { SettingsInput } from "./SettingsFields.tsx";
+import { Alert } from "./Alert.tsx";
 
 /** Expands a leading `~` and strips quotes around a pasted path. Other characters, including spaces, are kept exactly. */
 export function localPath(value: string, home = window.moguri?.homeDirectory ?? ""): string {
@@ -41,6 +42,6 @@ export function PathField({ label, ariaLabel, value, onChange, kind, title, exte
       {children}
     </div>
     <p id={hint} className="sr-only">Type a full path, a path starting with ~/, or use {caption.replace(/…$/, "")}.</p>
-    {error && <p className="fine-print path-field-error" role="alert">{error}</p>}
+    {error && <Alert as="p" className="fine-print path-field-error" role="alert">{error}</Alert>}
   </div>;
 }
