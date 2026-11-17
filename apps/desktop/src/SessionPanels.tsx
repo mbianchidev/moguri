@@ -10,6 +10,7 @@ import { ApprovalCall } from "./ApprovalCall.tsx";
 import type { SettingsTab } from "./settings-catalog.ts";
 import { RepositoryPicker } from "./RepositoryPicker.tsx";
 import { Alert } from "./Alert.tsx";
+import { StainlessBrowserRow } from "./StainlessPanel.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 import { UnifiedDiff } from "./UnifiedDiff.tsx";
 
@@ -160,7 +161,7 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
     </details>}
   </section>;
 }
-export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Session }) {
+export function BrowserPanel({ sdk, session, openSettings }: { sdk: MoguriSdk; session: Session; openSettings: () => void }) {
   const [url, setUrl] = useState(session.browserUrl ?? "");
   const [error, setError] = useState("");
   const [statusError, setStatusError] = useState("");
@@ -246,6 +247,7 @@ export function BrowserPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
     <span>{enabled ? "Agent can use this page" : "Agent access off"}</span></div>
     <form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => { urlDirty.current = true; setUrl(event.target.value); }} />
     <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!activeUrl} onClick={() => void window.moguri.openExternal(activeUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
+    <StainlessBrowserRow sdk={sdk} session={session} revision={sdk.getState().snapshot?.settings.revision ?? 0} url={activeUrl} openSettings={openSettings} />
     {(error || statusError) && <Alert as="p" className="inline-error" role="alert">{error || statusError}</Alert>}
     <div ref={host} className="browser-host">{!session.browserUrl && <p>Enter a preview URL. This isolated view has no Moguri bridge, account cookies, filesystem access or automatic model context.</p>}</div>
     <p className="terminal-boundary">{enabled ? "Approved browser tools can read and control this page. Turn off Agent control to revoke access immediately." :

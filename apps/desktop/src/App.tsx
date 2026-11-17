@@ -1018,7 +1018,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
       {session.lastError && <Alert as="p" className="inline-error">{session.lastError}</Alert>}
     </>;
   }
-  if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
+  if (panel === "Browser") return nativeAllowed ? <BrowserPanel sdk={client} session={session} openSettings={() => openSettings("stainless")} /> : <p className="fine-print">Preview hidden while another surface is active.</p>;
   if (panel === "Files") return <FilesPanel key={workspaceScope} sdk={client} session={session} />;
   if (panel === "Plan" && snapshot) return <PlanPanel sdk={client} session={session} snapshot={snapshot} workspaceScope={workspaceScope} onDirty={onDirty} modal={modal} />;
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty}

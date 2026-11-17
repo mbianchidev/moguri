@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { automaticCompactionPolicy, builtinClashNotice, builtinSlashClash, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { automaticCompactionPolicy, defaultSettings, builtinClashNotice, builtinSlashClash, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
@@ -43,6 +43,7 @@ import { WebAllowlistPanel } from "./WebAllowlistPanel.tsx";
 import { PolicyHint, policyLocations, type PolicyFocusRequest } from "./PolicyHint.tsx";
 import { ReorderList } from "./ReorderList.tsx";
 import { Alert } from "./Alert.tsx";
+import { StainlessSettingsPanel } from "./StainlessPanel.tsx";
 import { PathField, localPath } from "./PathField.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
@@ -553,15 +554,15 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <details><summary>Advanced Git and GitHub operations</summary><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></details></>}
         {tab === "linear" && <><LinearConnectionPanel sdk={sdk} onDirty={setIntegrationDirty} />{project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p className="fine-print">Choose a project to set up its Linear team and workflows.</p>}</>}
         {tab === "sql" && <><SettingsHelp label="More about this setting" target={<h2>sql-not-so-lite</h2>}>Connects to a sql-not-so-lite daemon you already run; Moguri never starts it or triggers its scans. The connection is made from this Mac, not from a Remote host.</SettingsHelp>
-          <label className="setting-field">Existing daemon endpoint<SettingsInput aria-label="SQL daemon endpoint" type="url" value={draft.integrations?.sql.endpoint ?? "http://127.0.0.1:9147"} onChange={(event) => change("integrations", { sql: { enabled: draft.integrations?.sql.enabled ?? false, endpoint: event.target.value } })} /></label>
+          <label className="setting-field">Existing daemon endpoint<SettingsInput aria-label="SQL daemon endpoint" type="url" value={draft.integrations?.sql.endpoint ?? "http://127.0.0.1:9147"} onChange={(event) => change("integrations", { ...draft.integrations, sql: { enabled: draft.integrations?.sql.enabled ?? false, endpoint: event.target.value } })} /></label>
           <button type="button" className="primary" aria-label="Save SQL daemon endpoint" disabled={saving || draft.integrations?.sql.endpoint === committed.integrations?.sql.endpoint} onClick={() => {
             const endpoint = draft.integrations?.sql.endpoint ?? "http://127.0.0.1:9147";
-            void write({ ...committedValues.current, integrations: { sql: { enabled: committedValues.current.integrations?.sql.enabled ?? false, endpoint } } }, () => {});
+            void write({ ...committedValues.current, integrations: { ...committedValues.current.integrations, sql: { enabled: committedValues.current.integrations?.sql.enabled ?? false, endpoint } } }, () => {});
           }}>Save</button>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.integrations?.sql.enabled ?? false} onChange={(event) => {
             const enabled = event.target.checked, value = committedValues.current.integrations?.sql ?? { enabled: false, endpoint: "http://127.0.0.1:9147" };
-            setDraft((current) => ({ ...current, integrations: { sql: { ...current.integrations?.sql ?? value, enabled } } }));
-            void write({ ...committedValues.current, integrations: { sql: { ...value, enabled } } }, () => {});
+            setDraft((current) => ({ ...current, integrations: { ...current.integrations, sql: { ...current.integrations?.sql ?? value, enabled } } }));
+            void write({ ...committedValues.current, integrations: { ...committedValues.current.integrations, sql: { ...value, enabled } } }, () => {});
           }} />Use this daemon</label>
           <Alert as="p" tone="warning" className="settings-warning">The daemon's default listener has no authentication or TLS, so keep it on loopback. Network endpoints need HTTPS.</Alert>
           <button type="button" disabled={saving || sectionDirty("integrations")} onClick={() => {
@@ -570,6 +571,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           }} aria-label="Verify daemon connection">Verify</button>
           <button type="button" disabled={saving || sectionDirty("integrations") || !committed.integrations?.sql.enabled} onClick={() => void run(() => window.moguri.openExternal(committed.integrations!.sql.endpoint))} aria-label="Open interface for existing daemon">Open interface</button>
           <p role="status">{sql ? `${sql.healthy ? "Daemon reports healthy" : "Not connected"}${sql.version ? ` / ${sql.version}` : ""}. ${sql.diagnostic}` : "Connection not verified yet."}</p></>}
+        {tab === "stainless" && <StainlessSettingsPanel sdk={sdk} revision={snapshot.settings.revision} settings={committed.integrations?.stainless} saving={saving}
+          save={(stainless) => write({ ...committedValues.current, integrations: { ...(committedValues.current.integrations ?? defaultSettings().integrations!), stainless } },
+            (settings) => setDraft((current) => ({ ...current, integrations: structuredClone(settings.integrations) })))} />}
         {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
         {(tab === "hooks" || tab === "marketplace") && <ExtensionPanel key={`${snapshot.profileId}:${project?.id}:${tab}`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode={tab} onDirty={setProjectDirty} />}
         {tab === "decisions" && <><SettingsHelp label="More about this setting" target={<h2 id="policy-decisions" data-policy-target tabIndex={-1}>Decision providers and Local Max</h2>}>Autopilot Max asks a decision model to pick answers to technical-choice questions for you. It stays off until you set its provider, model, limits and hosted-data consent below.</SettingsHelp>

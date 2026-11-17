@@ -1358,6 +1358,9 @@ summary:hover { color: var(--text); }
 .terminal-owner button { font-size: var(--font-size-xs); margin-inline-end: var(--space-1); }
 .browser-host { flex: 1; min-height: 80px; min-width: 0; background: var(--canvas); }
 .browser-control { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--font-size-xs); }
+.browser-stainless { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--font-size-xs); }
+.browser-stainless > span { flex: 1; min-width: 0; }
+.browser-stainless > .inline-error { flex-basis: 100%; }
 .browser-control-toggle { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 44px; min-height: 44px; border: 0; padding: 0; background: transparent; font-size: inherit; white-space: nowrap; }
 .browser-control-toggle:hover:not(:disabled), .browser-control-toggle:active:not(:disabled) { background: transparent; }
 .browser-toggle-track { position: relative; display: inline-block; flex: 0 0 34px; width: 34px; height: 20px; border: 1px solid var(--control-line); border-radius: var(--radius-pill); background: var(--subtle); transition: background-color var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); }
