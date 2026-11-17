@@ -265,14 +265,28 @@ object returned by the owning profile; another profile/revision/destination
 requires a new review. To disable, review `enabled:false` and apply that
 review. Editing/reviewing alone sends nothing to the collector.
 
-OTLP/HTTP JSON uses `/v1/traces` and `/v1/metrics`. This bounded first cut has
-no credential/header, custom-path, redirect, automatic-instrumentation or OTEL
-environment-variable support. A user-owned Collector can separately forward
-to authenticated backends. Only allowlisted metadata leaves the Local control
-plane, including accepted Remote/Sandbox records: no prompts, responses,
-reasoning, tool arguments/results, source/attachments, terminals, raw logs,
-paths, private names or credentials. Existing accounting remains authoritative;
-metrics are its canonical gauges, not a second accumulated ledger.
+OTLP/HTTP JSON uses `/v1/traces`, `/v1/metrics` and, only when the review
+includes `"logs":true`, `/v1/logs`. Log records are fixed-text outcome and
+correction records linked to their span (failed, stopped or denied work), never
+service console output. Authenticated collectors take credential headers: name
+them in the review (`"headers":["authorization"]`), apply, then store each value
+in this profile's keychain for that exact collector:
+
+```sh
+printf 'Bearer YOUR_TOKEN' | moguri telemetry otlp credential set https://collector.example authorization
+moguri telemetry otlp credential remove https://collector.example authorization
+```
+
+In the TUI, `/otlp credential set ENDPOINT NAME` opens a masked input; desktop
+has a password field per header. A missing value blocks export with status
+`credential`; nothing is sent unauthenticated. Custom paths, redirects,
+automatic instrumentation and OTEL environment variables stay unsupported. Only
+allowlisted metadata leaves the Local control plane, including accepted
+Remote/Sandbox records: no prompts, responses, reasoning, tool
+arguments/results, source/attachments, terminals, raw logs, paths, private names
+or credentials. Existing accounting remains authoritative; metrics are its
+canonical gauges, not a second accumulated ledger. SSH peers and Sandbox guests
+are not instrumented themselves (see the coverage matrix).
 
 Status exposes bounded queue/drop/failure counts and receiver acknowledgements,
 not proof that a backend stored/searches the data. There is no individual history

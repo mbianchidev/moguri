@@ -5,7 +5,9 @@ import { Alert } from "./Alert.tsx";
 
 const formFor = (configuration: OtlpConfiguration) => ({
   enabled: configuration.enabled, endpoint: configuration.endpoint ?? "", sampling: String(configuration.samplingRatio),
+  logs: configuration.logs ?? false, headers: (configuration.headers ?? []).join(", "),
 });
+const headerNames = (text: string) => text.split(",").map((name) => name.trim()).filter(Boolean);
 export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
   sdk: MoguriSdk; configuration: OtlpConfiguration; disabled: boolean; onDirty: (dirty: boolean) => void;
 }) {
@@ -13,6 +15,7 @@ export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
   const [review, setReview] = useState<OtlpReview | null>(null), [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [saved, setSaved] = useState(false);
   const [status, setStatus] = useState<OtlpExportStatus | null>(null);
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
   const alive = useRef(false), pending = useRef(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(formFor(base)), stale = configuration.revision > base.revision;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, [sdk]);
@@ -24,6 +27,7 @@ export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
       setReview(null); setConfirmed(false);
     } else { setBase(configuration); setForm(formFor(configuration)); }
   }, [configuration.revision, base.revision, dirty, review]);
+  useEffect(() => { setCredentials({}); }, [sdk, base.endpoint]);
   useEffect(() => {
     let active = true, timer: ReturnType<typeof setTimeout> | undefined;
     const refresh = async () => {
@@ -48,7 +52,7 @@ export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
   };
   return <section aria-label="Metadata-only OpenTelemetry export">
     <SettingsHelp label="About metadata-only OTLP export" target={<h3>OpenTelemetry export</h3>}>
-      Sends this profile's traces and usage metrics to your OpenTelemetry collector. Prompts, responses, tool and terminal data, and file paths are never sent.
+      Sends this profile's traces, usage metrics and, if you choose, diagnostic logs to your OpenTelemetry collector. Prompts, responses, tool and terminal data, and file paths are never sent.
     </SettingsHelp>
     <fieldset disabled={disabled || busy}>
       <label className="setting-toggle"><SettingsInput type="checkbox" checked={form.enabled} onChange={(event) => change({ ...form, enabled: event.target.checked })} />Enable metadata-only OTLP export</label>
@@ -58,14 +62,21 @@ export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
       <label className="setting-field">Trace sampling ratio<SettingsInput aria-label="OTLP trace sampling ratio" type="number" min="0" max="1" step="0.01"
         value={form.sampling} onChange={(event) => change({ ...form, sampling: event.target.value })} /></label>
       <p className="fine-print">From 0 to 1. At 0, no traces are sent; metrics still are.</p>
+      <label className="setting-toggle"><SettingsInput type="checkbox" checked={form.logs} onChange={(event) => change({ ...form, logs: event.target.checked })} />Also send diagnostic logs</label>
+      <p className="fine-print">Fixed-text records for failed, stopped or denied work, linked to their trace. They never include prompts, output, paths or error text.</p>
+      <label className="setting-field">Credential headers<SettingsInput aria-label="OTLP credential header names" value={form.headers}
+        placeholder="authorization, x-api-key" onChange={(event) => change({ ...form, headers: event.target.value })} /></label>
+      <p className="fine-print">Header names only, comma-separated. You enter each value below after applying; values stay in the keychain for this collector.</p>
       <button type="button" disabled={stale} onClick={() => void run(async () => {
         if (!form.sampling.trim()) throw new Error("Enter a trace sampling ratio between 0 and 1.");
-        const result = await sdk.telemetry.export.review({ enabled: form.enabled, endpoint: form.endpoint || null, samplingRatio: Number(form.sampling) });
+        const result = await sdk.telemetry.export.review({ enabled: form.enabled, endpoint: form.endpoint || null, samplingRatio: Number(form.sampling),
+          logs: form.logs, headers: headerNames(form.headers) });
         if (alive.current) { setReview(result.review); setConfirmed(false); }
       })}>Review metadata export</button>
       {(dirty || review || stale) && <button type="button" onClick={reload}>Reload saved export settings</button>}
       {review && <div>
-        <p>Profile: {review.profileId}. Collector: {review.endpoint ?? "None"}. Sends traces and metrics. Export {review.enabled ? "on" : "off"}; trace ratio {review.samplingRatio}.</p>
+        <p>Profile: {review.profileId}. Collector: {review.endpoint ?? "None"}. Sends {review.signals.join(", ")}. Export {review.enabled ? "on" : "off"}; trace ratio {review.samplingRatio}.
+          {review.headers.length > 0 && ` Credential headers: ${review.headers.join(", ")}.`}</p>
         <p className="fine-print">Disclosure version {review.disclosureVersion}. Export is best effort with no retries or backfill, and data already sent can't be recalled.</p>
         <label className="setting-toggle"><SettingsInput type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I reviewed this collector and want to send this profile's metadata to it</label>
         <button type="button" disabled={!confirmed || stale} onClick={() => void run(async () => {
@@ -75,8 +86,29 @@ export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
         })}>Apply export settings</button>
       </div>}
     </fieldset>
+    {base.endpoint && (base.headers ?? []).length > 0 && <fieldset disabled={disabled || busy} aria-label="OTLP credential header values">
+      <p className="fine-print">Values for {base.endpoint}. Changing the collector needs them again.</p>
+      {(base.headers ?? []).map((name) => {
+        const stored = status?.headers.find((header) => header.name === name)?.stored;
+        return <div key={name}>
+          <label className="setting-field">{name} ({stored === true ? "stored" : stored === false ? "missing" : "unknown"})<SettingsInput aria-label={`OTLP ${name} value`} type="password" autoComplete="off"
+            value={credentials[name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [name]: event.target.value }))} /></label>
+          <div className="button-row">
+            <button type="button" disabled={!credentials[name]} onClick={() => void run(async () => {
+              await sdk.telemetry.export.setCredential(base.endpoint!, name, credentials[name]!);
+              if (alive.current) { setCredentials((current) => ({ ...current, [name]: "" })); setStatus(await sdk.telemetry.export.status()); }
+            })}>Save {name} value</button>
+            {stored === true && <button type="button" onClick={() => void run(async () => {
+              await sdk.telemetry.export.removeCredential(base.endpoint!, name);
+              if (alive.current) setStatus(await sdk.telemetry.export.status());
+            })}>Remove {name} value</button>}
+          </div>
+        </div>;
+      })}
+    </fieldset>}
     {saved && <p role="status">Export settings saved</p>}
     {status && <p className="fine-print">Export {status.phase} · sent {status.acceptedSpans} · dropped {status.droppedSpans} · sampled out {status.sampledOut} · failed requests {status.failedRequests} · queue {status.queuedSpans}/{status.limits.queuedSpans}
+      {status.configuration.logs && ` · logs sent ${status.acceptedLogs} · logs dropped ${status.droppedLogs}`}
       {status.lastFailure && ` · last failure: ${status.lastFailure.code}${status.lastFailure.httpStatus ? ` (${status.lastFailure.httpStatus})` : ""}`}</p>}
     {error && <Alert role="alert">{error}</Alert>}
   </section>;

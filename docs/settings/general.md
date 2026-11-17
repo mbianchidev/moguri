@@ -56,23 +56,32 @@ this page keeps the full detail.
 ## OpenTelemetry export
 
 - Export is off by default and configured per profile; each profile has its own collector settings.
-- What leaves the Local control plane: reviewed traces and current accounting/operation gauges (metrics),
-  including accepted Remote and Sandbox records. The export is metadata only: no prompts, responses, tool
-  data, terminal data, raw diagnostics, paths or private names are exported.
+- What leaves the Local control plane: reviewed traces, current accounting/operation gauges (metrics) and,
+  if you tick **Also send diagnostic logs**, fixed-text records for failed, stopped or denied work linked to
+  their trace. Accepted Remote and Sandbox records are included, but SSH peers and Sandbox guests are not
+  instrumented themselves. The export is metadata only: no prompts, responses, tool data, terminal data, raw
+  diagnostics, paths or private names are exported.
 - No credentials or `OTEL_*` environment settings are borrowed from the environment.
 - Collector URL: an HTTPS origin, or plain HTTP only on a literal loopback address (`127.0.0.1` or `[::1]`;
-  the hostname `localhost` is not accepted). Moguri posts OTLP/HTTP JSON to `/v1/traces` and `/v1/metrics`.
-  The origin may not contain a custom path, query, fragment or credentials; custom headers and redirects are
-  not supported.
+  the hostname `localhost` is not accepted). Moguri posts OTLP/HTTP JSON to `/v1/traces`, `/v1/metrics` and,
+  with logs on, `/v1/logs`. The origin may not contain a custom path, query, fragment or credentials;
+  redirects are not followed.
+- Credential headers: list header names (for example `authorization, x-api-key`), review and apply, then
+  enter each value in its password field and choose **Save NAME value**. Values live in the keychain for this
+  profile and this exact collector; changing the collector needs them again. Transport headers such as
+  `content-type` or `host` can't be used. If a value is missing, export stops with `credential` instead of
+  sending without it.
 - Trace sampling ratio: a number from 0 to 1. A ratio of 0 disables trace sampling but does not stop the
-  gauge (metrics) export. Sampled traces are never billing data or complete execution totals.
-- Review step: shows the profile, collector, signals (traces and current canonical gauges), enabled state
-  and trace ratio, plus the metadata-only disclosure version (currently 1). The export is best effort and
-  bounded, with no retries and no history backfill. Metadata already sent cannot be unsent.
+  gauge (metrics) export. Logs are not sampled; each says whether its trace was. Sampled traces are never
+  billing data or complete execution totals.
+- Review step: shows the profile, collector, signals, credential header names, enabled state and trace
+  ratio, plus the metadata-only disclosure version (currently 2; 1 meant traces and metrics only). The export
+  is best effort and bounded, with no retries and no history backfill. Metadata already sent cannot be unsent.
 - Status line fields: "sent" is the number of spans the receiver acknowledged. Receiver acceptance does not
   prove the backend ingested the data. "dropped" counts dropped or unconfirmed spans; "sampled out" counts
   spans skipped by sampling; "failed requests" counts failed export requests; "queue" is queued spans over the
-  queue limit (128). Each export request has a 1500 ms deadline and a single attempt.
+  queue limit (128); with logs on, "logs sent" and "logs dropped" count log records. Each export request has a
+  1500 ms deadline and a single attempt.
 - If the status cannot be read from the owning service, no other destination or provider is substituted.
 
 ## Private GitHub updates
