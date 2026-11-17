@@ -32,14 +32,14 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
     catch (error) { setError(error instanceof Error ? error.message : "Suggestions were not generated. Source review is preserved."); }
     finally { setBusy(false); }
   };
-  return <section className="suggestions-panel" aria-label="Moguri suggestions"><header className="panel-toolbar"><strong>Improve your Moguri workflow</strong><button className="icon-button" aria-label="Refresh suggestion sources" title="Refresh sources" disabled={busy} onClick={() => void load()}><Icon name="Down" /></button></header>
+  return <section className="suggestions-panel" aria-label="Moguri suggestions"><header className="panel-toolbar"><h2>Improve your Moguri workflow</h2><button className="icon-button" aria-label="Refresh suggestion sources" title="Refresh sources" disabled={busy} onClick={() => void load()}><Icon name="Refresh" /></button></header>
     <p className="fine-print">Scope: {session?.projectId ? snapshot.projects.find((project) => project.id === session.projectId)?.name : allProjects ? "All projects in this profile" : "Project-free chats only"}. Preview is local; nothing is sent automatically.</p>
     {session?.projectId === null && <label className="check-setting"><input type="checkbox" role="switch" checked={allProjects} onChange={(event) => setAllProjects(event.target.checked)} />Include conversations from all projects</label>}
     <CapabilityProposals sdk={sdk} snapshot={snapshot} projectId={session?.projectId ?? null} />
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {preview && <><p className="fine-print">{preview.diagnostic}</p>
-      <h2>Usage gaps</h2>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
-      {preview.repeated.length > 0 && <><h2>Repeated guidance</h2>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
+      <h3>Usage gaps</h3>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
+      {preview.repeated.length > 0 && <><h3>Repeated guidance</h3>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
         setBusy(true); setError("");
         void (async () => {
           if (!session) throw new Error("Choose an owning source chat before proposing scoped instructions.");
@@ -66,7 +66,7 @@ function CapabilityProposals({ sdk, snapshot, projectId }: { sdk: MoguriSdk; sna
   };
   const decide = (approve: boolean) => open && run(async () => { await sdk.capabilities.decide(open.id, approve, open.digest); setOpen(null); });
   return <section className="capability-proposals" aria-label="Suggested skill improvements">
-    <h2>Suggested improvements</h2>
+    <h3>Suggested improvements</h3>
     <p className="fine-print">Proposed after a request that used them. Approving installs a disabled copy; you enable it separately.</p>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <ul>{pending.map((proposal) => <li key={proposal.id}>
@@ -90,7 +90,7 @@ export function ConfigurationProposals({ sdk, session, snapshot, modal, scope = 
   useEffect(() => { modal(review !== null); return () => modal(false); }, [review, modal]);
   const proposals = snapshot.configurationProposals.filter((proposal) => proposal.status === "pending" && (scope ? proposal.projectId === session.projectId : proposal.sessionId === session.id));
   if (!proposals.length && !review) return null;
-  return <section className="configuration-proposals" aria-label="Reviewed configuration proposals"><h2>Pending configuration review</h2>{proposals.slice(-8).map((proposal) => <div className="configuration-proposal-row" key={proposal.id}><div><strong>{proposal.target} / {proposal.section}</strong><small>{proposal.actor === "model" ? "Model suggestion, not user approval" : "User-authored proposal"} / {proposal.projectId ? "Project scope" : "Global scope"}</small></div><button onClick={() => setReview(proposal.id)}>Review</button></div>)}
+  return <section className="configuration-proposals" aria-label="Reviewed configuration proposals">{scope ? <h3>Pending configuration review</h3> : <h2>Pending configuration review</h2>}{proposals.slice(-8).map((proposal) => <div className="configuration-proposal-row" key={proposal.id}><div><strong>{proposal.target} / {proposal.section}</strong><small>{proposal.actor === "model" ? "Model suggestion, not user approval" : "User-authored proposal"} / {proposal.projectId ? "Project scope" : "Global scope"}</small></div><button onClick={() => setReview(proposal.id)}>Review</button></div>)}
     {review && <ConfigurationReview sdk={sdk} id={review} close={() => setReview(null)} />}
   </section>;
 }

@@ -158,5 +158,5 @@ function ActiveSessions({ sdk, snapshot, projectId, connected, disabled, navigat
 }
 
 function Metric({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return <div className="dashboard-metric"><span>{label}</span><strong>{value}</strong>{detail && <small>{detail}</small>}</div>;
+  return <div className="dashboard-metric"><span>{label}</span><strong data-word={/\d/.test(value) ? undefined : true}>{value}</strong>{detail && <small>{detail}</small>}</div>;
 }

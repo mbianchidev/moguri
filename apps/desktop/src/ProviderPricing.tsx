@@ -3,6 +3,8 @@ import { type MoguriSdk, type PriceProvider, type PricingResponse, type Snapshot
 import { dollars } from "./BudgetControls.tsx";
 import { Alert } from "./Alert.tsx";
 
+const PROVIDER_NAMES: Record<PriceProvider, string> = { anthropic: "Anthropic", openai: "OpenAI", google: "Google", xai: "xAI" };
+
 export function ProviderPricing({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Snapshot }) {
   const [catalog, setCatalog] = useState<PricingResponse | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false), [jobId, setJobId] = useState("");
@@ -32,7 +34,7 @@ export function ProviderPricing({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: S
     <p className="fine-print">Models without a current price show as unknown, not free.</p>
     <button type="button" disabled={pending || !catalog} onClick={() => void refresh()} aria-label="Refresh official provider prices">Refresh</button>
     {pending && jobId && <button type="button" onClick={() => void sdk.jobs.cancel(jobId).then(() => setNotice("Stop requested.")).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop wasn't confirmed."))} aria-label="Stop price refresh">Stop</button>}
-    {catalog?.catalogs.map((source) => <div className="call-record" key={source.provider}><strong>{source.provider}</strong>
+    {catalog?.catalogs.map((source) => <div className="call-record" key={source.provider}><strong>{PROVIDER_NAMES[source.provider]}</strong>
       <span>{source.prices.length} models / checked {source.observedAt} / {source.evidence === "bundled-verified-table" ? "bundled with Moguri" : "refreshed from the official page"}</span>
       <div className="button-row"><button type="button" className="quiet" disabled={pending} aria-label={`Refresh ${source.provider}`} onClick={() => void refresh(source.provider)}>Refresh</button>
         <button type="button" className="quiet" onClick={() => void window.moguri.openExternal(source.sourceUrl).catch((error: unknown) => setError(error instanceof Error ? error.message : "Couldn't open the price page."))} aria-label="View source for official prices">View source</button></div>

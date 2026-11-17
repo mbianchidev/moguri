@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ANALYTICS_LANES, type AnalyticsEvent, type AnalyticsLane, type AnalyticsOverview, type AnalyticsSessionDetail, type AnalyticsSessionSummary, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { ANALYTICS_LANES, outcomeLabel, sessionStatusLabel, type StatusLabel, type AnalyticsEvent, type AnalyticsLane, type AnalyticsOverview, type AnalyticsSessionDetail, type AnalyticsSessionSummary, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
+import { StatusBadge } from "./StatusBadge.tsx";
 
 const LANES: Record<AnalyticsLane, string> = { prompt: "Prompts", answer: "Answers", thinking: "Thinking", command: "Commands", file: "Files", web: "Web", tool: "Tools", context: "Context" };
-const STATUS = { running: "Running", ok: "Done", failed: "Failed", stopped: "Stopped" } as const;
-const STATE = { working: "Working", waiting: "Needs you", idle: "Idle" } as const;
+// Analytics states use the shared status vocabulary so they read the same as navigation and Insights.
+const STATUS: Record<AnalyticsEvent["status"], StatusLabel> = { running: outcomeLabel("running"), ok: outcomeLabel("completed"), failed: outcomeLabel("failed"), stopped: outcomeLabel("stopped") };
+const STATE: Record<AnalyticsSessionSummary["state"], StatusLabel> = { working: sessionStatusLabel("running"), waiting: sessionStatusLabel("waiting_input"), idle: sessionStatusLabel("idle") };
 const POLL_MS = 2_000, MIN_SPAN = 2_000, CLUSTER_PX = 10, BAR_PX = 8;
 const TICKS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1_800, 3_600].map((seconds) => seconds * 1_000);
 type Range = { from: number; to: number };
@@ -77,7 +79,7 @@ function SessionList({ sessions, selected, onSelect, filter, setFilter, now }: {
   const group = (title: string, items: AnalyticsSessionSummary[]) => items.length ? <section aria-label={`${title} sessions`}><h3>{title}<span>{items.length}</span></h3><ul>{items.map((session) =>
     <li key={session.sessionId}><button type="button" aria-current={session.sessionId === selected ? "true" : undefined} onClick={() => onSelect(session.sessionId)}>
       <span className="analytics-session-title"><i data-state={session.state} aria-hidden="true" /><span>{session.title}</span></span>
-      <small>{session.projectName ?? "Chat"} · {session.state === "idle" ? ago(now - session.lastEventAt) : STATE[session.state]}</small>
+      <small>{session.projectName ?? "Chat"} · {session.state === "idle" ? ago(now - session.lastEventAt) : STATE[session.state].label}</small>
     </button></li>)}</ul></section> : null;
   return <aside className="analytics-sessions" aria-label="Sessions">
     <input type="search" value={filter} placeholder="Filter sessions" aria-label="Filter sessions" onChange={(event) => setFilter(event.target.value)} />
@@ -240,7 +242,7 @@ function Timeline({ detail, openSession }: { detail: AnalyticsSessionDetail; ope
     <section className="analytics-timeline" aria-label={`Timeline for ${summary.title}`}>
       <header className="analytics-session-head">
         <div><h2>{summary.title}</h2>{summary.firstPrompt && <p title={summary.firstPrompt}>{summary.firstPrompt}</p>}</div>
-        <span className="analytics-state" data-state={summary.state}>{STATE[summary.state]}</span>
+        <StatusBadge className="analytics-state" status={STATE[summary.state]} />
         <button type="button" onClick={() => openSession(summary.sessionId)}>Open session</button>
       </header>
       <div className="analytics-toolbar">
@@ -327,7 +329,7 @@ function Footer({ summary }: { summary: AnalyticsSessionSummary }) {
 
 function EventDetail({ event, now, onStep }: { event: AnalyticsEvent | null; now: number; onStep: (direction: 1 | -1) => void }) {
   return <aside className="analytics-detail" aria-label="Selected event" aria-live="polite">{event ? <>
-    <header><i data-lane={event.lane} aria-hidden="true" /><span>{LANES[event.lane]}</span><span data-status={event.status}>{STATUS[event.status]}</span></header>
+    <header><i data-lane={event.lane} aria-hidden="true" /><span>{LANES[event.lane]}</span><StatusBadge className="analytics-event-status" status={STATUS[event.status]} /></header>
     <h3>{event.label || "Untitled event"}</h3>
     <dl>
       <div><dt>Started</dt><dd>{clock(event.start)}</dd></div>

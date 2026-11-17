@@ -52,7 +52,7 @@ test("desktop CSS palette fallbacks are the shared SDK Moguri palette", () => {
 test("the documented token scales are declared", () => {
   const required = [
     ...["running", "attention", "completed", "merged", "failed", "partial", "stopped", "queued", "neutral", "unknown"].map((name) => `--status-${name}`),
-    ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((step) => `--space-${step}`),
+    ...[0, 1, "1-5", 2, "2-5", 3, "3-5", 4, 5, 6, 7, 8].map((step) => `--space-${step}`),
     ...["xs", "sm", "md", "lg", "xl", "pill"].map((name) => `--radius-${name}`),
     "--font-sans", "--font-mono", ...["2xs", "xs", "sm", "md", "base", "lg", "xl", "2xl", "3xl"].map((name) => `--font-size-${name}`),
     "--line-height-tight", "--line-height-normal", "--line-height-relaxed", "--font-weight-medium", "--font-weight-semibold", "--font-weight-bold",
@@ -84,6 +84,22 @@ test("every stylesheet variable is declared or set by the desktop at runtime", (
 test("raw colors live only in the token blocks", () => {
   const rest = css.replace(dark.text, "").replace(light.text, "");
   assert.deepEqual([...rest.matchAll(/#[0-9a-f]{3,8}\b/gi)].map((match) => match[0]), []);
+});
+
+test("component spacing, type sizes and radii use scale tokens rather than literal pixels", () => {
+  const rest = css.replace(dark.text, "").replace(light.text, "");
+  const withoutFunctions = (value: string) => {
+    let previous = "";
+    while (previous !== value) { previous = value; value = value.replace(/[a-z-]*\([^()]*\)/g, ""); }
+    return value;
+  };
+  const literals: string[] = [];
+  for (const match of rest.matchAll(/(?<=[{;\s])((?:padding|margin)(?:-[a-z-]+)?|gap|row-gap|column-gap|font-size|font|border(?:-[a-z]+)*-radius)\s*:\s*([^;{}]+)/g)) {
+    // Hairlines (1px) and fluid clamp()/calc() geometry are allowed; a font shorthand's /line-height is not a type size.
+    const value = withoutFunctions(match[1] === "font" ? match[2]!.replace(/\/\S+/, "") : match[2]!);
+    if ([...value.matchAll(/(-?\d+(?:\.\d+)?)px/g)].some((px) => !["0", "1", "-1"].includes(px[1]!))) literals.push(match[0]);
+  }
+  assert.deepEqual(literals, []);
 });
 
 test("status, focus and text tokens meet WCAG contrast for every palette in Dark and Light", () => {

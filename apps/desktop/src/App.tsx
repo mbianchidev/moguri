@@ -870,14 +870,14 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
       <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />);
     if (message.role === "tool") {
       const visible = outputs.filter((attachment) => !session.messages.some((other) => other.role === "assistant" && other.attachments?.some((item) => item.id === attachment.id)));
-      return visible.length ? <article className="message notice" key={`output-${message.id}`} aria-label="Original tool outputs">
+      return visible.length ? <article className="message notice" data-tone={outcomeLabel(message.outcome).tone} key={`output-${message.id}`} aria-label="Original tool outputs">
         <header><strong>Tool outputs</strong><StatusBadge className="outcome" status={outcomeLabel(message.outcome)} /></header>{renderOutputs(visible)}</article> : null;
     }
     const hidden = message.role === "assistant" && !message.text.trim() && !outputs.length;
     // The chips below already name each attachment.
     const shownText = message.role === "user" ? sentPromptText(message) : message.text;
     return <Fragment key={`message-${message.id}`}>{!hidden && <article className={`message ${message.role}${message.role === "notice" && message.outcome === "completed" ? " info" : ""}`}
-      aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
+      data-tone={message.role === "notice" ? outcomeLabel(message.outcome).tone : undefined} aria-label={message.role === "user" ? "User prompt" : undefined} data-conversation-anchor={promptAnchors.get(message.id)} tabIndex={message.role === "user" ? -1 : undefined}>
         <header><strong>{message.role === "user" ? "You" : message.role === "assistant" ? "Moguri" : "Session"}</strong><time>{new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{message.outcome && message.role !== "assistant" && <StatusBadge className="outcome" status={outcomeLabel(message.outcome)} />}
           {message.role !== "notice" && <CopyButton className="message-copy" title="Copy message" label={`Copy ${message.role === "user" ? "sent prompt" : "message"} ${message.id}`} text={message.text} />}</header>
         {shownText && <div className="markdown"><Suspense fallback={<p>{shownText}</p>}><RichMessage text={shownText} openLink={(href) => void run(() => window.moguri.openExternal(href))} /></Suspense></div>}
@@ -1058,14 +1058,16 @@ function TerminalCloseReview({ sdk, cancel, confirm }: { sdk: MoguriSdk; cancel:
 }
 function CommandPalette({ actions, close }: { actions: { name: string; action: () => Promise<void> }[]; close: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(""), search = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    ref.current?.showModal();
+    ref.current?.showModal(); search.current?.focus();
     return () => { requestAnimationFrame(() => { if (previous?.isConnected && (!document.activeElement || document.activeElement === document.body)) previous.focus({ preventScroll: true }); }); };
   }, []);
-  return <dialog ref={ref} className="command-palette" aria-label="Commands" onClose={close}><header><label htmlFor="command-search">Commands</label><button className="quiet" onClick={() => ref.current?.close()}>Esc</button></header>
-    <input id="command-search" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a command..." />
-    <div>{actions.filter((action) => action.name.toLowerCase().includes(query.toLowerCase())).map((action) => <button key={action.name} onClick={() => { close(); void action.action(); }}>{action.name}<span>&gt;</span></button>)}</div>
+  const matches = actions.filter((action) => action.name.toLowerCase().includes(query.trim().toLowerCase()));
+  return <dialog ref={ref} className="command-palette" aria-label="Commands" onClose={close}><header><h2>Commands</h2><button className="icon-button" aria-label="Close commands" title="Close (Esc)" onClick={() => ref.current?.close()}><Icon name="Close" /></button></header>
+    <input ref={search} type="search" aria-label="Find a command" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a command..." />
+    <div>{matches.map((action) => <button key={action.name} onClick={() => { close(); void action.action(); }}><span>{action.name}</span><Icon name="ChevronRight" /></button>)}
+      {!matches.length && <p className="command-palette-empty" role="status">No command matches “{query.trim()}”.</p>}</div>
   </dialog>;
 }

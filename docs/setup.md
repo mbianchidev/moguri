@@ -2131,7 +2131,8 @@ Unsupported native CLI views explicitly remain waiting, not applied. Normal
 CLI capability commands and direct click/Tab/key navigation remain direct.
 
 When a session/worktree requires inspection, the composer's primary Send
-position becomes a **Resume** play icon instead of adding a header button.
+position becomes a labeled **Resume** play button instead of adding a header
+button.
 Inspect the retained effects first. Click Resume or press Enter to continue
 existing work without sending or clearing the current draft/attachments.
 Shift+Enter remains newline, Cmd/Ctrl+Enter remains Hold, and explicit slash

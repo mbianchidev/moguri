@@ -11,6 +11,7 @@ import type { SettingsTab } from "./settings-catalog.ts";
 import { RepositoryPicker } from "./RepositoryPicker.tsx";
 import { Alert } from "./Alert.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
+import { UnifiedDiff } from "./UnifiedDiff.tsx";
 
 export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -54,7 +55,8 @@ export function ChangesPanel({ sdk, session }: { sdk: MoguriSdk; session: Sessio
   return <section className="changes-panel" aria-label="Bound workspace changes" aria-busy={loading}><RepositoryPicker session={session} value={repository} change={(value) => { generation.current++; setData(null); setRepository(value); }} label="Changes" /><header className="panel-toolbar"><strong>{data?.branch ?? "File changes"}</strong><button className="icon-button" title="Refresh diff" aria-label="Refresh diff" disabled={loading || Boolean(session.repositories && !repository)} onClick={() => void load()}><Icon name="Refresh" /></button></header>
     {loading && <p className="fine-print" role="status">Loading changes from the bound workspace...</p>}
     <PanelError failure={error} projectId={session.projectId} />
-    {data && <><pre className="git-status">{data.status || "Working tree is clean."}</pre><pre className="unified-diff">{data.diff || (data.status ? "No tracked diff. Untracked files are listed above." : "No changes.")}</pre></>}
+    {data && <>{data.status ? <pre className="git-status" tabIndex={0} role="region" aria-label="Changed files">{data.status}</pre> : <p className="panel-empty-text" role="status">Working tree is clean.</p>}
+      {data.diff ? <UnifiedDiff text={data.diff} label="Tracked changes" /> : data.status && <p className="panel-empty-text">No tracked diff. Untracked files are listed above.</p>}</>}
     {session.controls.env === "Remote" && <p className="fine-print">Read-only Git state from the approved SSH workspace. No Local checkout was used.</p>}
   </section>;
 }
@@ -79,7 +81,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
   };
   return <section className="files-panel" aria-label="Bound workspace files"><RepositoryPicker session={session} value={repository}
     change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
-    <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? path}</strong></header>
+    <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? (path === "." ? "Workspace root" : path)}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}<PanelError failure={error} projectId={session.projectId} />
     {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
@@ -90,7 +92,7 @@ export function PlanPanel(props: PlanPanelProps) {
   const [fileOpen, setFileOpen] = useState(false), [fileDirty, setFileDirty] = useState(false);
   const fileDirtyChanged = useCallback((dirty: boolean) => { setFileDirty(dirty); props.onDirty(dirty); }, [props.onDirty]);
   return <><TaskPlanPanel sdk={props.sdk} session={props.session} modal={props.modal} />
-    {props.session.projectId && <><button type="button" className="quiet workspace-plan-toggle" disabled={fileDirty} aria-expanded={fileOpen} onClick={() => setFileOpen((open) => !open)}>{fileOpen ? "Hide workspace plan file" : "Open workspace plan file"}</button>
+    {props.session.projectId && <><button type="button" className="quiet workspace-plan-toggle" disabled={fileDirty} aria-expanded={fileOpen} onClick={() => setFileOpen((open) => !open)}><Icon name={fileOpen ? "Down" : "ChevronRight"} />{fileOpen ? "Hide workspace plan file" : "Open workspace plan file"}</button>
       {fileOpen && <WorkspacePlanFile {...props} onDirty={fileDirtyChanged} />}</>}
   </>;
 }

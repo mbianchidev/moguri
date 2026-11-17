@@ -3,6 +3,7 @@ import { githubSourceOwner, type GithubItem, type GithubResponse, type GithubSco
 import type { GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
 import { PrCiWatch } from "./PrCiWatch.tsx";
+import { UnifiedDiff } from "./UnifiedDiff.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.browse" }>;
 type Tab = "Files" | "Actions" | "Reviews";
@@ -48,7 +49,7 @@ export function PullRequestPane({ sdk, scope, session, snapshot, selection, relo
     <header><strong>{item.path ?? (item.title || item.nodeId || item.kind)}</strong><span>{item.state}{item.conclusion ? ` / ${item.conclusion}` : ""}</span></header>
     {item.author && <p className="fine-print">{item.author}{item.line ? ` / line ${item.line}` : ""}{item.kind === "comment" && item.headSha && item.headSha !== head ? ` / original review commit ${item.headSha}, not the current head` : ""}</p>}
     {item.kind === "file" ? <><p className="fine-print">+{item.additions ?? "unknown"} / -{item.deletions ?? "unknown"}</p>
-      {item.patch === null || item.patch === undefined ? <p className="fine-print">GitHub did not provide a text patch (binary, oversized or unavailable). No diff was reconstructed.</p> : <pre className="unified-diff">{item.patch}</pre>}</> : item.body && <pre className="pr-comment-body">{item.body}</pre>}
+      {item.patch === null || item.patch === undefined ? <p className="fine-print">GitHub did not provide a text patch (binary, oversized or unavailable). No diff was reconstructed.</p> : <UnifiedDiff text={item.patch} label={`Patch for ${item.path ?? "file"}`} />}</> : item.body && <pre className="pr-comment-body">{item.body}</pre>}
     {item.steps && <ol className="pr-job-steps">{item.steps.map((step, index) => <li key={index}>{step.name}: {step.status}{step.conclusion ? ` / ${step.conclusion}` : ""}</li>)}</ol>}
     {item.kind === "run" && head && <div className="button-row"><button type="button" disabled={busy} onClick={() => setRunId(item.id)}>Show jobs and steps</button>
       <button type="button" disabled={busy} onClick={() => void operation(async () => {
