@@ -3226,6 +3226,14 @@ Palette-only changes preserve the mode and saved custom colors. Dark remains
 the factory mode. Desktop resolves System against the OS; TUI uses OpenTUI's
 terminal theme reports and Dark when the terminal supplies none.
 
+Both clients use the same state words: Running, Needs attention, Completed,
+Failed, Partial result, Stopped, Queued, Idle and Unknown. The desktop pairs
+each word with a dot; the TUI shows it in the session list, the state row and
+message outcomes. Color only reinforces the word. When the desktop is zoomed
+or narrow, the supporting panel keeps its own column down to 561 CSS pixels and
+never covers a pending approval, question or the composer below that. The
+[design record](design.md#visual-system) lists the tokens and components.
+
 The merged independent themes source used protocol/schema 78 with
 `theme_catalog_schema='1'`. The current follow-up uses protocol82, preserving
 all six combined80 markers plus its independent request-recovery and Git
