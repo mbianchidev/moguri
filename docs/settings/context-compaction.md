@@ -30,7 +30,9 @@ Complete recent turns that are never summarized (default 2).
 
 ## Summary length
 
-The summary's output bound (default 4,096 tokens), further limited by the model.
+The summary's output bound (default 4,096 tokens), further limited by the model and to an eighth of
+the working window. Moguri skips automatic compaction while the older turns are smaller than an
+eighth of the window or twice this bound, because a summary could not make the request smaller.
 
 ## Failures and recovery
 
