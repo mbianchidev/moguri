@@ -58,7 +58,7 @@ test("New chat creates a real default worktree and its desktop console never fal
   try {
     const page = await app.firstWindow(); await waitForWorkspace(page);
     await openProjectMenu(page, "project");
-    await page.getByRole("menuitem", { name: "New chat", exact: true }).click();
+    await page.getByRole("menuitem", { name: "New session", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.workspaceOrigin === "default-worktree")?.workspaceId).toBeTruthy();
     const session = sdk.getState().snapshot!.sessions.find((session) => session.workspaceOrigin === "default-worktree")!;
     const workspace = await sdk.workspaces.wait(session.workspaceId!);

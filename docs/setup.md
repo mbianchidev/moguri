@@ -1981,12 +1981,25 @@ Settings toolbar in place. Keyboard focus can still reach controls at the bottom
 Chats initially shows ten root sessions; each project or captured project group
 shows five, and each parent shows five subsessions. Quiet **Show more/Show less**
 controls expand only that list. Search reveals matching sessions and their
-parents. A project's folder icon is its collapse control: an open folder means
-its sessions are shown, a closed folder means they are folded. Folding never
-moves or archives sessions. Clicking the project name still opens its settings.
-Project groups work the same way: click the group row to fold it, and its
-folder icon shows open or closed. Rows have no **More** or **+** buttons; use a
-right-click (two-finger tap) or **Shift+F10** for actions.
+parents. Clicking anywhere on a project row, its folder icon or its name, folds
+or unfolds it: an open folder means its sessions are shown, a closed folder
+means they are folded. Folding never moves or archives sessions. Project
+settings open from the context menu (right-click, two-finger tap or
+**Shift+F10**). Hovering or focusing a project row reveals a **+** that starts a
+new session in that project and unfolds it if needed; touch devices always show
+it. Project groups work the same way: click the group row to fold it, and its
+folder icon shows open or closed. Group rows have no **More** or **+** buttons;
+use the context menu for their actions.
+
+Context menus are split into sections. A project menu lists **New session**,
+**From work item** and **From PR** first, then **Settings**, the project
+terminal, location shortcuts and Kanban, then session organization (**Select
+sessions**, **New session group**, **Move to project group**, **New project
+group**), then the icon color palette, and finally **Change attached folder**
+and **Remove**. Session menus group status actions (Select, Rename, Pin, Mark
+read), hierarchy actions, location shortcuts and Archive/Delete. Action menus
+focus their first item; the session filter and ordering menus still focus the
+current choice.
 
 The project group's context menu offers seven icon colors, a custom color
 picker, **New chat** (Local, every member repository), **Expand all
