@@ -2404,8 +2404,22 @@ document before releasing its retained network filter.
 No personal browser, account cookies, browser download or debug port is used.
 Password/file fields, uploads/downloads and popup windows are unavailable;
 agent-triggered JavaScript confirmation dialogs are dismissed, never accepted.
-Sandbox/Remote browser control and Stainless diagnostics remain unqualified.
+Sandbox/Remote browser control remains unqualified.
 See the [browser contract](architecture/agent-browser.md).
+
+**Stainless (optional, protocol 111).** Install
+[Stainless](https://github.com/mbianchidev/stainless/releases) in `/Applications`
+or `~/Applications`, then turn on **Settings > Stainless** (or choose its exact
+app location). Tested build: `0.1.0-preview.7` (Chromium `158.0.8127.37`); other
+builds need **Check compatibility**, which starts a hidden Stainless with a
+throwaway profile and a generated local page. The Browser panel then offers
+**Open in Stainless** for Local sessions. Agents use it through approved
+`playwright` batches with `launch.kind: "stainless"`, always a new headless
+instance with a disposable profile, never your Stainless profiles. TUI:
+`/stainless status|check|open [URL]`. CLI: `moguri stainless status|check` and
+`moguri stainless open [URL] --session ID`. Qualify an installed build with
+`npm run build && npm run spike:stainless` (headless only, no window or model).
+See the [Stainless contract](architecture/stainless.md).
 
 Protocol 44 introduced these interaction changes. Protocol 60 leaves Dashboard,
 Suggestions and Automations in the left sidebar, removing Global Terminal;

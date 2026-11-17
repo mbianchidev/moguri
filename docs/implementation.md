@@ -98,8 +98,9 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > session/project organization, independent plan artifacts and explicit
 > retention/deletion. Desktop uses actual Ghostty WASM, an isolated web preview
 > with optional [user-toggled Local agent control](architecture/agent-browser.md)
-> and SDK-backed diff/plan panels. Stainless automation and
-> the rest of the first-release acceptance gates are not implied complete.
+> and SDK-backed diff/plan panels. The optional [Stainless integration](architecture/stainless.md)
+> (protocol 111) is Moguri-owned headless automation plus open-with; Stainless MCP
+> (#80) and the rest of the first-release acceptance gates are not implied complete.
 
 > The [runtime/input foundation](architecture/runtime-foundation.md) adds
 > explicit local generative endpoints, snapshotted control inheritance and
@@ -981,7 +982,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - GitHub, Linear, and Jira entry points for creating sessions from issues or pull requests;
 - `porto`, when installed, for local development servers and container stacks through its CLI;
 - `sql-not-so-lite`, when installed, for local database operations through its CLI;
-- `stainless` for privacy-preserving browser previews and Playwright through its MCP and open-with integration.
+- `stainless` for privacy-preserving browser previews and Playwright: open-with and Moguri-owned headless automation now ([contract](architecture/stainless.md)); its MCP once Stainless ships one (#80).
 
 ### Metachat and scheduled actions
 

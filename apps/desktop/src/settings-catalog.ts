@@ -16,6 +16,7 @@ export const SETTINGS_GROUPS = [
     { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },
+    { id: "stainless", label: "Stainless", keywords: "browser preview headless playwright chromium" },
     { id: "plugins", label: "Plugins", keywords: "manifest import extensions" },
     { id: "marketplace", label: "Marketplace", keywords: "catalog extensions trusted sources" },
   ] },

@@ -22,6 +22,7 @@ Settings presents them; the linked architecture contracts remain authoritative f
 - [Linear workflows](linear-workflows.md)
 - [MCP gateway](mcp-gateway.md)
 - [sql-not-so-lite](sql-not-so-lite.md)
+- [Stainless](stainless.md)
 - [Plugins](plugins.md)
 - Marketplace: no additional detail beyond the on-screen text.
 
