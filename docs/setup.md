@@ -3843,6 +3843,13 @@ and Cmd/Ctrl+Enter still holds prompts. The delivery chevron retains explicit
 Send/Answer/Queue, Steer and Interrupt actions while Stop occupies the main slot.
 Unavailable execution/autonomy modes remain disabled with their reasons.
 
+When a chat has a linked pull request, **Code change** shows **Address code
+review**, **Fix merge conflicts** and **Fix CI**. Moguri checks the PR's
+reviews, merge state and CI first and enables only the ones that apply, with
+the reason next to each; **Refresh** checks again. A click queues that task in
+the chat, and pushes or replies still ask for your usual approval. In the TUI
+and CLI use `/address-review`, `/fix-conflicts` or `/fix-ci`.
+
 Archiving or deleting a session that is still running, or one with running
 subsessions, always shows a warning and asks you to confirm stopping that work,
 even if you turned off those confirmations. Removing a project with running

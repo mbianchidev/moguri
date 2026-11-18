@@ -155,6 +155,9 @@ a running agent command to the background instead of waiting for it
 ([D43](architecture/decisions.md#d43-steer-backgrounded-commands)), and every
 client asks before archiving or deleting running sessions
 ([D44](architecture/decisions.md#d44-confirm-before-stopping-running-sessions)).
+Code Change adds status-gated Address code review, Fix merge conflicts and Fix
+CI actions for linked pull requests
+([D45](architecture/decisions.md#d45-pull-request-follow-up-actions)).
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,
