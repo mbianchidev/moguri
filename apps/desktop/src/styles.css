@@ -630,7 +630,6 @@ summary:hover { color: var(--text); }
 .composer-toolbar .icon-button { width: 30px; height: 32px; padding: var(--space-1); }
 .composer-toolbar .icon-button svg { width: 17px; height: 17px; }
 .composer-toolbar .composer-send { width: 34px; }
-.composer-toolbar .composer-send.composer-send-labeled { width: auto; gap: var(--space-1-5); padding: 0 var(--space-3) 0 var(--space-2-5); font-weight: var(--font-weight-semibold); }
 .composer-send-group > .composer-control .icon-button { width: 20px; padding: var(--space-0); }
 .composer-send-group > .composer-control svg { width: 12px; }
 .model-menu-control { flex: 1; flex-shrink: 1; min-width: 45px; }

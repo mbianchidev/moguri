@@ -53,7 +53,7 @@ for (const scope of ["project root", "project-free chat", "shared project root",
       await expect(page.getByRole("heading", { name: sessionTitle(current()), exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Resume after inspection", exact: true })).toHaveCount(0);
       const composer = page.getByRole("form", { name: "Message composer", exact: true }), resume = composer.getByRole("button", { name: "Resume", exact: true });
-      await expect(resume).toBeEnabled(); await expect(resume).toHaveText("Resume");
+      await expect(resume).toBeEnabled(); await expect(resume).toHaveText("");
       await expect(resume.locator("svg")).toHaveAttribute("data-icon", "Play");
       await expect(composer.getByRole("button", { name: "Send", exact: true })).toHaveCount(0);
       if (scope === "project root") {

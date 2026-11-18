@@ -748,7 +748,8 @@ function InlineSessionRename({ sdk, id, original, source, titleRevision, close }
       for (let attempt = 0; ; attempt++) {
         const state = sdk.getState(), current = state.snapshot?.sessions.find((session) => session.id === id);
         if (state.status !== "connected" || !current) throw new Error("The original chat is unavailable. Your proposed name is preserved; no other chat was renamed.");
-        const generatedDuringEdit = source === "factory" && titleRevision !== undefined && current.titleSource === "model" && current.titleRevision === titleRevision + 1;
+        // The user's name wins over one automatic name or topic refresh that landed while they were typing.
+        const generatedDuringEdit = (source === "factory" || source === "model") && titleRevision !== undefined && current.titleSource === "model" && current.titleRevision === titleRevision + 1;
         if (current.title !== original && !generatedDuringEdit) throw new Error("Another client changed this chat's name. Your proposed name is preserved; review the new name before retrying.");
         try { await sdk.sessions.rename(id, value, current.revision); break; }
         catch (failure) { if (attempt || !(failure instanceof ClientError && failure.code === "revision_conflict")) throw failure; }

@@ -53,8 +53,9 @@ desktop widths the sidebar stays beside the main pane, not over it.
 The composer keeps prompt/snapshot context above one compact toolbar: plus,
 environment icon, model name and autonomy icon; budget/infinity, microphone and
 paper-plane Send trail on the right. Cmd/Ctrl switches Send to a queue clock.
-When the primary action becomes Resume or Retry after a failure, it shows that
-word next to its icon. At narrow widths the model name truncates before the
+When the primary action becomes Resume (play icon) or Retry (refresh icon) after
+a failure, it stays an icon button like Send; its accessible name and tooltip
+say which action it is. At narrow widths the model name truncates before the
 controls wrap.
 Native bounded popovers expose the four settings, model context/thinking and
 usage without permanent duplicate labels. Setup and unavailable states explain what must happen

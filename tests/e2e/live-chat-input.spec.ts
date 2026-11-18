@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { CHAT_TITLE_PROMPT, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { CHAT_TITLE_PROMPT, CHAT_TITLE_REFRESH_PROMPT, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -31,6 +31,47 @@ test("ordinary active input has a Send now action and an acknowledged live row w
     expect(f.session().queue[0]?.held).toBe(true); expect(f.requests).toHaveLength(1);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
   } finally { await app.close(); await f.close(); }
+});
+
+test("a topic refresh that lands while the user is renaming never blocks the user's name, and no later refresh renames it", async () => {
+  test.setTimeout(90_000);
+  const refresh = CHAT_TITLE_REFRESH_PROMPT.split("\n")[0]!, first = CHAT_TITLE_PROMPT.split("\n")[0]!;
+  const f = await setupFixture({ respond: (request) => {
+    const text = JSON.stringify(request.messages);
+    if (text.includes(refresh)) return { text: '{"title":"Generated refreshed palette topic"}', delayMs: 1200 };
+    if (text.includes(first)) return { text: '{"title":"Generated login timeout topic"}' };
+    return { text: "Generated original response." };
+  } });
+  const sdk = await new MoguriSdk(f.service.connection).ready();
+  const created = await sdk.sessions.create(f.session().projectId), id = created.id!;
+  const current = () => f.service.controller.snapshot().sessions.find((session) => session.id === id)!;
+  await sdk.sessions.selectModel(id, f.modelId);
+  const app = await launch(f.directory);
+  try {
+    const page = await app.firstWindow(), link = page.locator(`.session-link[data-session-id="${id}"]`);
+    await expect(link).toBeVisible(); await link.click();
+    const prompt = page.getByLabel("Prompt", { exact: true });
+    await prompt.fill("Fix the login timeout in the auth service when the token refresh fails on slow networks."); await prompt.press("Enter");
+    await expect.poll(() => current().title).toBe("Generated login timeout topic");
+    await expect.poll(() => Boolean(!current().turnId && current().status === "completed")).toBe(true);
+    await prompt.fill("Design a dark mode palette for the settings dashboard with accessible contrast ratios and chart colors."); await prompt.press("Enter");
+    await expect.poll(() => f.requests.some((request) => JSON.stringify(request.messages).includes(refresh))).toBe(true);
+    await link.press("F2");
+    const form = page.getByRole("form", { name: "Rename chat inline", exact: true }), field = form.getByLabel("Chat name", { exact: true });
+    await expect(field).toBeFocused(); await field.fill("Generated user kept name");
+    await expect.poll(() => current().title).toBe("Generated refreshed palette topic");
+    await field.press("Enter");
+    await expect.poll(() => current().title).toBe("Generated user kept name");
+    await expect(form).toHaveCount(0);
+    expect(current().titleSource).toBe("user");
+    await expect.poll(() => Boolean(!current().turnId)).toBe(true);
+    const before = f.requests.length;
+    await prompt.fill("Write a migration guide for the billing database schema with rollback steps and verification queries."); await prompt.press("Enter");
+    await expect.poll(() => f.requests.length, { timeout: 15_000 }).toBeGreaterThan(before);
+    await expect.poll(() => Boolean(!current().turnId && current().status === "completed"), { timeout: 15_000 }).toBe(true);
+    expect(current().title).toBe("Generated user kept name");
+    expect(f.requests.filter((request) => JSON.stringify(request.messages).includes(refresh))).toHaveLength(1);
+  } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
 test("a new factory topic is model-summarized and a started inline user edit wins over that result", async () => {
