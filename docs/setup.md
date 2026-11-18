@@ -142,7 +142,7 @@ any command runs one of them. Bundled scripts run there only through your
 normal command approval; other scripts on the host stay blocked. If the copy
 fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
-[Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-111).
+[Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
 Every review and load lists deterministic indicator findings (pattern matches
 for hidden characters, download-and-run, credential paths, instructions to
@@ -3854,7 +3854,7 @@ planned in that response waits. The command's tool row shows **Running in
 background**, the Agent terminal keeps its live output, and the agent gets the
 result when the command ends. The turn doesn't finish until then; Stop cancels
 the command. See
-[steering while a command runs](architecture/session-interactions.md#steering-while-a-command-runs-protocol-111).
+[steering while a command runs](architecture/session-interactions.md#steering-while-a-command-runs-protocol-112).
 
 In both desktop chat composers, **Enter** sends and **Shift+Enter** inserts a
 newline. **Cmd/Ctrl+Enter** still holds the prompt without running it;

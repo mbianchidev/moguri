@@ -83,4 +83,4 @@ history.
 - CLI: `moguri skills publishers`, `moguri skills publisher-save NAME KEY.pem --confirm-review`,
   `moguri skills block key|artifact SHA REASON --confirm-review`. TUI: `/skills publishers`,
   `/skills publisher-save confirm-trusted JSON`, `/skills block key|artifact SHA confirm-block REASON`.
-- Contract: `docs/architecture/skills-and-rewind.md#source-indicators-and-publisher-trust-protocol-111`.
+- Contract: `docs/architecture/skills-and-rewind.md#source-indicators-and-publisher-trust-protocol-112`.

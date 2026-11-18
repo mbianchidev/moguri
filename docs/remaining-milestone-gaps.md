@@ -126,16 +126,16 @@ Delivered #7/#9/#13/#36/#37/#38/#53/#55/#63/#69 do not reappear as new implement
 | 3. Optional providers and automation | #80 Stainless MCP integration once mbianchidev/stainless#22 ships, #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions, #54 GetMoshi integration and #64 global/repository flags for evidence-gated flaky-CI retries (provider status preflight, bounded attempts) and feature-preserving conflict resolution. Existing one-time schedules, exact-PR CI watches (#52), the reviewed rebase/conflict workflow and reviewed compaction are not those broader features. |
 | 4. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |
 
-Protocol 111 delivers the remaining #23 scope ([D40](architecture/decisions.md#d40-otlp-logs-credential-headers-and-coverage-23)):
+Protocol 112 delivers the remaining #23 scope ([D41](architecture/decisions.md#d41-otlp-logs-credential-headers-and-coverage-23)):
 opt-in fixed-template diagnostic logs correlated with trace/span IDs, finite
 failure outcomes, correction logs instead of duplicate spans, secret-backend
 credential headers bound to the collector origin, measured per-turn overhead and
-the [process/Env coverage matrix](architecture/otlp-export.md#process-and-env-coverage-matrix-protocol-111).
+the [process/Env coverage matrix](architecture/otlp-export.md#process-and-env-coverage-matrix-protocol-112).
 SSH-peer and Sandbox-guest internal propagation stay an explicit documented gap,
 content capture stays out of scope, and there is still no second ledger.
 
-Protocol 111 also delivers the remaining applicable #45 controls
-([D39](architecture/decisions.md#d39-owasp-agentic-skills-top-10-follow-up-45)):
+Protocol 112 also delivers the remaining applicable #45 controls
+([D40](architecture/decisions.md#d40-owasp-agentic-skills-top-10-follow-up-45)):
 a deterministic source indicator scanner that gates model-approved scripts
 (the user may accept the risk) and refuses hidden-character trusted-folder
 loads, per-profile saved publisher keys with permanent key/version blocks, and
@@ -144,17 +144,17 @@ generated-model AST01 qualification. The project owner signed off on
 isolation, malware/semantic scanning beyond the deterministic rules and
 live-model testing. Remote reviewed scripts stay unsupported, while Remote
 SSH sessions now load skills on demand
-([D41](architecture/decisions.md#d41-remote-skill-packages-over-ssh)): the same
+([D42](architecture/decisions.md#d42-remote-skill-packages-over-ssh)): the same
 admission rules as Local, with the complete admitted package copied to a
 digest-named folder on the SSH host and its scripts run through normal command
 approval. The
 [AST category matrix](architecture/file-access.md#owasp-source-and-review-boundary)
 records controls, evidence and those exclusions. Neither change is OWASP
-certification or a claim of zero risk. Protocol 111 also lets a user steer move
+certification or a claim of zero risk. Protocol 112 also lets a user steer move
 a running agent command to the background instead of waiting for it
-([D42](architecture/decisions.md#d42-steer-backgrounded-commands)), and every
+([D43](architecture/decisions.md#d43-steer-backgrounded-commands)), and every
 client asks before archiving or deleting running sessions
-([D43](architecture/decisions.md#d43-confirm-before-stopping-running-sessions)).
+([D44](architecture/decisions.md#d44-confirm-before-stopping-running-sessions)).
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,

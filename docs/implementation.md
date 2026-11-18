@@ -714,7 +714,7 @@ Deleting a session does not delete its artifacts. Deleting a project containing 
 The bounded [protocol-97 OTLP slice](architecture/otlp-export.md) adds explicit
 profile-owned, metadata-only traces and canonical gauge export over existing
 records, off by default. SDK, CLI/TUI and desktop share exact destination/revision
-review and service-owned failure status. Protocol 111 adds opt-in
+review and service-owned failure status. Protocol 112 adds opt-in
 fixed-template diagnostic logs correlated with trace/span IDs, finite failure
 outcomes and secret-backend credential headers bound to the collector origin.
 No separate accounting authority, content capture, automatic instrumentation,
