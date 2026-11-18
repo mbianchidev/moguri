@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { isRecord, type Attachment, type Command, type CommandResult, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { isRecord, type Attachment, type Command, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 import { AnchoredMenu } from "./AnchoredMenu.tsx";
-import { AttachmentChip, AttachmentMenu, AttachmentReview, captureReviewed, clipboardImage, SESSION_DRAG_TYPE, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
+import { AttachmentChip, AttachmentMenu, AttachmentReview, stageReviewed, clipboardImage, SESSION_DRAG_TYPE, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { Icon } from "./Icon.tsx";
 import { ReorderList } from "./ReorderList.tsx";
@@ -87,9 +87,7 @@ function QueuedPromptEditor({ sdk, session, snapshot, index, edit, update, modal
   const attachButton = useRef<HTMLButtonElement>(null), project = snapshot.projects.find((value) => value.id === session.projectId);
   useEffect(() => { if (!expanded) setMenu(false); }, [expanded]);
   useEffect(() => { if (!review) return; modal(true); return () => modal(false); }, [review, modal]);
-  const add = (result: CommandResult) => {
-    const attachment = result.attachment;
-    if (!attachment) throw new Error("The attachment wasn't staged for this queued prompt. Nothing was added.");
+  const add = ({ attachment }: { attachment: Attachment }) => {
     update((current) => current && current.id === edit.id ? { ...current, attachments: [...current.attachments, attachment] } : current);
   };
   const run = async (work: () => Promise<unknown>) => {
@@ -102,7 +100,7 @@ function QueuedPromptEditor({ sdk, session, snapshot, index, edit, update, modal
     try { add(await sdk.attachments.queued.document(session.id, edit.id, path, id)); } finally { setExtracting(null); }
   };
   const reviewAttachment = async (request: AttachmentReviewRequest) => {
-    if (request.kind === "session" && sdk.settings.get()?.values.interactions.confirmSessionAttachments === false) add(await captureReviewed(sdk, session.id, request, edit.id));
+    if (request.kind === "session" && sdk.settings.get()?.values.interactions.confirmSessionAttachments === false) add(await stageReviewed(sdk, session.id, request, edit.id));
     else setReview(request);
     setMenu(false);
   };
@@ -121,7 +119,8 @@ function QueuedPromptEditor({ sdk, session, snapshot, index, edit, update, modal
   const number = index + 1;
   return <div className="message user queued-prompt queued-prompt-editor" aria-label={`Editing queued message ${number}`}
     onKeyDown={(event) => {
-      if (event.nativeEvent.isComposing || menu || review) return;
+      // Keys inside attachment previews, the attach menu or a review dialog belong to them, not to this editor.
+      if (event.nativeEvent.isComposing || menu || review || event.target instanceof Element && event.target.closest("dialog, [popover]")) return;
       if (event.key === "Escape") { event.preventDefault(); close(); }
       else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); void save(); }
     }}
@@ -165,6 +164,6 @@ function QueuedPromptEditor({ sdk, session, snapshot, index, edit, update, modal
       <AttachmentMenu sdk={sdk} session={session} project={project} snapshot={snapshot} run={run} capture={run} attachPath={attachPath} review={reviewAttachment} close={() => setMenu(false)}
         selectFile={() => void run(async () => { const path = await window.moguri.chooseAttachment("file"); if (path) await attachFile(path); })} />
     </AnchoredMenu>}
-    {review && <AttachmentReview sdk={sdk} request={review} attach={async (request) => add(await captureReviewed(sdk, session.id, request, edit.id))} close={() => setReview(null)} />}
+    {review && <AttachmentReview sdk={sdk} request={review} attach={async (request) => add(await stageReviewed(sdk, session.id, request, edit.id))} close={() => setReview(null)} />}
   </div>;
 }

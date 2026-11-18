@@ -58,11 +58,14 @@ export function AttachmentMenu({ sdk, session, project, snapshot, run, capture, 
     </>}
   </div>;
 }
-/** Capture a reviewed folder, GitHub or session snapshot into the draft, or stage it for one queued prompt's edit. */
-export function captureReviewed(sdk: MoguriSdk, sessionId: string, request: AttachmentReviewRequest, queueItemId?: string) {
-  if (queueItemId) return request.kind === "folder" ? sdk.attachments.queued.folder(sessionId, queueItemId, request.path, request.preview.digest, true) :
+/** Stage a reviewed folder, GitHub or session snapshot for one queued prompt's edit. */
+export function stageReviewed(sdk: MoguriSdk, sessionId: string, request: AttachmentReviewRequest, queueItemId: string) {
+  return request.kind === "folder" ? sdk.attachments.queued.folder(sessionId, queueItemId, request.path, request.preview.digest, true) :
     request.kind === "github" ? sdk.attachments.queued.github(sessionId, queueItemId, request.url, request.access, request.preview.digest, true) :
       sdk.attachments.queued.session(sessionId, queueItemId, request.sourceSessionId, request.preview.digest, true);
+}
+/** Capture a reviewed folder, GitHub or session snapshot into the draft. */
+export function captureReviewed(sdk: MoguriSdk, sessionId: string, request: AttachmentReviewRequest) {
   return request.kind === "folder" ? sdk.attachments.folder(sessionId, request.path, request.preview.digest, true) :
     request.kind === "github" ? sdk.attachments.github(sessionId, request.url, request.access, request.preview.digest, true) :
       sdk.attachments.session(sessionId, request.sourceSessionId, request.preview.digest, true);
