@@ -47,7 +47,8 @@ this page keeps the full detail.
 - Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are always preserved by deletion.
 - **Remove pushed worktrees and branches when archiving** (on by default): when an archived session's
   worktree is clean and every commit is on a remote branch, Moguri removes the worktree and deletes its
-  local branch. Uncommitted, untracked or unpushed work keeps both, and the reason shows for the session
+  local branch. Uncommitted, untracked or unpushed work keeps both, as do ignored files that may not be
+  rebuildable (like `.env`; dependency folders, build output and caches don't count). The reason shows for the session
   under Manage stored sessions. Restoring the session recreates the worktree from the remote branch; a
   different local branch with the same name blocks that instead of being replaced.
 - Candidate cleanup status: while owned work is still settling, deletion is not complete. For a session
