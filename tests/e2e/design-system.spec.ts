@@ -119,9 +119,9 @@ test("failed, stopped, non-Git and diff states stay distinct, worded and reachab
   try {
     const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer", exact: true });
     await expect(page.locator('.message.notice[data-tone="failed"]')).toContainText("Generated unavailable provider");
-    const action = composer.locator(".composer-send-labeled");
-    await expect(action).toBeVisible(); await expect(action).toHaveText(/^(Resume|Retry)$/);
-    await expect(action).toHaveAccessibleName(/^(Resume|Retry last model request)$/);
+    const action = composer.getByRole("button", { name: /^(Resume|Retry last model request)$/ });
+    await expect(action).toBeVisible(); await expect(action).toHaveText("");
+    await expect(action).toHaveClass(/icon-button/);
     const pane = page.getByRole("complementary", { name: "Session sidebar", exact: true });
     await page.getByRole("navigation", { name: "Sidebar panels", exact: true }).getByRole("button", { name: "Code change", exact: true }).click();
     await expect(pane.getByRole("status").filter({ hasText: "isn't a Git repository" })).toBeVisible();

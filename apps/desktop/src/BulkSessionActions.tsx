@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { sessionSubtree, type BulkSessionAction, type BulkSessionInput, type BulkSessionPreview, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { runningSessionNames, runningSessions, sessionSubtree, type BulkSessionAction, type BulkSessionInput, type BulkSessionPreview, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, request, busyChanged }: {
@@ -21,6 +21,9 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, 
   const needsChoice = lifecycle && descendants.length > 0;
   const policy = snapshot.settings.values.retention;
   const asks = input?.action === "delete" ? policy.confirmBulkDelete !== false : input?.action === "archive" ? policy.confirmBulkArchive !== false : true;
+  // Running work always gets an explicit warning and confirmation, whatever the saved bulk preference.
+  const running = lifecycle ? runningSessions(snapshot.sessions, snapshot.jobs, original) : [];
+  const confirmDelete = input?.action === "delete" && (asks || running.length > 0);
   const stale = Boolean(preview && preview.selected.some((source) => {
     const session = snapshot.sessions.find((session) => session.id === source.id);
     return !session || session.revision !== source.revision || session.parentSessionId !== source.parentSessionId || session.status !== source.status;
@@ -37,11 +40,11 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, 
     return () => { generation.current++; };
   }, [sdk, JSON.stringify(input)]);
   const close = () => { if (!pending.current) { generation.current++; setInput(null); setPreview(null); } };
-  const perform = async (review: BulkSessionPreview, rememberChoice: boolean) => {
+  const perform = async (review: BulkSessionPreview, rememberChoice: boolean, confirmRunning: boolean) => {
     if (pending.current) return;
     pending.current = true; setBusy(true); setError("");
     try {
-      await sdk.sessions.bulk(review, true);
+      await sdk.sessions.bulk(review, true, confirmRunning ? { confirmRunning: true } : {});
       if (rememberChoice && ["archive", "delete"].includes(review.input.action)) {
         const settings = sdk.settings.get();
         if (!settings) throw new Error("The session action completed, but its profile confirmation preference could not be saved.");
@@ -49,7 +52,12 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, 
           [review.input.action === "archive" ? "confirmBulkArchive" : "confirmBulkDelete"]: false } }, settings.revision);
       }
       setInput(null); setPreview(null); clear();
-    } catch (error) { setError(error instanceof Error ? error.message : "The bulk action did not complete. Original sessions and unconfirmed work were preserved."); }
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "session_running") {
+        // Work started after the review: reopen it with the running warning instead of failing.
+        setConfirmed(false); setRemember(false); setInput(review.input);
+      } else setError(error instanceof Error ? error.message : "The bulk action did not complete. Original sessions and unconfirmed work were preserved.");
+    }
     finally { pending.current = false; setBusy(false); }
   };
   const begin = async (action: BulkSessionAction) => {
@@ -65,7 +73,8 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, 
       const request: BulkSessionInput = { action, sessionIds: [...ids] };
       const ask = action === "delete" ? state.settings.values.retention.confirmBulkDelete !== false :
         action === "archive" ? state.settings.values.retention.confirmBulkArchive !== false : true;
-      if (!ask && !hasChildren) { await perform((await sdk.sessions.bulkPreview(request)).preview, false); return; }
+      const runningNow = action === "archive" || action === "delete" ? runningSessions(state.sessions, state.jobs, ids) : [];
+      if (!ask && !hasChildren && !runningNow.length) { await perform((await sdk.sessions.bulkPreview(request)).preview, false, false); return; }
       setRemember(false); setConfirmed(false); setPreview(null); setInput(request);
     } catch (error) { setError(error instanceof Error ? error.message : "The original selection could not be prepared. Saved drafts were preserved."); }
     finally { preparing.current = false; setBusy(false); }
@@ -83,9 +92,10 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, 
     {!allAttached && !allDetached && <p className="fine-print">Attach/detach needs all selected sessions in the same attachment state.</p>}
     {!input && error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {input && <dialog ref={dialog} className="workspace-dialog" aria-label={`${input.action} selected sessions`} onClose={close} onCancel={(event) => { if (busy) event.preventDefault(); }}>
-      <form onSubmit={(event) => { event.preventDefault(); if (preview && !stale && (input.action !== "delete" || !asks || confirmed)) void perform(preview, remember); }}>
+      <form onSubmit={(event) => { event.preventDefault(); if (preview && !stale && (!confirmDelete || confirmed)) void perform(preview, remember, running.length > 0); }}>
         <h2>{input.action === "attach" ? "Attach" : input.action === "detach" ? "Detach" : input.action === "archive" ? "Archive" : "Delete"} {original.length} selected sessions</h2>
         <ul>{original.map((id) => <li key={id}>{snapshot.sessions.find((session) => session.id === id)?.title ?? "Removed session"} <code>{id}</code></li>)}</ul>
+        {running.length > 0 && <Alert as="p" tone="warning">{`${runningSessionNames(running)} ${running.length === 1 ? "is" : "are"} still running. ${input.action === "archive" ? "Archiving" : "Deleting"} stops ${running.length === 1 ? "its" : "their"} current work. Moguri always asks before stopping running work, even if you turned off these confirmations.`}</Alert>}
         {input.action === "attach" && <label className="setting-field">Attach to session<select aria-label="Bulk attachment target" value={input.targetSessionId ?? ""} disabled={busy}
           onChange={(event) => setInput({ ...input, targetSessionId: event.target.value || undefined })}><option value="">Choose an exact target</option>
           {snapshot.sessions.filter((session) => session.projectId === selected[0]?.projectId && !originalSet.has(session.id) && session.kind !== "subagent" && session.status !== "archived")
@@ -96,14 +106,14 @@ export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, 
           <details><summary>Review unselected children</summary><ul>{descendants.map((session) => <li key={session.id}>{session.title} / <code>{session.id}</code></li>)}</ul></details>
         </fieldset>}
         <p>Workspace and execution authority stay unchanged. Archive preserves drafts and history. Delete removes selected conversation content and candidates only after confirmed cleanup; independent artifacts, code, worktrees and external PRs survive.</p>
-        {input.action === "delete" && asks && <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I confirm permanent deletion of this exact selected set.</label>}
+        {confirmDelete && <label className="check-setting"><input type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />I confirm permanent deletion of this exact selected set.{running.length > 0 && " Its running work stops."}</label>}
         {lifecycle && asks && <label className="check-setting"><input type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
           Do not ask me again for multiple {input.action === "delete" ? "deletion" : "archiving"}</label>}
-        {lifecycle && <p className="fine-print">This profile preference skips only the bulk confirmation. Child choices, changed selections, policy and cleanup still require review.</p>}
+        {lifecycle && <p className="fine-print">This profile preference skips only the bulk confirmation. Running sessions, child choices, changed selections, policy and cleanup still require review.</p>}
         {stale && <Alert as="p" className="inline-error" role="alert">The selected set changed. Close and review it again.</Alert>}
         {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
         <footer><button ref={cancel} type="button" disabled={busy} onClick={close}>Cancel</button>
-          <button type="submit" className={input.action === "delete" ? "danger" : "primary"} disabled={busy || !preview || stale || input.action === "delete" && asks && !confirmed}>{busy ? "Settling owned work..." : "Apply to selected sessions"}</button></footer>
+          <button type="submit" className={input.action === "delete" || running.length ? "danger" : "primary"} disabled={busy || !preview || stale || confirmDelete && !confirmed}>{busy ? "Settling owned work..." : running.length ? "Stop work and apply" : "Apply to selected sessions"}</button></footer>
       </form>
     </dialog>}
   </section>;

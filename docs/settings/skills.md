@@ -8,7 +8,8 @@ this page keeps the full detail.
 - Sources can be a local skill folder, a public GitHub repository or a direct HTTPS ZIP archive.
 - Each search and each read refreshes and validates the source; a lookup error returns no stale result.
 - No scripts run, no skills are silently installed, and skill text cannot grant permissions.
-- Sources belong only to the current profile and currently use the Local control plane.
+- Sources belong only to the current profile and are read on the Local control plane, also for Remote sessions.
+- Remote (SSH) sessions load skills with the same approval rules. The first use copies the skill's files to a Moguri folder on the SSH host (`<state>/skills/<SHA-256>/`); its scripts run there only after normal command approval. Sandbox sessions can't load skills yet.
 - Contract: `docs/architecture/skills-and-rewind.md`.
 
 ## Global skill folders
@@ -36,6 +37,10 @@ this page keeps the full detail.
 - Allowed paths are literal paths. Write access ("Read and write files") is offered only when the skill declares native-file access, and stays under current hard policy.
 - Signed publishers: verify against the documented `moguri-skill-artifact-v1` signature payload with a separately user-pinned Ed25519 key. Pinning proves control of this reviewed key, not an independently verified real-world organization. HTTPS archives require a pinned signature.
 - Unverified publishers record an actual-user Local review acknowledgement.
+- Saved publisher keys: when the profile has saved keys, **Publisher key** offers them instead of pasting a key.
+- Indicator findings: the review lists pattern matches (hidden characters, download-and-run, credential paths,
+  instructions to override rules and so on). They are advice, not a safety verdict. A skill from a trusted folder
+  that contains invisible or bidirectional control characters isn't loaded automatically; approve it here.
 - Approvals expire (the UI requests 24 hours; the service allows at most 168).
 - Revocation blocks future consumption and effects. It cannot retract instructions already delivered to a model or undo work already running. A rewind never restores an old source grant.
 - Contract: `docs/architecture/skills-and-rewind.md`, `docs/setup.md` (skill admission section).
@@ -65,3 +70,17 @@ changes.
 
 Chats that admitted the skill lose access. Its version history stays in this profile's encrypted event
 history.
+
+## Publisher keys
+
+- **Save publisher key** stores an Ed25519 public key (PEM) and a name for this profile. Saving needs the
+  confirmation that you got the key through a channel you trust. A key verifies signatures; it doesn't prove who
+  the publisher is.
+- **Block key** permanently blocks a key fingerprint, whether saved or pasted. **Block this version** permanently
+  blocks one exact skill version by its artifact SHA-256 (shown in each review and approval).
+- A block stops new approvals and every later load or effect of anything it covers, in every chat of the
+  profile. It can't recall instructions a model already read. Blocks can't be undone.
+- CLI: `moguri skills publishers`, `moguri skills publisher-save NAME KEY.pem --confirm-review`,
+  `moguri skills block key|artifact SHA REASON --confirm-review`. TUI: `/skills publishers`,
+  `/skills publisher-save confirm-trusted JSON`, `/skills block key|artifact SHA confirm-block REASON`.
+- Contract: `docs/architecture/skills-and-rewind.md#source-indicators-and-publisher-trust-protocol-112`.

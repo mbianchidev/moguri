@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { scriptReviewNeedsApproval, type MoguriSdk, type ScriptReviewResponse, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
+import { SourceIndicators } from "./SourceIndicators.tsx";
 
 export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReviewed }: {
   sdk: MoguriSdk; session: Session; snapshot: Snapshot; reviewIds: string[]; onReviewed: () => void;
@@ -35,6 +36,7 @@ export function ScriptReviewsPanel({ sdk, session, snapshot, reviewIds, onReview
           }} aria-label={`${selected ? "Collapse" : "Read full"} script review ${review.id}`}>{selected ? "Hide source" : "Show full source"}</button>
           {selected && <div id={`script-source-${review.id}`}>
             <p className="fine-print">{selected.warning}</p><pre aria-label={`Complete reviewed script ${review.id}`}>{selected.text}</pre>
+            <SourceIndicators report={selected.indicators} gate="model-script" label={`Indicator findings for script review ${review.id}`} />
             {review.advice?.verdict === "safe" && <>
               <p className="fine-print">Approving clears this notification. It doesn't run the script or grant permission to run it.</p>
               <button type="button" className="primary" disabled={busy} aria-label={`Approve script review ${review.id}`} onClick={() => void run(async () => {

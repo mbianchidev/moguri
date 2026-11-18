@@ -53,8 +53,9 @@ desktop widths the sidebar stays beside the main pane, not over it.
 The composer keeps prompt/snapshot context above one compact toolbar: plus,
 environment icon, model name and autonomy icon; budget/infinity, microphone and
 paper-plane Send trail on the right. Cmd/Ctrl switches Send to a queue clock.
-When the primary action becomes Resume or Retry after a failure, it shows that
-word next to its icon. At narrow widths the model name truncates before the
+When the primary action becomes Resume (play icon) or Retry (refresh icon) after
+a failure, it stays an icon button like Send; its accessible name and tooltip
+say which action it is. At narrow widths the model name truncates before the
 controls wrap.
 Native bounded popovers expose the four settings, model context/thinking and
 usage without permanent duplicate labels. Setup and unavailable states explain what must happen
@@ -79,9 +80,10 @@ project context menus, not Settings; unavailable roots stay visible but
 disabled with their reason. Global skill-folder switches show an exact-path confirmation
 before adding a saved discovery source, never an implied execution grant.
 
-Queued prompts use right-aligned muted dashed bubbles, with explicit held/steer
-labels. More, Delete and held-prompt Run icons reveal on hover or focus; non-hover
-devices retain visible 44px targets. The singular/plural counted chevron preserves
+Queued prompts look like sent prompts (`.message.user`) with a dashed outline and
+explicit held/steer labels. Copy, Send now (arrow up) and Delete icons reveal on
+hover or focus; clicking the prompt edits it in place with icon-only Attach,
+Cancel and Save. Non-hover devices retain visible 44px targets. The singular/plural counted chevron preserves
 inline edits when collapsed. The chat header carries no shortcut buttons; small
 accent count badges on the right-rail Terminal, Plan and Code change icons describe
 actual scoped observations, not synthetic progress. A Terminal count opens Agent

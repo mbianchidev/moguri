@@ -630,7 +630,6 @@ summary:hover { color: var(--text); }
 .composer-toolbar .icon-button { width: 30px; height: 32px; padding: var(--space-1); }
 .composer-toolbar .icon-button svg { width: 17px; height: 17px; }
 .composer-toolbar .composer-send { width: 34px; }
-.composer-toolbar .composer-send.composer-send-labeled { width: auto; gap: var(--space-1-5); padding: 0 var(--space-3) 0 var(--space-2-5); font-weight: var(--font-weight-semibold); }
 .composer-send-group > .composer-control .icon-button { width: 20px; padding: var(--space-0); }
 .composer-send-group > .composer-control svg { width: 12px; }
 .model-menu-control { flex: 1; flex-shrink: 1; min-width: 45px; }
@@ -778,21 +777,23 @@ summary:hover { color: var(--text); }
 .queue-disclosure svg { width: 14px; height: 14px; }
 .queue > header .queue-resume { color: var(--muted); }
 .queue-content { padding-top: var(--space-1); }
-.queue-item { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); min-width: 0; font-size: var(--font-size-sm); }
-.queue-bubble { max-width: min(100%, 64ch); padding: var(--space-2) var(--space-3); border: 1px dashed var(--control-line); border-radius: var(--radius-xl); color: var(--muted); }
+.queue .queued-prompt { margin: 0; padding: var(--space-3) var(--space-4); border: 1px dashed var(--control-line); font-size: var(--font-size-sm); }
+.queued-prompt > header { margin-bottom: var(--space-1-5); }
 .queue-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
-.queue-delivery { display: block; margin-bottom: var(--space-0); font-size: var(--font-size-2xs); }
-.queue-actions { display: flex; align-items: center; gap: var(--space-1); opacity: 0; pointer-events: none; }
-.queue .reorder-item { align-items: flex-start; padding: 0 0 var(--space-1); border: 0; }
-.queue .reorder-handle { margin-top: var(--space-1); opacity: 0; pointer-events: none; }
+.queue-delivery { color: var(--muted); font-size: var(--font-size-2xs); }
+.queue-actions { display: flex; align-items: center; gap: var(--space-1); margin-inline-start: auto; opacity: 0; pointer-events: none; }
+.queue .reorder-item { align-items: flex-start; padding: 0 0 var(--space-2); border: 0; }
+.queue .reorder-handle { margin-top: var(--space-3); opacity: 0; pointer-events: none; }
 .queue .reorder-item:hover .queue-actions, .queue .reorder-item:focus-within .queue-actions,
-.queue-item[data-menu-open] .queue-actions, .queue .reorder-item:hover .reorder-handle, .queue .reorder-item:focus-within .reorder-handle { opacity: 1; pointer-events: auto; }
-.queue-editor { width: 100%; }
-.queue-editor textarea { width: 100%; min-height: 60px; padding: var(--space-2); }
-.queue-editor .button-row { justify-content: flex-end; margin-top: var(--space-1); }
-.queued-message-menu { display: grid; align-content: start; gap: var(--space-1-5); }
-.queued-message-menu > button { display: flex; align-items: center; gap: var(--space-2); text-align: left; }
-.queued-message-preview { margin: 0 0 var(--space-2); max-height: 160px; overflow: auto; color: var(--muted); font-size: var(--font-size-sm); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.queue .reorder-item:hover .reorder-handle, .queue .reorder-item:focus-within .reorder-handle { opacity: 1; pointer-events: auto; }
+.queue .queued-prompt-body, .queue button.queued-prompt-body:hover:not(:disabled), .queue button.queued-prompt-body:active:not(:disabled) { display: block; width: 100%; min-height: 0; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; text-align: start; }
+.queue button.queued-prompt-body { cursor: text; }
+.queued-prompt .attachment-list { margin-top: var(--space-2); }
+.queued-prompt-editor textarea { width: 100%; min-height: 60px; padding: var(--space-2); }
+.queued-prompt-editor-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-1); margin-top: var(--space-2); }
+.queued-prompt-editor-actions > :first-child { margin-inline-end: auto; }
+.queued-attachment-menu { display: grid; align-content: start; gap: var(--space-1-5); }
+.queue-lost pre { max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
 .code-change-pr-link { margin-top: var(--space-4); }
 .code-change-pr-link > summary { cursor: pointer; font-size: var(--font-size-sm); color: var(--muted); }
 .background-agents { margin-bottom: var(--space-5); }
@@ -1328,9 +1329,9 @@ summary:hover { color: var(--text); }
 .message-copy { margin-inline-start: auto; width: 26px; height: 26px; min-height: 26px; opacity: 0; pointer-events: none; }
 .message:hover .message-copy, .message:focus-within .message-copy { opacity: 1; pointer-events: auto; }
 .message-copy svg { width: 14px; height: 14px; }
-.queue-item .icon-button { width: 32px; height: 32px; min-height: 32px; padding: var(--space-1-5); }
-.queue-item .queue-run { border-radius: 50%; background: var(--hover); }
-.queue-item .icon-button svg { width: 16px; height: 16px; }
+.queued-prompt .icon-button { width: 32px; height: 32px; min-height: 32px; padding: var(--space-1-5); }
+.queued-prompt .queue-send-now { border-radius: 50%; background: var(--hover); }
+.queued-prompt .icon-button svg { width: 16px; height: 16px; }
 .panel-toolbar, .terminal-tabs, .browser-address { display: flex; align-items: center; gap: var(--space-1); min-width: 0; flex-shrink: 0; }
 .panel-toolbar > strong { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-xs); }
 .panel-toolbar select, .terminal-tabs select, .browser-address input { flex: 1; min-width: 0; width: 0; font-size: var(--font-size-xs); }
@@ -1487,7 +1488,7 @@ summary:hover { color: var(--text); }
 }
 @media (hover: none) {
   .message-copy, .queue-actions, .queue .reorder-handle { opacity: 1; pointer-events: auto; }
-  .queue-item .icon-button, .queue .reorder-handle { width: 44px; height: 44px; min-height: 44px; }
+  .queued-prompt .icon-button, .queue .reorder-handle { width: 44px; height: 44px; min-height: 44px; }
 }
 @media (max-height: 800px) {
   .timeline { padding-block: var(--space-3); }

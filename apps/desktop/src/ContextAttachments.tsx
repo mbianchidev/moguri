@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type DraftEditor, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { SettingsAction } from "./SettingsFields.tsx";
 import { ContextDocument } from "./DocumentAttachment.tsx";
@@ -58,23 +58,30 @@ export function AttachmentMenu({ sdk, session, project, snapshot, run, capture, 
     </>}
   </div>;
 }
-export function AttachmentReview({ request, sdk, sessionId, editor, close, adopt }: { request: AttachmentReviewRequest; sdk: MoguriSdk; sessionId: string; editor: DraftEditor; close: () => void; adopt: (draft: Session["draft"]) => Promise<void> }) {
+/** Stage a reviewed folder, GitHub or session snapshot for one queued prompt's edit. */
+export function stageReviewed(sdk: MoguriSdk, sessionId: string, request: AttachmentReviewRequest, queueItemId: string) {
+  return request.kind === "folder" ? sdk.attachments.queued.folder(sessionId, queueItemId, request.path, request.preview.digest, true) :
+    request.kind === "github" ? sdk.attachments.queued.github(sessionId, queueItemId, request.url, request.access, request.preview.digest, true) :
+      sdk.attachments.queued.session(sessionId, queueItemId, request.sourceSessionId, request.preview.digest, true);
+}
+/** Capture a reviewed folder, GitHub or session snapshot into the draft. */
+export function captureReviewed(sdk: MoguriSdk, sessionId: string, request: AttachmentReviewRequest) {
+  return request.kind === "folder" ? sdk.attachments.folder(sessionId, request.path, request.preview.digest, true) :
+    request.kind === "github" ? sdk.attachments.github(sessionId, request.url, request.access, request.preview.digest, true) :
+      sdk.attachments.session(sessionId, request.sourceSessionId, request.preview.digest, true);
+}
+export function AttachmentReview({ request, sdk, close, attach: capture }: { request: AttachmentReviewRequest; sdk: MoguriSdk; close: () => void; attach: (request: AttachmentReviewRequest) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null), [checked, setChecked] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(""), [remember, setRemember] = useState(false);
   useEffect(() => { dialog.current?.showModal(); }, []);
   const attach = async () => {
     setBusy(true); setError("");
     try {
-      await editor.flush();
       if (request.kind === "session" && remember) {
         const settings = sdk.settings.get();
         if (!settings) throw new Error("Reconnect before saving the session-attachment preference.");
         await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, confirmSessionAttachments: false } }, settings.revision);
       }
-      if (request.kind === "folder") await sdk.attachments.folder(sessionId, request.path, request.preview.digest, true);
-      else if (request.kind === "github") await sdk.attachments.github(sessionId, request.url, request.access, request.preview.digest, true);
-      else await sdk.attachments.session(sessionId, request.sourceSessionId, request.preview.digest, true);
-      const draft = sdk.getState().snapshot?.sessions.find((session) => session.id === sessionId)?.draft;
-      if (draft) await adopt(draft);
+      await capture(request);
       close();
     } catch (error) { setError(error instanceof Error ? error.message : "The source could not be attached. Your draft was preserved."); }
     finally { setBusy(false); }

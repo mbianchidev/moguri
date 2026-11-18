@@ -132,7 +132,31 @@ instructions only: every tool call still goes through your normal permissions
 and Autopilot choices. Revoking a skill in a chat stops it loading there.
 Disabling the folder blocks chats that used it, and re-enabling it doesn't
 revive those old loads. Skills from a remote HTTPS archive still need the
-explicit review below.
+explicit review below, and so does a folder skill containing invisible or
+bidirectional control characters, which never loads automatically.
+
+Remote (SSH) sessions load skills the same way. The skill text goes to the
+agent, and the first use copies the skill's files to a Moguri folder on the SSH
+host (`<state>/skills/<SHA-256>/`), checked by hash and checked again before
+any command runs one of them. Bundled scripts run there only through your
+normal command approval; other scripts on the host stay blocked. If the copy
+fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
+load skills yet. See
+[Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
+
+Every review and load lists deterministic indicator findings (pattern matches
+for hidden characters, download-and-run, credential paths, instructions to
+override rules and similar). They are advice, not a safety verdict. Save a
+publisher's Ed25519 key once under **Settings / Skills / Publisher keys** and
+pick it when admitting a signed source, or block a key or one exact skill
+version there; a block is permanent and stops new approvals and every later
+load of what it covers. From the terminal:
+
+```sh
+moguri skills publishers
+moguri skills publisher-save "Example publisher" publisher.pem --confirm-review
+moguri skills block artifact ARTIFACT_SHA256 "Withdrawn version" --confirm-review
+```
 
 Discovery and diagnostic source reading do not admit instructions. In desktop
 open **Settings / Skills**, select the actual **Chat for skill review** (the source chat for skill admission),
@@ -250,14 +274,28 @@ object returned by the owning profile; another profile/revision/destination
 requires a new review. To disable, review `enabled:false` and apply that
 review. Editing/reviewing alone sends nothing to the collector.
 
-OTLP/HTTP JSON uses `/v1/traces` and `/v1/metrics`. This bounded first cut has
-no credential/header, custom-path, redirect, automatic-instrumentation or OTEL
-environment-variable support. A user-owned Collector can separately forward
-to authenticated backends. Only allowlisted metadata leaves the Local control
-plane, including accepted Remote/Sandbox records: no prompts, responses,
-reasoning, tool arguments/results, source/attachments, terminals, raw logs,
-paths, private names or credentials. Existing accounting remains authoritative;
-metrics are its canonical gauges, not a second accumulated ledger.
+OTLP/HTTP JSON uses `/v1/traces`, `/v1/metrics` and, only when the review
+includes `"logs":true`, `/v1/logs`. Log records are fixed-text outcome and
+correction records linked to their span (failed, stopped or denied work), never
+service console output. Authenticated collectors take credential headers: name
+them in the review (`"headers":["authorization"]`), apply, then store each value
+in this profile's keychain for that exact collector:
+
+```sh
+printf 'Bearer YOUR_TOKEN' | moguri telemetry otlp credential set https://collector.example authorization
+moguri telemetry otlp credential remove https://collector.example authorization
+```
+
+In the TUI, `/otlp credential set ENDPOINT NAME` opens a masked input; desktop
+has a password field per header. A missing value blocks export with status
+`credential`; nothing is sent unauthenticated. Custom paths, redirects,
+automatic instrumentation and OTEL environment variables stay unsupported. Only
+allowlisted metadata leaves the Local control plane, including accepted
+Remote/Sandbox records: no prompts, responses, reasoning, tool
+arguments/results, source/attachments, terminals, raw logs, paths, private names
+or credentials. Existing accounting remains authoritative; metrics are its
+canonical gauges, not a second accumulated ledger. SSH peers and Sandbox guests
+are not instrumented themselves (see the coverage matrix).
 
 Status exposes bounded queue/drop/failure counts and receiver acknowledgements,
 not proof that a backend stored/searches the data. There is no individual history
@@ -907,7 +945,11 @@ or an explicit public HTTPS raw URL, unless that exact existing entrypoint is
 in your current trusted repository baseline described below. Public source reads need normal website
 approval. The agent reports encoded/obfuscated payloads, unexpected API calls
 and other unsafe/uncertain behavior before requesting execution. Only a source
-assessed safe can request `run_script` under the normal tool policy.
+assessed safe can request `run_script` under the normal tool policy. Moguri
+also scans the exact source for download-and-execute, run-time install and
+decode-and-execute patterns; with any of those, the agent can't mark the script
+safe and only you can force it, unless you turn on **Settings / Scripts / Let
+the agent approve scripts with download or decode findings**.
 
 Pending assessments appear as notifications in **Inbox**, grouped by their
 original chat, not as a panel below the conversation. Choose **Read full source
@@ -3801,6 +3843,26 @@ and Cmd/Ctrl+Enter still holds prompts. The delivery chevron retains explicit
 Send/Answer/Queue, Steer and Interrupt actions while Stop occupies the main slot.
 Unavailable execution/autonomy modes remain disabled with their reasons.
 
+When a chat has a linked pull request, **Code change** shows **Address code
+review**, **Fix merge conflicts** and **Fix CI**. Moguri checks the PR's
+reviews, merge state and CI first and enables only the ones that apply, with
+the reason next to each; **Refresh** checks again. A click queues that task in
+the chat, and pushes or replies still ask for your usual approval. In the TUI
+and CLI use `/address-review`, `/fix-conflicts` or `/fix-ci`.
+
+Archiving or deleting a session that is still running, or one with running
+subsessions, always shows a warning and asks you to confirm stopping that work,
+even if you turned off those confirmations. Removing a project with running
+sessions does the same. In the CLI add `--confirm-running`.
+
+If you steer while the agent waits on a command, the command keeps running in
+the background and the agent reads your steer right away; anything else it had
+planned in that response waits. The command's tool row shows **Running in
+background**, the Agent terminal keeps its live output, and the agent gets the
+result when the command ends. The turn doesn't finish until then; Stop cancels
+the command. See
+[steering while a command runs](architecture/session-interactions.md#steering-while-a-command-runs-protocol-112).
+
 In both desktop chat composers, **Enter** sends and **Shift+Enter** inserts a
 newline. **Cmd/Ctrl+Enter** still holds the prompt without running it;
 **Shift+Cmd/Ctrl+Enter** retains the explicit send-now shortcut. Input-method
@@ -4234,6 +4296,24 @@ hidden session. Corrupt/missing location metadata or changed copied bytes block
 startup; restore the exact original locator or copied database from the retained
 backup instead of deleting state or forcing a stale writer.
 
+**Settings / Retention / Session disk** (off by default) puts new session
+worktrees on a fixed-size macOS disk image that Moguri creates and mounts under
+its resource folder with `hdiutil`; no root is needed. When it fills, Moguri
+removes the oldest archived worktrees that are clean and fully pushed, then
+pauses work on the disk until there's room. CLI `storage disk status`,
+`storage disk size GB` and `storage disk off`, and TUI `/runtime disk`,
+`/runtime disk-size GB` and `/runtime disk-off`, use the same SDK calls. The
+disk stays mounted while the service is stopped; eject it from Finder only
+after quitting Moguri and closing terminals in its worktrees. `npm run
+spike:virtual-disk` re-runs the generated qualification. See
+[virtual disk](architecture/virtual-disk.md).
+
+Archiving a session also removes its clean, fully pushed worktree and deletes
+the local branch (Retention setting, on by default); restoring recreates the
+worktree from the remote branch. Set `retention.archiveBranchCleanup` to
+`false` with `moguri config set` or in Settings to keep them. See
+[archive cleanup](architecture/managed-workspaces.md#archive-cleanup-and-restore-protocol-112).
+
 ## Attention and notifications
 
 Session indicators distinguish a possible question (`?`), pending approval/
@@ -4348,11 +4428,15 @@ from the transcript top to the bottom of the chat, beside the composer.
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
-Desktop main and side chats show queued messages as right-aligned, muted dashed
-bubbles. Hover or keyboard focus reveals More, Delete and, for held prompts,
-the upward Run arrow. More opens source-bound Edit/Copy actions in a popup;
-steering inputs also offer Queue as new turn. Drag or Alt+Up/Down still reorders
-the exact queued list. Touch/non-hover devices keep actions visible.
+Desktop main and side chats show queued messages like sent prompts with a
+dashed outline. Hover or keyboard focus reveals Copy, **Send now** (the arrow)
+and Delete. Send now steers the prompt into the running turn, or runs it next
+when the chat is idle (releasing a held prompt and resuming a paused chat).
+Click a prompt to edit it in place: Attach offers every composer source, and
+icon-only Cancel (Escape) and Save (Cmd/Ctrl+Enter) discard or keep the text
+and attachments without sending. Drag or Alt+Up/Down still reorders the exact
+queued list. Touch/non-hover devices keep actions visible. TUI and CLI use
+`/send-now ID`.
 
 The counted disclosure shows **1 queued message** or **N queued messages** with
 a chevron. It collapses/restores the list; its accessible actions remain
@@ -5009,7 +5093,8 @@ responses are errors, not partial successful imports.
 **Queue** waits for the current turn. **Steer** is bound to that turn and enters
 at its next model-step boundary. A steer that misses the boundary remains
 visibly unapplied; it is never silently made into a new turn. Explicitly choose
-**Queue as new turn** or `/queue-turn ID` to convert it. **Interrupt** requests
+**Send now** (which steers it into the running turn, or runs it next) or
+`/queue-turn ID` to convert it. **Interrupt** requests
 cancellation, waits for the old turn to settle, then admits its message ahead
 of ordinary queued work.
 

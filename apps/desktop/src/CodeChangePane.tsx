@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { sessionPullRequestUrls, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { SessionGitHub } from "./SessionGitHub.tsx";
+import { PullRequestActions } from "./PullRequestActions.tsx";
 
 export function CodeChangePane({ sdk, session, snapshot, onDirty, chooseSession, changes }: {
   sdk: MoguriSdk; session: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; chooseSession: (id: string) => Promise<void>; changes: ReactNode;
@@ -21,6 +22,7 @@ export function CodeChangePane({ sdk, session, snapshot, onDirty, chooseSession,
     <h2>Code change{urls.length > 1 ? ` (${urls.length} PRs)` : ""}</h2>
     {urls.length > 1 && <label className="setting-field">Associated pull request<select aria-label="Associated pull request" value={actual}
       onChange={(event) => setSelected(event.target.value)}>{urls.map((url) => <option key={url} value={url}>{url}</option>)}</select></label>}
+    <PullRequestActions sdk={sdk} session={session} url={actual} />
     <SessionGitHub sdk={sdk} session={session} snapshot={snapshot} kind="pull" selectedUrl={actual} onDirty={onDirty} chooseSession={chooseSession} />
     <p className="fine-print">Selecting a PR changes only this pane. The first candidate/PR cleanup association is not relinked.</p>
   </section>;

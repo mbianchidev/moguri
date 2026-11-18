@@ -27,6 +27,7 @@ import { NotificationSettings } from "./NotificationSettings.tsx";
 import { ApplicationSettings } from "./ApplicationSettings.tsx";
 import { OtlpSettings } from "./OtlpSettings.tsx";
 import { StorageSettings } from "./StorageSettings.tsx";
+import { VirtualDiskSettings } from "./VirtualDiskSettings.tsx";
 import { UpdateSettings } from "./UpdateSettings.tsx";
 import { searchSettings, type SettingsTab } from "./settings-catalog.ts";
 import { SandboxSetupPanel } from "./SandboxSetupPanel.tsx";
@@ -36,6 +37,7 @@ import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 import { SkillAdmissionsPanel } from "./SkillAdmissionsPanel.tsx";
+import { SkillPublishersSettings } from "./SkillPublishersSettings.tsx";
 import { KupoModelProfiles } from "./KupoModelProfiles.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
@@ -49,7 +51,7 @@ import { PathField, localPath } from "./PathField.tsx";
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
-type AutomaticSection = "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
+type AutomaticSection = "scriptReview" | "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
@@ -811,6 +813,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         {tab === "retention" && <><SettingsHelp label="More about this setting" target={<h2>Archived-session retention</h2>}>Deleting a session, or merging its linked PR, also deletes its candidate proposals; archiving keeps them. Artifacts, applied code, worktrees and PRs stay.</SettingsHelp>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the data directory..."}</p>
           <StorageSettings sdk={sdk} disabled={dirty || saving || otherNestedDirty} onBusy={setStorageBusy} prepareMaintenance={prepareMaintenance} />
+          <VirtualDiskSettings sdk={sdk} snapshot={snapshot} />
           <h3>Keep awake</h3><label className="check-setting"><SettingsInput type="checkbox" checked={draft.lifecycle?.keepAwake ?? false} onChange={(event) => automatic("lifecycle", { keepAwake: event.target.checked })} />Prevent idle sleep while this profile has work running</label>
           <label className="setting-field">Minutes to stay awake after work finishes<SettingsInput aria-label="Keep-awake tail minutes" type="number" min={0} max={1440} value={draft.lifecycle?.tailMinutes ?? 5} onChange={(event) => change("lifecycle", { keepAwake: draft.lifecycle?.keepAwake ?? false, tailMinutes: Number(event.target.value) })} /></label>
           <button type="button" className="primary" aria-label="Save keep-awake tail" disabled={saving || draft.lifecycle?.tailMinutes === committed.lifecycle?.tailMinutes} onClick={() => {
@@ -824,6 +827,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.confirmDelete ?? true} onChange={(event) => automatic("retention", { confirmDelete: event.target.checked })} />Confirm before deleting a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.confirmBulkArchive !== false} onChange={(event) => automatic("retention", { confirmBulkArchive: event.target.checked })} />Confirm before archiving multiple sessions</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.confirmBulkDelete !== false} onChange={(event) => automatic("retention", { confirmBulkDelete: event.target.checked })} />Confirm before deleting multiple sessions</label>
+          <p className="fine-print">Running sessions always ask before their work stops, even with these confirmations off.</p>
+          <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.retention.archiveBranchCleanup !== false} onChange={(event) => automatic("retention", { archiveBranchCleanup: event.target.checked })} />Remove pushed worktrees and branches when archiving</label>}>When an archived session's worktree is clean and every commit is on a remote branch, Moguri removes the worktree and deletes its local branch. Uncommitted, untracked or unpushed work, and ignored files like .env, are always kept. Restoring the session recreates the worktree from the remote branch.</SettingsHelp>
           <label className="setting-field">When archiving a session with subsessions<select aria-label="When archiving a session with subsessions" value={draft.retention.archiveChildren ?? "ask"}
             onChange={(event) => updateChildrenPreference("archive", event.target.value)}><option value="ask">Ask me each time</option><option value="archive">Archive all attached subsessions</option><option value="detach">Detach direct children</option></select></label>
           <label className="setting-field">When deleting a session with subsessions<select aria-label="When deleting a session with subsessions" value={draft.retention.deleteChildren ?? "ask"}
@@ -967,7 +972,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           {resourceSession ? <fieldset className="settings-fields" disabled={dirty || saving || integrationDirty}>
             {(dirty || integrationDirty) && <p className="fine-print">Save or cancel folder changes before reviewing skills for a chat.</p>}
             <SkillAdmissionsPanel key={`${sdk.profileId}:${resourceSession.id}`} sdk={sdk} session={resourceSession} snapshot={snapshot} />
-          </fieldset> : <p className="fine-print">Choose a chat above to review which skills it can use.</p>}</>}
+          </fieldset> : <p className="fine-print">Choose a chat above to review which skills it can use.</p>}
+          <SkillPublishersSettings key={`${sdk.profileId}:publishers`} sdk={sdk} snapshot={snapshot} /></>}
         {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <>{tab === "skills" ? <h3>Imported skills</h3> : <h2>{tab === "scripts" ? "Scripts" : "Plugins"}</h2>}
           <p>{tab === "skills" ? "Import a standard SKILL.md file. Skills add instructions, not tool permissions." : tab === "scripts" ? "Built-in scripts (grep_logs, fetch_page, search_memory and memory_graph) reach the agent through Moguri's internal MCP server." : "A Moguri plugin bundles standard skills. Importing one doesn't run its code or install dependencies."}</p>
           {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(async () => {
@@ -991,6 +997,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               <button type="button" className="danger" disabled={capabilityBusy} onClick={() => deleteSkill(entry)}>Delete skill</button>
             </div>}</section>)}
           {tab === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Custom scripts run as code on this Mac, outside any sandbox. Review the source, approve each call and use only scripts you trust.</Alert>}
+          {tab === "scripts" && <><h3>Script reviews</h3>
+            <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Let the agent approve scripts with download or decode findings"
+              checked={draft.scriptReview?.acceptScannerRisk === true} onChange={(event) => automatic("scriptReview", { acceptScannerRisk: event.target.checked })} />Let the agent approve scripts with download or decode findings</label>}>
+              Moguri flags scripts that download and run code, install packages at run time or decode hidden content. By default only you can run those, by forcing them in the review. Turning this on accepts the risk that the agent's own "safe" verdict runs them; normal approvals still apply.</SettingsHelp></>}
           <h3>Optional evolution</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Let models propose skills, scripts and style knowledge for your review</label>}>Approved proposals install disabled; you enable them separately.</SettingsHelp>
           {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })} aria-label="Review full proposal">Review</button></div>)}
           {proposal && <section className="proposal-review"><h3>Review proposed content</h3><pre>{proposal.content}</pre><code>SHA-256 {proposal.digest}</code><label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this source. Approving it doesn't let it run.</label><div className="button-row"><button disabled={!reviewed} onClick={() => void run(() => sdk.capabilities.decide(proposal.id, true, proposal.digest))} aria-label="Approve disabled capability">Approve disabled</button><button onClick={() => void run(() => sdk.capabilities.decide(proposal.id, false, proposal.digest))}>Reject</button></div></section>}</>}

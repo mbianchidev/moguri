@@ -1,5 +1,5 @@
 import { lazy, Suspense, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { ClientError, sessionShortId, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionLocalFolder, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
+import { ClientError, runningSessionNames, runningSessions, sessionShortId, compareSessionPrompts, compareSessions, compareSessionPriority, defaultBoard, defaultProjectConfiguration, fuzzyMatch, kanbanPreferences, sessionIndicator, sessionLocalFolder, sessionNavigationStatus, sessionOrderScope, sessionTitle, type SessionNavigationStatus, type SessionPromptOrder, type MoguriSdk, type NavigationFolder, type Project, type ProjectConfiguration, type Session, type Snapshot, type ProjectArtifactChoice, type ProjectArtifactPreview } from "../../../packages/sdk/src/index.ts";
 import type { ArtifactMaterialization, BulkSessionAction } from "../../../packages/sdk/src/index.ts";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
@@ -748,7 +748,8 @@ function InlineSessionRename({ sdk, id, original, source, titleRevision, close }
       for (let attempt = 0; ; attempt++) {
         const state = sdk.getState(), current = state.snapshot?.sessions.find((session) => session.id === id);
         if (state.status !== "connected" || !current) throw new Error("The original chat is unavailable. Your proposed name is preserved; no other chat was renamed.");
-        const generatedDuringEdit = source === "factory" && titleRevision !== undefined && current.titleSource === "model" && current.titleRevision === titleRevision + 1;
+        // The user's name wins over one automatic name or topic refresh that landed while they were typing.
+        const generatedDuringEdit = (source === "factory" || source === "model") && titleRevision !== undefined && current.titleSource === "model" && current.titleRevision === titleRevision + 1;
         if (current.title !== original && !generatedDuringEdit) throw new Error("Another client changed this chat's name. Your proposed name is preserved; review the new name before retrying.");
         try { await sdk.sessions.rename(id, value, current.revision); break; }
         catch (failure) { if (attempt || !(failure instanceof ClientError && failure.code === "revision_conflict")) throw failure; }
@@ -792,6 +793,9 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
   }, []);
   useEffect(() => { void loadArtifacts(); }, []);
   const destructive = edit.kind === "remove-project";
+  // Removing a project deletes its sessions; running work always gets an explicit warning before it stops.
+  const running = destructive && edit.project ? runningSessions(snapshot.sessions, snapshot.jobs,
+    snapshot.sessions.filter((session) => session.projectId === edit.project!.id).map((session) => session.id)) : [];
   const currentArtifacts = snapshot.artifacts.filter((artifact) => artifact.projectId === edit.project?.id);
   const staleArtifacts = edit.kind === "remove-project" && (!artifactPreview || currentArtifacts.length !== artifactPreview.artifacts.length || currentArtifacts.some((artifact) => !artifactPreview.artifacts.some((entry) => entry.id === artifact.id && entry.revision === artifact.revision)));
   const artifactChoiceMissing = edit.kind === "remove-project" && Boolean(artifactPreview?.artifacts.length) && (!artifactAction || artifactAction === "export" && !exportedDigest || artifactAction === "materialize" && (!materialized || materialized.setDigest !== artifactPreview?.digest));
@@ -820,7 +824,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
         case "remove-project": {
           if (!confirmed || !configuration || !artifactPreview || staleArtifacts || artifactChoiceMissing) throw new Error("Review the current artifact set and confirm its disposition before removal.");
           const choice = artifactPreview.artifacts.length && artifactAction ? { action: artifactAction, expectedDigest: artifactPreview.digest, ...(exportedDigest ? { exportedDigest } : {}), ...(materialized ? { materializationId: materialized.jobId } : {}) } : undefined;
-          await sdk.projects.remove(requiredProject().id, true, configuration.revision, choice); break;
+          await sdk.projects.remove(requiredProject().id, true, configuration.revision, choice, running.length ? { confirmRunning: true } : {}); break;
         }
         case "pr": case "work": {
           const scope = { env: "Local" as const, projectId: requiredProject().id };
@@ -845,7 +849,8 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
         <p className="fine-print path">Source workspace: {github.binding.root.root}</p>
         <Suspense fallback={<p>{github.item.body}</p>}><RichMessage text={github.item.body || "No description."} openLink={(url) => { void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened.")); }} /></Suspense></section>}
     </>}
-    {destructive ? <><p>Stops this project's owned work and removes its Moguri records and indexes. Choose what happens to independent artifacts. Repository files, external PRs, shared package/model stores and diagnostic audit logs are not deleted. Retained worktrees must be removed separately.</p>
+    {destructive ? <>{running.length > 0 && <Alert as="p" tone="warning">{`${runningSessionNames(running)} ${running.length === 1 ? "is" : "are"} still running. Removing the project stops ${running.length === 1 ? "its" : "their"} current work.`}</Alert>}
+      <p>Stops this project's owned work and removes its Moguri records and indexes. Choose what happens to independent artifacts. Repository files, external PRs, shared package/model stores and diagnostic audit logs are not deleted. Retained worktrees must be removed separately.</p>
       {edit.kind === "remove-project" && <section aria-label="Artifact removal impact">{previewLoading ? <p role="status">Loading artifact impact...</p> : artifactPreview && <><p>{artifactPreview.artifacts.length} independent document{artifactPreview.artifacts.length === 1 ? "" : "s"}, including archived copies.</p>
         {artifactPreview.artifacts.length > 0 && <><ul>{artifactPreview.artifacts.map((artifact) => <li key={artifact.id}>{artifact.name} / {artifact.kind} / revision {artifact.revision}</li>)}</ul>
           <label className="setting-field">Artifact disposition<select aria-label="Artifact disposition" value={artifactAction} disabled={busy || staleArtifacts} onChange={(event) => { const value = event.target.value; if (value === "" || value === "retain" || value === "delete" || value === "export" || value === "materialize") { setArtifactAction(value); setExportedDigest(""); setMaterialized(null); } }}>
@@ -864,7 +869,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
         </>}
         {staleArtifacts && <Alert as="p" tone="warning" className="settings-warning">The artifact set changed. Reload its impact before choosing.</Alert>}
       </>}<button type="button" disabled={busy || previewLoading} onClick={() => void loadArtifacts()}>Reload artifact preview</button></section>}
-      <label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I understand and confirm this removal.</label></> :
+      <label className="check-setting"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />I understand and confirm this removal.{running.length > 0 && " Its running work stops."}</label></> :
       edit.kind === "color" || edit.kind === "folder-color" ? <label className="setting-field">{edit.kind === "folder-color" ? "Custom group color" : "Custom project color"}<span className="project-custom-color"><input type="color" aria-label={edit.kind === "folder-color" ? "Custom group color" : "Custom project color"} value={value} disabled={busy} onChange={(event) => setValue(event.target.value)} /><code>{value}</code></span></label> :
       choices ? <label className="setting-field">{edit.kind === "work" ? "Or choose a local work item" : "Destination"}<select aria-label="Destination" value={value} onChange={(event) => { setValue(event.target.value); setGithub(null); }}><option value="">{edit.kind === "work" ? "Choose local work item" : "None"}</option>{choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label> :
         <label className="setting-field">{edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"}<input ref={nameInput} aria-label={edit.kind === "pr" ? "GitHub PR URL" : edit.kind === "relocate" ? "Existing absolute folder" : "Name"} autoFocus value={value} onChange={(event) => { setValue(event.target.value); setGithub(null); }} required={!github} /></label>}

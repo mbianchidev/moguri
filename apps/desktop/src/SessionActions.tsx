@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, type SessionChildrenAction, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { runningSessionNames, runningSessions, sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, type SessionChildrenAction, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Action = "archive" | "delete" | "detach";
@@ -9,11 +9,14 @@ export interface SessionActionOwner { signal: AbortSignal; settle(outcome: "comp
 type Review = ({
   action: "archive" | "delete"; session: ReviewedSession; tree: ReviewedSession[];
   childrenAction: SessionChildrenAction | null; canDetachChildren: boolean; showChildChoice: boolean; confirmAction: boolean;
+  /** Sessions in the tree whose work this stops. They always get an explicit warning, whatever "don't ask again" preference is saved. */
+  running: Pick<Session, "id" | "title">[];
 } | {
   action: "detach"; session: ReviewedSession;
   destination: { groupId: string | null; revision: number | null; name: string; parent: string };
   confirmAction: boolean;
 }) & { owner?: SessionActionOwner };
+const runningIn = (state: Snapshot, sessionId: string) => runningSessions(state.sessions, state.jobs, [sessionId]).map(({ id, title }) => ({ id, title }));
 function sameChildren(tree: ReviewedSession[], sessions: Session[], sessionId: string): boolean {
   return JSON.stringify(sessionChildBindings(tree, sessionId)) === JSON.stringify(sessionChildBindings(sessions, sessionId));
 }
@@ -99,14 +102,20 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
       const children = value.action !== "detach" && value.tree.length > 1 && value.childrenAction ? {
         action: value.childrenAction, expected: sessionChildBindings(value.tree, value.session.id),
       } : undefined;
-      if (value.action === "delete") await sdk.sessions.delete(value.session.id, true, value.session.revision, children);
+      const confirmRunning = value.action !== "detach" && value.running.length > 0;
+      if (value.action === "delete") await sdk.sessions.delete(value.session.id, true, value.session.revision, children, confirmRunning ? { confirmRunning: true } : {});
       else if (value.action === "detach") await sdk.sessions.organize(value.session.id, { parentSessionId: null, groupId: value.destination.groupId }, value.session.revision, confirmDetach);
-      else await sdk.command({ type: "session.archive", sessionId: value.session.id, expectedRevision: value.session.revision, ...(children ? { children } : {}) });
+      else await sdk.command({ type: "session.archive", sessionId: value.session.id, expectedRevision: value.session.revision, ...(children ? { children } : {}), ...(confirmRunning ? { confirmRunning: true as const } : {}) });
       setReview(null); options.done?.(value.action, value.session.id);
       value.owner?.settle("completed");
       focusSession(value.session.id);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "The session action failed. Unconfirmed work and retained artifacts were preserved.");
+      const state = sdk.getState().snapshot;
+      if (value.action !== "detach" && state && error instanceof Error && "code" in error && error.code === "session_running") {
+        // Work started after the review: show the running warning and ask again instead of failing.
+        if (value.action === "delete") setConfirmed(false);
+        setReview({ ...value, running: runningIn(state, value.session.id) }); setError("");
+      } else setError(error instanceof Error ? error.message : "The session action failed. Unconfirmed work and retained artifacts were preserved.");
     } finally { pending.current = false; setBusy(false); }
   };
   const request = (session: Session, action: Action, groupId = session.groupId, owner?: SessionActionOwner) => {
@@ -139,13 +148,16 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     const preferredAction: SessionChildrenAction | null = preference === "ask" ? null : preference;
     const childrenAction = preferredAction === "detach" && !canDetachChildren ? null : preferredAction;
     const showChildChoice = children.length > 0 && (preference === "ask" || childrenAction === null);
-    const value: Review = { action, session: source, tree, childrenAction, canDetachChildren, showChildChoice, confirmAction, owner };
-    if (action === "delete") setConfirmed(!confirmAction);
-    if (confirmAction || children.length > 0 && childrenAction === null) setReview(value);
+    const running = runningIn(snapshot, session.id);
+    const value: Review = { action, session: source, tree, childrenAction, canDetachChildren, showChildChoice, confirmAction, running, owner };
+    if (action === "delete") setConfirmed(!confirmAction && !running.length);
+    if (confirmAction || running.length || children.length > 0 && childrenAction === null) setReview(value);
     else void perform(value, false, false);
   };
   const stored = options.stored && review?.action === "delete";
   const title = review?.action === "detach" ? "Detach session" : review?.action === "archive" ? "Archive session" : stored ? "Delete stored session" : "Delete session";
+  const running = review && review.action !== "detach" ? review.running : [];
+  const confirmDelete = review?.action === "delete" && (review.confirmAction || running.length > 0);
   const childrenReviewRequired = review !== null && review.action !== "detach" && review.showChildChoice;
   const inspectionRequired = review?.action === "delete" && /inspect|unconfirmed|cleanup/i.test(error);
   const childrenSummary = review && review.action !== "detach" && review.tree.length > 1 ? review.childrenAction === "detach" ?
@@ -162,11 +174,15 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
     <form onSubmit={(event) => {
       event.preventDefault();
       if (!stale && (!childrenReviewRequired || "childrenAction" in review && review.childrenAction !== null) &&
-        (review.action !== "delete" || !review.confirmAction || confirmed)) void perform(review, remember, rememberChildren, review.action === "detach" ? true : undefined);
+        (!confirmDelete || confirmed)) void perform(review, remember, rememberChildren, review.action === "detach" ? true : undefined);
     }}>
       <h2>{title}: {review.session.title}</h2>
+      {running.length > 0 && <Alert as="p" tone="warning">
+        {`${runningSessionNames(running)} ${running.length === 1 ? "is" : "are"} still running. ${review.action === "archive" ? "Archiving" : "Deleting"} stops ${running.length === 1 ? "its" : "their"} current work. Moguri always asks before stopping running work, even if you turned off these confirmations.`}
+      </Alert>}
       <p>{review.action === "detach" ? `Detach from "${review.destination.parent}" into the "${review.destination.name}" root list. Its workspace, Env, content and cancellation ownership stay unchanged; its children remain attached to it.` :
-        review.action === "archive" ? `Stop this session's selected owned work and archive the conversation. Saved drafts, held prompts and independent artifacts remain; you can restore it from Archived. ${childrenSummary}` :
+        review.action === "archive" ? `Stop this session's selected owned work and archive the conversation. Saved drafts, held prompts and independent artifacts remain; you can restore it from Archived. ${childrenSummary}${
+          snapshot.sessions.find((value) => value.id === review.session.id)?.workspaceId && snapshot.settings.values.retention.archiveBranchCleanup !== false ? " If its worktree is clean and every commit is on a remote branch, Moguri also removes the worktree and deletes the local branch; restoring recreates them." : ""}` :
         `Permanently delete this conversation, its saved draft, queues, session content and every selected candidate or generation proposal. The service settles owned work and removes proposal records and retention grants first. Ordinary independent artifacts, applied code, worktrees and external PRs survive. Failed or unconfirmed cleanup blocks deletion. ${childrenSummary}`}</p>
       {review.action !== "detach" && review.showChildChoice && review.tree.length > 1 && <fieldset className="session-children-choice">
         <legend>{review.tree.length - 1} attached child sessions</legend>
@@ -188,14 +204,14 @@ export function useSessionActions(sdk: MoguriSdk, snapshot: Snapshot, options: {
       </fieldset>}
       {stale && <Alert as="p" className="inline-error" role="alert">This session or its attached children changed after review. Close and review it again.</Alert>}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
-      {review.action === "delete" && review.confirmAction && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
-        {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}</label>}
+      {confirmDelete && <label className="check-setting"><SettingsInput type="checkbox" checked={confirmed} disabled={busy} onChange={(event) => setConfirmed(event.target.checked)} />
+        {stored ? "I confirm deletion of this stored session, its unsent content and originating candidates." : "I confirm deletion of this session, its unsent content and originating candidates."}{running.length > 0 && " Its running work stops."}</label>}
       {review.confirmAction && <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
-        {review.action === "detach" ? "Do not ask again when detaching sessions" : review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>}>Change this preference in Settings / {review.action === "detach" ? "Confirmations" : "Sessions"}. It does not grant tool permissions or enable automatic cleanup.</SettingsHelp>}
+        {review.action === "detach" ? "Do not ask again when detaching sessions" : review.action === "archive" ? "Do not ask again when archiving sessions" : "Do not ask again when deleting sessions"}</label>}>Change this preference in Settings / {review.action === "detach" ? "Confirmations" : "Sessions"}. It does not grant tool permissions or enable automatic cleanup.{review.action !== "detach" && " Running sessions always ask before their work stops."}</SettingsHelp>}
       <div className="button-row"><button ref={cancel} type="button" disabled={busy} onClick={close}>{review.action === "delete" ? "Cancel deletion" : "Cancel"}</button>
         {inspectionRequired && <button type="button" disabled={busy || !options.inspect} onClick={inspect}>Open session to inspect</button>}
-        <button type="submit" className={review.action === "delete" ? "danger" : "primary"} disabled={busy || stale ||
-          review.action === "delete" && review.confirmAction && !confirmed || childrenReviewRequired && "childrenAction" in review && review.childrenAction === null}>{title}</button></div>
+        <button type="submit" className={review.action === "delete" || running.length ? "danger" : "primary"} disabled={busy || stale ||
+          confirmDelete && !confirmed || childrenReviewRequired && "childrenAction" in review && review.childrenAction === null}>{running.length ? `Stop work and ${review.action === "archive" ? "archive" : "delete"}` : title}</button></div>
     </form>
   </dialog> };
 }

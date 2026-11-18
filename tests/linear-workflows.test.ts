@@ -707,7 +707,7 @@ test("Linear actual source-session deletion aborts and joins its owned request w
     };
     const { preview } = await f.sdk.linear.preview({ projectId: f.projectId, sessionId: f.sessionId }, { action: "issue.update", issueId: ids.issue, fields: { title: "Generated delete-session cancellation" } });
     const admitted = await f.sdk.linear.accept(preview, true); await started;
-    await f.sdk.refresh(); await f.sdk.sessions.delete(f.sessionId, true);
+    await f.sdk.refresh(); await f.sdk.sessions.delete(f.sessionId, true, undefined, undefined, { confirmRunning: true });
     const result = await f.sdk.linear.wait(admitted.id!, { timeoutMs: 5000 });
     assert.equal(f.sdk.getState().snapshot?.sessions.some((entry) => entry.id === f.sessionId), false);
     assert.equal(result.operation.status, "partial"); assert.equal(result.operation.stopRequested, true);
