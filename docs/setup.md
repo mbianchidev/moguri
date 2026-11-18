@@ -4428,11 +4428,15 @@ from the transcript top to the bottom of the chat, beside the composer.
 selected. Use Send or Shift+Cmd/Ctrl+Enter to send now. The queue has explicit
 run, reorder, edit, copy and delete controls; sent prompts also have Copy.
 Held prompts require a separate release, never an automatic timer.
-Desktop main and side chats show queued messages as right-aligned, muted dashed
-bubbles. Hover or keyboard focus reveals More, Delete and, for held prompts,
-the upward Run arrow. More opens source-bound Edit/Copy actions in a popup;
-steering inputs also offer Queue as new turn. Drag or Alt+Up/Down still reorders
-the exact queued list. Touch/non-hover devices keep actions visible.
+Desktop main and side chats show queued messages like sent prompts with a
+dashed outline. Hover or keyboard focus reveals Copy, **Send now** (the arrow)
+and Delete. Send now steers the prompt into the running turn, or runs it next
+when the chat is idle (releasing a held prompt and resuming a paused chat).
+Click a prompt to edit it in place: Attach offers every composer source, and
+icon-only Cancel (Escape) and Save (Cmd/Ctrl+Enter) discard or keep the text
+and attachments without sending. Drag or Alt+Up/Down still reorders the exact
+queued list. Touch/non-hover devices keep actions visible. TUI and CLI use
+`/send-now ID`.
 
 The counted disclosure shows **1 queued message** or **N queued messages** with
 a chevron. It collapses/restores the list; its accessible actions remain
@@ -5089,7 +5093,8 @@ responses are errors, not partial successful imports.
 **Queue** waits for the current turn. **Steer** is bound to that turn and enters
 at its next model-step boundary. A steer that misses the boundary remains
 visibly unapplied; it is never silently made into a new turn. Explicitly choose
-**Queue as new turn** or `/queue-turn ID` to convert it. **Interrupt** requests
+**Send now** (which steers it into the running turn, or runs it next) or
+`/queue-turn ID` to convert it. **Interrupt** requests
 cancellation, waits for the old turn to settle, then admits its message ahead
 of ordinary queued work.
 

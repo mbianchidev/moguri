@@ -165,7 +165,9 @@ An optional virtual disk caps the space new session worktrees can use, cleaning
 up archived pushed worktrees and then pausing work when it fills
 ([D47](architecture/decisions.md#d47-moguri-virtual-disk-for-session-worktrees)).
 It covers worktrees only; age/size deletion policies for the encrypted session
-store remain deferred.
+store remain deferred. Queued prompts now look like sent prompts, edit in place
+with every attachment source, and Send now steers them into the running turn
+([D48](architecture/decisions.md#d48-queued-prompts-look-like-sent-prompts-and-edit-in-place)).
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,

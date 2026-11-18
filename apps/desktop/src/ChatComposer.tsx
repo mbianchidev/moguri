@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useS
 import { useVirtualDisk } from "./VirtualDiskSettings.tsx";
 import { hostedProvider, configuredReadinessModels, continueWorkInput, parseShellCommand, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sentPromptHistory, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
-import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
+import { AttachmentChip, AttachmentMenu, AttachmentReview, captureReviewed, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
 import { ContextCompactionReview } from "./ContextCompaction.tsx";
 import { ModelEvidencePanel } from "./ModelEvidencePanel.tsx";
@@ -533,7 +533,11 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     </div>
     {sandboxSetup && <Suspense fallback={<p role="status">Opening SendBox setup...</p>}><SandboxSetupDialog sdk={client} snapshot={snapshot} sessionId={session.id} expectedRevision={sandboxSetup.revision}
       close={() => { setSandboxSetup(null); input.current?.form?.querySelector<HTMLButtonElement>('[data-composer-control="env"]')?.focus(); }} /></Suspense>}
-    {attachmentReview && <AttachmentReview sdk={client} sessionId={session.id} editor={editor} request={attachmentReview} adopt={adopt} close={() => {
+    {attachmentReview && <AttachmentReview sdk={client} request={attachmentReview} attach={async (request) => {
+      await editor.flush(); await captureReviewed(client, session.id, request);
+      const saved = client.getState().snapshot?.sessions.find((value) => value.id === session.id)?.draft;
+      if (saved) await adopt(saved);
+    }} close={() => {
       if (attachmentReview.kind === "session") literalMentions.current.ids.add(attachmentReview.sourceSessionId);
       setAttachmentReview(null);
     }} />}
