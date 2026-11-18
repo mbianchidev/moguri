@@ -13,6 +13,9 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
     setSelected(""); setNotice("Session and its candidates deleted. Artifacts, applied code, worktrees and PRs were kept.");
   } });
   const session = snapshot.sessions.find((session) => session.id === selected);
+  const workspace = session?.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId) : undefined;
+  const worktreeNote = workspace && (workspace.status === "creating" ? "Recreating the worktree from its remote branch..." :
+    workspace.status === "partial" ? workspace.diagnostic : workspace.cleanup?.reason ?? null);
   const sessions = snapshot.sessions.filter((session) => filter === "all" || (session.status === "archived") === (filter === "archived"));
   const blocked = session && (snapshot.blockedSessions.includes(session.id) || session.workspaceId && snapshot.blockedWorkspaces.includes(session.workspaceId) ||
     session.projectId && !session.workspaceId && snapshot.blockedProjects.includes(session.projectId));
@@ -33,6 +36,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
       <option value="">Choose a session</option>{sessions.map((session) => <option key={session.id} value={session.id}>{session.title} / {session.status}</option>)}
     </select></label>
     {session && <><p className="fine-print">{session.status} / {session.messages.length} messages / {session.queue.length} queued. {session.completedAt ? `Last completed ${new Date(session.completedAt).toLocaleString()}.` : "Not completed yet."}</p>
+      {worktreeNote && <p className="fine-print" role="status">Worktree: {worktreeNote}</p>}
       <div className="button-row"><SettingsAction label="Open this session" icon="Back" disabled={pending} onClick={() => openSession(session.id)} />
         {session.status === "archived" && <button type="button" disabled={pending} onClick={() => void run(async () => { await sdk.command({ type: "session.restore", sessionId: session.id }); setNotice("Session restored."); })}>Restore session</button>}
         {session.status !== "archived" && !session.turnId && (blocked || session.queue.length > 0) && <button type="button" disabled={pending} onClick={() => openSession(session.id)} aria-label="Open selected session">Open</button>}
