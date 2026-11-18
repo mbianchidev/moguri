@@ -152,7 +152,9 @@ approval. The
 records controls, evidence and those exclusions. Neither change is OWASP
 certification or a claim of zero risk. Protocol 111 also lets a user steer move
 a running agent command to the background instead of waiting for it
-([D42](architecture/decisions.md#d42-steer-backgrounded-commands)).
+([D42](architecture/decisions.md#d42-steer-backgrounded-commands)), and every
+client asks before archiving or deleting running sessions
+([D43](architecture/decisions.md#d43-confirm-before-stopping-running-sessions)).
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,

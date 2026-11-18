@@ -3843,6 +3843,11 @@ and Cmd/Ctrl+Enter still holds prompts. The delivery chevron retains explicit
 Send/Answer/Queue, Steer and Interrupt actions while Stop occupies the main slot.
 Unavailable execution/autonomy modes remain disabled with their reasons.
 
+Archiving or deleting a session that is still running, or one with running
+subsessions, always shows a warning and asks you to confirm stopping that work,
+even if you turned off those confirmations. Removing a project with running
+sessions does the same. In the CLI add `--confirm-running`.
+
 If you steer while the agent waits on a command, the command keeps running in
 the background and the agent reads your steer right away; anything else it had
 planned in that response waits. The command's tool row shows **Running in

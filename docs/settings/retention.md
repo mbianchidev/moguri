@@ -32,6 +32,10 @@ this page keeps the full detail.
 - A session with a running turn cannot be deleted from storage until you open it and stop that turn. Owned
   work is not replayed after sleep or reconnection.
 - If a session action fails, unconfirmed content and independent artifacts are preserved.
+- Archiving or deleting a session (one at a time or in bulk) and removing a project always warn first when
+  a session in the selection, or one of its subsessions, is running, waiting for you or owns a running job.
+  This warning ignores the "Do not ask again" choices; confirming it stops that work. The CLI needs
+  `--confirm-running`.
 
 ## Archived-session retention (page help)
 

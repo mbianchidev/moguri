@@ -185,6 +185,37 @@ test("session names open context actions, archive confirmations can be remembere
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
+test("archiving or deleting a running session always warns, even with confirmations turned off", async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await fixture.configure();
+  const settings = sdk.settings.get()!;
+  await sdk.settings.update({ ...settings.values, retention: { ...settings.values.retention, confirmArchive: false, confirmDelete: false } }, settings.revision);
+  await fixture.send("generated slow task");
+  await expect.poll(() => Boolean(fixture.session().turnId && fixture.requests.length === 1)).toBe(true);
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), title = fixture.session().title;
+    const open = async (action: "Archive" | "Delete") => {
+      await page.getByRole("button", { name: title, exact: true }).click({ button: "right" });
+      await page.getByRole("menu", { name: `Actions for ${title}`, exact: true }).getByRole("menuitem", { name: action, exact: true }).click();
+    };
+    await open("Delete");
+    const deletion = page.getByRole("dialog", { name: "Delete session", exact: true });
+    await expect(deletion.getByText(`"${title}" is still running. Deleting stops its current work.`)).toBeVisible();
+    const stopDelete = deletion.getByRole("button", { name: "Stop work and delete", exact: true });
+    await expect(stopDelete).toBeDisabled();
+    await deletion.getByRole("button", { name: "Cancel deletion", exact: true }).click();
+    await expect(deletion).toHaveCount(0);
+    expect(fixture.session().turnId).toBeTruthy();
+    await open("Archive");
+    const archive = page.getByRole("dialog", { name: "Archive session", exact: true });
+    await expect(archive.getByText(`"${title}" is still running. Archiving stops its current work.`)).toBeVisible();
+    await archive.getByRole("button", { name: "Stop work and archive", exact: true }).click();
+    await expect.poll(() => fixture.session().status).toBe("archived");
+    expect(fixture.session().turnId).toBeNull();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
 test("desktop slash archive reviews the child tree and remembers its chosen disposition", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const firstChild = await sdk.sessions.spawn(fixture.sessionId, "agent", "Generated archive child");
