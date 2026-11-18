@@ -137,6 +137,14 @@ test("session management deletes only the confirmed actual session and preserves
     await page.getByLabel("Archive sessions whose pull request merged", { exact: true }).check();
     await page.getByLabel("Merged archive days", { exact: true }).selectOption("1");
     await expect.poll(() => [sdk.settings.get()?.values.retention.archiveMerged, sdk.settings.get()?.values.retention.archiveMergedAfterDays]).toEqual([true, 1]);
+    const branchCleanup = page.getByLabel("Remove pushed worktrees and branches when archiving", { exact: true });
+    await expect(branchCleanup).toBeChecked();
+    await branchCleanup.uncheck();
+    await expect.poll(() => sdk.settings.get()?.values.retention.archiveBranchCleanup).toBe(false);
+    const disk = page.getByRole("region", { name: "Session disk", exact: true });
+    await expect(disk.getByLabel("Limit session worktrees to a virtual disk", { exact: true })).not.toBeChecked();
+    await expect(disk.getByRole("status")).toHaveText("Off. Session worktrees use the regular data folder.");
+    await expect(disk.getByLabel("Virtual disk size", { exact: true })).toBeDisabled();
     await page.getByLabel("Stored session", { exact: true }).selectOption(fixture.sessionId);
     await page.getByRole("button", { name: "Review session deletion", exact: true }).click();
     const review = page.getByRole("dialog", { name: "Delete stored session", exact: true });

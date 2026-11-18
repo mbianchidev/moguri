@@ -158,6 +158,14 @@ client asks before archiving or deleting running sessions
 Code Change adds status-gated Address code review, Fix merge conflicts and Fix
 CI actions for linked pull requests
 ([D45](architecture/decisions.md#d45-pull-request-follow-up-actions)).
+Archiving now removes a clean, fully pushed session worktree and its local
+branch, and restoring recreates it
+([D46](architecture/decisions.md#d46-clean-pushed-worktrees-when-archiving)).
+An optional virtual disk caps the space new session worktrees can use, cleaning
+up archived pushed worktrees and then pausing work when it fills
+([D47](architecture/decisions.md#d47-moguri-virtual-disk-for-session-worktrees)).
+It covers worktrees only; age/size deletion policies for the encrypted session
+store remain deferred.
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,

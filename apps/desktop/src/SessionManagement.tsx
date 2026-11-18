@@ -25,7 +25,7 @@ export function SessionManagement({ sdk, snapshot, openSession, onDirty }: {
     finally { setBusy(false); }
   };
   const pending = busy || actions.busy;
-  return <section aria-label="Stored session management"><SettingsHelp label="More about this setting" target={<h3>Manage stored sessions</h3>}>Deleting a session also deletes the candidates and proposals it created; archiving keeps them. Artifacts, applied code, worktrees and PRs are always kept.</SettingsHelp>
+  return <section aria-label="Stored session management"><SettingsHelp label="More about this setting" target={<h3>Manage stored sessions</h3>}>Deleting a session also deletes the candidates and proposals it created; archiving keeps them. Deleting never removes artifacts, applied code, worktrees or PRs; archiving removes only clean, fully pushed worktrees when that setting is on.</SettingsHelp>
     {snapshot.candidateCleanups.filter((cleanup) => cleanup.status !== "completed").map((cleanup) => <Alert as="p" key={cleanup.id} className="settings-warning" role={cleanup.status === "failed" ? "alert" : "status"}>
       Candidate cleanup {cleanup.status}: {cleanup.diagnostic ?? "Waiting for running work to finish."} {cleanup.reason.kind === "session-delete" ? "Settle the session's running work, then delete it again." : "Cleanup after the PR merge retries automatically. Code and Git data aren't touched."}
     </Alert>)}

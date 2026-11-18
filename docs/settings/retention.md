@@ -21,11 +21,35 @@ this page keeps the full detail.
   suppresses the restart).
 - If the move cannot be confirmed, the original data is preserved and the copy is not retried.
 
+## Session disk
+
+- Off by default. The switch creates a fixed-size macOS disk image (APFS sparse
+  bundle) for new session worktrees, so session work can't fill your Mac. The
+  size select (5 to 500 GB) saves immediately.
+- The encrypted store, dependency cache and model files stay outside the disk.
+  Existing worktrees stay where they were created.
+- When free space drops below 5% of the size (at least 512 MB), Moguri first
+  removes the oldest archived worktrees that are clean and fully pushed, then
+  pauses chats that work on the disk: queued turns wait and running turns wait
+  before their next model call. Work resumes by itself once there's room.
+  Uncommitted or unpushed work is never removed.
+- Resizing unmounts the disk briefly, so it needs no running work on it.
+  Turning it off needs no worktrees on it; archive their sessions (clean,
+  pushed worktrees are removed) or remove the worktrees first.
+- The disk stays mounted when Moguri's service stops, so terminals in its
+  worktrees keep working. Moguri mounts it again after a restart.
+- Details: [virtual disk](../architecture/virtual-disk.md).
+
 ## Manage stored sessions
 
 - Permanent session deletion (including archived-session expiry) also deletes every candidate and generation
   proposal that originated in that session. Archiving alone preserves them.
-- Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are always preserved.
+- Ordinary artifacts, applied code, worktrees, connected PRs and other profiles are always preserved by deletion.
+- **Remove pushed worktrees and branches when archiving** (on by default): when an archived session's
+  worktree is clean and every commit is on a remote branch, Moguri removes the worktree and deletes its
+  local branch. Uncommitted, untracked or unpushed work keeps both, and the reason shows for the session
+  under Manage stored sessions. Restoring the session recreates the worktree from the remote branch; a
+  different local branch with the same name blocks that instead of being replaced.
 - Candidate cleanup status: while owned work is still settling, deletion is not complete. For a session
   deletion, reconcile (settle) the session's owned resources, then retry the deletion. For cleanup triggered
   by a verified PR merge, Moguri retries automatically; no code or Git resources are removed.
@@ -41,8 +65,8 @@ this page keeps the full detail.
 
 Off by default. Permanent session deletion, including archived-session expiry, also deletes every
 originating candidate and generation proposal, including their proposal records and retention grants.
-Archiving alone preserves candidates. Ordinary artifacts, applied code, worktrees and external PRs
-survive. Usage and required accounting remain.
+Archiving alone preserves candidates. Ordinary artifacts, applied code, remaining worktrees and external
+PRs survive deletion. Usage and required accounting remain.
 
 Fresh authoritative verification that the exact linked repository/PR merged also deletes its associated
 candidates, including archived-session candidates, under the configured metadata-access policy. Closed

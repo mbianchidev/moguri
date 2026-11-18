@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { useVirtualDisk } from "./VirtualDiskSettings.tsx";
 import { hostedProvider, configuredReadinessModels, continueWorkInput, parseShellCommand, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sentPromptHistory, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
@@ -143,6 +144,9 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const hardBudget = Boolean(snapshot.budgetPolicy.limit || snapshot.globalBudgetPolicy?.limit);
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
   const answering = Boolean(question && (delivery === "queue" || delivery === "auto") && !isSlash);
+  const diskVolume = session.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.volume : undefined;
+  const disk = useVirtualDisk(client, snapshot, Boolean(diskVolume))?.disk;
+  const diskPaused = Boolean(diskVolume && disk?.id === diskVolume.diskId && (disk.pressure?.paused || disk.status === "resizing"));
   const needsResume = !session.turnId && (snapshot.blockedSessions.includes(session.id) ||
     Boolean(session.workspaceId && snapshot.blockedWorkspaces.includes(session.workspaceId)) ||
     Boolean(session.projectId && !session.workspaceId && snapshot.blockedProjects.includes(session.projectId)));
@@ -391,6 +395,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
       failedRequest.status === "blocked" ? failedRequest.diagnostic : nextRecoveryAt ? `Automatic recovery round ${recoveryCycle!.round + 1} is scheduled for ${nextRecoveryAt.toLocaleTimeString()}. Retry now leaves that countdown unchanged unless the response succeeds.` : failedRequest.diagnostic} Your unsent draft and queued prompts are preserved.</Alert>}
     {documentCapture && <div className="document-capture"><p role="status">Extracting {documentCapture.name} locally. No model call; your draft is preserved.</p><progress aria-label="Local document extraction" /><button type="button" onClick={() => void client.attachments.cancelDocument(session.id, documentCapture.id).catch((error: unknown) => setDocumentError(error instanceof Error ? error.message : "Capture stop is unconfirmed. Inspect the saved draft."))}>Cancel extraction</button></div>}
     {documentError && <Alert as="p" className="inline-error" role="alert">{documentError}</Alert>}
+    {diskPaused && <Alert as="p" className="composer-context-warning" role="status">{disk?.status === "resizing" ? "Moguri's virtual disk is being resized, so this chat waits before its next model call." :
+      "Moguri's virtual disk is full, so this chat is paused before its next model call. Archive or delete sessions, or make the disk bigger in Settings / Retention; work resumes on its own."}</Alert>}
     {configuring && <Alert as="p" className="composer-context-warning" role="status">Saving model settings. Your draft is preserved until the change settles.</Alert>}
     {configurationError && menu !== "model" && <Alert as="p" className="inline-error" role="alert">{configurationError}</Alert>}
     {session.controls.modelId && (!model || model.synthetic && !eligibleModel) && <button type="button" className="setup-hint" onClick={session.controls.modelId === KUPO_MODEL_ID ? onRouting : onConnect}>{session.controls.modelId === KUPO_MODEL_ID ? `Kupo is unavailable in ${session.controls.env}. ${snapshot.routingDiagnostics?.join(" ") ?? "Inspect its model pool and budget policy."}` : `Saved model ${session.controls.modelId} is unavailable. Reconnect or explicitly choose another model.`}<Icon name="Down" /></button>}

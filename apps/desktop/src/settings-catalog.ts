@@ -32,7 +32,7 @@ export const SETTINGS_GROUPS = [
   { label: "Sessions", items: [
     { id: "startup", label: "Startup defaults", keywords: "default model thinking effort budget autonomy verbosity" },
     { id: "interactions", label: "Confirmations", keywords: "attach session content drag drop terminal close do not ask again" },
-    { id: "retention", label: "Retention", keywords: "archive complete delete archived seven days storage sessions resume sleep keep alive confirmation ask again" },
+    { id: "retention", label: "Retention", keywords: "archive complete delete archived seven days storage sessions resume sleep keep alive confirmation ask again quota" },
     { id: "compaction", label: "Context compaction", keywords: "smart compact summarize long chats window" },
     { id: "budgets", label: "Budgets", keywords: "default tokens USD limits spend cost billing estimates provider API pricing Anthropic OpenAI Google xAI Copilot rates policy" },
     { id: "artifacts", label: "Artifacts", keywords: "retained documents answers reports plans export" },

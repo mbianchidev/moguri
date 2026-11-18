@@ -4296,6 +4296,24 @@ hidden session. Corrupt/missing location metadata or changed copied bytes block
 startup; restore the exact original locator or copied database from the retained
 backup instead of deleting state or forcing a stale writer.
 
+**Settings / Retention / Session disk** (off by default) puts new session
+worktrees on a fixed-size macOS disk image that Moguri creates and mounts under
+its resource folder with `hdiutil`; no root is needed. When it fills, Moguri
+removes the oldest archived worktrees that are clean and fully pushed, then
+pauses work on the disk until there's room. CLI `storage disk status`,
+`storage disk size GB` and `storage disk off`, and TUI `/runtime disk`,
+`/runtime disk-size GB` and `/runtime disk-off`, use the same SDK calls. The
+disk stays mounted while the service is stopped; eject it from Finder only
+after quitting Moguri and closing terminals in its worktrees. `npm run
+spike:virtual-disk` re-runs the generated qualification. See
+[virtual disk](architecture/virtual-disk.md).
+
+Archiving a session also removes its clean, fully pushed worktree and deletes
+the local branch (Retention setting, on by default); restoring recreates the
+worktree from the remote branch. Set `retention.archiveBranchCleanup` to
+`false` with `moguri config set` or in Settings to keep them. See
+[archive cleanup](architecture/managed-workspaces.md#archive-cleanup-and-restore-protocol-112).
+
 ## Attention and notifications
 
 Session indicators distinguish a possible question (`?`), pending approval/
