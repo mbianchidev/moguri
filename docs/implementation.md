@@ -963,7 +963,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - taggable `@` agents and group-level task, timing, token, and cancellation views;
 - folders containing multiple repositories that participate in one work stream;
 - coordinated pull-request ordering and merging, optionally using GitHub stacked pull requests;
-- managed cloud provisioning and hosted orchestration beyond the first-release, user-configured Remote SSH env.
+- managed cloud provisioning and hosted orchestration beyond the first-release, user-configured Remote SSH env; see the [cloud fleet on Agent Substrate analysis](architecture/cloud-fleet-substrate.md).
 
 ### Skills, hooks, plugins, and policies
 
