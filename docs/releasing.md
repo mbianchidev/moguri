@@ -83,9 +83,10 @@ workflow checks again immediately before undrafting.
    immediately when nothing blocks. Rejection leaves the PR open; there is no
    admin merge or direct push to `main`.
 6. **Main CI gate.** Verifies the merge commit is on `main` with the chosen
-   version, then watches that commit's `CI` run with `gh run watch`. If `main`
-   moved and the merged tree differs from the validated one, it validates and
-   packages the merge commit again.
+   version, then watches that commit's `CI` run with `gh run watch`. CI uses
+   one concurrency group per commit, so a later push to `main` cannot cancel
+   this gate. If `main` moved and the merged tree differs from the validated
+   one, it validates and packages the merge commit again.
 7. **Draft release.** Stages the DMG, ZIP, manifest,
    `Moguri-<version>-provenance.json` (source commit, tree and per-asset
    SHA-256) and `SHA256SUMS`. It generates notes from GitHub's change list
@@ -102,8 +103,10 @@ workflow checks again immediately before undrafting.
    `verify-update-package.mjs` on the real ZIP and DMG and audits dependencies.
    It rechecks that the draft and tag did not change, then publishes the
    release and marks stable versions latest.
-10. **Verify publication.** Confirms the release is published, the tag points
-    to the merge commit, and the assets, digests and provenance match.
+10. **Verify publication.** Confirms the release is published and the tag
+    points to the merge commit. It also checks that every published asset's
+    digest equals the bytes this run uploaded, so a consistent but swapped
+    draft cannot pass.
 
 Failures print the stage, the failing job logs or URL, and the journal path.
 Progress is recorded in `.git/moguri-release/v<version>/journal`. Validated
@@ -148,10 +151,13 @@ can be raised with `MOGURI_RELEASE_CI_TIMEOUT`,
 ## Tests
 
 `tests/release-version-policy.test.ts`, `tests/release-assets.test.ts` and
-`tests/release-script.test.ts` cover version policy, asset verification and
-dry-run state handling. The script test uses a real
+`tests/release-script.test.ts` cover version policy, asset verification,
+dry-run state handling and `--local-only` cleanup. They check that owned
+worktrees, temporary directories and the lock are removed on success, on
+failure and on SIGTERM. The script test uses a real
 `git@github.com:mbianchidev/moguri.git` remote served through an SSH shim, a
-fake `gh` and a disposable `HOME`. Lint the entrypoint and workflow with
+fake `gh`, generated stand-ins for the slow npm checks and packaging, and a
+disposable `HOME`. Lint the entrypoint and workflow with
 `shellcheck scripts/release.sh` and `actionlint`.
 
 ## Current blockers
