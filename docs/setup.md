@@ -693,9 +693,9 @@ Reading or watching never approves a review, rerun, push or merge.
 
 The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
 Kupo has no manual effort selector. A concrete fixed model retains its
-qualified thinking-effort control. Automations copy now covers
-broader actions, but only the existing one-time scheduled prompt capability is
-implemented; a general-purpose automation engine is not claimed.
+qualified thinking-effort control. Automations now also holds recurring
+automations and declarative workflows (protocol 113, see
+[Automations](#automations-recurring-schedules-and-workflows)).
 
 ### GitHub login versus native metadata quota
 
@@ -791,6 +791,41 @@ or failed preparation preserves input without admitting a ghost. Verified ready
 stages may be reused; failed/rolled-back stages cannot be restored or transferred
 by scheduling. Disabled managed preparation remains a visible setup gate, never
 a base-checkout fallback.
+
+## Automations: recurring schedules and workflows
+
+Protocol 113 adds automations ([contract](architecture/automations.md)). An
+automation has a name, a project, a schedule (once, every N minutes, daily or on
+chosen weekdays, in a timezone) and up to 10 steps run in order: prompts and
+repository-trusted scripts. Each run starts a new chat in the project with the
+model, Env, autonomy and budget captured when you saved it.
+
+- **Desktop:** **Automations / New automation** opens the editor; **Create
+  automation** or **Save changes** saves it. The **On schedule** switch turns it on
+  or pauses it immediately. Each automation shows its next run, captured
+  controls, steps and recent runs with **Open chat** and **Stop**. **Run now**
+  starts one run; **Delete** keeps the run chats.
+- **TUI:** **F9 / Automations** lists automations with **Run now** and **Pause**
+  or **Turn on**. `/automations` lists them and their runs and can `enable`,
+  `pause`, `run`, `stop` a run or `delete`, using an ID or unique prefix.
+- **CLI:** `moguri automations create workflow.yaml --project ID [--paused]`
+  reads a YAML or JSON workflow file (`name`, `schedule`, `steps` with
+  `- prompt:` or `- script:` plus `interpreter`, optional `controls`). Also
+  `list`, `runs [ID]`, `update ID FILE`, `enable`, `pause`, `run`, `stop RUN_ID`
+  and `delete ID [--stop-running]`.
+
+Nothing runs until you turn an automation on. Moguri must be running: a missed
+time runs once when Moguri is back and records how many were missed, and a time
+is skipped (and recorded) while the previous run is still active. A daily or
+weekly time that doesn't exist on a daylight-saving day runs once, shifted
+forward; a repeated time runs at its first occurrence. Steps run one after
+another only while each completes; a failed, stopped or partial step ends the
+run. Script steps run the exact scripts in the project's repository trust
+(`/repo-trust`) on this Mac without a model call, and ask for approval unless
+the captured autonomy approves automatically. Automations need Local for
+script steps, never fall back to another Env, and grant no extra permissions.
+After a restart, a run that was creating its chat is marked partial and an
+unstarted script step is blocked; nothing is replayed.
 
 ## Kupo modes, evidence and context
 
@@ -1480,7 +1515,8 @@ Protocol 59 adds the [workspace experience and skill gateway](architecture/works
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
 **Code change** and **Work item** belong to the right rail and follow
 the selected session, with the protocol-61 GitHub workflows described above.
-Automations is intentionally empty; no scheduler is implied. Profile, Ask Moguri
+Automations later gained one-time scheduled prompts and, at protocol 113,
+recurring automations. Profile, Ask Moguri
 and Settings share one compact footer row. Copilot connection status appears
 only in Settings / Models / Providers, not in the left sidebar.
 Artifacts, Candidates and unified
