@@ -22,10 +22,11 @@ const fileIcon = (file: ArtifactFile) => file.kind === "installer" || file.kind 
 
 /** Every artifact of one project (or of project-free chats) in one place, each linked to the session that produced it when known. */
 export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSession, openSettings }: {
-  sdk: MoguriSdk; snapshot: Snapshot; initialProjectId: string | null; openSession: (id: string) => Promise<void>; openSettings: (tab: SettingsTab) => void;
+  /** The project to show first; null for project-free chats, undefined for no preference. */
+  sdk: MoguriSdk; snapshot: Snapshot; initialProjectId: string | null | undefined; openSession: (id: string) => Promise<void>; openSettings: (tab: SettingsTab) => void;
 }) {
   const projects = snapshot.projects.slice().sort((a, b) => a.name.localeCompare(b.name));
-  const [scope, setScope] = useState<string>(initialProjectId ?? projects[0]?.id ?? ""), projectId = scope || null;
+  const [scope, setScope] = useState<string>(initialProjectId === undefined ? projects[0]?.id ?? "" : initialProjectId ?? ""), projectId = scope || null;
   const [library, setLibrary] = useState<ArtifactLibrary | null>(null), [loading, setLoading] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [filter, setFilter] = useState<Filter>("all"), [query, setQuery] = useState(""), [limit, setLimit] = useState(PAGE), [revision, setRevision] = useState(0);
   const [preview, setPreview] = useState<string | null>(null);
@@ -39,8 +40,8 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
     return () => { active = false; };
   }, [sdk, projectId, revision]);
   useEffect(() => { setLimit(PAGE); setPreview(null); setNotice(""); }, [projectId, filter, query]);
-  const sessions = snapshot.sessions.filter((session) => session.projectId === projectId && session.kind !== "subagent");
   const items = useMemo(() => {
+    const sessions = snapshot.sessions.filter((session) => session.projectId === projectId && session.kind !== "subagent");
     const result: Item[] = [], links = new Map<string, Item>();
     for (const file of library?.projectId === projectId ? library.files : []) {
       result.push({ key: `file:${file.path}`, type: "file", file, sessionId: file.sessionId, name: file.relativePath.split("/").at(-1) ?? file.relativePath,
@@ -64,7 +65,7 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
     for (const artifact of snapshot.artifacts.filter((value) => value.projectId === projectId && value.status === "active")) result.push({ key: `note:${artifact.id}`, type: "note", artifact,
       sessionId: artifact.originSessionId, name: artifact.name, detail: `${artifact.kind} / saved note`, when: artifact.updatedAt, filter: "notes", icon: "Artifacts" });
     return result.sort((a, b) => b.when.localeCompare(a.when) || a.key.localeCompare(b.key));
-  }, [library, projectId, sessions, snapshot.artifacts]);
+  }, [library, projectId, snapshot.sessions, snapshot.artifacts]);
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const visible = items.filter((item) => (filter === "all" || item.filter === filter) && terms.every((term) => {
     const session = snapshot.sessions.find((value) => value.id === item.sessionId);
