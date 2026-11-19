@@ -4604,7 +4604,7 @@ attached folder or remove Moguri-owned project data. Removal never deletes the
 repository, closes a PR, removes shared caches/models or erases diagnostic logs.
 Unconfirmed owned effects block deletion until explicit inspection.
 
-**Project settings** exposes upstream/main/branch pattern, SendBox configuration,
+**Project settings** exposes main branch/branch pattern, SendBox configuration,
 exact user scripts, preview port, optional read-only `porto list` inventory,
 read-only/denied folders, instructions, MCP and plan paths. Saving never runs a
 script. Host agent command/MCP tools are blocked when they cannot enforce folder

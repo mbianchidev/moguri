@@ -208,12 +208,12 @@ test("project dropdowns and toggles save only their changed fields, while nearby
     await page.getByRole("menu", { name: "Project actions for project", exact: true }).getByRole("menuitem", { name: "Settings", exact: true }).click();
     const instructions = page.getByLabel("Project instruction override", { exact: true });
     await instructions.fill("Generated uncommitted project guidance.");
-    const upstream = page.getByLabel("Upstream", { exact: true }), originalUpstream = await upstream.inputValue();
-    await upstream.fill("generated-upstream");
+    const mainBranch = page.getByLabel("Main branch", { exact: true }), originalMainBranch = await mainBranch.inputValue();
+    await mainBranch.fill("generated-main");
     await page.getByLabel("GitHub read access", { exact: true }).selectOption("gh-cli");
     await expect.poll(() => configuration()?.repo.githubAccess).toBe("gh-cli");
-    expect(configuration()?.repo.upstream).toBe(originalUpstream);
-    await expect(upstream).toHaveValue("generated-upstream");
+    expect(configuration()?.repo.mainBranch).toBe(originalMainBranch);
+    await expect(mainBranch).toHaveValue("generated-main");
     expect(configuration()?.instructions).toBe("");
     await page.getByLabel("Enable Porto inventory").check();
     await expect.poll(() => configuration()?.porto.enabled).toBe(true);
@@ -221,9 +221,10 @@ test("project dropdowns and toggles save only their changed fields, while nearby
     await expect(instructions).toHaveValue("Generated uncommitted project guidance.");
     await page.getByRole("button", { name: "Save project instructions", exact: true }).click();
     await expect.poll(() => configuration()?.instructions).toBe("Generated uncommitted project guidance.");
-    expect(configuration()?.repo.upstream).toBe(originalUpstream);
+    expect(configuration()?.repo.mainBranch).toBe(originalMainBranch);
     await page.getByRole("button", { name: "Save repository settings", exact: true }).click();
-    await expect.poll(() => configuration()?.repo.upstream).toBe("generated-upstream");
+    await expect.poll(() => configuration()?.repo.mainBranch).toBe("generated-main");
+    expect(configuration()?.repo.upstream).toBeUndefined();
     await expect(page.getByRole("button", { name: "Save project settings", exact: true })).toBeDisabled();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
   } finally { await close(app); await fixture.close(); }
