@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DraftEditor, MoguriSdk, artifactFileKind, detectToolSuggestions, groupToolsets, messageLinks, scriptDescription, type EventInput, type Session, type Snapshot, type SuggestionPreview } from "../packages/sdk/src/index.ts";
@@ -37,11 +37,12 @@ test("script descriptions come from the header comment; toolsets keep every buil
 });
 
 test("the artifact library lists output folders and agent-written files with their sessions, never dependencies, sources or protected paths", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "moguri-generated-library-"));
+  const directory = await realpath(await mkdtemp(join(tmpdir(), "moguri-generated-library-")));
   try {
     const project = join(directory, "project"), worktree = join(directory, "worktree");
     for (const folder of ["dist", "apps/desktop/release/mac/Generated.app/Contents", "node_modules/pkg/dist", "src", "docs"]) await mkdir(join(project, folder), { recursive: true });
-    await mkdir(join(worktree, "out"), { recursive: true });
+    await mkdir(join(worktree, "out"), { recursive: true }); await mkdir(join(directory, "outside"));
+    await writeFile(join(directory, "outside", "private.pdf"), "pdf"); await symlink(join(directory, "outside"), join(project, "linked"));
     await Promise.all([
       writeFile(join(project, "dist/Generated.dmg"), "dmg"), writeFile(join(project, "dist/main.js"), "js"), writeFile(join(project, "dist/.env"), "SECRET=1"),
       writeFile(join(project, "apps/desktop/release/mac/Generated.app/Contents/icon.png"), "png"), writeFile(join(project, "node_modules/pkg/dist/bundle.zip"), "zip"),
@@ -50,7 +51,8 @@ test("the artifact library lists output folders and agent-written files with the
     const call = (name: string, path: string) => ({ id: `${name}-${path}`, name, arguments: { path } });
     const sessions = [
       { id: "checkout", projectId: "project", workspaceId: null, controls: { env: "Local" }, updatedAt: "2026-01-02T00:00:00.000Z",
-        messages: [{ role: "assistant", toolCalls: [call("write_document", "docs/report.pdf"), call("write_file", "src/index.ts"), call("write_file", "../escape.pdf")] }] },
+        messages: [{ role: "assistant", toolCalls: [call("write_document", "docs/report.pdf"), call("write_file", "src/index.ts"), call("write_file", "../escape.pdf"),
+          call("write_document", "linked/private.pdf")] }] },
       { id: "worktree-session", projectId: "project", workspaceId: "workspace", controls: { env: "Local" }, updatedAt: "2026-01-01T00:00:00.000Z", messages: [] },
     ];
     const snapshot = { projects: [{ id: "project", path: project }], sessions,

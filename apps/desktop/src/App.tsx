@@ -450,8 +450,13 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       if (profileId === client.profileId && !canNavigate()) return;
       const target = profileId === client.profileId ? client : await openProfile(profileId);
       if (!target || target.profileId !== profileId) return;
-      if (!target.getState().snapshot?.attention.some((entry) => entry.id === id && entry.reason === "script-review")) {
-        throw new Error("The original script notification is unavailable in this profile. No different review was opened.");
+      const entry = target.getState().snapshot?.attention.find((value) => value.id === id && (value.reason === "script-review" || value.reason === "tool-suggestion"));
+      if (!entry) throw new Error("The original notification is unavailable in this profile. No different review was opened.");
+      if (entry.reason === "tool-suggestion") {
+        setSkillsTab("Tools");
+        if (target === client) openGlobal("Skills");
+        else { setGlobalSessionId(null); setGlobalView("Skills"); }
+        return;
       }
       if (target === client) openGlobal("Attention", null, true);
       else { setGlobalSessionId(null); setGlobalView("Attention"); }
