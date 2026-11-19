@@ -111,6 +111,8 @@ else {
     let explicitQuitRequested = false;
     // Close and quit first finish saving composer drafts and queued-prompt edits, then proceed without asking (D50).
     let unloadReason: "drafts" | "edits" | null = null, draftSave: ReturnType<typeof setTimeout> | null = null, discardNextUnload = false;
+    // Set by the window's close event, which runs before beforeunload; any other blocked unload is a reload.
+    let closeIntent = false, afterSave: "close" | "reload" = "close";
     const draftSaveFailed = (error: string) => {
       if (!mainWindow || mainWindow.isDestroyed()) return;
       if (process.env.MOGURI_TEST_WINDOW === "hidden") {
@@ -680,7 +682,7 @@ else {
       if (!draftSave || !mainWindow || mainWindow.isDestroyed()) return;
       clearTimeout(draftSave); draftSave = null;
       const value = typeof result === "object" && result !== null ? result as { ok?: unknown; error?: unknown } : {};
-      if (value.ok === true) mainWindow.close();
+      if (value.ok === true) { if (afterSave === "close") mainWindow.close(); else mainWindow.webContents.reload(); }
       else draftSaveFailed(typeof value.error === "string" ? value.error.slice(0, 1000) : "The draft could not be saved.");
     });
     ipcMain.handle("moguri:copy-text", (event, text: unknown) => {
@@ -846,10 +848,11 @@ else {
       mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
       mainWindow.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("moguri://app/")) event.preventDefault(); });
       mainWindow.webContents.on("will-prevent-unload", (event) => {
-        const reason = unloadReason;
-        unloadReason = null;
+        const reason = unloadReason, closing = closeIntent;
+        unloadReason = null; closeIntent = false;
         if (discardNextUnload) { discardNextUnload = false; event.preventDefault(); return; }
         if (reason === "drafts") {
+          afterSave = closing ? "close" : "reload";
           // The renderer is saving; it reports back and the original close or quit continues.
           if (draftSave) clearTimeout(draftSave);
           draftSave = setTimeout(() => { draftSave = null; draftSaveFailed("Saving didn't finish within 15 seconds."); }, 15_000);
@@ -867,6 +870,7 @@ else {
         if (choice === 1) event.preventDefault();
         else explicitQuitRequested = false;
       });
+      mainWindow.on("close", () => { closeIntent = true; });
       mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null;
         void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });
       mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });

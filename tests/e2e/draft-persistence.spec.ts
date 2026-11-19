@@ -34,6 +34,22 @@ test("closing the window saves an unsaved draft and an open queued-prompt edit f
   } finally { await app.close().catch(() => undefined); await fixture.close(); }
 });
 
+test("reloading with an unsaved draft saves it and reloads instead of closing the app", async () => {
+  const fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128 }), stateDir = join(fixture.directory, "state");
+  await fixture.configure();
+  const app = await launch(stateDir);
+  try {
+    const page = await app.firstWindow();
+    await expect(page.getByRole("switch", { name: "Agent mode" })).toBeEnabled();
+    await page.getByLabel("Prompt", { exact: true }).fill("Generated draft typed right before reloading.");
+    await app.evaluate(({ BrowserWindow }) => { setTimeout(() => BrowserWindow.getAllWindows()[0]!.webContents.reload(), 0); });
+    await expect.poll(() => fixture.session().draft.text).toBe("Generated draft typed right before reloading.");
+    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated draft typed right before reloading.");
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1);
+    expect(fixture.service.store.db.isOpen).toBe(true);
+  } finally { await app.close().catch(() => undefined); await fixture.close(); }
+});
+
 test("after a quit, the restart prompt continues interrupted chats and can stop asking", async () => {
   const fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128 }), stateDir = join(fixture.directory, "state");
   await fixture.configure();
