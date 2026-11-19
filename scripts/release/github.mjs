@@ -47,13 +47,15 @@ export function compareAssets(release, version, local) {
   return { problems, missing };
 }
 
-export async function verifyPublished(tag, commit) {
+// local: optional directory with this attempt's staged assets; the published bytes must then be exactly those.
+export async function verifyPublished(tag, commit, local) {
   const { version, prerelease } = normalizeVersion(tag), names = assetNames(version);
   const release = await releaseFor(tag);
   if (!release) throw new Error(`No GitHub release exists for ${tag}.`);
   if (release.draft) throw new Error(`${tag} is still a draft.`);
   if (release.prerelease !== prerelease) throw new Error(`${tag} has prerelease=${release.prerelease}; expected ${prerelease}.`);
-  const { problems, missing } = compareAssets(release, version);
+  const localDigests = local ? await localAssetDigests(version, local) : undefined;
+  const { problems, missing } = compareAssets(release, version, localDigests);
   if (problems.length || missing.length) throw new Error(`Published assets are wrong: ${[...problems, ...missing.map((name) => `missing ${name}`)].join("; ")}.`);
   const digests = Object.fromEntries(release.assets.map((asset) => [asset.name, asset.digest]));
   const directory = await mkdtemp(join(tmpdir(), "moguri-release-check-"));
@@ -74,6 +76,12 @@ export async function verifyPublished(tag, commit) {
   return release;
 }
 
+async function localAssetDigests(version, dir) {
+  const digests = {};
+  for (const name of Object.values(assetNames(version))) digests[name] = await fileDigest(join(resolve(dir), name));
+  return digests;
+}
+
 async function main([command, ...args]) {
   if (command === "release") {
     const release = await releaseFor(args[0]);
@@ -84,16 +92,14 @@ async function main([command, ...args]) {
     // assets TAG DIR: prints missing asset names; fails when any existing asset is unexpected, incomplete or differs.
     const [tag, dir] = args, { version } = normalizeVersion(tag), release = await releaseFor(tag);
     if (!release) throw new Error(`No GitHub release exists for ${tag}.`);
-    const local = {};
-    for (const name of Object.values(assetNames(version))) local[name] = await fileDigest(join(resolve(dir), name));
-    const { problems, missing } = compareAssets(release, version, local);
+    const { problems, missing } = compareAssets(release, version, await localAssetDigests(version, dir));
     if (problems.length) throw new Error(`The existing ${tag} release does not match this attempt: ${problems.join("; ")}. Review it on GitHub; nothing was replaced.`);
     for (const name of missing) process.stdout.write(`${name}\n`);
   } else if (command === "verify-published") {
-    const release = await verifyPublished(args[0], args[1]);
+    const release = await verifyPublished(args[0], args[1], args[2]);
     process.stdout.write(`${release.html_url}\n`);
   } else {
-    throw new Error("Usage: github.mjs release TAG | published | assets TAG DIR | verify-published TAG COMMIT");
+    throw new Error("Usage: github.mjs release TAG | published | assets TAG DIR | verify-published TAG COMMIT [ASSET_DIR]");
   }
 }
 

@@ -24,6 +24,8 @@ TMP_ROOT="${TMP_ROOT%/}"
 MODE="release"
 INPUT=""
 CHILD=""
+WATCHDOG=""
+NEW_DIR=""
 OWNED_DIRS=""
 LOCK=""
 LOCK_HELD=0
@@ -87,6 +89,7 @@ stage() { STAGE="$1"; if [ -n "$JOURNAL" ] && [ -d "$ATTEMPT_DIR" ]; then journa
 cleanup() {
   local rc=$?
   trap - EXIT INT TERM
+  if [ -n "$WATCHDOG" ]; then kill -TERM "$WATCHDOG" 2>/dev/null || true; wait "$WATCHDOG" 2>/dev/null || true; fi
   if [ -n "$CHILD" ]; then kill -TERM "$CHILD" 2>/dev/null || true; wait "$CHILD" 2>/dev/null || true; fi
   local dir
   for dir in $OWNED_DIRS; do
@@ -115,26 +118,33 @@ run_in() {
   CHILD=""
 }
 
-# Runs a watcher with an overall deadline, keeping its native output on the terminal.
+# Runs a watcher with an overall deadline, keeping its native output on the terminal. The timer only signals the
+# watcher while this script is still alive, and cleanup stops the timer on success, failure and Ctrl+C.
 with_deadline() {
   local seconds="$1"; shift
   "$@" &
   CHILD=$!
-  local watched=$CHILD rc=0
-  ( sleep "$seconds"; kill -TERM "$watched" 2>/dev/null ) &
-  local watchdog=$!
+  local watched=$CHILD owner=$$ rc=0
+  (
+    sleeper=""
+    trap 'if [ -n "$sleeper" ]; then kill "$sleeper" 2>/dev/null; fi; exit 0' TERM
+    sleep "$seconds" & sleeper=$!
+    wait "$sleeper"
+    if kill -0 "$owner" 2>/dev/null; then kill -TERM "$watched" 2>/dev/null; fi
+  ) &
+  WATCHDOG=$!
   wait "$watched" || rc=$?
-  kill "$watchdog" 2>/dev/null || true
-  wait "$watchdog" 2>/dev/null || true
+  kill -TERM "$WATCHDOG" 2>/dev/null || true
+  wait "$WATCHDOG" 2>/dev/null || true
+  WATCHDOG=""
   CHILD=""
   return "$rc"
 }
 
+# Sets NEW_DIR. Called directly, not through $(...), so OWNED_DIRS reaches cleanup.
 new_owned_dir() {
-  local dir
-  dir="$(mktemp -d "$TMP_ROOT/moguri-release.XXXXXX")"
-  OWNED_DIRS="$OWNED_DIRS $dir"
-  printf '%s\n' "$dir"
+  NEW_DIR="$(mktemp -d "$TMP_ROOT/moguri-release.XXXXXX")" || die "Could not create a temporary directory."
+  OWNED_DIRS="$OWNED_DIRS $NEW_DIR"
 }
 
 parse_args() {
@@ -332,7 +342,7 @@ validated_build_for() {
 prepare_bump() {
   stage "creating the release bump"
   local dir
-  dir="$(new_owned_dir)"
+  new_owned_dir; dir="$NEW_DIR"
   git -C "$REPO_ROOT" worktree add --quiet --detach "$dir/src" "$BASE_SHA"
   (cd "$dir/src" && npm version "$VERSION" --no-git-tag-version --ignore-scripts >/dev/null) || die "npm version $VERSION failed."
   [ "$(git -C "$dir/src" status --porcelain)" = " M package-lock.json
@@ -359,7 +369,7 @@ validate_existing_bump() {
   fi
   stage "validating the release bump"
   local dir
-  dir="$(new_owned_dir)"
+  new_owned_dir; dir="$NEW_DIR"
   git -C "$REPO_ROOT" worktree add --quiet --detach "$dir/src" "$BUMP_SHA"
   validate_and_package "$dir/src"
 }
@@ -454,7 +464,7 @@ ensure_merged_artifacts() {
   stage "validating the merged commit"
   note "No validated artifacts for the merged tree; validating and packaging $MERGE_SHA."
   local dir
-  dir="$(new_owned_dir)"
+  new_owned_dir; dir="$NEW_DIR"
   git -C "$REPO_ROOT" worktree add --quiet --detach "$dir/src" "$MERGE_SHA"
   validate_and_package "$dir/src"
 }
@@ -585,7 +595,9 @@ watch_release_workflow() {
 verify_publication() {
   stage "verifying the published release"
   local url
-  url="$(node "$HELPERS/github.mjs" verify-published "$TAG" "$MERGE_SHA")" || die "The published $TAG release did not verify."
+  set -- verify-published "$TAG" "$MERGE_SHA"
+  if [ -d "$ATTEMPT_DIR/assets-$MERGE_SHA" ]; then set -- "$@" "$ATTEMPT_DIR/assets-$MERGE_SHA"; fi
+  url="$(node "$HELPERS/github.mjs" "$@")" || die "The published $TAG release did not verify."
   [ "$(remote_tag_commit)" = "$MERGE_SHA" ] || die "Remote $TAG does not point to $MERGE_SHA."
   stage "completed"
   say "Released Moguri $VERSION: $url"
