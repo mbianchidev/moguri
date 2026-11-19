@@ -827,6 +827,29 @@ script steps, never fall back to another Env, and grant no extra permissions.
 After a restart, a run that was creating its chat is marked partial and an
 unstarted script step is blocked; nothing is replayed.
 
+## Interrupted chats after a restart
+
+When Moguri quits, restarts or crashes while a chat is working, it records the
+chat's running turn and the prompts that were waiting
+([contract](architecture/interrupted-sessions.md)). Prompts you held stay held.
+
+- **Desktop:** after reconnecting, **Continue interrupted work?** lists each chat
+  with **Open**, **Dismiss** and **Continue**. **Continue all** continues every
+  one; check **Don't ask again: continue all automatically after a restart** to
+  skip the question next time. The chat itself shows **Interrupted when Moguri
+  stopped** with **Continue** and **Dismiss**. Change the choice under
+  **Settings / Confirmations / Interrupted chats after a restart**.
+- **TUI:** a notice names interrupted chats; `/interrupted` lists them and
+  takes `continue ID`, `continue all`, `dismiss ID`, `always` or `ask`.
+- **CLI:** `moguri interrupted [list|continue ID|continue all|dismiss ID|always|ask]`.
+
+Continue asks the agent to check where it left off before doing anything else
+(the built-in continue workflow), then runs the prompts that were waiting.
+Nothing the agent already did is repeated, and approvals, budgets and autonomy
+are unchanged. With **Continue all automatically**, Moguri continues each
+interrupted chat once after it finds its models; a chat that can't continue
+shows why and keeps its Continue button.
+
 ## Kupo modes, evidence and context
 
 Selecting automatic Kupo exposes **Balanced**, **Savings** and **Performance**
@@ -5139,9 +5162,11 @@ protect concurrent clients. Idempotency IDs prevent replaying a mutation after
 a lost response; the SDK never automatically resends paid or side-effecting work.
 
 Drafts auto-save after a short editing interval. **Draft saved** means the
-service acknowledged the revision. Unacknowledged text is a local edit, not
-promised durable storage. Desktop prevents closing with unsaved edits unless
-the user explicitly discards them; TUI **Ctrl+Q** flushes before leaving.
+service acknowledged the revision. Closing or quitting the desktop app first
+finishes saving composer drafts and an open queued-prompt edit, then closes
+without asking; **Draft not saved** appears only if saving fails. Other
+explicit-save edits still ask before closing. TUI **Ctrl+Q** flushes before
+leaving.
 Conflicting drafts preserve local text and require **Reload saved draft** or
 **Keep my draft**. TUI uses **Ctrl+R** and **Ctrl+S**, respectively.
 
