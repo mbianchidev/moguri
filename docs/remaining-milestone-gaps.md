@@ -124,7 +124,7 @@ Delivered #7/#9/#12/#13/#23/#36/#37/#38/#45/#53/#55/#63/#69/#82 do not reappear 
 | Order | Actual remaining scope |
 | --- | --- |
 | 1. Everyday UX and existing integrations | #77 app-wide accessibility verification (screen reader, WCAG 2.2 AA, keyboard/focus, physical-display contrast), deferred from #53; #84 fewer Settings sections with integrations as tabs/icons instead of one rail item each. |
-| 2. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. Repository visibility/access, license and signing/notarization need explicit decisions, not assumed publication. |
+| 2. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. The owner chose the MIT license, a hybrid local-build/CI-publish [release process](releasing.md) and a Homebrew cask on 2026-11-19; the repository stays private for now. The cask waits for a published public release, and signing/notarization still needs a decision. |
 | 3. Optional providers and automation | #80 Stainless MCP integration once mbianchidev/stainless#22 ships, #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions, #85 phone steering over Tailscale Serve (scoped paired gateway and PWA client; `/remote` is already the SSH command), #54 GetMoshi integration and #64 global/repository flags for evidence-gated flaky-CI retries (provider status preflight, bounded attempts) and feature-preserving conflict resolution. Existing one-time schedules, exact-PR CI watches (#52), the reviewed rebase/conflict workflow and reviewed compaction are not those broader features. |
 | 4. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |
 
@@ -178,9 +178,10 @@ recurring check, and a per-project artifact library linked to each chat. A
 hosted multi-publisher gallery and recurring prompt/workflow schedules (#6)
 remain open.
 
-At the live read the repository is private, has no repository license and has
-no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,
-not notarized or public distribution. This audit opens no other-repository PR,
+At the live read the repository is private and has no GitHub releases. It is
+MIT-licensed, with a tag-triggered [release process](releasing.md) whose first
+run waits for GitHub Actions billing to be fixed. Development macOS
+app/DMG/ZIP artifacts are ad-hoc signed, not notarized or public distribution. This audit opens no other-repository PR,
 changes no upstream dependency and makes no publication/installation decision.
 Future Rust adoption still requires explicit direction, current-protocol parity,
 ADRs and a feature-equivalent value/distribution comparison.

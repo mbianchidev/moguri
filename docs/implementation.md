@@ -976,7 +976,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - configurable secure SSH commit signing and commit-attribution rules, including suppression of automatic tool co-author trailers;
 - token-saving execution modes such as a standard `--silent` convention, output truncation, and an intentionally terse “caveman” communication mode;
 - documentation policies that keep durable documentation under `docs/` rather than scattering temporary summary Markdown files through repositories;
-- policy import and synchronization from sources such as [`copilot-instructions.md`](https://github.com/mbianchidev/.github-private/blob/main/copilot-instructions.md), subject to repository access;
+- policy import and synchronization from sources such as a maintainer's private `copilot-instructions.md`, subject to repository access;
 - deterministic first-party utilities—Python-backed where appropriate—for diffing, parsing, splitting, searching, and structured data manipulation so agents do not repeatedly generate disposable scripts.
 
 ### First-party integrations
