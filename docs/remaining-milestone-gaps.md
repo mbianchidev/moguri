@@ -198,3 +198,5 @@ retrospectively qualify older images/archives.
 Broader orchestrator/session groups, multi-repo coordination, Porto/database
 plugins, scheduling, specialized modes and managed cloud provisioning remain
 separate deferred work. Do not silently make them new first-milestone blockers.
+The [cloud fleet on Agent Substrate analysis](architecture/cloud-fleet-substrate.md)
+records how hosted fleets could follow production SendBox; it is not roadmap work.
