@@ -12,7 +12,7 @@ export const SETTINGS_GROUPS = [
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },
   ] },
   { label: "Integrations", items: [
-    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions"] },
+    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions", "pull request automation fix broken CI rerun flaky jobs", "automatic conflict resolution repository exceptions"] },
     { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },
@@ -46,7 +46,7 @@ export const SETTINGS_GROUPS = [
     { id: "memory", label: "Repository memory", keywords: "index vectors context snippets symbols" },
   ] },
   { label: "Per-project configuration", items: [
-    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides" },
+    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides", aliases: ["fix broken CI automatic conflict resolution override"] },
   ] },
   { label: "Appearance", items: [
     { id: "appearance", label: "Appearance", keywords: "theme light dark mode system palettes custom colors contrast" },
