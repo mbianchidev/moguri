@@ -41,6 +41,25 @@ this page keeps the full detail.
 - These turns use the chat's model, Env, autonomy, approvals and budget. They never merge, force-push,
   rebase shared history or delete branches. See [session lifecycle](../architecture/session-lifecycle.md).
 
+## Pull request automation
+
+- **Fix broken CI** and **Automatic conflict resolution** are independent global defaults, both off. They save
+  immediately. Each repository can override either one in **Settings / Project**.
+- **Fix broken CI** reruns a failed GitHub Actions job of the session's own PR, at most twice per check and head
+  (one minute, then five minutes after the failure), only when GitHub Status shows Actions, API Requests and Git
+  Operations healthy with no related incident and the job's log shows a transient cause such as an external HTTP
+  5xx or a network error. Test, build, type and lint failures, unclear logs and non-Actions checks are never rerun.
+  An outage or unknown status pauses retries and shows the incident; the failure isn't blamed on the change. It needs
+  a Local session and the signed-in GitHub CLI account, and respects tool and command deny rules. The Code change view
+  shows each retry's reason, reruns used and actual result, with **Cancel automatic retry**.
+- **Automatic conflict resolution** queues one turn per PR head (two per round) when GitHub reports a conflict with
+  the base. The turn merges the base, keeps both sides' features, validates with tests, and otherwise aborts the merge
+  and asks you. Moguri then checks the worktree and reports merged, left for review or needs review. The wrap-up's own
+  conflict step is unchanged; with the flag on it uses the same stricter protocol.
+- **Repository exceptions** lists each repository that overrides a default, with its effective value and **Open
+  settings**.
+- Neither flag grants merge, force-push, rebase or sign-in. See [pull request automation](../architecture/pr-automation.md).
+
 ## Branch names
 
 - **Branch name prefix** (optional, profile-wide) is added in front of every branch name Moguri generates:

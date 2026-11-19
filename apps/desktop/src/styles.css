@@ -378,6 +378,8 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .pr-observation header strong { overflow-wrap: anywhere; margin-inline-end: auto; }
 .pr-observation header span { font-size: var(--font-size-xs); color: var(--muted); }
 .pr-comment-body, .pr-run-logs { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 400px; overflow: auto; }
+.automation-exceptions { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.automation-exceptions li { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; }
 .pr-ci-watch { margin-top: var(--space-3); padding: var(--space-2-5); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .session-mark[data-session-state="running"] { color: var(--indicator-running); }
 .session-mark[data-session-state="running"] svg { animation: session-status-spin 1s linear infinite; }
