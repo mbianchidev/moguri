@@ -144,7 +144,7 @@ fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
 [Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
-**Skills** next to Automations (protocol 113) lists installed skills with
+**Skills** next to Automations (protocol 114) lists installed skills with
 On/Off switches, installs a skill from your configured sources into one
 project or every project (disabled until you turn it on), and shows the agent's
 toolsets and your script tools. Write a script or ask the agent to write one,
@@ -5623,6 +5623,16 @@ chat. Afterwards Moguri follows the PR for a day and queues a follow-up for new
 reviews or a failing check, asking you when the same failure repeats. Turn
 these off in **Settings / GitHub workflows / After each request**. See
 [session lifecycle](architecture/session-lifecycle.md).
+
+**Settings / GitHub workflows / Pull request automation** adds two independent
+flags, both off by default: **Fix broken CI** reruns a failed GitHub Actions job
+at most twice when GitHub Status is healthy and the job log shows a transient
+cause (an external HTTP 5xx or network error), and **Automatic conflict
+resolution** queues a turn that merges the base while keeping both sides'
+features, or aborts and asks you. Each repository can override either flag in
+**Settings / Project**; overrides are listed under **Repository exceptions**.
+Fix broken CI needs a Local session and the signed-in GitHub CLI account.
+GitLab CI is not supported. See [pull request automation](architecture/pr-automation.md).
 
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows

@@ -3,7 +3,7 @@
 Technical reference for **Settings / Artifacts**. The app shows a short summary;
 this page keeps the full detail.
 
-## Artifacts tab (protocol 113)
+## Artifacts tab (protocol 114)
 
 The **Artifacts** tab next to Automations browses one project (or the chats without a project) at a time: build outputs
 from dist/out/build/release-style folders in the checkout and session worktrees, files agents wrote, chat images, links

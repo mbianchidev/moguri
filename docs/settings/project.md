@@ -26,6 +26,15 @@ this page keeps the full detail.
 - The draft PR default is workflow guidance only. It never grants publication (push), authentication or merge permission; ordinary approvals still apply.
 - Contract: `docs/architecture/repository-workflow-defaults.md`, `docs/architecture/managed-workspaces.md`, `docs/setup.md` (New Local Git tasks section).
 
+## Fix broken CI / Automatic conflict resolution
+
+- Each select offers "Use the global default (on/off)", "On for this repository" and "Off for this repository", and
+  saves immediately. "Now:" shows the effective value and whether it comes from the global default or this override.
+- Changing the global default keeps this override. Choosing the global default again removes it from the global
+  **Repository exceptions** list.
+- Fix broken CI also needs "My signed-in GitHub CLI account" under GitHub read access.
+- Contract: `docs/architecture/pr-automation.md`.
+
 ## Screenshots of UI changes / Installer when session work is done
 
 - **Screenshots of UI changes** (default: take them as the UI changes) tells the agent to capture affected screens

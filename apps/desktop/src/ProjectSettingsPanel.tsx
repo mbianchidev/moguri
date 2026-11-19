@@ -8,6 +8,7 @@ import { RepositoryRemotePanel } from "./RepositoryRemotePanel.tsx";
 import { PathField } from "./PathField.tsx";
 import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
+import { PrAutomationOverrides } from "./PrAutomationSettings.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -162,12 +163,13 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
         }}>
         <option value="ask">Ask me (default)</option><option value="build">Build it</option><option value="skip">Don't build</option>
       </select></label>
+      <PrAutomationOverrides values={values} snapshot={snapshot} onChange={(flag, choice) => automatic("repo", { [flag]: choice === "inherit" ? undefined : choice })} />
     </div>
     {values.repo.installers === "build" && <label className="setting-field">Installer command<SettingsInput aria-label="Installer command" value={values.repo.installerCommand ?? ""}
       placeholder={installers?.[0]?.run ?? "npm run package:mac"} spellCheck={false}
       onChange={(event) => change("repo", { ...values.repo, installerCommand: event.target.value || undefined })} /></label>}
     {installers && installers.length > 0 && <p className="fine-print">Found {installers.map((candidate) => candidate.run).join(", ")} in this project.</p>}
-    <p className="fine-print">Existing sessions keep their workspace. These choices guide the agent; pushing, merging and running commands follow your normal approvals.</p>
+    <p className="fine-print">Existing sessions keep their workspace. These choices guide the agent; pushing, merging and running commands follow your normal approvals. A repository override stays when the global default changes; choose the global default again to remove it.</p>
     {saveButton("repo", "Save repository settings")}
     <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
       disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />

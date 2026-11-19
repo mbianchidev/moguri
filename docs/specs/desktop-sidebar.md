@@ -17,7 +17,7 @@ retained sizes; protocol 22 adds explicit actual-root GitHub metadata review,
 exact refresh/stop, immutable repository/owner/visibility filtering and
 unassigned-history coverage. None of these grant tools or dispatch a model.
 Current left resources are Dashboard, Inbox, Suggestions, Automations, Skills
-and Artifacts (protocol 113, see
+and Artifacts (protocol 114, see
 [skills, tools and artifacts](../architecture/skills-tools-artifacts.md));
 the retained-document editor, Candidates and Sandbox stay in Settings. The right rail is Terminal, Browser,
 Insights, Code change, Files, Plan, Side chat and Work item for project and

@@ -25,7 +25,7 @@ into one project or every project, and the agent's toolsets. Contract:
 - Confirming does not scan the folder at that moment; adding it does not install skills, run instructions or grant model or tool permissions.
 - If loading the presets fails, no directory is scanned.
 
-## Install from a source (protocol 113)
+## Install from a source (protocol 114)
 
 - **Install** in Skills / Marketplace re-reads the source and installs those exact bytes as a disabled skill in the chosen
   project or, with **All projects**, for every project. A changed source needs a fresh search.
