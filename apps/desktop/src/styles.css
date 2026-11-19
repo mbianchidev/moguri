@@ -200,6 +200,16 @@ svg { flex-shrink: 0; }
 .automation-dialog .setting-field { margin: 0; }
 .automation-days { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .automation-dialog footer { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.interrupted-work-dialog { width: min(600px, calc(100vw - 36px)); }
+.interrupted-work-dialog > header h2 { margin: 0 0 var(--space-2); }
+.interrupted-work-list { list-style: none; margin: var(--space-3) 0; padding: 0; max-height: 50dvh; overflow: auto; }
+.interrupted-work-list li { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+.interrupted-work-list li > div:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.interrupted-work-list p { margin: var(--space-1) 0 0; }
+.interrupted-work-actions { display: flex; gap: var(--space-1-5); flex-shrink: 0; align-items: center; }
+.interrupted-work-dialog footer { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
+.interrupted-notice > .interrupted-work-actions { flex: 0 0 auto; min-width: 0; }
+@media (max-width: 640px) { .interrupted-work-list li { flex-direction: column; align-items: stretch; } }
 @media (max-width: 640px) { .automation-facts { grid-template-columns: 1fr; } }
 .approval-footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2-5) var(--space-3); }
 .approval-footer > .fine-print { flex-basis: 100%; order: 3; margin: 0; }

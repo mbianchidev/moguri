@@ -55,6 +55,10 @@ export interface DesktopBridge {
   installUpdate(id: string, expectedDigest: string): Promise<void>;
   onUpdateAvailable(listener: (id: string, version: string) => void): () => void;
   copyText(text: string): Promise<void>;
+  /** Tells the main process why the window refuses to close: drafts are saving, or an explicit-save edit is open. */
+  unloadBlocked(reason: "drafts" | "edits"): void;
+  /** Reports whether drafts saved before closing; on success the original close or quit continues. */
+  draftsSettled(result: { ok: true } | { ok: false; error: string }): void;
   saveDocument(document: ArtifactExport): Promise<{ path: string; digest: string } | null>;
   preview(input: { sessionId: string; url: string | null; reload?: boolean; bounds: { x: number; y: number; width: number; height: number } } | null, profileId: string, closingSessionId?: string): Promise<void>;
   browserControl(sessionId: string, enabled: boolean, profileId: string): Promise<BrowserState>;

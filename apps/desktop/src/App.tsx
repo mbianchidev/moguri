@@ -39,6 +39,8 @@ import { Alert } from "./Alert.tsx";
 import { ProjectFolderActions, type ProjectFolderAction } from "./PanelFailure.tsx";
 import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 import { AutomationsPanel } from "./Automations.tsx";
+import { hasUnsavedWork, saveUnsavedWork } from "./unsaved-work.ts";
+import { InterruptedNotice, InterruptedWorkPrompt } from "./InterruptedWork.tsx";
 import { createStartupView, isModelDiscoveryPending, readStartupView, saveStartupView, type StartupModel, type StartupView } from "./startup-cache.ts";
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { CommandMessage } from "./CommandMessage.tsx";
@@ -286,9 +288,25 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     apply(); media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [JSON.stringify(snapshot?.settings.values.appearance)]);
+  const closingSave = useRef<Promise<void> | null>(null);
   useEffect(() => {
+    const pendingDrafts = () => hasUnsavedWork() || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving);
+    // Drafts and queued-prompt edits are saved before closing instead of asking (D50); explicit-save edits still ask.
+    const saveDrafts = async () => {
+      await Promise.race([Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()]),
+        new Promise((_resolve, reject) => setTimeout(() => reject(new Error("Saving didn't finish within 10 seconds.")), 10_000))]);
+      if (pendingDrafts()) throw new Error("A draft changed or conflicts with another client while saving.");
+    };
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (panelDirtyRef.current || settingsUnsaved || profilePending || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) { event.preventDefault(); event.returnValue = ""; }
+      if (panelDirtyRef.current || settingsUnsaved || profilePending) {
+        event.preventDefault(); event.returnValue = ""; window.moguri?.unloadBlocked("edits"); return;
+      }
+      if (!pendingDrafts()) return;
+      event.preventDefault(); event.returnValue = "";
+      window.moguri?.unloadBlocked("drafts");
+      closingSave.current ??= saveDrafts().then(() => window.moguri?.draftsSettled({ ok: true }),
+        (error: unknown) => window.moguri?.draftsSettled({ ok: false, error: error instanceof Error ? error.message : "The draft could not be saved." }))
+        .finally(() => { closingSave.current = null; });
     };
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
@@ -690,6 +708,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const chatContent = session && snapshot ? <>
     <HomeWriterReview key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} chooseSession={chooseSession} />
     {activeWorkspace?.status === "creating" && <p className="fine-print" role="status">Preparing the isolated worktree. Queued prompts wait for its actual root; the original checkout is not used.</p>}
+    <InterruptedNotice sdk={client} session={session} run={run} />
     {session.toolRecovery?.turnId === session.turnId && <Alert as="p" tone="warning" role="status">The agent is continuing read-only recovery. An original tool still has unconfirmed effects or cleanup; further writes remain fenced.</Alert>}
     {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
       <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
@@ -812,6 +831,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         await client.commands.choose(owned.context.clientId, owned.context.claim, choice);
         owned.settle({ outcome: "completed" });
       } : undefined} />}
+    {snapshot && <InterruptedWorkPrompt key={client.profileId} sdk={client} snapshot={snapshot} open={(id) => void chooseSession(id)} modal={setNativeModal} />}
     {startOpen && snapshot && <Suspense fallback={<p className="sr-only" role="status">Opening Start...</p>}><StartDialog key={startMode} initialMode={startMode} sdk={client} snapshot={snapshot} start={startSession} close={closeStart} modal={setNativeModal} openRepositories={() => openSettings("repositories", undefined, closeStart)} /></Suspense>}
     {palette && <CommandPalette close={() => setPalette(false)} actions={[
       { name: "Start a chat or project", action: async () => openStart() },
