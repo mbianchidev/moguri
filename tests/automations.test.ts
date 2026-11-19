@@ -238,3 +238,74 @@ test("the shared /automations command reads and controls the same service state 
     assert.equal(other.automations.list().length, 0);
   } finally { other.disconnect(); sdk.disconnect(); await fixture.close(); }
 });
+
+test("automatic model recovery keeps a run's step alive until the retried turn completes", { skip: process.platform !== "darwin" }, async () => {
+  const clock = new GeneratedIntakeClock(), fixture = await setupFixture({ httpFailure: { status: 408, message: "Timed out reading request body. Generated fixture; no personal inference.", remaining: 1 },
+    responseMode: "text", maxOutputTokens: 128, platform: { intakeClock: clock } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  try {
+    await fixture.configure(); await sdk.refresh();
+    const created = await sdk.automations.create(fixture.session().projectId, { name: "Generated recovery", schedule: { kind: "daily", time: "09:00", timeZone: "UTC" },
+      steps: prompts("Generated step that first fails transiently.", "Generated step after recovery.") }, { enabled: true, controls: { modelId: fixture.modelId } });
+    await sdk.refresh(); await sdk.automations.runNow(created.id!);
+    const run = () => fixture.service.controller.snapshot().automationRuns[0]!;
+    const chat = () => fixture.service.controller.snapshot().sessions.find((session) => session.id === run().sessionId);
+    await waitFor(() => fixture.service.controller.snapshot().modelFailures[0]?.status === "pending" && chat()?.turnId === null);
+    assert.equal(run().status, "running", "a failed turn awaiting automatic recovery does not end the run"); assert.equal(run().progress[0]?.status, "running");
+    clock.advanceBy(30_000);
+    await waitFor(() => run().status === "completed");
+    assert.deepEqual(run().progress.map((step) => step.status), ["completed", "completed"]);
+    assert.equal(fixture.service.controller.snapshot().modelFailures[0]?.status, "recovered");
+  } finally { sdk.disconnect(); await fixture.close(); }
+});
+
+test("deleting an automation while stopping its active run settles the run and removes its queued step", { skip: process.platform !== "darwin" }, async () => {
+  const fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128 });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  try {
+    await fixture.configure(); await sdk.refresh();
+    const created = await sdk.automations.create(fixture.session().projectId, { name: "Generated delete", schedule: { kind: "daily", time: "09:00", timeZone: "UTC" },
+      steps: prompts("Please answer generated slow delete step.", "Generated step that must not run.") }, { enabled: true, controls: { modelId: fixture.modelId } });
+    await sdk.refresh(); await sdk.automations.runNow(created.id!);
+    await waitFor(() => fixture.service.controller.snapshot().automationRuns[0]?.progress[0]?.status === "running" && fixture.requests.length === 1);
+    const runId = fixture.service.controller.snapshot().automationRuns[0]!.id;
+    await sdk.refresh(); await sdk.automations.delete(created.id!, { stopRunning: true });
+    const final = () => fixture.service.controller.events(0).findLast((event) => event.event_type === "automation.run_recorded" && event.payload.run.id === runId);
+    await waitFor(() => { const event = final(); return event?.event_type === "automation.run_recorded" && event.payload.run.status === "stopped"; });
+    const event = final();
+    assert.ok(event?.event_type === "automation.run_recorded"); assert.deepEqual(event.payload.run.progress.map((step) => step.status), ["stopped", "skipped"]);
+    await sdk.refresh(); assert.equal(sdk.automations.list().length, 0); assert.equal(sdk.automations.runs().length, 0);
+    const chat = fixture.service.controller.snapshot().sessions.find((session) => session.id === event.payload.run.sessionId)!;
+    assert.equal(chat.queue.length, 0); assert.equal(fixture.requests.length, 1);
+  } finally { sdk.disconnect(); await fixture.close(); }
+});
+
+test("a script step after a prompt step waits for queued chat work instead of blocking", { skip: process.platform !== "darwin" }, async () => {
+  const fixture = await setupFixture({ maxOutputTokens: 128, respond: (_request, index) => ({ text: `Generated reply ${index}.`, delayMs: index === 0 ? 600 : 0 }) });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  try {
+    await mkdir(join(fixture.project, "scripts"));
+    await writeFile(join(fixture.project, "scripts/generated.sh"), "printf 'Generated waited\\n' > generated-waited-result.txt\n");
+    initializeGeneratedRepository(fixture.project, ["fixture.txt", "scripts/generated.sh"]);
+    await fixture.configure(); await sdk.refresh();
+    const projectId = fixture.session().projectId;
+    await sdk.repositoryTrust.trust((await sdk.repositoryTrust.preview(projectId)).preview);
+    const created = await sdk.automations.create(projectId, { name: "Generated waiting", schedule: { kind: "daily", time: "09:00", timeZone: "UTC" },
+      steps: [...prompts("Generated prompt before the script."), { kind: "script", path: "scripts/generated.sh", interpreter: "sh" }] },
+      { enabled: true, controls: { modelId: fixture.modelId } });
+    await sdk.refresh(); await sdk.automations.runNow(created.id!);
+    const run = () => fixture.service.controller.snapshot().automationRuns[0]!;
+    const chat = () => fixture.service.controller.snapshot().sessions.find((session) => session.id === run().sessionId)!;
+    await waitFor(() => run().progress[0]?.status === "running" && fixture.requests.length === 1);
+    await sdk.refresh();
+    await sdk.command({ type: "draft.save", sessionId: chat().id, expectedRevision: chat().draft.revision, text: "Generated user follow-up in the run chat.", attachments: [] });
+    await sdk.command({ type: "message.send", sessionId: chat().id, expectedRevision: chat().draft.revision, delivery: "queue" });
+    await waitFor(() => fixture.requests.length === 2);
+    await waitFor(() => Boolean(chat().pendingApproval));
+    assert.equal(run().status, "running"); assert.equal(run().progress[1]?.status, "running");
+    await sdk.approvals.respond(chat().id, chat().pendingApproval!.id, true);
+    await waitFor(() => run().status === "completed");
+    const root = fixture.service.controller.snapshot().managedWorkspaces.find((workspace) => workspace.id === chat().workspaceId)?.path ?? fixture.project;
+    assert.equal(await readFile(join(root, "generated-waited-result.txt"), "utf8"), "Generated waited\n");
+  } finally { sdk.disconnect(); await fixture.close(); }
+});
