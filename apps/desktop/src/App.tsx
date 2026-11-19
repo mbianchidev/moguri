@@ -38,6 +38,8 @@ import { AnsweredQuestion, ConversationNavigation } from "./ConversationNavigati
 import { Alert } from "./Alert.tsx";
 import { ProjectFolderActions, type ProjectFolderAction } from "./PanelFailure.tsx";
 import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
+import { SkillsWorkspace, type SkillsTab } from "./SkillsWorkspace.tsx";
+import { ArtifactsWorkspace } from "./ArtifactsWorkspace.tsx";
 import { createStartupView, isModelDiscoveryPending, readStartupView, saveStartupView, type StartupModel, type StartupView } from "./startup-cache.ts";
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { CommandMessage } from "./CommandMessage.tsx";
@@ -56,12 +58,12 @@ const availablePanels = (session?: Session): Panel[] => session && !session.proj
 const panelUnavailable = (panel: Panel) => `${panel} needs a project or project group chat. Chats show Side chat, Plan, Insights, Browser and Terminal.`;
 const globalPanels = ["Suggestions", "Dashboard", "Attention"] as const;
 const savedPanels: Panel[] = [...panels, ...globalPanels, "Artifacts", "Candidates", "Sandbox", "PR", "Changes"];
-type GlobalView = typeof globalPanels[number] | "Automations";
+type GlobalView = typeof globalPanels[number] | "Automations" | "Skills" | "Artifacts";
 const isGlobalPanel = (value: Panel): value is typeof globalPanels[number] => globalPanels.some((panel) => panel === value);
 const resourceSettings = (panel: Panel): SettingsTab | null => panel === "Artifacts" ? "artifacts" : panel === "Candidates" ? "candidates" : panel === "Sandbox" ? "sendbox" : null;
 const globalNavigation: { view: GlobalView; icon: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Attention", icon: "Inbox" }, { view: "Suggestions", icon: "Suggestions" },
-  { view: "Automations", icon: "Clock" },
+  { view: "Automations", icon: "Clock" }, { view: "Skills", icon: "Skill" }, { view: "Artifacts", icon: "Artifacts" },
 ];
 const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view;
 const number = (value: number) => new Intl.NumberFormat().format(value);
@@ -152,6 +154,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [layout] = useState(savedLayout);
   const [panel, setPanel] = useState<Panel>(isGlobalPanel(layout.panel) || resourceSettings(layout.panel) ? "Insights" : layout.panel === "PR" || layout.panel === "Changes" ? "Code change" : layout.panel);
   const [globalView, setGlobalView] = useState<GlobalView | null>(isGlobalPanel(layout.panel) ? layout.panel : null);
+  const [skillsTab, setSkillsTab] = useState<SkillsTab>("Skills");
   const [inboxItemId, setInboxItemId] = useState<string | null>(null), [inboxFilters, setInboxFilters] = useState<MyWorkFilters | undefined>();
   const [globalSessionId, setGlobalSessionId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(layout.open);
@@ -341,6 +344,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       setSettingsTab(null); setBoardOpen(false); setGlobalSessionId(sourceId); setGlobalView(view); setNavOpen(false);
     });
   };
+  const openSkills = (tab: SkillsTab) => { setSkillsTab(tab); openGlobal("Skills"); };
   const selectMainSession = (id: string, projectId: string | null, ownership?: "agent") => {
     if (panelOpen && panel === "Terminal" && (selectedId !== id || globalView !== null || boardOpen || settingsTab !== null)) {
       setTerminalIntent({ panel: "Terminal", sessionId: id, ownership });
@@ -762,8 +766,10 @@ export function App({ client: initialClient, startupScope = null, startupView = 
             <option value="">All projects</option>{globalSessionId && !globalSession && <option value={globalSessionId} disabled>Source chat removed; choose a current scope</option>}{snapshot.sessions.filter((session) => session.status !== "archived" && session.kind !== "subagent").map((session) => <option key={session.id} value={session.id}>{title(session)}</option>)}
           </select></label>}
         </header>
-        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} /> :
-          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
+        <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} openTools={() => openSkills("Tools")} /> :
+          globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} /> :
+          globalView === "Artifacts" ? <ArtifactsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} initialProjectId={session?.projectId ?? project?.id ?? null} openSession={chooseSession} openSettings={openSettings} /> :
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
         </div>
       </section> : <>
       <header className="session-header" data-session-id={session?.id}>
@@ -786,7 +792,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         <button className="icon-button" aria-label={panelMaximized ? "Restore session sidebar" : "Maximize session sidebar"} title={panelMaximized ? "Restore split view" : "Expand over chat; keep navigation visible"} onClick={() => { if (canChangePanel()) setPanelMaximized((value) => !value); }}><Icon name={panelMaximized ? "Minimize" : "Maximize"} /></button>
         <button className="icon-button" aria-label="Hide session sidebar" title="Hide session sidebar" onClick={hidePanel}><Icon name="PanelRight" /></button></header>
       <div className={`context-content panel-${shownPanel.toLowerCase().replaceAll(" ", "-")}`}>
-        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${shownPanel}`} panel={shownPanel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === shownPanel && terminalIntent.sessionId === session?.id && terminalIntent.ownership !== "agent"} terminalShowAgent={terminalIntent?.panel === shownPanel && terminalIntent.sessionId === session?.id && terminalIntent.ownership === "agent"} onTerminalOpeningHandled={() => terminalOpeningHandled(terminalIntent)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && panelVisible} />}
+        {panelVisible && <ContextPanel key={`${client.profileId}-${session?.id}-${shownPanel}`} panel={shownPanel} session={session} project={project} events={events} client={client} run={run} snapshot={snapshot} prUrl={connectedPr} sideId={sideSessionId} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} visible={panelVisible} terminalAutoStart={terminalIntent?.panel === shownPanel && terminalIntent.sessionId === session?.id && terminalIntent.ownership !== "agent"} terminalShowAgent={terminalIntent?.panel === shownPanel && terminalIntent.sessionId === session?.id && terminalIntent.ownership === "agent"} onTerminalOpeningHandled={() => terminalOpeningHandled(terminalIntent)} nativeAllowed={!palette && !nativeModal && !terminalDismiss && !composerMenuOpen && panelVisible} />}
       </div>
       <footer className="context-footer">Bound to the main session</footer>
     </aside>
@@ -817,6 +823,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Show Insights and event trace", action: async () => { if (canNavigate()) beforeHidingTerminal(() => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); } }); } },
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
       { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
+      { name: "Skills, marketplace and agent tools", action: async () => openSkills("Skills") },
+      { name: "Artifacts by project", action: async () => openGlobal("Artifacts") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
       ...(session?.turnId ? [{ name: "Stop active turn", action: () => command({ type: "session.stop", sessionId: session.id }) }] : []),
@@ -958,20 +966,20 @@ function ClientDiagnostics({ client }: { client: MoguriClient }) {
     <CopyButton label="Copy client request timings" text={text} /><pre>{text}</pre>
   </details>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, initialWorkItemId, initialWorkFilters, chooseWork }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, initialWorkItemId, initialWorkFilters, chooseWork }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; terminalShowAgent?: boolean; onTerminalOpeningHandled?: () => void;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string, ownership?: "agent") => Promise<void>; modal: (open: boolean) => void;
-  setupSandbox: () => void; openSettings: (tab: SettingsTab) => void;
+  setupSandbox: () => void; openSettings: (tab: SettingsTab) => void; openSkills?: (tab: SkillsTab) => void;
   initialWorkItemId?: string | null; initialWorkFilters?: MyWorkFilters; chooseWork?: (id: string) => void;
 }) {
   const [trace, setTrace] = useState(false);
   if (panel === "Dashboard" && snapshot) return <Suspense fallback={<p role="status">Loading dashboard...</p>}><Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} initialItemId={initialWorkItemId} initialFilters={initialWorkFilters} onDirty={onDirty} /></Suspense>;
   if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} showAgent={terminalShowAgent} onAutoStartHandled={onTerminalOpeningHandled} openAgent={(id) => chooseSession(id, "agent")} /></Suspense>;
-  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} />;
-  if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} />;
+  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} openTools={openSkills && (() => openSkills("Tools"))} />;
+  if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} openTools={openSkills && (() => openSkills("Tools"))} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path, session.homeRoot,
     session.repositories?.map((binding) => [binding, snapshot?.projectConfigurations.find((configuration) => configuration.projectId === binding.projectId)]),
