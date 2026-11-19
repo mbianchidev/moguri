@@ -5610,6 +5610,16 @@ reviews or a failing check, asking you when the same failure repeats. Turn
 these off in **Settings / GitHub workflows / After each request**. See
 [session lifecycle](architecture/session-lifecycle.md).
 
+**Settings / GitHub workflows / Pull request automation** adds two independent
+flags, both off by default: **Fix broken CI** reruns a failed GitHub Actions job
+at most twice when GitHub Status is healthy and the job log shows a transient
+cause (an external HTTP 5xx or network error), and **Automatic conflict
+resolution** queues a turn that merges the base while keeping both sides'
+features, or aborts and asks you. Each repository can override either flag in
+**Settings / Project**; overrides are listed under **Repository exceptions**.
+Fix broken CI needs a Local session and the signed-in GitHub CLI account.
+GitLab CI is not supported. See [pull request automation](architecture/pr-automation.md).
+
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows
 are the selected set; there are no row checkboxes. Right-click a highlighted
