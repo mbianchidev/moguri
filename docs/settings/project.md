@@ -11,7 +11,7 @@ this page keeps the full detail.
 
 ## Repository (Git remote, main branch, branch pattern)
 
-- Moguri does not store a Git upstream. Every Git and GitHub read uses the remote this folder's own Git configuration selects: the current branch's tracking remote, then `origin`, then the only remote. If several remotes exist without either, none is guessed. Changing the folder's remotes or tracking branch takes effect on the next read.
+- Moguri does not store a Git upstream. Every Git and GitHub read uses the remote this folder's own Git configuration designates: the `gh repo set-default` choice, then `origin`, then the only remote. The checked-out branch does not change it. If several remotes exist without a default or `origin`, none is guessed. Changing the folder's remotes or `gh repo set-default` takes effect on the next read.
 - The panel runs a bounded Local inspection of the repository layout. Directory links are not followed. It shows the single repository found and its current Git remote, or why none applies (none found, more than one, denied folders, or the inspection limit was reached).
 - Older saved settings may still contain an `upstream` value. It is ignored and dropped on the next save.
 - Branch name pattern placeholders are `{slug}` and `{id}`. Binding a PR or creating a session never silently changes this folder's checkout.
