@@ -1,0 +1,115 @@
+import { useEffect, useMemo, useState } from "react";
+import { messageLinks, sessionTitle, type ArtifactFile, type ArtifactLibrary, type Attachment, type MoguriSdk, type RetainedArtifact, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { Icon } from "./Icon.tsx";
+import { Alert } from "./Alert.tsx";
+import { ContextImage } from "./ContextAttachments.tsx";
+import type { SettingsTab } from "./SettingsPanel.tsx";
+
+const filters = [
+  { id: "all", label: "All" }, { id: "builds", label: "Builds and installers" }, { id: "documents", label: "Documents" },
+  { id: "images", label: "Images" }, { id: "media", label: "Media" }, { id: "links", label: "Links" }, { id: "notes", label: "Saved notes" },
+] as const;
+type Filter = typeof filters[number]["id"];
+type Item = { key: string; sessionId: string | null; name: string; detail: string; when: string; filter: Exclude<Filter, "all">; icon: string } & (
+  | { type: "file"; file: ArtifactFile }
+  | { type: "image"; attachment: Attachment & { kind: "image" } }
+  | { type: "link"; url: string }
+  | { type: "note"; artifact: RetainedArtifact });
+const PAGE = 100;
+const size = (bytes: number) => bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KB` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+const fileFilter = (file: ArtifactFile): Item["filter"] => file.kind === "installer" || file.kind === "archive" ? "builds" : file.kind === "image" ? "images" : file.kind === "media" ? "media" : "documents";
+const fileIcon = (file: ArtifactFile) => file.kind === "installer" || file.kind === "archive" ? "Box" : file.kind === "image" ? "Image" : file.kind === "media" ? "Play" : "File";
+
+/** Every artifact of one project (or of project-free chats) in one place, each linked to the session that produced it when known. */
+export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSession, openSettings }: {
+  /** The project to show first; null for project-free chats, undefined for no preference. */
+  sdk: MoguriSdk; snapshot: Snapshot; initialProjectId: string | null | undefined; openSession: (id: string) => Promise<void>; openSettings: (tab: SettingsTab) => void;
+}) {
+  const projects = snapshot.projects.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const [scope, setScope] = useState<string>(initialProjectId === undefined ? projects[0]?.id ?? "" : initialProjectId ?? ""), projectId = scope || null;
+  const [library, setLibrary] = useState<ArtifactLibrary | null>(null), [loading, setLoading] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState<Filter>("all"), [query, setQuery] = useState(""), [limit, setLimit] = useState(PAGE), [revision, setRevision] = useState(0);
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => { if (scope && !snapshot.projects.some((project) => project.id === scope)) setScope(""); }, [scope, snapshot.projects]);
+  useEffect(() => {
+    let active = true;
+    setLoading(true); setError(""); setLibrary(null);
+    void sdk.artifacts.library(projectId).then((value) => { if (active) setLibrary(value); })
+      .catch((failure: unknown) => { if (active) setError(failure instanceof Error ? failure.message : "Output files couldn't be listed. Other artifacts are still shown."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [sdk, projectId, revision]);
+  useEffect(() => { setLimit(PAGE); setPreview(null); setNotice(""); }, [projectId, filter, query]);
+  const items = useMemo(() => {
+    const sessions = snapshot.sessions.filter((session) => session.projectId === projectId && session.kind !== "subagent");
+    const result: Item[] = [], links = new Map<string, Item>();
+    for (const file of library?.projectId === projectId ? library.files : []) {
+      result.push({ key: `file:${file.path}`, type: "file", file, sessionId: file.sessionId, name: file.relativePath.split("/").at(-1) ?? file.relativePath,
+        detail: `${file.relativePath} / ${file.kind === "installer" && file.bytes === 0 ? "app bundle" : size(file.bytes)}${file.origin === "agent" ? " / written by the agent" : ""}`,
+        when: file.modifiedAt, filter: fileFilter(file), icon: fileIcon(file) });
+    }
+    for (const session of sessions) for (const message of session.messages) {
+      for (const attachment of message.attachments ?? []) if (attachment.kind === "image") result.push({ key: `image:${session.id}:${attachment.id}`, type: "image", attachment,
+        sessionId: session.id, name: attachment.path, detail: `${attachment.width} × ${attachment.height} PNG / ${message.role === "user" ? "attached by you" : "from the agent"}`,
+        when: message.timestamp, filter: "images", icon: "Image" });
+      if (message.role !== "user" && message.role !== "assistant") continue;
+      for (const url of messageLinks(message.text)) {
+        const previous = links.get(url);
+        if (previous && previous.when >= message.timestamp) continue;
+        let host = url;
+        try { host = new URL(url).host; } catch { /* messageLinks only returns parseable URLs */ }
+        links.set(url, { key: `link:${url}`, type: "link", url, sessionId: session.id, name: url, detail: host, when: message.timestamp, filter: "links", icon: "Globe" });
+      }
+    }
+    result.push(...links.values());
+    for (const artifact of snapshot.artifacts.filter((value) => value.projectId === projectId && value.status === "active")) result.push({ key: `note:${artifact.id}`, type: "note", artifact,
+      sessionId: artifact.originSessionId, name: artifact.name, detail: `${artifact.kind} / saved note`, when: artifact.updatedAt, filter: "notes", icon: "Artifacts" });
+    return result.sort((a, b) => b.when.localeCompare(a.when) || a.key.localeCompare(b.key));
+  }, [library, projectId, snapshot.sessions, snapshot.artifacts]);
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const visible = items.filter((item) => (filter === "all" || item.filter === filter) && terms.every((term) => {
+    const session = snapshot.sessions.find((value) => value.id === item.sessionId);
+    return `${item.name} ${item.detail} ${session ? sessionTitle(session) : ""}`.toLowerCase().includes(term);
+  }));
+  const counts = Object.fromEntries(filters.map(({ id }) => [id, id === "all" ? items.length : items.filter((item) => item.filter === id).length]));
+  const reveal = async (file: ArtifactFile) => {
+    setError(""); setNotice("");
+    try {
+      const result = await window.moguri.revealArtifact(sdk.profileId, projectId, file.path);
+      if (!result.revealed) setNotice(`Located ${result.path}.`);
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "The file couldn't be shown in Finder."); }
+  };
+  return <section className="artifacts-workspace" aria-label="Artifacts library" data-project-id={projectId ?? ""}>
+    <header className="artifacts-toolbar">
+      <label className="setting-field">Project<select aria-label="Artifacts project" value={scope} onChange={(event) => setScope(event.target.value)}>
+        {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}<option value="">Chats without a project</option>
+      </select></label>
+      <label className="setting-field">Search<input type="search" aria-label="Search artifacts" maxLength={200} value={query} placeholder="Name, path or chat" onChange={(event) => setQuery(event.target.value)} /></label>
+      <button type="button" className="icon-button" aria-label="Refresh artifacts" title="Refresh" disabled={loading} onClick={() => setRevision((value) => value + 1)}><Icon name="Refresh" /></button>
+    </header>
+    <div className="artifact-filters" role="group" aria-label="Artifact types">{filters.map(({ id, label }) => <button key={id} type="button" aria-pressed={filter === id}
+      onClick={() => setFilter(id)}>{label}<span aria-hidden="true">{counts[id]}</span><span className="sr-only">, {counts[id]} items</span></button>)}</div>
+    <p className="fine-print">Build outputs come from dist, out, build, release and similar folders in the project and its sessions' worktrees. Moguri reads only file names, sizes and dates; revealing a file in Finder never opens or runs it.</p>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{notice && <p className="fine-print" role="status">{notice}</p>}
+    {loading && <p className="fine-print" role="status">Looking for output files...</p>}
+    {library?.truncated && <p className="fine-print">Some folders were too large to list completely. The newest files found are shown.</p>}
+    {library?.roots.filter((root) => root.status === "missing").map((root) => <p className="fine-print" key={root.path}>{root.path}: {root.diagnostic}</p>)}
+    {!loading && !visible.length && <p className="artifacts-empty">{items.length ? "No artifacts match these filters." : "No artifacts yet. Builds, files the agent writes, images, links and saved notes from this project's chats appear here."}</p>}
+    <ul className="artifact-list">{visible.slice(0, limit).map((item) => {
+      const session = snapshot.sessions.find((value) => value.id === item.sessionId);
+      return <li className="artifact-item" key={item.key} data-artifact-type={item.type}><Icon name={item.icon} />
+        <div className="artifact-item-body"><strong title={item.name}>{item.name}</strong><small className="path">{item.detail}</small>
+          <small>{session ? <button type="button" className="quiet" onClick={() => void openSession(session.id)}>{sessionTitle(session)}</button> :
+            <span>{item.sessionId ? "Chat removed" : "No linked chat"}</span>} / <time dateTime={item.when}>{new Date(item.when).toLocaleString()}</time></small>
+          {item.type === "image" && preview === item.key && item.sessionId && <div className="artifact-preview"><ContextImage sdk={sdk} sessionId={item.sessionId} attachment={item.attachment} /></div>}</div>
+        <div className="artifact-item-actions">
+          {item.type === "file" && <button type="button" onClick={() => void reveal(item.file)}>Show in Finder</button>}
+          {item.type === "image" && <button type="button" aria-expanded={preview === item.key} onClick={() => setPreview((value) => value === item.key ? null : item.key)}>{preview === item.key ? "Hide" : "Preview"}</button>}
+          {item.type === "link" && <button type="button" onClick={() => void window.moguri.openExternal(item.url).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The link couldn't be opened."))}>Open link</button>}
+          {item.type === "note" && <button type="button" onClick={() => openSettings("artifacts")}>Open in Settings</button>}
+        </div>
+      </li>;
+    })}</ul>
+    {visible.length > limit && <button type="button" onClick={() => setLimit((value) => value + PAGE)}>Show {Math.min(PAGE, visible.length - limit)} more</button>}
+  </section>;
+}

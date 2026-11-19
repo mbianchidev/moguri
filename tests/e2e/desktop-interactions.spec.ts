@@ -29,7 +29,7 @@ test("attachment menu matches the five-source layout, previews retained files/im
     await expect(rail.getByRole("button")).toHaveCount(8);
     expect(await rail.getByRole("button").evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label"))))
       .toEqual(["Terminal", "Browser", "Insights", "Code change", "Files", "Plan", "Side chat", "Work item"]);
-    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations"]);
+    await expect(page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Skills", "Artifacts"]);
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated complete unsent prompt.");
     const path = join(fixture.directory, "generated-preview.txt"); await writeFile(path, "Generated immutable attached file.");
     await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, path);

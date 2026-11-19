@@ -24,6 +24,7 @@ const bridge: DesktopBridge = {
   openExternal: (url) => ipcRenderer.invoke("moguri:open-external", url),
   projectLocation: (profileId, projectId, expectedPath, action) => ipcRenderer.invoke("moguri:project-location", profileId, projectId, expectedPath, action),
   sessionLocation: (profileId, sessionId, action) => ipcRenderer.invoke("moguri:session-location", profileId, sessionId, action),
+  revealArtifact: (profileId, projectId, path) => ipcRenderer.invoke("moguri:reveal-artifact", profileId, projectId, path),
   globalSkillSources: (profileId) => ipcRenderer.invoke("moguri:global-skill-sources", profileId),
   createGlobalSkillFolder: (profileId, id) => ipcRenderer.invoke("moguri:create-global-skill-folder", profileId, id),
   audioPermission: (input) => ipcRenderer.invoke("moguri:audio-permission", input),
