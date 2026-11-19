@@ -694,7 +694,7 @@ Reading or watching never approves a review, rerun, push or merge.
 The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
 Kupo has no manual effort selector. A concrete fixed model retains its
 qualified thinking-effort control. Automations now also holds recurring
-automations and declarative workflows (protocol 113, see
+automations and declarative workflows (protocol 114, see
 [Automations](#automations-recurring-schedules-and-workflows)).
 
 ### GitHub login versus native metadata quota
@@ -794,7 +794,7 @@ a base-checkout fallback.
 
 ## Automations: recurring schedules and workflows
 
-Protocol 113 adds automations ([contract](architecture/automations.md)). An
+Protocol 114 adds automations ([contract](architecture/automations.md)). An
 automation has a name, a project, a schedule (once, every N minutes, daily or on
 chosen weekdays, in a timezone) and up to 10 steps run in order: prompts and
 repository-trusted scripts. Each run starts a new chat in the project with the
@@ -1515,7 +1515,7 @@ Protocol 59 adds the [workspace experience and skill gateway](architecture/works
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
 **Code change** and **Work item** belong to the right rail and follow
 the selected session, with the protocol-61 GitHub workflows described above.
-Automations later gained one-time scheduled prompts and, at protocol 113,
+Automations later gained one-time scheduled prompts and, at protocol 114,
 recurring automations. Profile, Ask Moguri
 and Settings share one compact footer row. Copilot connection status appears
 only in Settings / Models / Providers, not in the left sidebar.

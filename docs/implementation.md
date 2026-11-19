@@ -993,7 +993,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - scheduled CI watching;
 - dependency roundups covering Dependabot, Renovate, and other update bots;
 - a **My work** workflow for open pull requests, pending reviews, broken CI, and unresolved comments;
-- scheduled prompts (one-time prompts, and recurring [automations](architecture/automations.md) since protocol 113);
+- scheduled prompts (one-time prompts, and recurring [automations](architecture/automations.md) since protocol 114);
 - agentic workflows combining prompts and explicit scripts through a readable workflow syntax (delivered as [automations](architecture/automations.md));
 - optional delegation of scheduled workflows to a server while retaining the same policy, budget, event, and artifact model.
 
