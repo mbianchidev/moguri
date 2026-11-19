@@ -144,6 +144,20 @@ fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
 [Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
+**Skills** next to Automations (protocol 113) lists installed skills with
+On/Off switches, installs a skill from your configured sources into one
+project or every project (disabled until you turn it on), and shows the agent's
+toolsets and your script tools. Write a script or ask the agent to write one,
+review it and turn it on. Suggested tools come from requests you repeat across
+chats; the optional **Repeated-task tool check** in Automations runs that local
+check every 6, 12, 24 or 168 hours while Moguri runs and adds new suggestions
+to Inbox. **Artifacts** lists each project's build outputs, files agents wrote,
+chat images, links and saved notes with their chat; **Show in Finder** only
+reveals a listed file. TUI: `/skills install ID SHA [global]`,
+`/artifacts library`. CLI: `moguri skills install`, `moguri toolsets`,
+`moguri artifact library`. See
+[skills, tools and artifacts](architecture/skills-tools-artifacts.md).
+
 Every review and load lists deterministic indicator findings (pattern matches
 for hidden characters, download-and-run, credential paths, instructions to
 override rules and similar). They are advice, not a safety verdict. Save a

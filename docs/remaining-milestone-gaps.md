@@ -168,6 +168,13 @@ It covers worktrees only; age/size deletion policies for the encrypted session
 store remain deferred. Queued prompts now look like sent prompts, edit in place
 with every attachment source, and Send now steers them into the running turn
 ([D48](architecture/decisions.md#d48-queued-prompts-look-like-sent-prompts-and-edit-in-place)).
+Protocol 113 adds Skills and Artifacts tabs next to Automations (#82,
+[D49](architecture/decisions.md#d49-skills-and-artifacts-workspace-tabs)):
+skill toggles, installs from configured skill sources, toolsets, user- or
+agent-written script tools, repeated-task tool suggestions with an optional
+recurring check, and a per-project artifact library linked to each chat. A
+hosted multi-publisher gallery and recurring prompt/workflow schedules (#6)
+remain open.
 
 At the live read the repository is private, has no repository license and has
 no GitHub releases. Development macOS app/DMG/ZIP artifacts are ad-hoc signed,

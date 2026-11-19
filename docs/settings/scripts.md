@@ -29,6 +29,19 @@ open script reviews must be inspected again.
 Built-in `grep_logs`, `fetch_page`, `search_memory` and `memory_graph` are exposed through the single
 internal MCP, without generated one-off scripts.
 
+## Skills / Tools tab (protocol 113)
+
+- Lists the agent's built-in toolsets, the foundational scripts and your scripts with On/Off switches. Listing grants
+  nothing; each chat still gets only what its environment, mode and policy allow.
+- **Write a script** submits your source for the same review as a model proposal. **Ask the agent to write a script**
+  opens a chat in the chosen project with an editable request; the agent submits it with `propose_script`, which needs
+  the optional evolution switch.
+- Scripts are Node.js ES modules that read `{"arguments": {...}, "projectRoot": "..."}` from stdin and write at most
+  128 KiB to stdout. A leading `// description: ...` comment becomes the description agents see once approved.
+- **Suggested tools** lists repeated requests (for example `markdown_into_pdf`) found by a local phrase match. The
+  optional repeated-task check in Automations runs it on an interval and adds new suggestions to Inbox.
+- Contract: `docs/architecture/skills-tools-artifacts.md`.
+
 ## Warning
 
 Approved custom scripts execute as Local host code, not in a fictional sandbox. Review the full source,

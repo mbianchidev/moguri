@@ -3,6 +3,11 @@
 Technical reference for **Settings / Skills**. The app shows a short summary;
 this page keeps the full detail.
 
+The **Skills** tab next to Automations shows the same installed skills with
+On/Off switches, a **Marketplace** that installs a skill from these sources
+into one project or every project, and the agent's toolsets. Contract:
+[skills, tools and artifacts](../architecture/skills-tools-artifacts.md).
+
 ## Skill gateway
 
 - Sources can be a local skill folder, a public GitHub repository or a direct HTTPS ZIP archive.
@@ -19,6 +24,14 @@ this page keeps the full detail.
 - A missing folder offers no skills and never blocks the others.
 - Confirming does not scan the folder at that moment; adding it does not install skills, run instructions or grant model or tool permissions.
 - If loading the presets fails, no directory is scanned.
+
+## Install from a source (protocol 113)
+
+- **Install** in Skills / Marketplace re-reads the source and installs those exact bytes as a disabled skill in the chosen
+  project or, with **All projects**, for every project. A changed source needs a fresh search.
+- Installing grants no tools. Reinstalling changed bytes under the same name updates that skill to a new disabled
+  revision; identical bytes and plugin-owned names are refused.
+- TUI: `/skills install ID SHA [global]`. CLI: `moguri skills install ID --digest SHA [--project ID]`.
 
 ## Find skills
 

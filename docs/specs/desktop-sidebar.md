@@ -16,8 +16,10 @@ RPC responses. Protocol 21 adds sanitized tool/MCP outcomes and key-backed
 retained sizes; protocol 22 adds explicit actual-root GitHub metadata review,
 exact refresh/stop, immutable repository/owner/visibility filtering and
 unassigned-history coverage. None of these grant tools or dispatch a model.
-Current left resources are Dashboard, Suggestions and Automations; Artifacts,
-Candidates and Sandbox are in Settings. The right rail is Terminal, Browser,
+Current left resources are Dashboard, Inbox, Suggestions, Automations, Skills
+and Artifacts (protocol 113, see
+[skills, tools and artifacts](../architecture/skills-tools-artifacts.md));
+the retained-document editor, Candidates and Sandbox stay in Settings. The right rail is Terminal, Browser,
 Insights, Code change, Files, Plan, Side chat and Work item for project and
 project-group sessions, and Terminal, Browser, Insights, Plan and Side chat for
 project-free chats. Attention
