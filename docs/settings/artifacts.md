@@ -3,6 +3,14 @@
 Technical reference for **Settings / Artifacts**. The app shows a short summary;
 this page keeps the full detail.
 
+## Artifacts tab (protocol 114)
+
+The **Artifacts** tab next to Automations browses one project (or the chats without a project) at a time: build outputs
+from dist/out/build/release-style folders in the checkout and session worktrees, files agents wrote, chat images, links
+and these saved documents. Each item links to its chat when known. **Show in Finder** only reveals a file the service
+currently lists; nothing is opened or run. Saved documents are still edited here. Contract:
+`docs/architecture/skills-tools-artifacts.md`.
+
 ## Documents
 
 Previously titled "Retained documents". Ordinary artifacts are independent of session retention (see

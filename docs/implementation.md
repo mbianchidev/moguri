@@ -709,6 +709,8 @@ Retain whether the answer came from the user, the generative model, or a delegat
 
 Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, optionally commit that directory, or delete the artifacts.
 
+Protocol 114 adds a read-only per-project [artifact library](architecture/skills-tools-artifacts.md#artifacts-tab): metadata of build outputs in the checkout and session worktrees and of agent-written files, shown with chat images, links and retained documents, each linked to its session. It never reads file contents or opens a file.
+
 ### 7. Telemetry, cost control, and dashboard
 
 The bounded [protocol-97 OTLP slice](architecture/otlp-export.md) adds explicit
