@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { parse as parseYaml } from "yaml";
 import {
-  MoguriSdk, describeAutomationSchedule, dueAutomationOccurrences, nextAutomationOccurrence, validateAutomation,
+  MoguriSdk, describeAutomationSchedule, dueAutomationOccurrences, executeAutomationsCommand, nextAutomationOccurrence, parseAutomationWorkflow, validateAutomation,
   type AutomationDefinition, type AutomationRun, type AutomationSchedule,
 } from "../packages/sdk/src/index.ts";
 import { startService } from "../apps/service/src/server.ts";
@@ -191,4 +192,49 @@ test("a script step runs the exact repository-trusted entrypoint without a model
     assert.equal(fixture.requests.length, 1, "only the prompt step called a model");
     assert.deepEqual(run().progress.map((step) => step.status), ["completed", "completed"]);
   } finally { sdk.disconnect(); await fixture.close(); }
+});
+
+test("the readable workflow file resolves local once times and rejects malformed steps", () => {
+  const parsed = parseAutomationWorkflow(parseYaml(`name: Generated release check
+schedule:
+  kind: once
+  at: "2030-10-27T02:30"
+  timeZone: Europe/Rome
+controls:
+  autonomy: Manual
+steps:
+  - prompt: Summarize generated release notes.
+  - script: scripts/check.sh
+    interpreter: sh
+    args: [--quick]
+`));
+  assert.deepEqual(parsed.definition.schedule, { kind: "once", at: "2030-10-27T00:30:00.000Z", timeZone: "Europe/Rome", localTime: "2030-10-27T02:30", offsetMinutes: 120 });
+  assert.deepEqual(parsed.definition.steps, [{ kind: "prompt", text: "Summarize generated release notes." }, { kind: "script", path: "scripts/check.sh", interpreter: "sh", args: ["--quick"] }]);
+  assert.deepEqual(parsed.controls, { autonomy: "Manual" });
+  assert.throws(() => parseAutomationWorkflow({ name: "Generated", schedule: { kind: "daily", time: "9am", timeZone: "UTC" }, steps: [{ prompt: "x" }] }), /schedule/);
+  assert.throws(() => parseAutomationWorkflow({ name: "Generated", schedule: { kind: "daily", time: "09:00", timeZone: "UTC" }, steps: [{ script: "a.sh", interpreter: "perl" }] }), /steps/);
+  assert.throws(() => parseAutomationWorkflow({ name: "Generated", schedule: { kind: "daily", time: "09:00", timeZone: "UTC" }, steps: [{ prompt: "x" }], controls: { budget: "lots" } }), /controls/);
+});
+
+test("the shared /automations command reads and controls the same service state as other clients", { skip: process.platform !== "darwin" }, async () => {
+  const clock = new GeneratedIntakeClock(), fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128, platform: { intakeClock: clock } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready(), other = await new MoguriSdk(fixture.service.connection).ready();
+  try {
+    await fixture.configure(); await sdk.refresh();
+    assert.match(await executeAutomationsCommand(sdk, ""), /No automations/);
+    const created = await other.automations.create(fixture.session().projectId, { name: "Generated shared", schedule: { kind: "daily", time: "09:00", timeZone: "UTC" },
+      steps: prompts("Generated shared step.") }, { enabled: true, controls: { modelId: fixture.modelId } });
+    await sdk.refresh();
+    const listed = await executeAutomationsCommand(sdk, "list");
+    assert.match(listed, /Generated shared \[[0-9a-f]{8}\] Active/); assert.match(listed, /Daily at 09:00 \(UTC\)/); assert.match(listed, /1\. Generated shared step\./);
+    await executeAutomationsCommand(sdk, `pause ${created.id!.slice(0, 8)}`); await other.refresh();
+    assert.equal(other.automations.list()[0]?.status, "paused");
+    await executeAutomationsCommand(sdk, `run ${created.id!.slice(0, 8)}`);
+    await waitFor(() => fixture.service.controller.snapshot().automationRuns[0]?.status === "completed");
+    await sdk.refresh();
+    assert.match(await executeAutomationsCommand(sdk, `runs ${created.id!.slice(0, 8)}`), /completed manual/);
+    await assert.rejects(() => executeAutomationsCommand(sdk, "enable"), /automation ID/);
+    await executeAutomationsCommand(sdk, `delete ${created.id!}`); await other.refresh();
+    assert.equal(other.automations.list().length, 0);
+  } finally { other.disconnect(); sdk.disconnect(); await fixture.close(); }
 });
