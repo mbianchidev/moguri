@@ -7,10 +7,17 @@ import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop questions are qualified on macOS.");
+// These journeys check that held prompts never answer questions; auto-send (D53) is off so the held follow-up keeps waiting.
+async function keepHeldPrompts(sdk: MoguriSdk) {
+  const settings = sdk.settings.get()!;
+  await sdk.settings.update({ ...settings.values, interactions: { ...settings.values.interactions, autoSendQueue: false } }, settings.revision);
+}
+
 test("desktop labels current solver guidance as advice and still requires explicit actual-user answers and tool decisions", async () => {
   const fixture = await setupFixture({ questionRecommendation: { choiceIndex: 1, reason: "Generated Guided analysis favors the second option." }, toolAdvice: "Generated current-step guidance: read only the requested fixture." });
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   await sdk.sessions.configure(fixture.sessionId, { ...fixture.session().controls, modelId: fixture.modelId, autonomy: "Guided" });
+  await keepHeldPrompts(sdk);
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), failures: string[] = [];
@@ -52,6 +59,7 @@ test("desktop labels current solver guidance as advice and still requires explic
 
 test("desktop keeps queue-only shortcuts distinct from actual user answers and retains provenance", async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  await keepHeldPrompts(sdk);
   await fixture.configure(); await fixture.send("generated structured question");
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
