@@ -33,7 +33,9 @@ test("provider cards show each service's logo and text status, and the API key f
     await expect(copilot.getByText("Connected through your Copilot account.", { exact: true })).toBeVisible();
     await expect(copilot.getByRole("button", { name: "Refresh connection", exact: true })).toBeVisible();
     await expect(copilot.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Provider and model availability", exact: true }).locator('[data-provider-logo="github-copilot"]')).toHaveCount(1);
+    const availability = page.getByRole("region", { name: "Provider and model availability", exact: true });
+    await expect(availability.locator('.model-provider-list [data-provider-logo="github-copilot"]')).toHaveCount(1);
+    await expect(availability.locator('.model-group-toggle.provider [data-provider-logo="github-copilot"]')).toHaveCount(1);
 
     const anthropic = page.getByRole("region", { name: "Anthropic API account", exact: true });
     const add = anthropic.getByRole("button", { name: "Add API key", exact: true }), key = anthropic.getByLabel("Anthropic API key", { exact: true });
