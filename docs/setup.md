@@ -144,11 +144,13 @@ fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
 [Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
-**Skills** next to Automations (protocol 114) lists installed skills with
-On/Off switches, installs a skill from your configured sources into one
-project or every project (disabled until you turn it on), and shows the agent's
-toolsets and your script tools. Write a script or ask the agent to write one,
-review it and turn it on. Suggested tools come from requests you repeat across
+**Customize** next to Automations (protocol 114; named Skills before 115)
+lists installed skills with On/Off switches, installs a skill from your
+configured sources into one project or every project (disabled until you turn
+it on), and shows the agent's toolsets and your script tools. Tools isn't tied
+to a project: write a script or ask the agent to write one in a project-free
+chat, review it and turn it on, and every chat can use it (a project script
+with the same name wins in that project). Suggested tools come from requests you repeat across
 chats; the optional **Repeated-task tool check** in Automations runs that local
 check every 6, 12, 24 or 168 hours while Moguri runs and adds new suggestions
 to Inbox. **Artifacts** lists each project's build outputs, files agents wrote,
@@ -158,6 +160,15 @@ action) and confirm to move the files to the Trash and delete the notes. TUI: `/
 `/artifacts library`. CLI: `moguri skills install`, `moguri toolsets`,
 `moguri artifact library`. See
 [skills, tools and artifacts](architecture/skills-tools-artifacts.md).
+
+Agents also get typed tools for GitHub work that used to take repeated `gh api`
+or `curl` calls: tags, the latest or a tagged release, check annotations, file
+contents, repository settings, rulesets and branch rules through `github_read`,
+and reviewed `github_write` for comments, review replies, resolving threads,
+releases and repository settings in the project's own repository (draft PRs
+only; merging, approving and deleting stay yours). `web_fetch` can `find` text
+on a page instead of reading it page by page and reuses a page fetched in the
+last 10 minutes. See [GitHub workflows](architecture/github-workflows.md#model-github-writes-protocol-115).
 
 Every review and load lists deterministic indicator findings (pattern matches
 for hidden characters, download-and-run, credential paths, instructions to

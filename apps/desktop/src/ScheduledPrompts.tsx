@@ -111,7 +111,7 @@ function ToolSuggestionAutomationSettings({ sdk, snapshot, openTools }: { sdk: M
       .finally(() => setBusy(false));
   };
   return <section className="tool-suggestion-automation" aria-label="Repeated-task tool check"><h3>Repeated-task tool check</h3>
-    <p className="fine-print">Looks for requests you repeat across chats, like turning Markdown into a PDF, that a script tool could handle. It runs on this Mac while Moguri is running, makes no model call and never writes or turns on a script. New suggestions appear in Inbox and Skills / Tools.</p>
+    <p className="fine-print">Looks for requests you repeat across chats, like turning Markdown into a PDF, that a script tool could handle. It runs on this Mac while Moguri is running, makes no model call and never writes or turns on a script. New suggestions appear in Inbox and Customize / Tools.</p>
     <label className="check-setting"><input type="checkbox" role="switch" aria-label="Check for repeated tasks automatically" checked={value.enabled} disabled={busy}
       onChange={(event) => save({ ...value, enabled: event.target.checked })} />Check for repeated tasks automatically</label>
     <label className="setting-field">How often<select aria-label="Repeated-task check interval" value={value.intervalHours} disabled={busy || !value.enabled}

@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop qualification is macOS-only.");
 const screenshots = process.env.MOGURI_SKILLS_CAPTURES;
 
-test("Skills installs and toggles skills, lists toolsets and opens an editable script request; Artifacts lists project outputs with their chat", async () => {
+test("Customize installs and toggles skills, lists toolsets and opens a project-free editable script request; Artifacts lists project outputs with their chat", async () => {
   test.setTimeout(90_000);
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, projectPath = f.service.controller.snapshot().projects.find((project) => project.id === projectId)!.path;
@@ -30,8 +30,8 @@ test("Skills installs and toggles skills, lists toolsets and opens an editable s
     const page = await app.firstWindow(); await waitForWorkspace(page);
     await page.setViewportSize({ width: 1280, height: 860 });
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await resources.getByRole("button", { name: "Skills", exact: true }).click();
-    const workspace = page.getByRole("region", { name: "Skills and tools", exact: true });
+    await resources.getByRole("button", { name: "Customize", exact: true }).click();
+    const workspace = page.getByRole("region", { name: "Customize", exact: true });
     await expect(workspace.getByRole("tab")).toHaveText(["Skills", "Marketplace", "Tools"]);
     await expect(workspace).toContainText("No skills installed yet");
 
@@ -59,7 +59,7 @@ test("Skills installs and toggles skills, lists toolsets and opens an editable s
     const before = f.service.controller.snapshot().sessions.length, requests = f.requests.length;
     await workspace.getByRole("button", { name: "Open a chat with this request", exact: true }).click();
     const created = await waitFor(() => f.service.controller.snapshot().sessions.length > before ? f.service.controller.snapshot().sessions.find((session) => session.title === "Write the markdown_into_pdf tool") : undefined);
-    expect(created.projectId).toBe(projectId);
+    expect(created.projectId).toBeNull();
     await waitFor(() => f.service.controller.snapshot().sessions.find((session) => session.id === created.id)?.draft.text.includes("propose_script"));
     await expect(page.locator(".app-shell")).toHaveAttribute("data-session-id", created.id);
     expect(f.requests.length).toBe(requests);

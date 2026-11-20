@@ -65,7 +65,7 @@ const globalNavigation: { view: GlobalView; icon: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Attention", icon: "Inbox" }, { view: "Suggestions", icon: "Suggestions" },
   { view: "Automations", icon: "Clock" }, { view: "Skills", icon: "Skill" }, { view: "Artifacts", icon: "Artifacts" },
 ];
-const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view;
+const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view === "Skills" ? "Customize" : view;
 const number = (value: number) => new Intl.NumberFormat().format(value);
 interface SidebarLayout { panel: Panel; open: boolean; maximized: boolean; leftWidth: number; rightWidth: number }
 function savedLayout(): SidebarLayout {
@@ -828,7 +828,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Show Insights and event trace", action: async () => { if (canNavigate()) beforeHidingTerminal(() => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); } }); } },
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
       { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
-      { name: "Skills, marketplace and agent tools", action: async () => openSkills("Skills") },
+      { name: "Customize: skills, marketplace and agent tools", action: async () => openSkills("Skills") },
       { name: "Artifacts by project", action: async () => openGlobal("Artifacts") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },

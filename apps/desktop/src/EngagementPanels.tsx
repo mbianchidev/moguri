@@ -43,7 +43,7 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
         <p className="fine-print">A reviewed script can do these the same way every time. Local phrase match, not a model verdict.</p>
         {preview.tools.filter((tool) => !tool.installed).map((tool) => <article className="suggestion-hint" key={tool.name}><strong>{tool.title}</strong>
           <p><code>{tool.name}</code> / asked in {tool.count} chats</p><small>“{tool.example}”</small></article>)}
-        {openTools && <button type="button" onClick={openTools}>Write these in Skills / Tools</button>}</section>}
+        {openTools && <button type="button" onClick={openTools}>Write these in Customize / Tools</button>}</section>}
       <h3>Usage gaps</h3>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
       {preview.repeated.length > 0 && <><h3>Repeated guidance</h3>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
         setBusy(true); setError("");
@@ -64,7 +64,7 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
 function CapabilityProposals({ sdk, snapshot, projectId }: { sdk: MoguriSdk; snapshot: Snapshot; projectId: string | null }) {
   const [open, setOpen] = useState<{ id: string; content: string; digest: string } | null>(null);
   const [reviewed, setReviewed] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const pending = snapshot.proposals.filter((proposal) => proposal.status === "pending" && (!projectId || proposal.projectId === projectId));
+  const pending = snapshot.proposals.filter((proposal) => proposal.status === "pending" && (!projectId || proposal.projectId === projectId || proposal.projectId === null));
   if (!pending.length) return null;
   const run = (action: () => Promise<unknown>) => {
     setBusy(true); setError("");
@@ -76,7 +76,7 @@ function CapabilityProposals({ sdk, snapshot, projectId }: { sdk: MoguriSdk; sna
     <p className="fine-print">Proposed after a request that used them. Approving installs a disabled copy; you enable it separately.</p>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <ul>{pending.map((proposal) => <li key={proposal.id}>
-      <div><strong>{proposal.name}</strong><small>{proposal.kind} · {proposal.baseDigest ? "updates an existing one" : "new"} · {snapshot.projects.find((project) => project.id === proposal.projectId)?.name ?? "Project unavailable"}</small></div>
+      <div><strong>{proposal.name}</strong><small>{proposal.kind} · {proposal.baseDigest ? "updates an existing one" : "new"} · {proposal.projectId === null ? "All projects" : snapshot.projects.find((project) => project.id === proposal.projectId)?.name ?? "Project unavailable"}</small></div>
       <button type="button" disabled={busy} aria-pressed={open?.id === proposal.id} aria-label={`Review ${proposal.kind} ${proposal.name}`} onClick={() => open?.id === proposal.id ? setOpen(null) :
         run(async () => { const content = await sdk.capabilities.proposal(proposal.id); setOpen({ id: proposal.id, content: content.content, digest: content.digest }); setReviewed(false); })}>
         {open?.id === proposal.id ? "Hide" : "Review"}</button>

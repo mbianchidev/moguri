@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DraftEditor, MoguriSdk, artifactFileKind, detectToolSuggestions, groupToolsets, messageLinks, scriptDescription, type EventInput, type Session, type Snapshot, type SuggestionPreview } from "../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriSdk, artifactFileKind, scriptEntries, detectToolSuggestions, groupToolsets, messageLinks, scriptDescription, type EventInput, type Session, type Snapshot, type SuggestionPreview } from "../packages/sdk/src/index.ts";
 import { artifactLibrary } from "../apps/service/src/artifact-library.ts";
 import { ToolSuggestionAutomation } from "../apps/service/src/tool-suggestion-automation.ts";
 import { setupFixture, waitFor } from "./fixture.ts";
@@ -141,5 +141,29 @@ test("installing a source skill is digest-bound, disabled and scoped to a projec
     const global = await sdk.skills.install(null, skill.id, skill.digest);
     assert.equal(sdk.getState().snapshot!.registry.find((value) => value.id === global.id)?.projectId, null);
     await assert.rejects(() => sdk.skills.install("generated-missing-project", skill.id, skill.digest), /project/i);
+  } finally { sdk.disconnect(); await fixture.close(); }
+});
+
+test("Tools scripts can apply to every chat; a project's own script of the same name shadows it, and hooks or memory still need a project", mac, async () => {
+  const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  try {
+    const projectId = fixture.session().projectId!;
+    const approve = async (scope: string | null, content: string) => {
+      const { id } = await sdk.capabilities.propose(scope, "script", "generated_lookup", content);
+      const proposal = sdk.getState().snapshot!.proposals.find((value) => value.id === id)!;
+      assert.equal(proposal.projectId, scope);
+      await sdk.capabilities.decide(proposal.id, true, proposal.contentDigest);
+      const entry = sdk.getState().snapshot!.registry.find((value) => value.kind === "script" && value.name === "generated_lookup" && value.projectId === scope)!;
+      await sdk.capabilities.toggle(entry.id, true, entry.revision);
+      return entry.id;
+    };
+    const global = await approve(null, "// description: Generated global lookup.\nconsole.log('global');\n");
+    const registry = () => sdk.getState().snapshot!.registry;
+    assert.deepEqual(scriptEntries(registry(), projectId).map((entry) => entry.id), [global]);
+    assert.deepEqual(scriptEntries(registry(), null).map((entry) => entry.id), [global]);
+    const own = await approve(projectId, "// description: Generated project lookup.\nconsole.log('project');\n");
+    assert.deepEqual(scriptEntries(registry(), projectId).map((entry) => entry.id), [own]);
+    assert.deepEqual(scriptEntries(registry(), null).map((entry) => entry.id), [global]);
+    for (const kind of ["memory", "hook"] as const) await assert.rejects(() => sdk.capabilities.propose(null, kind, "generated", "{}"), /Choose a project/);
   } finally { sdk.disconnect(); await fixture.close(); }
 });

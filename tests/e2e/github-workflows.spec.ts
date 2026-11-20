@@ -16,7 +16,7 @@ test("desktop authenticated search uses the exact project account and shows a co
     await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     await expect(panel.getByLabel("GitHub repository (owner/name)", { exact: true })).toHaveValue("generated-owner/fixture");
-    await panel.getByText("Read GitHub issues, PRs, reviews, checks, runs, logs and releases", { exact: true }).click();
+    await panel.getByText("Read GitHub issues, PRs, reviews, checks, runs, logs, releases, tags, files and settings", { exact: true }).click();
     await panel.getByLabel("GitHub resource", { exact: true }).selectOption("search");
     await panel.getByLabel("Issue and PR search terms", { exact: true }).fill("is:issue is:open (UI OR UX OR redesign OR polish)");
     await panel.getByRole("button", { name: "Read GitHub page", exact: true }).click();
