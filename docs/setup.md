@@ -144,7 +144,7 @@ fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
 [Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
-**Customize** next to Automations (protocol 114; named Skills before 115)
+**Customize** next to Automations (protocol 114; named Skills before 116)
 lists installed skills with On/Off switches, installs a skill from your
 configured sources into one project or every project (disabled until you turn
 it on), and shows the agent's toolsets and your script tools. Tools isn't tied
@@ -168,7 +168,7 @@ and reviewed `github_write` for comments, review replies, resolving threads,
 releases and repository settings in the project's own repository (draft PRs
 only; merging, approving and deleting stay yours). `web_fetch` can `find` text
 on a page instead of reading it page by page and reuses a page fetched in the
-last 10 minutes. See [GitHub workflows](architecture/github-workflows.md#model-github-writes-protocol-115).
+last 10 minutes. See [GitHub workflows](architecture/github-workflows.md#model-github-writes-protocol-116).
 
 Every review and load lists deterministic indicator findings (pattern matches
 for hidden characters, download-and-run, credential paths, instructions to
@@ -719,9 +719,9 @@ Reading or watching never approves a review, rerun, push or merge.
 
 The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
 Kupo has no manual effort selector. A concrete fixed model retains its
-qualified thinking-effort control. Automations copy now covers
-broader actions, but only the existing one-time scheduled prompt capability is
-implemented; a general-purpose automation engine is not claimed.
+qualified thinking-effort control. Automations now also holds recurring
+automations and declarative workflows (protocol 115, see
+[Automations](#automations-recurring-schedules-and-workflows)).
 
 ### GitHub login versus native metadata quota
 
@@ -817,6 +817,64 @@ or failed preparation preserves input without admitting a ghost. Verified ready
 stages may be reused; failed/rolled-back stages cannot be restored or transferred
 by scheduling. Disabled managed preparation remains a visible setup gate, never
 a base-checkout fallback.
+
+## Automations: recurring schedules and workflows
+
+Protocol 115 adds automations ([contract](architecture/automations.md)). An
+automation has a name, a project, a schedule (once, every N minutes, daily or on
+chosen weekdays, in a timezone) and up to 10 steps run in order: prompts and
+repository-trusted scripts. Each run starts a new chat in the project with the
+model, Env, autonomy and budget captured when you saved it.
+
+- **Desktop:** **Automations / New automation** opens the editor; **Create
+  automation** or **Save changes** saves it. The **On schedule** switch turns it on
+  or pauses it immediately. Each automation shows its next run, captured
+  controls, steps and recent runs with **Open chat** and **Stop**. **Run now**
+  starts one run; **Delete** keeps the run chats.
+- **TUI:** **F9 / Automations** lists automations with **Run now** and **Pause**
+  or **Turn on**. `/automations` lists them and their runs and can `enable`,
+  `pause`, `run`, `stop` a run or `delete`, using an ID or unique prefix.
+- **CLI:** `moguri automations create workflow.yaml --project ID [--paused]`
+  reads a YAML or JSON workflow file (`name`, `schedule`, `steps` with
+  `- prompt:` or `- script:` plus `interpreter`, optional `controls`). Also
+  `list`, `runs [ID]`, `update ID FILE`, `enable`, `pause`, `run`, `stop RUN_ID`
+  and `delete ID [--stop-running]`.
+
+Nothing runs until you turn an automation on. Moguri must be running: a missed
+time runs once when Moguri is back and records how many were missed, and a time
+is skipped (and recorded) while the previous run is still active. A daily or
+weekly time that doesn't exist on a daylight-saving day runs once, shifted
+forward; a repeated time runs at its first occurrence. Steps run one after
+another only while each completes; a failed, stopped or partial step ends the
+run. Script steps run the exact scripts in the project's repository trust
+(`/repo-trust`) on this Mac without a model call, and ask for approval unless
+the captured autonomy approves automatically. Automations need Local for
+script steps, never fall back to another Env, and grant no extra permissions.
+After a restart, a run that was creating its chat is marked partial and an
+unstarted script step is blocked; nothing is replayed.
+
+## Interrupted chats after a restart
+
+When Moguri quits, restarts or crashes while a chat is working, it records the
+chat's running turn and the prompts that were waiting
+([contract](architecture/interrupted-sessions.md)). Prompts you held stay held.
+
+- **Desktop:** after reconnecting, **Continue interrupted work?** lists each chat
+  with **Open**, **Dismiss** and **Continue**. **Continue all** continues every
+  one; check **Don't ask again: continue all automatically after a restart** to
+  skip the question next time. The chat itself shows **Interrupted when Moguri
+  stopped** with **Continue** and **Dismiss**. Change the choice under
+  **Settings / Confirmations / Interrupted chats after a restart**.
+- **TUI:** a notice names interrupted chats; `/interrupted` lists them and
+  takes `continue ID`, `continue all`, `dismiss ID`, `always` or `ask`.
+- **CLI:** `moguri interrupted [list|continue ID|continue all|dismiss ID|always|ask]`.
+
+Continue asks the agent to check where it left off before doing anything else
+(the built-in continue workflow), then runs the prompts that were waiting.
+Nothing the agent already did is repeated, and approvals, budgets and autonomy
+are unchanged. With **Continue all automatically**, Moguri continues each
+interrupted chat once after it finds its models; a chat that can't continue
+shows why and keeps its Continue button.
 
 ## Kupo modes, evidence and context
 
@@ -1506,7 +1564,8 @@ Protocol 59 adds the [workspace experience and skill gateway](architecture/works
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
 **Code change** and **Work item** belong to the right rail and follow
 the selected session, with the protocol-61 GitHub workflows described above.
-Automations is intentionally empty; no scheduler is implied. Profile, Ask Moguri
+Automations later gained one-time scheduled prompts and, at protocol 115,
+recurring automations. Profile, Ask Moguri
 and Settings share one compact footer row. Copilot connection status appears
 only in Settings / Models / Providers, not in the left sidebar.
 Artifacts, Candidates and unified
@@ -5129,9 +5188,11 @@ protect concurrent clients. Idempotency IDs prevent replaying a mutation after
 a lost response; the SDK never automatically resends paid or side-effecting work.
 
 Drafts auto-save after a short editing interval. **Draft saved** means the
-service acknowledged the revision. Unacknowledged text is a local edit, not
-promised durable storage. Desktop prevents closing with unsaved edits unless
-the user explicitly discards them; TUI **Ctrl+Q** flushes before leaving.
+service acknowledged the revision. Closing or quitting the desktop app first
+finishes saving composer drafts and an open queued-prompt edit, then closes
+without asking; **Draft not saved** appears only if saving fails. Other
+explicit-save edits still ask before closing. TUI **Ctrl+Q** flushes before
+leaving.
 Conflicting drafts preserve local text and require **Reload saved draft** or
 **Keep my draft**. TUI uses **Ctrl+R** and **Ctrl+S**, respectively.
 

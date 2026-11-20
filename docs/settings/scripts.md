@@ -29,7 +29,7 @@ open script reviews must be inspected again.
 Built-in `grep_logs`, `fetch_page`, `search_memory` and `memory_graph` are exposed through the single
 internal MCP, without generated one-off scripts.
 
-## Customize / Tools tab (protocol 114, project-less from 115)
+## Customize / Tools tab (protocol 114, project-less from 116)
 
 - Lists the agent's built-in toolsets, the foundational scripts and your scripts with On/Off switches. Listing grants
   nothing; each chat still gets only what its environment, mode and policy allow.
