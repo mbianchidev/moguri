@@ -54,6 +54,8 @@ test("desktop explicitly meters one generated proposal and separately reviews st
     await artifacts.getByLabel("Artifact name", { exact: true }).fill("Generated immutable model proposal name");
     await artifacts.getByRole("button", { name: "Save artifact", exact: true }).click();
     await expect(artifacts).toContainText("Document saved"); expect(errors).toEqual([]);
+    // Settings mounts every section of the page; let its saved state settle before closing so the unload guard sees no edit.
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
   } finally { await app.close(); await f.close(); }
 });
 
