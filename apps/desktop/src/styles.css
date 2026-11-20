@@ -1602,8 +1602,7 @@ summary:hover { color: var(--text); }
 .installer-preference .setting-field { margin: var(--space-2) 0 0; max-width: 360px; }
 .installer-preference code { font-size: var(--font-size-sm); }
 
-/* Live analytics: in-memory turn timeline on the Dashboard. */
-.workspace-dashboard[data-page="analytics"] { max-width: none; }
+/* Live analytics: in-memory turn timeline on the Dashboard, in the same column as the other Dashboard pages. */
 .analytics { --lane: var(--muted); margin-top: var(--space-4); }
 .analytics [data-lane="prompt"] { --lane: var(--chart-prompt); }
 .analytics [data-lane="answer"], .analytics-tokens-row { --lane: var(--chart-answer); }
