@@ -710,7 +710,8 @@ repository is public, packaged apps update automatically, and installs still
 wait for your confirmation. An optional read-only token covers the private
 period and GitHub's rate limit; see [GitHub updates](settings/general.md#github-updates).
 
-Settings has a shorter rail: 7 groups and 28 entries, down from 11 groups and
-37. Integrations and Interface are each one rail entry with keyboard-navigable
-tabs, and each integration tab shows its status. See
+Settings has one rail entry per page: General, Models, Integrations, Execution
+& permissions, Sessions, Instructions and Interface. Each page shows all of its
+sections on one scrolling page instead of separate entries or tabs; search
+narrows the rail to the pages with a match. See
 [Settings rail structure](design.md#settings-rail-structure).

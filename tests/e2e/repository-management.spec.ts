@@ -82,7 +82,8 @@ test("Repositories offers one Manage projects action that lands on Project setti
     await expect(panel.getByRole("button", { name: /^Manage (?!projects$)/ })).toHaveCount(0);
     await panel.getByRole("button", { name: "Manage projects", exact: true }).click();
     await expect(page.getByRole("combobox", { name: "Configuration project", exact: true })).toBeVisible();
-    await expect(panel).toHaveCount(0);
+    // Repositories and Project share the General page, so the action scrolls to the Project section.
+    await expect(page.locator("#settings-section-project")).toBeInViewport();
     expect(f.requests).toHaveLength(0);
   } finally { if (app) await close(app); await f.close(); }
 });

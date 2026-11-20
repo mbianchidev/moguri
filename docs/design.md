@@ -114,9 +114,9 @@ Every Settings page follows one anatomy so pages read alike:
 
 | Element | Rule |
 | --- | --- |
-| Page title | One `h2` per page (22px). Sections are `h3`, subsections `h4`, detail groups `h5`; embedded panels never add a second page-level `h2`. |
-| Scope control | A page that acts on a chosen chat (Artifacts, Candidates, Sandbox, Skills) shows its source-chat select on the title row, right-aligned, like the Suggestions scope. It never sits above the title. |
-| Column | Fields, editors, cards, tables and warnings share one 850px column; running text keeps a 76ch measure. |
+| Page title | Each page opens with its group name as the page title (22px). Every item is a section below it, separated by a divider, with its own 16px title; subsections are `h3`, detail groups `h4`/`h5`. |
+| Scope control | A section that acts on a chosen chat (Artifacts, Candidates, Sandbox, Skills) shows its source-chat select on its title row, right-aligned, like the Suggestions scope. It never sits above the title. |
+| Column | Fields, editors, cards, tables and warnings share one 850px column; running text keeps a 76ch measure. Single-line inputs and selects stop at 480px; text editors use the full column. |
 | Groups | A fieldset with a `legend` is a titled card (subtle surface, 10px radius; nested cards use the main surface). A fieldset without a legend is an invisible wrapper. A titled group that carries its own information button stays unboxed so the title lines up with the button. |
 | Disclosures | In Settings, every `details` is a bordered row: its label on the left and a visible Show/Hide pill on the right; the opened content sits inside the same card. Elsewhere disclosures use one rotating chevron, and rows with their own chevron or folder icon opt out. |
 | Local paths | Every setting that needs a file or folder on this Mac uses `PathField`: a text field that accepts an absolute path or one starting with `~/`, plus a **Choose…** button for the native picker. Both ways always work; the typed value is kept exactly apart from `~` and surrounding quotes. |
@@ -128,44 +128,44 @@ Every Settings page follows one anatomy so pages read alike:
 | Actions in flex panels | Buttons keep their natural width (`align-self: flex-start`) instead of stretching across the column. |
 | Empty lists | A section heading is always followed by content or a one-line empty state. |
 
-Settings is a full main-pane task surface, with a category rail, persistent save
+Settings is a full main-pane task surface, with a page rail, persistent save
 state and explicit warning/reset actions. It exposes the shared SDK rather than
-owning capability behavior. Dirty settings survive tab changes and block
+owning capability behavior. Dirty settings survive page changes and block
 navigation/unmount until saved or explicitly reloaded.
 
 ### Settings rail structure
 
-Decided for [#84](https://github.com/mbianchidev/moguri/issues/84): the rail has
-**7 groups and 28 entries**, down from 11 groups and 37 entries.
+The rail lists only the **7 pages**, one per group, with an icon and the group
+name (follow-up to [#84](https://github.com/mbianchidev/moguri/issues/84)). There
+are no per-item rail entries, group headings or tabs: each page shows every item
+of its group as a section, so related options are on one scrolling page.
 
-| Group | Rail entries |
+| Page | Sections, in order |
 | --- | --- |
 | General | General, Repositories, Project |
 | Models | Providers, Local models, Kupo routing, Decision providers |
-| Integrations | One **Integrations** entry with tabs: GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace |
+| Integrations | GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace |
 | Execution & permissions | Guardrails, Sandbox, Remote SSH, Subagents, Scripts, Lifecycle hooks, Dependency cache |
 | Sessions | Startup defaults, Confirmations, Retention, Context compaction, Budgets, Artifacts, Candidates |
 | Instructions | User guidance, System prompt, Skills, Knowledge tiers, Repository memory |
-| Interface | One **Interface** entry with tabs: Appearance, Keyboard shortcuts, Voice dictation, Notifications |
+| Interface | Appearance, Keyboard shortcuts, Voice dictation, Notifications |
 
-- A tabbed group is a single rail entry with no heading of its own. It reopens
-  the tab you last used in it, or its first tab.
-- New integrations add a tab, never a rail entry.
-- Tabs follow the WAI-ARIA tabs pattern: Left/Right arrows wrap, Home/End jump,
-  selection follows focus, one tab is in the tab order and focus is visible.
-  Each tab's accessible name is its text label; icons are never the only cue.
-- Integration tabs show their state as text under the name, exposed as the tab's
-  accessible description. The text comes only from state that's already loaded:
-  saved settings (MCP servers, sql-not-so-lite, Stainless), installed plugins and
-  marketplace bundles, the Linear key in the keychain, and the GitHub account once
-  the GitHub tab has checked it ("Not checked" until then). It never starts a
-  network check by itself.
-- Navigation only: tabs change no setting's behavior, scope, default or save rule.
-  An unsaved edit blocks tab and rail changes alike.
+- New integrations add a section to Integrations, never a rail entry.
+- The selected page has a neutral fill and an accent bar; the rail never uses
+  tinted button blocks.
+- Navigation only: pages change no setting's behavior, scope, default or save
+  rule. An unsaved nested edit (an integration key, a resource draft and so on)
+  blocks changing pages; moving within the page never does.
 - Item ids (`github`, `appearance` and so on) are the stable deep-link targets for
-  `openSettings`, policy hints and restored layouts; no persisted navigation
-  state changed. Search still matches every item: while you search, a tabbed
-  group lists its matching items, and choosing one opens that group and tab. JSON editors expose exact
+  `openSettings`, policy hints and restored layouts: they open the item's page
+  scrolled to its section. No persisted navigation state changed. Search matches
+  every item and narrows the rail to the pages that hold a match, each with its
+  match count; choosing one opens it at the first match.
+- Tab strips elsewhere (Customize, the PR pane) are text tabs with an accent
+  underline on a shared baseline, never boxed buttons. Secondary buttons use a
+  hairline border and a subtle fill; the stronger control line appears on hover.
+
+JSON editors expose exact
 permissions/MCP configuration during this alpha. Model-weight download requires
 its own user acceptance, separate from recording or transcript insertion.
 

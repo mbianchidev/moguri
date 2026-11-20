@@ -27,14 +27,15 @@ export function PathField({ label, ariaLabel, value, onChange, kind, title, exte
   const [error, setError] = useState(""), hint = useId();
   const picker = choose ?? (() => window.moguri.choosePath({ kind: kind === "folder" ? "folder" : "file", title: title ?? (kind === "folder" ? "Choose a folder" : "Choose a file"),
     ...(extensions ? { extensions } : {}), ...(value.startsWith("/") ? { defaultPath: value } : {}) }));
-  const caption = chooseLabel ?? (kind === "folder" ? "Choose folder…" : "Choose file…");
+  // The short visible caption stays inside every specific accessible name ("Choose Porto executable"), as Label in Name requires.
+  const caption = chooseLabel ?? "Choose…";
   return <div className="path-field">
     <label className="setting-field">{label}<SettingsInput aria-label={ariaLabel} aria-describedby={hint} value={value} disabled={disabled} spellCheck={false} autoCapitalize="off" autoCorrect="off"
       placeholder={placeholder ?? (kind === "folder" ? "/path/to/folder or ~/folder" : "/path/to/file or ~/file")}
       onChange={(event) => { setError(""); onChange(event.target.value); }}
       onBlur={(event) => { const next = localPath(event.target.value); if (next !== event.target.value) onChange(next); }} /></label>
     <div className="button-row path-field-actions">
-      <button type="button" disabled={disabled} aria-label={chooseAriaLabel ?? caption.replace(/…$/, "")} onClick={() => {
+      <button type="button" disabled={disabled} aria-label={chooseAriaLabel ?? (chooseLabel ? chooseLabel.replace(/…$/, "") : kind === "folder" ? "Choose folder" : "Choose file")} onClick={() => {
         setError("");
         void picker().then((path) => { if (path) { onChange(path); onChosen?.(path); } },
           (failure: unknown) => setError(failure instanceof Error ? failure.message : "The file picker didn't open. Type the path instead."));

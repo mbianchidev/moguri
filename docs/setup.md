@@ -538,7 +538,7 @@ not declare milestone1 or a signed/notarized public v1 complete.
 
 If your repositories already live in one folder, such as `~/workspace`, open
 **Settings / Repositories** (or **New > Add workspace folder**), type the folder
-path and click **Find repositories**, or use **Choose folder…**. Moguri lists the Git repositories it finds up to three
+path and click **Find repositories**, or use **Choose…**. Moguri lists the Git repositories it finds up to three
 levels down; uncheck any you don't want. Choose **Keep in sync** to have new
 repositories added automatically (at startup, every five minutes or with
 **Check now**), or **Import once**. Turn on **I trust this folder and allow

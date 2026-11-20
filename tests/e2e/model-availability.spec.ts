@@ -78,7 +78,8 @@ test("long provider settings keep scrolling inside the viewport without moving a
       await contained();
       const scrolledContent = await content.evaluate((element) => element.scrollTop);
       await categories.hover(); await page.mouse.wheel(0, 100000);
-      await expect.poll(() => categories.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+      // The seven-page rail usually fits; when it overflows it scrolls on its own, never the content.
+      if (await categories.evaluate((element) => element.scrollHeight > element.clientHeight)) await expect.poll(() => categories.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
       await expect(categories.getByRole("button", { name: "Restore all defaults", exact: true })).toBeInViewport({ ratio: 1 });
       expect(await content.evaluate((element) => element.scrollTop)).toBe(scrolledContent);
       await contained();

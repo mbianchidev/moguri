@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { remoteMemoryFixture } from "../fixtures/remote-memory-service.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native Remote repository memory UI is qualified on macOS.");
@@ -14,7 +15,7 @@ test("desktop explicitly indexes and searches its captured SSH repository and sh
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
-    await page.getByRole("button", { name: "Settings", exact: true }).click(); await page.getByRole("button", { name: "Repository memory", exact: true }).click();
+    await openSettingsSection(page, "Repository memory");
     await expect(page.getByRole("heading", { name: "Repository memory", exact: true })).toBeVisible();
     await expect(page.locator("body")).toContainText("Remote memory indexes the repository on the SSH host");
     expect(f.controller.snapshot().jobs.filter((job) => job.kind === "memory.index")).toHaveLength(0);
@@ -46,7 +47,7 @@ test("a held Remote memory query cannot populate the new Local settings scope af
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await page.getByRole("button", { name: "Settings", exact: true }).click(); await page.getByRole("button", { name: "Repository memory", exact: true }).click();
+    await openSettingsSection(page, "Repository memory");
     await page.getByLabel("Search repository memory", { exact: true }).fill("generated source");
     await page.getByRole("button", { name: "Search vectors", exact: true }).click();
     await expect.poll(() => held).toBe(true); await f.sdk.sessions.env(f.sessionId, "Local");

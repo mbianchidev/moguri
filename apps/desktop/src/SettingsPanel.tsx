@@ -102,7 +102,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   if (registeredConfigurationProject) retainedConfigurationProject.current.project = registeredConfigurationProject;
   const configurationProject = registeredConfigurationProject ?? retainedConfigurationProject.current.project;
   const [discardedConfigurationProject, setDiscardedConfigurationProject] = useState<string | null>(null);
-  const [resourceDirty, setResourceDirty] = useState(false), [resourceSessionId, setResourceSessionId] = useState(session?.id ?? "");
+  const [sandboxResourceDirty, setResourceDirty] = useState(false), [resourceSessionId, setResourceSessionId] = useState(session?.id ?? "");
+  // Artifacts and Candidates share the Sessions page, so each reports its own unsaved state; one panel's clean report never hides the other's edit.
+  const [artifactsDirty, setArtifactsDirty] = useState(false), [candidatesDirty, setCandidatesDirty] = useState(false);
+  const resourceDirty = sandboxResourceDirty || artifactsDirty || candidatesDirty;
   const resourceSession = snapshot.sessions.find((value) => value.id === resourceSessionId);
   const [profileBudgetDirty, setProfileBudgetDirty] = useState(false), [globalBudgetDirty, setGlobalBudgetDirty] = useState(false);
   const [lineageDraftDirty, setLineageDirty] = useState(false), [lineageDraftBusy, setLineageBusy] = useState(false);
@@ -433,9 +436,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const renderSection = (id: SettingsTab): ReactNode => {
     switch (id) {
       case "artifacts": return <>{resourceHeader("artifacts")}
-        <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setResourceDirty} onRequestHandled={onArtifactRequestHandled} /></>;
+        <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setArtifactsDirty} onRequestHandled={onArtifactRequestHandled} /></>;
       case "candidates": return <>{resourceHeader("candidates")}
-        <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} /></>;
+        <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setCandidatesDirty} /></>;
       case "general": return <>{<><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
           <OtlpSettings key={sdk.profileId} sdk={sdk} configuration={snapshot.telemetryExport} disabled={dirty || saving || otherNestedDirty || updateBusy || storageBusy} onDirty={setExportDirty} />
           <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy || exportDirty} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><SettingsHelp label="About profiles" target={<h3>Profiles</h3>}>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</SettingsHelp>
@@ -1087,7 +1090,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="setting-field">Voice input device<select aria-label="Voice input device" value={draft.voice.inputDeviceId ?? "default"} disabled={saving || devicesBusy} onChange={(event) => automatic("voice", { inputDeviceId: event.target.value })}><option value="default">System default microphone</option>
             {draft.voice.inputDeviceId && draft.voice.inputDeviceId !== "default" && !microphones.some((device) => device.id === draft.voice.inputDeviceId) && <option value={draft.voice.inputDeviceId}>Saved device; find microphones to check it</option>}
             {microphones.filter((device) => device.id !== "default").map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}</select></label>
-          <ShortcutEditor label="Voice shortcut" value={draft.voice.shortcut ?? "Control+Space"} change={(shortcut) => change("voice", { ...draft.voice, shortcut })} save={voiceShortcut} dirty={draft.voice.shortcut !== committed.voice.shortcut} disabled={saving} />
+          <p className="fine-print">The dictation shortcut is set under Keyboard shortcuts on this page.</p>
           <label className="check-setting"><SettingsInput type="checkbox" aria-label="Hold dictation shortcut to talk" checked={voiceShortcutMode(draft.voice) === "hold"} disabled={saving}
             onChange={(event) => automatic("voice", { shortcutMode: event.target.checked ? "hold" : "toggle" })} />Hold the dictation shortcut to talk</label>
           <SettingsHelp label="About dictation controls" target={<p className="fine-print">Click the microphone to record, then click again to confirm. {committed.voice.shortcut === "none" ? "No dictation shortcut is assigned." :
@@ -1115,16 +1118,21 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           </>}</>;
     }
   };
-  const resourceHeader = (id: "artifacts" | "candidates" | "sendbox" | "skills") => <div className="settings-page-header">
+  /** Sections that act on a chosen chat share one source-chat select per page, on the first such section's title row. */
+  const resourceHeader = (id: "artifacts" | "candidates" | "sendbox" | "skills") => {
+    const owner = activeGroup.items.find((item) => ["artifacts", "candidates", "sendbox", "skills"].includes(item.id))?.id;
+    return <div className="settings-page-header">
           {id === "sendbox" ? <SettingsHelp label="About Sandbox" target={<h2 id="sandbox-configuration">Sandbox</h2>}>Sandbox runs the agent in an isolated VM on this Mac. If setup is incomplete, Sandbox turns are blocked instead of running in Local.</SettingsHelp> :
             <h2>{id === "artifacts" ? "Artifacts" : id === "candidates" ? "Candidates" : "Skills"}</h2>}
-          <label className="settings-scope">{id === "skills" ? "Chat for skill review" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
+          {owner === id ? <label className="settings-scope">{id === "skills" ? "Chat for skill review" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
             if (resourceDirty) { setError("Save or cancel the current resource edit before choosing another source chat."); return; }
             setResourceSessionId(event.target.value);
           }}><option value="">{id === "skills" ? "Choose a source chat" : "Profile records"}</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
             {snapshot.sessions.filter((value) => value.kind !== "subagent").map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
-          </select></label>
+          </select></label> :
+            <span className="settings-scope">Source chat: {resourceSession?.title ?? "Profile records"} (chosen above)</span>}
         </div>;
+  };
   const capabilityControls = (kind: "skills" | "scripts" | "plugins") => { const registry = registryFor(kind); return <>{kind === "skills" ? <h3>Imported skills</h3> : <h2>{kind === "scripts" ? "Scripts" : "Plugins"}</h2>}
           <p>{kind === "skills" ? "Import a standard SKILL.md file. Skills add instructions, not tool permissions." : kind === "scripts" ? "Built-in scripts (grep_logs, fetch_page, search_memory and memory_graph) reach the agent through Moguri's internal MCP server." : "A Moguri plugin bundles standard skills. Importing one doesn't run its code or install dependencies."}</p>
           {kind !== "scripts" && <><label className="setting-field">Local {kind === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={importPath} onChange={(event) => setImportPath(event.target.value)} placeholder={kind === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !importPath} aria-label={`Import disabled ${kind === "skills" ? "skill" : "plugin"}`} onClick={() => void run(async () => {
@@ -1157,7 +1165,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           {proposal && <section className="proposal-review"><h3>Review proposed content</h3><pre>{proposal.content}</pre><code>SHA-256 {proposal.digest}</code><label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this source. Approving it doesn't let it run.</label><div className="button-row"><button disabled={!reviewed} onClick={() => void run(() => sdk.capabilities.decide(proposal.id, true, proposal.digest))} aria-label="Approve disabled capability">Approve disabled</button><button onClick={() => void run(() => sdk.capabilities.decide(proposal.id, false, proposal.digest))}>Reject</button></div></section>}</>; };
   return <SettingsFieldsProvider><section className="settings-page" aria-label="Moguri settings">
     <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" disabled={saving || sandboxBusy || lineageBusy} onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span><button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button></header>
-    <div className="settings-layout" data-settings-group={activeGroup.label}><nav aria-label="Settings categories">
+    <div className="settings-layout" data-settings-tab={tab}><nav aria-label="Settings categories">
       <label className="settings-search"><span className="sr-only">Search settings</span><input type="search" aria-label="Search settings" placeholder="Search settings" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
       <span className="sr-only" role="status">{search.trim() ? `${groups.reduce((sum, group) => sum + group.items.length, 0)} settings sections found` : ""}</span>
       <ul className="settings-groups">{(searching ? groups : SETTINGS_GROUPS).map((group) => {
