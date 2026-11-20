@@ -161,6 +161,12 @@ test("Tools scripts can apply to every chat; a project's own script of the same 
     const registry = () => sdk.getState().snapshot!.registry;
     assert.deepEqual(scriptEntries(registry(), projectId).map((entry) => entry.id), [global]);
     assert.deepEqual(scriptEntries(registry(), null).map((entry) => entry.id), [global]);
+    const chat = await sdk.sessions.create(null, "Generated project-free script chat"), session = () => fixture.service.controller.snapshot().sessions.find((value) => value.id === chat.id)!;
+    assert.ok(session().homeRoot);
+    const listed = (await sdk.mcp.tools("builtin", "script.", 0, chat.id!)).tools.find((tool) => tool.name === `script.${global}`);
+    assert.ok(listed, "a project-free Local chat discovers every-chat scripts");
+    const ran = await fixture.service.controller.platform.callMcp(session(), { action: "call", serverId: "builtin", tool: listed.name, schemaDigest: listed.digest, arguments: { arguments: {} } }, new AbortController().signal);
+    assert.match(JSON.stringify(ran), /global/);
     const own = await approve(projectId, "// description: Generated project lookup.\nconsole.log('project');\n");
     assert.deepEqual(scriptEntries(registry(), projectId).map((entry) => entry.id), [own]);
     assert.deepEqual(scriptEntries(registry(), null).map((entry) => entry.id), [global]);
