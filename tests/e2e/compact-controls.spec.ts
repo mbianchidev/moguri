@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -23,15 +24,14 @@ test("MCP retains its accessible X and Linear uses a concise Remove action, each
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    await categories.getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await openSettingsSection(page, "MCP gateway");
     await page.getByLabel("Server", { exact: true }).selectOption("generated-compact-server");
     const removeMcp = page.getByRole("button", { name: "Remove credential", exact: true });
     await expect(removeMcp).toHaveText(""); await expect(removeMcp.locator("svg[data-icon='Close']")).toBeVisible();
     await removeMcp.hover(); await expect(page.getByRole("tooltip")).toHaveText("Remove credential");
     await removeMcp.click(); await expect.poll(() => mcp.size).toBe(0);
     expect(linear.size).toBe(1);
-    await categories.getByRole("button", { name: "Linear workflows", exact: true }).click();
+    await openSettingsSection(page, "Linear");
     const connection = page.getByRole("region", { name: "Linear integration connection", exact: true });
     const removeLinear = connection.getByRole("button", { name: "Remove Linear key", exact: true });
     await expect(removeLinear).toHaveText("Remove");

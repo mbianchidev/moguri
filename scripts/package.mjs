@@ -30,10 +30,11 @@ const paths = await packager({
   extendInfo: { NSMicrophoneUsageDescription: "Moguri records speech only when you start dictation. Audio is transcribed locally and is never sent to an ASR cloud." },
   platform: "darwin", arch: "arm64", electronVersion, overwrite: true, prune: true,
   asar: false,
-  ignore: [/^\/(?:\.git|\.moguri|\.native|\.impeccable|\.copilot|\.test-output|release|tests|test-results|playwright-report|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS)\.md$/],
+  ignore: [/^\/(?:\.git|\.github|\.moguri|\.native|\.impeccable|\.copilot|\.test-output|release|tests|test-results|playwright-report|apps|packages|scripts|docs)(?:\/|$)/, /^\/(?:README|AGENTS|CONTRIBUTING|SECURITY|CODE_OF_CONDUCT|ACCESSIBILITY)\.md$/, /^\/\.gitleaksignore$/],
 });
 const app = resolve(paths[0], "Moguri.app");
 await access(join(app, "Contents", "Resources", "app", "dist", "moguri"), constants.X_OK);
+for (const path of ["LICENSE.md", "dist/THIRD_PARTY_NOTICES.md"]) await access(join(app, "Contents", "Resources", "app", path));
 const nativeRoot = join(app, "Contents", "Resources", "moguri-native"); await mkdir(nativeRoot);
 for (const path of ["manifest.json", native.distribution.vendor.installer.path, native.distribution.worker.archive.path, "SendBox.LICENSE", "AppleContainerization.LICENSE"]) {
   await copyFile(join(native.root, path), join(nativeRoot, path));

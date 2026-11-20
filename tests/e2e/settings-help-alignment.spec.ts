@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Settings geometry uses generated hidden macOS windows.");
@@ -52,7 +53,7 @@ test("application, command-line and wrapped toggle explanations stay aligned wit
       await expect(updateHelp).toBeFocused();
       expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     }
-    await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     const disclosure = page.getByText("Custom element colors", { exact: true }).locator("..");
     const information = disclosure.locator("..").getByRole("button", { name: "More about this setting", exact: true });
     expect(await disclosure.evaluate((node) => (node as HTMLDetailsElement).open)).toBe(false);

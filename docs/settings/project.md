@@ -126,7 +126,7 @@ this page keeps the full detail.
 
 ## Optional Linear team
 
-- Authentication lives in Settings / Linear workflows.
+- Authentication lives in Settings / Integrations / Linear.
 - Save the exact team UUID before enabling import.
 - Importing is explicit and read-only; enabling a team never exports local tickets or starts a scan.
 - Contract: `docs/architecture/linear-workflows.md`.

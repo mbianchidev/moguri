@@ -1,6 +1,6 @@
 # Linear workflows
 
-Technical reference for **Settings / Linear workflows**. The app shows a short summary;
+Technical reference for **Settings / Integrations / Linear**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Linear connection

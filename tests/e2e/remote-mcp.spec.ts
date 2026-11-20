@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 import { reviewNativeTools } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const openApp = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -21,7 +22,7 @@ test("desktop reviews an exact Remote grant, approves a provider-free SSH call a
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await openSettingsSection(page, "MCP gateway");
     const access = page.getByRole("region", { name: "Remote MCP access", exact: true });
     await expect(access).toBeVisible();
     await access.getByRole("button", { name: "Review Remote grant", exact: true }).click();
@@ -55,7 +56,7 @@ test("desktop reviews an exact Remote grant, approves a provider-free SSH call a
     const call = f.controller.snapshot().remoteMcpCalls[0]!;
     expect(call.actor).toBe("external"); expect(f.session().controls.modelId).toBeNull(); expect(f.requests.length).toBe(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await openSettingsSection(page, "MCP gateway");
     await access.getByText("Recorded Remote calls (1)", { exact: true }).click();
     await access.getByRole("button", { name: `Inspect MCP operation ${call.id}`, exact: true }).click();
     await expect(access.getByLabel("Remote MCP operation result", { exact: true })).toContainText("generated actual remote source");
@@ -87,7 +88,7 @@ test("desktop cannot publish a stale Remote review or implicitly enable forwardi
     app = await openApp(f.directory);
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await openSettingsSection(page, "MCP gateway");
     await page.getByLabel("Server", { exact: true }).selectOption("generated-ui-bearer");
     const access = page.getByRole("region", { name: "Remote MCP access", exact: true });
     await access.getByRole("button", { name: "Review Remote grant", exact: true }).click();

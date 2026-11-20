@@ -358,7 +358,7 @@ else {
       let accelerator: string | null = null;
       try { accelerator = electronAccelerator(value); } catch { accelerator = null; }
       if (accelerator && process.env.MOGURI_TEST_WINDOW !== "hidden" && !globalShortcut.register(accelerator, showMain)) {
-        soundError(profileId, new Error(`${shortcutLabel(value)} is already used by another app, so the Open Moguri shortcut is off. Choose another one in Settings / Keyboard shortcuts.`));
+        soundError(profileId, new Error(`${shortcutLabel(value)} is already used by another app, so the Open Moguri shortcut is off. Choose another one in Settings / Interface / Keyboard shortcuts.`));
         accelerator = null;
       }
       openShortcut = { value, accelerator: process.env.MOGURI_TEST_WINDOW === "hidden" ? null : accelerator };

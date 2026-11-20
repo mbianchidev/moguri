@@ -1,13 +1,13 @@
 # GitHub workflows
 
-Technical reference for **Settings / GitHub workflows**. The app shows a short summary;
+Technical reference for **Settings / Integrations / GitHub**. The app shows a short summary;
 this page keeps the full detail.
 
 ## GitHub integration
 
 - Moguri uses one existing GitHub CLI (`gh`) account on this Mac for repository discovery, issues and pull
   requests. There is no client ID, copied token or account name to configure.
-- The Copilot model login and the private updater PAT stay separate from this account. Remote operations keep
+- The Copilot model login and the optional updater token stay separate from this account. Remote operations keep
   their separately captured SSH account.
 - Where to start work: use New to import a repository, Code change for pull requests and Work item for GitHub
   issues. Project menus start sessions from either source.

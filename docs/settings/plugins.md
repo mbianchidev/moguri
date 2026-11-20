@@ -1,6 +1,6 @@
 # Plugins
 
-Technical reference for **Settings / Plugins**. The app shows a short summary;
+Technical reference for **Settings / Integrations / Plugins**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Plugins

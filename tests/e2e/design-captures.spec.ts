@@ -5,6 +5,7 @@ import { isAbsolute, join } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 // Opt-in design captures for docs/design-audit.md. Set MOGURI_DESIGN_CAPTURE_DIR to an absolute
 // directory and MOGURI_DESIGN_CAPTURE_PREFIX to "before" or "after". Generated fixtures only.
@@ -69,8 +70,7 @@ test("captures the start, question, composer popover and settings screens", asyn
     await resize(app, page, 760, 800); await capture(page, "question-760");
     await resize(app, page, 1280, 800);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     await expect(page.getByRole("heading", { name: "Appearance", level: 2 }).first()).toBeVisible();
     await page.mouse.move(600, 20); await page.waitForTimeout(300);
     await capture(page, "settings-1280");
@@ -175,8 +175,7 @@ test("captures the supporting dashboard, automation, suggestion and budget pages
     await openResource(page, "Automations"); await capture(page, "automations-1280");
     await openResource(page, "Suggestions"); await capture(page, "suggestions-1280");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    await categories.getByRole("button", { name: "Budgets", exact: true }).click();
+    await openSettingsSection(page, "Budgets");
     await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
     await page.waitForTimeout(500); await page.mouse.move(600, 20);
     await capture(page, "settings-budgets-1280");

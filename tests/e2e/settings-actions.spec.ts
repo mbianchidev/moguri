@@ -22,7 +22,7 @@ test("Linear key actions use concise visible verbs and preserve storage, explici
     },
   } } }), app = await launch(fixture.directory);
   try {
-    const page = await app.firstWindow(); await openSettingsSection(page, "Linear workflows");
+    const page = await app.firstWindow(); await openSettingsSection(page, "Linear");
     const panel = page.getByRole("region", { name: "Linear integration connection", exact: true });
     const store = panel.getByRole("button", { name: "Store Linear key in keychain", exact: true });
     const verify = panel.getByRole("button", { name: "Verify Linear account", exact: true });
@@ -65,7 +65,7 @@ test("shortcut buttons say Record while exact accessible names, keyboard capture
     await expect(page.getByLabel("Voice shortcut", { exact: true })).toHaveValue(original.voice.shortcut ?? "Control+Space");
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     await mkdir(".moguri/artifacts", { recursive: true }); await page.screenshot({ path: ".moguri/artifacts/settings-shortcut-actions.png" });
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await openSettingsSection(page, "Voice dictation");
     await expect(page.getByRole("button", { name: "Record Voice shortcut", exact: true })).toHaveText("Record");
     expect(sdk.settings.get()!.values.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC").toBe(original.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC");
     expect(fixture.requests).toHaveLength(0);
@@ -77,10 +77,10 @@ test("contextual settings actions use short captions while retaining their preci
   try {
     const page = await app.firstWindow();
     const actions = [
-      ["General", "Store private release PAT", "Store"],
+      ["General", "Store release access token", "Store"],
       ["General", "Inspect updater credential", "Inspect"],
       ["General", "Check for updates now", "Check"],
-      ["GitHub workflows", "Verify GitHub CLI account", "Verify"],
+      ["GitHub", "Verify GitHub CLI account", "Verify"],
       ["Local models", "Refresh models", "Refresh"],
       ["MCP gateway", "List configured servers", "List"],
       ["MCP gateway", "Verify credential status", "Verify"],

@@ -64,7 +64,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
     await page.getByRole("button", { name: "Save Linear team", exact: true }).click();
     await page.getByLabel("Enable read-only Linear import for this project").check();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Linear workflows", exact: true }).click();
+    await openSettingsSection(page, "Linear");
     await page.getByLabel("Linear personal API key", { exact: true }).fill("generated-linear-ui-key");
     await page.getByRole("button", { name: "Store Linear key in keychain", exact: true }).click();
     await expect(page.getByLabel("Linear personal API key", { exact: true })).toHaveValue("");
@@ -211,7 +211,7 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await expect(prompt).toHaveValue(fixture.service.controller.snapshot().settings.defaults.systemPrompt);
     await expect(page.getByText("Generated user-edited instructions. Never invent results.", { exact: true })).toHaveCount(0);
     const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     await page.getByLabel("Theme", { exact: true }).selectOption("light");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await page.getByLabel("Theme", { exact: true }).selectOption("dark");
@@ -230,14 +230,14 @@ test("dark mascot branding and shared SDK settings expose prompt, memory, permis
     await page.getByLabel("Search repository memory", { exact: true }).fill("shared sdk knowledge");
     await page.getByRole("button", { name: "Search vectors", exact: true }).click();
     await expect(page.locator(".settings-result pre")).toContainText("generated.ts");
-    await categories.getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await openSettingsSection(page, "MCP gateway");
     await page.getByRole("button", { name: "Discover tools", exact: true }).click();
     await expect(page.getByRole("button", { name: /^grep_logs/ })).toBeVisible();
     await categories.getByRole("button", { name: "Subagents", exact: true }).click();
     await expect(page.getByLabel("Enable read-only subagents")).not.toBeChecked();
     await categories.getByRole("button", { name: "Skills", exact: true }).click();
     await expect(page.getByLabel("Let models propose skills, scripts and style knowledge for your review")).not.toBeChecked();
-    await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await openSettingsSection(page, "Voice dictation");
     await expect(page.getByRole("button", { name: "Enable and download voice model", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "About supported dictation languages", exact: true }).focus();
     await page.keyboard.press("Enter");

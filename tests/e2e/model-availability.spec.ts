@@ -85,7 +85,7 @@ test("long provider settings keep scrolling inside the viewport without moving a
       const observed = await geometry();
       console.log(JSON.stringify({ primitive: "settings-scroll-containment", width, viewportHeight: observed.viewport,
         documentHeight: observed.document.height, contentHeight: observed.content.height, outerScroll: observed.outerScroll }));
-      await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+      await openSettingsSection(page, "Appearance");
       await expect(page.getByRole("button", { name: "Back to session", exact: true })).toBeInViewport({ ratio: 1 });
       await expect(page.locator(".settings-content").getByRole("heading", { name: "Appearance", exact: true })).toBeInViewport();
       expect(await page.evaluate(() => document.querySelector(".app-shell")?.scrollTop)).toBe(0);

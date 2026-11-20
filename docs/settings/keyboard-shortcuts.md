@@ -1,6 +1,6 @@
 # Keyboard shortcuts
 
-Technical reference for **Settings / Keyboard shortcuts**. The app shows a short summary;
+Technical reference for **Settings / Interface / Keyboard shortcuts**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Shortcut editor (page help)

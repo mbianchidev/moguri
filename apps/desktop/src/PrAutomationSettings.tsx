@@ -12,7 +12,7 @@ const DESCRIPTIONS: Record<PrAutomationFlag, string> = {
   conflictResolution: "When GitHub reports that the PR conflicts with its base, Moguri queues a turn that merges the base and keeps both sides' features, then validates with tests. If both can't be kept, it aborts the merge and asks you.",
 };
 
-/** Global defaults and the list of repositories that override them (Settings / GitHub workflows). */
+/** Global defaults and the list of repositories that override them (Settings / Integrations / GitHub). */
 export function PrAutomationDefaults({ values, snapshot, disabled, onChange, openProject }: {
   values: PrAutomationSettings | undefined; snapshot: Snapshot; disabled: boolean;
   onChange: (patch: Partial<PrAutomationSettings>) => void; openProject: (projectId: string) => void;

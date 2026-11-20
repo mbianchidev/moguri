@@ -34,7 +34,7 @@ test("wrap-up switches save immediately and a suggested skill improvement is rev
     await expect(proposals).toHaveCount(0);
     await expect.poll(() => sdk.getState().snapshot!.registry.some((entry) => entry.name === "generated-style" && entry.kind === "skill" && !entry.enabled)).toBe(true);
 
-    await openSettingsSection(page, "GitHub workflows");
+    await openSettingsSection(page, "GitHub");
     const section = page.getByRole("region", { name: "After each request", exact: true });
     const followUps = section.getByRole("switch", { name: "Follow up on new reviews and failed CI", exact: true });
     await expect(followUps).toBeChecked();

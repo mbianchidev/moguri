@@ -24,14 +24,14 @@ test("automatic-check flags save without a pending PAT, and an explicit hidden c
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const token = `ghp_${"g".repeat(30)}`;
-    await page.getByLabel("Private release PAT", { exact: true }).fill(token);
+    await page.getByLabel("Release access token", { exact: true }).fill(token);
     await page.getByLabel("Check for and download updates automatically", { exact: true }).uncheck();
     await expect.poll(async () => (await sdk.application.status()).configuration.values.automaticUpdates).toBe(false);
     expect(values.size).toBe(0); expect(feed.requests.length).toBe(0);
-    await expect(page.getByLabel("Private release PAT", { exact: true })).toHaveValue(token);
-    await page.getByRole("button", { name: "Store private release PAT", exact: true }).click();
+    await expect(page.getByLabel("Release access token", { exact: true })).toHaveValue(token);
+    await page.getByRole("button", { name: "Store release access token", exact: true }).click();
     await expect.poll(() => values.get("private-github-release")).toBe(token);
-    await expect(page.getByLabel("Private release PAT", { exact: true })).toHaveValue("");
+    await expect(page.getByLabel("Release access token", { exact: true })).toHaveValue("");
     await page.getByRole("button", { name: "Check for updates now", exact: true }).click();
     await expect.poll(async () => (await sdk.application.updates.status()).update.operation?.status).toBe("ready");
     await expect(page.getByText("Installing updates requires Moguri's packaged app.", { exact: true })).toBeVisible();

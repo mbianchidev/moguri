@@ -7,6 +7,7 @@ import { audioFromBase64, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture } from "../fixture.ts";
 import { sha256, transcribeStreamingGguf } from "../fixtures/voice-models.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop audio qualification is macOS-only.");
@@ -170,7 +171,7 @@ test("the shortcut setting saves an explicit mode without changing the microphon
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await openSettingsSection(page, "Voice dictation");
     const hold = page.getByLabel("Hold dictation shortcut to talk", { exact: true });
     await expect(hold).toBeChecked();
     expect(sdk.settings.get()!.values.voice.shortcutMode).toBeUndefined();
@@ -185,7 +186,7 @@ test("the shortcut setting saves an explicit mode without changing the microphon
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await openSettingsSection(page, "Voice dictation");
     await expect(hold).not.toBeChecked();
     await hold.check();
     await expect.poll(() => sdk.settings.get()!.values.voice.shortcutMode).toBe("hold");
@@ -365,9 +366,9 @@ test("device selection and push-to-talk use real qualified bindings, while relea
   const original = fixture.service.controller.platform.voice.status.bind(fixture.service.controller.platform.voice);
   const gate = Promise.withResolvers<void>(); let entered = false;
   try {
-    const page = await app.firstWindow(), categories = page.getByRole("navigation", { name: "Settings categories" });
+    const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await categories.getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await openSettingsSection(page, "Voice dictation");
     await page.getByRole("button", { name: "Find microphones with explicit audio access", exact: true }).click();
     const device = page.getByLabel("Voice input device", { exact: true });
     await expect.poll(() => device.evaluate((element) => {
@@ -387,7 +388,7 @@ test("device selection and push-to-talk use real qualified bindings, while relea
     expect(sdk.settings.get()?.values.voice.shortcut).toBe("Control+Space");
     await page.getByRole("button", { name: "Save Voice shortcut", exact: true }).click();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
-    await categories.getByRole("button", { name: "Keyboard shortcuts", exact: true }).click();
+    await openSettingsSection(page, "Keyboard shortcuts");
     await page.getByLabel("Commands shortcut", { exact: true }).fill("Control+Shift+KeyP");
     await page.getByRole("button", { name: "Save Commands shortcut", exact: true }).click();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
@@ -730,8 +731,8 @@ test("an existing streaming model file is reviewed, trusted, dictated with and r
     args: [...process.env.MOGURI_TEST_APP ? [] : ["."], "--use-fake-device-for-media-stream"],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_VOICE_MODEL_FILE: path } });
   try {
-    const page = await app.firstWindow(), categories = page.getByRole("navigation", { name: "Settings categories" });
-    const openVoice = async () => { await page.getByRole("button", { name: "Settings", exact: true }).click(); await categories.getByRole("button", { name: "Voice dictation", exact: true }).click(); };
+    const page = await app.firstWindow();
+    const openVoice = async () => { await page.getByRole("button", { name: "Settings", exact: true }).click(); await openSettingsSection(page, "Voice dictation"); };
     const trust = async (digest: string) => {
       const review = page.getByRole("region", { name: "Model review" });
       await expect(review).toContainText("Generated Moonshine Streaming");

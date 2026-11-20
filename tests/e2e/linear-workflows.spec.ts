@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import {
   LINEAR_FIXTURE_TOKEN, linearFixtureIds as ids, linearServiceFixture,
 } from "../fixtures/linear-workflows.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The hidden native desktop Linear checkpoint is qualified on macOS.");
@@ -21,7 +22,7 @@ test("Settings Linear workflows explicitly reviews an issue write and ticket pul
     page.on("pageerror", (error) => failures.push(error.message));
     await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Linear workflows", exact: true }).click();
+    await openSettingsSection(page, "Linear");
     const panel = page.getByRole("region", { name: "Reviewed Linear workflows", exact: true });
     await expect(panel).toBeVisible();
     await expect(panel).toContainText(`Enabled team ${ids.team}`);

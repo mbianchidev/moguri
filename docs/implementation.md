@@ -976,7 +976,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - configurable secure SSH commit signing and commit-attribution rules, including suppression of automatic tool co-author trailers;
 - token-saving execution modes such as a standard `--silent` convention, output truncation, and an intentionally terse “caveman” communication mode;
 - documentation policies that keep durable documentation under `docs/` rather than scattering temporary summary Markdown files through repositories;
-- policy import and synchronization from sources such as [`copilot-instructions.md`](https://github.com/mbianchidev/.github-private/blob/main/copilot-instructions.md), subject to repository access;
+- policy import and synchronization from sources such as a maintainer's private `copilot-instructions.md`, subject to repository access;
 - deterministic first-party utilities—Python-backed where appropriate—for diffing, parsing, splitting, searching, and structured data manipulation so agents do not repeatedly generate disposable scripts.
 
 ### First-party integrations
@@ -1018,7 +1018,7 @@ The first-release autonomy levels apply independently to these later specialized
 - **Long-running Autopilot** — supports giant greenfield systems such as a browser and major rewrites such as C-to-Rust migrations, using durable plans, checkpoints, recovery, and budgets;
 - **Stabilize** — evaluates repository health, attempts policy-gated integration of pending pull requests, remediates security issues, installs or repairs Dependabot, enhances and hardens Actions, and installs agentic issue-triage workflows;
 - **Swarm** — analyzes all open issues, proposes a coherent roadmap and rationalized target state, reports for approval, then coordinates implementation toward resolving the complete approved issue set;
-- **Team** — supports persona-based agents, councils, and patterns inspired by [Squad](https://bradygaster.github.io/squad) and [Paperclip](https://github.com/paperclipai/paperclip).
+- **Team** — supports persona-based agents, councils, and patterns inspired by [Squad](https://github.com/bradygaster/squad) and [Paperclip](https://github.com/paperclipai/paperclip).
 
 ### Research tracks
 

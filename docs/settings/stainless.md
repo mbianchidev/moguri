@@ -1,6 +1,6 @@
 # Stainless
 
-Technical reference for **Settings / Stainless**. The app shows a short summary;
+Technical reference for **Settings / Integrations / Stainless**. The app shows a short summary;
 this page keeps the full detail. Contract: [Stainless integration](../architecture/stainless.md).
 
 ## Page help
