@@ -1100,7 +1100,7 @@ for covered operations. TUI/CLI and desktop share `/git status`, `/git branches`
 `/git log`, `/git show COMMIT_SHA`, `/git diff [staged]`, `/git preview ACTION_JSON`
 and `/git execute confirm-write {action,expectedDigest,confirmations}`. Ordinary
 slash commands keep their service-owned queue ordering. Desktop also exposes
-the actions in **Settings / GitHub workflows / Advanced reviewed operations**.
+the actions in **Settings / Integrations / GitHub / Advanced reviewed operations**.
 
 Local built-ins create/switch/rename branches, stage/unstage exact files, commit
 only selected staged paths while preserving the original index and unrelated
@@ -1410,7 +1410,7 @@ pushed. Review the exact title/body and confirmations before publication.
 Results are linked only after the original durable operation completes.
 Cancellation or uncertain effects remain partial, never retried as a new write.
 Existing advanced Git/review/release operations remain in the collapsed
-**Settings / GitHub workflows / Advanced** section.
+**Settings / Integrations / GitHub / Advanced** section.
 
 Project menus offer **From PR** and **From work item** dropdowns for that
 repository. Review the full body, then start an idle session with an unsent
@@ -2239,7 +2239,7 @@ merged (counted from when Moguri saw the merge), and delete archived sessions.
 Sessions with unsent drafts, queued prompts, pending input or running work are
 skipped. Deletion is permanent; see [the Retention reference](settings/retention.md).
 
-**Settings / Integrations / GitHub workflows > Branch names** sets an optional
+**Settings / Integrations / GitHub > Branch names** sets an optional
 **Branch name prefix**, such as `yourname/`, for every branch Moguri generates:
 new task worktrees, Kanban "Continue work", suggested worktree branches and the
 repository-defaults branch. A task branch then looks like
@@ -2468,7 +2468,7 @@ See the [browser contract](architecture/agent-browser.md).
 
 **Stainless (optional, protocol 111).** Install
 [Stainless](https://github.com/mbianchidev/stainless/releases) in `/Applications`
-or `~/Applications`, then turn on **Settings > Stainless** (or choose its exact
+or `~/Applications`, then turn on **Settings / Integrations / Stainless** (or choose its exact
 app location). Tested build: `0.1.0-preview.7` (Chromium `158.0.8127.37`); other
 builds need **Check compatibility**, which starts a hidden Stainless with a
 throwaway profile and a generated local page. The Browser panel then offers
@@ -3290,7 +3290,7 @@ project PR lookup. GitHub browsing requires an individual Local project; it
 never substitutes a controller root for Remote or Sandbox. Listing retained
 links is not a fresh verification, checkout, write or inference.
 
-**Settings / Appearance / Color palette** and the TUI settings palette picker
+**Settings / Interface / Appearance / Color palette** and the TUI settings palette picker
 share Moguri, Ocean, Orchid, Rose, Terminal, Aubergine, Ember, Monochrome,
 Vaporwave and Crystal, plus Custom. Ocean already supplies blue; Rose adds pink,
 Terminal green/black, Ember red and Crystal an original cobalt/silver JRPG look.
@@ -3844,7 +3844,7 @@ IDs. A normal installation also provides `moguri`.
 
 Desktop starts **dark**, with Moguri's original minimal face-and-bat-wing mascot.
 The TUI uses a compact text wordmark instead of a loading splash.
-**Settings / Appearance** selects Dark,
+**Settings / Interface / Appearance** selects Dark,
 Light or System. **Settings / System prompt** and TUI **Ctrl+G** expose the
 actual instructions, a breakage warning and restore defaults. Prompt edits need
 explicit acknowledgement, apply to new turns and cannot override permissions.
@@ -4239,7 +4239,7 @@ and can be retried from the saved application preference; hidden checks never
 create a real menu-bar item. Its menu lists open chats grouped by project with
 "Working" or "Needs you", per-chat Open, Stop and Archive, then Create
 Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
-in **Settings / Keyboard shortcuts**), Settings and Quit.
+in **Settings / Interface / Keyboard shortcuts**), Settings and Quit.
 
 **Settings / General / GitHub updates** checks the upstream `mbianchidev/moguri`
 releases. Without a saved token it reads public releases anonymously, contacting
@@ -4347,7 +4347,7 @@ Runnable follow-up work suppresses a premature done/waiting indicator.
 `/inbox delete ID` removes only the notification; the original pending work
 and session stay intact. The `attention` spelling remains an alias.
 
-**Settings / Notifications** defaults to in-app indicators on, OS banners off,
+**Settings / Interface / Notifications** defaults to in-app indicators on, OS banners off,
 content previews off. Optional background banners require the desktop to run,
 respect OS permissions/Do Not Disturb, and use generic text unless previews are
 explicitly enabled. Selecting a banner opens its session. Startup and preference
@@ -4746,7 +4746,7 @@ for plugin and script formats.
 
 ## Native MCP gateway
 
-**Settings / MCP gateway** configures stdio or Streamable HTTP servers,
+**Settings / Integrations / MCP gateway** configures stdio or Streamable HTTP servers,
 discovers bounded tool pages, checks auth and requests exact calls in an idle
 main session. Return to that session to approve. Configuration is user-only;
 discovery may start the configured local executable, so enable only trusted
@@ -4799,7 +4799,7 @@ external effects unconfirmed; partial is not success and requires inspection.
 
 ### Remote MCP
 
-Select an explicitly mapped Remote project, then **Settings / MCP gateway**.
+Select an explicitly mapped Remote project, then **Settings / Integrations / MCP gateway**.
 Expand **Configure backend MCP servers** when changing transports. Use
 **Probe SSH target**, choose the server and **Review Remote grant**. Review the
 profile, host/port/pinned key, Remote root, exact resource and digest before
@@ -4832,7 +4832,7 @@ qualification and preserved earlier identities are recorded below.
 
 ## Local NVIDIA dictation
 
-Open **Settings / Voice dictation**, review the linked model card/license and
+Open **Settings / Interface / Voice dictation**, review the linked model card/license and
 explicitly accept the one-time download. The pinned model is
 `nvidia/nemotron-3.5-asr-streaming-0.6b`, Q8 GGUF, **741,548,352 bytes
 (about 708 MiB)** under OpenMDW-1.1. NVIDIA documents **40 language-locales**:
@@ -4858,7 +4858,7 @@ auto-download. Audio never goes to hosted ASR or the Copilot provider.
 
 Instead of downloading Nemotron, you can point a profile at a model file you
 already have, for example in a folder shared with other dictation apps. In
-**Settings / Voice dictation / Use a model you already have**:
+**Settings / Interface / Voice dictation / Use a model you already have**:
 
 - Type a file or folder path (absolute, or starting with `~/`) and click
   **Review**, or use **Choose…** to pick it. A single model file goes straight
@@ -4983,7 +4983,7 @@ select a saved desktop device: choose the native default or use explicit file
 transcription. Native file transcription accepts regular PCM WAV up to 64 MiB.
 Live native finalization has up to 60 seconds; cancel escalates an unresponsive
 process. Actual exit status/signal and bounded diagnostics remain visible.
-**Settings / Voice dictation / Native speech backend** saves an explicit
+**Settings / Interface / Voice dictation / Native speech backend** saves an explicit
 Automatic/CPU/Metal choice. No failure silently switches backends or providers.
 Stop/discard controls and capability-job cancellation stay available while a
 preference save is pending. New recordings are blocked until that save settles.
@@ -5629,10 +5629,10 @@ the chat runs one **Wrap-up** turn: resolve conflicts, commit, push, open or
 update the draft PR, check CI and reviews, and report to a delegating parent
 chat. Afterwards Moguri follows the PR for a day and queues a follow-up for new
 reviews or a failing check, asking you when the same failure repeats. Turn
-these off in **Settings / GitHub workflows / After each request**. See
+these off in **Settings / Integrations / GitHub / After each request**. See
 [session lifecycle](architecture/session-lifecycle.md).
 
-**Settings / GitHub workflows / Pull request automation** adds two independent
+**Settings / Integrations / GitHub / Pull request automation** adds two independent
 flags, both off by default: **Fix broken CI** reruns a failed GitHub Actions job
 at most twice when GitHub Status is healthy and the job log shows a transient
 cause (an external HTTP 5xx or network error), and **Automatic conflict

@@ -1,6 +1,6 @@
 # Voice dictation
 
-Technical reference for **Settings / Voice dictation**. The app shows a short summary;
+Technical reference for **Settings / Interface / Voice dictation**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Local voice dictation (page help)

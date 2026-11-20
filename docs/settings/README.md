@@ -4,10 +4,14 @@ The desktop Settings pages keep their on-screen text short. These pages hold the
 behavior, limits and safeguards behind each setting. The [design rules](../design.md) describe how
 Settings presents them; the linked architecture contracts remain authoritative for implementation.
 
+The rail has 7 groups and 28 entries. Integrations and Interface are single rail
+entries whose pages are tabs; see [Settings rail structure](../design.md#settings-rail-structure).
+
 ## General
 
 - [General](general.md)
 - [Repositories](repositories.md)
+- [Project](project.md)
 
 ## Models
 
@@ -18,8 +22,10 @@ Settings presents them; the linked architecture contracts remain authoritative f
 
 ## Integrations
 
-- [GitHub workflows](github-workflows.md)
-- [Linear workflows](linear-workflows.md)
+One rail entry with a tab per integration. Each tab shows its status.
+
+- [GitHub](github-workflows.md) (previously "GitHub workflows")
+- [Linear](linear-workflows.md) (previously "Linear workflows")
 - [MCP gateway](mcp-gateway.md)
 - [sql-not-so-lite](sql-not-so-lite.md)
 - [Stainless](stainless.md)
@@ -54,13 +60,12 @@ Settings presents them; the linked architecture contracts remain authoritative f
 - [Knowledge tiers](knowledge-tiers.md)
 - [Repository memory](repository-memory.md)
 
-## Per-project configuration
+## Interface
 
-- [Project](project.md)
-
-## Appearance, voice and accessibility
+One rail entry with a tab per page. Previously four groups (Appearance, Voice,
+Accessibility, Notifications).
 
 - [Appearance](appearance.md)
-- [Voice dictation](voice-dictation.md)
 - [Keyboard shortcuts](keyboard-shortcuts.md)
+- [Voice dictation](voice-dictation.md)
 - [Notifications](notifications.md)

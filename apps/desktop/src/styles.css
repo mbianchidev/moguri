@@ -1033,6 +1033,11 @@ summary:hover { color: var(--text); }
 .settings-search input { width: 100%; min-width: 0; min-height: 34px; font-size: var(--font-size-sm); }
 .settings-category h2 { margin: var(--space-4) var(--space-2-5) var(--space-1); color: var(--muted); font-size: var(--font-size-xs); font-weight: 650; }
 .settings-category button { display: block; width: 100%; }
+.settings-category-tabbed { margin-top: var(--space-3); }
+.settings-tabs { flex-wrap: wrap; margin-bottom: var(--space-4); }
+.settings-tabs [role="tab"] { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-0); text-align: left; }
+.settings-tab-status { color: var(--muted); font-size: var(--font-size-xs); }
+.settings-tabs [aria-selected="true"] .settings-tab-status { color: inherit; }
 .settings-search-empty { color: var(--muted); font-size: var(--font-size-sm); padding: 0 var(--space-2-5); line-height: 1.65; }
 .shortcut-map kbd { margin-left: 0; }
 .theme-color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 0 var(--space-4); max-width: 850px; }

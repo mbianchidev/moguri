@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { githubApplicationFixture, githubServiceFixture } from "../github-workflows-fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The hidden native desktop Git checkpoint is qualified on macOS.");
@@ -12,7 +13,7 @@ test("desktop authenticated search uses the exact project account and shows a co
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
+    await openSettingsSection(page, "GitHub");
     await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     await expect(panel.getByLabel("GitHub repository (owner/name)", { exact: true })).toHaveValue("generated-owner/fixture");
@@ -36,7 +37,7 @@ test("desktop exact Git review invalidates edits, separately confirms main push,
     });
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
+    await openSettingsSection(page, "GitHub");
     await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     await expect(panel).toBeVisible();
@@ -82,7 +83,7 @@ test("desktop built-in branch creation, rename and history-preserving rollback u
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "GitHub workflows", exact: true }).click();
+    await openSettingsSection(page, "GitHub");
     await page.getByText("Advanced Git and GitHub operations", { exact: true }).click();
     const panel = page.getByRole("region", { name: "Reviewed Git and GitHub workflows", exact: true });
     const execute = async () => {

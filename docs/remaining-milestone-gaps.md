@@ -109,6 +109,7 @@ not a milestone gate.
 | #81; closes #12 | Optional, off-by-default [Stainless integration](architecture/stainless.md) ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)): Info.plist-only detection, a user-run headless compatibility check, owned headless `playwright` batches with a disposable profile and bounded console/network diagnostics, and Open in Stainless for Local previews across SDK, desktop, TUI and CLI. Stainless has no MCP yet; that is #80. |
 | #78; closed #45/#23 (2026-11-19) | The remaining applicable #45 AST controls with owner-signed exclusions ([D40](architecture/decisions.md#d40-owasp-agentic-skills-top-10-follow-up-45)) and the remaining #23 OTLP scope ([D41](architecture/decisions.md#d41-otlp-logs-credential-headers-and-coverage-23)), both described below. |
 | #86; closes #82 | Protocol 114 Skills and Artifacts tabs next to Automations ([D49](architecture/decisions.md#d49-skills-and-artifacts-workspace-tabs)): skill toggles, digest-bound disabled installs from configured skill sources, built-in toolsets, user- or agent-written script tools, local repeated-task tool suggestions with an off-by-default recurring check, and a metadata-only per-project artifact library linked to each chat. [Contract](architecture/skills-tools-artifacts.md). |
+| #90; closes #84 | Settings rail reduced from 11 groups / 37 entries to 7 groups / 28 ([structure](design.md#settings-rail-structure)). Integrations (GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace) and Interface (Appearance, Keyboard shortcuts, Voice dictation, Notifications) are single rail entries with WAI-ARIA keyboard tabs; integration tabs show text status from already-loaded state. Item ids, deep links, restored layouts, search, save rules and dirty-state blocking are unchanged; no schema change. Covered by `tests/settings-navigation.test.ts` and the hidden `tests/e2e/settings-navigation.spec.ts`. |
 
 Closed #35 keeps its historical exact-artifact scope. Closed #22 is a completed
 Rust feasibility study, not production adoption; #1 is reference material.
@@ -117,13 +118,13 @@ No closed implementation/research issue certifies first-milestone acceptance.
 ## Ordered remaining roadmap
 
 Ordering is triage, not permission to implement or an invented dependency chain.
-Delivered #7/#9/#12/#13/#23/#36/#37/#38/#45/#53/#55/#63/#69/#82 do not reappear as new implementation work.
+Delivered #7/#9/#12/#13/#23/#36/#37/#38/#45/#53/#55/#63/#69/#82/#84 do not reappear as new implementation work.
 #53's audit, visual system and UI/UX polish are recorded in the [design audit](design-audit.md);
 #55 smart compaction is on by default since protocol 110 ([D31 revision](architecture/decisions.md)).
 
 | Order | Actual remaining scope |
 | --- | --- |
-| 1. Everyday UX and existing integrations | #77 app-wide accessibility verification (screen reader, WCAG 2.2 AA, keyboard/focus, physical-display contrast), deferred from #53; #84 fewer Settings sections with integrations as tabs/icons instead of one rail item each. |
+| 1. Everyday UX and existing integrations | #77 app-wide accessibility verification (screen reader, WCAG 2.2 AA, keyboard/focus, physical-display contrast), deferred from #53. |
 | 2. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. The owner chose the MIT license, a hybrid local-build/CI-publish [release process](releasing.md) and a Homebrew cask on 2026-11-19; the repository stays private for now. The cask waits for a published public release, and signing/notarization still needs a decision. |
 | 3. Optional providers and automation | #80 Stainless MCP integration once mbianchidev/stainless#22 ships, #34 Laya, #6 recurring/declarative workflows, #8 dependency roundups, #10 continuous personas, #11 bounded specialized presets, #46 Slack mentions, #85 phone steering over Tailscale Serve (scoped paired gateway and PWA client; `/remote` is already the SSH command), #54 GetMoshi integration and #64 global/repository flags for evidence-gated flaky-CI retries (provider status preflight, bounded attempts) and feature-preserving conflict resolution. Existing one-time schedules, exact-PR CI watches (#52), the reviewed rebase/conflict workflow and reviewed compaction are not those broader features. |
 | 4. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |

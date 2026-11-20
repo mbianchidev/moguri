@@ -1,6 +1,6 @@
 # MCP gateway
 
-Technical reference for **Settings / MCP gateway**. The app shows a short summary;
+Technical reference for **Settings / Integrations / MCP gateway**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Remote MCP access (Remote sessions only)

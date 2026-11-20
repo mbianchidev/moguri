@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedOAuthServer } from "../fixtures/oauth.ts";
-import { openModelChoices } from "./navigation.ts";
+import { openModelChoices, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 test.skip(process.platform !== "darwin", "The desktop alpha is qualified on macOS.");
@@ -73,7 +73,7 @@ test("project-free chats expose scoped suggestions, reviewed metachat and shared
     await page.screenshot({ path: join(artifacts, "engagement-attention-compact.png") });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Notifications", exact: true }).click();
+    await openSettingsSection(page, "Notifications");
     await expect(page.getByLabel("Show in-app attention dots and icons")).toBeChecked();
     await expect(page.getByLabel("Show OS banners when Moguri is in the background")).not.toBeChecked();
     await expect(page.getByLabel("Include session title and message preview in OS banners")).not.toBeChecked();
@@ -93,7 +93,7 @@ test("MCP OAuth UI uses generated explicit consent and clears the connection wit
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "MCP gateway", exact: true }).click();
+    await openSettingsSection(page, "MCP gateway");
     await page.getByLabel("Server", { exact: true }).selectOption("generated-ui-oauth");
     await expect(page.getByRole("button", { name: "Store in keychain", exact: true })).toHaveCount(0);
     const panel = page.getByRole("region", { name: "MCP OAuth", exact: true });

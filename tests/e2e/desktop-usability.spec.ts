@@ -131,7 +131,7 @@ test("toggle and dropdown preferences autosave without committing a pending text
     await categories.getByRole("button", { name: "User guidance", exact: true }).click();
     const guidance = page.getByLabel("Global user guidance", { exact: true });
     await guidance.fill("Generated pending text. Save only when explicitly requested.");
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     await page.getByLabel("Theme", { exact: true }).selectOption("light");
     await expect.poll(() => settings().appearance.theme).toBe("light");
     expect(settings().instructions).toBe("");
@@ -166,8 +166,7 @@ test("a refused autosave preserves the edit and never overwrites another client'
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     fixture.service.controller.dispatch = async (...args: Parameters<typeof dispatch>) => {
       const payload: unknown = args[0];
       if (isRecord(payload) && isRecord(payload.command) && payload.command.type === "settings.update") {
@@ -264,7 +263,7 @@ test("Ctrl+Space starts and finalizes generated local dictation outside the text
     expect(sdk.getState().snapshot?.jobs.filter((job) => job.kind === "voice.capture")).toHaveLength(1);
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await openSettingsSection(page, "Voice dictation");
     await page.getByRole("button", { name: "Record local microphone", exact: true }).click();
     await expect(page.getByRole("status", { name: "Local microphone status", exact: true })).toContainText("recording");
     let received = false;

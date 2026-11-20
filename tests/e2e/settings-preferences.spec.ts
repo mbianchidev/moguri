@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { appearanceColors, colorContrast, MoguriSdk, themePalettes, themeVariable } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Preferences UI is qualified on macOS.");
@@ -54,7 +55,7 @@ test("named and custom palettes update actual elements and reject unreadable cus
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     const palette = page.getByLabel("Color palette", { exact: true });
     await palette.selectOption("ocean");
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())).toBe("#a7cfea");
@@ -85,7 +86,7 @@ test("the complete shared preset catalogue colors real desktop controls in both 
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     const palette = page.getByLabel("Color palette", { exact: true }), mode = page.getByLabel("Theme", { exact: true });
     expect(await palette.locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(themePalettes.map((entry) => entry.id));
     for (const theme of ["light", "dark"] as const) {

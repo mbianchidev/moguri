@@ -131,7 +131,41 @@ Every Settings page follows one anatomy so pages read alike:
 Settings is a full main-pane task surface, with a category rail, persistent save
 state and explicit warning/reset actions. It exposes the shared SDK rather than
 owning capability behavior. Dirty settings survive tab changes and block
-navigation/unmount until saved or explicitly reloaded. JSON editors expose exact
+navigation/unmount until saved or explicitly reloaded.
+
+### Settings rail structure
+
+Decided for [#84](https://github.com/mbianchidev/moguri/issues/84): the rail has
+**7 groups and 28 entries**, down from 11 groups and 37 entries.
+
+| Group | Rail entries |
+| --- | --- |
+| General | General, Repositories, Project |
+| Models | Providers, Local models, Kupo routing, Decision providers |
+| Integrations | One **Integrations** entry with tabs: GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace |
+| Execution & permissions | Guardrails, Sandbox, Remote SSH, Subagents, Scripts, Lifecycle hooks, Dependency cache |
+| Sessions | Startup defaults, Confirmations, Retention, Context compaction, Budgets, Artifacts, Candidates |
+| Instructions | User guidance, System prompt, Skills, Knowledge tiers, Repository memory |
+| Interface | One **Interface** entry with tabs: Appearance, Keyboard shortcuts, Voice dictation, Notifications |
+
+- A tabbed group is a single rail entry with no heading of its own. It reopens
+  the tab you last used in it, or its first tab.
+- New integrations add a tab, never a rail entry.
+- Tabs follow the WAI-ARIA tabs pattern: Left/Right arrows wrap, Home/End jump,
+  selection follows focus, one tab is in the tab order and focus is visible.
+  Each tab's accessible name is its text label; icons are never the only cue.
+- Integration tabs show their state as text under the name, exposed as the tab's
+  accessible description. The text comes only from state that's already loaded:
+  saved settings (MCP servers, sql-not-so-lite, Stainless), installed plugins and
+  marketplace bundles, the Linear key in the keychain, and the GitHub account once
+  the GitHub tab has checked it ("Not checked" until then). It never starts a
+  network check by itself.
+- Navigation only: tabs change no setting's behavior, scope, default or save rule.
+  An unsaved edit blocks tab and rail changes alike.
+- Item ids (`github`, `appearance` and so on) are the stable deep-link targets for
+  `openSettings`, policy hints and restored layouts; no persisted navigation
+  state changed. Search still matches every item: while you search, a tabbed
+  group lists its matching items, and choosing one opens that group and tab. JSON editors expose exact
 permissions/MCP configuration during this alpha. Model-weight download requires
 its own user acceptance, separate from recording or transcript insertion.
 

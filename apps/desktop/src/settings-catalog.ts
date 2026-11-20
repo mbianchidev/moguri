@@ -1,9 +1,12 @@
 import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
 
+// Rail groups (docs/settings/README.md). A tabbed group is one rail entry whose items are WAI-ARIA tabs. Item ids are
+// stable deep-link targets: openSettings, policy hints and restored layouts address items, never rail positions.
 export const SETTINGS_GROUPS = [
   { label: "General", items: [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart OpenTelemetry OTLP collector metadata export sampling" },
     { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization", aliases: ["workspace folder sync trust"] },
+    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides", aliases: ["fix broken CI automatic conflict resolution override"] },
   ] },
   { label: "Models", items: [
     { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection OpenRouter Anthropic OpenAI ChatGPT Claude Codex", aliases: ["chat topic naming", "small local naming model"] },
@@ -11,9 +14,9 @@ export const SETTINGS_GROUPS = [
     { id: "kupo", label: "Kupo routing", keywords: "automatic configured capabilities single cascade critique classifier solver" },
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },
   ] },
-  { label: "Integrations", items: [
-    { id: "github", label: "GitHub workflows", keywords: "GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions", "pull request automation fix broken CI rerun flaky jobs", "automatic conflict resolution repository exceptions"] },
-    { id: "linear", label: "Linear workflows", keywords: "login team API key tickets" },
+  { label: "Integrations", tabbed: true, items: [
+    { id: "github", label: "GitHub", keywords: "workflows GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions", "pull request automation fix broken CI rerun flaky jobs", "automatic conflict resolution repository exceptions"] },
+    { id: "linear", label: "Linear", keywords: "workflows login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },
     { id: "stainless", label: "Stainless", keywords: "browser preview headless playwright chromium" },
@@ -45,27 +48,24 @@ export const SETTINGS_GROUPS = [
     { id: "knowledge", label: "Knowledge tiers", keywords: "Sky Terra Glacier instructions" },
     { id: "memory", label: "Repository memory", keywords: "index vectors context snippets symbols" },
   ] },
-  { label: "Per-project configuration", items: [
-    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides", aliases: ["fix broken CI automatic conflict resolution override"] },
-  ] },
-  { label: "Appearance", items: [
+  { label: "Interface", tabbed: true, items: [
     { id: "appearance", label: "Appearance", keywords: "theme light dark mode system palettes custom colors contrast" },
-  ] },
-  { label: "Voice", items: [
-    { id: "voice", label: "Voice dictation", keywords: "microphone input device shortcut push to talk speech transcription language backend" },
-  ] },
-  { label: "Accessibility", items: [
     { id: "accessibility", label: "Keyboard shortcuts", keywords: "keybindings mapping remap actions accessibility" },
-  ] },
-  { label: "Notifications", items: [
+    { id: "voice", label: "Voice dictation", keywords: "microphone input device shortcut push to talk speech transcription language backend" },
     { id: "notifications", label: "Notifications", keywords: "sound needs input completed custom audio desktop banners attention" },
   ] },
 ] as const;
 
 export type SettingsTab = typeof SETTINGS_GROUPS[number]["items"][number]["id"];
+export type SettingsGroup = typeof SETTINGS_GROUPS[number];
+
+export const settingsGroupOf = (tab: SettingsTab): SettingsGroup => SETTINGS_GROUPS.find((group) => group.items.some((item) => item.id === tab))!;
+export const isTabbedGroup = (group: { label: string }): boolean => "tabbed" in (SETTINGS_GROUPS.find((value) => value.label === group.label) ?? {});
+/** Rail entries without a search: one per ordinary item, one per tabbed group. */
+export const settingsRailEntries = () => SETTINGS_GROUPS.flatMap((group) => "tabbed" in group ? [group.label] : group.items.map((item) => item.label));
 
 export function searchSettings(query: string) {
-  return SETTINGS_GROUPS.map((group) => ({ label: group.label, items: group.items.filter((item) => {
+  return SETTINGS_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => {
     const text = query.replace(/[_-]/g, " ");
     return fuzzyMatch(text, `${group.label} ${item.label} ${item.keywords}`) ||
       "aliases" in item && item.aliases.some((alias) => fuzzyMatch(text, `${group.label} ${alias}`));

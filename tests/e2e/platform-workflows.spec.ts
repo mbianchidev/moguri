@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { MoguriSdk, PROTOCOL_VERSION } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden Electron workflow acceptance uses the macOS runtime.");
@@ -68,7 +69,7 @@ test("desktop reviews knowledge promotion, actual hook approval, repository mark
     expect(JSON.stringify(fixture.requests)).not.toContain("generated UI hook proof");
 
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await navigation.getByRole("button", { name: "Marketplace", exact: true }).click();
+    await openSettingsSection(page, "Marketplace");
     const market = page.getByRole("region", { name: "Repository marketplace", exact: true });
     await market.getByLabel("Catalog commit SHA", { exact: true }).fill(commit);
     await market.getByRole("button", { name: "Read catalog", exact: true }).click();

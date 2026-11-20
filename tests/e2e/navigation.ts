@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { kanbanPreferences, type MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { SETTINGS_GROUPS } from "../../apps/desktop/src/settings-catalog.ts";
 
 export async function waitForWorkspace(page: Page) {
   await expect(page.getByRole("navigation", { name: "Projects and sessions", exact: true })).toBeVisible();
@@ -35,10 +36,18 @@ export async function chooseContextWindow(page: Page, name: string) {
   await page.getByRole("menu", { name: "Working context window", exact: true }).getByRole("menuitemradio", { name, exact: true }).click();
 }
 
+// Opens a Settings item by its label: a rail entry, or a tab inside a tabbed rail entry such as Integrations (#84).
+// Tabs are reached through search, so a test mounts only its target page, never the group's first tab.
 export async function openSettingsSection(page: Page, section: string) {
   const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
   if (!await categories.isVisible()) await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await categories.getByRole("button", { name: section, exact: true }).click();
+  const group = SETTINGS_GROUPS.find((value) => "tabbed" in value && value.items.some((item) => item.label === section));
+  if (!group) { await categories.getByRole("button", { name: section, exact: true }).click(); return; }
+  const search = page.getByLabel("Search settings", { exact: true }), previous = await search.inputValue();
+  await search.fill(section);
+  await categories.getByRole("region", { name: `${group.label} settings`, exact: true }).getByRole("button", { name: section, exact: true }).click();
+  await search.fill(previous);
+  await expect(page.getByRole("tablist", { name: group.label, exact: true }).getByRole("tab", { name: section, exact: true })).toHaveAttribute("aria-selected", "true");
 }
 
 export async function openUsageDetails(page: Page) {

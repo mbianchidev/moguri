@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { setupFixture } from "../fixture.ts";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { focusByKeyboard, waitForWorkspace } from "./navigation.ts";
+import { focusByKeyboard, waitForWorkspace, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The desktop experience is qualified on macOS.");
@@ -67,7 +67,7 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
     });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     const info = page.getByRole("button", { name: "About appearance", exact: true });
     await focusByKeyboard(info);
     await expect(page.getByRole("tooltip")).toContainText("default theme");
@@ -114,7 +114,7 @@ test("clicked icon tooltips leave with the pointer without stealing focus or bre
     const outside = page.getByRole("heading", { name: "Settings", exact: true });
     await outside.hover(); await expect(page.getByRole("tooltip")).toHaveCount(0);
     const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     const info = page.getByRole("button", { name: "About appearance", exact: true });
     await info.click(); await expect(page.getByRole("tooltip")).toContainText("default theme");
     await expect(info).toBeFocused();
@@ -222,7 +222,7 @@ test("cancelling skill discovery stops its download and releases the settings na
     await gateway.getByRole("button", { name: "Cancel lookup", exact: true }).click();
     await expect.poll(() => stopped).toBe(true);
     await expect(gateway.getByRole("alert")).toContainText("cancelled");
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     await expect(page.getByLabel("Theme", { exact: true })).toBeVisible();
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }

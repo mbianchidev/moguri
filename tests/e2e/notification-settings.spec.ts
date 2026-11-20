@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { audioBase64, defaultNotificationWav, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop settings qualification is macOS-only.");
@@ -19,7 +20,7 @@ test("explicit sound snapshots, separate auto-saved event choices and native pre
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Notifications", exact: true }).click();
+    await openSettingsSection(page, "Notifications");
     await expect(page.getByLabel("Play application sounds while Moguri is focused", { exact: true })).toBeChecked();
     await page.getByRole("button", { name: "Import notification sound", exact: true }).click();
     await expect.poll(() => sdk.notifications.list().length).toBe(1);

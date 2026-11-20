@@ -1,6 +1,6 @@
 # sql-not-so-lite
 
-Technical reference for **Settings / sql-not-so-lite**. The app shows a short summary;
+Technical reference for **Settings / Integrations / sql-not-so-lite**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Page help

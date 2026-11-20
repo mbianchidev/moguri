@@ -45,7 +45,7 @@ function CapabilityRow({ sdk, snapshot, entry, label }: { sdk: MoguriSdk; snapsh
     <div><strong>{entry.name}</strong><small>{entry.description}</small>
       <code>{originLabel(entry)} / {scopeLabel(snapshot, entry.projectId)} / {entry.contentDigest.slice(0, 12)}</code>
       {entry.retired && <small>Removed from its bundle. Install or roll back the whole bundle to use it again.</small>}
-      {pluginOff && !entry.enabled && <small>Turn on its plugin in Settings / Plugins first.</small>}
+      {pluginOff && !entry.enabled && <small>Turn on its plugin in Settings / Integrations / Plugins first.</small>}
       {source !== null && <pre className="skills-source" aria-label={`${entry.name} source`}>{source}</pre>}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}</div>
     <button type="button" disabled={busy} aria-expanded={source !== null} onClick={() => source !== null ? setSource(null) :

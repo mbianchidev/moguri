@@ -1,6 +1,6 @@
 # GitHub workflows
 
-Technical reference for **Settings / GitHub workflows**. The app shows a short summary;
+Technical reference for **Settings / Integrations / GitHub**. The app shows a short summary;
 this page keeps the full detail.
 
 ## GitHub integration

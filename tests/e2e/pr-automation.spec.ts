@@ -21,7 +21,7 @@ test("automation defaults save immediately, list repository exceptions and open 
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await openSettingsSection(page, "GitHub workflows");
+    await openSettingsSection(page, "GitHub");
     const section = page.getByRole("region", { name: "Pull request automation", exact: true });
     const ci = section.getByRole("switch", { name: "Fix broken CI", exact: true });
     await expect(ci).not.toBeChecked();
@@ -45,7 +45,7 @@ test("automation defaults save immediately, list repository exceptions and open 
     await expect.poll(() => Object.hasOwn(repo(), "conflictResolution")).toBe(false);
     await expect(page.getByRole("status").filter({ hasText: "Now: Off (global default)" })).toHaveCount(1);
 
-    await openSettingsSection(page, "GitHub workflows");
+    await openSettingsSection(page, "GitHub");
     await expect(exceptions.getByRole("listitem")).toHaveCount(1);
     await expect(exceptions).toContainText("Fix broken CI off (default is on)");
     await section.getByRole("switch", { name: "Fix broken CI", exact: true }).uncheck();

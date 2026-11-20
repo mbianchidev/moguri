@@ -3,7 +3,9 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { settingsRailEntries } from "../../apps/desktop/src/settings-catalog.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop settings are qualified on macOS.");
@@ -44,7 +46,7 @@ test("left global resources and the eight right session panels remain separate w
     await categories.getByRole("button", { name: "User guidance", exact: true }).click();
     await page.getByLabel("Global user guidance", { exact: true }).fill("Generated unsaved settings guidance.");
     await search.fill("theme");
-    await categories.getByRole("button", { name: "Appearance", exact: true }).click();
+    await openSettingsSection(page, "Appearance");
     await page.getByLabel("Theme", { exact: true }).selectOption("light");
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.appearance.theme).toBe("light");
     expect(fixture.service.controller.snapshot().settings.values.instructions).toBe("");
@@ -110,4 +112,81 @@ test("legacy global preferences restore without losing widths and an attached PR
     await page.screenshot({ path: ".moguri/artifacts/desktop-sidebar-placement.png", animations: "disabled" });
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
+});
+
+test("Integrations and Interface are single rail entries whose keyboard tabs keep deep links, search hits, status and unsaved edits", async () => {
+  const fixture = await setupFixture();
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), failures: string[] = [];
+    page.on("pageerror", (error) => failures.push(error.message));
+    // Deep link from another surface: Skills / Marketplace opens the Marketplace tab inside Integrations.
+    await page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button", { name: "Skills", exact: true }).click();
+    const workspace = page.getByRole("region", { name: "Skills and tools", exact: true });
+    await workspace.getByRole("tab", { name: "Marketplace", exact: true }).click();
+    await workspace.getByRole("button", { name: "repository marketplace", exact: true }).click();
+    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
+    await expect(categories.getByRole("button")).toHaveText([...settingsRailEntries(), "Restore all defaults"]);
+    await expect(categories.getByRole("heading", { level: 2 })).toHaveText(["General", "Models", "Execution & permissions", "Sessions", "Instructions"]);
+    await expect(categories.getByRole("button", { name: "Integrations", exact: true })).toHaveAttribute("aria-current", "page");
+    const integrations = page.getByRole("tablist", { name: "Integrations", exact: true });
+    await expect(integrations.getByRole("tab")).toHaveCount(7);
+    for (const [name, status] of [["GitHub", "Not checked"], ["MCP gateway", "None enabled"], ["sql-not-so-lite", "Off"], ["Stainless", "Off"],
+      ["Plugins", "None enabled"], ["Marketplace", "None installed"]] as const) {
+      await expect(integrations.getByRole("tab", { name, exact: true })).toHaveAccessibleDescription(status);
+    }
+    await expect(integrations.getByRole("tab", { name: "Linear", exact: true })).toHaveAccessibleDescription("Not connected");
+    await expect(integrations.getByRole("tab", { name: "Marketplace", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel", { name: "Marketplace", exact: true })).toBeVisible();
+
+    // Unsaved integration edits block every tab and rail change, then switching works again.
+    const linear = integrations.getByRole("tab", { name: "Linear", exact: true });
+    await linear.click();
+    await page.getByLabel("Linear personal API key", { exact: true }).fill("generated-unsaved-linear-key");
+    await integrations.getByRole("tab", { name: "MCP gateway", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Save or reload this settings edit before changing sections." })).toBeVisible();
+    await linear.focus(); await page.keyboard.press("ArrowRight");
+    await expect(linear).toHaveAttribute("aria-selected", "true"); await expect(linear).toBeFocused();
+    await categories.getByRole("button", { name: "Interface", exact: true }).click();
+    await expect(linear).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel("Linear personal API key", { exact: true })).toHaveValue("generated-unsaved-linear-key");
+    await page.getByLabel("Linear personal API key", { exact: true }).fill("");
+    await integrations.getByRole("tab", { name: "MCP gateway", exact: true }).click();
+    await expect(page.getByRole("tabpanel", { name: "MCP gateway", exact: true })).toBeVisible();
+
+    // WAI-ARIA tabs keyboard pattern with wrap-around, roving tabindex and visible focus.
+    await categories.getByRole("button", { name: "Interface", exact: true }).click();
+    const ui = page.getByRole("tablist", { name: "Interface", exact: true });
+    await expect(ui.getByRole("tab")).toHaveText(["Appearance", "Keyboard shortcuts", "Voice dictation", "Notifications"]);
+    const tab = (name: string) => ui.getByRole("tab", { name, exact: true });
+    await tab("Appearance").focus();
+    for (const [key, name] of [["ArrowRight", "Keyboard shortcuts"], ["End", "Notifications"], ["Home", "Appearance"], ["ArrowLeft", "Notifications"]] as const) {
+      await page.keyboard.press(key);
+      await expect(tab(name)).toHaveAttribute("aria-selected", "true"); await expect(tab(name)).toBeFocused();
+      expect(await tab(name).evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+      await expect(ui.locator('[role="tab"][tabindex="0"]')).toHaveCount(1);
+    }
+    await expect(page.getByRole("tabpanel", { name: "Notifications", exact: true })).toBeVisible();
+    // The rail returns to each tabbed entry's last tab.
+    await categories.getByRole("button", { name: "Budgets", exact: true }).click();
+    await categories.getByRole("button", { name: "Interface", exact: true }).click();
+    await expect(tab("Notifications")).toHaveAttribute("aria-selected", "true");
+    await categories.getByRole("button", { name: "Integrations", exact: true }).click();
+    await expect(integrations.getByRole("tab", { name: "MCP gateway", exact: true })).toHaveAttribute("aria-selected", "true");
+
+    // A search hit inside a tabbed group opens that group and tab.
+    const search = page.getByLabel("Search settings", { exact: true });
+    await search.fill("push to talk");
+    await categories.getByRole("region", { name: "Interface settings", exact: true }).getByRole("button", { name: "Voice dictation", exact: true }).click();
+    await search.fill("");
+    await expect(tab("Voice dictation")).toHaveAttribute("aria-selected", "true");
+    await expect(categories.getByRole("button", { name: "Interface", exact: true })).toHaveAttribute("aria-current", "page");
+    expect(fixture.requests.length).toBe(0);
+    expect(failures).toEqual([]);
+  } finally {
+    await app.close(); await fixture.close();
+  }
 });

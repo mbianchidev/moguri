@@ -1,6 +1,6 @@
 # Appearance
 
-Technical reference for **Settings / Appearance**. The app shows a short summary;
+Technical reference for **Settings / Interface / Appearance**. The app shows a short summary;
 this page keeps the full detail.
 
 ## Appearance (page help)
