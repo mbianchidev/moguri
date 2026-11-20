@@ -62,6 +62,7 @@ test("Settings cancel preserves a partial destination and original service-owned
     await expect.poll(source.held).toBe(true);
     await page.getByRole("button", { name: "Cancel repository import", exact: true }).click();
     await expect(page.getByRole("region", { name: "Repository import results", exact: true }).getByRole("status")).toContainText("partial:");
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     const batch = f.service.controller.snapshot().repositoryImports[0]!, requests = source.requests();
     expect(await realpath(batch.items[0]!.path)).toBe(batch.items[0]!.path);
     await page.reload(); await openSettingsSection(page, "Repositories");

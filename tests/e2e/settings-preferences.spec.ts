@@ -110,10 +110,11 @@ test("the complete shared preset catalogue colors real desktop controls in both 
       }
     }
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
-    await expect.poll(() => sdk.settings.get()?.values.appearance.palette).toBe("crystal");
-    await page.screenshot({ path: info.outputPath("shared-crystal-theme.png") });
+    const last = themePalettes.filter((entry) => entry.id !== "custom").at(-1)!.id;
+    await expect.poll(() => sdk.settings.get()?.values.appearance.palette).toBe(last);
+    await page.screenshot({ path: info.outputPath(`shared-${last}-theme.png`) });
     await page.reload();
-    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim())).toBe("#0b1536");
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim())).toBe(appearanceColors({ theme: "dark", palette: last }, "dark").canvas);
     expect(errors).toEqual([]); expect(fixture.requests.length).toBe(0);
   } finally { await close(app); sdk.disconnect(); await fixture.close(); }
 });
