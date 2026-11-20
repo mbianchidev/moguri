@@ -4,7 +4,7 @@ import { UPDATE_TOKEN_CREATION_URL, UPDATE_TOKEN_GUIDANCE, type MoguriSdk, type 
 import { Alert } from "./Alert.tsx";
 
 const UPDATE_CREDENTIAL_LABELS: Record<UpdateStatus["credential"], string> = {
-  unobserved: "not checked", configured: "saved", missing: "not set", failed: "couldn't be read",
+  unobserved: "not checked", configured: "saved", missing: "none, using public releases", failed: "couldn't be read",
 };
 
 export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMaintenance }: {
@@ -26,15 +26,15 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
     finally { setBusy(false); }
   };
   const operation = status?.operation, owned = Boolean(operation && ["checking", "downloading", "cancelling", "installing"].includes(operation.status));
-  return <section aria-label="Private application updates"><SettingsHelp label="More about this setting" target={<h3>Private GitHub updates</h3>}>Updates come from mbianchidev/moguri and use their own GitHub token, separate from Copilot and the GitHub CLI. Use a fine-grained token with read-only Contents access to that repository.</SettingsHelp>
+  return <section aria-label="Application updates"><SettingsHelp label="More about this setting" target={<h3>GitHub updates</h3>}>Updates come from the public mbianchidev/moguri releases and need no token. While that repository is private, or to raise GitHub's rate limit, save a fine-grained token with read-only Contents access. It stays separate from Copilot and the GitHub CLI.</SettingsHelp>
     <button type="button" disabled={busy} aria-describedby={setupDescription} onClick={() => void run(async () => { await window.moguri.openExternal(UPDATE_TOKEN_CREATION_URL); })}>Set up read-only update access</button>
-    <p id={setupDescription} className="fine-print">Opens GitHub with read-only Contents access prefilled. Under Repository access, choose Only select repositories, then moguri.</p>
+    <p id={setupDescription} className="fine-print">Optional. Opens GitHub with read-only Contents access prefilled. Under Repository access, choose Only select repositories, then moguri.</p>
     <details className="update-token-help"><summary>Create a token with the right permissions</summary><ol>{UPDATE_TOKEN_GUIDANCE.map((step) => <li key={step}>{step}</li>)}</ol></details>
     <p className="fine-print">Version: {status?.currentVersion ?? "checking..."} · Update token: {UPDATE_CREDENTIAL_LABELS[status?.credential ?? "unobserved"]}</p>
-    <label className="setting-field">Private release PAT<SettingsInput type="password" aria-label="Private release PAT" autoComplete="off" value={token} disabled={disabled || busy || owned} onChange={(event) => setToken(event.target.value)} /></label>
+    <label className="setting-field">Release access token (optional)<SettingsInput type="password" aria-label="Release access token" autoComplete="off" value={token} disabled={disabled || busy || owned} onChange={(event) => setToken(event.target.value)} /></label>
     <div className="button-row"><button type="button" disabled={disabled || busy || owned || !token} onClick={() => void run(async () => {
       await sdk.application.updates.setToken(token); setToken(""); setStatus((await sdk.application.updates.status()).update);
-    })} aria-label="Store private release PAT">Store</button>
+    })} aria-label="Store release access token">Store</button>
       <button type="button" disabled={disabled || busy || owned || Boolean(token)} onClick={() => void run(async () => { setStatus((await sdk.application.updates.credential()).update); })} aria-label="Inspect updater credential">Inspect</button>
       <SettingsAction label="Remove updater credential" icon="Trash" disabled={disabled || busy || owned} onClick={() => void run(async () => { await sdk.application.updates.setToken(null); setToken(""); setStatus((await sdk.application.updates.status()).update); })} />
       <button type="button" disabled={busy || !token} onClick={() => setToken("")} aria-label="Discard token edit">Discard</button></div>

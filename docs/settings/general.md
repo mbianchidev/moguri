@@ -35,7 +35,9 @@ this page keeps the full detail.
 - Automatic checks run at app startup and every four hours, and successful checks download and stage
   (verify) the update. Previous label: "Automatically check and stage updates at app startup and every four
   hours".
-- Checks need the separate private-release credential (the update PAT), not a provider login.
+- Checks read the public `mbianchidev/moguri` GitHub Releases without a token. They contact only
+  `api.github.com` and GitHub's release download host, and send no account, project or usage data. When an
+  optional update token is saved, checks use it instead. Checks never use a provider login.
 - Installation and restart always require explicit user confirmation.
 - Turning automatic checks off affects future checks only; a download that is already in progress continues
   under its existing operation.
@@ -84,19 +86,29 @@ this page keeps the full detail.
   1500 ms deadline and a single attempt.
 - If the status cannot be read from the owning service, no other destination or provider is substituted.
 
-## Private GitHub updates
+## GitHub updates
 
-- The update source is fixed to the `mbianchidev/moguri` repository.
-- The updater uses its own GitHub PAT, stored in the secure updater credential backend and owned by the
-  whole store (shared by all profiles). It never uses Copilot sign-in or the GitHub CLI account, and no
-  credential read is inferred from a provider login.
+Previously titled "Private GitHub updates".
+
+- The update source is fixed to the upstream `mbianchidev/moguri` repository, also for builds from a fork.
+- No token is needed for public releases: without one, the updater reads releases anonymously and applies the
+  same manifest, size, SHA-512 and bundle checks.
+- **Release access token (optional)**, previously "Private release PAT": needed only while the repository is
+  private, or to raise GitHub's anonymous rate limit of 60 requests an hour (one check uses four). It is
+  stored in the secure updater credential backend and owned by the whole store (shared by all profiles). It
+  never uses Copilot sign-in or the GitHub CLI account, and no credential read is inferred from a provider
+  login.
+- A saved token is always used. If it can't be read, or GitHub rejects it, the check fails rather than
+  silently retrying without it. Remove the token to go back to public releases.
+- Anonymous checks of a private repository fail with "Public Moguri releases aren't reachable without a
+  token"; a rate-limited check says so and downloads nothing.
 - Prefer a fine-grained token limited to this repository with Contents read-only access.
 - "Set up read-only update access" opens GitHub only when clicked. The link prefills resource owner
   `mbianchidev`, Contents: Read-only and a 30-day expiration. GitHub cannot preselect the repository: choose
   Only select repositories, then `moguri`. You review repository access and generate the token yourself.
   Never select or grant access to all repositories for updates.
 - Status line: "Running build" is the current app version; "Update token" is the credential state
-  (`unobserved`, `configured`, `missing` or `failed`).
+  (`unobserved`, `configured`, `missing` or `failed`). `missing` is shown as "none, using public releases".
 - macOS trust: updates do not require Apple signing. The integrity and repository checks Moguri performs are
   not notarization and not an independent signing trust root. Moguri keeps the quarantine attribute and never
   bypasses Gatekeeper or other OS warnings. Downloading and staging an update does not execute new code.

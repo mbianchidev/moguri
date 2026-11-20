@@ -77,7 +77,7 @@ test("contextual settings actions use short captions while retaining their preci
   try {
     const page = await app.firstWindow();
     const actions = [
-      ["General", "Store private release PAT", "Store"],
+      ["General", "Store release access token", "Store"],
       ["General", "Inspect updater credential", "Inspect"],
       ["General", "Check for updates now", "Check"],
       ["GitHub workflows", "Verify GitHub CLI account", "Verify"],

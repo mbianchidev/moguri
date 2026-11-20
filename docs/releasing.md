@@ -166,8 +166,9 @@ disposable `HOME`. Lint the entrypoint and workflow with
   limit blocks them, as it has for `main` CI since before Milestone 1. Until
   it is fixed, the main CI gate and the Release workflow fail, so nothing can
   publish.
-- **The repository is private:** the in-app updater needs its own read-only
-  token, and the Homebrew cask cannot download releases.
+- **The repository is private:** the in-app updater needs an optional
+  read-only token until it is public; after that it updates from public
+  releases with no token. The Homebrew cask cannot download releases yet.
 
 ## Homebrew cask
 

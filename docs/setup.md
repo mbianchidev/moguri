@@ -1445,7 +1445,10 @@ authentication remains explicit. After installing a build containing this fix,
 quit and reopen Moguri so its original background service restarts with the
 corrected environment; existing healthy services are not silently replaced.
 
-**Settings / General / Private GitHub updates / Set up read-only update access**
+**Settings / General / GitHub updates** reads the public `mbianchidev/moguri`
+releases without a token. A token is optional: it is needed only while the
+repository is private, or to raise GitHub's anonymous rate limit.
+**Set up read-only update access**
 opens a prefilled fine-grained-token link only when clicked. **Create a token
 with the right permissions** contains the complete steps:
 resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
@@ -1454,7 +1457,7 @@ supported URL parameters cannot preselect the repository: explicitly choose
 **Only select repositories / moguri** and finish authorization yourself. The
 update source stays `mbianchidev/moguri`, not the project currently being viewed.
 The updater needs no write, Workflows, Actions or administration permissions. Paste the token only
-into **Private release PAT**, never chat. `/updates token-help` exposes the same
+into **Release access token**, never chat. `/updates token-help` exposes the same
 guidance in TUI/CLI. See the [workflow contract](architecture/session-github-workflows.md).
 
 ## Automatic Kupo
@@ -4238,14 +4241,19 @@ create a real menu-bar item. Its menu lists open chats grouped by project with
 Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
 in **Settings / Keyboard shortcuts**), Settings and Quit.
 
-**Settings / General / Private GitHub updates** uses a separate PAT stored in the
-secure secret backend. It is not Copilot sign-in or `gh` authentication. Prefer
-a fine-grained token limited to `mbianchidev/moguri` with Contents read access.
+**Settings / General / GitHub updates** checks the upstream `mbianchidev/moguri`
+releases. Without a saved token it reads public releases anonymously, contacting
+only `api.github.com` and GitHub's release download host. The optional token is
+stored in the secure secret backend and is needed only while the repository is
+private or to raise the rate limit. It is not Copilot sign-in or `gh`
+authentication. Prefer a fine-grained token limited to `mbianchidev/moguri` with
+Contents read access.
 The password field has its own Save; the automatic-check toggle never commits a
 pending token. By default the running desktop checks at startup and every four
 hours, verifies and stages newer eligible releases, and announces availability.
-Without a configured PAT the actual missing-credential status is shown; another
-account/provider is never tried.
+A saved token is always used; if it can't be read or is rejected, the check
+fails instead of retrying anonymously, and another account/provider is never
+tried. An anonymous check of a private repository fails and asks for a token.
 
 Apple signing is not a prerequisite. Ad-hoc/unsigned integrity checks are not
 notarization or independent publisher signing: updates trust the exact configured
@@ -4262,7 +4270,7 @@ bundle must verify its retained version/digest. Inspect the retained journal/
 backup after failure instead of deleting state or bypassing Gatekeeper.
 
 CLI `updates status`, `history`, `read ID`, `check`, `cancel ID`, and
-`install-preview ID` share the SDK. `updates token` accepts the separate PAT only
+`install-preview ID` share the SDK. `updates token` accepts the optional token only
 through piped stdin; `updates clear-token` removes it. TUI `/updates` supports
 inspection/check/cancel, never credentials or application replacement. Packaging
 emits `Moguri-VERSION-macos-arm64.zip` and the matching `.manifest.json`; both

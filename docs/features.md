@@ -687,3 +687,9 @@ for older builds.
 CI runs only on pushes to `main`, not pull requests or feature branches.
 The explicit 30-minute cap is removed; GitHub-hosted jobs still have the
 [platform's six-hour limit](https://docs.github.com/en/actions/reference/limits).
+
+The in-app updater follows the upstream `mbianchidev/moguri` GitHub Releases.
+Public releases are checked, verified and staged without a token, so once the
+repository is public, packaged apps update automatically, and installs still
+wait for your confirmation. An optional read-only token covers the private
+period and GitHub's rate limit; see [GitHub updates](settings/general.md#github-updates).

@@ -36,7 +36,7 @@ export function releaseNotes({ version, previous, commit, changes }) {
     "",
     "## Upgrade",
     "",
-    "- **In-app updater:** Settings > General > Private GitHub updates checks this repository's releases with its own read-only token and verifies the ZIP against the integrity manifest before installing.",
+    "- **In-app updater:** Moguri checks this repository's public releases at startup and every four hours, with no token, and verifies the ZIP against the integrity manifest. You confirm the install and restart under Settings > General > GitHub updates.",
     `- **Manually:** quit Moguri, then install the new DMG over the old app.`,
     "- Moguri migrates its local state forward on first start. Migrations are one-way: an older Moguri refuses newer state rather than deleting it, so downgrading is not supported.",
     "",

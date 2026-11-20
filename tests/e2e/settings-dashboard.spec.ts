@@ -241,7 +241,7 @@ test("private update setup exposes supported owner/Contents prefill and disclose
       ipcMain.handle("moguri:open-external", (_event, url: string) => { process.env.MOGURI_GENERATED_UPDATE_URL = url; });
     });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const update = page.getByRole("region", { name: "Private application updates", exact: true });
+    const update = page.getByRole("region", { name: "Application updates", exact: true });
     const setup = update.getByRole("button", { name: "Set up read-only update access", exact: true });
     await expect(setup).toBeVisible();
     await expect(update.getByText(/Opens GitHub with read-only Contents access prefilled/)).toBeVisible();
@@ -252,7 +252,7 @@ test("private update setup exposes supported owner/Contents prefill and disclose
     const url = new URL(opened!);
     expect(url.origin).toBe("https://github.com"); expect(url.pathname).toBe("/settings/personal-access-tokens/new");
     expect(Object.fromEntries(url.searchParams)).toEqual({ name: "Moguri updates", description: "Read Moguri release assets", target_name: "mbianchidev", expires_in: "30", contents: "read" });
-    await expect(update.getByLabel("Private release PAT", { exact: true })).toHaveValue("");
+    await expect(update.getByLabel("Release access token", { exact: true })).toHaveValue("");
     expect(fixture.service.store.events().some((event) => event.event_type === "application.update_recorded")).toBe(false);
     expect(fixture.requests).toHaveLength(0);
   } finally { await close(app); await fixture.close(); }
