@@ -8,9 +8,13 @@ this page keeps the full detail.
 Previously "Review model evaluations and reference prices". Contracts: `docs/architecture/automatic-kupo.md`,
 `docs/architecture/routing.md`, `docs/architecture/model-evidence.md`.
 
-- Balanced can use declared capabilities. Savings and Performance need a current exact-model source
-  review, including frontier or economy classification and API-equivalent reference prices. Unknown is
-  never treated as frontier, cheap, free or independent.
+- Balanced can use declared capabilities. Savings and Performance class each model by a current
+  profile from this section, else by its exact published output API price in Moguri's price table
+  (bundled or refreshed under Budgets): up to $5 per million tokens is economy, $20 or more is frontier
+  and anything between is standard. Execution-host loopback models are economy. An unpriced model without
+  a profile stays unclassed and runs only in Balanced (and Dynamic's Balanced rules). Price is a class
+  signal, not quality. Unknown is never treated as frontier, cheap, free or independent (D55).
+- A profile is still needed for scores, which Cascade pairs require, and overrides the price class.
 - Scores are source-reviewed normalized observations, not Moguri quality guarantees. Comparable Cascade
   models need the same evaluation-set SHA-256. Critique also needs a reviewed independent lineage pair and
   a matching user-defined cost class. Evidence expires within 30 days of observation. No benchmark or

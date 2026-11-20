@@ -9,7 +9,7 @@ import { openSettingsSection } from "./navigation.ts";
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden desktop modes use generated model fixtures.");
 
-test("Kupo offers three real modes instead of effort, keeps unsupported Performance disabled and executes Savings locally", async () => {
+test("Kupo offers four real modes instead of effort, keeps unsupported Performance disabled and executes Savings locally", async () => {
   const fixture = await routedFixture({ configured: false, legacy: false });
   const local = await generatedKupoProfile(fixture.sdk, fixture.solverId, { category: "economy", score: 0.4, price: 0 });
   const frontier = await generatedKupoProfile(fixture.sdk, fixture.modelId, { category: "frontier", score: 0.8, price: 5 });
@@ -25,7 +25,8 @@ test("Kupo offers three real modes instead of effort, keeps unsupported Performa
     await expect(model.getByRole("button", { name: "Thinking effort", exact: true })).toHaveCount(0);
     await model.getByRole("button", { name: "Kupo routing preference", exact: true }).click();
     const modes = page.getByRole("menu", { name: "Kupo routing preference", exact: true });
-    await expect(modes.getByRole("menuitemradio")).toHaveCount(3);
+    await expect(modes.getByRole("menuitemradio")).toHaveCount(4);
+    await expect(modes.getByRole("menuitemradio", { name: "Dynamic", exact: true })).toHaveAttribute("aria-disabled", "false");
     await expect(modes.getByRole("menuitemradio", { name: "Performance", exact: true })).toHaveAttribute("aria-disabled", "true");
     await expect(modes.getByRole("menuitemradio", { name: "Savings", exact: true })).toHaveAttribute("aria-disabled", "false");
     await modes.getByRole("menuitemradio", { name: "Savings", exact: true }).click();

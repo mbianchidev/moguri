@@ -507,7 +507,7 @@ guest; it does not launch a new one or borrow controller hardware. Cancelling
 that query never stops the parent agent/guest.
 
 Kupo's **Routing** preference and **Working context window** are separate
-controls. Balanced/Savings/Performance are not effort levels: the classifier
+controls. Balanced/Savings/Performance/Dynamic are not effort levels: the classifier
 chooses each actual role's supported thinking automatically. Manual
 `/thinking LEVEL` applies only to fixed models; Kupo rejects it without mutation
 or inference. A retained old override stays blocked until explicitly cleared
@@ -717,7 +717,7 @@ are associated. Select an exact association, then **Files**, **Actions** or
 exact-head watch. Account/root/head changes are stale, not silently adopted.
 Reading or watching never approves a review, rerun, push or merge.
 
-The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
+The synthetic dropdown labels Balanced/Savings/Performance/Dynamic **Routing**;
 Kupo has no manual effort selector. A concrete fixed model retains its
 qualified thinking-effort control. Automations now also holds recurring
 automations and declarative workflows (protocol 115, see
@@ -878,17 +878,23 @@ shows why and keeps its Continue button.
 
 ## Kupo modes, evidence and context
 
-Selecting automatic Kupo exposes **Balanced**, **Savings** and **Performance**
-instead of thinking effort. TUI uses **F11**; CLI uses `moguri session kupo-mode
-balanced|savings|performance --session ID`. Fixed models retain their separate
+Selecting automatic Kupo exposes **Balanced**, **Savings**, **Performance** and
+**Dynamic** instead of thinking effort. TUI uses **F11**; CLI uses `moguri session kupo-mode
+balanced|savings|performance|dynamic --session ID`. Fixed models retain their separate
 effort/context controls. Old explicit Single/Compound policies and legacy
 automatic selections are not silently upgraded.
 
 Balanced may use declared capabilities without invented quality scores.
-Savings requires fresh reviewed non-frontier profiles, excludes xhigh/max and
-prefers eligible execution-host local models. Performance requires actual
-xhigh/max transport support and reviewed frontier evidence for substantive work;
-lower-effort aliases or unknown classes cannot qualify it. No hosted API fee
+Savings and Performance class each model by a current reviewed profile, else by
+its exact published output API price (economy up to $5 per million tokens,
+frontier from $20, standard between); execution-host loopback models are
+economy. Savings uses non-frontier models, excludes xhigh/max and prefers local
+models. Performance requires actual xhigh/max transport support and frontier
+models for substantive work; lower-effort aliases or unpriced, unreviewed
+models cannot qualify it. **Dynamic** routes over the Balanced pool and, after
+classification, applies Savings to simple or README/summary/trivial work,
+Performance to complex substantive work and Balanced otherwise, when the chosen
+models qualify; the applied mode appears in Insights / Kupo routing provenance. No hosted API fee
 does not erase tokens, configured rates, unknown accounting or actual costs.
 
 **Settings / Kupo routing / Add model scores and prices**

@@ -220,11 +220,12 @@ actual execution-machine observations separate from endpoint availability and
 capacity estimates. Exact offline version execution needs a separate one-use
 user review; it never starts a model or installs weights.
 
-Automatic **Kupo** exposes Balanced, Savings and Performance as routing modes,
-separate from exact shared role-effort and working-window controls. It selects
-only compatible actual roles within
-the selected boundary; Savings/Performance require reviewed evaluation and
-reference-price profiles, never guessed frontier classes. Bounded Cascade and
+Automatic **Kupo** exposes Balanced, Savings, Performance and Dynamic as routing
+modes, separate from exact shared role-effort and working-window controls. It
+selects only compatible actual roles within the selected boundary;
+Savings/Performance class models by a reviewed profile or their exact published
+API price, never a guessed family, and Dynamic picks one of the three for each
+request. Bounded Cascade and
 Critique retain original role results, and text compaction (on by default,
 following the shared smart compaction setting) preserves readable history and
 source provenance. Finite automatic work uses

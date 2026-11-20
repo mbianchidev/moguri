@@ -698,7 +698,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
           onClick={() => { if (!unavailable) void chooseMode(mode.id); }}><span>{mode.name}<small>{mode.description}</small></span>{session.controls.kupoMode === mode.id && <Icon name="Check" />}</button>
           <InfoTip label={`About ${mode.name} readiness`}>{choice?.reason ?? (modeError || "Readiness is not yet known. No model was admitted.")}</InfoTip></div>;
       })}
-      <p className="fine-print">Balanced, Savings and Performance are routing preferences, not effort levels. Kupo's classifier chooses supported thinking automatically for each role. Context, metered budgets and normal permissions still apply.</p>
+      <p className="fine-print">Modes are routing preferences, not effort levels. Dynamic picks Savings, Balanced or Performance for each request. Kupo's classifier chooses supported thinking for each role. Context, metered budgets and normal permissions still apply.</p>
       {modeError && <Alert as="p" className="inline-error" role="alert">{modeError}</Alert>}
     </ModelSubmenu> : <ModelSubmenu label="Thinking effort" text="Effort" value={current?.thinkingLevels?.length || staleEffort ? effortLabel(effort) : "Provider controlled"}
       open={submenu === "effort"} disabled={locked || !current?.thinkingLevels?.length && !staleEffort} toggle={() => setSubmenu(submenu === "effort" ? null : "effort")} close={() => setSubmenu(null)}>
