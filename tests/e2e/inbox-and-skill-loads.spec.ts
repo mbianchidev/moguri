@@ -39,7 +39,7 @@ test("Inbox follows Dashboard, opens the exact questioning session and lets the 
     const page = await app.firstWindow(); await waitForWorkspace(page);
     await page.getByRole("navigation", { name: "Projects and sessions" }).getByRole("button", { name: "Generated Inbox other", exact: true }).click();
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Skills", "Artifacts"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Customize", "Artifacts"]);
     await expect(page.getByRole("button", { name: "Attention notifications", exact: true })).toHaveCount(0);
     const inboxButton = resources.getByRole("button", { name: "Inbox", exact: true });
     await inboxButton.focus(); await page.keyboard.press("Enter");

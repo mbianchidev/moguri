@@ -25,6 +25,7 @@ const bridge: DesktopBridge = {
   projectLocation: (profileId, projectId, expectedPath, action) => ipcRenderer.invoke("moguri:project-location", profileId, projectId, expectedPath, action),
   sessionLocation: (profileId, sessionId, action) => ipcRenderer.invoke("moguri:session-location", profileId, sessionId, action),
   revealArtifact: (profileId, projectId, path) => ipcRenderer.invoke("moguri:reveal-artifact", profileId, projectId, path),
+  trashArtifacts: (profileId, projectId, paths) => ipcRenderer.invoke("moguri:trash-artifacts", profileId, projectId, paths),
   globalSkillSources: (profileId) => ipcRenderer.invoke("moguri:global-skill-sources", profileId),
   createGlobalSkillFolder: (profileId, id) => ipcRenderer.invoke("moguri:create-global-skill-folder", profileId, id),
   audioPermission: (input) => ipcRenderer.invoke("moguri:audio-permission", input),
@@ -91,6 +92,8 @@ const bridge: DesktopBridge = {
     return () => ipcRenderer.removeListener("moguri:open-settings", receive);
   },
   copyText: (text) => ipcRenderer.invoke("moguri:copy-text", text),
+  unloadBlocked: (reason) => { ipcRenderer.sendSync("moguri:unload-blocked", reason); },
+  draftsSettled: (result) => ipcRenderer.send("moguri:drafts-settled", result),
   saveDocument: (document) => ipcRenderer.invoke("moguri:save-document", document),
   preview: (input, profileId, closingSessionId) => ipcRenderer.invoke("moguri:preview", input, profileId, closingSessionId),
   browserControl: (sessionId, enabled, profileId) => ipcRenderer.invoke("moguri:browser-control", sessionId, enabled, profileId),

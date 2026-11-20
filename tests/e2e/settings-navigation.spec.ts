@@ -25,7 +25,7 @@ test("left global resources and the eight right session panels remain separate w
     expect(await rail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label"))))
       .toEqual(["Terminal", "Browser", "Insights", "Code change", "Files", "Plan", "Side chat", "Work item"]);
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Skills", "Artifacts"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Customize", "Artifacts"]);
     await expect(rail.getByRole("button", { name: "Attention", exact: true })).toHaveCount(0);
     const navigation = page.getByRole("navigation", { name: "Projects and sessions" });
     await expect(navigation.getByRole("button", { name: "Manage profiles", exact: true })).toHaveCount(0);
@@ -123,9 +123,9 @@ test("Integrations and Interface are single rail entries whose keyboard tabs kee
   try {
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
-    // Deep link from another surface: Skills / Marketplace opens the Marketplace tab inside Integrations.
-    await page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button", { name: "Skills", exact: true }).click();
-    const workspace = page.getByRole("region", { name: "Skills and tools", exact: true });
+    // Deep link from another surface: Customize / Marketplace opens the Marketplace tab inside Integrations.
+    await page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button", { name: "Customize", exact: true }).click();
+    const workspace = page.getByRole("region", { name: "Customize", exact: true });
     await workspace.getByRole("tab", { name: "Marketplace", exact: true }).click();
     await workspace.getByRole("button", { name: "repository marketplace", exact: true }).click();
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });

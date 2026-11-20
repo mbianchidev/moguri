@@ -67,7 +67,7 @@ export class AttentionNotifier {
       const operation = attention.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === attention.messageId) : undefined;
       const script = attention.reason === "script-review" ? snapshot.scriptReviews.find((review) => review.id === attention.messageId) : undefined;
       const summary = attention.myWork ? snapshot.myWorkRefreshes.find((record) => record.id === attention.myWork?.refreshId)?.attention.find((entry) => entry.itemId === attention.messageId) : undefined;
-      const generic = attention.reason === "tool-suggestion" ? `A repeated request could become the script tool ${bounded(attention.messageId ?? "", 64)}. Review it in Skills / Tools.` :
+      const generic = attention.reason === "tool-suggestion" ? `A repeated request could become the script tool ${bounded(attention.messageId ?? "", 64)}. Review it in Customize / Tools.` :
         attention.reason === "my-work" ? "The GitHub inbox needs attention." : attention.reason === "ci" ? "A PR CI watch needs inspection." :
         attention.reason === "script-review" ? "Repository script assessments need your review." : attention.kind === "question" ? "A session may be asking a question." : attention.kind === "done" ? "Agent done and waiting." : attention.reason === "approval" ? "A session needs your approval." : "Work needs inspection.";
       const preview = summary ? `${summary.repository}#${summary.number}: ${summary.categories.join(", ")}; head ${summary.headSha.slice(0, 12)}.` :

@@ -40,4 +40,5 @@ test("settings search combines category and control aliases without reading user
   assert.ok(ids("voice").includes("voice"));
   assert.ok(ids("chat naming").includes("providers"));
   for (const query of ["OTLP", "OpenTelemetry", "collector metadata export"]) assert.ok(ids(query).includes("general"));
+  for (const query of ["interrupted chats", "continue after restart"]) assert.ok(ids(query).includes("interactions"));
 });

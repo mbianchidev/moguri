@@ -947,6 +947,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="setting-field">Scheduling in an idle chat<select aria-label="Scheduling in an idle chat" value={draft.interactions.idleScheduleAction ?? "ask"} disabled={saving} onChange={(event) => automatic("interactions", { idleScheduleAction: parse(SettingsSchema.properties.interactions.properties.idleScheduleAction, event.target.value) })}>
             <option value="ask">Ask whether to send now</option><option value="send">Send now without asking</option><option value="schedule">Open scheduling without asking</option>
           </select></label>
+          <label className="setting-field">Interrupted chats after a restart<select aria-label="Interrupted chats after a restart" value={draft.interactions.continueInterrupted ?? "ask"} disabled={saving} onChange={(event) => automatic("interactions", { continueInterrupted: parse(SettingsSchema.properties.interactions.properties.continueInterrupted, event.target.value) })}>
+            <option value="ask">Ask whether to continue them</option><option value="always">Continue all automatically</option>
+          </select></label>
+          <p className="fine-print">Continuing asks the agent to check where it left off; nothing it already did is repeated.</p>
           <button type="button" onClick={() => void reset("interactions")} aria-label="Restore defaults for confirmations">Restore defaults</button></>}
         {tab === "systemPrompt" && <><SettingsHelp label="More about this setting" target={<h2>System prompt</h2>}>These are the instructions Moguri sends to models from every client. Edits apply to new turns.</SettingsHelp>
           <Alert as="p" tone="warning" className="settings-warning">{SYSTEM_PROMPT_WARNING}</Alert>

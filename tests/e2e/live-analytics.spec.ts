@@ -18,8 +18,14 @@ test("Analytics shows a recent generated turn on lanes, filters lanes, finds eve
   });
   try {
     const page = await app.firstWindow();
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(2000, 1000));
     await page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button", { name: "Dashboard", exact: true }).click();
-    await page.getByRole("navigation", { name: "Dashboard pages", exact: true }).getByRole("button", { name: "Analytics", exact: true }).click();
+    const tabs = page.getByRole("navigation", { name: "Dashboard pages", exact: true }), dashboard = page.getByRole("region", { name: "Profile dashboard", exact: true });
+    await expect(tabs.getByRole("button", { name: "My work", exact: true })).toHaveAttribute("aria-current", "page");
+    const before = [await tabs.boundingBox(), await dashboard.boundingBox()];
+    await tabs.getByRole("button", { name: "Analytics", exact: true }).click();
+    await expect(tabs.getByRole("button", { name: "Analytics", exact: true })).toHaveAttribute("aria-current", "page");
+    expect([await tabs.boundingBox(), await dashboard.boundingBox()].map((box) => [box?.x, box?.width])).toEqual(before.map((box) => [box?.x, box?.width]));
     const analytics = page.getByRole("region", { name: "Analytics", exact: true });
     await expect(analytics.getByText("In memory only.", { exact: false })).toBeVisible();
     await expect(page.getByLabel("Dashboard date range", { exact: true })).toBeHidden();

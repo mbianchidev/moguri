@@ -4,9 +4,11 @@ import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 
 export function RepositoryRemotePanel({ sdk, project, snapshot, upstream, disabled, onDirty }: {
-  sdk: MoguriSdk; project: Project; snapshot: Snapshot; upstream: string; disabled: boolean; onDirty: (dirty: boolean) => void;
+  sdk: MoguriSdk; project: Project; snapshot: Snapshot; upstream: string | null; disabled: boolean; onDirty: (dirty: boolean) => void;
 }) {
-  const [remote, setRemote] = useState(upstream), [url, setUrl] = useState(""), [preview, setPreview] = useState<GithubPreview | null>(null);
+  const [remote, setRemote] = useState(upstream ?? "origin"), [url, setUrl] = useState(""), [preview, setPreview] = useState<GithubPreview | null>(null);
+  const remoteEdited = useRef(false);
+  useEffect(() => { if (upstream && !remoteEdited.current) setRemote(upstream); }, [upstream]);
   const [confirmations, setConfirmations] = useState<string[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [inspection, setInspection] = useState<Awaited<ReturnType<MoguriSdk["github"]["read"]>> | null>(null);
   const [inspected, setInspected] = useState(false);
@@ -32,7 +34,7 @@ export function RepositoryRemotePanel({ sdk, project, snapshot, upstream, disabl
     {error && <Alert as="p" role="alert">{error}</Alert>}
     {records[0] && <p role="status">Last remote URL change: {records[0].status}{records[0].cancelRequested ? " · cancel requested" : ""}</p>}
     <fieldset disabled={disabled || busy || active || !snapshot.policy.allowedEnvs.includes("Local")}>
-      <label className="setting-field">Remote name<SettingsInput aria-label="Remote name" value={remote} onChange={(event) => { setRemote(event.target.value); invalidate(); }} /></label>
+      <label className="setting-field">Remote name<SettingsInput aria-label="Remote name" value={remote} onChange={(event) => { remoteEdited.current = true; setRemote(event.target.value); invalidate(); }} /></label>
       <label className="setting-field">New remote URL<SettingsInput aria-label="New remote URL" value={url} placeholder="https://github.com/new-owner/repository.git" spellCheck={false}
         onChange={(event) => { setUrl(event.target.value); invalidate(); }} /></label>
       <button type="button" disabled={!remote || !url} onClick={() => void run(async (owned) => {

@@ -2,7 +2,8 @@ import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { MoguriSdk, Project, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
 import { createGithubApi } from "../../../packages/sdk/src/github.ts";
-import type { GithubAction, GithubBrowse, GithubPreview, GithubResponse, GithubScope } from "../../../packages/protocol/src/github-workflows.ts";
+import { RepositorySettingsSchema, type GithubAction, type GithubBrowse, type GithubPreview, type GithubResponse, type GithubScope } from "../../../packages/protocol/src/github-workflows.ts";
+import { parse } from "../../../packages/protocol/src/core.ts";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.read" }>;
@@ -20,6 +21,7 @@ const actions: Array<[PanelAction, string]> = [
   ["github.review.submit", "Submit PR review"], ["github.review.reply", "Reply to review thread"], ["github.review.resolve", "Resolve / reopen review thread"],
   ["github.pr.merge", "Merge pull request"], ["github.release.create", "Create GitHub release"],
   ["github.release.update", "Update GitHub release"], ["github.release.publish", "Publish draft release"], ["github.ci.watch", "Watch CI for a commit"],
+  ["github.repo.settings", "Change repository settings"],
 ];
 export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: MoguriSdk; project?: Project | null; session?: Session; snapshot: Snapshot }) {
   const uid = useId();
@@ -41,6 +43,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const [threadId, setThreadId] = useState(""), [resolveThread, setResolveThread] = useState(true), [mergeMethod, setMergeMethod] = useState<"merge" | "squash" | "rebase">("merge");
   const [releaseId, setReleaseId] = useState(""), [headSha, setHeadSha] = useState(""), [seconds, setSeconds] = useState("120"), [runId, setRunId] = useState("");
   const [resource, setResource] = useState<GithubBrowse["resource"]>("issues"), [browsed, setBrowsed] = useState<{ result: Browse; scope: string } | null>(null);
+  const [settingsText, setSettingsText] = useState('{\n  "delete_branch_on_merge": true\n}'), [contentPath, setContentPath] = useState(""), [contentRef, setContentRef] = useState(""), [checkRunId, setCheckRunId] = useState(""), [rulesBranch, setRulesBranch] = useState("");
   const [preview, setPreview] = useState<{ value: GithubPreview; scope: string } | null>(null), [confirmations, setConfirmations] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState(""), [read, setRead] = useState<Read | null>(null), [busy, setBusy] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [inspectionReviewed, setInspectionReviewed] = useState(false);
@@ -52,7 +55,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const scopeKey = JSON.stringify([sdk.profileId, project?.id, project?.path, scope, session?.controls.env, session?.kind, session?.mode, session?.pendingMode, session?.status,
     configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, snapshot.settings.values.permissions,
     kind, repository, account, remote, branch, force, onto, checkout, pathsText, rebaseMode, tag, target, annotated, message, deleteLocation, number, title, body, editTitle, editBody,
-    state, base, head, headRepository, draft, prerelease, reviewEvent, commentId, commentChannel, threadId, resolveThread, mergeMethod, releaseId, headSha, seconds, runId, resource]);
+    state, base, head, headRepository, draft, prerelease, reviewEvent, commentId, commentChannel, threadId, resolveThread, mergeMethod, releaseId, headSha, seconds, runId, resource, contentPath, contentRef, checkRunId, rulesBranch, settingsText]);
   const current = useRef(scopeKey); current.current = scopeKey;
   const allowed = Boolean(project && snapshot.policy.allowedEnvs.includes("Local") && (!session || session.projectId === project.id && session.controls.env === "Local" && session.status !== "archived"));
   const canWrite = allowed && (!session || session.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only");
@@ -125,6 +128,11 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       case "github.release.update": return { kind, ...gh, releaseId: positive(releaseId, "release ID"), tag, target, name: title, body, draft, prerelease };
       case "github.release.publish": return { kind, ...gh, releaseId: positive(releaseId, "release ID") };
       case "github.ci.watch": return { kind, ...gh, headSha, timeoutMs: positive(seconds, "CI deadline in seconds") * 1000, pollMs: 2000 };
+      case "github.repo.settings": {
+        let value: unknown;
+        try { value = JSON.parse(settingsText); } catch { throw new Error("Repository settings must be a JSON object, for example {\"delete_branch_on_merge\": true}."); }
+        return { kind, ...gh, settings: parse(RepositorySettingsSchema, value) };
+      }
     }
   };
   const browse = (page = 1) => run("Reading GitHub...", async (isCurrent) => {
@@ -140,6 +148,11 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       case "runs": input = { resource, ...gh, ...(headSha ? { headSha } : {}) }; break;
       case "run": case "logs": input = { resource, ...gh, runId: positive(runId, "workflow run ID") }; break;
       case "release": input = { resource, ...gh, releaseId: positive(releaseId, "release ID") }; break;
+      case "tags": case "rulesets": case "release-latest": case "settings": input = { resource, ...gh }; break;
+      case "release-tag": input = { resource, ...gh, tag }; break;
+      case "annotations": input = { resource, ...gh, checkRunId: positive(checkRunId, "check run ID"), headSha }; break;
+      case "contents": input = { resource, ...gh, path: contentPath, ...(contentRef ? { ref: contentRef } : {}) }; break;
+      case "branch-rules": input = { resource, ...gh, branch: rulesBranch }; break;
     }
     const result = await api.browse(requiredScope(), input); if (isCurrent()) setBrowsed({ result, scope: scopeKey });
   });
@@ -191,6 +204,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       </>}
       {(releasing || kind === "github.pr.create") && <label className="check-setting"><SettingsInput type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />Draft (publishing needs a separate confirmation)</label>}
       {releasing && <label className="check-setting"><SettingsInput type="checkbox" checked={prerelease} onChange={(event) => setPrerelease(event.target.checked)} />Prerelease</label>}
+      {kind === "github.repo.settings" && <label className="setting-field">Settings to change (JSON)<SettingsTextarea className="json-editor short" spellCheck={false} value={settingsText} onChange={(event) => setSettingsText(event.target.value)} /></label>}
       {kind === "github.review.submit" && <label className="setting-field"><span id={`${uid}-review-outcome`}>Review outcome</span><select aria-labelledby={`${uid}-review-outcome`} value={reviewEvent} onChange={(event) => setReviewEvent(event.target.value as typeof reviewEvent)}><option value="COMMENT">Comment</option><option value="APPROVE">Approve</option><option value="REQUEST_CHANGES">Request changes</option></select></label>}
       {(kind === "github.review.reply" || kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field">Comment ID<SettingsInput type="number" min={1} value={commentId} onChange={(event) => setCommentId(event.target.value)} /></label>}
       {(kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field"><span id={`${uid}-comment-channel`}>Comment location</span><select aria-labelledby={`${uid}-comment-channel`} value={commentChannel} onChange={(event) => setCommentChannel(event.target.value as typeof commentChannel)}><option value="conversation">Issue/PR conversation</option><option value="review">Inline PR review</option></select></label>}
@@ -223,12 +237,18 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
           if (isCurrent() && result.id) { setSelectedId(result.id); focusResult.current = true; setNotice("Operation started. Check its result below; nothing is retried or cleaned up automatically."); }
         })} aria-label="Execute only this reviewed operation">Execute</button>
     </section>}
-    <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs and releases</summary>
+    <details><summary>Read GitHub issues, PRs, reviews, checks, runs, logs, releases, tags, files and settings</summary>
       <SettingsHelp label="More about this setting" target={<label className="setting-field"><span id={`${uid}-resource`}>GitHub resource</span><select aria-labelledby={`${uid}-resource`} disabled={Boolean(busy)} value={resource} onChange={(event) => setResource(event.target.value as typeof resource)}>
-        {["search", "issues", "issue", "pulls", "pull", "files", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "jobs", "logs", "releases", "release"].map((value) => <option key={value} value={value}>{value}</option>)}
+        {["search", "issues", "issue", "pulls", "pull", "files", "reviews", "comments", "review-comments", "threads", "checks", "runs", "run", "jobs", "logs", "annotations", "releases", "release", "release-latest", "release-tag", "tags", "contents", "settings", "rulesets", "branch-rules"].map((value) => <option key={value} value={value}>{value}</option>)}
       </select></label>} descriptionFirst>Read-only, one page at a time, using the repository and gh account above.</SettingsHelp>
       {resource === "search" && <label className="setting-field">Issue and PR search terms<SettingsInput value={searchQuery} maxLength={2000} placeholder="is:issue is:open (UI OR UX OR redesign OR polish)" onChange={(event) => setSearchQuery(event.target.value)} /></label>}
       {(resource === "run" || resource === "jobs" || resource === "logs") && <label className="setting-field">Workflow run ID<SettingsInput type="number" min={1} value={runId} onChange={(event) => setRunId(event.target.value)} /></label>}
+      {resource === "annotations" && <><label className="setting-field">Check run ID<SettingsInput type="number" min={1} value={checkRunId} onChange={(event) => setCheckRunId(event.target.value)} /></label>
+        <label className="setting-field">Check run head SHA<SettingsInput value={headSha} onChange={(event) => setHeadSha(event.target.value)} /></label></>}
+      {resource === "release-tag" && <label className="setting-field">Release tag<SettingsInput value={tag} onChange={(event) => setTag(event.target.value)} /></label>}
+      {resource === "contents" && <><label className="setting-field">Repository path<SettingsInput value={contentPath} placeholder="README.md" onChange={(event) => setContentPath(event.target.value)} /></label>
+        <label className="setting-field">Branch, tag or commit (optional)<SettingsInput value={contentRef} onChange={(event) => setContentRef(event.target.value)} /></label></>}
+      {resource === "branch-rules" && <label className="setting-field">Branch<SettingsInput value={rulesBranch} placeholder="main" onChange={(event) => setRulesBranch(event.target.value)} /></label>}
       <button disabled={Boolean(busy) || !allowed || !repository || !account} onClick={() => void browse()}>Read GitHub page</button>
       {browsed?.scope === scopeKey && <><p className="fine-print">{browsed.result.warning} Page {browsed.result.page}.</p>
         {browsed.result.items.map((item) => <details key={`${item.kind}-${item.nodeId ?? item.id}`}><summary>{item.number ? `#${item.number} ` : ""}{item.title || item.kind} / {item.state} {item.conclusion}</summary>

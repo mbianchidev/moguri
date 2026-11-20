@@ -4,8 +4,8 @@ import { createRequire } from "node:module";
 import { DEFAULT_OPEN_APP_SHORTCUT, electronAccelerator, trayMenu, trayTemplate, type TrayAction } from "./tray-menu.ts";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
-import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
+import { lstat, mkdir, readFile, realpath, rename } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
@@ -90,6 +90,14 @@ const trusted = (event: Electron.IpcMainInvokeEvent) => {
     throw new Error("Only Moguri's main renderer may request native capabilities.");
   }
 };
+/** Moves one artifact to the system Trash. Hidden test windows use a generated folder so tests never touch the real Trash. */
+const moveToTrash = async (path: string) => {
+  if (process.env.MOGURI_TEST_WINDOW !== "hidden") return shell.trashItem(path);
+  const trash = process.env.MOGURI_TEST_TRASH_DIR;
+  if (!trash || !isAbsolute(trash)) throw new Error("Hidden test windows need MOGURI_TEST_TRASH_DIR. The real Trash was not used.");
+  await mkdir(trash, { recursive: true });
+  await rename(path, join(trash, `${randomUUID()}-${basename(path)}`));
+};
 if (process.env.MOGURI_STATE_DIR) {
   const userData = join(stateDirectory(), "electron");
   mkdirSync(userData, { recursive: true, mode: 0o700 });
@@ -109,6 +117,25 @@ else {
     let reopenOwner: typeof connectedOwner;
     let nativeInitialized = false;
     let explicitQuitRequested = false;
+    // Close and quit first finish saving composer drafts and queued-prompt edits, then proceed without asking (D51).
+    let unloadReason: "drafts" | "edits" | null = null, draftSave: ReturnType<typeof setTimeout> | null = null, discardNextUnload = false;
+    // Set by the window's close event, which runs before beforeunload; any other blocked unload is a reload.
+    let closeIntent = false, afterSave: "close" | "reload" = "close";
+    const draftSaveFailed = (error: string) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+        explicitQuitRequested = false;
+        console.error(`Hidden generated window kept open because a draft was not saved: ${error}`);
+        return;
+      }
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: "warning", title: "Draft not saved", message: "Moguri couldn't save a draft before closing.",
+        detail: `${error} Keep Moguri open to try again, or close without the unsaved text.`,
+        buttons: ["Keep Moguri open", "Close without saving"], defaultId: 0, cancelId: 0,
+      });
+      if (choice === 1) { discardNextUnload = true; mainWindow.close(); }
+      else explicitQuitRequested = false;
+    };
     let shutdownTask: Promise<void> | undefined, exitAllowed = false;
     const shutdown = (reason: "quit" | "window") => {
       if (shutdownTask) return;
@@ -646,6 +673,37 @@ else {
       shell.showItemInFolder(path);
       return { revealed: true, path };
     });
+    ipcMain.handle("moguri:trash-artifacts", async (event, profileId: unknown, projectId: unknown, paths: unknown) => {
+      trusted(event);
+      if (!Array.isArray(paths) || !paths.length || paths.length > 100 || new Set(paths).size !== paths.length ||
+        paths.some((path) => typeof path !== "string" || !isAbsolute(path)) || projectId !== null && typeof projectId !== "string") throw new Error("Choose up to 100 exact listed artifact files.");
+      const client = attentionClient, epoch = profileEpoch;
+      const current = () => {
+        if (!client || client !== attentionClient || profileId !== activeProfileId || profileId !== client.profileId || epoch !== profileEpoch ||
+          client.getState().status !== "connected") throw new Error("The original profile changed or disconnected. Nothing more was moved to the Trash.");
+      };
+      current();
+      const library = await client!.artifacts.library(projectId);
+      current();
+      const project = projectId === null ? null : client!.getState().snapshot?.projects.find((value) => value.id === projectId);
+      if (projectId !== null && !project) throw new Error("This project is no longer in the profile. Nothing was moved to the Trash.");
+      const results: { path: string; trashed: boolean; error?: string }[] = [];
+      for (const path of paths as string[]) {
+        current();
+        const file = library.files.find((entry) => entry.path === path);
+        let error: string | null = null;
+        if (!file) error = "It's no longer in the artifact library. Refresh Artifacts.";
+        else if (project?.workspaceFolderId && file.root === project.path) error = "Moguri doesn't change files in a workspace folder's own checkout. Use Show in Finder instead.";
+        else {
+          const metadata = await lstat(path).catch(() => null);
+          if (!metadata || metadata.isSymbolicLink() || await realpath(path).catch(() => null) !== path) error = "The exact file is unavailable or changed.";
+        }
+        if (!error) try { await moveToTrash(path); } catch (failure) { error = failure instanceof Error ? failure.message : "It couldn't be moved to the Trash."; }
+        if (error) console.error("Moguri artifact Trash:", path, error);
+        results.push({ path, trashed: !error, ...(error ? { error } : {}) });
+      }
+      return results;
+    });
     ipcMain.handle("moguri:session-location", async (event, profileId: unknown, sessionId: unknown, action: unknown) => {
       trusted(event);
       if (typeof sessionId !== "string" || !locationAction(action)) throw new Error("Choose an exact session folder or repository action.");
@@ -671,6 +729,18 @@ else {
       }
       if (current().key !== key) throw new Error("The session's bound folder changed while it was being checked. No other location was opened.");
       return deliverLocation(action, location);
+    });
+    ipcMain.on("moguri:unload-blocked", (event, reason: unknown) => {
+      try { trusted(event); if (reason === "drafts" || reason === "edits") unloadReason = reason; }
+      finally { event.returnValue = true; }
+    });
+    ipcMain.on("moguri:drafts-settled", (event, result: unknown) => {
+      trusted(event);
+      if (!draftSave || !mainWindow || mainWindow.isDestroyed()) return;
+      clearTimeout(draftSave); draftSave = null;
+      const value = typeof result === "object" && result !== null ? result as { ok?: unknown; error?: unknown } : {};
+      if (value.ok === true) { if (afterSave === "close") mainWindow.close(); else mainWindow.webContents.reload(); }
+      else draftSaveFailed(typeof value.error === "string" ? value.error.slice(0, 1000) : "The draft could not be saved.");
     });
     ipcMain.handle("moguri:copy-text", (event, text: unknown) => {
       trusted(event);
@@ -835,6 +905,16 @@ else {
       mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
       mainWindow.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("moguri://app/")) event.preventDefault(); });
       mainWindow.webContents.on("will-prevent-unload", (event) => {
+        const reason = unloadReason, closing = closeIntent;
+        unloadReason = null; closeIntent = false;
+        if (discardNextUnload) { discardNextUnload = false; event.preventDefault(); return; }
+        if (reason === "drafts") {
+          afterSave = closing ? "close" : "reload";
+          // The renderer is saving; it reports back and the original close or quit continues.
+          if (draftSave) clearTimeout(draftSave);
+          draftSave = setTimeout(() => { draftSave = null; draftSaveFailed("Saving didn't finish within 15 seconds."); }, 15_000);
+          return;
+        }
         if (process.env.MOGURI_TEST_WINDOW === "hidden") {
           explicitQuitRequested = false;
           console.error("Hidden generated window kept open for pending edits. No native confirmation dialog was opened.");
@@ -847,6 +927,7 @@ else {
         if (choice === 1) event.preventDefault();
         else explicitQuitRequested = false;
       });
+      mainWindow.on("close", () => { closeIntent = true; });
       mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null;
         void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });
       mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });

@@ -7,6 +7,7 @@ import { CopyButton } from "./CopyButton.tsx";
 import { Icon } from "./Icon.tsx";
 import { ReorderList } from "./ReorderList.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { registerUnsavedWork } from "./unsaved-work.ts";
 
 type QueueItem = Session["queue"][number];
 interface QueueEdit { id: string; text: string; attachments: Attachment[] }
@@ -20,6 +21,21 @@ export function Queue({ session, snapshot, command, client, modal }: {
   const [expanded, setExpanded] = useState(true), contentId = useId();
   const [edit, setEdit] = useState<QueueEdit | null>(null), [error, setError] = useState(""), [lost, setLost] = useState<string | null>(null);
   const count = `${session.queue.length} queued ${session.queue.length === 1 ? "message" : "messages"}`;
+  const latest = useRef({ edit, session });
+  latest.current = { edit, session };
+  useEffect(() => registerUnsavedWork({
+    // An open in-place edit that differs from the queued prompt is saved when the window closes (D51).
+    dirty: () => {
+      const { edit: current, session: owner } = latest.current, item = current && owner.queue.find((value) => value.id === current.id);
+      return Boolean(item && current && (item.text !== current.text || JSON.stringify(item.attachments) !== JSON.stringify(current.attachments)));
+    },
+    save: async () => {
+      const { edit: current, session: owner } = latest.current;
+      if (!current) return;
+      await client.prompts.edit(owner.id, current.id, current.text, current.attachments, owner.queueRevision);
+      setEdit((value) => value?.id === current.id ? null : value);
+    },
+  }), [client]);
   useEffect(() => {
     if (!edit || session.queue.some((item) => item.id === edit.id)) return;
     // The service claimed or removed the prompt mid-edit; keep the unsaved text visible instead of dropping it.
