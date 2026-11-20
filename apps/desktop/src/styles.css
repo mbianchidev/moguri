@@ -1768,6 +1768,11 @@ summary:hover { color: var(--text); }
 .artifact-item-body small { color: var(--muted); font-size: var(--font-size-xs); overflow-wrap: anywhere; }
 .artifact-item-body small .quiet { padding: 0; font-size: inherit; }
 .artifact-item-actions { display: flex; gap: var(--space-1-5); flex-shrink: 0; }
+.artifact-item > input[type="checkbox"], .artifact-select-placeholder { margin-top: var(--space-0); flex-shrink: 0; width: var(--space-4); }
+.artifact-selection { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
+.artifact-confirm { margin: var(--space-2) 0; padding: var(--space-3); border: 1px solid var(--danger); border-radius: var(--radius-md); }
+.artifact-confirm p { margin: 0 0 var(--space-2); }
+.artifact-confirm ul { margin: 0 0 var(--space-2); padding-left: var(--space-5); max-height: 200px; overflow: auto; }
 .artifact-preview { margin-top: var(--space-2); max-width: min(100%, 480px); }
 .artifact-preview img { max-width: 100%; border-radius: var(--radius-md); }
 .artifacts-empty { color: var(--muted); margin: var(--space-6) 0; }

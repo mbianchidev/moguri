@@ -4,8 +4,8 @@ import { createRequire } from "node:module";
 import { DEFAULT_OPEN_APP_SHORTCUT, electronAccelerator, trayMenu, trayTemplate, type TrayAction } from "./tray-menu.ts";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
-import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
+import { lstat, mkdir, readFile, realpath, rename } from "node:fs/promises";
+import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
@@ -89,6 +89,14 @@ const trusted = (event: Electron.IpcMainInvokeEvent) => {
   if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || !event.senderFrame.url.startsWith("moguri://app/")) {
     throw new Error("Only Moguri's main renderer may request native capabilities.");
   }
+};
+/** Moves one artifact to the system Trash. Hidden test windows use a generated folder so tests never touch the real Trash. */
+const moveToTrash = async (path: string) => {
+  if (process.env.MOGURI_TEST_WINDOW !== "hidden") return shell.trashItem(path);
+  const trash = process.env.MOGURI_TEST_TRASH_DIR;
+  if (!trash || !isAbsolute(trash)) throw new Error("Hidden test windows need MOGURI_TEST_TRASH_DIR. The real Trash was not used.");
+  await mkdir(trash, { recursive: true });
+  await rename(path, join(trash, `${randomUUID()}-${basename(path)}`));
 };
 if (process.env.MOGURI_STATE_DIR) {
   const userData = join(stateDirectory(), "electron");
@@ -645,6 +653,37 @@ else {
       if (process.env.MOGURI_TEST_WINDOW === "hidden") return { revealed: false, path };
       shell.showItemInFolder(path);
       return { revealed: true, path };
+    });
+    ipcMain.handle("moguri:trash-artifacts", async (event, profileId: unknown, projectId: unknown, paths: unknown) => {
+      trusted(event);
+      if (!Array.isArray(paths) || !paths.length || paths.length > 100 || new Set(paths).size !== paths.length ||
+        paths.some((path) => typeof path !== "string" || !isAbsolute(path)) || projectId !== null && typeof projectId !== "string") throw new Error("Choose up to 100 exact listed artifact files.");
+      const client = attentionClient, epoch = profileEpoch;
+      const current = () => {
+        if (!client || client !== attentionClient || profileId !== activeProfileId || profileId !== client.profileId || epoch !== profileEpoch ||
+          client.getState().status !== "connected") throw new Error("The original profile changed or disconnected. Nothing more was moved to the Trash.");
+      };
+      current();
+      const library = await client!.artifacts.library(projectId);
+      current();
+      const project = projectId === null ? null : client!.getState().snapshot?.projects.find((value) => value.id === projectId);
+      if (projectId !== null && !project) throw new Error("This project is no longer in the profile. Nothing was moved to the Trash.");
+      const results: { path: string; trashed: boolean; error?: string }[] = [];
+      for (const path of paths as string[]) {
+        current();
+        const file = library.files.find((entry) => entry.path === path);
+        let error: string | null = null;
+        if (!file) error = "It's no longer in the artifact library. Refresh Artifacts.";
+        else if (project?.workspaceFolderId && file.root === project.path) error = "Moguri doesn't change files in a workspace folder's own checkout. Use Show in Finder instead.";
+        else {
+          const metadata = await lstat(path).catch(() => null);
+          if (!metadata || metadata.isSymbolicLink() || await realpath(path).catch(() => null) !== path) error = "The exact file is unavailable or changed.";
+        }
+        if (!error) try { await moveToTrash(path); } catch (failure) { error = failure instanceof Error ? failure.message : "It couldn't be moved to the Trash."; }
+        if (error) console.error("Moguri artifact Trash:", path, error);
+        results.push({ path, trashed: !error, ...(error ? { error } : {}) });
+      }
+      return results;
     });
     ipcMain.handle("moguri:session-location", async (event, profileId: unknown, sessionId: unknown, action: unknown) => {
       trusted(event);

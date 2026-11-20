@@ -30,6 +30,10 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
   const [library, setLibrary] = useState<ArtifactLibrary | null>(null), [loading, setLoading] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [filter, setFilter] = useState<Filter>("all"), [query, setQuery] = useState(""), [limit, setLimit] = useState(PAGE), [revision, setRevision] = useState(0);
   const [preview, setPreview] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set()), [confirming, setConfirming] = useState<Item[] | null>(null), [deleting, setDeleting] = useState(false);
+  const project = snapshot.projects.find((value) => value.id === projectId);
+  /** Saved notes and files outside a workspace folder's own read-only checkout can be deleted; chat images and links are conversation history. */
+  const deletable = (item: Item) => item.type === "note" || item.type === "file" && !(project?.workspaceFolderId && item.file.root === project.path);
   useEffect(() => { if (scope && !snapshot.projects.some((project) => project.id === scope)) setScope(""); }, [scope, snapshot.projects]);
   useEffect(() => {
     let active = true;
@@ -39,7 +43,7 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [sdk, projectId, revision]);
-  useEffect(() => { setLimit(PAGE); setPreview(null); setNotice(""); }, [projectId, filter, query]);
+  useEffect(() => { setLimit(PAGE); setPreview(null); setNotice(""); setSelected(new Set()); setConfirming(null); }, [projectId, filter, query]);
   const items = useMemo(() => {
     const sessions = snapshot.sessions.filter((session) => session.projectId === projectId && session.kind !== "subagent");
     const result: Item[] = [], links = new Map<string, Item>();
@@ -72,6 +76,31 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
     return `${item.name} ${item.detail} ${session ? sessionTitle(session) : ""}`.toLowerCase().includes(term);
   }));
   const counts = Object.fromEntries(filters.map(({ id }) => [id, id === "all" ? items.length : items.filter((item) => item.filter === id).length]));
+  const shown = visible.slice(0, limit), removable = shown.filter(deletable), chosen = removable.filter((item) => selected.has(item.key));
+  const toggle = (key: string, on: boolean) => setSelected((current) => { const next = new Set(current); if (on) next.add(key); else next.delete(key); return next; });
+  const remove = async (targets: Item[]) => {
+    setDeleting(true); setError(""); setNotice("");
+    const failures: string[] = [];
+    let trashed = 0, deleted = 0;
+    try {
+      const files = targets.flatMap((item) => item.type === "file" ? [item] : []);
+      if (files.length) for (const result of await window.moguri.trashArtifacts(sdk.profileId, projectId, files.map((item) => item.file.path))) {
+        if (result.trashed) trashed++;
+        else failures.push(`${files.find((item) => item.file.path === result.path)?.name ?? result.path}: ${result.error ?? "not moved"}`);
+      }
+      for (const item of targets) if (item.type === "note") {
+        try { await sdk.artifacts.delete(item.artifact.id, item.artifact.revision, true); deleted++; }
+        catch (failure) { failures.push(`${item.name}: ${failure instanceof Error ? failure.message : "not deleted"}`); }
+      }
+    } catch (failure) { failures.push(failure instanceof Error ? failure.message : "The delete couldn't finish."); }
+    finally {
+      setDeleting(false); setConfirming(null); setSelected(new Set()); setRevision((value) => value + 1);
+      const done = [trashed ? `Moved ${trashed} ${trashed === 1 ? "file" : "files"} to the Trash.` : "", deleted ? `Deleted ${deleted} saved ${deleted === 1 ? "note" : "notes"}.` : ""].filter(Boolean).join(" ");
+      if (done) setNotice(done);
+      if (failures.length) setError(`${failures.length === targets.length ? "Nothing was deleted." : "Some artifacts weren't deleted."} ${failures.join(" ")}`);
+    }
+  };
+  const confirmFiles = confirming?.filter((item) => item.type === "file").length ?? 0, confirmNotes = (confirming?.length ?? 0) - confirmFiles;
   const reveal = async (file: ArtifactFile) => {
     setError(""); setNotice("");
     try {
@@ -94,10 +123,24 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
     {loading && <p className="fine-print" role="status">Looking for output files...</p>}
     {library?.truncated && <p className="fine-print">Some folders were too large to list completely. The newest files found are shown.</p>}
     {library?.roots.filter((root) => root.status === "missing").map((root) => <p className="fine-print" key={root.path}>{root.path}: {root.diagnostic}</p>)}
+    {removable.length > 0 && <div className="artifact-selection" role="group" aria-label="Selected artifacts">
+      <button type="button" disabled={deleting} onClick={() => setSelected(chosen.length === removable.length ? new Set() : new Set(removable.map((item) => item.key)))}>
+        {chosen.length === removable.length ? "Clear selection" : "Select all shown"}</button>
+      <button type="button" className="danger" disabled={!chosen.length || deleting || Boolean(confirming)} onClick={() => setConfirming(chosen)}>Delete selected ({chosen.length})</button>
+    </div>}
+    {confirming && <section className="artifact-confirm" role="alertdialog" aria-label="Confirm artifact deletion">
+      <p>{[confirmFiles ? `Move ${confirmFiles} ${confirmFiles === 1 ? "file" : "files"} to the Trash` : "", confirmNotes ? `delete ${confirmNotes} saved ${confirmNotes === 1 ? "note" : "notes"}` : ""].filter(Boolean).join(" and ").replace(/^./, (first) => first.toUpperCase())}?</p>
+      <ul>{confirming.map((item) => <li key={item.key} className="path">{item.type === "file" ? item.file.relativePath : item.name}</li>)}</ul>
+      <p className="fine-print">{confirmFiles ? "Files can be restored from the Trash. " : ""}{confirmNotes ? "Saved notes and their revisions can't be restored. Chats and other copies aren't changed." : "Chats aren't changed."}</p>
+      <div className="button-row"><button type="button" className="danger" disabled={deleting} onClick={() => void remove(confirming)}>{deleting ? "Deleting..." : "Delete"}</button>
+        <button type="button" disabled={deleting} onClick={() => setConfirming(null)}>Cancel</button></div>
+    </section>}
     {!loading && !visible.length && <p className="artifacts-empty">{items.length ? "No artifacts match these filters." : "No artifacts yet. Builds, files the agent writes, images, links and saved notes from this project's chats appear here."}</p>}
-    <ul className="artifact-list">{visible.slice(0, limit).map((item) => {
+    <ul className="artifact-list">{shown.map((item) => {
       const session = snapshot.sessions.find((value) => value.id === item.sessionId);
-      return <li className="artifact-item" key={item.key} data-artifact-type={item.type}><Icon name={item.icon} />
+      return <li className="artifact-item" key={item.key} data-artifact-type={item.type}>
+        {deletable(item) ? <input type="checkbox" aria-label={`Select ${item.name}`} checked={selected.has(item.key)} disabled={deleting} onChange={(event) => toggle(item.key, event.target.checked)} /> :
+          <span className="artifact-select-placeholder" aria-hidden="true" />}<Icon name={item.icon} />
         <div className="artifact-item-body"><strong title={item.name}>{item.name}</strong><small className="path">{item.detail}</small>
           <small>{session ? <button type="button" className="quiet" onClick={() => void openSession(session.id)}>{sessionTitle(session)}</button> :
             <span>{item.sessionId ? "Chat removed" : "No linked chat"}</span>} / <time dateTime={item.when}>{new Date(item.when).toLocaleString()}</time></small>
@@ -107,6 +150,8 @@ export function ArtifactsWorkspace({ sdk, snapshot, initialProjectId, openSessio
           {item.type === "image" && <button type="button" aria-expanded={preview === item.key} onClick={() => setPreview((value) => value === item.key ? null : item.key)}>{preview === item.key ? "Hide" : "Preview"}</button>}
           {item.type === "link" && <button type="button" onClick={() => void window.moguri.openExternal(item.url).catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The link couldn't be opened."))}>Open link</button>}
           {item.type === "note" && <button type="button" onClick={() => openSettings("artifacts")}>Open in Settings</button>}
+          {deletable(item) && <button type="button" className="danger" aria-label={item.type === "file" ? `Move ${item.name} to the Trash` : `Delete ${item.name}`}
+            disabled={deleting || Boolean(confirming)} onClick={() => setConfirming([item])}>{item.type === "file" ? "Move to Trash" : "Delete"}</button>}
         </div>
       </li>;
     })}</ul>

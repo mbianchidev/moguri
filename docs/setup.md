@@ -153,7 +153,8 @@ chats; the optional **Repeated-task tool check** in Automations runs that local
 check every 6, 12, 24 or 168 hours while Moguri runs and adds new suggestions
 to Inbox. **Artifacts** lists each project's build outputs, files agents wrote,
 chat images, links and saved notes with their chat; **Show in Finder** only
-reveals a listed file. TUI: `/skills install ID SHA [global]`,
+reveals a listed file. Select files or saved notes (or use an item's own
+action) and confirm to move the files to the Trash and delete the notes. TUI: `/skills install ID SHA [global]`,
 `/artifacts library`. CLI: `moguri skills install`, `moguri toolsets`,
 `moguri artifact library`. See
 [skills, tools and artifacts](architecture/skills-tools-artifacts.md).
