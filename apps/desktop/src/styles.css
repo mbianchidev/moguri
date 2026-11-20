@@ -80,8 +80,8 @@
 body { margin: 0; }
 button, select, input, textarea { font: inherit; }
 button, select, summary { cursor: pointer; }
-button { border: 1px solid var(--control-line); border-radius: var(--radius-md); color: inherit; background: var(--surface); padding: var(--space-1-5) var(--space-3); min-height: var(--target-size); transition: background-color var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); }
-button:hover:not(:disabled) { background: var(--hover); border-color: var(--hover-line); }
+button { border: 1px solid var(--line); border-radius: var(--radius-md); color: inherit; background: var(--subtle); padding: var(--space-1-5) var(--space-3); min-height: var(--target-size); transition: background-color var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard); }
+button:hover:not(:disabled) { background: var(--hover); border-color: var(--control-line); }
 button:active:not(:disabled) { background: var(--active); }
 button:disabled, select:disabled { cursor: not-allowed; opacity: .5; }
 :focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-ring-offset); }
@@ -1064,19 +1064,19 @@ summary:hover { color: var(--text); }
 .settings-toolbar h1 { font-size: var(--font-size-lg); margin: 0; flex: 1; }
 .settings-toolbar > span { color: var(--muted); font-size: var(--font-size-xs); }
 .settings-toolbar > button { font-size: var(--font-size-sm); }
-.settings-layout { display: grid; grid-template-columns: 196px minmax(0, 1fr); min-height: 0; flex: 1; }
+.settings-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 0; flex: 1; }
 .settings-layout > nav { border-right: 1px solid var(--line); background: var(--subtle); padding: var(--space-4) var(--space-2); min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: var(--space-1); }
 .settings-layout > nav button { text-align: left; padding: var(--space-2) var(--space-2-5); border-color: transparent; background: transparent; font-size: var(--font-size-sm); }
-.settings-layout > nav button.selected { color: var(--selection-text); background: var(--selected); }
 .settings-search { display: block; position: sticky; top: -16px; z-index: 1; margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-2)) var(--space-2); padding: var(--space-4) var(--space-2) var(--space-3); background: var(--subtle); }
 .settings-search input { width: 100%; min-width: 0; min-height: 34px; font-size: var(--font-size-sm); }
-.settings-category h2 { margin: var(--space-4) var(--space-2-5) var(--space-1); color: var(--muted); font-size: var(--font-size-xs); font-weight: 650; }
-.settings-category button { display: block; width: 100%; }
-.settings-category-tabbed { margin-top: var(--space-3); }
-.settings-tabs { flex-wrap: wrap; margin-bottom: var(--space-4); }
-.settings-tabs [role="tab"] { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-0); text-align: left; }
-.settings-tab-status { color: var(--muted); font-size: var(--font-size-xs); }
-.settings-tabs [aria-selected="true"] .settings-tab-status { color: inherit; }
+/* The rail lists only the Settings pages (groups); a page shows all of its sections. */
+.settings-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-0); }
+.settings-layout > nav .settings-groups button { display: flex; align-items: center; gap: var(--space-2-5); width: 100%; padding: var(--space-1-5) var(--space-2-5); border: 0;
+  border-radius: var(--radius-md); color: var(--muted); font-size: var(--font-size-md); font-weight: var(--font-weight-medium); }
+.settings-layout > nav .settings-groups button:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.settings-layout > nav .settings-groups button.selected { color: var(--text); background: var(--active); box-shadow: inset var(--space-0) 0 0 var(--accent); }
+.settings-groups button svg { width: 16px; height: 16px; }
+.settings-groups button small { margin-left: auto; color: var(--muted); font-size: var(--font-size-xs); font-weight: 400; }
 .settings-search-empty { color: var(--muted); font-size: var(--font-size-sm); padding: 0 var(--space-2-5); line-height: 1.65; }
 .shortcut-map kbd { margin-left: 0; }
 .theme-color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 0 var(--space-4); max-width: 850px; }
@@ -1084,13 +1084,22 @@ summary:hover { color: var(--text); }
 .settings-layout > nav .restore-all { margin-top: var(--space-6); border-color: var(--line); color: var(--muted); font-size: var(--font-size-xs); }
 .settings-content { position: relative; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: var(--space-6) clamp(20px, 4vw, 64px); }
 .settings-fields, .project-settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
-.settings-fields > h2, .settings-fields > .settings-help-row > h2 { font-size: var(--font-size-2xl); font-weight: 550; letter-spacing: -.4px; margin: 0 0 var(--space-3-5); }
-.settings-content h3 { font-size: var(--font-size-base); font-weight: 650; margin: var(--space-7) 0 var(--space-3-5); }
+.settings-alerts { position: sticky; top: calc(-1 * var(--space-6)); z-index: 2; background: var(--surface); max-width: 850px; }
+.settings-alerts:empty { display: none; }
+.settings-group-header { max-width: 850px; padding-bottom: var(--space-1); }
+.settings-group-title { font-size: var(--font-size-2xl); font-weight: var(--font-weight-semibold); letter-spacing: -.3px; margin: 0; }
+.settings-section { max-width: 850px; padding: var(--space-6) 0; scroll-margin-top: var(--space-2); }
+.settings-section + .settings-section { border-top: 1px solid var(--line); }
+.settings-section > .settings-fields > :first-child, .settings-section > .settings-fields > :first-child > :first-child { margin-top: 0; }
+/* Section titles, including those rendered by nested panels, sit one step below the page title. */
+.settings-content .settings-section h2 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); letter-spacing: 0; }
+.settings-fields > h2, .settings-fields > .settings-help-row > h2 { margin: 0 0 var(--space-3); }
+.settings-content h3 { font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); margin: var(--space-6) 0 var(--space-3); }
 .settings-content h4 { font-size: var(--font-size-md); font-weight: 600; margin: var(--space-5) 0 var(--space-2-5); }
 .settings-content h5 { font-size: var(--font-size-sm); font-weight: 600; margin: var(--space-4) 0 var(--space-2); color: var(--muted); }
 /* Page title with an optional scope control on the same row, matching the Suggestions header. */
 .settings-page-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2-5) var(--space-5); margin: 0 0 var(--space-4); }
-.settings-page-header > h2, .settings-page-header > .settings-help-row > h2 { font-size: var(--font-size-2xl); font-weight: 550; letter-spacing: -.4px; margin: 0; }
+.settings-page-header > h2, .settings-page-header > .settings-help-row > h2 { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin: 0; }
 .settings-content .settings-page-header > .settings-help-row { margin: 0; }
 .settings-scope { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--muted); }
 .settings-scope select { min-height: 32px; width: auto; max-width: 280px; color: var(--text); }
@@ -1112,7 +1121,9 @@ summary:hover { color: var(--text); }
 .setting-editor { margin-bottom: var(--space-5); max-width: 850px; }
 .setting-editor > .setting-field { margin-bottom: var(--space-2-5); }
 .setting-field { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--font-size-sm); margin: var(--space-5) 0 var(--space-3-5); max-width: 850px; }
-.setting-field input, .setting-field select { min-height: 36px; width: 100%; }
+.setting-field input, .setting-field select { min-height: 34px; width: 100%; }
+/* Single-line choices keep a readable width instead of stretching across the page; editors stay full width. */
+.settings-content .setting-field :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"])) { max-width: 480px; }
 .setting-field textarea { min-height: 90px; padding: var(--space-3); line-height: 1.75; font-size: var(--font-size-md); }
 .setting-field .prompt-editor { min-height: 350px; font-family: inherit; max-height: 65vh; }
 .setting-field .json-editor { min-height: 260px; font: var(--font-size-sm)/1.7 var(--font-mono); }

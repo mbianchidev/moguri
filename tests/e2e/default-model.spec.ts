@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
-import { chooseThinkingEffort, openModelChoices } from "./navigation.ts";
+import { chooseThinkingEffort, openModelChoices, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -12,7 +12,7 @@ const launch = (directory: string) => electron.launch({ executablePath: process.
 test.skip(process.platform !== "darwin", "Shared model defaults are qualified with generated hidden macOS fixtures.");
 const startup = async (page: Page) => {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Startup defaults", exact: true }).click();
+  await openSettingsSection(page, "Startup defaults");
 };
 const saved = (page: Page) => expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
 

@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
-import { useEffect, useRef, useState } from "react";
-import { automaticCompactionPolicy, defaultSettings, builtinClashNotice, builtinSlashClash, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo, type LinearConnection } from "../../../packages/sdk/src/index.ts";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { automaticCompactionPolicy, defaultSettings, builtinClashNotice, builtinSlashClash, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { PrAutomationDefaults } from "./PrAutomationSettings.tsx";
@@ -30,7 +30,7 @@ import { OtlpSettings } from "./OtlpSettings.tsx";
 import { StorageSettings } from "./StorageSettings.tsx";
 import { VirtualDiskSettings } from "./VirtualDiskSettings.tsx";
 import { UpdateSettings } from "./UpdateSettings.tsx";
-import { isTabbedGroup, searchSettings, settingsGroupOf, type SettingsTab } from "./settings-catalog.ts";
+import { SETTINGS_GROUPS, searchSettings, settingsGroupOf, type SettingsGroup, type SettingsTab } from "./settings-catalog.ts";
 import { SandboxSetupPanel } from "./SandboxSetupPanel.tsx";
 import { SandboxPanel } from "./SandboxPanel.tsx";
 import { ArtifactPanel } from "./ArtifactPanel.tsx";
@@ -51,7 +51,9 @@ import { PathField, localPath } from "./PathField.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
-const linearConnectionLabel = (connection: LinearConnection) => connection.account ? "Connected" : connection.credential === "configured" ? "Key saved" : "Not connected";
+const GROUP_ICONS: Record<SettingsGroup["label"], string> = { General: "Settings", Models: "Thought", Integrations: "Extensions", "Execution & permissions": "Traffic",
+  Sessions: "Clock", Instructions: "BookOpen", Interface: "Dashboard" };
+const GROUP_SLUGS = Object.fromEntries(SETTINGS_GROUPS.map((group) => [group.label, group.label.toLowerCase().replace(/[^a-z]+/g, "-")])) as Record<SettingsGroup["label"], string>;
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
 type AutomaticSection = "scriptReview" | "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp" | "prAutomation";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
@@ -78,19 +80,12 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [sql, setSql] = useState<Awaited<ReturnType<MoguriSdk["integrations"]["sqlStatus"]>>["connection"] | null>(null);
   const sqlGeneration = useRef(0);
   const groups = searchSettings(search), searching = search.trim().length > 0;
-  const activeGroup = settingsGroupOf(tab), tabbed = isTabbedGroup(activeGroup);
-  const groupTabs = useRef(new Map<string, SettingsTab>());
-  useEffect(() => { groupTabs.current.set(activeGroup.label, tab); }, [tab]);
-  const [githubStatus, setGithubStatus] = useState("Not checked"), [linearStatus, setLinearStatus] = useState("Not checked");
-  useEffect(() => { setGithubStatus("Not checked"); setLinearStatus("Not checked"); }, [sdk]);
-  const integrationsOpen = activeGroup.label === "Integrations";
-  useEffect(() => {
-    if (!integrationsOpen) return;
-    let current = true;
-    void sdk.linear.connection().then((value) => { if (current) setLinearStatus(linearConnectionLabel(value.connection)); }, () => { if (current) setLinearStatus("Not checked"); });
-    return () => { current = false; };
-  }, [sdk, integrationsOpen]);
-  const decisions = useDecisionStatus(sdk, session, snapshot, tab === "decisions");
+  const activeGroup = settingsGroupOf(tab), groupKey = activeGroup.label;
+  const shows = (id: SettingsTab) => activeGroup.items.some((item) => item.id === id);
+  const content = useRef<HTMLDivElement>(null);
+  /** Bumped by every navigation so choosing the same section again still scrolls to it. */
+  const [scrollRequest, setScrollRequest] = useState(0);
+  const decisions = useDecisionStatus(sdk, session, snapshot, shows("decisions"));
   const [draft, setDraft] = useState(() => structuredClone(snapshot.settings.values));
   const latestDraft = useRef(draft); latestDraft.current = draft;
   const [committed, setCommitted] = useState(() => structuredClone(snapshot.settings.values));
@@ -122,13 +117,14 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [sandboxDraftDirty, setSandboxDraftDirty] = useState(false);
   const [error, setError] = useState("");
   const [output, setOutput] = useState("");
-  const [input, setInput] = useState("");
+  const [memoryQuery, setMemoryQuery] = useState(""), [assignment, setAssignment] = useState(""), [importPath, setImportPath] = useState(""), [wavPath, setWavPath] = useState("");
+  const clearInputs = () => { setMemoryQuery(""); setAssignment(""); setImportPath(""); setWavPath(""); };
   const [preview, setPreview] = useState("");
   const [voice, setVoice] = useState<VoiceStatus | null>(null);
   const [modelReview, setModelReview] = useState<{ jobId: string; inspection: VoiceModelInspection | null } | null>(null);
   const [modelPath, setModelPath] = useState(""), [modelSearch, setModelSearch] = useState<{ discovery: VoiceModelDiscovery; installed: boolean } | null>(null);
   const [searchingModels, setSearchingModels] = useState(false);
-  const dictation = useDictation(sdk, session, snapshot, { active: tab === "voice" });
+  const dictation = useDictation(sdk, session, snapshot, { active: shows("voice") });
   const [microphones, setMicrophones] = useState<MicrophoneChoice[]>([]), [devicesBusy, setDevicesBusy] = useState(false);
   const deviceRequest = useRef<AbortController | null>(null);
   const [runtime, setRuntime] = useState<Awaited<ReturnType<MoguriSdk["runtime"]["status"]>>["runtime"] | null>(null);
@@ -158,27 +154,38 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const memoryBlocked = !project || !snapshot.settings.values.memory.enabled || dirty || saving || memoryEnv === "Sandbox";
   const memoryJobs = snapshot.jobs.filter((job) => job.kind === "memory.index" && job.projectId === project?.id &&
     (!job.sessionId || job.sessionId === session?.id)).slice(-4).reverse();
-  useEffect(() => { setTab(initialTab); setOutput(""); setInput(""); }, [initialTab]);
+  useEffect(() => { setTab(initialTab); setOutput(""); clearInputs(); setScrollRequest((value) => value + 1); }, [initialTab]);
   useEffect(() => {
-    if (!policyFocus || tab !== policyLocations[policyFocus.target].tab) return;
+    if (!policyFocus || !shows(policyLocations[policyFocus.target].tab)) return;
     setSearch("");
     const frame = requestAnimationFrame(() => {
       const target = document.getElementById(policyLocations[policyFocus.target].heading);
       target?.scrollIntoView({ block: "start" }); target?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [policyFocus?.id, tab]);
-  useEffect(() => { if (tab === "memory") { setOutput(""); setError(""); } }, [memoryKey, tab]);
+  }, [policyFocus?.id, groupKey]);
+  useEffect(() => { if (shows("memory")) { setOutput(""); setError(""); } }, [memoryKey, groupKey]);
   const nonWebNestedDirty = projectDirty || repositoriesDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy || profilesDirty || sessionsDirty || integrationDirty || soundsBusy || applicationBusy || modelsBusy || capabilityBusy;
   const otherNestedDirty = nonWebNestedDirty || webBusy || webDirty;
   const nestedDirty = otherNestedDirty || storageBusy || updateBusy || sandboxDraftDirty || resourceDirty || exportDirty;
-  const selectTab = (next: SettingsTab): boolean => {
-    if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return false; }
-    setTab(next); setOutput(""); setInput(""); return true;
+  /** Shows an item's section: inside the open page it only scrolls; another page first needs nested edits saved. */
+  const openSection = (next: SettingsTab): boolean => {
+    if (!shows(next)) {
+      if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return false; }
+      setOutput(""); clearInputs();
+    }
+    setTab(next); setScrollRequest((value) => value + 1); return true;
   };
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      if (activeGroup.items[0]?.id === tab) content.current?.scrollTo({ top: 0 });
+      else document.getElementById(`settings-section-${tab}`)?.scrollIntoView({ block: "start" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollRequest]);
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
-  useEffect(() => () => deviceRequest.current?.abort(), [sdk, tab]);
+  useEffect(() => () => deviceRequest.current?.abort(), [sdk, groupKey]);
   useEffect(() => {
     setPreview("");
     setSandboxReviewed(false);
@@ -206,8 +213,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     return run(operation, () => memoryScope.current.sdk === captured.sdk && memoryScope.current.key === captured.key);
   };
   useEffect(() => {
-    if (tab === "voice") void run(async () => { const result = await sdk.voice.status(); setVoice(result.voice); });
-  }, [tab, snapshot.settings.values.voice.enabled, snapshot.settings.values.voice.model?.sha256, snapshot.settings.values.voice.model?.trustedAt,
+    if (shows("voice")) void run(async () => { const result = await sdk.voice.status(); setVoice(result.voice); });
+  }, [groupKey, snapshot.settings.values.voice.enabled, snapshot.settings.values.voice.model?.sha256, snapshot.settings.values.voice.model?.trustedAt,
     snapshot.jobs.filter((job) => ["voice.download", "voice.disable", "voice.prepare", "voice.capture", "voice.record", "voice.transcribe"].includes(job.kind) && job.status !== "running").length]);
   const reviewJob = modelReview ? snapshot.jobs.find((job) => job.id === modelReview.jobId) : undefined;
   useEffect(() => {
@@ -238,16 +245,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       setModelSearch({ discovery, installed: path === undefined });
     } finally { setSearchingModels(false); }
   });
-  useEffect(() => { if (tab === "remote") void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [tab, snapshot.settings.revision]);
+  useEffect(() => { if (shows("remote")) void run(async () => { setRemoteState((await sdk.remote.status()).remote); }); }, [groupKey, snapshot.settings.revision]);
   useEffect(() => {
-    if (tab !== "retention") return;
+    if (!shows("retention")) return;
     let current = true;
     const load = () => { void sdk.runtime.status().then((value) => { if (current) setRuntime(value.runtime); })
       .catch((error: unknown) => { if (current) setError(error instanceof Error ? error.message : "Runtime status is unavailable. No awake state was inferred."); }); };
     load(); const timer = setInterval(load, 3000);
     return () => { current = false; clearInterval(timer); };
-  }, [sdk, tab, snapshot.settings.revision]);
-  useEffect(() => { if (tab === "budgets" || tab === "startup") void run(async () => { setProfileCatalog((await sdk.profiles.list()).catalog); }); }, [tab, snapshot.profileCatalogRevision]);
+  }, [sdk, groupKey, snapshot.settings.revision]);
+  useEffect(() => { if (shows("budgets") || shows("startup")) void run(async () => { setProfileCatalog((await sdk.profiles.list()).catalog); }); }, [groupKey, snapshot.profileCatalogRevision]);
   const change = <K extends SettingsSection>(section: K, value: UserSettings[K]) => setDraft((draft) => ({ ...draft, [section]: value }));
   const sectionDirty = (section: SettingsSection) => raw[section] !== undefined || JSON.stringify(draft[section]) !== JSON.stringify(committed[section]);
   const reload = () => {
@@ -365,9 +372,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     disabled={disabled || saving || lineageDirty || lineageBusy || !sectionDirty(section) || section === "systemPrompt" && !risk} onClick={() => void save(section)}>Save</button>;
   const jsonEditor = (section: SettingsSection, label: string, disabled = saving) => <div className="setting-editor"><label className="setting-field">{label}<SettingsTextarea className="json-editor" aria-label={label} value={raw[section] ?? JSON.stringify(draft[section], null, 2)} disabled={disabled}
     onChange={(event) => setRaw((raw) => ({ ...raw, [section]: event.target.value }))} spellCheck={false} /></label>{saveButton(section, `Save ${label}`, disabled)}</div>;
-  const registry = snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) && entry.kind === (tab === "skills" ? "skill" : tab === "scripts" ? "script" : "plugin"));
-  useEffect(() => { setCapabilityProgress(""); setDeletingSkill(null); }, [sdk, project?.id, tab]);
-  const deleteSkill = (entry: (typeof registry)[number]) => {
+  const registryFor = (kind: "skills" | "scripts" | "plugins") => snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) &&
+    entry.kind === (kind === "skills" ? "skill" : kind === "scripts" ? "script" : "plugin"));
+  useEffect(() => { setCapabilityProgress(""); setDeletingSkill(null); }, [sdk, project?.id, groupKey]);
+  const deleteSkill = (entry: ReturnType<typeof registryFor>[number]) => {
     if (capabilityPending.current) return;
     capabilityPending.current = true; setCapabilityBusy(true);
     void run(async () => {
@@ -375,7 +383,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       setDeletingSkill(null); setCapabilityProgress(`Deleted skill ${entry.name}. Chats that used it lose access.`);
     }).finally(() => { capabilityPending.current = false; setCapabilityBusy(false); });
   };
-  const toggleSkills = (entries: typeof registry, enabled: boolean) => {
+  const toggleSkills = (entries: ReturnType<typeof registryFor>, enabled: boolean) => {
     if (capabilityPending.current) return;
     capabilityPending.current = true; setCapabilityBusy(true);
     const progress = (count: number) => setCapabilityProgress(`${count} of ${entries.length} skill changes saved.`);
@@ -394,7 +402,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const voiceDisable = snapshot.jobs.findLast((job) => job.kind === "voice.disable" && job.status === "running");
   const lastVoice = snapshot.jobs.findLast((job) => job.sessionId === session?.id && ["voice.record", "voice.transcribe", "voice.capture"].includes(job.kind));
   const completedVoice = lastVoice?.status === "completed" ? lastVoice : undefined;
-  const voiceTranscript = useDictationTranscript(sdk, session?.id, tab === "voice" ? completedVoice?.id : undefined);
+  const voiceTranscript = useDictationTranscript(sdk, session?.id, shows("voice") ? completedVoice?.id : undefined);
   const modelPromptChanged = draft.systemPrompt !== committed.systemPrompt;
   const projectServers = session ? snapshot.projectConfigurations.find((configuration) => configuration.projectId === session.projectId)?.values.mcpServers ?? [] : [];
   const configuredServers = [...snapshot.settings.values.mcpServers, ...projectServers].filter((server, index, all) => server.enabled &&
@@ -421,63 +429,24 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   useEffect(() => { setTools([]); setSelectedTool(null); }, [snapshot.profileId, snapshot.settings.revision, snapshot.policy.revision, session?.id, session?.projectId,
     session?.workspaceId, session?.controls.env, session?.mode, session?.pendingMode, snapshot.projectConfigurations.find((configuration) => configuration.projectId === session?.projectId)?.revision]);
   const railBusy = saving || sandboxBusy || lineageBusy;
-  const enabledCount = (count: number, noun = "enabled") => count ? `${count} ${noun}` : `None ${noun}`;
-  const tabStatus: Partial<Record<SettingsTab, string>> = {
-    github: githubStatus, linear: linearStatus,
-    mcpServers: enabledCount(committed.mcpServers.filter((server) => server.enabled).length),
-    sql: committed.integrations?.sql.enabled ? "On" : "Off",
-    stainless: committed.integrations?.stainless?.enabled ? "On" : "Off",
-    plugins: enabledCount(snapshot.registry.filter((entry) => entry.kind === "plugin" && entry.enabled && !entry.retired).length),
-    marketplace: enabledCount(snapshot.registry.filter((entry) => entry.marketplace && !entry.retired).length, "installed"),
-  };
-  return <SettingsFieldsProvider><section className="settings-page" aria-label="Moguri settings">
-    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" disabled={saving || sandboxBusy || lineageBusy} onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span>{tab !== "project" && <button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button>}</header>
-    <div className="settings-layout" data-settings-tab={tab}><nav aria-label="Settings categories">
-      <label className="settings-search"><span className="sr-only">Search settings</span><input type="search" aria-label="Search settings" placeholder="Search settings" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-      <span className="sr-only" role="status">{search.trim() ? `${groups.reduce((sum, group) => sum + group.items.length, 0)} settings sections found` : ""}</span>
-      {groups.map((group) => isTabbedGroup(group) && !searching ? <section className="settings-category settings-category-tabbed" key={group.label} aria-label={`${group.label} settings`}>
-        <button disabled={railBusy} className={activeGroup.label === group.label ? "selected" : ""} aria-current={activeGroup.label === group.label ? "page" : undefined}
-          onClick={() => selectTab(activeGroup.label === group.label ? tab : groupTabs.current.get(group.label) ?? group.items[0]!.id)}>{group.label}</button></section> :
-        <section className="settings-category" key={group.label} aria-label={`${group.label} settings`}><h2>{group.label}</h2>{group.items.map((item) => <button key={item.id} disabled={railBusy} className={tab === item.id ? "selected" : ""} aria-current={tab === item.id ? "page" : undefined} onClick={() => selectTab(item.id)}>{item.label}</button>)}</section>)}
-      {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
-      <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
-      <div className="settings-content">
-        {tabbed && <div className="pr-pane-tabs settings-tabs" role="tablist" aria-label={activeGroup.label} onKeyDown={(event) => {
-          if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-          event.preventDefault();
-          const items = activeGroup.items, index = items.findIndex((item) => item.id === tab);
-          const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + items.length) % items.length;
-          if (selectTab(items[next]!.id)) event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-        }}>{activeGroup.items.map((item) => {
-          const status = tabStatus[item.id];
-          return <button key={item.id} id={`settings-tab-${item.id}`} type="button" role="tab" aria-selected={tab === item.id} aria-controls="settings-tabpanel"
-            tabIndex={tab === item.id ? 0 : -1} disabled={railBusy} aria-label={item.label} aria-describedby={status ? `settings-tab-status-${item.id}` : undefined}
-            onClick={() => selectTab(item.id)}><span>{item.label}</span>{status && <span id={`settings-tab-status-${item.id}`} className="settings-tab-status">{status}</span>}</button>;
-        })}</div>}
-        <div id="settings-tabpanel" role={tabbed ? "tabpanel" : undefined} aria-labelledby={tabbed ? `settings-tab-${tab}` : undefined}><fieldset className="settings-fields" disabled={saving && tab !== "voice"}>
-        {["artifacts", "candidates", "sendbox", "skills"].includes(tab) && <div className="settings-page-header">
-          {tab === "sendbox" ? <SettingsHelp label="About Sandbox" target={<h2 id="sandbox-configuration">Sandbox</h2>}>Sandbox runs the agent in an isolated VM on this Mac. If setup is incomplete, Sandbox turns are blocked instead of running in Local.</SettingsHelp> :
-            <h2>{tab === "artifacts" ? "Artifacts" : tab === "candidates" ? "Candidates" : "Skills"}</h2>}
-          <label className="settings-scope">{tab === "skills" ? "Chat for skill review" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
-            if (resourceDirty) { setError("Save or cancel the current resource edit before choosing another source chat."); return; }
-            setResourceSessionId(event.target.value);
-          }}><option value="">{tab === "skills" ? "Choose a source chat" : "Profile records"}</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
-            {snapshot.sessions.filter((value) => value.kind !== "subagent").map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
-          </select></label>
-        </div>}
-        {tab === "artifacts" && <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setResourceDirty} onRequestHandled={onArtifactRequestHandled} />}
-        {tab === "candidates" && <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} />}
-        {tab === "general" && <><h2>General</h2><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
+  /** Every item of the open group renders as one section of a single page (#84 follow-up); item ids stay deep-link targets. */
+  const renderSection = (id: SettingsTab): ReactNode => {
+    switch (id) {
+      case "artifacts": return <>{resourceHeader("artifacts")}
+        <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setResourceDirty} onRequestHandled={onArtifactRequestHandled} /></>;
+      case "candidates": return <>{resourceHeader("candidates")}
+        <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} /></>;
+      case "general": return <>{<><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
           <OtlpSettings key={sdk.profileId} sdk={sdk} configuration={snapshot.telemetryExport} disabled={dirty || saving || otherNestedDirty || updateBusy || storageBusy} onDirty={setExportDirty} />
           <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy || exportDirty} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><SettingsHelp label="About profiles" target={<h3>Profiles</h3>}>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</SettingsHelp>
-          <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || exportDirty} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}
-        {tab === "repositories" && <RepositoryImportPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} onDirty={setRepositoriesDirty}
+          <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || exportDirty} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}</>;
+      case "repositories": return <><RepositoryImportPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} onDirty={setRepositoriesDirty}
           configureProject={(id) => {
             if (dirty || saving || nestedDirty) { setError("Finish or discard the current edit before choosing a project. No configuration target was changed."); return; }
             if (id) selectConfigurationProject(id);
-            setTab("project");
-          }} />}
-        {tab === "providers" && <><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Signing in here is separate from GitHub repository access. If a provider fails, Moguri doesn't switch to another one.</SettingsHelp>
+            openSection("project");
+          }} /></>;
+      case "providers": return <>{<><SettingsHelp label="About model providers" target={<h2>Model providers</h2>}>Signing in here is separate from GitHub repository access. If a provider fails, Moguri doesn't switch to another one.</SettingsHelp>
           <p className="settings-lead">Connect the accounts and tools Moguri uses for models; credentials stay in your OS keychain.</p>
           <SettingsHelp label="About hosted providers" target={<h3>Accounts</h3>}>API keys are billed by the provider's API; Sign in with ChatGPT uses your ChatGPT plan. Claude.ai subscription sign-in isn't offered because Anthropic doesn't allow it in third-party apps.</SettingsHelp>
           <div className="provider-list">
@@ -530,8 +499,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <ProviderCard label="Local model servers" logo={null} fallback="House" name="Local model servers"
               subtitle="OpenAI-compatible servers you run, such as ds4, Ollama or llama.cpp."
               actions={<button disabled={saving || sandboxBusy || lineageBusy} onClick={() => {
-                if (nestedDirty) { setError("Save or reload this settings edit before changing sections."); return; }
-                setTab("localModels"); setOutput(""); setInput("");
+                openSection("localModels");
               }}>Configure local models</button>} />
           </div>
           <ModelAvailabilityPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || lineageBusy} onBusy={setModelsBusy} />
@@ -549,8 +517,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             disabled={saving || draft.chatTitles?.enabled === false} onChange={(event) =>
             automatic("chatTitles", { refresh: event.target.checked }, false, { enabled: true, modelId: null })} />Rename the chat when the topic changes</label>
           <p className="fine-print">After the first reply, Moguri makes one billed model call with your first prompt to name the chat. When a later request clearly changes topic, it may rename it, up to three times. Names you set yourself are kept.</p>
-        </>}
-        {tab === "accessibility" && <><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a shortcut or type one, then Save. Shortcuts that clash with editing or system keys are rejected; enter none to turn an optional shortcut off.</SettingsHelp><p>Shortcuts never interrupt typing, and a focused terminal keeps its own keys.</p>
+        </>}</>;
+      case "accessibility": return <>{<><SettingsHelp label="More about this setting" target={<h2>Keyboard shortcuts</h2>}>Record a shortcut or type one, then Save. Shortcuts that clash with editing or system keys are rejected; enter none to turn an optional shortcut off.</SettingsHelp><p>Shortcuts never interrupt typing, and a focused terminal keeps its own keys.</p>
 
           <ShortcutEditor label="Commands shortcut" value={draft.shortcuts?.commands ?? "Primary+KeyK"} change={(commands) => change("shortcuts", { ...draft.shortcuts, commands, terminalCopy: draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC" })} save={() => saveShortcut("commands")} dirty={draft.shortcuts?.commands !== committed.shortcuts?.commands} disabled={saving} />
           <ShortcutEditor label="Terminal copy shortcut" value={draft.shortcuts?.terminalCopy ?? "Primary+Shift+KeyC"} change={(terminalCopy) => change("shortcuts", { ...draft.shortcuts, commands: draft.shortcuts?.commands ?? "Primary+KeyK", terminalCopy })} save={() => saveShortcut("terminalCopy")} dirty={draft.shortcuts?.terminalCopy !== committed.shortcuts?.terminalCopy} disabled={saving} />
@@ -565,8 +533,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <dt>Resize a focused sidebar separator</dt><dd><kbd>Left / Right</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move through popover choices</dt><dd><kbd>Up / Down</kbd>, <kbd>Home / End</kbd></dd>
             <dt>Move between controls</dt><dd><kbd>Tab / Shift+Tab</kbd></dd><dt>Activate a focused control</dt><dd><kbd>Enter / Space</kbd></dd>
-          </dl></>}
-        {tab === "github" && <><GitHubConnectionPanel sdk={sdk} onStatus={(connected) => setGithubStatus(connected ? "Connected" : "Not connected")} openTerminal={session?.controls.env === "Local" && session.status !== "archived" && snapshot.policy.allowedEnvs.includes("Local") ? openTerminal : undefined} />
+          </dl></>}</>;
+      case "github": return <>{<><GitHubConnectionPanel sdk={sdk} openTerminal={session?.controls.env === "Local" && session.status !== "archived" && snapshot.policy.allowedEnvs.includes("Local") ? openTerminal : undefined} />
           {(() => {
             const prefix = draft.git?.branchPrefix ?? "", saved = committed.git?.branchPrefix ?? "", valid = new RegExp(BRANCH_PREFIX_PATTERN).test(prefix);
             const wrapUp = draft.wrapUp ?? DEFAULT_SESSION_LIFECYCLE;
@@ -586,7 +554,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               onChange={(patch) => automatic("prAutomation", patch, false, DEFAULT_PR_AUTOMATION)}
               openProject={(projectId) => {
                 if (dirty || nestedDirty) { setError("Save or reload this settings edit before opening a repository's settings."); return; }
-                selectConfigurationProject(projectId); setTab("project"); setOutput(""); setInput("");
+                selectConfigurationProject(projectId); openSection("project");
               }} />
             <section aria-label="Branch names">
               <SettingsHelp label="About branch names" target={<h3>Branch names</h3>}>Applies to branches Moguri creates for new tasks, Kanban work and suggested worktrees. Existing branches keep their names.</SettingsHelp>
@@ -603,9 +571,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
                 <p className="fine-print">{prefix ? `New branches look like ${prefix}moguri/fix-login-1a2b3c4d.` : "Optional. New branches look like moguri/fix-login-1a2b3c4d."}</p>}
             </section></>;
           })()}
-          <details><summary>Advanced Git and GitHub operations</summary><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></details></>}
-        {tab === "linear" && <><LinearConnectionPanel sdk={sdk} onDirty={setIntegrationDirty} onStatus={(connection) => setLinearStatus(linearConnectionLabel(connection))} />{project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p className="fine-print">Choose a project to set up its Linear team and workflows.</p>}</>}
-        {tab === "sql" && <><SettingsHelp label="More about this setting" target={<h2>sql-not-so-lite</h2>}>Connects to a sql-not-so-lite daemon you already run; Moguri never starts it or triggers its scans. The connection is made from this Mac, not from a Remote host.</SettingsHelp>
+          <details><summary>Advanced Git and GitHub operations</summary><GitHubWorkflowPanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /></details></>}</>;
+      case "linear": return <>{<><LinearConnectionPanel sdk={sdk} onDirty={setIntegrationDirty} />{project ? <LinearWorkflowPanel key={`${snapshot.profileId}:${project.id}`} sdk={sdk} project={project} session={session} snapshot={snapshot} /> : <p className="fine-print">Choose a project to set up its Linear team and workflows.</p>}</>}</>;
+      case "sql": return <>{<><SettingsHelp label="More about this setting" target={<h2>sql-not-so-lite</h2>}>Connects to a sql-not-so-lite daemon you already run; Moguri never starts it or triggers its scans. The connection is made from this Mac, not from a Remote host.</SettingsHelp>
           <label className="setting-field">Existing daemon endpoint<SettingsInput aria-label="SQL daemon endpoint" type="url" value={draft.integrations?.sql.endpoint ?? "http://127.0.0.1:9147"} onChange={(event) => change("integrations", { ...draft.integrations, sql: { enabled: draft.integrations?.sql.enabled ?? false, endpoint: event.target.value } })} /></label>
           <button type="button" className="primary" aria-label="Save SQL daemon endpoint" disabled={saving || draft.integrations?.sql.endpoint === committed.integrations?.sql.endpoint} onClick={() => {
             const endpoint = draft.integrations?.sql.endpoint ?? "http://127.0.0.1:9147";
@@ -622,15 +590,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             void run(async () => { const value = await sdk.integrations.sqlStatus(); if (generation === sqlGeneration.current) setSql(value.connection); }, () => generation === sqlGeneration.current);
           }} aria-label="Verify daemon connection">Verify</button>
           <button type="button" disabled={saving || sectionDirty("integrations") || !committed.integrations?.sql.enabled} onClick={() => void run(() => window.moguri.openExternal(committed.integrations!.sql.endpoint))} aria-label="Open interface for existing daemon">Open interface</button>
-          <p role="status">{sql ? `${sql.healthy ? "Daemon reports healthy" : "Not connected"}${sql.version ? ` / ${sql.version}` : ""}. ${sql.diagnostic}` : "Connection not verified yet."}</p></>}
-        {tab === "stainless" && <StainlessSettingsPanel sdk={sdk} revision={snapshot.settings.revision} settings={draft.integrations?.stainless} saving={saving}
+          <p role="status">{sql ? `${sql.healthy ? "Daemon reports healthy" : "Not connected"}${sql.version ? ` / ${sql.version}` : ""}. ${sql.diagnostic}` : "Connection not verified yet."}</p></>}</>;
+      case "stainless": return <><StainlessSettingsPanel sdk={sdk} revision={snapshot.settings.revision} settings={draft.integrations?.stainless} saving={saving}
           save={(stainless) => {
             setDraft((current) => ({ ...current, integrations: { ...(current.integrations ?? defaultSettings().integrations!), stainless } }));
             return write({ ...committedValues.current, integrations: { ...(committedValues.current.integrations ?? defaultSettings().integrations!), stainless } }, () => {});
-          }} />}
-        {tab === "knowledge" && <KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} />}
-        {(tab === "hooks" || tab === "marketplace") && <ExtensionPanel key={`${snapshot.profileId}:${project?.id}:${tab}`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode={tab} onDirty={setProjectDirty} />}
-        {tab === "decisions" && <><SettingsHelp label="More about this setting" target={<h2 id="policy-decisions" data-policy-target tabIndex={-1}>Decision providers and Local Max</h2>}>Autopilot Max asks a decision model to pick answers to technical-choice questions for you. It stays off until you set its provider, model, limits and hosted-data consent below.</SettingsHelp>
+          }} /></>;
+      case "knowledge": return <><KnowledgePanel key={`${snapshot.profileId}:${project?.id}:${session?.id}`} sdk={sdk} snapshot={snapshot} project={project} session={session} onDirty={setProjectDirty} /></>;
+      case "hooks": return <><ExtensionPanel key={`${snapshot.profileId}:${project?.id}:hooks`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode="hooks" onDirty={setProjectDirty} /></>;
+      case "marketplace": return <><ExtensionPanel key={`${snapshot.profileId}:${project?.id}:marketplace`} sdk={sdk} snapshot={snapshot} project={project} session={session} mode="marketplace" onDirty={setProjectDirty} /></>;
+      case "decisions": return <>{<><SettingsHelp label="More about this setting" target={<h2 id="policy-decisions" data-policy-target tabIndex={-1}>Decision providers and Local Max</h2>}>Autopilot Max asks a decision model to pick answers to technical-choice questions for you. It stays off until you set its provider, model, limits and hosted-data consent below.</SettingsHelp>
           {jsonEditor("decisions", "Decision provider policy")}
           <details><summary>Available model IDs</summary><pre>{JSON.stringify(routingModels.map(({ id, name, source, environments, contextWindow, maxTokens, endpointBoundary }) => ({ id, name, source, environments, contextWindow, maxTokens, endpointBoundary })), null, 2)}</pre></details>
 
@@ -638,8 +607,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <SettingsHelp label="More about this setting" target={<h3>Saved-policy readiness</h3>}>After saving, choose Autopilot Max in the composer. Each decision call, its output and its cost appear under Artifacts, and your own answers always take priority.</SettingsHelp><p className="fine-print" role="status">{decisions.reason}</p>
 
           <button type="button" disabled={saving} onClick={() => void reset("decisions")} aria-label="Restore defaults for decision providers">Restore defaults</button>
-        </>}
-        {tab === "kupo" && <><h2 id="policy-kupo" data-policy-target tabIndex={-1}>Kupo</h2>
+        </>}</>;
+      case "kupo": return <>{<><h2 id="policy-kupo" data-policy-target tabIndex={-1}>Kupo</h2>
           <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy} onChange={(event) => {
             if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
             const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
@@ -717,8 +686,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
 
           {draft.kupo.workflow === "single" && <SettingsHelp label="More about this setting" target={<details><summary>Read the classifier prompt</summary><pre>{DEFAULT_ROUTER_PROMPT}</pre></details>}>Your system prompt still governs the solver; the classifier's output only selects a solver and never reaches it as instructions.</SettingsHelp>}
           <button type="button" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("kupo")} aria-label="Restore defaults for Kupo">Restore defaults</button>
-        </>}
-        {tab === "budgets" && <><SettingsHelp label="More about this setting" target={<h2>Budgets and model estimates</h2>}>Limits count every model call, including routing and review calls. They use cost estimates, not your provider's bill, and unknown usage never counts as zero.</SettingsHelp>
+        </>}</>;
+      case "budgets": return <>{<><SettingsHelp label="More about this setting" target={<h2>Budgets and model estimates</h2>}>Limits count every model call, including routing and review calls. They use cost estimates, not your provider's bill, and unknown usage never counts as zero.</SettingsHelp>
           <ProviderPricing sdk={sdk} snapshot={snapshot} />
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.budgets.providerEstimates !== false} disabled={saving || raw.budgets !== undefined} onChange={(event) => automatic("budgets", { providerEstimates: event.target.checked })} />Estimate costs from each model's provider API prices</label>
           <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.budgets.useProviderRatesForLimits === true} disabled={saving || raw.budgets !== undefined || draft.budgets.providerEstimates === false} onChange={(event) => automatic("budgets", { useProviderRatesForLimits: event.target.checked })} />Use API-price estimates for USD limits (not exact billing caps)</label>}>Otherwise, USD limits need a dated rate you set for each model below.</SettingsHelp>
@@ -733,8 +702,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="profile" onDirty={setProfileBudgetDirty} disabled={dirty || saving} />
           <SettingsHelp label="More about this setting" target={<h3 id="policy-global-budget" data-policy-target tabIndex={-1}>Global hard policy</h3>}>A hard limit across every profile. Creating or switching profiles doesn't reset its usage.</SettingsHelp>
           {profileCatalog && <BudgetLimitEditor sdk={sdk} snapshot={snapshot} scope="global" globalPolicy={profileCatalog.globalBudget} onDirty={setGlobalBudgetDirty} disabled={dirty || saving} />}
-        </>}
-        {tab === "localModels" && <><SettingsHelp label="More about this setting" target={<h2>Configured local models</h2>}>Connect an OpenAI-compatible server you run, such as ds4, Ollama or llama.cpp. Saving lists the models on enabled URLs; Moguri never scans your network or downloads weights.</SettingsHelp>
+        </>}</>;
+      case "localModels": return <>{<><SettingsHelp label="More about this setting" target={<h2>Configured local models</h2>}>Connect an OpenAI-compatible server you run, such as ds4, Ollama or llama.cpp. Saving lists the models on enabled URLs; Moguri never scans your network or downloads weights.</SettingsHelp>
           {jsonEditor("localModels", "Local model endpoints")}
           <SettingsHelp label="More about this setting" target={<details><summary>Endpoint configuration example</summary><pre>{JSON.stringify([{ id: "my-local", name: "My local server", enabled: true, baseUrl: "http://127.0.0.1:8080/v1", auth: "none", models: [{ id: "replace-with-advertised-model-id", name: "My local model", contextWindow: 32768, maxTokens: 4096, imageInput: false }] }], null, 2)}</pre></details>}>Set each model's context window, output limit and image support yourself. Use http:// only on localhost or 127.0.0.1; other URLs need HTTPS.</SettingsHelp>
 
@@ -743,8 +712,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <SettingsHelp label="More about this setting" target={<h3>Endpoint credentials</h3>}>Save the endpoint with bearer or header auth first, then store its key here. Keys stay in this profile's secret store, never in the JSON.</SettingsHelp>
           <label className="setting-field">Credential endpoint<select aria-label="Local model credential endpoint" value={modelEndpoint} onChange={(event) => { setModelEndpoint(event.target.value); setModelKey(""); }}><option value="">Choose endpoint</option>{snapshot.settings.values.localModels.filter((endpoint) => endpoint.enabled && endpoint.auth !== "none").map((endpoint) => <option key={endpoint.id} value={endpoint.id}>{endpoint.name}</option>)}</select></label>
           <label className="setting-field">API key<SettingsInput type="password" autoComplete="off" value={modelKey} maxLength={32768} onChange={(event) => setModelKey(event.target.value)} /></label>
-          <div className="button-row"><button disabled={dirty || saving || !modelEndpoint || !modelKey} onClick={() => void run(async () => { await sdk.models.setToken(modelEndpoint, modelKey); setModelKey(""); return "Key stored. Check the endpoint status before choosing a model."; })} aria-label="Store endpoint key">Store</button><button disabled={dirty || saving || !modelEndpoint} onClick={() => void run(() => sdk.models.clearToken(modelEndpoint))} aria-label="Remove endpoint key">Remove</button></div></>}
-        {tab === "remote" && <><SettingsHelp label="More about this setting" target={<h2>Remote SSH</h2>}>Runs the agent, its tools and model calls on an SSH host you approve, while history stays on this Mac. Set each project's remotePath in Project settings.</SettingsHelp>
+          <div className="button-row"><button disabled={dirty || saving || !modelEndpoint || !modelKey} onClick={() => void run(async () => { await sdk.models.setToken(modelEndpoint, modelKey); setModelKey(""); return "Key stored. Check the endpoint status before choosing a model."; })} aria-label="Store endpoint key">Store</button><button disabled={dirty || saving || !modelEndpoint} onClick={() => void run(() => sdk.models.clearToken(modelEndpoint))} aria-label="Remove endpoint key">Remove</button></div></>}</>;
+      case "remote": return <>{<><SettingsHelp label="More about this setting" target={<h2>Remote SSH</h2>}>Runs the agent, its tools and model calls on an SSH host you approve, while history stays on this Mac. Set each project's remotePath in Project settings.</SettingsHelp>
           {jsonEditor("remote", "SSH target (null disables)")}
           <details><summary>Target configuration example</summary><pre>{JSON.stringify({ id: "my-ssh", name: "My SSH host", host: "replace-with-host.example", port: 22, user: "replace-with-ssh-user", hostKey: "ssh-ed25519 replace-with-verified-public-key", identityFile: "/absolute/local/path/to/private-identity", stateDir: "/absolute/private/remote-run-state", command: ["/absolute/remote/path/to/node26", "/absolute/remote/path/to/moguri/dist/remote-bridge.mjs"], allowCopilot: false, models: [] }, null, 2)}</pre></details>
           <Alert as="p" tone="warning" className="settings-warning">Verify the host key yourself and install this same Moguri build on the host. SSH isn't Sandbox isolation, and allowCopilot gives the host short-lived Copilot access.</Alert>
@@ -764,8 +733,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           {snapshot.executions.slice(-16).reverse().map((execution) => <details key={execution.id}><summary>{execution.target.name} / {execution.status} / {execution.cleanup}</summary><p className="path">Run <code>{execution.id}</code></p><p>{execution.diagnostic ?? "Status recorded."}</p>
             <button disabled={remoteBusy || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(() => sdk.remote.reconcile(execution.id))} aria-label="Reconcile receipts">Reconcile</button>
             <button disabled={remoteInspection !== execution.id || snapshot.sessions.some((session) => session.turnId === execution.turnId)} onClick={() => void run(async () => { await sdk.remote.acknowledge(execution.id, true); setRemoteInspection(""); })}>Record inspection</button></details>)}
-          </>}
-        {tab === "startup" && <><SettingsHelp label="More about this setting" target={<h2>New-session defaults</h2>}>Defaults apply to new chats only. A session's own choice wins, then the project, this profile, the shared global default and the factory default.</SettingsHelp>
+          </>}</>;
+      case "startup": return <>{<><SettingsHelp label="More about this setting" target={<h2>New-session defaults</h2>}>Defaults apply to new chats only. A session's own choice wins, then the project, this profile, the shared global default and the factory default.</SettingsHelp>
           <SettingsHelp label="More about this setting" target={<h3>Shared global model</h3>}>Applies to new chats in every profile unless overridden below. "Last selected" remembers the model you last picked in each profile.</SettingsHelp>
           <label className="setting-field">Global default model<select aria-label="Global default model" disabled={saving} value={!Object.hasOwn(draft.startup.global, "modelId") ? "last-used" : draft.startup.global.modelId ?? "none"} onChange={(event) => {
             const value = event.target.value;
@@ -831,16 +800,16 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           }} aria-label="Use current controls for this profile">Use current controls</button>}
           <details><summary>Available model IDs</summary>{snapshot.provider.models.map((model) => <p className="fine-print path" key={model.id}>{model.name}: <code>{model.id}</code></p>)}</details>
           <button onClick={() => void reset("startup")} aria-label="Restore profile startup defaults">Restore profile</button>
-          <button disabled={dirty || saving || nestedDirty || !profileCatalog} onClick={() => void run(async () => { if (!profileCatalog) throw new Error("Load the actual global preference revision first."); await sdk.profiles.defaults({}, profileCatalog.globalDefaults.revision); return "Shared global startup defaults restored. Existing chats are unchanged."; })} aria-label="Restore global defaults">Restore global</button></>}
-        {tab === "instructions" && <><SettingsHelp label="More about this setting" target={<h2>Global user guidance</h2>}>Applies to every chat and project in this profile. Guidance can't change permissions or approve tools.</SettingsHelp><label className="setting-field">User guidance<SettingsTextarea aria-label="Global user guidance" value={draft.instructions} onChange={(event) => change("instructions", event.target.value)} /></label><div className="button-row">{saveButton("instructions", "Save user guidance")}<button onClick={() => void reset("instructions")} aria-label="Restore defaults for user guidance">Restore defaults</button></div>
+          <button disabled={dirty || saving || nestedDirty || !profileCatalog} onClick={() => void run(async () => { if (!profileCatalog) throw new Error("Load the actual global preference revision first."); await sdk.profiles.defaults({}, profileCatalog.globalDefaults.revision); return "Shared global startup defaults restored. Existing chats are unchanged."; })} aria-label="Restore global defaults">Restore global</button></>}</>;
+      case "instructions": return <>{<><SettingsHelp label="More about this setting" target={<h2>Global user guidance</h2>}>Applies to every chat and project in this profile. Guidance can't change permissions or approve tools.</SettingsHelp><label className="setting-field">User guidance<SettingsTextarea aria-label="Global user guidance" value={draft.instructions} onChange={(event) => change("instructions", event.target.value)} /></label><div className="button-row">{saveButton("instructions", "Save user guidance")}<button onClick={() => void reset("instructions")} aria-label="Restore defaults for user guidance">Restore defaults</button></div>
           <SettingsHelp label="More about this setting" target={<h3>Structured instruction templates</h3>}>Each field saves on its own and applies to new turns. Don't put secrets here.</SettingsHelp>
           <button type="button" onClick={() => change("guidance", { ...readinessGuidance, ...draft.guidance })} aria-label="Load starter for readiness into draft">Load starter</button>
           {GUIDANCE_GROUPS.map((group) => <section className="guidance-group" key={group.label} aria-label={group.label}><h3>{group.label}</h3>{group.fields.map(({ key, label }) => <div className="setting-editor" key={key}>
             <label className="setting-field">{label}<SettingsTextarea aria-label={label} maxLength={65536} value={draft.guidance?.[key] ?? ""} onChange={(event) => change("guidance", { ...draft.guidance, [key]: event.target.value })} /></label>
             <button type="button" className="primary" aria-label={`Save ${label}`} disabled={saving || (draft.guidance?.[key] ?? "") === (committed.guidance?.[key] ?? "")} onClick={() => saveGuidance(key)}>Save</button>
-          </div>)}</section>)}</>}
-        {tab === "notifications" && <NotificationSettings sdk={sdk} snapshot={snapshot} values={draft.notifications} disabled={saving} onChange={(patch) => automatic("notifications", patch)} onBusy={setSoundsBusy} onError={setError} onOutput={setOutput} />}
-        {tab === "project" && <>
+          </div>)}</section>)}</>}</>;
+      case "notifications": return <><NotificationSettings sdk={sdk} snapshot={snapshot} values={draft.notifications} disabled={saving} onChange={(patch) => automatic("notifications", patch)} onBusy={setSoundsBusy} onError={setError} onOutput={setOutput} /></>;
+      case "project": return <>{<>
           <SettingsHelp label="About configuration projects" target={<label className="setting-field">Project<select ref={configurationSelect} aria-label="Configuration project"
             value={configurationProjectId ?? ""} disabled={dirty || saving || nestedDirty || !snapshot.projects.length} onChange={(event) => {
               const state = sdk.getState(), id = event.target.value;
@@ -859,8 +828,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               discardUnavailable={() => { setDiscardedConfigurationProject(configurationProjectId); setProjectDirty(false); queueMicrotask(() => configurationSelect.current?.focus()); }}
               session={session?.projectId === configurationProject.id ? session : undefined} snapshot={snapshot} onDirty={setProjectDirty} openTerminal={openTerminal} openSession={openSession} /> :
             !configurationProjectId && <p>{snapshot.projects.length ? "Choose a registered project to configure." : "No registered projects in this profile."}</p>}
-        </>}
-        {tab === "retention" && <><SettingsHelp label="More about this setting" target={<h2>Archived-session retention</h2>}>Deleting a session, or merging its linked PR, also deletes its candidate proposals; archiving keeps them. Artifacts, applied code, worktrees and PRs stay.</SettingsHelp>
+        </>}</>;
+      case "retention": return <>{<><SettingsHelp label="More about this setting" target={<h2>Archived-session retention</h2>}>Deleting a session, or merging its linked PR, also deletes its candidate proposals; archiving keeps them. Artifacts, applied code, worktrees and PRs stay.</SettingsHelp>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the data directory..."}</p>
           <StorageSettings sdk={sdk} disabled={dirty || saving || otherNestedDirty} onBusy={setStorageBusy} prepareMaintenance={prepareMaintenance} />
           <VirtualDiskSettings sdk={sdk} snapshot={snapshot} />
@@ -897,11 +866,9 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <button disabled={!snapshot.settings.values.retention.deleteArchived && !snapshot.settings.values.retention.archiveCompleted && !snapshot.settings.values.retention.archiveMerged} onClick={() => void run(() => sdk.command({ type: "retention.run" }))} aria-label="Run cleanup with configured retention">Run cleanup</button>
           <SessionManagement sdk={sdk} snapshot={snapshot} openSession={openSession} onDirty={setSessionsDirty} />
           <h3>Structured answers</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.artifacts.retainAnswers} onChange={(event) => automatic("artifacts", { retainAnswers: event.target.checked })} />Keep my answers to questions as artifacts</label>}>Only your own answers are kept; answers from a model or Autopilot never count as your instructions or permissions.</SettingsHelp>
-          <button onClick={() => void reset("artifacts")} aria-label="Restore defaults for answer retention">Restore defaults</button></>}
-        {tab === "cache" && <>{session && session.controls.env !== "Local" && <Alert as="p" tone="warning" className="settings-warning">This manages the Local project cache, not packages on the {session.controls.env} host.</Alert>}<DependencyCachePanel key={`${project?.id}-${session?.workspaceId}`} sdk={sdk} project={project} workspaceId={session?.projectId === project?.id ? session?.workspaceId ?? undefined : undefined} /></>}
-        {error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={saving} onClick={reload} aria-label="Reload current settings">Reload</button></div>}
-        {session?.pendingApproval && <div className="alert-recovery"><Alert as="p" className="settings-warning" tone="warning" role="status">The main session needs an approval.</Alert><button className="quiet" onClick={onBack} aria-label="Review exact action">Review</button></div>}
-        {tab === "appearance" && <><SettingsHelp label="About appearance" target={<h2>Appearance</h2>}>Dark is Moguri's default theme. System follows your operating system, and the terminal UI shares this choice.</SettingsHelp>
+          <button onClick={() => void reset("artifacts")} aria-label="Restore defaults for answer retention">Restore defaults</button></>}</>;
+      case "cache": return <>{<>{session && session.controls.env !== "Local" && <Alert as="p" tone="warning" className="settings-warning">This manages the Local project cache, not packages on the {session.controls.env} host.</Alert>}<DependencyCachePanel key={`${project?.id}-${session?.workspaceId}`} sdk={sdk} project={project} workspaceId={session?.projectId === project?.id ? session?.workspaceId ?? undefined : undefined} /></>}</>;
+      case "appearance": return <>{<><SettingsHelp label="About appearance" target={<h2>Appearance</h2>}>Dark is Moguri's default theme. System follows your operating system, and the terminal UI shares this choice.</SettingsHelp>
           <label className="setting-field">Theme<select aria-label="Theme" value={draft.appearance.theme} onChange={(event) => automatic("appearance", { theme: event.target.value === "light" ? "light" : event.target.value === "system" ? "system" : "dark" })}><option value="dark">Dark</option><option value="light">Light</option><option value="system">System</option></select></label>
           <label className="setting-field">Color palette<select aria-label="Color palette" value={draft.appearance.palette ?? "moguri"} onChange={(event) => {
             const palette = themePalettes.find((palette) => palette.id === event.target.value);
@@ -919,8 +886,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
                   automatic("appearance", { custom: { ...custom, [customMode]: { ...custom?.[customMode], [key]: value } } });
                 }} /></label>)}</div>
           </details>}>Custom colors apply when Custom is selected and save when you pick a color. Combinations with unreadable contrast are rejected.</SettingsHelp>
-          <button onClick={() => void reset("appearance")} aria-label="Restore defaults for appearance">Restore defaults</button></>}
-        {tab === "compaction" && (() => {
+          <button onClick={() => void reset("appearance")} aria-label="Restore defaults for appearance">Restore defaults</button></>}</>;
+      case "compaction": return <>{(() => {
           const value = draft.compaction ?? defaultCompactionSettings(), off = saving || !value.automatic;
           const set = (patch: Partial<typeof value>) => automatic("compaction", patch, false, defaultCompactionSettings());
           const choices = <T extends number>(values: T[], current: T) => [...new Set([...values, current])].sort((a, b) => a - b);
@@ -936,8 +903,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               {choices([1024, 2048, 4096], value.outputTokens).map((tokens) => <option key={tokens} value={tokens}>Up to {tokens.toLocaleString()} tokens</option>)}</select></label>
             <p className="fine-print">A summary replaces older turns only when it is complete and smaller. Images are never compacted. Type /compact to compact now and /compact restore to bring the original history back.</p>
           </>;
-        })()}
-        {tab === "interactions" && <><SettingsHelp label="More about this setting" target={<h2>Confirmations</h2>}>Saved per profile. Hiding the terminal pane leaves its consoles running; a console's X button closes it without asking.</SettingsHelp>
+        })()}</>;
+      case "interactions": return <>{<><SettingsHelp label="More about this setting" target={<h2>Confirmations</h2>}>Saved per profile. Hiding the terminal pane leaves its consoles running; a console's X button closes it without asking.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionAttachments} disabled={saving} onChange={(event) => automatic("interactions", { confirmSessionAttachments: event.target.checked })} />Ask before attaching content from a session</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmTerminalClose} disabled={saving} onChange={(event) => automatic("interactions", { confirmTerminalClose: event.target.checked })} />Ask before closing the terminal pane</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.interactions.confirmSessionDetach !== false} disabled={saving} onChange={(event) => automatic("interactions", { confirmSessionDetach: event.target.checked })} />Confirm before detaching a child session</label>
@@ -951,14 +918,14 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <option value="ask">Ask whether to continue them</option><option value="always">Continue all automatically</option>
           </select></label>
           <p className="fine-print">Continuing asks the agent to check where it left off; nothing it already did is repeated.</p>
-          <button type="button" onClick={() => void reset("interactions")} aria-label="Restore defaults for confirmations">Restore defaults</button></>}
-        {tab === "systemPrompt" && <><SettingsHelp label="More about this setting" target={<h2>System prompt</h2>}>These are the instructions Moguri sends to models from every client. Edits apply to new turns.</SettingsHelp>
+          <button type="button" onClick={() => void reset("interactions")} aria-label="Restore defaults for confirmations">Restore defaults</button></>}</>;
+      case "systemPrompt": return <>{<><SettingsHelp label="More about this setting" target={<h2>System prompt</h2>}>These are the instructions Moguri sends to models from every client. Edits apply to new turns.</SettingsHelp>
           <Alert as="p" tone="warning" className="settings-warning">{SYSTEM_PROMPT_WARNING}</Alert>
           <label className="setting-field">Editable system prompt<SettingsTextarea aria-label="Editable system prompt" className="prompt-editor" value={draft.systemPrompt} onChange={(event) => change("systemPrompt", event.target.value)} disabled={saving} spellCheck={false} /></label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={risk} onChange={(event) => setRisk(event.target.checked)} />I understand editing this can break Moguri. Permissions still apply.</label>
           <div className="button-row">{saveButton("systemPrompt", "Save system prompt")}<button onClick={() => void reset("systemPrompt")} aria-label="Restore defaults for system prompt">Restore defaults</button><button onClick={() => void run(async () => { const result = await sdk.prompt.preview(session?.id); setPreview(result.effective); })} aria-label="Preview effective committed prompt">Preview</button></div>
-          {preview && <details open><summary>Full instructions sent to the model, including execution guidance and approved project knowledge</summary><pre>{preview}</pre></details>}</>}
-        {tab === "permissions" && <><SettingsHelp label="About tool approvals" target={<h2 id="policy-tools" data-policy-target tabIndex={-1}>Guardrails and tool guidance</h2>}>File reads, searches and edits run without asking. Scripts, external MCP tools and unlisted websites ask in Manual and Guided; Autopilot and Max approve them, but deny rules, read-only mode and budgets still apply.</SettingsHelp>
+          {preview && <details open><summary>Full instructions sent to the model, including execution guidance and approved project knowledge</summary><pre>{preview}</pre></details>}</>}</>;
+      case "permissions": return <>{<><SettingsHelp label="About tool approvals" target={<h2 id="policy-tools" data-policy-target tabIndex={-1}>Guardrails and tool guidance</h2>}>File reads, searches and edits run without asking. Scripts, external MCP tools and unlisted websites ask in Manual and Guided; Autopilot and Max approve them, but deny rules, read-only mode and budgets still apply.</SettingsHelp>
           <label className="setting-field">Default tool permission<select aria-label="Default tool permission" value={draft.permissions.defaultDecision ?? "ask"} onChange={(event) => automatic("permissions", { defaultDecision: event.target.value === "deny" ? "deny" : "ask" })}><option value="ask">Ask for scripts and unlisted websites</option><option value="deny">Deny unless a rule allows it</option></select></label>
           <label className="setting-field">Default autonomy<select aria-label="Default autonomy" value={draft.startup.profile.autonomy ?? "inherit"} onChange={(event) => {
             const autonomy = event.target.value;
@@ -976,7 +943,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
               scope.kind === "project" ? snapshot.projects.find((entry) => entry.id === scope.projectId)?.name ?? `Project ${scope.projectId}` : scope.kind === "session" ? `Session ${scope.sessionId}` : ""}</small></div>
             <button type="button" disabled={dirty || saving} onClick={() => void run(() => sdk.approvals.revoke(grant.id))}>Revoke</button></div>; })}
           <button type="button" onClick={() => void reset("permissions")} aria-label="Restore defaults for permissions">Restore defaults</button></>}
-        {tab === "sendbox" && <>
+        {<>
+          <SettingsHelp label="More about this setting" target={<h3 id="policy-environments" data-policy-target tabIndex={-1}>Allowed execution environments</h3>}>Only you can change this, and it applies to every profile. Excluding Local blocks new Local work; running Local turns may finish.</SettingsHelp>
+          <select aria-label="Global allowed environments" value={environmentChoice} onChange={(event) => void run(() => event.target.value === "sandbox" ? sdk.containment.requireSandbox(true) :
+            sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : event.target.value === "remote" ? ["Remote"] : ["Sandbox", "Remote"] }))}>
+            <option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option>
+            <option value="sandbox">Require Sandbox (whole-session containment)</option><option value="remote">Require Remote SSH</option>
+            {environmentChoice === "custom" && <option value="custom" disabled>Custom: {allowed.join(", ")}</option>}
+          </select>
+          </>}</>;
+      case "sendbox": return <>{resourceHeader("sendbox")}
+        {<>
           <SandboxSetupPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} value={draft.sandboxManagement} disabled={dirty || saving || otherNestedDirty} onBusy={setSandboxBusy} onDirty={setSandboxDraftDirty}
             update={(patch) => automatic("sandboxManagement", patch)} />
           <SettingsHelp label="More about this setting" target={<details className="candidate-section"><summary>Advanced manual configuration</summary>
@@ -990,17 +967,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           }} aria-label={sandboxBusy ? "Verifying original native guest..." : "Verify reviewed Sandbox"}>{sandboxBusy ? "Verifying..." : "Verify"}</button>
             <button type="button" disabled={sandboxBusy} onClick={() => void run(() => sdk.sandbox.status())} aria-label="Check Sandbox readiness">Check</button><button type="button" className="quiet" disabled={sandboxBusy} onClick={() => void reset("sandbox")} aria-label="Restore defaults for Sandbox">Restore defaults</button></div></details>}>For custom SendBox builds. Most setups should use the managed setup above.</SettingsHelp>
           {!snapshot.policy.allowedEnvs.includes("Sandbox") && <PolicyHint label="Why Sandbox verification is unavailable" target="environments" navigationBlocked={dirty || saving || sandboxDraftDirty || sandboxBusy ? "Save or reload the current configuration before opening execution policy." : undefined}>Your allowed execution environments exclude Sandbox.</PolicyHint>}
-          <SandboxPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} setup={() => document.getElementById("sandbox-configuration")?.scrollIntoView({ block: "start" })} /></>}
-        {tab === "permissions" && <>
-          <SettingsHelp label="More about this setting" target={<h3 id="policy-environments" data-policy-target tabIndex={-1}>Allowed execution environments</h3>}>Only you can change this, and it applies to every profile. Excluding Local blocks new Local work; running Local turns may finish.</SettingsHelp>
-          <select aria-label="Global allowed environments" value={environmentChoice} onChange={(event) => void run(() => event.target.value === "sandbox" ? sdk.containment.requireSandbox(true) :
-            sdk.command({ type: "policy.set", allowedEnvs: event.target.value === "all" ? ["Local", "Sandbox", "Remote"] : event.target.value === "remote" ? ["Remote"] : ["Sandbox", "Remote"] }))}>
-            <option value="all">Allow Local, Sandbox and Remote</option><option value="protected">Require Sandbox or Remote</option>
-            <option value="sandbox">Require Sandbox (whole-session containment)</option><option value="remote">Require Remote SSH</option>
-            {environmentChoice === "custom" && <option value="custom" disabled>Custom: {allowed.join(", ")}</option>}
-          </select>
-          </>}
-        {tab === "memory" && <><SettingsHelp label="More about this setting" target={<h2>Repository memory</h2>}>Builds a local search index and import/symbol graph of your repository. It needs no hosted embedding service or extra API key.</SettingsHelp>
+          <SandboxPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setResourceDirty} setup={() => document.getElementById("sandbox-configuration")?.scrollIntoView({ block: "start" })} /></>}</>;
+      case "memory": return <>{<><SettingsHelp label="More about this setting" target={<h2>Repository memory</h2>}>Builds a local search index and import/symbol graph of your repository. It needs no hosted embedding service or extra API key.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.memory.enabled} onChange={(event) => automatic("memory", { enabled: event.target.checked })} />Enable repository indexing and search</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.memory.useInContext} onChange={(event) => automatic("memory", { useInContext: event.target.checked })} />Add relevant source snippets to model context</label>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.memory.useTieredContext === true} onChange={(event) => automatic("memory", { useTieredContext: event.target.checked })} />Add reviewed Sky/Terra/Glacier knowledge to model context</label>
@@ -1009,56 +977,30 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <div className="button-row"><button disabled={memoryBlocked} aria-label={`Index ${memoryEnv} repository`} onClick={() => void runMemory(() => session ? sdk.memory.indexSession(session.id) : sdk.memory.index(project!.id))}>Index {memoryEnv}</button>
             <button disabled={memoryBlocked || !session} onClick={() => void runMemory(() => sdk.memory.state(session!.id))} aria-label="Inspect bound index">Inspect</button>
             <button disabled={memoryBlocked} onClick={() => void runMemory(() => session ? sdk.memory.graphSession(session.id) : sdk.memory.graph(project!.id))} aria-label="View graph of imports and symbols">View graph</button></div>
-          <label className="setting-field">Search repository memory<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={memoryBlocked || !input} onClick={() => void runMemory(() => session ? sdk.memory.searchSession(session.id, input) : sdk.memory.search(project!.id, input))} aria-label="Search vectors">Search</button>
+          <label className="setting-field">Search repository memory<SettingsInput value={memoryQuery} onChange={(event) => setMemoryQuery(event.target.value)} /></label><button disabled={memoryBlocked || !memoryQuery} onClick={() => void runMemory(() => session ? sdk.memory.searchSession(session.id, memoryQuery) : sdk.memory.search(project!.id, memoryQuery))} aria-label="Search vectors">Search</button>
           {memoryJobs.map((job) => <div className="call-record" key={job.id}><strong>{job.memory?.target.env ?? "Local"} repository index / {job.status}</strong>
             <p>{["running", "waiting_input"].includes(job.status) ? job.progress : job.status === "completed" ? "Index complete. Use Inspect to see what it covers." : "Index stopped. Use Inspect to see the last complete index."}</p>{job.error && <Alert as="p" className="inline-error">{job.error}</Alert>}
             {job.memory && <small className="path">{job.memory.target.root}</small>}
             {["running", "waiting_input"].includes(job.status) && <button aria-label={`Stop index ${job.id.slice(0, 8)}`} onClick={() => void runMemory(() => sdk.jobs.cancel(job.id))}>Stop</button>}
           </div>)}
           <SettingsHelp label="More about this setting" target={<h3>Coding-style knowledge</h3>}>Save project conventions that aren't sensitive; they outlast the session. Model suggestions need your approval first.</SettingsHelp>
-          <button disabled={!project || !input} onClick={() => void run(() => sdk.memory.remember(project!.id, input))} aria-label="Remember this project convention">Remember</button></>}
-        {tab === "subagents" && <><SettingsHelp label="More about this setting" target={<h2>Optional subagents</h2>}>A subagent uses its chat's model and context, can't use tools or change files, and stops when the chat stops. Its usage is tracked separately.</SettingsHelp>
+          <button disabled={!project || !memoryQuery} onClick={() => void run(() => sdk.memory.remember(project!.id, memoryQuery))} aria-label="Remember this project convention">Remember</button></>}</>;
+      case "subagents": return <>{<><SettingsHelp label="More about this setting" target={<h2>Optional subagents</h2>}>A subagent uses its chat's model and context, can't use tools or change files, and stops when the chat stops. Its usage is tracked separately.</SettingsHelp>
           <label className="check-setting"><SettingsInput type="checkbox" checked={draft.subagents.enabled} onChange={(event) => automatic("subagents", { enabled: event.target.checked })} />Enable read-only subagents</label>
           <label className="setting-field">Maximum parallel children<select aria-label="Maximum parallel children" value={draft.subagents.maxParallel} onChange={(event) => automatic("subagents", { maxParallel: Number(event.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
-          <label className="setting-field">Read-only assignment<SettingsTextarea value={input} onChange={(event) => setInput(event.target.value)} /></label><button disabled={!session || !input || !snapshot.settings.values.subagents.enabled} onClick={() => void run(() => sdk.subagents.run(session!.id, input))} aria-label="Run bounded subagent">Run</button></>}
-        {tab === "skills" && <><SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => commitSection("skillSources", sources)}
+          <label className="setting-field">Read-only assignment<SettingsTextarea value={assignment} onChange={(event) => setAssignment(event.target.value)} /></label><button disabled={!session || !assignment || !snapshot.settings.values.subagents.enabled} onClick={() => void run(() => sdk.subagents.run(session!.id, assignment))} aria-label="Run bounded subagent">Run</button></>}</>;
+      case "skills": return <>{resourceHeader("skills")}
+        {<><SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => commitSection("skillSources", sources)}
           dirty={sectionDirty("skillSources")} disabled={saving} onDirty={setIntegrationDirty} />
           {resourceSession ? <fieldset className="settings-fields" disabled={dirty || saving || integrationDirty}>
             {(dirty || integrationDirty) && <p className="fine-print">Save or cancel folder changes before reviewing skills for a chat.</p>}
             <SkillAdmissionsPanel key={`${sdk.profileId}:${resourceSession.id}`} sdk={sdk} session={resourceSession} snapshot={snapshot} />
           </fieldset> : <p className="fine-print">Choose a chat above to review which skills it can use.</p>}
           <SkillPublishersSettings key={`${sdk.profileId}:publishers`} sdk={sdk} snapshot={snapshot} /></>}
-        {(["skills", "scripts", "plugins"] as const).includes(tab as "skills" | "scripts" | "plugins") && <>{tab === "skills" ? <h3>Imported skills</h3> : <h2>{tab === "scripts" ? "Scripts" : "Plugins"}</h2>}
-          <p>{tab === "skills" ? "Import a standard SKILL.md file. Skills add instructions, not tool permissions." : tab === "scripts" ? "Built-in scripts (grep_logs, fetch_page, search_memory and memory_graph) reach the agent through Moguri's internal MCP server." : "A Moguri plugin bundles standard skills. Importing one doesn't run its code or install dependencies."}</p>
-          {tab !== "scripts" && <><label className="setting-field">Local {tab === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={input} onChange={(event) => setInput(event.target.value)} placeholder={tab === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !input} aria-label={`Import disabled ${tab === "skills" ? "skill" : "plugin"}`} onClick={() => void run(async () => {
-            if (tab !== "skills") return sdk.capabilities.importPlugin(project!.id, input);
-            const result = await sdk.capabilities.importSkill(project!.id, input);
-            setCapabilityProgress(result.notice ?? "Skill imported disabled. Enable it to use it.");
-          })}>Import</button></>}
-          {tab === "skills" && <><button type="button" aria-label="Enable all skills" disabled={capabilityBusy || !registry.some((entry) => !entry.enabled)}
-            onClick={() => toggleSkills(registry.filter((entry) => !entry.enabled), true)}>Enable all</button>
-            <p className="fine-print" role="status" aria-label="Skill changes">{capabilityProgress}</p></>}
-          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code>
-            {tab === "skills" && builtinSlashClash(entry.name) && <Alert as="p" tone="warning" className="skill-clash">{builtinClashNotice(entry.name, builtinSlashClash(entry.name)!)}</Alert>}</div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
-            {tab === "skills" ? <><label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
-              onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label>
-              {entry.ownerPluginId ? <span className="fine-print">Plugin bundle</span> : <button type="button" className="icon-button danger" aria-label={`Delete skill ${entry.name}`} title="Delete skill"
-                aria-expanded={deletingSkill === entry.id} disabled={capabilityBusy} onClick={() => setDeletingSkill((current) => current === entry.id ? null : entry.id)}><Icon name="Trash" /></button>}</> :
-              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button>}
-            {deletingSkill === entry.id && <div className="capability-delete" role="group" aria-label={`Confirm deleting skill ${entry.name}`}>
-              <span>Delete {entry.name}? Chats that use it lose access.</span>
-              <button type="button" disabled={capabilityBusy} onClick={() => setDeletingSkill(null)}>Cancel</button>
-              <button type="button" className="danger" disabled={capabilityBusy} onClick={() => deleteSkill(entry)}>Delete skill</button>
-            </div>}</section>)}
-          {tab === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Custom scripts run as code on this Mac, outside any sandbox. Review the source, approve each call and use only scripts you trust.</Alert>}
-          {tab === "scripts" && <><h3>Script reviews</h3>
-            <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Let the agent approve scripts with download or decode findings"
-              checked={draft.scriptReview?.acceptScannerRisk === true} onChange={(event) => automatic("scriptReview", { acceptScannerRisk: event.target.checked })} />Let the agent approve scripts with download or decode findings</label>}>
-              Moguri flags scripts that download and run code, install packages at run time or decode hidden content. By default only you can run those, by forcing them in the review. Turning this on accepts the risk that the agent's own "safe" verdict runs them; normal approvals still apply.</SettingsHelp></>}
-          <h3>Optional evolution</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Let models propose skills, scripts and style knowledge for your review</label>}>Approved proposals install disabled; you enable them separately.</SettingsHelp>
-          {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })} aria-label="Review full proposal">Review</button></div>)}
-          {proposal && <section className="proposal-review"><h3>Review proposed content</h3><pre>{proposal.content}</pre><code>SHA-256 {proposal.digest}</code><label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this source. Approving it doesn't let it run.</label><div className="button-row"><button disabled={!reviewed} onClick={() => void run(() => sdk.capabilities.decide(proposal.id, true, proposal.digest))} aria-label="Approve disabled capability">Approve disabled</button><button onClick={() => void run(() => sdk.capabilities.decide(proposal.id, false, proposal.digest))}>Reject</button></div></section>}</>}
-        {tab === "mcpServers" && <><SettingsHelp label="More about this setting" target={<h2>Tools and MCP</h2>}>Configure MCP servers and choose which integration method the agent tries first. The order is a preference only; it grants no permissions or credentials.</SettingsHelp>
+        {capabilityControls("skills")}</>;
+      case "scripts": return <>{capabilityControls("scripts")}</>;
+      case "plugins": return <>{capabilityControls("plugins")}</>;
+      case "mcpServers": return <>{<><SettingsHelp label="More about this setting" target={<h2>Tools and MCP</h2>}>Configure MCP servers and choose which integration method the agent tries first. The order is a preference only; it grants no permissions or credentials.</SettingsHelp>
           <h3>Tool preference order</h3>
           <p>Drag a handle or press Alt+Up/Down to reorder. Changes save automatically.</p>
           <ReorderList items={effectiveToolPreferences(draft.toolPreferences).order.map((id) => toolMethods.find((method) => method.id === id)!)}
@@ -1075,8 +1017,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           {serverId !== "builtin" && !oauthSelected && <><label className="setting-field">Bearer credential (not saved in settings)<SettingsInput type="password" autoComplete="off" value={token} onChange={(event) => setToken(event.target.value)} /></label><div className="button-row"><button disabled={!token} onClick={() => void run(async () => { await sdk.mcp.setToken(serverId, token, session?.id); setToken(""); return "Credential stored in the OS keychain."; })} aria-label="Store in keychain">Store</button><SettingsAction label="Remove credential" icon="Close" onClick={() => void run(() => sdk.mcp.clearToken(serverId, session?.id))} /></div></>}
           {tools.map((tool) => <button className="tool-discovery-row" key={tool.name} onClick={() => setSelectedTool(tool)}><strong>{tool.name}</strong><span>{tool.description}</span></button>)}
           {selectedTool && <><h3>{selectedTool.name}</h3>{selectedTool.scope && <p className="fine-print path">Remote SSH / {selectedTool.scope.root}. Callable only on this host and root.</p>}<pre>{JSON.stringify(selectedTool.inputSchema, null, 2)}</pre><label className="setting-field">JSON arguments<SettingsTextarea className="json-editor short" aria-label="Exact MCP JSON arguments" value={argumentsJson} onChange={(event) => setArgumentsJson(event.target.value)} /></label><button disabled={dirty || saving || !session || !!session.turnId || session.kind !== "agent" || session.mode !== "agent" || session.pendingMode === "read-only"} onClick={() => void run(async () => { const args: unknown = JSON.parse(argumentsJson); if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("Arguments must be a JSON object."); return sdk.mcp.call(session!.id, selectedTool.serverId, selectedTool.name, args as Record<string, unknown>, selectedTool.digest); })} aria-label="Request in main session with exact arguments">Request in main</button><p className="fine-print">Approve the call in the main session, which must be idle.</p></>}
-          <pre>moguri mcp --session {session?.id ?? "SESSION_ID"}</pre></>}
-        {tab === "voice" && <><SettingsHelp label="More about this setting" target={<h2>Local voice dictation</h2>}>Transcribes speech on this Mac with NVIDIA Nemotron 3.5 ASR. Audio is never sent to a cloud speech service or model provider.</SettingsHelp>
+          <pre>moguri mcp --session {session?.id ?? "SESSION_ID"}</pre></>}</>;
+      case "voice": return <>{<><SettingsHelp label="More about this setting" target={<h2>Local voice dictation</h2>}>Transcribes speech on this Mac with NVIDIA Nemotron 3.5 ASR. Audio is never sent to a cloud speech service or model provider.</SettingsHelp>
           <p>{voice?.diagnostic ?? "Reading local runtime status..."}</p>
           <h3>Model</h3>
           <p aria-label="Dictation model">{committed.voice.model ? `${committed.voice.model.name} (${committed.voice.model.architecture}, ${committed.voice.model.runtime === "transcribe" ? "transcribe.cpp" : "NeMo-Speech"})` : "Moguri-managed Nemotron 3.5 ASR Streaming 0.6B"}</p>
@@ -1164,14 +1106,74 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <p role="status" aria-label="Local microphone status">Microphone: {dictation.state.phase}. {activeVoice?.progress}</p>
           {dictation.state.error && <Alert as="p" className="inline-error" role="alert">{dictation.state.error}</Alert>}
           {lastVoice?.status === "failed" && lastVoice.error !== dictation.state.error && <Alert as="p" className="inline-error" role="alert">{lastVoice.error}</Alert>}
-          <PathField label="Or transcribe a WAV file" ariaLabel="Local WAV path" value={input} onChange={setInput} kind="file" extensions={["wav"]} title="Choose a WAV recording"
+          <PathField label="Or transcribe a WAV file" ariaLabel="Local WAV path" value={wavPath} onChange={setWavPath} kind="file" extensions={["wav"]} title="Choose a WAV recording"
             placeholder="/path/to/recording.wav or ~/recording.wav">
-            <button disabled={saving || !session || !input.trim() || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, localPath(input)))} aria-label="Transcribe local WAV">Transcribe</button>
+            <button disabled={saving || !session || !wavPath.trim() || !voice?.modelReady} onClick={() => void run(() => sdk.voice.transcribe(session!.id, localPath(wavPath)))} aria-label="Transcribe local WAV">Transcribe</button>
           </PathField>
           {completedVoice && <>{voiceTranscript?.error ? <Alert as="p" className="inline-error" role="alert">{voiceTranscript.error}</Alert> : <p aria-label="Dictation transcript">{voiceTranscript?.text ?? "Loading the local transcript..."}</p>}
             <div className="button-row"><button disabled={!session || !voiceTranscript?.text} onClick={() => void run(() => sdk.voice.insert(session!.id, completedVoice.id, session!.draft.revision))} aria-label="Insert into saved draft, never send">Insert</button></div></>}
-          </>}
-      </fieldset></div>
+          </>}</>;
+    }
+  };
+  const resourceHeader = (id: "artifacts" | "candidates" | "sendbox" | "skills") => <div className="settings-page-header">
+          {id === "sendbox" ? <SettingsHelp label="About Sandbox" target={<h2 id="sandbox-configuration">Sandbox</h2>}>Sandbox runs the agent in an isolated VM on this Mac. If setup is incomplete, Sandbox turns are blocked instead of running in Local.</SettingsHelp> :
+            <h2>{id === "artifacts" ? "Artifacts" : id === "candidates" ? "Candidates" : "Skills"}</h2>}
+          <label className="settings-scope">{id === "skills" ? "Chat for skill review" : "Source chat (optional)"}<select aria-label="Settings source chat" value={resourceSessionId} onChange={(event) => {
+            if (resourceDirty) { setError("Save or cancel the current resource edit before choosing another source chat."); return; }
+            setResourceSessionId(event.target.value);
+          }}><option value="">{id === "skills" ? "Choose a source chat" : "Profile records"}</option>{resourceSessionId && !resourceSession && <option value={resourceSessionId} disabled>Source chat removed</option>}
+            {snapshot.sessions.filter((value) => value.kind !== "subagent").map((value) => <option key={value.id} value={value.id}>{value.title}</option>)}
+          </select></label>
+        </div>;
+  const capabilityControls = (kind: "skills" | "scripts" | "plugins") => { const registry = registryFor(kind); return <>{kind === "skills" ? <h3>Imported skills</h3> : <h2>{kind === "scripts" ? "Scripts" : "Plugins"}</h2>}
+          <p>{kind === "skills" ? "Import a standard SKILL.md file. Skills add instructions, not tool permissions." : kind === "scripts" ? "Built-in scripts (grep_logs, fetch_page, search_memory and memory_graph) reach the agent through Moguri's internal MCP server." : "A Moguri plugin bundles standard skills. Importing one doesn't run its code or install dependencies."}</p>
+          {kind !== "scripts" && <><label className="setting-field">Local {kind === "skills" ? "SKILL.md" : "plugin manifest"} path<SettingsInput value={importPath} onChange={(event) => setImportPath(event.target.value)} placeholder={kind === "skills" ? "/path/to/SKILL.md" : "/path/to/moguri-plugin.json"} /></label><button disabled={!project || !importPath} aria-label={`Import disabled ${kind === "skills" ? "skill" : "plugin"}`} onClick={() => void run(async () => {
+            if (kind !== "skills") return sdk.capabilities.importPlugin(project!.id, importPath);
+            const result = await sdk.capabilities.importSkill(project!.id, importPath);
+            setCapabilityProgress(result.notice ?? "Skill imported disabled. Enable it to use it.");
+          })}>Import</button></>}
+          {kind === "skills" && <><button type="button" aria-label="Enable all skills" disabled={capabilityBusy || !registry.some((entry) => !entry.enabled)}
+            onClick={() => toggleSkills(registry.filter((entry) => !entry.enabled), true)}>Enable all</button>
+            <p className="fine-print" role="status" aria-label="Skill changes">{capabilityProgress}</p></>}
+          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code>
+            {kind === "skills" && builtinSlashClash(entry.name) && <Alert as="p" tone="warning" className="skill-clash">{builtinClashNotice(entry.name, builtinSlashClash(entry.name)!)}</Alert>}</div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
+            {kind === "skills" ? <><label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
+              onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label>
+              {entry.ownerPluginId ? <span className="fine-print">Plugin bundle</span> : <button type="button" className="icon-button danger" aria-label={`Delete skill ${entry.name}`} title="Delete skill"
+                aria-expanded={deletingSkill === entry.id} disabled={capabilityBusy} onClick={() => setDeletingSkill((current) => current === entry.id ? null : entry.id)}><Icon name="Trash" /></button>}</> :
+              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button>}
+            {deletingSkill === entry.id && <div className="capability-delete" role="group" aria-label={`Confirm deleting skill ${entry.name}`}>
+              <span>Delete {entry.name}? Chats that use it lose access.</span>
+              <button type="button" disabled={capabilityBusy} onClick={() => setDeletingSkill(null)}>Cancel</button>
+              <button type="button" className="danger" disabled={capabilityBusy} onClick={() => deleteSkill(entry)}>Delete skill</button>
+            </div>}</section>)}
+          {kind === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Custom scripts run as code on this Mac, outside any sandbox. Review the source, approve each call and use only scripts you trust.</Alert>}
+          {kind === "scripts" && <><h3>Script reviews</h3>
+            <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Let the agent approve scripts with download or decode findings"
+              checked={draft.scriptReview?.acceptScannerRisk === true} onChange={(event) => automatic("scriptReview", { acceptScannerRisk: event.target.checked })} />Let the agent approve scripts with download or decode findings</label>}>
+              Moguri flags scripts that download and run code, install packages at run time or decode hidden content. By default only you can run those, by forcing them in the review. Turning this on accepts the risk that the agent's own "safe" verdict runs them; normal approvals still apply.</SettingsHelp></>}
+          <h3>Optional evolution</h3><SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" checked={draft.evolution.enabled} onChange={(event) => automatic("evolution", { enabled: event.target.checked })} />Let models propose skills, scripts and style knowledge for your review</label>}>Approved proposals install disabled; you enable them separately.</SettingsHelp>
+          {pending.map((item) => <div className="proposal-row" key={item.id}><strong>{item.name}</strong><span>{item.kind} / {item.actor === "model" ? "Model suggestion" : "User-authored"}</span><button onClick={() => void run(async () => { const content = await sdk.capabilities.proposal(item.id); setProposal({ id: item.id, content: content.content, digest: content.digest }); setReviewed(false); })} aria-label="Review full proposal">Review</button></div>)}
+          {proposal && <section className="proposal-review"><h3>Review proposed content</h3><pre>{proposal.content}</pre><code>SHA-256 {proposal.digest}</code><label className="check-setting"><SettingsInput type="checkbox" checked={reviewed} onChange={(event) => setReviewed(event.target.checked)} />I reviewed this source. Approving it doesn't let it run.</label><div className="button-row"><button disabled={!reviewed} onClick={() => void run(() => sdk.capabilities.decide(proposal.id, true, proposal.digest))} aria-label="Approve disabled capability">Approve disabled</button><button onClick={() => void run(() => sdk.capabilities.decide(proposal.id, false, proposal.digest))}>Reject</button></div></section>}</>; };
+  return <SettingsFieldsProvider><section className="settings-page" aria-label="Moguri settings">
+    <header className="settings-toolbar"><button className="icon-button" aria-label="Back to session" title="Back" disabled={saving || sandboxBusy || lineageBusy} onClick={() => { if (dirty || nestedDirty) setError("Save your edit or reload committed settings before leaving."); else onBack(); }}><Icon name="Back" /></button><h1>Settings</h1><span role="status">{saving ? "Saving..." : dirty || nestedDirty ? "Unsaved changes" : "Saved"}</span><button aria-label="Save settings" disabled={saving || lineageDirty || lineageBusy || !dirty || modelPromptChanged && !risk} className="primary" onClick={() => void save()}>Save</button></header>
+    <div className="settings-layout" data-settings-group={activeGroup.label}><nav aria-label="Settings categories">
+      <label className="settings-search"><span className="sr-only">Search settings</span><input type="search" aria-label="Search settings" placeholder="Search settings" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+      <span className="sr-only" role="status">{search.trim() ? `${groups.reduce((sum, group) => sum + group.items.length, 0)} settings sections found` : ""}</span>
+      <ul className="settings-groups">{(searching ? groups : SETTINGS_GROUPS).map((group) => {
+        const open = group.label === activeGroup.label, matches = searching ? group.items.length : 0;
+        return <li key={group.label}><button type="button" className={open ? "selected" : ""} aria-current={open ? "page" : undefined} disabled={railBusy} aria-label={group.label}
+          aria-describedby={matches ? `settings-matches-${GROUP_SLUGS[group.label]}` : undefined} onClick={() => openSection(group.items[0]!.id)}>
+          <Icon name={GROUP_ICONS[group.label]} /><span>{group.label}</span>
+          {matches > 0 && <small id={`settings-matches-${GROUP_SLUGS[group.label]}`}>{matches} {matches === 1 ? "match" : "matches"}</small>}</button></li>;
+      })}</ul>
+      {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
+      <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>
+      <div className="settings-content" ref={content}>
+        <div className="settings-alerts">{error && <div className="alert-recovery"><Alert className="notice error" role="alert">{error}</Alert><button disabled={saving} onClick={reload} aria-label="Reload current settings">Reload</button></div>}{session?.pendingApproval && <div className="alert-recovery"><Alert as="p" className="settings-warning" tone="warning" role="status">The main session needs an approval.</Alert><button className="quiet" onClick={onBack} aria-label="Review exact action">Review</button></div>}</div>
+        <header className="settings-group-header"><h2 className="settings-group-title">{activeGroup.label}</h2></header>
+        {activeGroup.items.map((item) => <section key={item.id} id={`settings-section-${item.id}`} className="settings-section" aria-label={item.label} data-settings-section={item.id}>
+          <fieldset className="settings-fields" disabled={saving && item.id !== "voice"}>{renderSection(item.id)}</fieldset></section>)}
         {output && <details className="settings-result" open><summary>SDK response</summary><pre>{output}</pre></details>}
       </div></div>
   </section></SettingsFieldsProvider>;

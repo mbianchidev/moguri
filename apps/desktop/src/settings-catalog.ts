@@ -1,7 +1,7 @@
 import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
 
-// Rail groups (docs/settings/README.md). A tabbed group is one rail entry whose items are WAI-ARIA tabs. Item ids are
-// stable deep-link targets: openSettings, policy hints and restored layouts address items, never rail positions.
+// Settings pages (docs/design.md#settings-rail-structure). The rail lists only the groups; each group is one page that shows all
+// of its items as sections. Item ids are stable deep-link targets: openSettings, policy hints and restored layouts scroll to an item.
 export const SETTINGS_GROUPS = [
   { label: "General", items: [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart OpenTelemetry OTLP collector metadata export sampling" },
@@ -14,7 +14,7 @@ export const SETTINGS_GROUPS = [
     { id: "kupo", label: "Kupo routing", keywords: "automatic configured capabilities single cascade critique classifier solver" },
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },
   ] },
-  { label: "Integrations", tabbed: true, items: [
+  { label: "Integrations", items: [
     { id: "github", label: "GitHub", keywords: "workflows GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions", "pull request automation fix broken CI rerun flaky jobs", "automatic conflict resolution repository exceptions"] },
     { id: "linear", label: "Linear", keywords: "workflows login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
@@ -48,7 +48,7 @@ export const SETTINGS_GROUPS = [
     { id: "knowledge", label: "Knowledge tiers", keywords: "Sky Terra Glacier instructions" },
     { id: "memory", label: "Repository memory", keywords: "index vectors context snippets symbols" },
   ] },
-  { label: "Interface", tabbed: true, items: [
+  { label: "Interface", items: [
     { id: "appearance", label: "Appearance", keywords: "theme light dark mode system palettes custom colors contrast" },
     { id: "accessibility", label: "Keyboard shortcuts", keywords: "keybindings mapping remap actions accessibility" },
     { id: "voice", label: "Voice dictation", keywords: "microphone input device shortcut push to talk speech transcription language backend" },
@@ -60,9 +60,8 @@ export type SettingsTab = typeof SETTINGS_GROUPS[number]["items"][number]["id"];
 export type SettingsGroup = typeof SETTINGS_GROUPS[number];
 
 export const settingsGroupOf = (tab: SettingsTab): SettingsGroup => SETTINGS_GROUPS.find((group) => group.items.some((item) => item.id === tab))!;
-export const isTabbedGroup = (group: { label: string }): boolean => "tabbed" in (SETTINGS_GROUPS.find((value) => value.label === group.label) ?? {});
-/** Rail entries without a search: one per ordinary item, one per tabbed group. */
-export const settingsRailEntries = () => SETTINGS_GROUPS.flatMap((group) => "tabbed" in group ? [group.label] : group.items.map((item) => item.label));
+/** Rail entries without a search: one per group. */
+export const settingsRailEntries = () => SETTINGS_GROUPS.map((group) => group.label);
 
 export function searchSettings(query: string) {
   return SETTINGS_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => {

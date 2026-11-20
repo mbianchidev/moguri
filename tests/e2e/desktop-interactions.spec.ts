@@ -7,7 +7,7 @@ import sharp from "sharp";
 import { compareSessionOrder, DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
-import { openProjectMenu } from "./navigation.ts";
+import { openProjectMenu, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const launch = (directory: string) => electron.launch({ executablePath: require("electron"), args: [".", "--use-fake-device-for-media-stream"], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -209,12 +209,11 @@ test("settings use one font family, omit capability-job history and left navigat
   try {
     const page = await app.firstWindow(), settings = page.getByRole("button", { name: "Settings", exact: true });
     await settings.click(); await expect(page.getByRole("region", { name: "Moguri settings" })).toBeVisible();
-    const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Confirmations", exact: true }).click();
+    await openSettingsSection(page, "Confirmations");
     await page.getByLabel("Ask before closing the terminal pane").uncheck();
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.interactions.confirmTerminalClose).toBe(false);
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
-    await categories.getByRole("button", { name: "Startup defaults", exact: true }).click();
+    await openSettingsSection(page, "Startup defaults");
     const fonts = await page.locator(".settings-page").evaluate((element) => [...element.querySelectorAll("p, textarea, pre, code, select")].map((element) => getComputedStyle(element).fontFamily));
     expect(new Set(fonts).size).toBe(1);
     await expect(page.getByText("Capability jobs and retained results", { exact: true })).toHaveCount(0);

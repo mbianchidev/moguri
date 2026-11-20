@@ -89,7 +89,7 @@ test("long provider settings keep scrolling inside the viewport without moving a
       await expect(page.getByRole("button", { name: "Back to session", exact: true })).toBeInViewport({ ratio: 1 });
       await expect(page.locator(".settings-content").getByRole("heading", { name: "Appearance", exact: true })).toBeInViewport();
       expect(await page.evaluate(() => document.querySelector(".app-shell")?.scrollTop)).toBe(0);
-      await categories.getByRole("button", { name: "Providers", exact: true }).click();
+      await openSettingsSection(page, "Providers");
     }
     expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); await fixture.close(); }

@@ -6,7 +6,7 @@ import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { createSshTarget } from "../fixtures/ssh-target.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
-import { focusByKeyboard } from "./navigation.ts";
+import { focusByKeyboard, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop/SSH execution is qualified on macOS.");
@@ -29,8 +29,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Remote SSH", exact: true }).click();
+    await openSettingsSection(page, "Remote SSH");
     await page.getByLabel("SSH target (null disables)", { exact: true }).fill(JSON.stringify(ssh.target));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await page.getByRole("button", { name: "Probe SSH target", exact: true }).click();
@@ -40,7 +39,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
     await page.keyboard.press("Escape");
     await expect(page.getByText(/executable MCP transports are not qualified/)).toHaveCount(0);
     expect(fixture.requests.length).toBe(0);
-    await categories.getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     await page.getByLabel("Remote workspace path", { exact: true }).fill(workspace);
     await page.getByRole("button", { name: "Save project settings", exact: true }).click();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();

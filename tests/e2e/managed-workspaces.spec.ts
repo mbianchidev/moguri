@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk, type ManagedWorkspace } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
-import { openProjectMenu } from "./navigation.ts";
+import { openProjectMenu, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop execution is qualified on macOS.");
@@ -18,7 +18,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     await page.getByLabel("Managed worktree branch", { exact: true }).fill("moguri/generated-desktop");
     await page.getByLabel("Managed worktree base", { exact: true }).fill("main");
     await page.getByRole("button", { name: "Create worktree", exact: true }).click();
@@ -84,7 +84,7 @@ test("worktree removal uses one explicit dropdown target and a bin action while 
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     const panel = page.getByRole("region", { name: "Managed worktrees", exact: true });
     for (const workspace of workspaces) await panel.locator(".workspace-record").filter({ hasText: workspace.branch }).locator("summary").click();
     const target = panel.getByRole("combobox", { name: "Workspace reviewed for removal", exact: true });

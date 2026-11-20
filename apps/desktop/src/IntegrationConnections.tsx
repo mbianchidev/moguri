@@ -3,20 +3,20 @@ import { useEffect, useState } from "react";
 import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
-export function GitHubConnectionPanel({ sdk, openTerminal, onStatus }: { sdk: MoguriSdk; openTerminal?: () => void; onStatus?: (connected: boolean) => void }) {
+export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal?: () => void }) {
   const [connection, setConnection] = useState<GitHubConnection | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
   useEffect(() => {
     let current = true; setBusy(true);
-    void sdk.integrations.githubConnection().then((value) => { if (current) { setConnection(value.connection); setError(""); onStatus?.(true); } })
-      .catch((error: unknown) => { if (current) { setError(error instanceof Error ? error.message : "The GitHub CLI account is unavailable."); onStatus?.(false); } })
+    void sdk.integrations.githubConnection().then((value) => { if (current) { setConnection(value.connection); setError(""); } })
+      .catch((error: unknown) => { if (current) { setError(error instanceof Error ? error.message : "The GitHub CLI account is unavailable."); } })
       .finally(() => { if (current) setBusy(false); });
     return () => { current = false; };
   }, [sdk]);
   return <section aria-label="GitHub integration connection"><SettingsHelp label="About GitHub integration" target={<h2>GitHub integration</h2>}>Moguri uses your GitHub CLI (gh) account on this Mac for repositories, issues and pull requests. It's separate from your Copilot sign-in and the update token.</SettingsHelp>
     <button type="button" disabled={busy} onClick={() => {
       setBusy(true); setError(""); setConnection(null);
-      void sdk.integrations.githubConnection().then((value) => { setConnection(value.connection); onStatus?.(true); })
-        .catch((error: unknown) => { setError(error instanceof Error ? error.message : "The GitHub CLI account could not be verified."); onStatus?.(false); }).finally(() => setBusy(false));
+      void sdk.integrations.githubConnection().then((value) => { setConnection(value.connection); })
+        .catch((error: unknown) => { setError(error instanceof Error ? error.message : "The GitHub CLI account could not be verified."); }).finally(() => setBusy(false));
     }} aria-label={busy ? "Checking account..." : "Verify GitHub CLI account"}>{busy ? "Checking..." : "Verify"}</button>
     {connection && <p role="status">Verified gh account: {connection.login} / {connection.id}</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
@@ -27,9 +27,8 @@ export function GitHubConnectionPanel({ sdk, openTerminal, onStatus }: { sdk: Mo
   </section>;
 }
 
-export function LinearConnectionPanel({ sdk, onDirty, onStatus }: { sdk: MoguriSdk; onDirty: (dirty: boolean) => void; onStatus?: (connection: LinearConnection) => void }) {
+export function LinearConnectionPanel({ sdk, onDirty }: { sdk: MoguriSdk; onDirty: (dirty: boolean) => void }) {
   const [connection, setConnection] = useState<LinearConnection | null>(null), [token, setToken] = useState("");
-  useEffect(() => { if (connection) onStatus?.(connection); }, [connection]);
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   useEffect(() => { onDirty(token.length > 0 || busy); return () => onDirty(false); }, [token, busy, onDirty]);
   useEffect(() => {

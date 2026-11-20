@@ -19,9 +19,9 @@ const close = async (app: ElectronApplication) => {
 test("instruction fields save independently, project overrides are real and default verbosity never changes an existing session", async () => {
   const fixture = await setupFixture(), app = await launch(fixture.directory);
   try {
-    const page = await app.firstWindow(), categories = page.getByRole("navigation", { name: "Settings categories" });
+    const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await categories.getByRole("button", { name: "User guidance", exact: true }).click();
+    await openSettingsSection(page, "User guidance");
     await page.getByLabel("README sections", { exact: true }).fill("Generated README preference.");
     await page.getByLabel("Responses to the user", { exact: true }).fill("Generated pending reply style.");
     await page.getByRole("button", { name: "Save README sections", exact: true }).click();
@@ -31,11 +31,11 @@ test("instruction fields save independently, project overrides are real and defa
     await page.getByRole("button", { name: "Save Responses to the user", exact: true }).click();
     await page.getByLabel("Documentation style", { exact: true }).fill("Generated inherited documentation.");
     await page.getByRole("button", { name: "Save Documentation style", exact: true }).click();
-    await categories.getByRole("button", { name: "Startup defaults", exact: true }).click();
+    await openSettingsSection(page, "Startup defaults");
     await page.getByLabel("Default response verbosity", { exact: true }).selectOption("dry");
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.startup.profile.verbosity).toBe("dry");
     expect(fixture.session().controls.verbosity).toBeUndefined();
-    await categories.getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     await page.getByLabel("Override Documentation style", { exact: true }).check();
     await page.getByLabel("Project Documentation style", { exact: true }).fill("Generated project-only documentation.");
     await page.getByLabel("Override When debugging", { exact: true }).check();
@@ -125,7 +125,7 @@ test("session management deletes only the confirmed actual session and preserves
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Retention", exact: true }).click();
+    await openSettingsSection(page, "Retention");
     await expect(page.getByLabel("Completed archive days", { exact: true })).toHaveValue("7");
     await expect(page.getByLabel("Archived retention days", { exact: true })).toHaveValue("7");
     await expect(page.getByLabel("Merged archive days", { exact: true })).toHaveValue("7");

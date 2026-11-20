@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { fixtureProvider, setupFixture } from "../fixture.ts";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -75,7 +76,7 @@ test("Budgets shows originating-provider references and explicit finite-limit co
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Budgets", exact: true }).click();
+    await openSettingsSection(page, "Budgets");
     const region = page.getByRole("region", { name: "Provider API-equivalent prices", exact: true });
     await expect(region).toContainText("aren't your subscription cost");
     const consent = page.getByLabel("Use API-price estimates for USD limits (not exact billing caps)", { exact: true });
