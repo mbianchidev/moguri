@@ -2237,7 +2237,9 @@ Hard profile/global policy still applies immediately.
 
 Slash text is queued as a command, never ordinary model input. This includes
 view navigation and `/theme`. **Cmd/Ctrl+Enter holds every input**, including
-`/yolo`, without inference or permission changes. Only unheld `/stop`,
+`/yolo`, without inference or permission changes while it waits; by default the
+top held input starts after the chat's next completed turn
+([D53](architecture/decisions.md#d53-queued-prompts-you-held-start-after-each-completed-turn)). Only unheld `/stop`,
 `/approve` and `/yolo` are live controls. `/yolo` enables session tool delegation
 with qualified Max when ready, otherwise Autopilot; it does not change model,
 Env, budget, read-only scope or hard policy. Ordinary command heads can run at

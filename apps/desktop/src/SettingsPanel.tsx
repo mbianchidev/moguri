@@ -921,6 +921,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             <option value="ask">Ask whether to continue them</option><option value="always">Continue all automatically</option>
           </select></label>
           <p className="fine-print">Continuing asks the agent to check where it left off; nothing it already did is repeated.</p>
+          <label className="check-setting"><SettingsInput type="checkbox" role="switch" checked={draft.interactions.autoSendQueue !== false} disabled={saving} onChange={(event) => automatic("interactions", { autoSendQueue: event.target.checked })} />Send the next queued prompt when a turn finishes</label>
+          <p className="fine-print">Prompts you hold with Cmd/Ctrl+Enter start one at a time, top first, after each completed turn. Prompts held after a stop, failure or restart still wait for Resume.</p>
           <button type="button" onClick={() => void reset("interactions")} aria-label="Restore defaults for confirmations">Restore defaults</button></>}</>;
       case "systemPrompt": return <>{<><SettingsHelp label="More about this setting" target={<h2>System prompt</h2>}>These are the instructions Moguri sends to models from every client. Edits apply to new turns.</SettingsHelp>
           <Alert as="p" tone="warning" className="settings-warning">{SYSTEM_PROMPT_WARNING}</Alert>

@@ -33,7 +33,8 @@ OpenAI-compatible endpoints (with custom headers), Moguri connects
 [OpenRouter, the Anthropic API, the OpenAI API and a ChatGPT account](architecture/hosted-providers.md).
 
 The TUI uses Enter to send and Shift+Enter for newlines; Cmd/Ctrl+Enter holds
-active-turn prompts or opens scheduling when idle. Its compact chat-first
+active-turn prompts, which start one at a time after each completed turn by
+default, or opens scheduling when idle. Its compact chat-first
 client saves and leaves on `exit`, `/exit` or Ctrl+C while the shared service
 keeps working; `/stop` remains the turn-stop command. The
 layout has a growing input, formatted replies, expandable tool output, clickable
