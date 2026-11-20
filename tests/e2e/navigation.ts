@@ -40,7 +40,10 @@ export async function chooseContextWindow(page: Page, name: string) {
 // Tabs are reached through search, so a test mounts only its target page, never the group's first tab.
 export async function openSettingsSection(page: Page, section: string) {
   const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-  if (!await categories.isVisible()) await page.getByRole("button", { name: "Settings", exact: true }).click();
+  // Settings loads lazily: trust the toggle's pressed state, not a visibility probe that can race the first render.
+  const toggle = page.getByRole("button", { name: "Settings", exact: true });
+  if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+  await expect(categories).toBeVisible();
   const group = SETTINGS_GROUPS.find((value) => "tabbed" in value && value.items.some((item) => item.label === section));
   if (!group) { await categories.getByRole("button", { name: section, exact: true }).click(); return; }
   const search = page.getByLabel("Search settings", { exact: true }), previous = await search.inputValue();
