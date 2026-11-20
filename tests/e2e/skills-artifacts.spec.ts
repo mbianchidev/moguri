@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop qualification is macOS-only.");
 const screenshots = process.env.MOGURI_SKILLS_CAPTURES;
 
-test("Customize installs and toggles skills, lists toolsets and opens a project-free editable script request; Artifacts lists project outputs with their chat", async () => {
+test("Capabilities installs and toggles skills, lists toolsets and opens a project-free editable script request; Artifacts lists project outputs with their chat", async () => {
   test.setTimeout(90_000);
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, projectPath = f.service.controller.snapshot().projects.find((project) => project.id === projectId)!.path;
@@ -30,10 +30,12 @@ test("Customize installs and toggles skills, lists toolsets and opens a project-
     const page = await app.firstWindow(); await waitForWorkspace(page);
     await page.setViewportSize({ width: 1280, height: 860 });
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await resources.getByRole("button", { name: "Customize", exact: true }).click();
-    const workspace = page.getByRole("region", { name: "Customize", exact: true });
-    await expect(workspace.getByRole("tab")).toHaveText(["Skills", "Marketplace", "Tools"]);
-    await expect(workspace).toContainText("No skills installed yet");
+    await resources.getByRole("button", { name: "Capabilities", exact: true }).click();
+    const workspace = page.getByRole("region", { name: "Capabilities", exact: true });
+    await expect(workspace.getByRole("tab")).toHaveText(["Skills", "Marketplace", "MCP", "Tools"]);
+    // Every known skill is listed, expanded here (D57); a configured folder's skills are on by default.
+    await expect(workspace.getByRole("region", { name: "Generated market", exact: true })
+      .getByRole("switch", { name: "Enable skill generated-tab-skill from Generated market", exact: true })).toBeChecked();
 
     await workspace.getByRole("tab", { name: "Marketplace", exact: true }).click();
     await workspace.getByRole("combobox", { name: "Install skills into", exact: true }).selectOption({ label: "project" });

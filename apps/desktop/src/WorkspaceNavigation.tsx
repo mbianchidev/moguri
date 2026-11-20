@@ -51,9 +51,11 @@ const projectDrop = (sourceFolder: string | null, target: ProjectPosition, ratio
   if (ratio >= 0.3 && ratio <= 0.7) return { kind: "new-group" };
   return sourceFolder === null ? { kind: "order", edge: ratio < 0.3 ? "before" : "after" } : null;
 };
-export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, startSession, openKanban, settings, terminal, modal, allow, prepareSession,
+export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issues = false, busy, chooseSession, chooseProject, startSession, openKanban, settings, terminal, modal, allow, prepareSession,
   sessionActionRequest, onSessionActionRequestHandled, projectActionRequest, onProjectActionRequestHandled, setupSandbox }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
+  /** The Issues tab: only projects whose Kanban has open issues. */
+  issues?: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
   startSession: (projectId: string | null) => Promise<void>;
   openKanban: (projectId: string) => Promise<void>;
@@ -535,8 +537,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       {more(`project:${project.id}`, roots.length, 5, `sessions in ${project.name}`)}</>}
     </section>;
   };
-  const projects = [...snapshot.projects].filter((project) => !matches || searchResults?.projects.has(project.id) ||
-    snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id)))
+  // Archived lists only projects with archived sessions; Issues only projects whose Kanban has issues.
+  const relevant = (project: Project) => archived ? snapshot.sessions.some((session) => session.projectId === project.id && session.status === "archived") :
+    !issues || snapshot.issues.some((issue) => issue.projectId === project.id && !issue.archived);
+  const projects = [...snapshot.projects].filter((project) => relevant(project) && (!matches || searchResults?.projects.has(project.id) ||
+    snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id))))
     .sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
   const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived && (!matches || matches.has(session.id)));
   const generalIds = new Set(general.map((session) => session.id));
@@ -582,11 +587,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     {flat ? <section className="project-group prompt-ordered-sessions" aria-label={`Sessions by ${promptOrder} prompt`}>{selection && bulk(selection.projectId)}
       {page("prompt-ordered", flatSessions, 20).map((session) => <div key={session.id}>{renderSession(session, 0, sessionLocation(session))}</div>)}
       {more("prompt-ordered", flatSessions.length, 20, "sessions")}</section> : <>
-    {(!matches || general.length > 0) && <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
+    {(!matches && !archived || general.length > 0) && !issues && <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
       <button type="button" className="icon-button" aria-label="New chat" title="New chat" aria-busy={creatingTarget === "chats"}
         disabled={!canCreate || archived} onClick={() => create("chats", async () => { await startSession(null); setSelection(null); setBulkRequest(null); })}><Icon name="Plus" /></button></header>{bulk(null)}{generalTree(null)}</section>}
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
-    {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
+    {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches && !archived && !issues || projects.some((project) => folder(project).folderId === group.id) || !issues && general.some((session) => session.projectFolderId === group.id)).map((group) =>
       <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)} onDragOver={(event) => dragProjectGroup(event, group)} onDrop={(event) => dropProjectGroup(event, group)}
         onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === `folder:${group.id}` ? null : value); }}>
         <summary className={drop?.id === `folder:${group.id}` ? "drop-inside" : undefined} onClick={(event) => {
@@ -606,6 +611,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       "No sessions match these filters. Change a status or reset filters." : "Try another chat or project name, or clear the search."}</p>}
     {!matches && !snapshot.projects.length && !snapshot.sessions.length && !archived && <p className="nav-empty">Use New for a chat, a local folder or a repository.</p>}
     {!matches && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
+    {!matches && issues && !projects.length && <p className="nav-empty">No project has Kanban issues yet.</p>}
   </div>
   {foldersMenu && <WorkspaceContextMenu label="Projects menu" point={foldersMenu} close={(restore = true) => { const anchor = foldersMenu.anchor; setFoldersMenu(null); if (restore) queueMicrotask(() => anchor.isConnected && anchor.focus()); }}>
     <button role="menuitem" onClick={() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); }}><Icon name="Maximize" />Expand all groups</button>

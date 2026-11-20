@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { reviewNativeTools, setupFixture } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
-import { openModelChoices, openSettingsSection } from "./navigation.ts";
+import { expandModelGroups, openKupoAdvanced, openModelChoices, openSettingsSection } from "./navigation.ts";
 import { defaultKupoSettings } from "../../packages/sdk/src/index.ts";
 import { generatedKupoProfile } from "../fixtures/kupo-profiles.ts";
 
@@ -25,6 +25,7 @@ test("unavailable and unbounded models cannot be checked for Kupo; retained unav
     const unavailable = page.getByRole("checkbox", { name: new RegExp(`unavailable solver ${id}`, "i") });
     await expect(unavailable).toBeDisabled();
     await expect(unavailable).not.toBeChecked();
+    await expandModelGroups(page.locator("#settings-section-kupo"));
     await expect(page.getByRole("checkbox", { name: "Approve solver Generated unknown-output model", exact: true })).toBeDisabled();
     await expect(fixture.sdk.sessions.selectModel(fixture.sessionId, "kupo")).rejects.toThrow(/eligible|approved|pool|unavailable/i);
     await page.getByRole("button", { name: `Remove unavailable solver ${fixture.solverId}`, exact: true }).click();
@@ -60,6 +61,7 @@ test("Kupo defaults to automatic configured-model routing and runs Single from t
     await expect.poll(() => fixture.session().controls.modelId).toBe("kupo");
     await models.getByText("Model details and setup", { exact: true }).click();
     await models.getByRole("button", { name: "Kupo settings", exact: true }).click();
+    await openKupoAdvanced(page);
     await expect(page.getByLabel("kupo workflow", { exact: true })).toHaveValue("auto");
     await expect(page.getByLabel("Enable automatic Kupo", { exact: true })).toBeChecked();
     await expect(page.getByRole("table", { name: "Kupo model capabilities" })).toContainText("Generated Copilot model");

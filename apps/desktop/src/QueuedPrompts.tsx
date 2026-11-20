@@ -52,7 +52,8 @@ export function Queue({ session, snapshot, command, client, modal }: {
         {count}<Icon name={expanded ? "Down" : "ChevronRight"} />
       </button>
       {!session.turnId && session.queue.some((item) => item.delivery !== "steer") &&
-        <button type="button" className="quiet queue-resume" onClick={() => void command({ type: "session.resume", sessionId: session.id })}>Resume queued work</button>}
+        <Tooltip content="Resume queued work"><button type="button" className="quiet icon-button queue-resume" aria-label="Resume queued work"
+          onClick={() => void command({ type: "session.resume", sessionId: session.id })}><Icon name="Play" /></button></Tooltip>}
     </header>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {lost !== null && <Alert as="div" className="inline-error queue-lost" role="alert"><p>This prompt was sent or removed before your edit was saved. Your unsaved text:</p>

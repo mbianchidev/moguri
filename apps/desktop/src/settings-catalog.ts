@@ -23,7 +23,7 @@ export const SETTINGS_GROUPS = [
     { id: "plugins", label: "Plugins", keywords: "manifest import extensions" },
     { id: "marketplace", label: "Marketplace", keywords: "catalog extensions trusted sources" },
   ] },
-  { label: "Execution & permissions", items: [
+  { label: "Boundaries", keywords: "execution permissions", items: [
     { id: "permissions", label: "Guardrails", keywords: "default tool permission allow deny ask autonomy execution environment policy local firewall website allowlist hosts session project global" },
     { id: "sendbox", label: "Sandbox", keywords: "sendbox native isolation managed VM image network bundled runtime automatic workspace DNS alias provider version update installer results publication" },
     { id: "remote", label: "Remote SSH", keywords: "host target identity credentials recovery" },
@@ -66,7 +66,8 @@ export const settingsRailEntries = () => SETTINGS_GROUPS.map((group) => group.la
 export function searchSettings(query: string) {
   return SETTINGS_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => {
     const text = query.replace(/[_-]/g, " ");
-    return fuzzyMatch(text, `${group.label} ${item.label} ${item.keywords}`) ||
+    const label = "keywords" in group ? `${group.label} ${group.keywords}` : group.label;
+    return fuzzyMatch(text, `${label} ${item.label} ${item.keywords}`) ||
       "aliases" in item && item.aliases.some((alias) => fuzzyMatch(text, `${group.label} ${alias}`));
   }) })).filter((group) => group.items.length > 0);
 }

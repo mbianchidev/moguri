@@ -26,11 +26,10 @@ export function AutomationsPanel({ sdk, snapshot, run, openSession }: { sdk: Mog
   const automations = [...snapshot.automations].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   return <section className="automations-panel" aria-label="Recurring automations">
     <header><Icon name="Clock" /><h2>Recurring automations</h2>
-      <button type="button" className="primary" disabled={!snapshot.projects.length} onClick={() => setEditing("new")}>New automation</button></header>
-    <p className="fine-print">Each run starts a new chat in its project with the model, Env, autonomy and budget shown below, and never gets extra permissions.
-      Moguri must be running: a missed time runs once when Moguri is back, and a time is skipped while the previous run is still active.</p>
-    {!snapshot.projects.length && <p>Add a project first. Automations always run in an explicit project.</p>}
-    {snapshot.projects.length > 0 && !automations.length && <p>No automations yet.</p>}
+      <button type="button" className="primary" onClick={() => setEditing("new")}>New automation</button></header>
+    <p className="fine-print">Each run starts a new chat, in its project or as a project-free chat, with the model, Env, autonomy and budget shown below, and never gets extra permissions.
+      Each start and outcome appears in Inbox. Moguri must be running: a missed time runs once when Moguri is back, and a time is skipped while the previous run is still active.</p>
+    {!automations.length && <p>No automations yet.</p>}
     {automations.map((automation) => <AutomationCard key={automation.id} sdk={sdk} snapshot={snapshot} automation={automation} run={run}
       openSession={openSession} edit={() => setEditing(automation)} />)}
     {editing && <AutomationDialog sdk={sdk} snapshot={snapshot} automation={editing === "new" ? null : editing} close={() => setEditing(null)} />}
@@ -59,7 +58,7 @@ function AutomationCard({ sdk, snapshot, automation, run, openSession, edit }: {
     <dl className="automation-facts">
       <dt>Schedule</dt><dd>{describeAutomationSchedule(automation.schedule)}</dd>
       <dt>Next run</dt><dd>{on ? automation.nextAt ? when(automation.nextAt) : "No upcoming time" : "Paused"}</dd>
-      <dt>Project</dt><dd>{project?.name ?? "Removed project"}</dd>
+      <dt>Project</dt><dd>{automation.projectId === null ? "No project" : project?.name ?? "Removed project"}</dd>
       <dt>Runs with</dt><dd>{automation.controls.env}, {model?.name ?? automation.controls.modelId ?? "no model"}, {automation.controls.autonomy}, {budgetText(automation.controls)}</dd>
     </dl>
     <ol className="automation-steps" aria-label="Steps">{automation.steps.map((step, index) =>
@@ -102,7 +101,7 @@ function AutomationDialog({ sdk, snapshot, automation, close }: { sdk: MoguriSdk
   const localZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const schedule = automation?.schedule;
   const [name, setName] = useState(automation?.name ?? "");
-  const [projectId, setProjectId] = useState(automation?.projectId ?? snapshot.projects[0]?.id ?? "");
+  const [projectId, setProjectId] = useState(automation ? automation.projectId ?? "" : snapshot.projects[0]?.id ?? "");
   const [kind, setKind] = useState<ScheduleKind>(schedule?.kind ?? "daily");
   const [timeZone, setTimeZone] = useState(schedule?.timeZone ?? localZone);
   const [once, setOnce] = useState(schedule?.kind === "once" ? schedule.localTime : scheduleLocalTime(Date.now() + 3_600_000, localZone).localTime);
@@ -137,18 +136,20 @@ function AutomationDialog({ sdk, snapshot, automation, close }: { sdk: MoguriSdk
     try {
       const controls = { ...(modelId ? { modelId } : {}), ...(env ? { env } : {}), ...(autonomy ? { autonomy } : {}) };
       if (automation) await sdk.automations.update(automation.id, definition(), controls, automation.revision);
-      else await sdk.automations.create(projectId, definition(), { enabled, controls });
+      else await sdk.automations.create(projectId || null, definition(), { enabled, controls });
       close();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The automation was not saved."); }
     finally { pending.current = false; setBusy(false); }
   };
-  const title = automation ? "Edit automation" : "New automation";
+  const title = automation ? "Edit automation" : "New automation", defaultLabel = projectId ? "Project default" : "Default";
   return <dialog ref={dialog} className="workspace-dialog automation-dialog" aria-label={title} onCancel={(event) => { event.preventDefault(); if (!pending.current) close(); }}>
     <header><h2>{title}</h2></header>
     <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <label className="setting-field">Name<input value={name} maxLength={120} required disabled={busy} onChange={(event) => setName(event.target.value)} /></label>
       <label className="setting-field">Project<select value={projectId} disabled={busy || Boolean(automation)} onChange={(event) => setProjectId(event.target.value)}>
+        <option value="">No project</option>
         {snapshot.projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+      {!projectId && <p className="fine-print">Each run starts an ordinary project-free chat. Local runs work in your Home folder, like any chat without a project; script steps need a project.</p>}
       <fieldset className="automation-schedule"><legend>Schedule</legend>
         <label className="setting-field">Repeat<select value={kind} disabled={busy} onChange={(event) => setKind(event.target.value as ScheduleKind)}>
           <option value="once">Once</option><option value="interval">Every few minutes or hours</option><option value="daily">Every day</option><option value="weekly">On chosen weekdays</option></select></label>
@@ -177,22 +178,22 @@ function AutomationDialog({ sdk, snapshot, automation, close }: { sdk: MoguriSdk
           </div>
         </fieldset>)}
         <button type="button" disabled={busy || steps.length >= 10} onClick={() => setSteps((current) => [...current, stepDraft()])}>Add step</button>
-        <p className="fine-print">Script steps run only exact scripts in this project's repository trust, under normal approval. Approval follows the autonomy below.</p>
+        <p className="fine-print">Script steps run only exact scripts in the chosen project's repository trust, under normal approval. Approval follows the autonomy below.</p>
       </fieldset>
       <fieldset className="automation-controls"><legend>Runs with</legend>
         <label className="setting-field">Model<select value={modelId} disabled={busy} onChange={(event) => setModelId(event.target.value)}>
-          {!automation && <option value="">Project default</option>}
+          {!automation && <option value="">{defaultLabel}</option>}
           {snapshot.provider.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
         <label className="setting-field">Env<select value={env} disabled={busy} onChange={(event) => setEnv(event.target.value as Controls["env"] | "")}>
-          {!automation && <option value="">Project default</option>}{envs.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          {!automation && <option value="">{defaultLabel}</option>}{envs.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
         <label className="setting-field">Autonomy<select value={autonomy} disabled={busy} onChange={(event) => setAutonomy(event.target.value as Controls["autonomy"] | "")}>
-          {!automation && <option value="">Project default</option>}{autonomies.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-        <p className="fine-print">Budget follows the project default and is shown on the automation once saved.</p>
+          {!automation && <option value="">{defaultLabel}</option>}{autonomies.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+        <p className="fine-print">Budget follows the {projectId ? "project" : "profile"} default and is shown on the automation once saved.</p>
       </fieldset>
       {!automation && <label className="check-setting"><input type="checkbox" role="switch" checked={enabled} disabled={busy} onChange={(event) => setEnabled(event.target.checked)} />Turn on now</label>}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       <footer><button type="button" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="primary" disabled={busy || !name.trim() || !projectId}>{automation ? "Save changes" : "Create automation"}</button></footer>
+        <button type="submit" className="primary" disabled={busy || !name.trim()}>{automation ? "Save changes" : "Create automation"}</button></footer>
     </form>
   </dialog>;
 }

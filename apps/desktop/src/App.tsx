@@ -69,7 +69,7 @@ const globalNavigation: { view: GlobalView; icon: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Attention", icon: "Inbox" }, { view: "Suggestions", icon: "Suggestions" },
   { view: "Automations", icon: "Clock" }, { view: "Skills", icon: "Skill" }, { view: "Artifacts", icon: "Artifacts" },
 ];
-const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view === "Skills" ? "Customize" : view;
+const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view === "Skills" ? "Capabilities" : view;
 const number = (value: number) => new Intl.NumberFormat().format(value);
 interface SidebarLayout { panel: Panel; open: boolean; maximized: boolean; leftWidth: number; rightWidth: number }
 function savedLayout(): SidebarLayout {
@@ -477,7 +477,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       if (profileId === client.profileId && !canNavigate()) return;
       const target = profileId === client.profileId ? client : await openProfile(profileId);
       if (!target || target.profileId !== profileId) return;
-      const entry = target.getState().snapshot?.attention.find((value) => value.id === id && (value.reason === "script-review" || value.reason === "tool-suggestion"));
+      const entry = target.getState().snapshot?.attention.find((value) => value.id === id && (value.reason === "script-review" || value.reason === "tool-suggestion" || value.reason === "automation"));
       if (!entry) throw new Error("The original notification is unavailable in this profile. No different review was opened.");
       if (entry.reason === "tool-suggestion") {
         setSkillsTab("Tools");
@@ -771,7 +771,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-scroll">
       <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-label={globalLabel(view)} aria-description={view === "Attention" && inboxUnread ? "Unread notifications" : view === "Suggestions" && pendingSuggestions ? `${pendingSuggestions} suggested improvement${pendingSuggestions === 1 ? "" : "s"} to review` : undefined} aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{globalLabel(view)}{(view === "Attention" && inboxUnread || view === "Suggestions" && pendingSuggestions > 0) && <span className="attention-unread-dot" aria-hidden="true" />}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
-      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startSession={startSession} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
+      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived && !boardOpen} issues={boardOpen} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startSession={startSession} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
         setupSandbox={() => openSettings("sendbox")}
         sessionActionRequest={sessionActionRequest} onSessionActionRequestHandled={(nonce) => setSessionActionRequest((request) => request?.nonce === nonce ? null : request)}
         projectActionRequest={projectActionRequest} onProjectActionRequestHandled={(nonce) => setProjectActionRequest((request) => request?.nonce === nonce ? null : request)} />}
@@ -779,7 +779,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-footer">
         <div className="profile-actions">
         {snapshot && <div className="profile-indicator" aria-label="Current profile">{snapshot.profile?.color && <span className="status-dot" style={{ backgroundColor: snapshot.profile.color }} />}<span>{snapshot.profile?.name ?? client.profileId}</span></div>}
-        <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
+        <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
         <Tooltip content="Settings"><button className="icon-button" aria-label="Settings" aria-pressed={settingsTab !== null} onClick={() => { if (settingsTab) leaveSettings(); else openSettings("general"); }}><Icon name="Settings" /></button></Tooltip>
         </div>
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : status === "connecting" ? "running" : "failed"}`} />Local service {status}</div>
@@ -803,7 +803,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} openTools={() => openSkills("Tools")} /></> :
           globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} /> :
           globalView === "Artifacts" ? <ArtifactsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} initialProjectId={session ? session.projectId : project?.id} openSession={chooseSession} openSettings={openSettings} /> :
-          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} openAutomations={() => openGlobal("Automations")} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
         </div>
       </section> : onboardingOpen && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading Getting started...</div>}>
         <Onboarding key={client.profileId} sdk={client} snapshot={snapshot} onClose={() => setOnboardingOpen(false)}
@@ -860,7 +860,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Show Insights and event trace", action: async () => { if (canNavigate()) beforeHidingTerminal(() => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); } }); } },
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
       { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
-      { name: "Customize: skills, marketplace and agent tools", action: async () => openSkills("Skills") },
+      { name: "Capabilities: skills, marketplace, MCP servers and agent tools", action: async () => openSkills("Skills") },
       { name: "Artifacts by project", action: async () => openGlobal("Artifacts") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
@@ -1003,19 +1003,19 @@ function ClientDiagnostics({ client }: { client: MoguriClient }) {
     <CopyButton label="Copy client request timings" text={text} /><pre>{text}</pre>
   </details>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, initialWorkItemId, initialWorkFilters, chooseWork }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, openAutomations, initialWorkItemId, initialWorkFilters, chooseWork }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; terminalShowAgent?: boolean; onTerminalOpeningHandled?: () => void;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string, ownership?: "agent") => Promise<void>; modal: (open: boolean) => void;
-  setupSandbox: () => void; openSettings: (tab: SettingsTab) => void; openSkills?: (tab: SkillsTab) => void;
+  setupSandbox: () => void; openSettings: (tab: SettingsTab) => void; openSkills?: (tab: SkillsTab) => void; openAutomations?: () => void;
   initialWorkItemId?: string | null; initialWorkFilters?: MyWorkFilters; chooseWork?: (id: string) => void;
 }) {
   const [trace, setTrace] = useState(false);
   if (panel === "Dashboard" && snapshot) return <Suspense fallback={<p role="status">Loading dashboard...</p>}><Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} initialItemId={initialWorkItemId} initialFilters={initialWorkFilters} onDirty={onDirty} /></Suspense>;
   if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} showAgent={terminalShowAgent} onAutoStartHandled={onTerminalOpeningHandled} openAgent={(id) => chooseSession(id, "agent")} /></Suspense>;
-  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} openTools={openSkills && (() => openSkills("Tools"))} />;
+  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} openTools={openSkills && (() => openSkills("Tools"))} openAutomations={openAutomations} />;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} openTools={openSkills && (() => openSkills("Tools"))} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path, session.homeRoot,
@@ -1050,6 +1050,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
         {routing.mode && <><dt>Mode</dt><dd>{kupoModeLabel(routing.mode, routing.plan && "mode" in routing.plan ? routing.plan.mode : undefined)}</dd></>}<dt>Classifier</dt><dd className="path">{routing.classifierModelId ?? "Not called (one eligible model)"}</dd><dt>Draft / solver</dt><dd className="path">{routing.plan?.modelId ?? "No accepted plan"}</dd>
         {routing.plan?.pattern === "cascade" && <><dt>Gate / escalation</dt><dd className="path">{routing.plan.escalationId}</dd></>}
         {routing.plan?.pattern === "critique" && <><dt>Read-only critic</dt><dd className="path">{routing.plan.criticId}</dd></>}
+        {routing.plan?.pattern === "council" && <><dt>Council reviewers</dt><dd className="path">{routing.plan.councilIds.join(", ")}</dd></>}
         <dt>Confidence / threshold</dt><dd>{routing.plan?.confidence ?? "Not classified"} / {routing.policy.minimumConfidence}</dd></dl>
         {routing.plan && <p>{routing.plan.reason}</p>}{routing.diagnostic && <Alert as="p" className="inline-error">{routing.diagnostic}</Alert>}<p className="fine-print">Model-supplied confidence is not calibrated probability or permission. Inspect per-call accounting below for actual dispatches; classifier output never becomes solver instructions.</p></details>}
       {execution && <details><summary>Owned remote execution</summary><p className="path">{execution.id}</p><p>{execution.status} / cancellation {execution.cancellation} / {execution.cleanup}</p><p>{execution.diagnostic}</p><button disabled={Boolean(session.turnId)} onClick={() => void run(() => client.remote.reconcile(execution.id))}>Reconcile receipts</button></details>}

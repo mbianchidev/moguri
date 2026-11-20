@@ -673,7 +673,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
       <div className="composer-model-list">{snapshot.provider.models.filter((model) => (model.synthetic || !model.environments || model.environments.includes(session.controls.env)) && model.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => Number(Boolean(b.synthetic)) - Number(Boolean(a.synthetic))).map((model) => {
       const unavailable = Boolean(model.environments && !model.environments.includes(session.controls.env));
       const description = model.synthetic ? unavailable ? `Unavailable in ${session.controls.env}. ${snapshot.routingDiagnostics?.join(" ") ?? ""}` :
-        snapshot.settings.values.kupo.workflow === "auto" ? "Automatic Single / Cascade / Critique using configured models; every role is metered" :
+        snapshot.settings.values.kupo.workflow === "auto" ? "Automatic Single / Cascade / Critique / Council using configured models; every role is metered" :
           snapshot.settings.values.kupo.workflow === "compound" ? "Moguri / separately metered classifier, proposal and conditional roles" : "Moguri / separately metered router and solver" :
         model.source === "claude-agent" ? "Runs your installed Claude Code / Local / every tool needs Moguri approval" :
         model.source === "codex-agent" ? "Runs your installed Codex / Local / commands and edits need Moguri approval" :

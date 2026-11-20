@@ -1,4 +1,4 @@
-import { openSettingsSection } from "./navigation.ts";
+import { openKupoAdvanced, openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
@@ -61,6 +61,7 @@ test("desktop saves only explicitly reviewed compound policy and exact-model lin
     await page.getByRole("form", { name: "Message composer" }).getByRole("button", { name: /^Model:/ }).click();
     await page.getByRole("dialog", { name: "Model", exact: true }).getByText("Model details and setup", { exact: true }).click();
     await page.getByRole("button", { name: "Kupo settings", exact: true }).click();
+    await openKupoAdvanced(page);
     await page.getByLabel("kupo workflow", { exact: true }).selectOption("compound");
     await page.getByLabel("Complete compound routing policy", { exact: true }).fill(JSON.stringify(f.policy));
     const review = page.getByRole("region", { name: "Source-backed lineage review", exact: true });

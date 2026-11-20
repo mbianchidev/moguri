@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { defaultSingleKupoSettings } from "../../packages/sdk/src/index.ts";
-import { openModelChoices } from "./navigation.ts";
+import { expandModelGroups, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The native desktop worker is qualified on macOS.");
@@ -26,6 +26,7 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await expect(page.getByLabel("Enable kupo Single", { exact: true })).not.toBeChecked();
     await page.getByLabel("Enable kupo Single", { exact: true }).check();
     await page.getByLabel("kupo classifier", { exact: true }).selectOption(fixture.modelId);
+    await expandModelGroups(page.locator("#settings-section-kupo"));
     await page.getByLabel("Approve solver Generated routed solver", { exact: true }).check();
     await page.getByLabel("Allow hosted or network routing data", { exact: true }).check();
     await expect.poll(() => fixture.sdk.routing.policy()).toMatchObject({

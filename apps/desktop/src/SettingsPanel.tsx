@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { automaticCompactionPolicy, defaultSettings, builtinClashNotice, builtinSlashClash, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { PrAutomationDefaults } from "./PrAutomationSettings.tsx";
@@ -37,10 +37,14 @@ import { ArtifactPanel } from "./ArtifactPanel.tsx";
 import { CandidatePanel } from "./CandidatePanel.tsx";
 import { SettingsFieldsProvider, SettingsHelp } from "./SettingsFields.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
+import { SkillList } from "./SkillList.tsx";
 import { SkillAdmissionsPanel } from "./SkillAdmissionsPanel.tsx";
 import { SkillPublishersSettings } from "./SkillPublishersSettings.tsx";
 import { KupoModelProfiles } from "./KupoModelProfiles.tsx";
 import { ProviderPricing } from "./ProviderPricing.tsx";
+import { KupoWorkflowSettings } from "./KupoWorkflowSettings.tsx";
+import { McpInstallPanel } from "./McpInstallPanel.tsx";
+import { GroupedModelList, modelListItems } from "./GroupedModelList.tsx";
 import { ModelAvailabilityPanel } from "./ModelAvailabilityPanel.tsx";
 import { WebAllowlistPanel } from "./WebAllowlistPanel.tsx";
 import { PolicyHint, policyLocations, type PolicyFocusRequest } from "./PolicyHint.tsx";
@@ -51,7 +55,7 @@ import { PathField, localPath } from "./PathField.tsx";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
-const GROUP_ICONS: Record<SettingsGroup["label"], string> = { General: "Settings", Models: "Thought", Integrations: "Extensions", "Execution & permissions": "Traffic",
+const GROUP_ICONS: Record<SettingsGroup["label"], string> = { General: "Settings", Models: "Thought", Integrations: "Extensions", Boundaries: "Traffic",
   Sessions: "Clock", Instructions: "BookOpen", Interface: "Dashboard" };
 const GROUP_SLUGS = Object.fromEntries(SETTINGS_GROUPS.map((group) => [group.label, group.label.toLowerCase().replace(/[^a-z]+/g, "-")])) as Record<SettingsGroup["label"], string>;
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
@@ -114,7 +118,6 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const [risk, setRisk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [capabilityBusy, setCapabilityBusy] = useState(false), [capabilityProgress, setCapabilityProgress] = useState("");
-  const [deletingSkill, setDeletingSkill] = useState<string | null>(null);
   const capabilityPending = useRef(false);
   const [sandboxBusy, setSandboxBusy] = useState(false), [sandboxReviewed, setSandboxReviewed] = useState(false);
   const [sandboxDraftDirty, setSandboxDraftDirty] = useState(false);
@@ -377,15 +380,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     onChange={(event) => setRaw((raw) => ({ ...raw, [section]: event.target.value }))} spellCheck={false} /></label>{saveButton(section, `Save ${label}`, disabled)}</div>;
   const registryFor = (kind: "skills" | "scripts" | "plugins") => snapshot.registry.filter((entry) => entry.projectId === (project?.id ?? null) &&
     entry.kind === (kind === "skills" ? "skill" : kind === "scripts" ? "script" : "plugin"));
-  useEffect(() => { setCapabilityProgress(""); setDeletingSkill(null); }, [sdk, project?.id, groupKey]);
-  const deleteSkill = (entry: ReturnType<typeof registryFor>[number]) => {
-    if (capabilityPending.current) return;
-    capabilityPending.current = true; setCapabilityBusy(true);
-    void run(async () => {
-      await sdk.capabilities.delete(entry.id, entry.revision, true);
-      setDeletingSkill(null); setCapabilityProgress(`Deleted skill ${entry.name}. Chats that used it lose access.`);
-    }).finally(() => { capabilityPending.current = false; setCapabilityBusy(false); });
-  };
+  useEffect(() => { setCapabilityProgress(""); }, [sdk, project?.id, groupKey]);
   const toggleSkills = (entries: ReturnType<typeof registryFor>, enabled: boolean) => {
     if (capabilityPending.current) return;
     capabilityPending.current = true; setCapabilityBusy(true);
@@ -414,6 +409,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   const selectedServer = configuredServers.find((server) => server.id === serverId);
   const oauthSelected = selectedServer?.transport.type === "http" && selectedServer.transport.auth === "oauth";
   const routingModels = snapshot.provider.models.filter((model) => !model.synthetic && !isAgentHarnessModel(model));
+  const kupoEngineSelect = <>
+    <label className="setting-field">Kupo engine<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy} onChange={(event) => {
+            if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
+            const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
+            const pool = { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence };
+            if (event.target.value !== "auto" && approvedModelIds.length > 8) { setError("Legacy Single and reviewed Compound accept at most eight explicit models. Narrow the advanced pool first; no IDs were silently dropped."); return; }
+            automatic("kupo", event.target.value === "auto" ? { ...defaultKupoSettings(), ...pool,
+              lineageReviews: draft.kupo.workflow === "single" ? [] : draft.kupo.lineageReviews } : event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
+              limits: { routerTokens: 512, proposalTokens: 2048, criticTokens: 1024, timeoutMs: 300000 } } : { ...pool, workflow: "single" }, true);
+          }}><option value="auto">Automatic (recommended)</option><option value="single">Legacy: classifier with approved solvers</option><option value="compound">Legacy: reviewed Cascade / Critique in a worktree</option></select></label>
+  </>;
   const routingReady = (model: ModelInfo) => snapshot.policy.allowedEnvs.some((env) =>
     env !== "Sandbox" && routingModelReady(model, draft.kupo, env));
   const routingSolverReady = (model: ModelInfo) => routingReady(model) && model.maxTokens !== undefined &&
@@ -616,43 +622,45 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <button type="button" disabled={saving} onClick={() => void reset("decisions")} aria-label="Restore defaults for decision providers">Restore defaults</button>
         </>}</>;
       case "kupo": return <>{<><h2 id="policy-kupo" data-policy-target tabIndex={-1}>Kupo</h2>
-          <label className="setting-field">Workflow policy<select aria-label="kupo workflow" value={draft.kupo.workflow} disabled={saving || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy} onChange={(event) => {
-            if (sectionDirty("kupo")) { setError("Save or reload the complete policy before switching workflow shapes. Your unsaved policy was preserved."); return; }
-            const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
-            const pool = { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence };
-            if (event.target.value !== "auto" && approvedModelIds.length > 8) { setError("Legacy Single and reviewed Compound accept at most eight explicit models. Narrow the advanced pool first; no IDs were silently dropped."); return; }
-            automatic("kupo", event.target.value === "auto" ? { ...defaultKupoSettings(), ...pool,
-              lineageReviews: draft.kupo.workflow === "single" ? [] : draft.kupo.lineageReviews } : event.target.value === "compound" ? { ...pool, workflow: "compound", routes: [], lineageReviews: [],
-              limits: { routerTokens: 512, proposalTokens: 2048, criticTokens: 1024, timeoutMs: 300000 } } : { ...pool, workflow: "single" }, true);
-          }}><option value="auto">Automatic (configured models)</option><option value="single">Single (approved solvers)</option><option value="compound">Cascade / Critique in a worktree</option></select></label>
+          {draft.kupo.workflow !== "auto" && <Alert as="div" tone="warning" className="settings-warning"><p>This profile uses a legacy {draft.kupo.workflow === "single" ? "Single" : "worktree Cascade / Critique"} policy, so preferences (Savings, Balanced, Performance, Dynamic) and automatic workflows are off.</p>
+            <button type="button" disabled={saving || lineageDirty || lineageBusy || modelProfileDirty || modelProfileBusy || sectionDirty("kupo")} onClick={() => {
+              const { enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence } = draft.kupo;
+              automatic("kupo", { ...defaultKupoSettings(), enabled, classifierModelId, approvedModelIds, allowHosted, minimumConfidence,
+                lineageReviews: draft.kupo.workflow === "single" ? [] : draft.kupo.lineageReviews }, true);
+            }}>Switch to automatic Kupo</button></Alert>}
+          {draft.kupo.workflow !== "auto" && kupoEngineSelect}
           {draft.kupo.workflow === "auto" ? <>
             <SettingsHelp label="About automatic Kupo" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable automatic Kupo" checked={draft.kupo.enabled} disabled={saving} onChange={(event) => automatic("kupo", { enabled: event.target.checked })} />Enable automatic Kupo for this profile</label>} descriptionFirst>Kupo picks from your configured models for each task. With one eligible model it uses that model directly; with several it chooses Single, Cascade or Critique (at most one revision).</SettingsHelp>
-            <SettingsHelp label="About the configured model pool" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Allow hosted or network routing data" checked={draft.kupo.allowHosted} disabled={saving} onChange={(event) => automatic("kupo", { allowHosted: event.target.checked })} />Allow task history to configured hosted or network models</label>}>Kupo uses every eligible configured model, including ones you add later. Turn this off to keep task history on loopback models, or narrow the pool in the advanced policy.</SettingsHelp>
-            <SettingsHelp label="About declared model capabilities" target={<h3>Model capabilities</h3>}>What each model declares it supports (inputs, reasoning and context), not measured quality or speed.</SettingsHelp>
-            <table aria-label="Kupo model capabilities"><thead><tr><th>Model</th><th>Capabilities</th><th>Tools</th></tr></thead><tbody>
-              {sdk.routing.capabilities().map((profile) => <tr key={profile.modelId}><td>{routingModels.find((model) => model.id === profile.modelId)?.name ?? profile.modelId}</td><td>{profile.categories.join(", ")}</td><td>{profile.toolInput === null ? "Unknown" : profile.toolInput ? "Declared" : "Disabled"}</td></tr>)}
-            </tbody></table>
-            {!sdk.routing.capabilities().length && <p>No eligible configured models. See the diagnostics below.</p>}
+            <KupoWorkflowSettings snapshot={snapshot} policy={draft.kupo} models={routingModels} disabled={saving || sectionDirty("kupo")}
+              save={(patch) => automatic("kupo", patch)} openStartupDefaults={() => { openSection("startup"); }} />
+            <SettingsHelp label="About the configured model pool" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Allow hosted or network routing data" checked={draft.kupo.allowHosted} disabled={saving} onChange={(event) => automatic("kupo", { allowHosted: event.target.checked })} />Allow task history to configured hosted or network models</label>}>Turn this off to keep task history on models running on the execution host.</SettingsHelp>
             <h3>Automatic context compaction</h3>
             <label className="check-setting"><SettingsInput type="checkbox" aria-label="Enable automatic Kupo compaction" disabled={saving}
               checked={automaticCompactionPolicy(draft, true) !== null} onChange={(event) => automatic("kupo", {
                 autoCompaction: { ...defaultKupoCompaction(), ...(draft.kupo.workflow === "auto" ? draft.kupo.autoCompaction : {}), enabled: event.target.checked },
               })} />Summarize long chats automatically</label>
             <p className="fine-print">When a chat gets long, Kupo summarizes older turns at safe points. Each summary is a billed model call; the full history stays saved. {draft.kupo.workflow === "auto" && !draft.kupo.autoCompaction ? "Follows Context compaction until you change it here." : ""}</p>
-            <Alert as="p" tone="warning" className="settings-warning">Only Kupo's selected response can use tools, under your normal approvals. Cascade and Critique also need reviewed model evaluations, and Sandbox needs a verified setup (no Local fallback).</Alert>
+            <Alert as="p" tone="warning" className="settings-warning">Only Kupo's selected response can use tools, under your normal approvals. Sandbox needs a verified setup (no Local fallback).</Alert>
+            <details><summary>Advanced</summary>
+            {kupoEngineSelect}
+              <SettingsHelp label="About declared model capabilities" target={<h3>Model capabilities</h3>}>What each model declares it supports (inputs, reasoning and context), not measured quality or speed.</SettingsHelp>
+              <table aria-label="Kupo model capabilities"><thead><tr><th>Model</th><th>Capabilities</th><th>Tools</th></tr></thead><tbody>
+                {sdk.routing.capabilities().map((profile) => <tr key={profile.modelId}><td>{routingModels.find((model) => model.id === profile.modelId)?.name ?? profile.modelId}</td><td>{profile.categories.join(", ")}</td><td>{profile.toolInput === null ? "Unknown" : profile.toolInput ? "Declared" : "Disabled"}</td></tr>)}
+              </tbody></table>
+              {!sdk.routing.capabilities().length && <p>No eligible configured models. See the diagnostics below.</p>}
             <KupoModelProfiles sdk={sdk} models={routingModels} disabled={saving || lineageBusy} onDirty={setModelProfileDirty} onBusy={setModelProfileBusy}
               onPrepared={(profile) => {
                 const policy = parse(AutomaticKupoSettingsSchema, raw.kupo === undefined ? draft.kupo : JSON.parse(raw.kupo));
                 setRaw((raw) => ({ ...raw, kupo: JSON.stringify({ ...policy, modelProfiles: [...(policy.modelProfiles ?? []).filter((entry) => entry.modelId !== profile.modelId), profile] }, null, 2) }));
               }} />
-            <details><summary>Advanced model pool and lineage policy</summary>
+            <div className="kupo-advanced-policy"><h4>Complete policy</h4>
               {jsonEditor("kupo", "Advanced automatic routing policy", saving || lineageBusy)}
               <CompoundLineageReview sdk={sdk} models={routingModels} disabled={saving} onDirty={setLineageDirty} onBusy={setLineageBusy}
                 onPrepared={(review) => {
                   const policy = parse(AutomaticKupoSettingsSchema, raw.kupo === undefined ? draft.kupo : JSON.parse(raw.kupo));
                   setRaw((raw) => ({ ...raw, kupo: JSON.stringify({ ...policy, lineageReviews: [...policy.lineageReviews, review] }, null, 2) }));
                 }} />
-            </details>
+            </div></details>
           </> : draft.kupo.workflow === "compound" ? <>
 
             <SettingsHelp label="More about this setting" target={jsonEditor("kupo", "Complete compound routing policy", saving || lineageBusy)} descriptionFirst>Declare up to four Cascade or Critique routes and up to eight approved models, using the model IDs below. The classifier only picks among routes you declare.</SettingsHelp>
@@ -672,13 +680,13 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             {routingModels.map((model) => <option key={model.id} value={model.id} disabled={!routingReady(model)}>{model.name} / {modelBoundary(model)} / {model.environments?.join(", ") ?? "Local"}{!routingReady(model) ? " / unavailable for Kupo" : ""}</option>)}</select></label>
           <SettingsHelp label="More about this setting" target={<h3>Approved solvers</h3>}>Approve up to eight models. Each is rechecked for availability, Env, context and output limits before every call.</SettingsHelp>
           {routingModels.length === 0 && <p>No configured models. Connect a provider or add a local model first.</p>}
-          {routingModels.map((model) => {
+          <GroupedModelList label="Approved solvers by provider" items={modelListItems(snapshot, routingModels)} row={({ model }) => {
             const ready = routingSolverReady(model), approved = draft.kupo.approvedModelIds.includes(model.id);
-            return <div key={model.id}><label className="check-setting"><SettingsInput type="checkbox" role="checkbox" aria-label={`Approve solver ${model.name}`} checked={ready && approved} disabled={saving || !ready || !approved && draft.kupo.approvedModelIds.length >= 8}
+            return <div><label className="check-setting"><SettingsInput type="checkbox" role="checkbox" aria-label={`Approve solver ${model.name}`} checked={ready && approved} disabled={saving || !ready || !approved && draft.kupo.approvedModelIds.length >= 8}
               onChange={(event) => automatic("kupo", { approvedModelIds: event.target.checked ? [...draft.kupo.approvedModelIds, model.id] : draft.kupo.approvedModelIds.filter((id) => id !== model.id) })} /><span>{model.name}<br /><small className="path">{model.id} / {modelBoundary(model)} / {model.environments?.join(", ") ?? "Local"}{!ready ? " / unavailable for Kupo (check Env, privacy, context and output limits)" : ""}</small></span></label>
               {!ready && approved && <button type="button" disabled={saving} aria-label={`Remove unavailable solver ${model.id}`} onClick={() => automatic("kupo", { approvedModelIds: draft.kupo.approvedModelIds.filter((id) => id !== model.id) })}>Remove saved approval</button>}
             </div>;
-          })}
+          }} />
           {draft.kupo.approvedModelIds.filter((id) => !routingModels.some((model) => model.id === id)).map((id) => <div key={id}>
             <label className="check-setting"><SettingsInput type="checkbox" role="checkbox" aria-label={`Unavailable solver ${id}`} checked={false} disabled /><span className="path">{id} / unavailable; saved approval is inactive</span></label>
             <button type="button" disabled={saving} aria-label={`Remove unavailable solver ${id}`} onClick={() => automatic("kupo", { approvedModelIds: draft.kupo.approvedModelIds.filter((value) => value !== id) })}>Remove saved approval</button>
@@ -999,6 +1007,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <label className="setting-field">Maximum parallel children<select aria-label="Maximum parallel children" value={draft.subagents.maxParallel} onChange={(event) => automatic("subagents", { maxParallel: Number(event.target.value) })}><option value={1}>1</option><option value={2}>2</option></select></label>
           <label className="setting-field">Read-only assignment<SettingsTextarea value={assignment} onChange={(event) => setAssignment(event.target.value)} /></label><button disabled={!session || !assignment || !snapshot.settings.values.subagents.enabled} onClick={() => void run(() => sdk.subagents.run(session!.id, assignment))} aria-label="Run bounded subagent">Run</button></>}</>;
       case "skills": return <>{resourceHeader("skills")}
+        <h3>All skills</h3>
+        <SkillList sdk={sdk} snapshot={snapshot} defaultExpanded={false} />
         {<><SkillGatewaySettings key={sdk.profileId} sdk={sdk} value={draft.skillSources ?? []} change={(sources) => commitSection("skillSources", sources)}
           dirty={sectionDirty("skillSources")} disabled={saving} onDirty={setIntegrationDirty} />
           {resourceSession ? <fieldset className="settings-fields" disabled={dirty || saving || integrationDirty}>
@@ -1010,6 +1020,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       case "scripts": return <>{capabilityControls("scripts")}</>;
       case "plugins": return <>{capabilityControls("plugins")}</>;
       case "mcpServers": return <>{<><SettingsHelp label="More about this setting" target={<h2>Tools and MCP</h2>}>Configure MCP servers and choose which integration method the agent tries first. The order is a preference only; it grants no permissions or credentials.</SettingsHelp>
+          <h3>Servers</h3>
+          <McpInstallPanel servers={committed.mcpServers} disabled={saving || raw.mcpServers !== undefined} save={async (next) => { commitSection("mcpServers", next); }} />
           <h3>Tool preference order</h3>
           <p>Drag a handle or press Alt+Up/Down to reorder. Changes save automatically.</p>
           <ReorderList items={effectiveToolPreferences(draft.toolPreferences).order.map((id) => toolMethods.find((method) => method.id === id)!)}
@@ -1149,18 +1161,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           {kind === "skills" && <><button type="button" aria-label="Enable all skills" disabled={capabilityBusy || !registry.some((entry) => !entry.enabled)}
             onClick={() => toggleSkills(registry.filter((entry) => !entry.enabled), true)}>Enable all</button>
             <p className="fine-print" role="status" aria-label="Skill changes">{capabilityProgress}</p></>}
-          {registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code>
-            {kind === "skills" && builtinSlashClash(entry.name) && <Alert as="p" tone="warning" className="skill-clash">{builtinClashNotice(entry.name, builtinSlashClash(entry.name)!)}</Alert>}</div><button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
-            {kind === "skills" ? <><label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill ${entry.name}`} checked={entry.enabled} disabled={capabilityBusy}
-              onChange={(event) => toggleSkills([entry], event.target.checked)} /><span>{entry.enabled ? "Enabled" : "Disabled"}</span></label>
-              {entry.ownerPluginId ? <span className="fine-print">Plugin bundle</span> : <button type="button" className="icon-button danger" aria-label={`Delete skill ${entry.name}`} title="Delete skill"
-                aria-expanded={deletingSkill === entry.id} disabled={capabilityBusy} onClick={() => setDeletingSkill((current) => current === entry.id ? null : entry.id)}><Icon name="Trash" /></button>}</> :
-              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button>}
-            {deletingSkill === entry.id && <div className="capability-delete" role="group" aria-label={`Confirm deleting skill ${entry.name}`}>
-              <span>Delete {entry.name}? Chats that use it lose access.</span>
-              <button type="button" disabled={capabilityBusy} onClick={() => setDeletingSkill(null)}>Cancel</button>
-              <button type="button" className="danger" disabled={capabilityBusy} onClick={() => deleteSkill(entry)}>Delete skill</button>
-            </div>}</section>)}
+          {kind === "skills" ? <p className="fine-print">Imported skills are listed in All skills above, under their project or All projects, with their switches.</p> :
+            registry.map((entry) => <section className="capability-row" key={entry.id}><div><strong>{entry.name}</strong><small>{entry.description}</small><code>{entry.source} / {entry.contentDigest.slice(0, 12)}</code></div>
+              <button onClick={() => void run(() => sdk.capabilities.content(entry.id))}>View source</button>
+              <button onClick={() => void run(() => sdk.capabilities.toggle(entry.id, !entry.enabled, entry.revision))}>{entry.enabled ? "Disable" : "Enable"}</button></section>)}
           {kind === "scripts" && <Alert as="p" tone="warning" className="settings-warning">Custom scripts run as code on this Mac, outside any sandbox. Review the source, approve each call and use only scripts you trust.</Alert>}
           {kind === "scripts" && <><h3>Script reviews</h3>
             <SettingsHelp label="More about this setting" target={<label className="check-setting"><SettingsInput type="checkbox" aria-label="Let the agent approve scripts with download or decode findings"
@@ -1179,7 +1183,10 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         return <li key={group.label}><button type="button" className={open ? "selected" : ""} aria-current={open ? "page" : undefined} disabled={railBusy} aria-label={group.label}
           aria-describedby={matches ? `settings-matches-${GROUP_SLUGS[group.label]}` : undefined} onClick={() => openSection(group.items[0]!.id)}>
           <Icon name={GROUP_ICONS[group.label]} /><span>{group.label}</span>
-          {matches > 0 && <small id={`settings-matches-${GROUP_SLUGS[group.label]}`}>{matches} {matches === 1 ? "match" : "matches"}</small>}</button></li>;
+          {matches > 0 && <small id={`settings-matches-${GROUP_SLUGS[group.label]}`}>{matches} {matches === 1 ? "match" : "matches"}</small>}</button>
+          {open && group.items.length > 1 && <ul className="settings-subsections" aria-label={`${group.label} sections`}>{group.items.map((item) =>
+            <li key={item.id}><a href={`#settings-section-${item.id}`} aria-current={tab === item.id ? "location" : undefined} className={tab === item.id ? "current" : undefined}
+              onClick={(event) => { event.preventDefault(); if (!railBusy) openSection(item.id); }}>{item.label}</a></li>)}</ul>}</li>;
       })}</ul>
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
       <button className="restore-all" disabled={saving || lineageDirty || lineageBusy} onClick={() => void reset("all")}>Restore all defaults</button></nav>

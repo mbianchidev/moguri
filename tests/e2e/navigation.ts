@@ -85,3 +85,14 @@ export async function openGroupMenu(page: Page, name: string): Promise<Locator> 
   await page.locator(".project-folder > summary").filter({ has: page.getByText(name, { exact: true }) }).click({ button: "right" });
   return page.getByRole("menu", { name: `Project group actions for ${name}`, exact: true });
 }
+/** Model lists start with every provider and AI lab group collapsed (D56); open them all. */
+export async function expandModelGroups(scope: Locator) {
+  const closed = scope.locator('.model-group-toggle[aria-expanded="false"]');
+  for (let guard = 0; guard < 200 && await closed.count(); guard++) await closed.first().click();
+}
+/** Automatic Kupo keeps the engine select, capabilities and complete policy under Advanced (D56). */
+export async function openKupoAdvanced(page: Page) {
+  const details = page.locator("#settings-section-kupo details").filter({ has: page.locator("summary", { hasText: /^Advanced$/ }) }).first();
+  await expect(details).toBeAttached();
+  if (!await details.evaluate((element) => (element as HTMLDetailsElement).open)) await details.locator("summary").first().click();
+}

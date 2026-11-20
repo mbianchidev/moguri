@@ -4,7 +4,7 @@ import { SETTINGS_GROUPS, searchSettings, settingsGroupOf, settingsRailEntries }
 
 test("settings have coherent unique groups and stable routable sections", () => {
   assert.deepEqual(SETTINGS_GROUPS.map((group) => group.label), [
-    "General", "Models", "Integrations", "Execution & permissions", "Sessions", "Instructions", "Interface",
+    "General", "Models", "Integrations", "Boundaries", "Sessions", "Instructions", "Interface",
   ]);
   const ids = SETTINGS_GROUPS.flatMap((group) => group.items.map((item) => item.id));
   assert.equal(new Set(ids).size, ids.length);
@@ -29,7 +29,9 @@ test("settings search combines category and control aliases without reading user
   for (const query of ["MCP direct", "tool preference order", "REST CLI"]) assert.ok(ids(query).includes("mcpServers"));
   assert.deepEqual(ids("firewall"), ["permissions"]);
   assert.deepEqual(ids("thinking effort"), ["startup"]);
-  assert.deepEqual(ids("execution permission"), SETTINGS_GROUPS.find((group) => group.label === "Execution & permissions")!.items.map((item) => item.id));
+  const boundaries = SETTINGS_GROUPS.find((group) => group.label === "Boundaries")!.items.map((item) => item.id);
+  assert.deepEqual(ids("execution permission"), boundaries);
+  for (const id of boundaries) assert.ok(ids("Boundaries").includes(id));
   assert.deepEqual(ids("readme readiness"), ["project", "permissions", "sendbox", "retention", "instructions", "skills", "accessibility", "notifications"]);
   assert.deepEqual(ids("GitHub CLI"), ["project", "providers", "github", "instructions"]);
   for (const query of ["GitHub workflows", "Linear workflows"]) assert.ok(ids(query).includes(query.startsWith("GitHub") ? "github" : "linear"));

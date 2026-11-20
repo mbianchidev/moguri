@@ -1,4 +1,4 @@
-import { AppWindow, Archive, ArrowLeft, ArrowUp, ArrowUpDown, BookOpen, Bot, Box, Brain, Car, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CircleDot, CircleHelp, CirclePause, Clock, Copy, DollarSign, Ellipsis, Eye, File as FileIcon, FileDiff, FilePen, FilePlus, FileText, Folder, FolderOpen, GitBranch, GitMerge, GitPullRequest, Globe, GripVertical, Hand, House, Image as ImageIcon, Inbox, Infinity as InfinityIcon, Info, Layers, LayoutDashboard, Link, ListChecks, ListFilter, Loader, Maximize2, MessageSquare, Mic, Minimize2, PanelRight, Pencil, Pin, PinOff, Play, Plug, Plus, Puzzle, RefreshCw, Rocket, Search, SendHorizontal, Settings, Sparkles, Square, SquareTerminal, TrafficCone, Trash2, TriangleAlert, Wrench, X, type LucideIcon } from "lucide-react";
+import { AppWindow, Archive, ArrowLeft, ArrowUp, ArrowUpDown, BadgeDollarSign, BookOpen, Bot, Box, Brain, Car, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CircleDot, CircleHelp, CirclePause, Clock, Copy, DollarSign, Ellipsis, Eye, File as FileIcon, FileDiff, FilePen, FilePlus, FileText, Folder, FolderOpen, GitBranch, GitMerge, GitPullRequest, Globe, GripVertical, Hand, House, Image as ImageIcon, Inbox, Infinity as InfinityIcon, Info, Layers, LayoutDashboard, Link, ListChecks, ListFilter, Loader, Maximize2, MessageSquare, Mic, Minimize2, PanelRight, Pencil, Pin, PinOff, Play, Plug, Plus, Puzzle, RefreshCw, Rocket, Search, SendHorizontal, Settings, Sparkles, Square, SquareTerminal, TrafficCone, Trash2, TriangleAlert, Wrench, X, type LucideIcon } from "lucide-react";
 import type { ModelInfo } from "../../../packages/sdk/src/index.ts";
 
 // Lucide (ISC) thin-stroke icons keep one consistent, professional weight across the app; names stay stable for callers and tests.
@@ -12,7 +12,7 @@ const icons: Record<string, LucideIcon> = {
   Plan: ListChecks, Artifacts: Archive, Candidates: GitBranch, Group: Layers, Link: Link, Send: SendHorizontal, Clock: Clock, Mic: Mic,
   Dollar: DollarSign, Infinity: InfinityIcon, House: House, Box: Box, Globe: Globe, Hand: Hand, Traffic: TrafficCone, Car: Car, Rocket: Rocket,
   Check: Check, BookOpen: BookOpen, PanelRight: PanelRight, Maximize: Maximize2, Minimize: Minimize2, Question: CircleHelp, Attention: TriangleAlert,
-  Inbox: Inbox, Waiting: CirclePause, Suggestions: Sparkles, SideChat: MessageSquare,
+  Inbox: Inbox, Waiting: CirclePause, Suggestions: Sparkles, SideChat: MessageSquare, PriceSort: BadgeDollarSign,
 };
 /** Model brand marks stay hand-drawn: icon sets don't ship vendor logos. */
 const brandPaths: Record<string, string> = {

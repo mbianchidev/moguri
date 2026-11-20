@@ -104,11 +104,16 @@ share the same service and SDK. Transient model failures use current-profile
 The primary button retries the original eligible failure without sending a new
 draft. Idle scheduling offers local-time controls, unsent ghost prompts and an
 Automations / Scheduled prompts group, with one-at-most queue admission.
-[Customize and Artifacts tabs](architecture/skills-tools-artifacts.md) sit next
+[Capabilities and Artifacts tabs](architecture/skills-tools-artifacts.md) sit next
 to Automations: toggle installed skills, install skills from configured
 repositories, browse the agent's toolsets, write or ask the agent for script
 tools for every chat, and find builds, files, images and links across all
-projects or in one project, with their chat. Agents get typed GitHub reads (tags, releases, annotations,
+projects or in one project, with their chat. Capabilities / Skills and Settings /
+Skills list every skill, grouped by personal repository (*Personal - {repo
+name}*), marketplace provider, folder, plugin and project, with a switch per
+skill; marketplace skills stay off until you trust each exact version, and the
+service offers chats only skills that are on
+([D57](architecture/decisions.md#d57-skills-list-per-skill-switches-and-marketplace-trust)). Agents get typed GitHub reads (tags, releases, annotations,
 contents, settings, rules) and reviewed `github_write` (comments, threads,
 releases, settings; draft PRs only).
 An optional recurring check suggests script tools for requests you repeat.
@@ -125,6 +130,10 @@ workflow of prompts and repository-trusted scripts once, every N minutes, daily
 or on chosen weekdays. Each run starts a new chat in its project with captured
 controls; script steps run without a model call under normal approval. Missed
 times run once, overlapping times are skipped, and restarts never replay a step.
+An automation can also have no project: each run then starts an ordinary
+project-free chat (Home for Local runs) with prompt steps only. Inbox reports
+every run's start and outcome, linked to its chat; reading an entry never
+answers or approves anything.
 Desktop, TUI (`/automations`, F9) and CLI (`moguri automations`, YAML/JSON
 workflow files) share the same state.
 
@@ -223,10 +232,13 @@ user review; it never starts a model or installs weights.
 Automatic **Kupo** exposes Balanced, Savings, Performance and Dynamic as routing
 modes, separate from exact shared role-effort and working-window controls. It
 selects only compatible actual roles within the selected boundary;
-Savings/Performance class models by a reviewed profile or their exact published
-API price, never a guessed family, and Dynamic picks one of the three for each
-request. Bounded Cascade and
-Critique retain original role results, and text compaction (on by default,
+Savings/Performance class models by a reviewed profile, a provider-declared or
+exact published API price, never a guessed family, and Dynamic picks one of the
+three for each request. Each mode runs its own workflows (D56): Savings Single
+and Cascade, Balanced every enabled workflow, Performance Single, Critique and
+Council. Price-class Cascade, cross-lab Critique and a Council of at least three
+AI labs work with only enabled models and have their own settings; bounded
+Cascade, Critique and Council retain original role results, and text compaction (on by default,
 following the shared smart compaction setting) preserves readable history and
 source provenance. Finite automatic work uses
 complete all-role holds and selected-boundary finishing. The
@@ -630,10 +642,12 @@ with the same name, and Moguri asks you to rename such skills.
 [**Kupo**](architecture/automatic-kupo.md) is always in the model picker.
 Its automatic policy uses configured models: none blocks inference, one runs
 directly in Single, and multiple models support task-based Single, gated
-Cascade or eligible read-only Critique with one revision. Declared capability
+Cascade, read-only Critique by a model from a different AI lab, or a Council of
+models from at least three labs, each with bounded revisions. Declared capability
 categories guide routing, including pools of three through twenty models.
 Only the selected response reaches normal approvals; every actual role is
-metered. Independent critique still needs reviewed lineage evidence. Finite
+metered. AI labs come from model names, not proof of independent training
+(D56); mode-less legacy selections still need reviewed lineage for Critique. Finite
 automatic budgets, images, synthetic tuning and Sandbox routing remain
 unavailable without fallback. Existing explicit
 [Single policies](architecture/routing.md) remain supported separately.

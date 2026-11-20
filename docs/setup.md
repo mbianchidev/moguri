@@ -86,8 +86,9 @@ without calling `GET /models`. Store the key under **Endpoint credentials** or w
 ## Inbox and explicit skill loading
 
 **Inbox** is immediately after **Dashboard** in the left navigation. It
-replaces the titlebar bell and lists current questions, approvals, failures
-and completed work. Open a notification to return to its actual session, give
+replaces the titlebar bell and lists current questions, approvals, failures,
+completed work and [automation runs](#automations-recurring-schedules-and-workflows).
+Open a notification to return to its actual session, give
 the answer or approval there, then return to Inbox. Structured questions show
 their actual current text; heuristic question hints remain labelled possible.
 
@@ -144,10 +145,12 @@ fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
 [Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
-**Customize** next to Automations (protocol 114; named Skills before 116)
+**Capabilities** next to Automations (protocol 114; named Skills before 116 and Customize before 117)
 lists installed skills with On/Off switches, installs a skill from your
 configured sources into one project or every project (disabled until you turn
-it on), and shows the agent's toolsets and your script tools. Tools isn't tied
+it on), installs MCP servers (the same list as Settings / MCP gateway, where
+credentials, OAuth and tool discovery live), and shows the agent's toolsets and
+your script tools. Tools isn't tied
 to a project: write a script or ask the agent to write one in a project-free
 chat, review it and turn it on, and every chat can use it (a project script
 with the same name wins in that project). Suggested tools come from requests you repeat across
@@ -191,8 +194,11 @@ There is no source-review management panel in chat. With no source chat selected
 settings does not infer a session or workspace. For a Local source chat,
 review the complete supported package, dependencies, exact version/root
 and provenance. An unverified Local/registry publisher needs an explicit
-acknowledgement; an HTTPS archive requires an independently user-pinned
-Ed25519 artifact signature. Neither a repository name nor a digest establishes
+acknowledgement; per-chat admission of an HTTPS archive requires an independently user-pinned
+Ed25519 artifact signature. Since protocol 117, a marketplace archive skill can
+instead be trusted once, for every chat, with **Trust** in the skills list
+(D57); a skill must be on (trusted, for a marketplace) before chats can find
+it. Neither a repository name nor a digest establishes
 publisher identity. Choose literal file paths, read-only or declared native-file
 access, and an expiry. The UI defaults to 24 hours; the service permits at most
 168 hours. Admission never grants a tool, authentication, user answer or hard
@@ -821,12 +827,16 @@ a base-checkout fallback.
 ## Automations: recurring schedules and workflows
 
 Protocol 115 adds automations ([contract](architecture/automations.md)). An
-automation has a name, a project, a schedule (once, every N minutes, daily or on
-chosen weekdays, in a timezone) and up to 10 steps run in order: prompts and
-repository-trusted scripts. Each run starts a new chat in the project with the
-model, Env, autonomy and budget captured when you saved it.
+automation has a name, a project or no project, a schedule (once, every N
+minutes, daily or on chosen weekdays, in a timezone) and up to 10 steps run in
+order: prompts and repository-trusted scripts. Each run starts a new chat in
+the project with the model, Env, autonomy and budget captured when you saved
+it. Without a project (protocol 117), each run starts an ordinary project-free
+chat: Local runs work in your Home folder like any chat without a project, and
+script steps aren't available.
 
-- **Desktop:** **Automations / New automation** opens the editor; **Create
+- **Desktop:** **Automations / New automation** opens the editor; choose
+  **No project** in **Project** for a project-free automation. **Create
   automation** or **Save changes** saves it. The **On schedule** switch turns it on
   or pauses it immediately. Each automation shows its next run, captured
   controls, steps and recent runs with **Open chat** and **Stop**. **Run now**
@@ -835,6 +845,7 @@ model, Env, autonomy and budget captured when you saved it.
   or **Turn on**. `/automations` lists them and their runs and can `enable`,
   `pause`, `run`, `stop` a run or `delete`, using an ID or unique prefix.
 - **CLI:** `moguri automations create workflow.yaml --project ID [--paused]`
+  (or `--no-project` instead of `--project ID`)
   reads a YAML or JSON workflow file (`name`, `schedule`, `steps` with
   `- prompt:` or `- script:` plus `interpreter`, optional `controls`). Also
   `list`, `runs [ID]`, `update ID FILE`, `enable`, `pause`, `run`, `stop RUN_ID`
@@ -852,6 +863,14 @@ the captured autonomy approves automatically. Automations need Local for
 script steps, never fall back to another Env, and grant no extra permissions.
 After a restart, a run that was creating its chat is marked partial and an
 unstarted script step is blocked; nothing is replayed.
+
+**Inbox** reports every run (type **Automation runs**): an entry when the run's
+chat starts, replaced by one for its outcome (completed, failed, stopped,
+partial, blocked or skipped). Select an entry to open the run's chat, or
+Automations when the run never created one. Marking an entry read, opening it
+or deleting it never answers, approves, stops or reruns anything, and your
+in-app and OS notification settings apply. The CLI and TUI show the same
+entries with `moguri inbox list` and `/inbox`.
 
 ## Interrupted chats after a restart
 
@@ -885,17 +904,37 @@ effort/context controls. Old explicit Single/Compound policies and legacy
 automatic selections are not silently upgraded.
 
 Balanced may use declared capabilities without invented quality scores.
-Savings and Performance class each model by a current reviewed profile, else by
-its exact published output API price (economy up to $5 per million tokens,
-frontier from $20, standard between); execution-host loopback models are
-economy. Savings uses non-frontier models, excludes xhigh/max and prefers local
-models. Performance requires actual xhigh/max transport support and frontier
-models for substantive work; lower-effort aliases or unpriced, unreviewed
-models cannot qualify it. **Dynamic** routes over the Balanced pool and, after
+Savings and Performance class each model by a current reviewed profile, else
+as economy for execution-host loopback models, else by the output price a
+pay-per-use provider declares, else by its exact published output API price
+(economy up to $5 per million tokens, frontier from $20, standard between).
+Savings uses non-frontier models, excludes xhigh/max and prefers local
+models. Performance uses frontier models for substantive work at each model's
+highest qualified effort: xhigh or max when the transport supports either,
+otherwise High, never lower. Aliases cannot raise an effort and unpriced,
+unreviewed models cannot qualify it. **Dynamic** routes over the Balanced pool and, after
 classification, applies Savings to simple or README/summary/trivial work,
-Performance to complex substantive work and Balanced otherwise, when the chosen
-models qualify; the applied mode appears in Insights / Kupo routing provenance. No hosted API fee
+Performance to complex substantive work and Balanced otherwise, when that mode
+allows the chosen workflow and models; the applied mode appears in Insights / Kupo routing provenance. No hosted API fee
 does not erase tokens, configured rates, unknown accounting or actual costs.
+
+Each mode runs its own workflows (D56), all on by default and configured under
+`kupo.workflows`: **Savings** runs Single and Cascade; **Balanced** runs every
+enabled workflow but never solves or drafts with a frontier model for requests
+above 32,768 estimated input tokens while a non-frontier model is eligible;
+**Performance** runs Single, Critique and Council. **Cascade** drafts with a
+model in a strictly cheaper class and escalates to a pricier one when its gate
+asks; per-model class overrides or `excluded` refine it. **Critique** uses a
+critic from a different AI lab (optionally only chosen lab pairs). **Council**
+has one drafter and reviewers from as many different labs (3 to 5 models,
+optionally only chosen labs): all must pass, a majority rejection stops, and
+anything else returns every critique for a revision the council reviews again.
+Labs come from model names and are not proof of independent training. The
+composer's mode list shows which workflows each mode can run with your models.
+A model whose thinking is a token budget (some Claude models through
+`anthropic-messages`) runs Performance Single at High but cannot draft or
+review in Performance Critique or Council, because High's thinking budget does
+not fit those bounded roles.
 
 **Settings / Kupo routing / Add model scores and prices**
 prepares an exact user-reviewed source profile. Supply genuine source text,
@@ -904,9 +943,10 @@ evaluation-set digest, cost class and reference prices. Then acknowledge that
 exact source and save the complete policy. This is not a paid benchmark,
 calibration, proof of independence, billed price or permission.
 
-Cascade requires comparable reviewed capability dominance and nondecreasing
-reference price. Critique additionally requires a reviewed different-lineage
-pair in the same reviewed cost class. Advanced `automaticLimits` bound repeats
+Profiles are optional. Two profiles with comparable reviewed capability
+dominance and nondecreasing reference price also form a Cascade pair, and a
+reviewed different-lineage pair in the same reviewed cost class also forms a
+Critique pair. Advanced `automaticLimits` bound repeats
 and complete UTF-8 result bytes. Every new-mode revision/escalation is reviewed
 again; exhaustion cannot accept unreviewed output or proposed tools.
 
@@ -2100,7 +2140,7 @@ harness is not required for ordinary in-app managed setup.
 
 Settings has a search field and grouped categories. **General** owns profile
 management; **Models > Providers** owns Copilot sign-in, separate from repository
-integration. SendBox configuration is under **Execution & permissions**.
+integration. SendBox configuration is under **Boundaries**.
 Click a project folder to open that project's settings. Dirty edits block
 leaving their owner; searching never saves or discards text.
 **Per-project configuration / Project** also has a dropdown of the active
@@ -2363,7 +2403,7 @@ overrides. The default last-selected mode remembers explicit selections in that
 profile and does not copy the old session's working window or draft. The page also offers
 dry/minimal/balanced/detailed response verbosity, plus the existing explicit
 global/profile budget and advanced defaults. Existing sessions keep their saved
-controls. **Execution & permissions** owns default autonomy and tool
+controls. **Boundaries** owns default autonomy and tool
 ask/deny behavior; exact grants and deny rules still apply.
 
 **Sessions / Retention** displays the actual encrypted store directory, manages
@@ -2964,7 +3004,7 @@ The later source checkpoints below record their own narrower evidence.
 
 ### SendBox image compatibility and failed verification
 
-Under **Settings > Execution & permissions**, review and save the exact
+Under **Settings > Boundaries**, review and save the exact
 SendBox installation, immutable workload image, worker/bridge digests and
 network hostnames, then explicitly verify. A syntactically valid configuration
 can still pin an incompatible workload: the historical image
@@ -4205,7 +4245,8 @@ excluded; content is bounded to 12 sessions, eight prompts each, 4,000 Unicode
 characters per prompt and 32 KiB of actual UTF-8 text in total.
 
 **ask Moguri**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
-Moguri configuration. The model can read non-secret settings and propose
+Moguri configuration. The desktop button opens its own top-level chat, not a
+child of the chat you were in. The model can read non-secret settings and propose
 changes, never authenticate, execute workspace tools or approve/apply its own
 proposal. Global **User guidance** is separate from the factory system prompt.
 Projects can receive configuration, local instruction-file or disabled-skill

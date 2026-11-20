@@ -107,7 +107,9 @@ on top of the committed values, so other unsaved text is untouched. Explicit
 Save is reserved for written values such as text, paths, numbers, shortcuts and
 JSON/YAML editors, and for flows gated by a review or consent step. List actions
 like adding, enabling or removing a skill source, or confirming a global skill
-folder, also save immediately. A refused save keeps the attempted value visible
+folder, also save immediately, as do each skill's switch and **Trust** in the
+shared skills list (D57), whose groups start collapsed in Settings and expanded
+on the Capabilities page. A refused save keeps the attempted value visible
 with the error and never overwrites another client's revision.
 
 Every Settings page follows one anatomy so pages read alike:
@@ -136,16 +138,17 @@ navigation/unmount until saved or explicitly reloaded.
 ### Settings rail structure
 
 The rail lists only the **7 pages**, one per group, with an icon and the group
-name (follow-up to [#84](https://github.com/mbianchidev/moguri/issues/84)). There
-are no per-item rail entries, group headings or tabs: each page shows every item
-of its group as a section, so related options are on one scrolling page.
+name (follow-up to [#84](https://github.com/mbianchidev/moguri/issues/84)). Each
+page shows every item of its group as a section, so related options are on one
+scrolling page. Under the open page the rail lists that page's sections as small
+anchor links that scroll to them; there are no group headings or tabs.
 
 | Page | Sections, in order |
 | --- | --- |
 | General | General, Repositories, Project |
 | Models | Providers, Local models, Kupo routing, Decision providers |
 | Integrations | GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace |
-| Execution & permissions | Guardrails, Sandbox, Remote SSH, Subagents, Scripts, Lifecycle hooks, Dependency cache |
+| Boundaries | Guardrails, Sandbox, Remote SSH, Subagents, Scripts, Lifecycle hooks, Dependency cache |
 | Sessions | Startup defaults, Confirmations, Retention, Context compaction, Budgets, Artifacts, Candidates |
 | Instructions | User guidance, System prompt, Skills, Knowledge tiers, Repository memory |
 | Interface | Appearance, Keyboard shortcuts, Voice dictation, Notifications |
@@ -161,7 +164,7 @@ of its group as a section, so related options are on one scrolling page.
   scrolled to its section. No persisted navigation state changed. Search matches
   every item and narrows the rail to the pages that hold a match, each with its
   match count; choosing one opens it at the first match.
-- Tab strips elsewhere (Customize, the PR pane) are text tabs with an accent
+- Tab strips elsewhere (Capabilities, the PR pane) are text tabs with an accent
   underline on a shared baseline, never boxed buttons. Secondary buttons use a
   hairline border and a subtle fill; the stronger control line appears on hover.
 
@@ -221,6 +224,15 @@ conversation in the middle and the terminal and other panels on the right.
 Icons come from `lucide-react` through `Icon.tsx`: 16px, 1.75 stroke, inheriting
 `currentColor`, each tagged with `data-icon` for tests. Model brand marks stay
 drawn paths. Add an icon by mapping a name in `Icon.tsx`, never by inlining SVG.
+
+### Model lists
+
+Every list of models (Settings / Providers, Kupo's pool and Cascade classes, the
+legacy approved solvers) uses `GroupedModelList`: provider groups, then AI lab
+subgroups when a provider spans several labs, all collapsed by default with a
+count on each header. A toolbar offers **Order by price** (free, then priced,
+then unknown) and Providers / AI labs filter popovers. Rows keep their own
+controls; the list adds only the price label on the right.
 
 ### Getting started
 

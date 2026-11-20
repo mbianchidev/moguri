@@ -5,7 +5,7 @@ import { mkdir } from "node:fs/promises";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { localModelId } from "../../apps/service/src/model-registry.ts";
 import { setupFixture } from "../fixture.ts";
-import { openModelChoices, openSettingsSection } from "./navigation.ts";
+import { expandModelGroups, openModelChoices, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Availability controls use generated hidden macOS windows.");
@@ -24,8 +24,9 @@ test("long provider settings keep scrolling inside the viewport without moving a
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await openSettingsSection(page, "Providers");
+    await openSettingsSection(page, "Providers"); await expandModelGroups(page.getByRole("region", { name: "Provider and model availability", exact: true }));
     const panel = page.getByRole("region", { name: "Provider and model availability", exact: true });
+    await expandModelGroups(panel);
     const content = page.locator(".settings-content"), categories = page.getByRole("navigation", { name: "Settings categories" });
     const last = panel.getByRole("switch", { name: "Enable model generated-scroll-080", exact: true });
     await expect(panel.getByRole("switch", { name: /^Enable model / })).toHaveCount(81);
@@ -90,7 +91,7 @@ test("long provider settings keep scrolling inside the viewport without moving a
       await expect(page.getByRole("button", { name: "Back to session", exact: true })).toBeInViewport({ ratio: 1 });
       await expect(page.locator(".settings-content").getByRole("heading", { name: "Appearance", exact: true })).toBeInViewport();
       expect(await page.evaluate(() => document.querySelector(".app-shell")?.scrollTop)).toBe(0);
-      await openSettingsSection(page, "Providers");
+      await openSettingsSection(page, "Providers"); await expandModelGroups(page.getByRole("region", { name: "Provider and model availability", exact: true }));
     }
     expect(fixture.requests).toHaveLength(0); expect(errors).toEqual([]);
   } finally { await app.close(); await fixture.close(); }
@@ -106,8 +107,9 @@ test("disabling the current model leaves the composer unselected until another e
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow(), composer = page.getByRole("form", { name: "Message composer" });
-    await openSettingsSection(page, "Providers");
+    await openSettingsSection(page, "Providers"); await expandModelGroups(page.getByRole("region", { name: "Provider and model availability", exact: true }));
     const panel = page.getByRole("region", { name: "Provider and model availability", exact: true });
+    await expandModelGroups(panel);
     await panel.getByRole("switch", { name: `Enable model ${fixture.modelId}`, exact: true }).uncheck();
     await expect.poll(() => fixture.session().controls.modelId).toBeNull();
     await expect(panel.getByRole("status", { name: "Model availability saving", exact: true })).toHaveText("Changes save automatically.");
@@ -115,7 +117,7 @@ test("disabling the current model leaves the composer unselected until another e
     await expect(composer.getByRole("button", { name: /^Model:/ })).toContainText("Select model");
     await expect(composer.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated draft waits for model selection.");
-    await openSettingsSection(page, "Providers");
+    await openSettingsSection(page, "Providers"); await expandModelGroups(page.getByRole("region", { name: "Provider and model availability", exact: true }));
     await panel.getByRole("switch", { name: `Enable model ${fixture.modelId}`, exact: true }).check();
     await expect(panel.getByRole("status", { name: "Model availability saving", exact: true })).toHaveText("Changes save automatically.");
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
@@ -142,8 +144,9 @@ test("the provider list can reduce twenty-one models to three and disabled model
   try {
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await openSettingsSection(page, "Providers");
+    await openSettingsSection(page, "Providers"); await expandModelGroups(page.getByRole("region", { name: "Provider and model availability", exact: true }));
     const panel = page.getByRole("region", { name: "Provider and model availability", exact: true });
+    await expandModelGroups(panel);
     await expect(panel.getByRole("switch", { name: /^Enable model / })).toHaveCount(21);
     for (const model of generated.slice(2)) {
       await panel.getByRole("switch", { name: `Enable model ${model.id}`, exact: true }).uncheck();
@@ -183,8 +186,9 @@ test("duplicate models use an exclusive provider dropdown and provider switches 
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {
     const page = await app.firstWindow();
-    await openSettingsSection(page, "Providers");
+    await openSettingsSection(page, "Providers"); await expandModelGroups(page.getByRole("region", { name: "Provider and model availability", exact: true }));
     const panel = page.getByRole("region", { name: "Provider and model availability", exact: true }), source = panel.getByRole("combobox", { name: `Provider for ${fixture.modelId}`, exact: true });
+    await expandModelGroups(panel);
     await expect(source).toHaveValue("");
     await source.selectOption(local);
     await expect.poll(() => sdk.getState().snapshot!.provider.models.filter((model) => !model.synthetic).map((model) => model.id)).toEqual([local]);

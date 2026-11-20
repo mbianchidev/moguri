@@ -48,6 +48,9 @@ test("imported skill switches persist and Enable all reports a partial failure w
   const app = await launch(join(fixture.directory, "state"));
   try {
     const page = await app.firstWindow(); await openSettingsSection(page, "Skills");
+    // Settings lists every skill with its groups collapsed (D57); imported skills sit under their project.
+    const expand = () => page.getByRole("region", { name: "Project - project", exact: true }).getByRole("button", { name: /^Project - project / }).click();
+    await expand();
     const alpha = page.getByRole("switch", { name: "Enable skill generated-alpha", exact: true });
     const beta = page.getByRole("switch", { name: "Enable skill generated-beta", exact: true });
     await expect(alpha).not.toBeChecked(); await expect(beta).not.toBeChecked();
@@ -60,7 +63,7 @@ test("imported skill switches persist and Enable all reports a partial failure w
     await enableAll.click(); await expect(beta).toBeChecked(); await expect(enableAll).toBeDisabled();
     await alpha.focus(); await page.keyboard.press("Space"); await expect(alpha).not.toBeChecked();
     await expect.poll(() => sdk.getState().snapshot?.registry.find((entry) => entry.name === "generated-alpha")?.enabled).toBe(false);
-    await page.reload(); await openSettingsSection(page, "Skills");
+    await page.reload(); await openSettingsSection(page, "Skills"); await expand();
     await expect(alpha).not.toBeChecked(); await expect(beta).toBeChecked();
     expect(fixture.requests).toHaveLength(0);
     expect(fixture.service.controller.snapshot().skillAdmissions).toHaveLength(0);
@@ -81,6 +84,7 @@ test("an imported skill is deleted only after inline confirmation, while plugin-
   const app = await launch(join(fixture.directory, "state"));
   try {
     const page = await app.firstWindow(); await openSettingsSection(page, "Skills");
+    await page.getByRole("region", { name: "Project - project", exact: true }).getByRole("button", { name: /^Project - project / }).click();
     const remove = page.getByRole("button", { name: "Delete skill generated-removable", exact: true });
     await expect(page.getByRole("button", { name: "Delete skill generated-bundle/generated-bundled", exact: true })).toHaveCount(0);
     await remove.click();
@@ -91,7 +95,7 @@ test("an imported skill is deleted only after inline confirmation, while plugin-
     expect(sdk.getState().snapshot!.registry.some((entry) => entry.name === "generated-removable")).toBe(true);
     await remove.click(); await page.screenshot({ path: test.info().outputPath("skill-delete-confirmation.png") });
     await confirmation.getByRole("button", { name: "Delete skill", exact: true }).click();
-    await expect(page.getByRole("status", { name: "Skill changes", exact: true })).toContainText("Deleted skill generated-removable");
+    await expect(page.getByRole("status", { name: "Skill list status", exact: true })).toContainText("Deleted skill generated-removable");
     await expect(page.getByRole("switch", { name: "Enable skill generated-removable", exact: true })).toHaveCount(0);
     await expect(page.getByRole("switch", { name: "Enable skill generated-retained", exact: true })).toBeVisible();
     await expect.poll(() => sdk.getState().snapshot!.registry.some((entry) => entry.name === "generated-removable")).toBe(false);
