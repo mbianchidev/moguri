@@ -91,6 +91,8 @@ const bridge: DesktopBridge = {
     return () => ipcRenderer.removeListener("moguri:open-settings", receive);
   },
   copyText: (text) => ipcRenderer.invoke("moguri:copy-text", text),
+  unloadBlocked: (reason) => { ipcRenderer.sendSync("moguri:unload-blocked", reason); },
+  draftsSettled: (result) => ipcRenderer.send("moguri:drafts-settled", result),
   saveDocument: (document) => ipcRenderer.invoke("moguri:save-document", document),
   preview: (input, profileId, closingSessionId) => ipcRenderer.invoke("moguri:preview", input, profileId, closingSessionId),
   browserControl: (sessionId, enabled, profileId) => ipcRenderer.invoke("moguri:browser-control", sessionId, enabled, profileId),

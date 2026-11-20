@@ -110,7 +110,7 @@ function ToolSuggestionAutomationSettings({ sdk, snapshot, openTools }: { sdk: M
       .catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The automation change wasn't saved."))
       .finally(() => setBusy(false));
   };
-  return <section className="tool-suggestion-automation" aria-label="Repeated-task tool check"><h3>Repeated-task tool check</h3>
+  return <section className="tool-suggestion-automation" aria-label="Repeated-task tool check"><header><Icon name="Clock" /><h2>Repeated-task tool check</h2></header>
     <p className="fine-print">Looks for requests you repeat across chats, like turning Markdown into a PDF, that a script tool could handle. It runs on this Mac while Moguri is running, makes no model call and never writes or turns on a script. New suggestions appear in Inbox and Skills / Tools.</p>
     <label className="check-setting"><input type="checkbox" role="switch" aria-label="Check for repeated tasks automatically" checked={value.enabled} disabled={busy}
       onChange={(event) => save({ ...value, enabled: event.target.checked })} />Check for repeated tasks automatically</label>
@@ -124,10 +124,9 @@ function ToolSuggestionAutomationSettings({ sdk, snapshot, openTools }: { sdk: M
 export function ScheduledPromptsPanel({ sdk, snapshot, run, openSession, openTools }: { sdk: MoguriSdk; snapshot: Snapshot; run: Run; openSession: (id: string) => void; openTools?: () => void }) {
   const prompts = snapshot.scheduledPrompts.filter((prompt) => ["scheduled", "blocked", "queued"].includes(prompt.status))
     .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt) || a.id.localeCompare(b.id));
-  return <section className="scheduled-prompts-panel" aria-label="Scheduled prompts"><header><Icon name="Clock" /><h2>Automation actions</h2></header>
-    <p className="fine-print">Automations are actions Moguri can run for you, not just prompts. This checkpoint supports one-time scheduled prompts and the recurring repeated-task tool check; other action types are not available yet.</p>
-    <ToolSuggestionAutomationSettings sdk={sdk} snapshot={snapshot} openTools={openTools} />
-    <h3>Scheduled prompts</h3><p className="fine-print">Unsent prompts in this profile. Timers belong to Moguri, not this window.</p>
+  return <><ToolSuggestionAutomationSettings sdk={sdk} snapshot={snapshot} openTools={openTools} />
+  <section className="scheduled-prompts-panel" aria-label="Scheduled prompts"><header><Icon name="Clock" /><h2>Scheduled prompts</h2></header>
+    <p className="fine-print">Unsent prompts in an existing chat. Timers belong to Moguri, not this window.</p>
     {!prompts.length && <p>No scheduled prompts. Use Cmd/Ctrl+Enter in an idle chat to schedule one.</p>}
     {prompts.map((prompt) => {
       const session = snapshot.sessions.find((session) => session.id === prompt.sessionId)!;
@@ -139,5 +138,5 @@ export function ScheduledPromptsPanel({ sdk, snapshot, run, openSession, openToo
         {prompt.diagnostic && <p className="scheduled-prompt-diagnostic">{prompt.diagnostic}</p>}
       </div><ScheduledActions sdk={sdk} prompt={prompt} run={run} /></article>;
     })}
-  </section>;
+  </section></>;
 }

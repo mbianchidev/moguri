@@ -109,6 +109,25 @@ else {
     let reopenOwner: typeof connectedOwner;
     let nativeInitialized = false;
     let explicitQuitRequested = false;
+    // Close and quit first finish saving composer drafts and queued-prompt edits, then proceed without asking (D51).
+    let unloadReason: "drafts" | "edits" | null = null, draftSave: ReturnType<typeof setTimeout> | null = null, discardNextUnload = false;
+    // Set by the window's close event, which runs before beforeunload; any other blocked unload is a reload.
+    let closeIntent = false, afterSave: "close" | "reload" = "close";
+    const draftSaveFailed = (error: string) => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") {
+        explicitQuitRequested = false;
+        console.error(`Hidden generated window kept open because a draft was not saved: ${error}`);
+        return;
+      }
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: "warning", title: "Draft not saved", message: "Moguri couldn't save a draft before closing.",
+        detail: `${error} Keep Moguri open to try again, or close without the unsaved text.`,
+        buttons: ["Keep Moguri open", "Close without saving"], defaultId: 0, cancelId: 0,
+      });
+      if (choice === 1) { discardNextUnload = true; mainWindow.close(); }
+      else explicitQuitRequested = false;
+    };
     let shutdownTask: Promise<void> | undefined, exitAllowed = false;
     const shutdown = (reason: "quit" | "window") => {
       if (shutdownTask) return;
@@ -672,6 +691,18 @@ else {
       if (current().key !== key) throw new Error("The session's bound folder changed while it was being checked. No other location was opened.");
       return deliverLocation(action, location);
     });
+    ipcMain.on("moguri:unload-blocked", (event, reason: unknown) => {
+      try { trusted(event); if (reason === "drafts" || reason === "edits") unloadReason = reason; }
+      finally { event.returnValue = true; }
+    });
+    ipcMain.on("moguri:drafts-settled", (event, result: unknown) => {
+      trusted(event);
+      if (!draftSave || !mainWindow || mainWindow.isDestroyed()) return;
+      clearTimeout(draftSave); draftSave = null;
+      const value = typeof result === "object" && result !== null ? result as { ok?: unknown; error?: unknown } : {};
+      if (value.ok === true) { if (afterSave === "close") mainWindow.close(); else mainWindow.webContents.reload(); }
+      else draftSaveFailed(typeof value.error === "string" ? value.error.slice(0, 1000) : "The draft could not be saved.");
+    });
     ipcMain.handle("moguri:copy-text", (event, text: unknown) => {
       trusted(event);
       if (typeof text !== "string" || Buffer.byteLength(text) > 512 * 1024) throw new Error("Clipboard text must be bounded to 512 KiB.");
@@ -835,6 +866,16 @@ else {
       mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
       mainWindow.webContents.on("will-navigate", (event, url) => { if (!url.startsWith("moguri://app/")) event.preventDefault(); });
       mainWindow.webContents.on("will-prevent-unload", (event) => {
+        const reason = unloadReason, closing = closeIntent;
+        unloadReason = null; closeIntent = false;
+        if (discardNextUnload) { discardNextUnload = false; event.preventDefault(); return; }
+        if (reason === "drafts") {
+          afterSave = closing ? "close" : "reload";
+          // The renderer is saving; it reports back and the original close or quit continues.
+          if (draftSave) clearTimeout(draftSave);
+          draftSave = setTimeout(() => { draftSave = null; draftSaveFailed("Saving didn't finish within 15 seconds."); }, 15_000);
+          return;
+        }
         if (process.env.MOGURI_TEST_WINDOW === "hidden") {
           explicitQuitRequested = false;
           console.error("Hidden generated window kept open for pending edits. No native confirmation dialog was opened.");
@@ -847,6 +888,7 @@ else {
         if (choice === 1) event.preventDefault();
         else explicitQuitRequested = false;
       });
+      mainWindow.on("close", () => { closeIntent = true; });
       mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null;
         void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });
       mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });
