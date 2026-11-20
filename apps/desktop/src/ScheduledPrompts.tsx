@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { scheduleLocalChoices, scheduleLocalTime, sessionTitle, type DraftEditor, type MoguriSdk, type ScheduledPrompt, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { scheduleLocalChoices, scheduleLocalTime, sessionTitle, TOOL_SUGGESTION_INTERVALS, type DraftEditor, type MoguriSdk, type ScheduledPrompt, type Session, type Snapshot, type ToolSuggestionAutomation } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 
@@ -97,10 +97,35 @@ export function GhostPrompts({ sdk, session, snapshot, run }: { sdk: MoguriSdk; 
     <ScheduledActions sdk={sdk} prompt={prompt} run={run} />
   </article>)}</>;
 }
-export function ScheduledPromptsPanel({ sdk, snapshot, run, openSession }: { sdk: MoguriSdk; snapshot: Snapshot; run: Run; openSession: (id: string) => void }) {
+const intervalLabel = (hours: number) => hours === 24 ? "Every day" : hours === 168 ? "Every week" : `Every ${hours} hours`;
+/** The recurring repeated-task tool check. Its switch and interval save immediately. */
+function ToolSuggestionAutomationSettings({ sdk, snapshot, openTools }: { sdk: MoguriSdk; snapshot: Snapshot; openTools?: () => void }) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const value: ToolSuggestionAutomation = snapshot.settings.values.automations?.toolSuggestions ?? { enabled: false, intervalHours: 24 };
+  const save = (next: ToolSuggestionAutomation) => {
+    const current = sdk.settings.get();
+    if (!current) { setError("Reconnect this profile before changing automations. Nothing was saved."); return; }
+    setBusy(true); setError("");
+    void sdk.settings.update({ ...current.values, automations: { ...current.values.automations, toolSuggestions: next } }, current.revision)
+      .catch((failure: unknown) => setError(failure instanceof Error ? failure.message : "The automation change wasn't saved."))
+      .finally(() => setBusy(false));
+  };
+  return <section className="tool-suggestion-automation" aria-label="Repeated-task tool check"><header><Icon name="Clock" /><h2>Repeated-task tool check</h2></header>
+    <p className="fine-print">Looks for requests you repeat across chats, like turning Markdown into a PDF, that a script tool could handle. It runs on this Mac while Moguri is running, makes no model call and never writes or turns on a script. New suggestions appear in Inbox and Skills / Tools.</p>
+    <label className="check-setting"><input type="checkbox" role="switch" aria-label="Check for repeated tasks automatically" checked={value.enabled} disabled={busy}
+      onChange={(event) => save({ ...value, enabled: event.target.checked })} />Check for repeated tasks automatically</label>
+    <label className="setting-field">How often<select aria-label="Repeated-task check interval" value={value.intervalHours} disabled={busy || !value.enabled}
+      onChange={(event) => save({ ...value, intervalHours: TOOL_SUGGESTION_INTERVALS.find((hours) => hours === Number(event.target.value)) ?? 24 })}>
+      {TOOL_SUGGESTION_INTERVALS.map((hours) => <option key={hours} value={hours}>{intervalLabel(hours)}</option>)}</select></label>
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+    {openTools && <button type="button" onClick={openTools}>Review suggested tools</button>}
+  </section>;
+}
+export function ScheduledPromptsPanel({ sdk, snapshot, run, openSession, openTools }: { sdk: MoguriSdk; snapshot: Snapshot; run: Run; openSession: (id: string) => void; openTools?: () => void }) {
   const prompts = snapshot.scheduledPrompts.filter((prompt) => ["scheduled", "blocked", "queued"].includes(prompt.status))
     .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt) || a.id.localeCompare(b.id));
-  return <section className="scheduled-prompts-panel" aria-label="Scheduled prompts"><header><Icon name="Clock" /><h2>Scheduled prompts</h2></header>
+  return <><ToolSuggestionAutomationSettings sdk={sdk} snapshot={snapshot} openTools={openTools} />
+  <section className="scheduled-prompts-panel" aria-label="Scheduled prompts"><header><Icon name="Clock" /><h2>Scheduled prompts</h2></header>
     <p className="fine-print">Unsent prompts in an existing chat. Timers belong to Moguri, not this window.</p>
     {!prompts.length && <p>No scheduled prompts. Use Cmd/Ctrl+Enter in an idle chat to schedule one.</p>}
     {prompts.map((prompt) => {
@@ -113,5 +138,5 @@ export function ScheduledPromptsPanel({ sdk, snapshot, run, openSession }: { sdk
         {prompt.diagnostic && <p className="scheduled-prompt-diagnostic">{prompt.diagnostic}</p>}
       </div><ScheduledActions sdk={sdk} prompt={prompt} run={run} /></article>;
     })}
-  </section>;
+  </section></>;
 }

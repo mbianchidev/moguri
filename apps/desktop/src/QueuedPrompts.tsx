@@ -24,7 +24,7 @@ export function Queue({ session, snapshot, command, client, modal }: {
   const latest = useRef({ edit, session });
   latest.current = { edit, session };
   useEffect(() => registerUnsavedWork({
-    // An open in-place edit that differs from the queued prompt is saved when the window closes (D50).
+    // An open in-place edit that differs from the queued prompt is saved when the window closes (D51).
     dirty: () => {
       const { edit: current, session: owner } = latest.current, item = current && owner.queue.find((value) => value.id === current.id);
       return Boolean(item && current && (item.text !== current.text || JSON.stringify(item.attachments) !== JSON.stringify(current.attachments)));

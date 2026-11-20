@@ -4,8 +4,9 @@ import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";
 
-export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialAll, chooseSession, modal }: {
+export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialAll, chooseSession, modal, openTools }: {
   sdk: MoguriSdk; session?: Session; snapshot: Snapshot; allProjects: boolean; chooseSession: (id: string) => Promise<void>; modal: (open: boolean) => void;
+  openTools?: () => void;
 }) {
   const [allProjects, setAllProjects] = useState(initialAll);
   const [preview, setPreview] = useState<SuggestionPreview | null>(null);
@@ -38,6 +39,11 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
     <CapabilityProposals sdk={sdk} snapshot={snapshot} projectId={session?.projectId ?? null} />
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {preview && <><p className="fine-print">{preview.diagnostic}</p>
+      {preview.tools.some((tool) => !tool.installed) && <section aria-label="Repeated tasks that could become tools"><h3>Repeated tasks that could become tools</h3>
+        <p className="fine-print">A reviewed script can do these the same way every time. Local phrase match, not a model verdict.</p>
+        {preview.tools.filter((tool) => !tool.installed).map((tool) => <article className="suggestion-hint" key={tool.name}><strong>{tool.title}</strong>
+          <p><code>{tool.name}</code> / asked in {tool.count} chats</p><small>“{tool.example}”</small></article>)}
+        {openTools && <button type="button" onClick={openTools}>Write these in Skills / Tools</button>}</section>}
       <h3>Usage gaps</h3>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
       {preview.repeated.length > 0 && <><h3>Repeated guidance</h3>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
         setBusy(true); setError("");
@@ -118,7 +124,7 @@ function ConfigurationReview({ sdk, id, close }: { sdk: MoguriSdk; id: string; c
     </>}
   </dialog>;
 }
-export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void }) {
+export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork, openTools }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void; openTools?: () => void }) {
   const [error, setError] = useState("");
   const [filters, setFilters] = useState<AttentionFilters>({});
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -176,9 +182,10 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork }: { s
       const operation = entry.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === entry.messageId) : undefined;
       const work = entry.myWork ? snapshot.myWorkRefreshes.find((refresh) => refresh.id === entry.myWork?.refreshId)?.attention.find((value) => value.itemId === entry.messageId) : undefined;
       return <article className={`attention-item ${group.every((other) => other.acknowledged) ? "read" : "unread"}`} key={entry.reason === "script-review" ? `scripts:${entry.sessionId}` : entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
-        <div><button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
+        <div>{entry.reason === "tool-suggestion" ? <button className="quiet" disabled={!openTools} onClick={() => openTools?.()}>Suggested tool: {entry.messageId}</button> :
+          <button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
           if (work) chooseWork?.(work.itemId); else if (entry.sessionId) void chooseSession(entry.sessionId);
-        }}>{work ? `${work.repository}#${work.number}` : session?.title ?? "Session removed"}</button>
+        }}>{work ? `${work.repository}#${work.number}` : session?.title ?? "Session removed"}</button>}
           {entry.reason === "script-review" && session ? <ScriptReviewsPanel sdk={sdk} session={session} snapshot={snapshot}
             reviewIds={group.flatMap((other) => other.messageId ? [other.messageId] : [])} onReviewed={() => requestAnimationFrame(() => {
               if (owner.current !== sdk) return;

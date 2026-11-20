@@ -709,6 +709,8 @@ Retain whether the answer came from the user, the generative model, or a delegat
 
 Deleting a session does not delete its artifacts. Deleting a project containing artifacts requires a preview and an explicit choice to retain, export, materialize them into an `artifacts/` directory in the repository, optionally commit that directory, or delete the artifacts.
 
+Protocol 114 adds a read-only per-project [artifact library](architecture/skills-tools-artifacts.md#artifacts-tab): metadata of build outputs in the checkout and session worktrees and of agent-written files, shown with chat images, links and retained documents, each linked to its session. It never reads file contents or opens a file.
+
 ### 7. Telemetry, cost control, and dashboard
 
 The bounded [protocol-97 OTLP slice](architecture/otlp-export.md) adds explicit
@@ -963,7 +965,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - taggable `@` agents and group-level task, timing, token, and cancellation views;
 - folders containing multiple repositories that participate in one work stream;
 - coordinated pull-request ordering and merging, optionally using GitHub stacked pull requests;
-- managed cloud provisioning and hosted orchestration beyond the first-release, user-configured Remote SSH env.
+- managed cloud provisioning and hosted orchestration beyond the first-release, user-configured Remote SSH env; see the [cloud fleet on Agent Substrate analysis](architecture/cloud-fleet-substrate.md).
 
 ### Skills, hooks, plugins, and policies
 
@@ -993,7 +995,7 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 - scheduled CI watching;
 - dependency roundups covering Dependabot, Renovate, and other update bots;
 - a **My work** workflow for open pull requests, pending reviews, broken CI, and unresolved comments;
-- scheduled prompts (one-time prompts, and recurring [automations](architecture/automations.md) since protocol 114);
+- scheduled prompts (one-time prompts, and recurring [automations](architecture/automations.md) since protocol 115);
 - agentic workflows combining prompts and explicit scripts through a readable workflow syntax (delivered as [automations](architecture/automations.md));
 - optional delegation of scheduled workflows to a server while retaining the same policy, budget, event, and artifact model.
 

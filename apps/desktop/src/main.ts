@@ -5,7 +5,7 @@ import { DEFAULT_OPEN_APP_SHORTCUT, electronAccelerator, trayMenu, trayTemplate,
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { lstat, mkdir, readFile, realpath } from "node:fs/promises";
-import { dirname, extname, join, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
 import type { Connection } from "../../../packages/protocol/src/index.ts";
@@ -109,7 +109,7 @@ else {
     let reopenOwner: typeof connectedOwner;
     let nativeInitialized = false;
     let explicitQuitRequested = false;
-    // Close and quit first finish saving composer drafts and queued-prompt edits, then proceed without asking (D50).
+    // Close and quit first finish saving composer drafts and queued-prompt edits, then proceed without asking (D51).
     let unloadReason: "drafts" | "edits" | null = null, draftSave: ReturnType<typeof setTimeout> | null = null, discardNextUnload = false;
     // Set by the window's close event, which runs before beforeunload; any other blocked unload is a reload.
     let closeIntent = false, afterSave: "close" | "reload" = "close";
@@ -646,6 +646,24 @@ else {
         repositoryUrl((await client.projects.git(projectId, false)).repository, "This Local project");
       current();
       return deliverLocation(action, location);
+    });
+    ipcMain.handle("moguri:reveal-artifact", async (event, profileId: unknown, projectId: unknown, path: unknown) => {
+      trusted(event);
+      if (typeof path !== "string" || !isAbsolute(path) || projectId !== null && typeof projectId !== "string") throw new Error("Choose an exact listed artifact file.");
+      const client = attentionClient, epoch = profileEpoch;
+      const current = () => {
+        if (!client || client !== attentionClient || profileId !== activeProfileId || profileId !== client.profileId || epoch !== profileEpoch ||
+          client.getState().status !== "connected") throw new Error("The original profile changed or disconnected. Nothing was shown.");
+      };
+      current();
+      const library = await client!.artifacts.library(projectId);
+      current();
+      if (!library.files.some((file) => file.path === path)) throw new Error("This file is no longer in the artifact library. Refresh Artifacts; nothing was shown.");
+      const metadata = await lstat(path).catch(() => null);
+      if (!metadata || metadata.isSymbolicLink() || await realpath(path).catch(() => null) !== path) throw new Error("The exact file is unavailable or changed. Nothing was shown.");
+      if (process.env.MOGURI_TEST_WINDOW === "hidden") return { revealed: false, path };
+      shell.showItemInFolder(path);
+      return { revealed: true, path };
     });
     ipcMain.handle("moguri:session-location", async (event, profileId: unknown, sessionId: unknown, action: unknown) => {
       trusted(event);

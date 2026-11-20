@@ -1,4 +1,4 @@
-/** In-place edits (such as a queued prompt being edited) that closing the window saves before it closes (D50). */
+/** In-place edits (such as a queued prompt being edited) that closing the window saves before it closes (D51). */
 export interface UnsavedWork { dirty(): boolean; save(): Promise<void> }
 const pending = new Set<UnsavedWork>();
 export const registerUnsavedWork = (work: UnsavedWork) => { pending.add(work); return () => { pending.delete(work); }; };

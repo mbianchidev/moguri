@@ -5,7 +5,7 @@ import { Alert } from "./Alert.tsx";
 const key = (session: Session) => `${session.id}:${session.interruption?.at ?? ""}`;
 const message = (error: unknown) => error instanceof Error ? error.message : "The chat could not be continued.";
 
-/** After a restart, asks once per interruption whether to continue chats that a quit, restart or crash stopped (D50). */
+/** After a restart, asks once per interruption whether to continue chats that a quit, restart or crash stopped (D51). */
 export function InterruptedWorkPrompt({ sdk, snapshot, open, modal }: { sdk: MoguriSdk; snapshot: Snapshot; open: (id: string) => void; modal: (open: boolean) => void }) {
   const [seen, setSeen] = useState(() => new Set<string>());
   const sessions = interruptedSessions(snapshot.sessions);

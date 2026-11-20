@@ -67,14 +67,15 @@ export class AttentionNotifier {
       const operation = attention.reason === "ci" ? snapshot.githubOperations.find((operation) => operation.id === attention.messageId) : undefined;
       const script = attention.reason === "script-review" ? snapshot.scriptReviews.find((review) => review.id === attention.messageId) : undefined;
       const summary = attention.myWork ? snapshot.myWorkRefreshes.find((record) => record.id === attention.myWork?.refreshId)?.attention.find((entry) => entry.itemId === attention.messageId) : undefined;
-      const generic = attention.reason === "my-work" ? "The GitHub inbox needs attention." : attention.reason === "ci" ? "A PR CI watch needs inspection." :
+      const generic = attention.reason === "tool-suggestion" ? `A repeated request could become the script tool ${bounded(attention.messageId ?? "", 64)}. Review it in Skills / Tools.` :
+        attention.reason === "my-work" ? "The GitHub inbox needs attention." : attention.reason === "ci" ? "A PR CI watch needs inspection." :
         attention.reason === "script-review" ? "Repository script assessments need your review." : attention.kind === "question" ? "A session may be asking a question." : attention.kind === "done" ? "Agent done and waiting." : attention.reason === "approval" ? "A session needs your approval." : "Work needs inspection.";
       const preview = summary ? `${summary.repository}#${summary.number}: ${summary.categories.join(", ")}; head ${summary.headSha.slice(0, 12)}.` :
         script?.advice ? `${script.source.path}: ${script.advice.verdict}. ${script.advice.summary}` :
         operation?.ci ? `PR #${operation.ci.target.number} at ${operation.ci.target.headSha.slice(0, 12)}: watch ${operation.status}, CI ${operation.ci.state ?? "unobserved"}.` :
         session?.messages.findLast((message) => message.role === "assistant")?.text ?? generic;
       show({ id: attention.id, sessionId: attention.sessionId, ...(summary ? { itemId: summary.itemId } : {}),
-        ...(script ? { inbox: true } : {}), kind: attention.kind, title: "Moguri",
+        ...(script || attention.reason === "tool-suggestion" ? { inbox: true } : {}), kind: attention.kind, title: "Moguri",
         body: snapshot.settings.values.notifications.previewContent && (session || summary) ? `${session ? `${bounded(session.title, 100)}: ` : ""}${bounded(preview, 160)}` : generic });
     }
   }

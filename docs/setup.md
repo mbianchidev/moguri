@@ -144,6 +144,20 @@ fails, the chat says so and nothing runs on your Mac. Sandbox sessions can't
 load skills yet. See
 [Remote skill packages](architecture/skills-and-rewind.md#remote-skill-packages-protocol-112).
 
+**Skills** next to Automations (protocol 114) lists installed skills with
+On/Off switches, installs a skill from your configured sources into one
+project or every project (disabled until you turn it on), and shows the agent's
+toolsets and your script tools. Write a script or ask the agent to write one,
+review it and turn it on. Suggested tools come from requests you repeat across
+chats; the optional **Repeated-task tool check** in Automations runs that local
+check every 6, 12, 24 or 168 hours while Moguri runs and adds new suggestions
+to Inbox. **Artifacts** lists each project's build outputs, files agents wrote,
+chat images, links and saved notes with their chat; **Show in Finder** only
+reveals a listed file. TUI: `/skills install ID SHA [global]`,
+`/artifacts library`. CLI: `moguri skills install`, `moguri toolsets`,
+`moguri artifact library`. See
+[skills, tools and artifacts](architecture/skills-tools-artifacts.md).
+
 Every review and load lists deterministic indicator findings (pattern matches
 for hidden characters, download-and-run, credential paths, instructions to
 override rules and similar). They are advice, not a safety verdict. Save a
@@ -694,7 +708,7 @@ Reading or watching never approves a review, rerun, push or merge.
 The synthetic dropdown labels Balanced/Savings/Performance **Routing**;
 Kupo has no manual effort selector. A concrete fixed model retains its
 qualified thinking-effort control. Automations now also holds recurring
-automations and declarative workflows (protocol 114, see
+automations and declarative workflows (protocol 115, see
 [Automations](#automations-recurring-schedules-and-workflows)).
 
 ### GitHub login versus native metadata quota
@@ -794,7 +808,7 @@ a base-checkout fallback.
 
 ## Automations: recurring schedules and workflows
 
-Protocol 114 adds automations ([contract](architecture/automations.md)). An
+Protocol 115 adds automations ([contract](architecture/automations.md)). An
 automation has a name, a project, a schedule (once, every N minutes, daily or on
 chosen weekdays, in a timezone) and up to 10 steps run in order: prompts and
 repository-trusted scripts. Each run starts a new chat in the project with the
@@ -1538,7 +1552,7 @@ Protocol 59 adds the [workspace experience and skill gateway](architecture/works
 The left sidebar has **New**, Dashboard, Suggestions and Automations.
 **Code change** and **Work item** belong to the right rail and follow
 the selected session, with the protocol-61 GitHub workflows described above.
-Automations later gained one-time scheduled prompts and, at protocol 114,
+Automations later gained one-time scheduled prompts and, at protocol 115,
 recurring automations. Profile, Ask Moguri
 and Settings share one compact footer row. Copilot connection status appears
 only in Settings / Models / Providers, not in the left sidebar.
