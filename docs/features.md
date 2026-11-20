@@ -104,8 +104,8 @@ Automations / Scheduled prompts group, with one-at-most queue admission.
 [Customize and Artifacts tabs](architecture/skills-tools-artifacts.md) sit next
 to Automations: toggle installed skills, install skills from configured
 repositories, browse the agent's toolsets, write or ask the agent for script
-tools for every chat, and find each project's builds, files, images and links
-with their chat. Agents get typed GitHub reads (tags, releases, annotations,
+tools for every chat, and find builds, files, images and links across all
+projects or in one project, with their chat. Agents get typed GitHub reads (tags, releases, annotations,
 contents, settings, rules) and reviewed `github_write` (comments, threads,
 releases, settings; draft PRs only).
 An optional recurring check suggests script tools for requests you repeat.

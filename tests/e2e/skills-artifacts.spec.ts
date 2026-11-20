@@ -151,3 +151,43 @@ test("Artifacts never offers or performs Trash for files in a workspace folder's
     expect(await readdir(join(alpha, "dist"))).toEqual(["Generated.dmg"]);
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
+
+test("Artifacts All projects lists every project and project-free note with its owner and trashes each file through its own project", async () => {
+  test.setTimeout(60_000);
+  const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
+  const first = f.service.controller.snapshot().projects.find((project) => project.id === f.session().projectId)!;
+  const secondRoot = join(f.directory, "generated-second"), trash = join(f.directory, "generated-trash");
+  await mkdir(join(first.path, "dist"), { recursive: true }); await writeFile(join(first.path, "dist", "Generated-first.dmg"), "generated first");
+  await mkdir(join(secondRoot, "dist"), { recursive: true }); await writeFile(join(secondRoot, "dist", "Generated-second.zip"), "generated second");
+  const added = await sdk.projects.add(secondRoot), second = await waitFor(() => f.service.controller.snapshot().projects.find((project) => project.id === added.id));
+  await sdk.artifacts.create(null, { kind: "report", name: "Generated project-free note", text: "Generated note body.", projectId: null });
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_TRASH_DIR: trash } });
+  try {
+    const page = await app.firstWindow(); await waitForWorkspace(page);
+    await page.getByRole("navigation", { name: "Profile resources", exact: true }).getByRole("button", { name: "Artifacts", exact: true }).click();
+    const library = page.getByRole("region", { name: "Artifacts library", exact: true }), scope = library.getByRole("combobox", { name: "Artifacts project", exact: true });
+    await expect(scope.locator("option").first()).toHaveText("All projects");
+    await scope.selectOption({ label: "All projects" });
+    const firstFile = library.locator(".artifact-item", { hasText: "Generated-first.dmg" }), secondFile = library.locator(".artifact-item", { hasText: "Generated-second.zip" });
+    const note = library.locator(".artifact-item", { hasText: "Generated project-free note" });
+    await expect(firstFile).toContainText(first.name);
+    await expect(secondFile).toContainText(second.name);
+    await expect(note).toContainText("Chats without a project");
+
+    await library.getByRole("searchbox", { name: "Search artifacts", exact: true }).fill(second.name);
+    await expect(library.locator(".artifact-item")).toHaveCount(1);
+    await library.getByRole("searchbox", { name: "Search artifacts", exact: true }).fill("");
+
+    await secondFile.getByRole("button", { name: "Move Generated-second.zip to the Trash", exact: true }).click();
+    const confirm = library.getByRole("alertdialog", { name: "Confirm artifact deletion", exact: true });
+    await expect(confirm).toContainText(`dist/Generated-second.zip (${second.name})`);
+    await confirm.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(library.getByRole("status")).toContainText("Moved 1 file to the Trash.");
+    expect(await readdir(join(secondRoot, "dist"))).toEqual([]);
+    expect(await readdir(join(first.path, "dist"))).toEqual(["Generated-first.dmg"]);
+    await expect(firstFile).toBeVisible();
+    await expect(note).toBeVisible();
+    expect(f.requests.length).toBe(0);
+  } finally { await app.close(); sdk.disconnect(); await f.close(); }
+});
