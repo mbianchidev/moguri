@@ -82,7 +82,7 @@ export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFi
     else { const days = presets.find((days) => String(days) === value); if (days) setRange({ kind: "days", days }); }
   };
   const analytics = page === "Analytics";
-  return <section className="workspace-dashboard" data-page={analytics ? "analytics" : undefined} aria-label="Profile dashboard">
+  return <section className="workspace-dashboard" aria-label="Profile dashboard">
     <nav className="dashboard-pages" aria-label="Dashboard pages">{pages.map((name) => <button key={name} type="button" aria-current={page === name ? "page" : undefined} onClick={() => setPage(name)}>{name}</button>)}</nav>
     {!analytics && <><div className="dashboard-filters"><label>Range<select aria-label="Dashboard date range" value={range.kind === "days" ? String(range.days) : "custom"} onChange={(event) => selectRange(event.target.value)}>
       {presets.map((days) => <option key={days} value={String(days)}>Last {days} days</option>)}<option value="custom">Custom range</option></select></label>

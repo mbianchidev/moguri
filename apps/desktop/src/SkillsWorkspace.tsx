@@ -10,7 +10,7 @@ export type SkillsTab = typeof skillsTabs[number];
 const scopeLabel = (snapshot: Snapshot, projectId: string | null) => projectId === null ? "All projects" : snapshot.projects.find((project) => project.id === projectId)?.name ?? "Removed project";
 const originLabel = (entry: CapabilityEntry) => entry.ownerPluginId ? "Plugin bundle" : entry.marketplace ? "Repository marketplace" : entry.source === "approved-proposal" ? "Approved proposal" : "Installed by you";
 const scriptTemplate = `// description: Describe when an agent should use this tool.
-// arguments: { "input": "a path relative to the project root" }
+// arguments: { "input": "a path relative to the chat's working folder" }
 import { readFileSync } from "node:fs";
 
 const { arguments: args, projectRoot } = JSON.parse(readFileSync(0, "utf8"));
@@ -109,7 +109,7 @@ function Marketplace({ sdk, snapshot, openSettings }: { sdk: MoguriSdk; snapshot
     if (snapshot.registry.some((entry) => entry.kind === "skill" && entry.projectId === projectId && entry.contentDigest === skill.digest)) return <span className="fine-print">Installed</span>;
     return <button type="button" className="primary" disabled={busy} aria-label={`Install ${skill.name}`} onClick={() => act(async () => {
       const result = await sdk.skills.install(projectId, skill.id, skill.digest);
-      return `${skill.name} is installed in ${scopeLabel(snapshot, projectId)} and off. Turn it on in the Skills tab.${result.notice ? ` ${result.notice}` : ""}`;
+      return `${skill.name} is installed in ${scopeLabel(snapshot, projectId)} and off. Turn it on in Customize / Skills.${result.notice ? ` ${result.notice}` : ""}`;
     })}>Install</button>;
   };
   return <>
@@ -145,16 +145,9 @@ function ToolSuggestions({ suggestions, choose, refresh, busy }: { suggestions: 
 function Tools({ sdk, snapshot, openSession, openAutomations }: { sdk: MoguriSdk; snapshot: Snapshot; openSession: (id: string) => Promise<void>; openAutomations: () => void }) {
   const [catalog, setCatalog] = useState<ToolsetCatalog | null>(null), [catalogError, setCatalogError] = useState("");
   const [suggestions, setSuggestions] = useState<ToolSuggestion[] | null>(null), [checking, setChecking] = useState(false);
-  const projects = snapshot.projects.slice().sort((a, b) => a.name.localeCompare(b.name));
-  const [projectId, setProjectId] = useState(projects[0]?.id ?? ""), [name, setName] = useState(""), [purpose, setPurpose] = useState("");
-  const [writeProject, setWriteProject] = useState(projects[0]?.id ?? ""), [writeName, setWriteName] = useState(""), [source, setSource] = useState(scriptTemplate);
+  const [name, setName] = useState(""), [purpose, setPurpose] = useState(""), [writeName, setWriteName] = useState(""), [source, setSource] = useState(scriptTemplate);
   const ask = useAction(), write = useAction(), evolution = useAction(), askName = useRef<HTMLInputElement>(null);
   const scripts = snapshot.registry.filter((entry) => entry.kind === "script"), evolutionOn = snapshot.settings.values.evolution.enabled;
-  useEffect(() => {
-    const valid = (id: string) => projects.some((project) => project.id === id);
-    if (!valid(projectId)) setProjectId(projects[0]?.id ?? "");
-    if (!valid(writeProject)) setWriteProject(projects[0]?.id ?? "");
-  }, [snapshot.projects]);
   useEffect(() => {
     let active = true;
     void sdk.tools.toolsets().then((value) => { if (active) setCatalog(value); })
@@ -170,7 +163,7 @@ function Tools({ sdk, snapshot, openSession, openAutomations }: { sdk: MoguriSdk
   useEffect(refresh, [sdk]);
   const nameValid = TOOL_SCRIPT_NAME.test(name), writeValid = TOOL_SCRIPT_NAME.test(writeName);
   return <>
-    <p className="fine-print">Tools are the deterministic actions agents call instead of working things out every time. Listing them grants nothing: each chat still gets only what its environment, mode and policy allow, and calls still need your approval where policy says so.</p>
+    <p className="fine-print">Tools are the deterministic actions agents call instead of working things out every time, so repeated work doesn't cost tokens again. They aren't tied to a project. Listing them grants nothing: each chat still gets only what its environment, mode and policy allow, and calls still need your approval where policy says so.</p>
     {catalogError && <Alert as="p" className="inline-error" role="alert">{catalogError}</Alert>}
     <h3>Built-in toolsets</h3>
     {!catalog && !catalogError && <p className="fine-print" role="status">Loading toolsets...</p>}
@@ -182,7 +175,7 @@ function Tools({ sdk, snapshot, openSession, openAutomations }: { sdk: MoguriSdk
       <ul>{catalog.scripts.map((script) => <li key={script.name}><code>{script.name}</code><span>{script.summary}</span></li>)}</ul></details>}
 
     <h3>Your scripts</h3>
-    <p className="fine-print">Custom scripts run as code on this Mac, outside any sandbox. Review the source, turn on only scripts you trust and approve each call.</p>
+    <p className="fine-print">Custom scripts run as code on this Mac, outside any sandbox. Scripts written here work in every chat; a project's own script with the same name takes precedence there. Review the source, turn on only scripts you trust and approve each call.</p>
     <PendingProposals sdk={sdk} snapshot={snapshot} kind="script" />
     <CapabilityGroups sdk={sdk} snapshot={snapshot} entries={scripts} label="Enable script" empty="No custom scripts yet. Write one below or ask the agent to write one." />
 
@@ -193,20 +186,18 @@ function Tools({ sdk, snapshot, openSession, openAutomations }: { sdk: MoguriSdk
     <p className="fine-print">Want Moguri to look for these regularly? <button type="button" className="quiet" onClick={openAutomations}>Set up the repeated-task check in Automations</button>.</p>
 
     <section className="skills-form" aria-label="Ask the agent to write a script"><h3>Ask the agent to write a script</h3>
-      <p className="fine-print">Opens a new chat with the request ready to send. The agent submits the script for your review; nothing runs or turns on by itself.</p>
+      <p className="fine-print">Opens a new chat without a project, with the request ready to send. The agent submits the script for your review; nothing runs or turns on by itself.</p>
       {!evolutionOn && <><label className="check-setting"><input type="checkbox" role="switch" checked={evolutionOn} disabled={evolution.busy}
         aria-label="Let models propose skills, scripts and style knowledge for your review"
         onChange={(event) => { const enabled = event.target.checked; evolution.act(async () => { await saveSettings(sdk, (values) => ({ ...values, evolution: { enabled } })); }); }} />
         Let models propose skills, scripts and style knowledge for your review</label>
         <p className="fine-print">Needed so the agent can submit the script. Proposals always wait for your approval.</p><Feedback error={evolution.error} notice={evolution.notice} /></>}
-      <label className="setting-field">Project<select aria-label="Project for the generated script" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
-        {!projects.length && <option value="">Add a project first</option>}{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
       <label className="setting-field">Tool name<input ref={askName} aria-label="Generated script name" value={name} maxLength={64} placeholder="markdown_into_pdf" onChange={(event) => setName(event.target.value)} /></label>
       {name && !nameValid && <p className="fine-print">Use 3 to 64 lowercase letters, digits or underscores, starting with a letter.</p>}
       <label className="setting-field">What should it do?<textarea aria-label="What the generated script should do" value={purpose} maxLength={2000} placeholder="turn a Markdown file into a PDF" onChange={(event) => setPurpose(event.target.value)} /></label>
       <Feedback error={ask.error} notice={ask.notice} />
-      <button type="button" className="primary" disabled={ask.busy || !projectId || !nameValid || !purpose.trim()} onClick={() => ask.act(async () => {
-        const created = await sdk.sessions.create(projectId, `Write the ${name} tool`);
+      <button type="button" className="primary" disabled={ask.busy || !nameValid || !purpose.trim()} onClick={() => ask.act(async () => {
+        const created = await sdk.sessions.create(null, `Write the ${name} tool`);
         if (!created.id) throw new Error("The new chat was not acknowledged. Nothing was sent.");
         const session = sdk.getState().snapshot?.sessions.find((value) => value.id === created.id);
         await sdk.command({ type: "draft.save", sessionId: created.id, expectedRevision: session?.draft.revision ?? 0, text: toolScriptPrompt(name, purpose), attachments: [] });
@@ -217,14 +208,12 @@ function Tools({ sdk, snapshot, openSession, openAutomations }: { sdk: MoguriSdk
 
     <section className="skills-form" aria-label="Write a script"><h3>Write a script</h3>
       <p className="fine-print">{SCRIPT_TOOL_CONTRACT} Saving submits it for your review in this tab.</p>
-      <label className="setting-field">Project<select aria-label="Project for the new script" value={writeProject} onChange={(event) => setWriteProject(event.target.value)}>
-        {!projects.length && <option value="">Add a project first</option>}{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
       <label className="setting-field">Tool name<input aria-label="New script name" value={writeName} maxLength={64} placeholder="markdown_into_pdf" onChange={(event) => setWriteName(event.target.value)} /></label>
       {writeName && !writeValid && <p className="fine-print">Use 3 to 64 lowercase letters, digits or underscores, starting with a letter.</p>}
       <label className="setting-field">Source<textarea className="json-editor" aria-label="New script source" spellCheck={false} value={source} maxLength={64 * 1024} onChange={(event) => setSource(event.target.value)} /></label>
       <Feedback error={write.error} notice={write.notice} />
-      <button type="button" className="primary" disabled={write.busy || !writeProject || !writeValid || !source.trim()} onClick={() => write.act(async () => {
-        await sdk.capabilities.propose(writeProject, "script", writeName, source);
+      <button type="button" className="primary" disabled={write.busy || !writeValid || !source.trim()} onClick={() => write.act(async () => {
+        await sdk.capabilities.propose(null, "script", writeName, source);
         const saved = writeName; setWriteName(""); setSource(scriptTemplate);
         return `${saved} is waiting for your review under Your scripts.`;
       })}>Save for review</button>
@@ -237,8 +226,8 @@ export function SkillsWorkspace({ sdk, snapshot, tab, setTab, openSettings, open
   openSettings: (tab: SettingsTab) => void; openSession: (id: string) => Promise<void>; openAutomations: () => void;
 }) {
   const index = skillsTabs.indexOf(tab);
-  return <section className="skills-workspace" aria-label="Skills and tools">
-    <div className="pr-pane-tabs" role="tablist" aria-label="Skills sections" onKeyDown={(event) => {
+  return <section className="skills-workspace" aria-label="Customize">
+    <div className="pr-pane-tabs" role="tablist" aria-label="Customize sections" onKeyDown={(event) => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
       const next = event.key === "Home" ? 0 : event.key === "End" ? skillsTabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + skillsTabs.length) % skillsTabs.length;

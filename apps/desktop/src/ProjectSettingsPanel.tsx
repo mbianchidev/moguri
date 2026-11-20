@@ -30,7 +30,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
   const [boardDirty, setBoardDirty] = useState(false);
   const [remoteDirty, setRemoteDirty] = useState(false);
   const [trustBusy, setTrustBusy] = useState(false);
-  const [repositories, setRepositories] = useState<ProjectRepositoryLayout | null>(null);
+  const [repositories, setRepositories] = useState<(ProjectRepositoryLayout & { upstream: string | null }) | null>(null);
   const presentation = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id) ?? defaultProjectConfiguration(project.id);
   const dirty = Object.keys(raw).length > 0 || JSON.stringify(values) !== JSON.stringify(committed);
   const [error, setError] = useState("");
@@ -57,7 +57,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     if (!available) { setRepositories(null); return; }
     let current = true;
     void sdk.projects.repositories(project.id).then((value) => { if (current) setRepositories(value); })
-      .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "Couldn't check the repository layout, so Upstream is hidden."); } });
+      .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "Couldn't check the repository layout."); } });
     return () => { current = false; };
   }, [sdk, project.id, project.path, available, JSON.stringify(presentation.values.deniedFolders)]);
   useEffect(() => { onDirty(dirty || busy || boardDirty || remoteDirty || trustBusy); return () => onDirty(false); }, [dirty, busy, boardDirty, remoteDirty, trustBusy, onDirty]);
@@ -135,11 +135,10 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <h3>Repository</h3>
     {sourceFolder && <p className="fine-print project-source">Added from <code className="path">{sourceFolder}</code>. Moguri only reads this repository: every session works in its own worktree.</p>}
     <div className="project-settings-grid">
-      {repositories?.complete && repositories.roots.length === 1 && <label className="setting-field">Upstream<SettingsInput value={values.repo.upstream} onChange={(event) => change("repo", { ...values.repo, upstream: event.target.value })} /></label>}
       <label className="setting-field">Main branch<SettingsInput value={values.repo.mainBranch} onChange={(event) => change("repo", { ...values.repo, mainBranch: event.target.value })} /></label></div>
     <p className="fine-print">{!repositories ? "Checking the repository layout..."
-      : repositories.complete && repositories.roots.length === 1 ? `Repository: ${repositories.roots[0]}.`
-        : `${repositories.complete ? "No Git repository found in this folder." : repositories.diagnostic} Upstream needs exactly one, including nested ones.`}</p>
+      : repositories.complete && repositories.roots.length === 1 ? `Repository: ${repositories.roots[0]}. Git remote: ${repositories.upstream ?? "none selected"}, read from this folder's Git configuration each time.`
+        : repositories.complete ? "No Git repository found in this folder." : repositories.diagnostic}</p>
     <label className="setting-field">Branch name pattern<SettingsInput value={values.repo.branchPattern} onChange={(event) => change("repo", { ...values.repo, branchPattern: event.target.value })} /></label>
     <div className="project-settings-grid">
       <label className="setting-field">New Local Git tasks run in<select aria-label="Default project workspace" value={sourceFolder ? "worktree" : values.repo.workspaceMode ?? "worktree"}
@@ -174,7 +173,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
       disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />
     {project.workspaceFolderId ? <p className="fine-print">Moguri doesn't change this repository's remotes because it only reads projects from a workspace folder.</p> :
-      <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={committed.repo.upstream}
+      <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={repositories?.upstream ?? null}
         disabled={!available || !loaded || dirty || busy} onDirty={setRemoteDirty} />}
     <p className="fine-print">Branch pattern placeholders: {"{slug}"}, {"{id}"}. This folder's checkout never switches on its own.</p>
     <SettingsHelp label="More about this setting" target={<label className="setting-field">GitHub read access<select aria-label="GitHub read access" value={values.repo.githubAccess} onChange={(event) => automatic("repo", { githubAccess: event.target.value === "gh-cli" ? "gh-cli" : "public" })}><option value="public">Public GitHub API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>}>How Moguri reads this repository's GitHub data. Remote chats use the SSH host's account, shown before each lookup; linked-PR checks always run from this Mac.</SettingsHelp>

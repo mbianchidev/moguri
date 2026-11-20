@@ -9,7 +9,7 @@ import { Alert } from "./Alert.tsx";
 export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDirty, install }: {
   sdk: MoguriSdk; value: SkillSource[]; change: (sources: SkillSource[]) => void;
   dirty: boolean; disabled: boolean; onDirty: (dirty: boolean) => void;
-  /** Optional per-result action, such as the Skills tab's Install button. */
+  /** Optional per-result action, such as the Customize tab's Install button. */
   install?: (skill: GatewaySkill) => ReactNode;
 }) {
   const [kind, setKind] = useState<"local" | "remote">("local"), [name, setName] = useState(""), [location, setLocation] = useState("");

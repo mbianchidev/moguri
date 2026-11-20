@@ -35,6 +35,8 @@ export interface DesktopBridge {
   sessionLocation(profileId: string, sessionId: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;
   /** Shows one file the service currently lists in the project's artifact library in Finder. Never opens or runs it. */
   revealArtifact(profileId: string, projectId: string | null, path: string): Promise<{ revealed: boolean; path: string }>;
+  /** Moves listed artifact files to the Trash. Each result reports its own outcome; a failure never stops the report. */
+  trashArtifacts(profileId: string, projectId: string | null, paths: string[]): Promise<{ path: string; trashed: boolean; error?: string }[]>;
   globalSkillSources(profileId: string): Promise<Array<Extract<SkillSource, { kind: "local" }>>>;
   createGlobalSkillFolder(profileId: string, id: string): Promise<Extract<SkillSource, { kind: "local" }>>;
   audioPermission(input: { profileId: string; purpose: "capture" | "devices"; sessionId?: string; jobId?: string }): Promise<string>;
