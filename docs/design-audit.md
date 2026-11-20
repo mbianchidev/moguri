@@ -237,9 +237,9 @@ box and in Ctrl+V.
   focus and text contrast hold for every preset in Dark and Light; brand and
   chart tokens keep their own contrast; looping animations stop under reduced
   motion; every state maps to a declared status token.
-- Measured minimums across ten presets and both modes: body text 11.03:1,
+- Measured minimums across eleven presets and both modes: body text 11.02:1,
   secondary text 5.82:1, failed, attention, partial and unknown status text
-  5.16:1, focus ring and status dots 3.08:1.
+  5.16:1, focus ring and status dots 3.07:1.
 - `tests/e2e/design-system.spec.ts`: keyboard alone moves from the session row
   to the prompt, sends, reaches Approve, approves and reaches the code block,
   with a visible 2px focus ring at each stop and worded status in Insights and

@@ -201,10 +201,36 @@ pairs below hold for every palette in Dark and Light.
 | Motion | `--duration-fast` 120ms, `--duration-base` 140ms, `--duration-slow` 200ms, `--ease-standard` | Reduced motion disables transitions and every infinite animation. |
 | Fixed identity | `--brand-*` (startup screen), `--terminal-canvas`, `--chart-*` (analytics lanes, Dark and Light), `--swatch-*` | Intentionally palette-independent. |
 
-Measured minimums across all ten presets in both modes: body text 11.03:1,
+Measured minimums across all eleven presets in both modes: body text 11.02:1,
 secondary text 5.82:1, failed/attention/partial/unknown status text 5.16:1,
-focus ring and status dots 3.08:1 against canvas, surface, navigation and
+focus ring and status dots 3.07:1 against canvas, surface, navigation and
 subtle backgrounds.
+
+### Look and feel (D54)
+
+The base is neutral: near-black (Dark) or near-white (Light) surfaces with no
+green tint, separated by hairline `--line` borders rather than shadows or
+tinted blocks. The palette accent marks only what matters: the primary action,
+the selected item, focus and a short underline under the active tab. Section
+labels (Workspace, panel titles, Getting started) are small uppercase text with
+wide tracking; sidebar headings add a square accent marker. Tabs are text on a
+shared baseline with an accent underline. The composer is a hairline card whose
+border strengthens on focus. Layout is unchanged: chats on the left, the
+conversation in the middle and the terminal and other panels on the right.
+
+Icons come from `lucide-react` through `Icon.tsx`: 16px, 1.75 stroke, inheriting
+`currentColor`, each tagged with `data-icon` for tests. Model brand marks stay
+drawn paths. Add an icon by mapping a name in `Icon.tsx`, never by inlining SVG.
+
+### Getting started
+
+A first-run thread in the main pane, opened once per profile until finished or
+skipped and again from **Settings / General / Restart Getting started**. Moguri
+asks one question at a time; each answered step collapses into a row with its
+value and a Change button. Choices (accent swatches, theme, behavior switches)
+save on change; the optional name saves on Continue and says plainly that it
+goes to the model provider. Skip setup and Finish are always available, and
+choosing a chat closes the thread. Details: [D54](architecture/decisions.md).
 
 ### Components
 

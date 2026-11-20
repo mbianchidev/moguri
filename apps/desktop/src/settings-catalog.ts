@@ -4,7 +4,7 @@ import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
 // of its items as sections. Item ids are stable deep-link targets: openSettings, policy hints and restored layouts scroll to an item.
 export const SETTINGS_GROUPS = [
   { label: "General", items: [
-    { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart OpenTelemetry OTLP collector metadata export sampling" },
+    { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart OpenTelemetry OTLP collector metadata export sampling", aliases: ["your name getting started onboarding setup"] },
     { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization", aliases: ["workspace folder sync trust"] },
     { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides", aliases: ["fix broken CI automatic conflict resolution override"] },
   ] },

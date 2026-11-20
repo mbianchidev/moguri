@@ -40,8 +40,10 @@ keeps working; `/stop` remains the turn-stop command. The
 layout has a growing input, formatted replies, expandable tool output, clickable
 navigation and a focus-safe sidebar. [Terminal controls](setup.md#terminal-navigation-and-shared-themes)
 preserve drafts while reading history. [Shared themes](architecture/themes-and-tui.md)
-include ten presets in Dark and Light, without changing saved choices or factory
-Dark. Moguri includes its own verified [source setup instructions](setup.md)
+include eleven presets in Dark and Light on a neutral base, without changing
+saved choices or factory Dark. Desktop **Getting started** asks once per
+profile for an optional name (used to greet you and sent to the model), an
+accent, the theme and common behaviors, and restarts from Settings / General. Moguri includes its own verified [source setup instructions](setup.md)
 in normal model context, including project-free chats. Desktop Settings keeps
 on-screen text short; the [Settings reference](settings/README.md) holds
 each page's full behavior and safeguards.

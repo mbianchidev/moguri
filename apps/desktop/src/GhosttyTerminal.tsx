@@ -38,7 +38,7 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
         const runtime = await ghostty;
         if (disposed || !host.current) return;
         current = new Terminal({ ghostty: runtime, cols: 120, rows: 30, fontSize: 12, scrollback: 1500, disableStdin: true,
-          theme: { background: "#11161e", foreground: "#e1e8f0", cursor: "#a8d7bc" } });
+          theme: { background: "#0e0e10", foreground: "#ececef", cursor: "#a8d7bc" } });
         current.open(host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Agent terminal output");
         host.current.setAttribute("aria-readonly", "true");
@@ -170,7 +170,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
         const runtime = await ghostty;
         if (disposed || !host.current) return;
         current = new Terminal({ ghostty: runtime, cols: terminal.cols, rows: terminal.rows, fontSize: 12, scrollback: 1500,
-          disableStdin: !canInput, theme: { background: "#11161e", foreground: "#e1e8f0", cursor: "#a8d7bc" } });
+          disableStdin: !canInput, theme: { background: "#0e0e10", foreground: "#ececef", cursor: "#a8d7bc" } });
         current.open(host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Ghostty terminal");
         current.textarea?.setAttribute("aria-label", "Terminal input");

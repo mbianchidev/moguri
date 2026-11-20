@@ -47,6 +47,7 @@ import { createStartupView, isModelDiscoveryPending, readStartupView, saveStartu
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { CommandMessage } from "./CommandMessage.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
+const Onboarding = lazy(() => import("./Onboarding.tsx").then((module) => ({ default: module.Onboarding })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
@@ -193,6 +194,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [policyFocus, setPolicyFocus] = useState<PolicyFocusRequest | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
+  // Getting started (D54) opens once per profile until finished or skipped, and again whenever Settings restarts it.
+  const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
   const panelDirtyRef = useRef(false);
@@ -236,6 +239,11 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   useEffect(() => {
     if (snapshot) for (const [id, editor] of editors.current) if (!snapshot.sessions.some((session) => session.id === id)) { editor.dispose(); editors.current.delete(id); }
   }, [snapshot]);
+  useEffect(() => {
+    if (!snapshot || onboardingChecked.current === client.profileId) return;
+    onboardingChecked.current = client.profileId;
+    if (window.moguri.automaticOnboarding && !snapshot.settings.values.onboarding) setOnboardingOpen(true);
+  }, [snapshot, client.profileId]);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const sessionPanels = availablePanels(session), shownPanel = sessionPanels.includes(panel) ? panel : "Insights";
   const panelBadges = usePanelBadges(client, session, snapshot);
@@ -368,7 +376,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (panelOpen && panel === "Terminal" && (selectedId !== id || globalView !== null || boardOpen || settingsTab !== null)) {
       setTerminalIntent({ panel: "Terminal", sessionId: id, ownership });
     }
-    setSelectedId(id); setProjectId(projectId);
+    setSelectedId(id); setProjectId(projectId); setOnboardingOpen(false);
   };
   const chooseSession = (id: string, ownership?: "agent") => run(async () => {
     if (!canNavigate() || (globalView || id !== session?.id) && !await confirmTerminalNavigation()) return;
@@ -780,7 +788,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <main className="main-pane" inert={panelExpanded} style={panelExpanded ? { display: "none" } : undefined}>
       {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} restartOnboarding={() => { if (leaveSettings()) setOnboardingOpen(true); }} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -797,7 +805,9 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           globalView === "Artifacts" ? <ArtifactsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} initialProjectId={session ? session.projectId : project?.id} openSession={chooseSession} openSettings={openSettings} /> :
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
         </div>
-      </section> : <>
+      </section> : onboardingOpen && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading Getting started...</div>}>
+        <Onboarding key={client.profileId} sdk={client} snapshot={snapshot} onClose={() => setOnboardingOpen(false)}
+          openProviders={() => { setOnboardingOpen(false); openSettings("providers"); }} /></Suspense> : <>
       <header className="session-header" data-session-id={session?.id}>
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
@@ -805,7 +815,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">
-          <img className="welcome-mascot" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>What are we working on?</h2><p>Start a project-free conversation or open a workspace. Nothing runs until you ask.</p>
+          <img className="welcome-mascot" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>What are we working on{snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?</h2><p>Start a project-free conversation or open a workspace. Nothing runs until you ask.</p>
           <p className="welcome-start-hint">Choose New to open a chat or a project.</p>
           <button onClick={() => openSettings("providers")}>Configure model providers</button>
         </div> :
@@ -924,7 +934,7 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
       </article>}{answers.get(message.id)?.map((entry) => <AnsweredQuestion key={entry.id} entry={entry} />)}</Fragment>;
   };
   return <><div className="conversation-history"><div ref={scroll} className={`timeline${empty ? " timeline-empty" : ""}`} role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content} className="timeline-content">
-    {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
+    {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : `What are we working on${snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?`}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
     {commands.length > commandLimit && <button className="load-history" onClick={() => setCommandLimit((value) => value + 10)}>Show earlier command responses</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}

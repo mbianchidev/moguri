@@ -56,8 +56,8 @@ const GROUP_ICONS: Record<SettingsGroup["label"], string> = { General: "Settings
 const GROUP_SLUGS = Object.fromEntries(SETTINGS_GROUPS.map((group) => [group.label, group.label.toLowerCase().replace(/[^a-z]+/g, "-")])) as Record<SettingsGroup["label"], string>;
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
 type AutomaticSection = "scriptReview" | "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp" | "prAutomation";
-export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
-  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
+export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, restartOnboarding, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
+  sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; restartOnboarding: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
   onSwitchProfile: (id: string) => Promise<void>;
   prepareMaintenance: () => Promise<void>;
@@ -439,7 +439,11 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
         <ArtifactPanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} projectId={resourceSession?.projectId ?? project?.id ?? null} request={artifactRequest} onDirty={setArtifactsDirty} onRequestHandled={onArtifactRequestHandled} /></>;
       case "candidates": return <>{resourceHeader("candidates")}
         <CandidatePanel key={sdk.profileId} sdk={sdk} snapshot={snapshot} session={resourceSession} onDirty={setCandidatesDirty} /></>;
-      case "general": return <>{<><ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
+      case "general": return <>{<><SettingsHelp label="About your name" target={<h3>You</h3>}>Moguri greets you by this name and adds it to each chat's instructions, so your model provider receives it. Leave it empty to stay anonymous.</SettingsHelp>
+          <div className="setting-editor"><label className="setting-field">Your name<SettingsInput aria-label="Your name" value={draft.user?.name ?? ""} maxLength={80} placeholder="Optional"
+            onChange={(event) => change("user", event.target.value.trim() ? { ...draft.user, name: event.target.value } : {})} /></label>{saveButton("user", "Save your name")}</div>
+          <button type="button" disabled={saving || dirty || nestedDirty} onClick={restartOnboarding}>Restart Getting started</button>
+          <ApplicationSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} onBusy={setApplicationBusy} />
           <OtlpSettings key={sdk.profileId} sdk={sdk} configuration={snapshot.telemetryExport} disabled={dirty || saving || otherNestedDirty || updateBusy || storageBusy} onDirty={setExportDirty} />
           <UpdateSettings sdk={sdk} revision={snapshot.profileCatalogRevision ?? 0} disabled={dirty || saving || otherNestedDirty || storageBusy || exportDirty} onBusy={setUpdateBusy} prepareMaintenance={prepareMaintenance} /><SettingsHelp label="About profiles" target={<h3>Profiles</h3>}>Each profile owns its accounts, projects, instructions and appearance. Switching never moves running work or copies credentials.</SettingsHelp>
           <ProfileSwitcher key={sdk.profileId} sdk={sdk} snapshot={snapshot} disabled={dirty || saving || projectDirty || profileBudgetDirty || globalBudgetDirty || lineageDirty || lineageBusy || exportDirty} expanded={profilesExpanded} setExpanded={setProfilesExpanded} onSwitch={onSwitchProfile} onDirty={setProfilesDirty} /></>}</>;

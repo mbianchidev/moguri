@@ -894,7 +894,8 @@ else {
         show: process.env.MOGURI_TEST_WINDOW !== "hidden", titleBarStyle: "hiddenInset", backgroundColor: "#000000",
         icon: join(app.getAppPath(), "dist", "branding", "moguri.png"),
         webPreferences: { preload: join(dirname(fileURLToPath(import.meta.url)), "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: true,
-          additionalArguments: [`--moguri-home=${homedir()}`] },
+          // Hidden generated windows never open Getting started by themselves, like native dialogs; a test opts in explicitly.
+          additionalArguments: [`--moguri-home=${homedir()}`, `--moguri-onboarding=${process.env.MOGURI_TEST_WINDOW === "hidden" && process.env.MOGURI_TEST_ONBOARDING !== "1" ? "manual" : "automatic"}`] },
       });
       mainWindow.webContents.session.setPermissionRequestHandler((contents, permission, callback, details) => callback(
         contents === mainWindow?.webContents && permission === "media" && details.isMainFrame && details.requestingUrl.startsWith("moguri://app/") &&

@@ -1,71 +1,27 @@
+import { AppWindow, Archive, ArrowLeft, ArrowUp, ArrowUpDown, BookOpen, Bot, Box, Brain, Car, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CircleDot, CircleHelp, CirclePause, Clock, Copy, DollarSign, Ellipsis, Eye, File as FileIcon, FileDiff, FilePen, FilePlus, FileText, Folder, FolderOpen, GitBranch, GitMerge, GitPullRequest, Globe, GripVertical, Hand, House, Image as ImageIcon, Inbox, Infinity as InfinityIcon, Info, Layers, LayoutDashboard, Link, ListChecks, ListFilter, Loader, Maximize2, MessageSquare, Mic, Minimize2, PanelRight, Pencil, Pin, PinOff, Play, Plug, Plus, Puzzle, RefreshCw, Rocket, Search, SendHorizontal, Settings, Sparkles, Square, SquareTerminal, TrafficCone, Trash2, TriangleAlert, Wrench, X, type LucideIcon } from "lucide-react";
 import type { ModelInfo } from "../../../packages/sdk/src/index.ts";
 
-const paths: Record<string, string> = {
-  Changes: "M8 3v18m8-18v18M4 7h8m0 10h8", Terminal: "m4 6 6 6-6 6m9 0h7",
-  Files: "M3 6h7l2 3h9v11H3Z", FolderOpen: "M3 20V6h7l2 3h7v2M3 20l4-9h15l-4 9Z", Browser: "M3 5h18v15H3Zm0 4h18",
-  File: "M6 3h9l4 4v14H6Zm8 0v5h5",
-  ReadFile: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
-  CreateFile: "M6 3h9l4 4v14H6Zm8 0v5h5m-3 4v6m-3-3h6",
-  EditFile: "M5 3h9l4 4v3M5 3v18h6M13 3v5h5m-7 11 2-5 6-6 3 3-6 6-5 2",
-  Search: "M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.5 13 5 5",
-  Skill: "M3 4h6a3 3 0 0 1 3 3v14a4 4 0 0 0-4-3H3Zm18 0h-6a3 3 0 0 0-3 3v14a4 4 0 0 1 4-3h5Z",
-  Issue: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
-  "Work item": "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 8v5m0 3h.01",
-  Mcp: "M5 8h5v8H5ZM3 12h2m5 0h4m0-4h5v8h-5Zm5 4h2M8 5V3m0 18v-2m8-14V3m0 18v-2",
-  Thought: "M8 18H6a4 4 0 0 1-1-8 6 6 0 0 1 11-3 5 5 0 0 1 2 10h-6l-4 4Z",
-  Tool: "m14 6 4 4 3-3a6 6 0 0 1-7 8L7 22l-5-5 7-7a6 6 0 0 1 8-7Z",
-  Info: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10h.01",
-  Progress: "M20 12a8 8 0 1 1-8-8",
-  Image: "M3 4h18v16H3Zm0 12 5-5 5 5 3-3 5 5M8 8h.01",
-  "Side chat": "M4 4h16v12H9l-5 4Z", Insights: "M5 20v-6m7 6V4m7 16V9",
-  Dashboard: "M3 3h18v18H3Zm4 14v-4m5 4V7m5 10v-7",
-  Extensions: "M4 4h6v6H4Zm10 0h6v6h-6ZM4 14h6v6H4Zm10 0h6v6h-6Z",
-  Settings: "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm-2-5h4l1 3 3 1 3 3v4l-3 1-1 3-3 3h-4l-1-3-3-1-3-3v-4l3-1 1-3Z",
-  Back: "m14 5-7 7 7 7M7 12h14", Copy: "M8 8h12v12H8Zm-4 8V4h12", Edit: "m15 4 5 5M4 20l5-1L21 7l-5-5L4 14Z",
-  Trash: "M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7",
-  Pin: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8", More: "M5 12h.01M12 12h.01M19 12h.01",
-  Grip: "M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01",
-  Filter: "M3 5h18l-7 8v6l-4 2v-8Z", Sort: "M7 3v18m-4-4 4 4 4-4M14 5h7m-7 5h5m-5 5h3", Circle: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
-  Refresh: "M20 7v5h-5m5 0a8 8 0 1 0-2 6M4 17v-5h5",
-  PinOff: "M8 3h8l-1 6 4 4H5l4-4ZM12 13v8M3 3l18 18",
-  Plus: "M12 4v16M4 12h16", Close: "m5 5 14 14M19 5 5 19", Up: "m5 15 7-7 7 7", Down: "m5 9 7 7 7-7",
-  ChevronLeft: "m15 5-7 7 7 7", ChevronRight: "m9 5 7 7-7 7",
-  Play: "m7 4 14 8-14 8Z", ArrowUp: "m5 11 7-7 7 7M12 4v16", Stop: "M5 5h14v14H5Z", ReadOnly: "M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7Zm6 0a3 3 0 1 0 6 0 3 3 0 0 0-6 0",
-  Agent: "m5 5 14 14M5 19 19 5M8 3v4m-5 4h4m13 2h-4m-4 8v-4",
-  PR: "M6 3v13a3 3 0 1 0 0 6 3 3 0 0 0 0-6M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm7 2h2a3 3 0 0 1 3 3v8m-3-8-3-3 3-3m3 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z",
-  PRMerged: "M6 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 14a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm12-7a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6 7v10m0-9a4 4 0 0 0 4 4h6",
-  Plan: "M6 3h9l4 4v14H6Zm8 0v5h5M9 12h7m-7 4h7",
-  Artifacts: "M4 3h16v5H4Zm2 5v13h12V8m-8 4h4",
-  Candidates: "M5 3h10l4 4v14H5Zm9 0v5h5M8 14l3 3 5-6",
-  Group: "M3 4h18v5H3Zm0 9h8v7H3Zm12 0h6v7h-6Z", Link: "m9 15 6-6M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0m2 1 2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0",
-  Send: "m21 3-6 18-4-8-8-4Zm0 0L11 13",
-  Clock: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2",
-  Mic: "M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0Zm-3 6v1a6 6 0 0 0 12 0v-1m-6 7v4m-4 0h8",
-  Dollar: "M12 2v20m5-16H9a4 4 0 0 0 0 8h6a3 3 0 0 1 0 6H6",
-  Infinity: "M12 12C8 6 3 6 3 12s5 6 9 0 9-6 9 0-5 6-9 0Z",
-  House: "m3 11 9-8 9 8M5 9v12h5v-7h4v7h5V9",
-  Box: "m3 7 9-4 9 4v10l-9 4-9-4Zm0 0 9 4 9-4m-9 4v10",
-  Globe: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M5 7h14M5 17h14M12 3c5 5 5 13 0 18-5-5-5-13 0-18Z",
-  Hand: "M8 12V5a2 2 0 0 1 4 0v7-9a2 2 0 0 1 4 0v9-6a2 2 0 0 1 4 0v9c0 5-3 7-7 7-3 0-5-1-7-4l-3-5a2 2 0 0 1 3-2l2 2",
-  Traffic: "M8 2h8v20H8ZM12 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z",
-  Car: "m5 9 2-5h10l2 5M3 10h18v9H3Zm3 9v2m12-2v2M6 14h2m8 0h2",
-  Rocket: "M9 15C9 7 14 3 21 3c0 7-4 12-12 12ZM9 9H5l-3 6 7 1m6-1v4l-6 3-1-7m-1 4-3 3m11-13a2 2 0 1 0 4 0 2 2 0 0 0-4 0",
-  Check: "m4 12 5 5L20 6",
-  BookOpen: "M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1Z",
-  PanelRight: "M3 4h18v16H3Zm11 0v16",
-  Maximize: "M14 3h7v7M21 3l-7 7M10 21H3v-7m0 7 7-7",
-  Minimize: "M21 3l-7 7m0-7v7h7M3 21l7-7m-7 0h7v7",
-  Question: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 9a3 3 0 1 1 4 3c-1 .5-1 1-1 2m0 3h.01",
-  Attention: "M6 9a6 6 0 0 1 12 0v6l3 3H3l3-3Zm4 12h4",
-  Inbox: "M3 4h18v16H3Zm0 10h5l2 3h4l2-3h5",
-  Waiting: "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9 8v8m6-8v8",
-  Suggestions: "m12 2 2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z",
+// Lucide (ISC) thin-stroke icons keep one consistent, professional weight across the app; names stay stable for callers and tests.
+const icons: Record<string, LucideIcon> = {
+  Changes: FileDiff, Terminal: SquareTerminal, Files: Folder, FolderOpen: FolderOpen, Browser: AppWindow, File: FileIcon, ReadFile: FileText,
+  CreateFile: FilePlus, EditFile: FilePen, Search: Search, Skill: BookOpen, Issue: CircleDot, Mcp: Plug, Thought: Brain, Tool: Wrench,
+  Info: Info, Progress: Loader, Image: ImageIcon, Insights: ChartColumn, Dashboard: LayoutDashboard, Extensions: Puzzle, Settings: Settings,
+  Back: ArrowLeft, Copy: Copy, Edit: Pencil, Trash: Trash2, Pin: Pin, More: Ellipsis, Grip: GripVertical, Filter: ListFilter, Sort: ArrowUpDown,
+  Circle: Circle, Refresh: RefreshCw, PinOff: PinOff, Plus: Plus, Close: X, Up: ChevronUp, Down: ChevronDown, ChevronLeft: ChevronLeft,
+  ChevronRight: ChevronRight, Play: Play, ArrowUp: ArrowUp, Stop: Square, ReadOnly: Eye, Agent: Bot, PR: GitPullRequest, PRMerged: GitMerge,
+  Plan: ListChecks, Artifacts: Archive, Candidates: GitBranch, Group: Layers, Link: Link, Send: SendHorizontal, Clock: Clock, Mic: Mic,
+  Dollar: DollarSign, Infinity: InfinityIcon, House: House, Box: Box, Globe: Globe, Hand: Hand, Traffic: TrafficCone, Car: Car, Rocket: Rocket,
+  Check: Check, BookOpen: BookOpen, PanelRight: PanelRight, Maximize: Maximize2, Minimize: Minimize2, Question: CircleHelp, Attention: TriangleAlert,
+  Inbox: Inbox, Waiting: CirclePause, Suggestions: Sparkles, SideChat: MessageSquare,
+};
+/** Model brand marks stay hand-drawn: icon sets don't ship vendor logos. */
+const brandPaths: Record<string, string> = {
   ModelGPT: "m7 3 10 0 5 9-5 9H7L2 12Zm1 5h8v8H8Zm4-5v5m0 8v5M2 12h6m8 0h6",
   ModelClaude: "M12 2v20M2 12h20M5 5l14 14M5 19 19 5M8 3l8 18M3 8l18 8M3 16l18-8M8 21l8-18",
   ModelGoogle: "M14 2c0 6-4 9-9 9 5 0 9 3 9 9 0-6 4-9 9-9-5 0-9-3-9-9ZM4 15v7m-3-3.5h6",
   ModelGrok: "M20 6a9 9 0 1 0 1 9M4 20 21 3m-7 0h7v7M8 8a6 6 0 0 1 8 0",
 };
-const aliases: Record<string, string> = { Sandbox: "Box", "Code change": "PR", "Work item": "Issue" };
+const aliases: Record<string, string> = { Sandbox: "Box", "Code change": "PR", "Work item": "Issue", "Side chat": "SideChat" };
 export function modelIcon(model: Pick<ModelInfo, "id" | "apiModelId" | "source" | "synthetic">): string {
   if (model.synthetic) return "Suggestions";
   const label = (model.apiModelId ?? model.id).toLowerCase().split("/").at(-1) ?? "";
@@ -76,5 +32,8 @@ export function modelIcon(model: Pick<ModelInfo, "id" | "apiModelId" | "source" 
   return model.source === "local" ? "House" : "Agent";
 }
 export function Icon({ name }: { name: string }) {
-  return <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" data-icon={name}><path d={paths[aliases[name] ?? name] ?? paths.Plus} fill="none" stroke="currentColor" strokeWidth={name === "More" || name === "Grip" ? "4" : "1.6"} strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  const brand = brandPaths[name];
+  if (brand) return <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" data-icon={name}><path d={brand} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  const Glyph = icons[aliases[name] ?? name] ?? Plus;
+  return <Glyph size={16} strokeWidth={1.75} aria-hidden="true" focusable="false" data-icon={name} />;
 }
