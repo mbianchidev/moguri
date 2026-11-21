@@ -55,7 +55,8 @@ export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFi
   const [opening, setOpening] = useState<string | null>(null);
   const [roundupItem, setRoundupItem] = useState<string | null>(null);
   useEffect(() => {
-    if (initialItemId || initialFilters !== undefined) { setPage("My work"); setProjectId(initialFilters?.projectId ?? ""); }
+    // A newer inbox navigation replaces an earlier "Open in My Work" choice from the roundup.
+    if (initialItemId || initialFilters !== undefined) { setRoundupItem(null); setPage("My work"); setProjectId(initialFilters?.projectId ?? ""); }
   }, [initialItemId, initialFilters]);
   useEffect(() => { if (initialRoundupFilters) setPage("Dependencies"); }, [initialRoundupFilters]);
   const stamp = JSON.stringify([snapshot.sessions.map((session) => [session.id, session.revision, session.status, session.turnId, session.updatedAt]), snapshot.budgetEntries, snapshot.budgetPlans, snapshot.projects, snapshot.budgetPolicy.revision]);

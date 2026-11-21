@@ -111,6 +111,7 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
   const [instructions, setInstructions] = useState(base.instructions), [projectId, setProjectId] = useState(base.projectId ?? "");
   const [modelId, setModelId] = useState(base.modelId ?? ""), [access, setAccess] = useState(base.access), [skills, setSkills] = useState(base.skills.join(", "));
   const [tokens, setTokens] = useState(base.budget?.kind === "limited" && base.budget.tokens ? String(base.budget.tokens) : "");
+  const [usd, setUsd] = useState(base.budget?.kind === "limited" && base.budget.usd ? String(base.budget.usd) : "");
   const [timeout, setTimeoutMinutes] = useState(String(base.timeoutMinutes)), [output, setOutput] = useState(base.output), [mention, setMention] = useState(base.mention);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   useEffect(() => {
@@ -124,7 +125,8 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
     try {
       const definition: PersonaDefinition = { handle: handle.trim().replace(/^@/, "").toLowerCase(), name: name.trim(), description: description.trim(), instructions,
         projectId: projectId || null, modelId: modelId || null, access, skills: skills.split(",").map((value) => value.trim()).filter(Boolean),
-        budget: tokens ? { kind: "limited", tokens: Number(tokens), basis: "estimate" } : null, timeoutMinutes: Number(timeout), output, mention };
+        budget: tokens || usd ? { kind: "limited", ...(tokens ? { tokens: Number(tokens) } : {}), ...(usd ? { usd: Number(usd) } : {}), basis: "estimate" } : null,
+        timeoutMinutes: Number(timeout), output, mention };
       if (persona) await sdk.personas.update(persona.id, definition, persona.revision);
       else await sdk.personas.create(definition, preset ?? undefined);
       close();
@@ -147,7 +149,8 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
         <option value="read-only">Read-only (investigate and recommend)</option><option value="agent">Writable agent (changes need approval)</option></select></label>
       <label className="setting-field">Skills to load when relevant (comma-separated)<input value={skills} disabled={busy} onChange={(event) => setSkills(event.target.value)} /></label>
       <label className="setting-field">Token cap per run (empty uses the chat's budget)<input type="number" min={1} value={tokens} disabled={busy} onChange={(event) => setTokens(event.target.value)} /></label>
-      {tokens && <p className="fine-print">Caps count estimated usage; the stricter of this cap and the chat's budget applies.</p>}
+      <label className="setting-field">USD cap per run (empty uses the chat's budget)<input type="number" min={0.01} step={0.01} value={usd} disabled={busy} onChange={(event) => setUsd(event.target.value)} /></label>
+      {(tokens || usd) && <p className="fine-print">Caps count estimated usage; the stricter of these caps and the chat's budget applies.</p>}
       <label className="setting-field">Stop after (minutes)<input type="number" min={1} max={1440} value={timeout} required disabled={busy} onChange={(event) => setTimeoutMinutes(event.target.value)} /></label>
       <label className="setting-field">Returns<select value={output} disabled={busy} onChange={(event) => setOutput(event.target.value as PersonaDefinition["output"])}>
         <option value="reply">A reply</option><option value="report">A short report</option></select></label>

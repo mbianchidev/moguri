@@ -106,19 +106,19 @@ function RoundupRow({ update, openItem }: { update: RoundupUpdate; openItem: (it
 function RoundupSetup({ sdk, snapshot, close }: { sdk: MoguriSdk; snapshot: Snapshot; close: () => void }) {
   const current = snapshot.dependencyRoundup, sources = snapshot.myWorkSources.filter((source) => source.enabled || current?.sourceIds.includes(source.id));
   const [selected, setSelected] = useState<string[]>(current?.sourceIds ?? []), [bots, setBots] = useState((current?.bots ?? [...ROUNDUP_DEFAULT_BOTS]).join(", "));
-  const [kind, setKind] = useState<"none" | "daily" | "weekly" | "interval">(current?.schedule && current.schedule.kind !== "once" ? current.schedule.kind : "none");
+  const [kind, setKind] = useState<"none" | "once" | "daily" | "weekly" | "interval">(current?.schedule?.kind ?? "none");
   const [time, setTime] = useState(current?.schedule && "time" in current.schedule ? current.schedule.time : "09:00");
   const [minutes, setMinutes] = useState(String(current?.schedule?.kind === "interval" ? current.schedule.minutes : 1440));
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const zone = current?.schedule?.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const schedule = (): AutomationSchedule | null => kind === "none" ? null : kind === "interval" ? { kind, minutes: Number(minutes), timeZone: zone } :
+  const schedule = (): AutomationSchedule | null => kind === "none" ? null : kind === "once" ? current?.schedule ?? null : kind === "interval" ? { kind, minutes: Number(minutes), timeZone: zone } :
     kind === "weekly" ? { kind, days: current?.schedule?.kind === "weekly" ? current.schedule.days : [1, 2, 3, 4, 5], time, timeZone: zone } : { kind, time, timeZone: zone };
   const save = async () => {
     setBusy(true); setError("");
     try {
       const next = schedule();
       await sdk.roundups.configure({ sourceIds: selected, bots: bots.split(/[\s,]+/).filter(Boolean), schedule: next,
-        scheduleEnabled: next !== null && (current?.status === "active" || !current?.schedule) }, current?.revision ?? null);
+        scheduleEnabled: next !== null && (current?.status === "active" && current.nextAt !== null || !current?.schedule) }, current?.revision ?? null);
       close();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "The roundup settings were not saved."); }
     finally { setBusy(false); }
@@ -131,7 +131,7 @@ function RoundupSetup({ sdk, snapshot, close }: { sdk: MoguriSdk; snapshot: Snap
         {source.repository} ({source.accountId.split(":")[0]}){source.enabled ? "" : ", disabled"}</label>)}</fieldset>
     <label className="setting-field">Update bots (GitHub logins)<input value={bots} disabled={busy} onChange={(event) => setBots(event.target.value)} /></label>
     <label className="setting-field">Schedule<select value={kind} disabled={busy} onChange={(event) => setKind(event.target.value as typeof kind)}>
-      <option value="none">Manual only</option><option value="daily">Every day</option><option value="weekly">Weekdays</option><option value="interval">Every few hours</option></select></label>
+      <option value="none">Manual only</option>{current?.schedule?.kind === "once" && <option value="once">One time (keep current)</option>}<option value="daily">Every day</option><option value="weekly">Weekdays</option><option value="interval">Every few hours</option></select></label>
     {(kind === "daily" || kind === "weekly") && <label className="setting-field">Time ({zone})<input type="time" value={time} disabled={busy} onChange={(event) => setTime(event.target.value)} /></label>}
     {kind === "interval" && <label className="setting-field">Every (minutes, at least 15)<input type="number" min={15} max={43200} value={minutes} disabled={busy} onChange={(event) => setMinutes(event.target.value)} /></label>}
     <p className="fine-print">Scheduled roundups need Moguri running; a missed time runs once when it is back, and a time is skipped while a roundup is still reading.</p>
