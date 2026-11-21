@@ -519,7 +519,10 @@ chooses each actual role's supported thinking automatically. Manual
 or inference. A retained old override stays blocked until explicitly cleared
 with **Use automatic thinking** or `/thinking default`, preserving its window.
 `/context-window TOKENS` and `routing.options` keep exact supported windows,
-not silent clamps. Compound
+not silent clamps. Without a pinned window, Kupo shows and uses up to its
+largest eligible model's window: each request, including the classifier call,
+goes only to models whose own window fits it (D68). A pinned window narrows the
+pool to models that support it. Compound
 reports include the classifier and every eligible route role's real output
 bound. Its immutable source/stages/script preview must still fit all complete
 future role/test context and receive its separate actual-user review.

@@ -712,7 +712,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :
           "This model has no adjustable thinking; the preference returns on a supporting model."}
     </p>}
-    <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
+    <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? current?.synthetic ? `Up to ${compact(windows.values[0])}` : compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
         onClick={() => {
@@ -720,7 +720,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
           setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) });
         }}>
         <span>{value === null ? "Model default" : `${count(value)} tokens`}</span>{window === (value?.toString() ?? "") && <Icon name="Check" />}</button>)}
-      {current?.synthetic && <p className="fine-print">Shared exact ceiling for the eligible pool, rechecked before every role. Default uses each model's qualified window; history and attachments are never truncated.</p>}
+      {current?.synthetic && <p className="fine-print">Model default lets each request use any eligible model whose own qualified window fits it. A ceiling narrows Kupo to models that support it; history and attachments are never truncated.</p>}
     </ModelSubmenu>
     {current?.synthetic && poolControls && !poolControls.available && <Alert as="p" className="inline-error" role="alert">{poolControls.diagnostic}
       {effort ? <button type="button" disabled={locked} onClick={() => {
