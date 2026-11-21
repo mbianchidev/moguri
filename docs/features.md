@@ -297,6 +297,9 @@ highlights code syntax ([D63](architecture/decisions.md#d63-github-item-lists-se
 A linked pull request opens as a full view: an editable description with reviewers, assignees and labels, files with an on-demand
 agent **Tour**, review activity, GitHub Actions checks that open their workflow runs, and commits. Its Draft / Ready control works for
 you and for the agent ([D64](architecture/decisions.md#d64-pull-request-view-draft-state-and-guided-tours)).
+Diff lines take inline review comments that post to GitHub and show under Reviews. A session's pull requests stay linked once
+associated; switch between them with the PR tabs, and the sidebar mark is green, grey or purple for all of them together
+([D65](architecture/decisions.md#d65-inline-review-comments-fixed-pr-associations-and-one-session-pr-mark)).
 Click an active right-rail icon again to collapse its pane back to the rail.
 Terminal belongs to a session: project-free consoles start in configured HOME,
 and project consoles keep their bound worktree. There is no global-terminal UI.

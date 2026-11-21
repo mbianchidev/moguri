@@ -37,7 +37,7 @@ test("the selected PR restores an existing watch after reopening and another PR 
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
     detail = await watch(11);
     await expect(detail).toContainText(started.id!);
-    await pane.getByLabel("Associated pull request", { exact: true }).selectOption("https://github.com/generated-owner/fixture/pull/12");
+    await pane.getByRole("tablist", { name: "Session pull requests", exact: true }).getByRole("tab", { name: /^Pull request #12,/ }).click();
     detail = await watch(12);
     await expect(detail).not.toContainText(started.id!);
     await expect(detail).toContainText("No retained PR watch");

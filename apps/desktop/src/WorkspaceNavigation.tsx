@@ -737,7 +737,7 @@ function SessionIndicators({ indicator }: { indicator: ReturnType<typeof session
       aria-label={`${indicator.kind === "merged" && indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.label}`} title={indicator.label}><Icon name={name} />
       {indicator.kind === "merged" && indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
     {indicator.prUrl && indicator.kind !== "merged" && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img"
-      aria-label={`${indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.prLabel}`} title={indicator.prLabel}><Icon name="PR" />
+      aria-label={`${indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.prLabel}`} title={indicator.prLabel}><Icon name={indicator.prState === "draft" ? "PRDraft" : indicator.prState === "merged" ? "PRMerged" : "PR"} />
       {indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
   </span>;
 }

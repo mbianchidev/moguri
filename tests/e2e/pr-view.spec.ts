@@ -44,7 +44,9 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     });
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Code change", exact: true }).click();
     const pane = page.getByRole("region", { name: "Session code change", exact: true });
-    await expect(pane.getByLabel("Associated pull request", { exact: true }).locator("option")).toHaveCount(2);
+    const switcher = pane.getByRole("tablist", { name: "Session pull requests", exact: true });
+    await expect(switcher.getByRole("tab")).toHaveCount(2);
+    await expect(switcher.getByRole("tab", { name: /^Pull request #11,/ })).toHaveAttribute("aria-selected", "true");
     const view = pane.getByRole("region", { name: "Pull request 11", exact: true }), title = view.getByRole("heading", { level: 3 });
     await expect(title).toContainText("Generated pull request");
     await expect(view.getByRole("button", { name: "Open pull request #11 on GitHub", exact: true })).toBeVisible();
@@ -82,9 +84,27 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await confirm();
     await expect(view.getByRole("button", { name: "Ready for review. Change pull request state", exact: true })).toBeVisible();
     expect(f.workItem(11)!.draft).toBe(false);
+    await expect(switcher.getByRole("tab", { name: "Pull request #11, open pull request", exact: true })).toBeVisible();
 
     await view.getByRole("tab", { name: /^Files/ }).click();
-    await expect(view.locator(".unified-diff")).toContainText("new generated line");
+    const diff = view.getByRole("region", { name: "Diff of generated.ts", exact: true });
+    await expect(diff).toContainText("new generated line");
+    await expect(diff.locator('.pr-diff-row[data-kind="add"] .hljs-keyword').first()).toHaveText("new");
+    await diff.getByRole("button", { name: "Show the rest of the file", exact: true }).click();
+    await expect(diff).toContainText("generated third line");
+    await expect(diff.getByRole("button", { name: /^Comment on line 3 of/ })).toHaveCount(0);
+    await diff.getByRole("button", { name: "Comment on line 1 of generated.ts", exact: true }).click();
+    const comment = diff.getByRole("form", { name: "Review comment on generated.ts line 1", exact: true });
+    await comment.getByLabel("Review comment", { exact: true }).fill("Generated inline review note.");
+    await comment.getByRole("button", { name: "Comment", exact: true }).click();
+    const inlineReview = comment.getByRole("region", { name: "Review GitHub change", exact: true });
+    await expect(inlineReview).toContainText("Post a review comment on generated.ts line 1 of pull request #11.");
+    for (const check of await inlineReview.getByRole("checkbox").all()) await check.check();
+    await inlineReview.getByRole("button", { name: "Confirm", exact: true }).click();
+    await expect(view.getByText("Comment posted on generated.ts line 1. It shows under Reviews.", { exact: true })).toBeVisible();
+    await expect(comment).toHaveCount(0);
+    expect(f.reviewComments(11).map((value) => [value.path, value.line, value.side, value.body])).toEqual([["generated.ts", 1, "RIGHT", "Generated inline review note."]]);
+    await page.screenshot({ path: resolve(".moguri/artifacts/pr-view-diff.png") });
     await view.getByRole("button", { name: "Tour", exact: true }).click();
     const tour = view.getByRole("region", { name: "Pull request tour", exact: true });
     await tour.getByRole("button", { name: "Generate tour", exact: true }).click();
@@ -106,6 +126,7 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await expect(activity).toContainText("Generated approved review.");
     await expect(activity).toContainText("changed the title from");
     await expect(activity).toContainText("Generated head commit");
+    await expect(activity).toContainText("Generated inline review note.");
     await view.getByRole("button", { name: "Filter and sort activity", exact: true }).click();
     await page.getByRole("dialog", { name: "Filter and sort activity", exact: true }).getByRole("menuitemradio", { name: "Unresolved" }).click();
     await expect(activity).toContainText("Generated unresolved thread.");
@@ -126,8 +147,13 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await page.getByRole("dialog", { name: "Filter and sort activity", exact: true }).getByRole("menuitemradio", { name: "All" }).click();
     await page.screenshot({ path: resolve(".moguri/artifacts/pr-view-reviews.png") });
 
-    await pane.getByLabel("Associated pull request", { exact: true }).selectOption("https://github.com/generated-owner/fixture/pull/12");
+    await switcher.getByRole("tab", { name: /^Pull request #12,/ }).click();
     await expect(pane.getByRole("region", { name: "Pull request 12", exact: true }).getByRole("heading", { level: 3 })).toContainText("Generated PR 12");
+    await switcher.getByRole("tab", { name: /^Pull request #11,/ }).click();
+    await expect(pane.getByRole("region", { name: "Pull request 11", exact: true })).toBeVisible();
+    await pane.getByText("Open another pull request", { exact: true }).click();
+    await expect(pane.getByRole("button", { name: "New pull request", exact: true })).toBeVisible();
+    await expect(pane.getByRole("listbox", { name: "Pull request", exact: true })).toHaveCount(0);
     expect(f.session().prUrl).toBe(original);
     expect(errors).toEqual([]);
   } finally { await app.close(); await f.close(); await provider.close(); }

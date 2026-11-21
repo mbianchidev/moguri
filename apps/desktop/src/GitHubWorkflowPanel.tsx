@@ -20,7 +20,7 @@ const actions: Array<[PanelAction, string]> = [
   ["github.pr.draft", "Convert PR to draft / mark ready for review"], ["github.issue.labels", "Replace issue or PR labels"],
   ["github.issue.assignees", "Replace issue or PR assignees"], ["github.pr.reviewers", "Request / remove PR reviewers"],
   ["github.comment.update", "Edit issue, PR or review comment"], ["github.comment.delete", "Delete issue, PR or review comment"],
-  ["github.review.submit", "Submit PR review"], ["github.review.reply", "Reply to review thread"], ["github.review.resolve", "Resolve / reopen review thread"],
+  ["github.review.submit", "Submit PR review"], ["github.review.comment", "Comment on PR diff lines"], ["github.review.reply", "Reply to review thread"], ["github.review.resolve", "Resolve / reopen review thread"],
   ["github.pr.merge", "Merge pull request"], ["github.release.create", "Create GitHub release"],
   ["github.release.update", "Update GitHub release"], ["github.release.publish", "Publish draft release"], ["github.ci.watch", "Watch CI for a commit"],
   ["github.repo.settings", "Change repository settings"],
@@ -43,6 +43,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const [reviewEvent, setReviewEvent] = useState<"COMMENT" | "APPROVE" | "REQUEST_CHANGES">("COMMENT"), [commentId, setCommentId] = useState("");
   const [commentChannel, setCommentChannel] = useState<"conversation" | "review">("conversation");
   const [namesText, setNamesText] = useState(""), [reviewerOperation, setReviewerOperation] = useState<"request" | "remove">("request");
+  const [diffPath, setDiffPath] = useState(""), [diffLine, setDiffLine] = useState(""), [diffStartLine, setDiffStartLine] = useState(""), [diffSide, setDiffSide] = useState<"LEFT" | "RIGHT">("RIGHT");
   const [threadId, setThreadId] = useState(""), [resolveThread, setResolveThread] = useState(true), [mergeMethod, setMergeMethod] = useState<"merge" | "squash" | "rebase">("merge");
   const [releaseId, setReleaseId] = useState(""), [headSha, setHeadSha] = useState(""), [seconds, setSeconds] = useState("120"), [runId, setRunId] = useState("");
   const [resource, setResource] = useState<GithubBrowse["resource"]>("issues"), [browsed, setBrowsed] = useState<{ result: Browse; scope: string } | null>(null);
@@ -58,7 +59,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const scopeKey = JSON.stringify([sdk.profileId, project?.id, project?.path, scope, session?.controls.env, session?.kind, session?.mode, session?.pendingMode, session?.status,
     configuration?.revision, snapshot.policy.revision, snapshot.settings.permissionRevision, snapshot.settings.values.permissions,
     kind, repository, account, remote, branch, force, onto, checkout, pathsText, rebaseMode, tag, target, annotated, message, deleteLocation, number, title, body, editTitle, editBody,
-    state, base, head, headRepository, draft, prerelease, reviewEvent, commentId, commentChannel, namesText, reviewerOperation, threadId, resolveThread, mergeMethod, releaseId, headSha, seconds, runId, resource, contentPath, contentRef, checkRunId, rulesBranch, settingsText]);
+    state, base, head, headRepository, draft, prerelease, reviewEvent, commentId, commentChannel, namesText, reviewerOperation, diffPath, diffLine, diffStartLine, diffSide, threadId, resolveThread, mergeMethod, releaseId, headSha, seconds, runId, resource, contentPath, contentRef, checkRunId, rulesBranch, settingsText]);
   const current = useRef(scopeKey); current.current = scopeKey;
   const allowed = Boolean(project && snapshot.policy.allowedEnvs.includes("Local") && (!session || session.projectId === project.id && session.controls.env === "Local" && session.status !== "archived"));
   const canWrite = allowed && (!session || session.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only");
@@ -82,7 +83,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const selected = records.find((value) => value.id === selectedId), value = read?.operation.id === selected?.id && read?.operation.revision === selected?.revision ? read : null;
   const numbered = ["github.issue.update", "github.issue.comment", "github.pr.update", "github.pr.comment", "github.pr.merge",
     "github.review.submit", "github.review.reply", "github.review.resolve", "github.comment.update", "github.comment.delete",
-    "github.pr.draft", "github.issue.labels", "github.issue.assignees", "github.pr.reviewers"].includes(kind);
+    "github.pr.draft", "github.issue.labels", "github.issue.assignees", "github.pr.reviewers", "github.review.comment"].includes(kind);
   const editing = kind === "github.issue.update" || kind === "github.pr.update", releasing = kind === "github.release.create" || kind === "github.release.update";
   useEffect(() => { setPreview(null); setConfirmations([]); }, [scopeKey]);
   useEffect(() => { setInspectionReviewed(false); }, [sdk.profileId, selected?.id, selected?.revision, selected?.inputDigest]);
@@ -126,6 +127,8 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       case "github.pr.create": return { kind, ...gh, title, body, base, head, ...(headRepository ? { headRepository } : {}), draft };
       case "github.review.submit": return { kind, ...gh, number: n(), event: reviewEvent, body };
       case "github.review.reply": return { kind, ...gh, number: n(), commentId: positive(commentId, "review comment ID"), body };
+      case "github.review.comment": return { kind, ...gh, number: n(), path: diffPath, line: positive(diffLine, "line number"), side: diffSide,
+        ...(diffStartLine ? { startLine: positive(diffStartLine, "first line number"), startSide: diffSide } : {}), body };
       case "github.review.resolve": return { kind, ...gh, number: n(), threadId, resolve: resolveThread };
       case "github.pr.merge": return { kind, ...gh, number: n(), method: mergeMethod };
       case "github.pr.draft": return { kind, ...gh, number: n(), draft };
@@ -218,6 +221,12 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
       {kind === "github.pr.reviewers" && <label className="setting-field"><span id={`${uid}-reviewer-operation`}>Reviewers</span><select aria-labelledby={`${uid}-reviewer-operation`} value={reviewerOperation} onChange={(event) => setReviewerOperation(event.target.value as typeof reviewerOperation)}><option value="request">Request review</option><option value="remove">Remove review request</option></select></label>}
       {kind === "github.repo.settings" && <label className="setting-field">Settings to change (JSON)<SettingsTextarea className="json-editor short" spellCheck={false} value={settingsText} onChange={(event) => setSettingsText(event.target.value)} /></label>}
       {kind === "github.review.submit" && <label className="setting-field"><span id={`${uid}-review-outcome`}>Review outcome</span><select aria-labelledby={`${uid}-review-outcome`} value={reviewEvent} onChange={(event) => setReviewEvent(event.target.value as typeof reviewEvent)}><option value="COMMENT">Comment</option><option value="APPROVE">Approve</option><option value="REQUEST_CHANGES">Request changes</option></select></label>}
+      {kind === "github.review.comment" && <>
+        <label className="setting-field">File path in the repository<SettingsInput value={diffPath} onChange={(event) => setDiffPath(event.target.value)} /></label>
+        <label className="setting-field"><span id={`${uid}-diff-side`}>Diff side</span><select aria-labelledby={`${uid}-diff-side`} value={diffSide} onChange={(event) => setDiffSide(event.target.value as typeof diffSide)}><option value="RIGHT">New file lines</option><option value="LEFT">Old file lines</option></select></label>
+        <label className="setting-field">Line<SettingsInput type="number" min={1} value={diffLine} onChange={(event) => setDiffLine(event.target.value)} /></label>
+        <label className="setting-field">First line (optional, for a multi-line comment)<SettingsInput type="number" min={1} value={diffStartLine} onChange={(event) => setDiffStartLine(event.target.value)} /></label>
+      </>}
       {(kind === "github.review.reply" || kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field">Comment ID<SettingsInput type="number" min={1} value={commentId} onChange={(event) => setCommentId(event.target.value)} /></label>}
       {(kind === "github.comment.update" || kind === "github.comment.delete") && <label className="setting-field"><span id={`${uid}-comment-channel`}>Comment location</span><select aria-labelledby={`${uid}-comment-channel`} value={commentChannel} onChange={(event) => setCommentChannel(event.target.value as typeof commentChannel)}><option value="conversation">Issue/PR conversation</option><option value="review">Inline PR review</option></select></label>}
       {kind === "github.review.resolve" && <>

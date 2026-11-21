@@ -7,10 +7,12 @@ import { PullRequestView } from "./PullRequestView.tsx";
 import { sessionGithubScope, sessionGithubWritable } from "./github-session.ts";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
-export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSession, selectedUrl }: {
+export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSession, selectedUrl, createOnly = false }: {
   sdk: MoguriSdk; session: Session; snapshot: Snapshot; kind: "issue" | "pull"; onDirty: (dirty: boolean) => void;
   chooseSession: (id: string) => Promise<void>;
   selectedUrl?: string | null;
+  /** Only create new items (branch, PR or issue); existing items are not listed or linked. */
+  createOnly?: boolean;
 }) {
   const [selection, setSelection] = useState<GithubSelection | null>(null), [context, setContext] = useState<GithubProject | null>(null);
   const [contextScope, setContextScope] = useState(""), [creationScope, setCreationScope] = useState("");
@@ -36,6 +38,13 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   const writeAllowed = sessionGithubWritable(session, snapshot);
   const canWrite = writeAllowed && !scopeChanged;
   useEffect(() => { setReview(null); setConfirmed([]); }, [formKey]);
+  useEffect(() => {
+    if (!createOnly || !scope) return;
+    let live = true;
+    void sdk.github.project(scope).then((value) => { if (live) { setContext(value); setContextScope(scopeKey); } })
+      .catch((error: unknown) => { if (live) setError(panelFailure(error, "This project's GitHub repository could not be read. Check its upstream and GitHub CLI sign-in.")); });
+    return () => { live = false; };
+  }, [createOnly, scopeKey]);
   useEffect(() => { onDirty(dirty || creating && busy); return () => onDirty(false); }, [dirty, creating, busy, onDirty]);
   const run = async (action: (isCurrent: () => boolean) => Promise<void>) => {
     if (pending.current) return;
@@ -82,15 +91,15 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   </section>;
   return <section className="session-github" aria-label={kind === "pull" ? "Project pull requests" : "Project work items"} aria-busy={busy}>
     {kanban}
-    {bound && <p className="fine-print path">Linked {label}: <button type="button" className="quiet" disabled={busy} onClick={() => void run(async () => { await window.moguri.openExternal(bound); })}>{bound}</button></p>}
+    {bound && !createOnly && <p className="fine-print path">Linked {label}: <button type="button" className="quiet" disabled={busy} onClick={() => void run(async () => { await window.moguri.openExternal(bound); })}>{bound}</button></p>}
     <header className="panel-toolbar github-create-actions" aria-label={kind === "pull" ? "Create pull request or branch" : "Create issue"}>
       {kind === "pull" && <button type="button" title="Create a remote branch and keep this session working on it" disabled={busy || !writeAllowed || !context || contextScope !== scopeKey || creating || branching}
         onClick={() => { setBranching(true); setNotice(""); }}>New branch</button>}
       <button type="button" disabled={busy || !writeAllowed || !context || contextScope !== scopeKey || creating || branching} onClick={() => { setCreating(true); setCreationScope(scopeKey); setTitle(""); setBody(""); setBase(context?.defaultBranch ?? ""); setHead(context?.branch === "(detached)" ? "" : context?.branch ?? ""); setAttempted(false); setOperationId(""); setNotice(""); }}>New {label}</button></header>
     {branching && context && <RemoteBranchForm sdk={sdk} scope={scope} context={context} session={session} snapshot={snapshot} canWrite={writeAllowed && contextScope === scopeKey}
       close={(message) => { setBranching(false); if (message) setNotice(message); }} />}
-    {!creating && !branching && <GitHubItemPicker key={scopeKey} sdk={sdk} scope={scope} kind={kind} selectedUrl={bound} select={setSelection} contextChanged={(value) => { setContext(value); setContextScope(scopeKey); }} disabled={busy} />}
-    {selection && !creating && !branching && kind === "pull" && <article className="github-item" aria-label="Pull request details">
+    {!createOnly && !creating && !branching && <GitHubItemPicker key={scopeKey} sdk={sdk} scope={scope} kind={kind} selectedUrl={bound} select={setSelection} contextChanged={(value) => { setContext(value); setContextScope(scopeKey); }} disabled={busy} />}
+    {!createOnly && selection && !creating && !branching && kind === "pull" && <article className="github-item" aria-label="Pull request details">
       <div className="button-row"><button type="button" disabled={busy || sessionPullRequestUrls(session, snapshot).includes(selection.item.url ?? "")} onClick={() => void run(async () => { await attach(selection.item.url!); setNotice(`Linked ${label} #${selection.item.number}. Original PR associations and cleanup provenance were preserved; no checkout or model call was started.`); })}>{sessionPullRequestUrls(session, snapshot).includes(selection.item.url ?? "") ? "Linked to this session" : "Link to this session"}</button>
         <button type="button" disabled={busy} onClick={() => void run(async () => { const started = await sdk.github.startSession(scope, selection.source, selection.digest); await chooseSession(started.id!); })}>Start session from {label}</button></div>
       <PullRequestView key={JSON.stringify([selection.source, selection.item.headSha, selection.binding])} sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection}
@@ -100,7 +109,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
           setSelection({ ...selection, ...fresh });
         }} />
     </article>}
-    {selection && !creating && !branching && kind === "issue" && <article className="github-item" aria-label="Issue details">
+    {!createOnly && selection && !creating && !branching && kind === "issue" && <article className="github-item" aria-label="Issue details">
       <h3 className="github-item-name"><GitHubStateIcon kind={kind} item={selection.item} />#{selection.item.number} {selection.item.title}</h3><p className="fine-print">{selection.item.state}{selection.item.author ? ` / ${selection.item.author}` : ""}</p>
       <p className="fine-print path">Source workspace: {selection.binding.root.root}</p>
       <div className="github-item-body"><Suspense fallback={<p>{selection.item.body}</p>}><RichMessage text={selection.item.body || "No description."} openLink={(url) => void run(async () => { await window.moguri.openExternal(url); })} /></Suspense></div>

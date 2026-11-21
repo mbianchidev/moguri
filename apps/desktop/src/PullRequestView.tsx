@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
-import { githubItemIdentity, githubSourceOwner, type GithubAction, type GithubBrowse, type GithubItem, type GithubPreview, type GithubResponse, type GithubScope,
+import { githubItemIdentity, githubSourceOwner, type GithubAction, type GithubBrowse, type GithubItem, type GithubResponse, type GithubScope,
   type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { GitHubStateIcon, githubStateMark, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
@@ -7,9 +7,10 @@ import { AnchoredMenu } from "./AnchoredMenu.tsx";
 import { Icon } from "./Icon.tsx";
 import { PrCiWatch } from "./PrCiWatch.tsx";
 import { PrTour } from "./PrTour.tsx";
-import { UnifiedDiff } from "./UnifiedDiff.tsx";
 import { sessionGithubScope, sessionGithubWritable } from "./github-session.ts";
+import { ReviewedWritePanel, useReviewedWrite } from "./reviewed-write.tsx";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
+const PrDiff = lazy(() => import("./PrDiff.tsx"));
 
 type Browse = Extract<GithubResponse, { type: "github.browse" }>;
 type Tab = "Description" | "Files" | "Reviews" | "Checks" | "Commits";
@@ -84,8 +85,10 @@ async function readPages(read: (page: number) => Promise<Browse>, accountId: str
 }
 
 /** Loads the session's linked PR through the project's exact account, then shows it. */
-export function LinkedPullRequest({ sdk, session, snapshot, url, onDirty, openSettings }: {
+export function LinkedPullRequest({ sdk, session, snapshot, url, onDirty, openSettings, observed }: {
   sdk: MoguriSdk; session: Session; snapshot: Snapshot; url: string; onDirty: (dirty: boolean) => void; openSettings?: () => void;
+  /** Receives each fresh read of this PR so surrounding views can show its live state. */
+  observed?: (item: GithubItem) => void;
 }) {
   const scope = sessionGithubScope(session);
   const [selection, setSelection] = useState<GithubSelection | null>(null), [loading, setLoading] = useState(false), [error, setError] = useState("");
@@ -101,13 +104,13 @@ export function LinkedPullRequest({ sdk, session, snapshot, url, onDirty, openSe
       const source = { kind: "pull" as const, repository: context.repository, account: context.account, accountId: context.accountId, number: identity.number };
       const value = await sdk.github.source(scope, source);
       if (value.accountId !== context.accountId) throw new Error("The GitHub account changed while reading this pull request. Reload it.");
-      if (token === generation.current) setSelection({ context, source, binding: value.binding, item: value.item, digest: value.digest });
+      if (token === generation.current) { setSelection({ context, source, binding: value.binding, item: value.item, digest: value.digest }); observed?.(value.item); }
     } catch (error) { if (token === generation.current) setError(failure(error, "The pull request could not be read. Check this project's upstream and GitHub CLI sign-in.")); }
     finally { if (token === generation.current) setLoading(false); }
   };
   useEffect(() => { setSelection(null); void load(); return () => { generation.current++; }; }, [key]);
   if (!scope) return <p className="fine-print">Pull request views need a Local project. Remote host and Sandbox do not borrow this Mac's GitHub account.</p>;
-  if (!selection) return <div className="pr-view-loading">{loading && <p className="fine-print" role="status">Reading the pull request...</p>}
+  if (!selection) return <div className="pr-view-loading"><p className="fine-print path">{url}</p>{loading && <p className="fine-print" role="status">Reading the pull request...</p>}
     {error && <><Alert as="p" className="inline-error" role="alert">{error}</Alert><button type="button" onClick={() => void load()}>Try again</button></>}</div>;
   return <>{error && <Alert as="p" className="inline-error" role="alert">{error} The last successful read is shown.</Alert>}
     <PullRequestView sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection} reload={load} onDirty={onDirty} openSettings={openSettings} /></>;
@@ -122,10 +125,9 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
   const key = JSON.stringify([sdk.profileId, scope, selection.context.accountId, repository, number, head, githubSourceOwner(selection.binding)]);
   const writable = sessionGithubWritable(session, snapshot) && item.state === "open";
   const [tab, setTab] = useState<Tab>("Description"), [checks, setChecks] = useState<{ items: GithubItem[]; runs: Map<number, string>; more: boolean } | null>(null);
-  const [pending, setPending] = useState<{ label: string; preview: GithubPreview; confirmed: string[] } | null>(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [stateMenu, setStateMenu] = useState(false);
-  const stateButton = useRef<HTMLButtonElement>(null), review = useRef<HTMLElement>(null), current = useRef(key); current.current = key;
-  useEffect(() => { if (pending) review.current?.scrollIntoView({ block: "nearest" }); }, [pending?.preview.digest]);
+  const reviewed = useReviewedWrite(sdk, scope, reload), { pending, busy, error, notice, setError } = reviewed;
+  const [stateMenu, setStateMenu] = useState(false);
+  const stateButton = useRef<HTMLButtonElement>(null), current = useRef(key); current.current = key;
   const loadChecks = async () => {
     if (!head) { setError("This pull request has no verified head. No checks were guessed."); return; }
     const captured = key;
@@ -137,27 +139,8 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
       if (current.current === captured) setChecks({ items: values.items, runs: new Map(runs.items.map((run) => [run.id, run.title])), more: values.more });
     } catch (error) { if (current.current === captured) { setChecks(null); setError(failure(error, "Checks could not be read. Missing CI is not successful CI.")); } }
   };
-  useEffect(() => { setChecks(null); setPending(null); setError(""); void loadChecks(); }, [key]);
-  const write = async (label: string, action: GithubAction) => {
-    if (busy) return;
-    setBusy(true); setError(""); setNotice(""); setPending(null);
-    try { const { preview } = await sdk.github.preview(scope, action); setPending({ label, preview, confirmed: [] }); }
-    catch (error) { setError(failure(error, "The change could not be reviewed. Nothing was sent.")); }
-    finally { setBusy(false); }
-  };
-  const confirm = async () => {
-    if (!pending || busy) return;
-    setBusy(true); setError("");
-    try {
-      const started = await sdk.github.execute(pending.preview, pending.preview.document.confirmations, true);
-      if (!started.id) throw new Error("GitHub did not acknowledge the change. Inspect GitHub workflow history before trying again.");
-      const retained = await sdk.github.wait(started.id);
-      if (retained.operation.status !== "completed") throw new Error(retained.operation.diagnostic ?? `The change is ${retained.operation.status}. Inspect its retained result; it was not replayed.`);
-      setNotice(`${pending.label}: done.`); setPending(null);
-      await reload();
-    } catch (error) { setError(failure(error, "The change's outcome is unconfirmed. Inspect GitHub workflow history before trying again.")); }
-    finally { setBusy(false); }
-  };
+  useEffect(() => { setChecks(null); reviewed.cancel(); setError(""); void loadChecks(); }, [key]);
+  const write = (label: string, action: GithubAction, after?: () => void) => reviewed.start(label, action, after);
   const mark = githubStateMark("pull", item), host = upstreamLabel(item.url);
   const failing = checks?.items.filter((check) => checkGroup(check) === "failing").length ?? 0;
   const badge: Partial<Record<Tab, ReactNode>> = {
@@ -198,18 +181,12 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
       setTab(TABS[next]!); event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
     }}>{TABS.map((name) => <button key={name} type="button" role="tab" aria-selected={tab === name} tabIndex={tab === name ? 0 : -1} aria-label={spoken[name] ? `${name}, ${spoken[name]}` : name}
       onClick={() => setTab(name)}>{name}{badge[name]}</button>)}</div>
-    {pending && <section ref={review} className="github-write-review pr-write-review" aria-label="Review GitHub change"><h4>{pending.label}</h4>
-      <p className="fine-print path">{pending.preview.document.action.kind} / {repository}#{number} / {selection.context.account}</p>
-      {pending.preview.document.warnings.map((warning) => <Alert as="p" tone="warning" key={warning}>{warning}</Alert>)}
-      {pending.preview.document.confirmations.map((confirmation) => <label className="check-setting" key={confirmation}><input type="checkbox" checked={pending.confirmed.includes(confirmation)} disabled={busy}
-        onChange={(event) => setPending({ ...pending, confirmed: event.target.checked ? [...pending.confirmed, confirmation] : pending.confirmed.filter((value) => value !== confirmation) })} />{confirmation}</label>)}
-      <div className="button-row"><button type="button" className="primary" disabled={busy || pending.preview.document.confirmations.some((value) => !pending.confirmed.includes(value))} onClick={() => void confirm()}>Confirm</button>
-        <button type="button" disabled={busy} onClick={() => setPending(null)}>Cancel</button></div></section>}
+    <ReviewedWritePanel write={reviewed} target={`${repository}#${number} / ${selection.context.account}`} />
     {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <div role="tabpanel" aria-label={tab} className="pr-view-panel">
       {tab === "Description" && <DescriptionTab key={key} sdk={sdk} scope={scope} selection={selection} writable={writable && !busy && !pending} write={write} onDirty={onDirty} />}
-      {tab === "Files" && <FilesTab key={key} sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection} openSettings={openSettings} />}
+      {tab === "Files" && <FilesTab key={key} sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection} writable={writable} openSettings={openSettings} />}
       {tab === "Reviews" && <ReviewsTab key={key} sdk={sdk} scope={scope} selection={selection} />}
       {tab === "Checks" && <ChecksTab checks={checks} reload={() => { setChecks(null); setError(""); void loadChecks(); }}
         watch={head ? <PrCiWatch sdk={sdk} scope={scope} snapshot={snapshot} selection={selection} reloadSource={reload} /> : null} />}
@@ -301,11 +278,10 @@ function MetaPicker({ sdk, scope, selection, kind, label, icon, values, disabled
   </span>;
 }
 
-function FilesTab({ sdk, session, snapshot, scope, selection, openSettings }: {
-  sdk: MoguriSdk; session: Session; snapshot: Snapshot; scope: GithubScope; selection: GithubSelection; openSettings?: () => void;
+function FilesTab({ sdk, session, snapshot, scope, selection, writable, openSettings }: {
+  sdk: MoguriSdk; session: Session; snapshot: Snapshot; scope: GithubScope; selection: GithubSelection; writable: boolean; openSettings?: () => void;
 }) {
-  const [view, setView] = useState<"diff" | "tour">("diff"), [files, setFiles] = useState<{ items: GithubItem[]; more: boolean } | null>(null);
-  const [collapsed, setCollapsed] = useState<string[]>([]), [error, setError] = useState("");
+  const [view, setView] = useState<"diff" | "tour">("diff"), [files, setFiles] = useState<{ items: GithubItem[]; more: boolean } | null>(null), [error, setError] = useState("");
   const { repository, account } = selection.source, number = selection.item.number!, head = selection.item.headSha;
   useEffect(() => {
     if (view !== "diff" || files) return;
@@ -315,25 +291,15 @@ function FilesTab({ sdk, session, snapshot, scope, selection, openSettings }: {
       .then((value) => { if (live) setFiles(value); }).catch((error: unknown) => { if (live) setError(failure(error, "Changed files could not be read.")); });
     return () => { live = false; };
   }, [view]);
-  const additions = files?.items.reduce((sum, file) => sum + (file.additions ?? 0), 0) ?? 0, deletions = files?.items.reduce((sum, file) => sum + (file.deletions ?? 0), 0) ?? 0;
   return <div className="pr-files">
     <div className="pr-files-toolbar"><div className="pr-segmented" role="group" aria-label="Files view">
       <button type="button" aria-pressed={view === "diff"} onClick={() => setView("diff")}>Diff</button>
-      <button type="button" aria-pressed={view === "tour"} onClick={() => setView("tour")}>Tour</button></div>
-      {view === "diff" && files && <span className="pr-files-summary">{files.items.length}{files.more ? "+" : ""} files <span className="pr-added">+{additions}</span> <span className="pr-removed">-{deletions}</span></span>}</div>
+      <button type="button" aria-pressed={view === "tour"} onClick={() => setView("tour")}>Tour</button></div></div>
     {view === "tour" ? <PrTour sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection} openSettings={openSettings} /> : <>
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       {!files && !error && <p className="fine-print" role="status">Reading changed files at this head...</p>}
-      {files?.items.map((file) => {
-        const path = file.path ?? file.title, folded = collapsed.includes(path), split = path.lastIndexOf("/");
-        return <section className="pr-file" key={path} aria-label={path}>
-          <header><button type="button" className="pr-file-toggle" aria-expanded={!folded} onClick={() => setCollapsed((values) => folded ? values.filter((value) => value !== path) : [...values, path])}>
-            <Icon name={folded ? "ChevronRight" : "Down"} /><span className="pr-file-path">{split >= 0 && <span className="pr-file-dir">{path.slice(0, split + 1)}</span>}<strong>{path.slice(split + 1)}</strong></span></button>
-            <span className="pr-file-stats">{file.state !== "modified" && <span className="pr-file-status">{file.state}</span>}<span className="pr-added">+{file.additions ?? 0}</span><span className="pr-removed">-{file.deletions ?? 0}</span></span></header>
-          {!folded && (file.patch === null || file.patch === undefined ? <p className="fine-print">No text patch from GitHub (binary, oversized or unavailable).</p> : <UnifiedDiff text={file.patch} label={`Patch for ${path}`} />)}
-        </section>;
-      })}
-      {files?.more && <p className="fine-print">Showing the first {files.items.length} files. Open the pull request on {upstreamLabel(selection.item.url)} for the rest.</p>}
+      {files && <Suspense fallback={<p className="fine-print" role="status">Preparing the diff...</p>}>
+        <PrDiff sdk={sdk} scope={scope} selection={selection} files={files.items} more={files.more} writable={writable} /></Suspense>}
     </>}
   </div>;
 }

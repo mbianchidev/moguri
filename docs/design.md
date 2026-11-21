@@ -261,7 +261,11 @@ chips that open filterable menus; label swatches use the label's own GitHub
 color. Every GitHub write shows an inline review with its confirmations before
 anything is sent. Check and commit rows are full-width buttons that open
 GitHub, with state icons in `--status-*` and `--github-*` colors next to text.
-Details: [D64](architecture/decisions.md).
+Session PRs sit above the view as pill tabs with their state icons. The diff
+uses a monospace grid (old number, new number, sign, highlighted code) on
+`--code`, with `--diff-add-*` and `--diff-remove-*` row and gutter tints. The
+hover **+** in `--diff-focus` opens an inline comment card under the line.
+Details: [D64 and D65](architecture/decisions.md).
 
 ### Components
 

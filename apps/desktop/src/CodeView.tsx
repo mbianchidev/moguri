@@ -34,3 +34,10 @@ export function CodeView({ path, text, label }: { path: string; text: string; la
     <code className={highlighted ? `hljs language-${language}` : undefined}>{highlighted ?? text}</code>
   </pre>;
 }
+
+/** One line's highlighted React nodes, or the plain text when the language is unknown or the line is too long to be worth it. */
+export function highlightLine(language: string | undefined, text: string) {
+  if (!language || text.length > 2000) return text;
+  try { return toJsxRuntime(lowlight.highlight(language, text), { Fragment, jsx, jsxs }); }
+  catch { return text; }
+}
