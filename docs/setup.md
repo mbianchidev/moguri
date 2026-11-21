@@ -1381,7 +1381,10 @@ drops between members of the same group reorder them instead.
 The files are not moved. Its **+** starts a Local chat with every current member
 repository captured explicitly; each nested project's **+** still starts a
 single-repository chat. Click the folder header to expand/collapse it, or use
-**Projects menu / Expand all groups / Collapse all groups**.
+**Projects menu / Expand all groups / Collapse all groups**. Which projects and
+groups are collapsed is remembered per profile across restarts on this
+machine; it is desktop presentation state, not synced through the service.
+An expanded project or group with nothing in it shows **No sessions**.
 Edge drops continue to reorder projects.
 
 Folder tools explicitly select a captured repository by ID or original name.

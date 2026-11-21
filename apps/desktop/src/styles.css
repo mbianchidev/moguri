@@ -612,6 +612,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 @media (prefers-reduced-motion: reduce) { .session-status-dot[data-session-state="running"], .session-mark[data-session-state="running"] svg { animation: none; opacity: 1; } }
 .queue-count { color: var(--muted); font-size: var(--font-size-xs); }
 .nav-empty { padding: var(--space-1) var(--space-3); font-size: var(--font-size-sm); line-height: 1.7; color: var(--muted); }
+.nav-empty-nested { padding: var(--space-1) var(--space-2-5); font-size: var(--font-size-xs); }
 .nav-footer { padding: var(--space-3) 0; border-top: 1px solid var(--line); margin-top: var(--space-2-5); }
 .connection-line { display: flex; align-items: center; gap: var(--space-1-5); color: var(--muted); font-size: var(--font-size-2xs); padding: var(--space-3) var(--space-2-5) 0; }
 .main-pane { display: flex; flex-direction: column; background: var(--surface); min-width: 0; min-height: 0; }

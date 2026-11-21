@@ -12,6 +12,7 @@ import { BulkSessionActions } from "./BulkSessionActions.tsx";
 import { MenuSeparator, WorkspaceContextMenu } from "./WorkspaceContextMenu.tsx";
 import { SessionNavigationControls } from "./SessionNavigationControls.tsx";
 import { LocationActions } from "./LocationActions.tsx";
+import { readCollapsedNavigation, saveCollapsedNavigation } from "./navigation-collapse.ts";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -124,8 +125,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
   const [foldersMenu, setFoldersMenu] = useState<NavigationMenu | null>(null);
   const projectsMenuButton = useRef<HTMLButtonElement>(null), removedFolderFocus = useRef<{ id: string; profileId: string } | null>(null);
-  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(() => new Set());
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(() => new Set());
+  const [savedCollapse] = useState(() => readCollapsedNavigation(localStorage, sdk.profileId));
+  const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(savedCollapse.folders);
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(savedCollapse.projects);
   const [expandedLists, setExpandedLists] = useState<Set<string>>(() => new Set());
   const [navigationStatus, setNavigationStatus] = useState("");
   const updateFiltering = (value: string, filters: SessionNavigationStatus[]) => {
@@ -138,7 +140,16 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
     setSearch(value); setStatusFilters(filters);
   };
   const updateSearch = (value: string) => updateFiltering(value, statusFilters);
-  useEffect(() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); setExpandedLists(new Set()); setSearch(""); setStatusFilters([]); setPromptOrder("default"); beforeSearch.current = null; setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null; }, [sdk.profileId]);
+  useEffect(() => {
+    const saved = readCollapsedNavigation(localStorage, sdk.profileId);
+    setCollapsedFolders(saved.folders); setCollapsedProjects(saved.projects); setExpandedLists(new Set()); setSearch(""); setStatusFilters([]); setPromptOrder("default"); beforeSearch.current = null; setSelection(null); setFoldersMenu(null); setNavigationStatus(""); removedFolderFocus.current = null;
+  }, [sdk.profileId]);
+  // Search temporarily expands everything; only the user's own collapse choices are remembered.
+  useEffect(() => {
+    if (beforeSearch.current) return;
+    saveCollapsedNavigation(localStorage, sdk.profileId, { projects: collapsedProjects, folders: collapsedFolders },
+      { projects: new Set(snapshot.projects.map((project) => project.id)), folders: new Set(snapshot.projectFolders.map((folder) => folder.id)) });
+  }, [collapsedFolders, collapsedProjects]);
   useLayoutEffect(() => {
     const request = removedFolderFocus.current;
     if (!request || request.profileId !== sdk.profileId || snapshot.projectFolders.some((folder) => folder.id === request.id)) return;
@@ -534,7 +545,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
         {boardChat && tree(boardChat.id, null, 1)}</>}
       {tree(null, null)}
       {snapshot.sessionGroups.filter((group) => group.projectId === project.id).sort((a, b) => a.order - b.order).map((group) => <div className="session-group" key={group.id} onDragOver={(event) => dragHeader(event, project.id)} onDrop={(event) => detach(event, project.id, group.id)}><h3>{group.name}</h3>{tree(null, group.id)}</div>)}
-      {more(`project:${project.id}`, roots.length, 5, `sessions in ${project.name}`)}</>}
+      {more(`project:${project.id}`, roots.length, 5, `sessions in ${project.name}`)}
+      {!matches && !pinned.length && !roots.length && !boardVisible && <p className="nav-empty nav-empty-nested">No sessions</p>}</>}
     </section>;
   };
   // Archived lists only projects with archived sessions; Issues only projects whose Kanban has issues.
@@ -605,7 +617,9 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
           }
         }}
         aria-description="Click to collapse or expand. Right-click or Shift+F10 for group actions. Drop a project here to add it to this group."><span className="folder-icon" style={{ color: groupColor(group) }}><Icon name={collapsedFolders.has(group.id) ? "Files" : "FolderOpen"} /></span><span className="folder-name">{group.name}</span>
-      </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}</details>)}
+      </summary>{generalTree(null, group.id)}{projects.filter((project) => folder(project).folderId === group.id).map(renderProject)}
+        {!matches && !general.some((session) => session.projectFolderId === group.id) && !projects.some((project) => folder(project).folderId === group.id) &&
+          <p className="nav-empty nav-empty-nested">No sessions</p>}</details>)}
     </>}
     {searchResults && !searchResults.count && !projects.length && <p className="nav-empty">{statusFilters.length ?
       "No sessions match these filters. Change a status or reset filters." : "Try another chat or project name, or clear the search."}</p>}
