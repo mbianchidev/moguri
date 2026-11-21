@@ -137,6 +137,23 @@ answers or approves anything.
 Desktop, TUI (`/automations`, F9) and CLI (`moguri automations`, YAML/JSON
 workflow files) share the same state.
 
+[Dependency roundups](architecture/dependency-roundups.md) (protocol 119) group
+open Dependabot, Renovate and other update-bot PRs from the My Work sources you
+choose, by package, keeping every PR's identity, sources and CI/review state.
+Security notes come only from each PR's labels, title and advisory links, and
+"likely breaking" is a labelled heuristic; no model is called and nothing is
+installed, pushed or merged. Roundups refresh manually or on a #6 schedule;
+each run owns one My Work refresh and stopping it stops only that read. Desktop
+**Dashboard > Dependencies**, `/roundups` and `moguri roundups`.
+
+[Personas](architecture/personas.md) (protocol 119) are named `@handle`
+definitions (instructions, scope, model, read-only or writable tools, skills,
+budget, time limit, output) that start off. Tagging an enabled persona in a
+message starts it in a linked subsession under Manual autonomy; the tagging
+chat orchestrates and receives its reply. Presets: Product Manager,
+Maintenance and Docs. An automation that tags a persona runs it on a schedule.
+Desktop **Personas**, `/personas` and `moguri personas`.
+
 The owner-requested [protocol-41 platform extension](architecture/platform-workflows.md)
 adds **Sky/Terra/Glacier knowledge**, reviewed lifecycle hooks and immutable
 repository-backed marketplace bundles. Imports/updates/rollbacks stay disabled;

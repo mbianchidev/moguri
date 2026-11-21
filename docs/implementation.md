@@ -993,13 +993,20 @@ These ideas remain part of the long-term vision but are not first-milestone requ
 
 - a Moguri metachat for changing settings, inspecting state, explaining failures, and troubleshooting the harness itself;
 - scheduled CI watching;
-- dependency roundups covering Dependabot, Renovate, and other update bots;
+- dependency roundups covering Dependabot, Renovate, and other update bots (delivered as read-only, model-free [dependency roundups](architecture/dependency-roundups.md) in protocol 119);
 - a **My work** workflow for open pull requests, pending reviews, broken CI, and unresolved comments;
 - scheduled prompts (one-time prompts, and recurring [automations](architecture/automations.md) since protocol 115);
 - agentic workflows combining prompts and explicit scripts through a readable workflow syntax (delivered as [automations](architecture/automations.md));
 - optional delegation of scheduled workflows to a server while retaining the same policy, budget, event, and artifact model.
 
 ### Continuous modes and taggable agent personas
+
+> Delivered in protocol 119 as opt-in [personas](architecture/personas.md)
+> (D67): disabled-by-default definitions with `@` handles, Product Manager,
+> Maintenance and Docs presets, tagging from messages, queued work and
+> automation steps, and linked Manual subsessions under the tagging chat. The
+> examples below describe intent; each persona still needs the applicable
+> explicit authorization for analytics, external data, pushes and merges.
 
 Continuous modes run as named agent personas with stable, configurable `@` handles. Users and other agents can tag a persona in messages, queued work, session groups, or workflows to request work, provide context, steer execution, or transfer ownership. Each mention resolves through the active profile and project so permissions, budgets, integrations, memory, and repository scope remain explicit.
 

@@ -872,6 +872,56 @@ or deleting it never answers, approves, stops or reruns anything, and your
 in-app and OS notification settings apply. The CLI and TUI show the same
 entries with `moguri inbox list` and `/inbox`.
 
+## Dependency update roundups
+
+A roundup groups open dependency and security update PRs from Dependabot,
+Renovate and other bots you name, across the My Work sources you choose
+([contract](architecture/dependency-roundups.md)). Configure the repositories in
+My Work first; a roundup never reads anything else.
+
+- **Desktop:** **Dashboard > Dependencies > Set up roundups**: tick My Work
+  sources, edit the bot logins, optionally pick a schedule, then **Save roundup
+  settings**. **Refresh roundup** reads the sources now; **Stop** stops only that
+  read. The **On schedule** switch saves immediately. Each group shows the
+  package, ecosystems and target versions with **Security reported**, **Likely
+  breaking** and failing-check marks; each PR has **Open on GitHub** and **Open
+  in My Work**, where a reviewed follow-up creates an idle chat.
+- **TUI and slash:** `/roundups` shows the roundup; `/roundups refresh`,
+  `stop RUN_ID`, `configure SOURCE_IDS [BOTS]` and `schedule on|off`.
+- **CLI:** `moguri roundups [--json]`, `refresh`, `wait RUN_ID`, `stop RUN_ID`,
+  `configure SOURCE_IDS [BOTS]`, `schedule on|off` and `schedule set FILE` (the
+  automation schedule syntax, for example `kind: daily`, `time: "09:00"`,
+  `timeZone: Europe/Rome`).
+
+Roundups never call a model and never install, push, rebase or merge. A PR
+without advisory labels or links shows "No advisory information", which does
+not mean the package is secure. Rate limits, revoked access and partial reads
+stay visible per source and mark the roundup incomplete.
+
+## Personas
+
+Personas are named helpers you tag with `@handle`
+([contract](architecture/personas.md)). They start off.
+
+- **Desktop:** **Personas** (next to Automations): **Add Product Manager**,
+  **Add Maintenance**, **Add Docs** or **New persona**, then turn on its **On**
+  switch. Each card shows where it can be tagged, its model, tools, budget, time
+  limit and recent runs with **Open tagging chat**, **Open persona chat** and
+  **Stop**.
+- **TUI and slash:** `/personas`, `/personas add docs`, `/personas enable @docs`,
+  `pause`, `delete [stop-running]` and `stop RUN_ID`.
+- **CLI:** `moguri personas list|runs|presets|add PRESET|create FILE|update
+  HANDLE FILE|enable|pause HANDLE|delete HANDLE [--stop-running]|stop RUN_ID`.
+
+Write `@docs` or `@product-manager` in any message to an agent chat. Each
+enabled persona you tag (up to 8) starts in its own subsession under that chat,
+under Manual autonomy, with its model and the stricter of its budget and the
+chat's. The chat gets a notice and, later, the persona's reply. Tagging grants
+no permission: approvals, hard policy and allowed Envs still apply, and you can
+stop, intervene in or delete a persona's chat like any other. Mentions in code,
+emails and file paths don't count. To run a persona on a schedule, create an
+automation whose prompt tags it.
+
 ## Interrupted chats after a restart
 
 When Moguri quits, restarts or crashes while a chat is working, it records the
