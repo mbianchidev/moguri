@@ -264,7 +264,7 @@ function MetaPicker({ sdk, scope, selection, kind, label, icon, values, disabled
       <Icon name={icon} />{values.length ? <><span className="pr-meta-chip-label">{label}</span><span>{values.join(", ")}</span></> : <span>{label}</span>}</button>
     {menu && <AnchoredMenu label={label} trigger={trigger} close={() => setMenu(false)} className="pr-meta-menu">
       <input type="search" aria-label={`Filter ${label.toLowerCase()}`} placeholder={`Filter ${label.toLowerCase()}`} value={query} onChange={(event) => setQuery(event.target.value)} />
-      {error && <p className="inline-error">{error}</p>}
+      {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       {!options && !error && <p className="fine-print" role="status">Loading...</p>}
       <div role="group" aria-label={label}>{names.map((name) => {
         const selected = values.includes(name);
