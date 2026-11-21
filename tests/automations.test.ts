@@ -1,17 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
-  MoguriSdk, describeAutomationSchedule, dueAutomationOccurrences, executeAutomationsCommand, nextAutomationOccurrence, parseAutomationWorkflow, validateAutomation,
-  type AutomationDefinition, type AutomationRun, type AutomationSchedule,
+  MoguriSdk, attentionDescription, describeAutomationSchedule, dueAutomationOccurrences, executeAutomationsCommand, nextAutomationOccurrence, parseAutomationWorkflow, validateAutomation,
+  type Attention, type AutomationDefinition, type AutomationRun, type AutomationSchedule, type Snapshot,
 } from "../packages/sdk/src/index.ts";
 import { startService } from "../apps/service/src/server.ts";
 import { EventStore } from "../apps/service/src/store.ts";
 import { projectEvents } from "../packages/protocol/src/index.ts";
 import { setupFixture, waitFor } from "./fixture.ts";
 import { GeneratedIntakeClock } from "./fixtures/intake-clock.ts";
+import { AttentionNotifier, notificationToneAllowed, type Banner } from "../apps/desktop/src/notifications.ts";
 import { initializeGeneratedRepository } from "./fixtures/git-project.ts";
 
 const at = (value: string) => Date.parse(value);
@@ -39,11 +40,14 @@ test("automation schedules resolve DST gaps and overlaps, weekdays and intervals
   const scripted: AutomationDefinition = { name: "Generated", schedule: hourly, steps: [{ kind: "script", path: "scripts/check.sh", interpreter: "sh" }] };
   assert.throws(() => validateAutomation(scripted, "Remote"), /must use Local/);
   assert.doesNotThrow(() => validateAutomation(scripted, "Local"));
+  assert.throws(() => validateAutomation(scripted, "Local", false), /Choose a project/);
+  assert.doesNotThrow(() => validateAutomation({ ...scripted, steps: [{ kind: "prompt", text: "Generated project-free step." }] }, "Local", false));
   assert.throws(() => validateAutomation({ ...scripted, schedule: { ...hourly, timeZone: "Generated/Invalid" } }, "Local"), /timezone/);
   assert.throws(() => validateAutomation({ ...scripted, schedule: { ...once, offsetMinutes: 60 } }, "Local"), /DST|offset/);
 });
 
 const prompts = (...texts: string[]): AutomationDefinition["steps"] => texts.map((text) => ({ kind: "prompt" as const, text }));
+const runEntries = (snapshot: Pick<Snapshot, "attention">, runId: string): Attention[] => snapshot.attention.filter((entry) => entry.reason === "automation" && entry.messageId === runId);
 
 test("explicit activation gates automations; each recurring run gets a new chat and chains its prompt steps", { skip: process.platform !== "darwin" }, async () => {
   const clock = new GeneratedIntakeClock(), fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128, platform: { intakeClock: clock } });
@@ -81,6 +85,74 @@ test("explicit activation gates automations; each recurring run gets a new chat 
   } finally { sdk.disconnect(); await fixture.close(); }
 });
 
+test("a project-free automation runs as an ordinary Home-bound chat, and each run's start and outcome reach Inbox without answering or approving", { skip: process.platform !== "darwin" }, async () => {
+  const clock = new GeneratedIntakeClock(), fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128, platform: { intakeClock: clock } });
+  const sdk = await new MoguriSdk(fixture.service.connection).ready();
+  try {
+    await fixture.configure(); await sdk.refresh();
+    const projects = fixture.service.controller.snapshot().projects.map((project) => project.id), controls = { modelId: fixture.modelId };
+    const schedule: AutomationSchedule = { kind: "daily", time: "09:00", timeZone: "UTC" };
+    await assert.rejects(() => sdk.automations.create(null, { name: "Generated project-free script", schedule,
+      steps: [{ kind: "script", path: "scripts/generated.sh", interpreter: "sh" }] }, { enabled: true, controls }), /Choose a project/);
+    const created = await sdk.automations.create(null, { name: "Generated project-free digest", schedule,
+      steps: prompts("Generated project-free step one.", "Generated project-free step two.") }, { enabled: false, controls });
+    await sdk.refresh();
+    const automation = sdk.automations.list()[0]!;
+    assert.equal(automation.projectId, null); assert.equal(automation.controls.env, "Local");
+    assert.deepEqual(sdk.automations.list(null).map((value) => value.id), [created.id]);
+    assert.equal(sdk.automations.list(fixture.session().projectId!).length, 0);
+    await sdk.automations.runNow(created.id!);
+    await waitFor(() => fixture.service.controller.snapshot().automationRuns[0]?.status === "completed");
+    const snapshot = fixture.service.controller.snapshot(), run = snapshot.automationRuns[0]!;
+    const chat = snapshot.sessions.find((session) => session.id === run.sessionId)!;
+    assert.equal(run.projectId, null); assert.equal(chat.projectId, null); assert.equal(chat.workspaceId, null);
+    assert.equal(chat.homeRoot?.root, await realpath(fixture.home), "the run's chat has the captured Home binding of any project-free Local chat");
+    assert.deepEqual(snapshot.projects.map((project) => project.id), projects, "no synthetic or inherited project");
+    assert.deepEqual(chat.messages.filter((message) => message.role === "user").map((message) => message.text), ["Generated project-free step one.", "Generated project-free step two."]);
+    const raised = () => fixture.service.controller.events(0).flatMap((event) => event.event_type === "attention.raised" && event.payload.attention.reason === "automation" ? [event.payload.attention] : []);
+    assert.deepEqual(raised().map((entry) => [entry.messageId, entry.automation?.status, entry.sessionId, entry.projectId, entry.kind]),
+      [[run.id, "running", chat.id, null, "bell"], [run.id, "completed", chat.id, null, "done"]]);
+    await sdk.refresh();
+    const listed = sdk.attention.list({ type: "automation" });
+    assert.equal(listed.length, 1, "the outcome replaces the run's start entry");
+    const entry = listed[0]!;
+    assert.equal(entry.automation?.status, "completed"); assert.equal(entry.automation?.runRevision, run.revision); assert.equal(entry.sessionId, chat.id);
+    assert.match(attentionDescription(entry, sdk.getState().snapshot!), /"Generated project-free digest" completed its run/);
+    assert.equal(sdk.attention.list({ type: "automation", query: "project-free digest" }).length, 1);
+    const current = sdk.getState().snapshot!, banners: Banner[] = [];
+    const notifying = (previewContent: boolean): Snapshot => ({ ...current, settings: { ...current.settings, values: { ...current.settings.values,
+      notifications: { ...current.settings.values.notifications, os: true, previewContent } } } });
+    for (const preview of [false, true]) new AttentionNotifier(0).observe(notifying(preview), fixture.service.controller.events(0), false, (banner) => { if (banner.id === entry.id) banners.push(banner); });
+    assert.deepEqual(banners.map((banner) => [banner.sessionId, banner.inbox, banner.body]), [[chat.id, undefined, "An automation run completed."],
+      [chat.id, undefined, "Automation \"Generated project-free digest\" completed its run."]], "OS banners follow the existing preview setting and open the run's chat");
+    assert.equal(notificationToneAllowed(notifying(false), { sessionId: chat.id, kind: "needs-input", soundId: "default", attentionId: entry.id }, false), false);
+    const requests = fixture.requests.length, messages = chat.messages.length;
+    await sdk.attention.acknowledge([entry.id]); await sdk.refresh();
+    assert.deepEqual(sdk.attention.list({ type: "automation", state: "read" }).map((value) => value.id), [entry.id]);
+    const read = fixture.service.controller.snapshot();
+    assert.equal(read.attention.find((value) => value.id === entry.id)?.active, true, "reading an entry does not resolve it");
+    assert.equal(read.automationRuns[0]?.revision, run.revision); assert.equal(fixture.requests.length, requests);
+    assert.equal(read.sessions.find((session) => session.id === chat.id)?.messages.length, messages);
+    const events = fixture.service.controller.events(0);
+    const original = events.findLast((event) => event.event_type === "attention.raised" && event.payload.attention.reason === "automation")!;
+    assert.ok(original.event_type === "attention.raised");
+    const forged = { ...original, seq: events.at(-1)!.seq + 1, id: "generated-forged-automation-event",
+      payload: { attention: { ...original.payload.attention, id: "generated-forged-automation-entry", automation: { ...original.payload.attention.automation!, status: "failed" as const } } } };
+    assert.throws(() => projectEvents([...events, forged]), /automation Inbox entry/);
+
+    await sdk.automations.enable(created.id!); await sdk.refresh();
+    clock.advanceBy(86_400_000);
+    await waitFor(() => fixture.service.controller.snapshot().automationRuns.filter((value) => value.status === "completed").length === 2);
+    const scheduled = fixture.service.controller.snapshot().automationRuns.find((value) => value.id !== run.id)!;
+    assert.equal(scheduled.trigger, "schedule"); assert.equal(scheduled.projectId, null);
+    assert.notEqual(scheduled.sessionId, chat.id, "every run starts its own project-free chat");
+    assert.equal(fixture.service.controller.snapshot().sessions.find((session) => session.id === scheduled.sessionId)?.projectId, null);
+    await sdk.refresh();
+    assert.deepEqual(sdk.attention.list({ type: "automation" }).map((value) => [value.messageId, value.automation?.status]).sort(),
+      [[run.id, "completed"], [scheduled.id, "completed"]].sort());
+  } finally { sdk.disconnect(); await fixture.close(); }
+});
+
 test("an overlapping occurrence is skipped while a run is active, and Stop ends the run without later steps", { skip: process.platform !== "darwin" }, async () => {
   const clock = new GeneratedIntakeClock(), fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128, platform: { intakeClock: clock } });
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
@@ -104,6 +176,10 @@ test("an overlapping occurrence is skipped while a run is active, and Stop ends 
     const stopped = fixture.service.controller.snapshot().automationRuns.find((run) => run.id === active!.id)!;
     assert.deepEqual(stopped.progress.map((step) => step.status), ["stopped", "skipped"]);
     assert.equal(fixture.requests.length, 1);
+    const inbox = fixture.service.controller.snapshot();
+    assert.deepEqual(runEntries(inbox, skipped!.id).map((entry) => [entry.automation?.status, entry.sessionId, entry.active]), [["skipped", null, true]]);
+    assert.deepEqual(runEntries(inbox, active!.id).map((entry) => [entry.automation?.status, entry.sessionId, entry.active]),
+      [["running", active!.sessionId, false], ["stopped", active!.sessionId, true]]);
     await sdk.refresh();
     await sdk.automations.delete(created.id!); await sdk.refresh();
     assert.equal(sdk.automations.list().length, 0); assert.equal(sdk.automations.runs().length, 0);
@@ -134,6 +210,7 @@ test("missed occurrences coalesce into one run after restart, and interrupted ru
     const store = new EventStore(join(stateDir, "state.sqlite"), fixture.retentionKey);
     const state = projectEvents(store.events()), stopped = state.automationRuns.find((run) => run.id === first.id)!;
     assert.equal(stopped.status, "stopped", "a graceful shutdown stops the active step instead of leaving it to replay");
+    assert.deepEqual(runEntries(state, first.id).map((entry) => [entry.automation?.status, entry.active]), [["running", false], ["stopped", true]]);
     const automation = state.automations[0]!, chat = fixture.sessionId, turnId = "generated-automation-turn", itemId = "generated-automation-item";
     const runEvent = (run: AutomationRun) => ({ event_type: "automation.run_recorded" as const, profile_id: "default", project_id: run.projectId, payload: { run } });
     const base = { ...first, trigger: "manual" as const, missed: 0, revision: 0, status: "starting" as const, sessionId: null, progress: [{ status: "pending" as const, itemId: null, turnId: null }] };
@@ -152,6 +229,8 @@ test("missed occurrences coalesce into one run after restart, and interrupted ru
     assert.match(runs.find((run) => run.id === creating.id)!.diagnostic!, /restarted while this run was creating/);
     assert.equal(runs.find((run) => run.id === queued.id)?.status, "partial");
     assert.deepEqual(runs.find((run) => run.id === queued.id)?.progress.map((step) => step.status), ["partial"]);
+    assert.deepEqual(runEntries(reopened.controller.snapshot(), creating.id).map((entry) => [entry.automation?.status, entry.sessionId]), [["partial", null]]);
+    assert.deepEqual(runEntries(reopened.controller.snapshot(), queued.id).map((entry) => [entry.automation?.status, entry.sessionId]), [["partial", chat]]);
     clock.advanceBy(0); await new Promise((resolve) => setTimeout(resolve, 200));
     assert.equal(fixture.requests.length, 1);
     assert.equal(reopened.controller.events(0).filter((event) => event.event_type === "queue.enqueued" && event.payload.item.automation?.runId === first.id).length, 1);
@@ -175,6 +254,9 @@ test("a script step runs the exact repository-trusted entrypoint without a model
     await sdk.automations.runNow(created.id!);
     await waitFor(() => fixture.service.controller.snapshot().automationRuns[0]?.status === "blocked");
     assert.match(fixture.service.controller.snapshot().automationRuns[0]!.diagnostic!, /repository trust/);
+    const blocked = runEntries(fixture.service.controller.snapshot(), fixture.service.controller.snapshot().automationRuns[0]!.id);
+    assert.deepEqual(blocked.map((entry) => [entry.automation?.status, entry.sessionId, entry.kind]), [["blocked", null, "bell"]]);
+    assert.match(attentionDescription(blocked[0]!, fixture.service.controller.snapshot()), /was blocked.*repository trust/);
     const { preview } = await sdk.repositoryTrust.preview(projectId);
     await sdk.repositoryTrust.trust(preview); await sdk.refresh();
     await sdk.automations.runNow(created.id!);

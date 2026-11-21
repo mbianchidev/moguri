@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { describeActivityCall, type Snapshot, type ToolCall } from "../../../packages/sdk/src/index.ts";
+import { describeActivityCall, playwrightBrowserNote, type Snapshot, type ToolCall } from "../../../packages/sdk/src/index.ts";
 
 const value = (input: unknown): ReactNode => {
   if (typeof input === "string") return input.includes("\n") || input.length > 120 ? <pre>{input}</pre> : <code>{input}</code>;
@@ -12,10 +12,12 @@ export function ApprovalCall({ call, snapshot, boundary }: { call: ToolCall; sna
   const { label, subject } = describeActivityCall(call, snapshot);
   const subjectKey = subject === null ? null : Object.entries(call.arguments).find(([, input]) => input === subject)?.[0] ?? null;
   const entries = Object.entries(call.arguments).filter(([key]) => key !== subjectKey);
+  const browser = playwrightBrowserNote(call, snapshot.settings.values.integrations?.stainless);
   return <>
     <div className="approval-summary"><strong>{label}</strong><span className="approval-tool">{call.name}</span></div>
     {subject !== null && (subject.includes("\n") || subject.length > 120 ? <pre className="approval-subject">{subject}</pre> : <code className="approval-subject">{subject}</code>)}
     {boundary && <p className="approval-boundary">{boundary}</p>}
+    {browser && <p className="approval-boundary">{browser}</p>}
     {entries.length > 0 && <dl className="approval-args" aria-label="Exact arguments">
       {entries.map(([key, input]) => <Fragment key={key}><dt>{key}</dt><dd>{value(input)}</dd></Fragment>)}
     </dl>}

@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
-import { openModelChoices } from "./navigation.ts";
+import { openModelChoices, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop execution is qualified on macOS.");
@@ -21,8 +21,7 @@ test("local model setup is independent of Copilot and startup controls are inher
     expect(fixture.provider.state.status).toBe("disconnected");
     await expect(page.locator(".nav-footer").getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Local models", exact: true }).click();
+    await openSettingsSection(page, "Local models");
     await page.getByLabel("Local model endpoints", { exact: true }).fill(JSON.stringify([{ id: "generated-ui-local", name: "Generated local endpoint", enabled: true, baseUrl: `${fixture.baseUrl}/v1`, auth: "none", models: [{ id: fixture.modelId, name: "Generated local solver", contextWindow: fixture.contextWindow, maxTokens: 4096, imageInput: false }] }]));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.provider.models.some((model) => model.source === "local")).toBe(true);
@@ -45,10 +44,10 @@ test("local model setup is independent of Copilot and startup controls are inher
     await expect(info).toContainText("10 read / 0 write");
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await categories.getByRole("button", { name: "Startup defaults", exact: true }).click();
+    await openSettingsSection(page, "Startup defaults");
     await page.getByRole("button", { name: "Use current controls for this profile", exact: true }).click();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
-    await categories.getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     await page.getByLabel("Project startup control overrides", { exact: true }).fill('{"modelOptions":{"contextWindow":16384}}');
     await page.getByRole("button", { name: "Save project settings", exact: true }).click();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();

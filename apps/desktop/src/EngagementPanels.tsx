@@ -43,7 +43,7 @@ export function SuggestionsPanel({ sdk, session, snapshot, allProjects: initialA
         <p className="fine-print">A reviewed script can do these the same way every time. Local phrase match, not a model verdict.</p>
         {preview.tools.filter((tool) => !tool.installed).map((tool) => <article className="suggestion-hint" key={tool.name}><strong>{tool.title}</strong>
           <p><code>{tool.name}</code> / asked in {tool.count} chats</p><small>“{tool.example}”</small></article>)}
-        {openTools && <button type="button" onClick={openTools}>Write these in Customize / Tools</button>}</section>}
+        {openTools && <button type="button" onClick={openTools}>Write these in Capabilities / Tools</button>}</section>}
       <h3>Usage gaps</h3>{preview.gaps.length ? preview.gaps.map((gap) => <article className="suggestion-hint" key={gap.id}><strong>{gap.title}</strong><p>{gap.detail}</p></article>) : <p className="fine-print">No gaps detected by the current local checks. This is not a workflow-quality score.</p>}
       {preview.repeated.length > 0 && <><h3>Repeated guidance</h3>{allProjects && <p className="fine-print">Cross-project hints can become proposals in a settings chat after you approve the source scope below.</p>}{preview.repeated.map((hint) => <article className="suggestion-hint" key={hint.text}><p>{hint.text}</p><small>{hint.count} previous sessions / local phrase match, not a model verdict</small><button disabled={busy || allProjects || !session} onClick={() => {
         setBusy(true); setError("");
@@ -124,7 +124,7 @@ function ConfigurationReview({ sdk, id, close }: { sdk: MoguriSdk; id: string; c
     </>}
   </dialog>;
 }
-export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork, openTools }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void; openTools?: () => void }) {
+export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork, openTools, openAutomations }: { sdk: MoguriSdk; snapshot: Snapshot; chooseSession: (id: string) => Promise<void>; chooseWork?: (id: string) => void; openTools?: () => void; openAutomations?: () => void }) {
   const [error, setError] = useState("");
   const [filters, setFilters] = useState<AttentionFilters>({});
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork, openT
       <button type="button" className="quiet" onClick={() => setFilters({})}>Clear filters</button>
     </div>
     <p className="fine-print" role="status">{filtered.length} of {active.length} notifications</p>
-    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length ? <p className="fine-print">No notifications. Questions, approvals and completed work appear here. Reading or deleting never answers or approves.</p> :
+    {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}{!active.length ? <p className="fine-print">No notifications. Questions, approvals, completed work and automation runs appear here. Reading or deleting never answers or approves.</p> :
       !filtered.length && <p className="fine-print">No matching notifications. Clear the filters to see all pending work.</p>}
     {visible.map((entry) => {
       const session = snapshot.sessions.find((session) => session.id === entry.sessionId);
@@ -183,6 +183,7 @@ export function AttentionPanel({ sdk, snapshot, chooseSession, chooseWork, openT
       const work = entry.myWork ? snapshot.myWorkRefreshes.find((refresh) => refresh.id === entry.myWork?.refreshId)?.attention.find((value) => value.itemId === entry.messageId) : undefined;
       return <article className={`attention-item ${group.every((other) => other.acknowledged) ? "read" : "unread"}`} key={entry.reason === "script-review" ? `scripts:${entry.sessionId}` : entry.id}><Icon name={entry.kind === "question" ? "Question" : entry.kind === "done" ? "Waiting" : "Attention"} />
         <div>{entry.reason === "tool-suggestion" ? <button className="quiet" disabled={!openTools} onClick={() => openTools?.()}>Suggested tool: {entry.messageId}</button> :
+          entry.automation && !session ? <button className="quiet" disabled={!openAutomations} onClick={() => openAutomations?.()}>Automation: {entry.automation.name}</button> :
           <button className="quiet" disabled={work ? !chooseWork : !session} onClick={() => {
           if (work) chooseWork?.(work.itemId); else if (entry.sessionId) void chooseSession(entry.sessionId);
         }}>{work ? `${work.repository}#${work.number}` : session?.title ?? "Session removed"}</button>}

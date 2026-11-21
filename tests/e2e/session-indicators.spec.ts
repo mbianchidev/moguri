@@ -58,7 +58,8 @@ test("live work, real questions and permission pauses override merged PRs and re
     await expect(progress).toBeVisible(); await expect(progress.locator("svg")).toHaveAttribute("data-icon", "Progress");
     await expect(dot).toHaveCSS("animation-name", "session-blue-pulse");
     await expect(progress.locator("svg")).toHaveCSS("animation-name", "session-status-spin");
-    await expect(link.locator('[data-icon="PRMerged"]')).toHaveCount(0);
+    // D65: with every PR merged, the purple merged mark stays beside the running session.
+    await expect(link.locator('.session-pr-icon [data-icon="PRMerged"]')).toHaveCount(1);
     await contrast(progress); await contrast(dot, "backgroundColor");
     await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(dot).toHaveCSS("animation-name", "none"); await expect(progress.locator("svg")).toHaveCSS("animation-name", "none");
@@ -117,7 +118,7 @@ test("completed rows show checks plus green open or gray draft PRs, while only a
     const link = (id: string) => navigation.getByRole("button", { name: sdk.getState().snapshot!.sessions.find((session) => session.id === id)!.title, exact: true });
     const draftLink = link(draft.id!), draftIcon = draftLink.getByRole("img", { name: "Attached pull request is draft", exact: true });
     await draftLink.click(); await expect(draftLink).toHaveAttribute("aria-description", /Session completed; Attached pull request is draft/);
-    await expect(draftLink.locator('[data-icon="Check"]')).toHaveCount(1); await expect(draftIcon.locator("svg")).toHaveAttribute("data-icon", "PR");
+    await expect(draftLink.locator('[data-icon="Check"]')).toHaveCount(1); await expect(draftIcon.locator("svg")).toHaveAttribute("data-icon", "PRDraft");
     const gray = await contrast(draftIcon), channels = gray.match(/\d+/g)!.map(Number);
     expect(Math.max(...channels) - Math.min(...channels)).toBeLessThanOrEqual(40);
     const openLink = link(open.id!), openIcon = openLink.getByRole("img", { name: "Attached pull request is open", exact: true });
@@ -128,7 +129,8 @@ test("completed rows show checks plus green open or gray draft PRs, while only a
     await draftLink.hover(); await contrast(draftIcon);
     const closedLink = link(closed.id!);
     await expect(closedLink.getByRole("img", { name: "Attached pull request is closed, not merged", exact: true })).toBeVisible();
-    await expect(closedLink.locator('[data-icon="PRMerged"]')).toHaveCount(0);
+    // D65: once every PR is closed, merged or not, the session shows the purple merged mark.
+    await expect(closedLink.locator('[data-icon="PRMerged"]')).toHaveCount(1);
     const mergedLink = link(merged.id!), mergedIcon = mergedLink.getByRole("img", { name: "Attached pull request merged", exact: true });
     await mergedLink.click(); await expect(mergedIcon.locator("svg")).toHaveAttribute("data-icon", "PRMerged");
     await expect(mergedLink.locator('[data-icon="Check"]')).toHaveCount(0);

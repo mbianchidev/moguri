@@ -3,6 +3,7 @@ import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
+import { GroupedModelList, modelPriceText } from "./GroupedModelList.tsx";
 
 type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string } | { kind: "refresh" };
 export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
@@ -20,6 +21,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
   };
   if (!catalogue) return <p role="status">Loading providers...</p>;
   const providerName = (id?: string) => catalogue.providers.find((provider) => provider.id === id)?.name ?? id ?? "Unknown provider";
+  const entries = new Map(catalogue.models.map((model) => [model.apiModelId, model] as const));
   const models = catalogue.models.filter((model) => fuzzyMatch(search, `${model.name} ${model.apiModelId} ${model.offerings.map((entry) => providerName(entry.model.providerId)).join(" ")}`));
   return <section className="model-availability" aria-label="Provider and model availability">
     <div className="provider-section-header">
@@ -41,8 +43,16 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
     <label className="setting-field">Search models<SettingsInput type="search" aria-label="Search model availability" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Model, ID or provider" /></label>
     <p className="fine-print">{catalogue.models.filter((model) => model.diagnostic === null).length} selectable / {catalogue.models.length} known model{catalogue.models.length === 1 ? "" : "s"}.</p>
     <p className="fine-print" role="status" aria-label="Model availability saving">{change?.kind === "refresh" ? "Refreshing available models..." : busy ? "Saving availability..." : "Changes save automatically."}</p>
-    {models.map((model) => <div className="model-availability-row" role="group" aria-label={`Model ${model.apiModelId}`} key={model.apiModelId}>
+    <GroupedModelList label="Models by provider" query={search} priceInRow emptyText="No models yet. Sign in or configure a provider."
+      items={models.map((model) => {
+        // One row per model, under the provider that serves it: the chosen source, else the first available offering.
+        const offering = model.offerings.find((entry) => entry.model.id === model.sourceModelId) ?? model.offerings.find((entry) => entry.available) ?? model.offerings[0]!;
+        return { key: model.apiModelId, model: { ...offering.model, name: model.name }, provider: catalogue.providers.find((provider) => provider.id === offering.model.providerId) ?? null,
+          price: snapshot.modelPrices?.[offering.model.id] ?? null };
+      })}
+      row={(item) => { const model = entries.get(item.key)!; return <div className="model-availability-row" role="group" aria-label={`Model ${model.apiModelId}`}>
       <div><strong>{model.name}</strong><code>{model.apiModelId}</code>{model.diagnostic && <small>{model.diagnostic}</small>}</div>
+      <span className="model-price">{modelPriceText(item.price)}</span>
       {model.offerings.length > 1 || model.sourceModelId && !model.offerings.some((entry) => entry.model.id === model.sourceModelId) ?
         <label className="setting-field model-source-choice"><span className="sr-only">Provider for {model.apiModelId}</span><select aria-label={`Provider for ${model.apiModelId}`}
           value={change?.kind === "source" && change.apiModelId === model.apiModelId ? change.modelId : model.sourceModelId ?? ""} disabled={disabled || busy}
@@ -52,12 +62,11 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
           {model.offerings.map((entry) => <option key={entry.model.id} value={entry.model.id} disabled={!entry.available || !catalogue.providers.find((provider) => provider.id === entry.model.providerId)?.enabled}>
             {providerName(entry.model.providerId)} / {entry.available ? entry.model.environments?.join(", ") ?? "Local" : "not ready"}
           </option>)}
-        </select></label> : <span className="fine-print">{providerName(model.offerings[0]?.model.providerId)}</span>}
+        </select></label> : null}
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable model ${model.apiModelId}`}
         checked={change?.kind === "model" && change.id === model.apiModelId ? change.enabled : model.enabled} disabled={disabled || busy}
         onChange={(event) => { const enabled = event.target.checked; void run({ kind: "model", id: model.apiModelId, enabled }, () => sdk.models.setEnabled(model.apiModelId, enabled, snapshot.settings.revision)); }} /><span className="sr-only">Enable {model.name}</span></label>
-    </div>)}
-    {!models.length && <p className="fine-print">{search ? "No matching models." : "No models yet. Sign in or configure a provider."}</p>}
+    </div>; }} />
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
   </section>;
 }

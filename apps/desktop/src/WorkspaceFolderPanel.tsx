@@ -59,7 +59,7 @@ export function WorkspaceFolderPanel({ sdk, snapshot, onDirty }: { sdk: MoguriSd
     {error && <Alert as="p" role="alert">{error}</Alert>}
     {notice && <p role="status" className="fine-print">{notice}</p>}
     {!preview && <PathField label="Folder" ariaLabel="Workspace folder path" value={folderPath} onChange={setFolderPath} kind="folder"
-      choose={() => window.moguri.chooseProject("workspace")} chooseLabel="Choose folder…" chooseAriaLabel="Choose workspace folder"
+      choose={() => window.moguri.chooseProject("workspace")} chooseAriaLabel="Choose workspace folder"
       onChosen={(path) => void run((owned) => load(path, owned))} disabled={busy || !localAllowed} placeholder="~/workspace or /path/to/folder">
       <button type="button" disabled={busy || !localAllowed || !folderPath.trim()} onClick={() => void run((owned) => load(localPath(folderPath), owned))}>Find repositories</button>
     </PathField>}

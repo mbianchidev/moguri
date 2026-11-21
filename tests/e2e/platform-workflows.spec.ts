@@ -26,8 +26,7 @@ test("desktop reviews knowledge promotion, actual hook approval, repository mark
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const navigation = page.getByRole("navigation", { name: "Settings categories" });
-    await navigation.getByRole("button", { name: "Knowledge tiers", exact: true }).click();
+    await openSettingsSection(page, "Knowledge tiers");
     const knowledge = page.getByRole("region", { name: "Sky Terra Glacier knowledge", exact: true });
     await expect(knowledge).toContainText("Notes in model context: off.");
     await knowledge.getByLabel("Knowledge title", { exact: true }).fill("Generated UI Sky");
@@ -47,7 +46,7 @@ test("desktop reviews knowledge promotion, actual hook approval, repository mark
     expect((await sdk.knowledge.read(glacier.id)).text).toBe("Generated UI reviewed knowledge.");
     expect(fixture.requests.length).toBe(0);
 
-    await navigation.getByRole("button", { name: "Lifecycle hooks", exact: true }).click();
+    await openSettingsSection(page, "Lifecycle hooks");
     const hooks = page.getByRole("region", { name: "Reviewed lifecycle hooks", exact: true });
     await hooks.getByLabel("Hook definition JSON", { exact: true }).fill(JSON.stringify({ schemaVersion: 1, name: "generated-ui-hook", description: "Generated UI hook",
       trigger: "turn.start", command: "printf 'generated UI hook proof\\n'", timeoutMs: 2000 }));
@@ -82,7 +81,7 @@ test("desktop reviews knowledge promotion, actual hook approval, repository mark
     await expect(market.getByRole("status")).toContainText("installed and disabled");
     expect(fixture.service.controller.snapshot().registry.filter((entry) => entry.marketplace || entry.ownerPluginId).every((entry) => !entry.enabled)).toBe(true);
 
-    await navigation.getByRole("button", { name: "Guardrails", exact: true }).click();
+    await openSettingsSection(page, "Guardrails");
     await page.getByLabel("Global allowed environments", { exact: true }).selectOption("sandbox");
     await expect.poll(() => fixture.service.controller.snapshot().policy.allowedEnvs).toEqual(["Sandbox"]);
     expect(fixture.session().controls.env).toBe("Local");

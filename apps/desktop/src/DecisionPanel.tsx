@@ -1,6 +1,6 @@
 import { SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { activeDecision, type DecisionResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, activeDecision, type DecisionResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Status = Extract<DecisionResponse, { type: "decisions.status" }>;
@@ -13,12 +13,12 @@ export function useDecisionStatus(sdk: MoguriSdk, session: Session | undefined, 
   useEffect(() => {
     let current = true;
     if (enabled && session) void sdk.decisions.status(session.id).then((status) => { if (current) setValue({ key, status, error: "" }); })
-      .catch((error: unknown) => { if (current) setValue({ key, status: null, error: error instanceof Error ? error.message : "Couldn't check the decision provider, so Max is unavailable." }); });
+      .catch((error: unknown) => { if (current) setValue({ key, status: null, error: error instanceof Error ? error.message : "Couldn't check the decision provider, so Autopilot is unavailable." }); });
     return () => { current = false; };
   }, [sdk, key, enabled]);
   const result = value?.key === key ? value : null;
   return { status: result?.status ?? null, error: result?.error ?? "", ready: Boolean(result?.status?.ready),
-    reason: result?.error || result?.status?.reason || (session ? "Checking the decision provider..." : "Choose a chat to check Max readiness.") };
+    reason: result?.error || result?.status?.reason || (session ? "Checking the decision provider..." : "Choose a chat to check Autopilot readiness.") };
 }
 export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: MoguriSdk; snapshot: Snapshot; session?: Session; selection?: string }) {
   const [selectedId, setSelectedId] = useState(""), [read, setRead] = useState<Read | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
@@ -47,7 +47,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
     finally { pending.current = false; setBusy(false); }
   };
   return <section className="candidate-section" aria-label="Decision-provider observations" aria-busy={busy}>
-    <SettingsHelp label="More about this setting" target={<h3>Decision-provider history</h3>}>Lists each call Autopilot Max made to its decision provider. The model's advice can't grant permissions, approve changes or answer for you.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h3>Decision-provider history</h3>}>Lists each call Autopilot made to its decision provider. The model's advice can't grant permissions, approve changes or answer for you.</SettingsHelp>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <label className="setting-field">Decision<select aria-label="Retained decision" value={record?.id ?? ""} disabled={busy || Boolean(selection)} onChange={(event) => setSelectedId(event.target.value)}>
       {!records.length && <option value="">No decisions yet</option>}
@@ -56,7 +56,7 @@ export function DecisionPanel({ sdk, snapshot, session, selection }: { sdk: Mogu
     {record && <>
       <h4 ref={heading} tabIndex={-1}>Decision {record.status}</h4>
       <dl className="facts"><dt>Role / model</dt><dd>{record.role} / {record.modelId}</dd>
-        <dt>Env</dt><dd>{record.env}</dd>
+        <dt>Env</dt><dd>{envLabel(record.env)}</dd>
         {record.version === 2 && <><dt>Run / worker</dt><dd className="path">{record.transport.executionId} / {record.transport.workerDigest}</dd></>}
         <dt>Provider / API model</dt><dd>{record.providerId} / {record.apiModelId}</dd>
         <dt>Chat / turn</dt><dd className="path">{record.sessionId} / {record.turnId}</dd>

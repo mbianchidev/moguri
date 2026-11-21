@@ -166,7 +166,7 @@ test("Env settings appear on row hover or keyboard focus without changing Env or
     for (const name of ["Remote SSH setup", "Sandbox qualification", "Native workspace and results"]) {
       await expect(env.getByRole("button", { name, exact: true })).toHaveCount(0);
     }
-    const gear = env.getByRole("button", { name: "Remote settings", exact: true }), row = gear.locator("..");
+    const gear = env.getByRole("button", { name: "Remote host settings", exact: true }), row = gear.locator("..");
     await env.getByRole("heading").hover();
     await expect(gear).toHaveCSS("opacity", "0");
     await row.hover(); await expect(gear).toHaveCSS("opacity", "1");

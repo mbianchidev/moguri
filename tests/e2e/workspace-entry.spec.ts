@@ -98,8 +98,8 @@ test("project-free Autopilot stays permissionless and a side chat can explicitly
     const parentId = fixture.service.controller.snapshot().sessions.at(-1)!.id;
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
     const autonomy = page.getByRole("dialog", { name: "Autonomy level", exact: true });
-    await expect(autonomy.getByRole("button", { name: /^Autopilot Automatically approve/ })).toBeEnabled();
-    await autonomy.getByRole("button", { name: /^Autopilot Automatically approve/ }).click();
+    await expect(autonomy.getByRole("button", { name: /^Autonomous Automatically approve/ })).toBeEnabled();
+    await autonomy.getByRole("button", { name: /^Autonomous Automatically approve/ }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.find((session) => session.id === parentId)?.controls.autonomy).toBe("Autopilot");
     expect(fixture.service.controller.snapshot().settings.values.permissions).toEqual({ defaultDecision: "ask", tools: [], commands: [] });
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Side chat", exact: true }).click();

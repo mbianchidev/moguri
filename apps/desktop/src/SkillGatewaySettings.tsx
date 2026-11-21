@@ -9,10 +9,10 @@ import { Alert } from "./Alert.tsx";
 export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDirty, install }: {
   sdk: MoguriSdk; value: SkillSource[]; change: (sources: SkillSource[]) => void;
   dirty: boolean; disabled: boolean; onDirty: (dirty: boolean) => void;
-  /** Optional per-result action, such as the Customize tab's Install button. */
+  /** Optional per-result action, such as the Capabilities tab's Install button. */
   install?: (skill: GatewaySkill) => ReactNode;
 }) {
-  const [kind, setKind] = useState<"local" | "remote">("local"), [name, setName] = useState(""), [location, setLocation] = useState("");
+  const [kind, setKind] = useState<"local" | "personal" | "remote">("local"), [name, setName] = useState(""), [location, setLocation] = useState("");
   const [query, setQuery] = useState(""), [sourceId, setSourceId] = useState("");
   const [result, setResult] = useState<Awaited<ReturnType<MoguriSdk["skills"]["find"]>> | null>(null), [body, setBody] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -67,11 +67,15 @@ export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDi
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable skill source ${source.name}`} checked={source.enabled} disabled={disabled || busy}
         onChange={(event) => change(value.map((entry) => entry.id === source.id ? { ...entry, enabled: event.target.checked } : entry))} /><strong>{source.name}</strong></label>
       <code>{source.kind === "local" ? source.path : source.url}</code>
+      {source.kind === "remote" && <select aria-label={`Who publishes ${source.name}`} value={source.personal ? "personal" : "marketplace"} disabled={disabled || busy}
+        onChange={(event) => change(value.map((entry) => entry.id === source.id && entry.kind === "remote" ? { ...entry, personal: event.target.value === "personal" } : entry))}>
+        <option value="marketplace">Marketplace: trust each skill</option><option value="personal">Your repository: skills start on</option></select>}
       <button type="button" className="icon-button" aria-label={`Remove skill source ${source.name}`} disabled={disabled || busy}
         onClick={() => change(value.filter((entry) => entry.id !== source.id))}><Icon name="Trash" /></button>
     </article>)}
     <div className="skill-source-editor">
-      <label className="setting-field">Source type<select aria-label="Skill source type" value={kind} disabled={disabled || busy} onChange={(event) => setKind(event.target.value === "remote" ? "remote" : "local")}><option value="local">Local folder</option><option value="remote">GitHub repository or HTTPS ZIP</option></select></label>
+      <label className="setting-field">Source type<select aria-label="Skill source type" value={kind} disabled={disabled || busy} onChange={(event) => setKind(event.target.value === "remote" ? "remote" : event.target.value === "personal" ? "personal" : "local")}>
+        <option value="local">Local folder</option><option value="personal">Your GitHub repository (skills start on)</option><option value="remote">Marketplace: GitHub repository or HTTPS ZIP (trust each skill)</option></select></label>
       <label className="setting-field">Name<SettingsInput aria-label="Skill source name" value={name} maxLength={80} disabled={disabled || busy} onChange={(event) => setName(event.target.value)} /></label>
       {kind === "local" ? <PathField label="Folder" ariaLabel="Skill source location" value={location} kind="folder" title="Choose a skills folder" chooseAriaLabel="Choose skills folder"
         disabled={disabled || busy} placeholder="/path/to/skills or ~/skills" onChange={setLocation} /> :
@@ -79,7 +83,7 @@ export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDi
           placeholder="https://github.com/owner/skills" onChange={(event) => setLocation(event.target.value)} /></label>}
       <div className="button-row"><button type="button" disabled={disabled || busy || !name.trim() || !location.trim() || value.length >= 16} onClick={() => {
         change([...value, { id: crypto.randomUUID(), name: name.trim(), enabled: true,
-          ...(kind === "local" ? { kind: "local" as const, path: localPath(location) } : { kind: "remote" as const, url: location }) }]);
+          ...(kind === "local" ? { kind: "local" as const, path: localPath(location) } : { kind: "remote" as const, url: location, ...(kind === "personal" ? { personal: true } : {}) }) }]);
         setName(""); setLocation("");
       }}>Add source</button>
       {draft && <button type="button" className="quiet" onClick={() => { setName(""); setLocation(""); }}>Cancel new source</button>}</div>

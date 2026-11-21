@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { SCRIPT_TOOL_CONTRACT, TOOL_SCRIPT_NAME, toolScriptPrompt, type CapabilityEntry, type GatewaySkill, type MoguriSdk, type Proposal, type Snapshot, type ToolsetCatalog, type ToolSuggestion, type UserSettings } from "../../../packages/sdk/src/index.ts";
+import { McpInstallPanel } from "./McpInstallPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
+import { SkillList } from "./SkillList.tsx";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 
-export const skillsTabs = ["Skills", "Marketplace", "Tools"] as const;
+export const skillsTabs = ["Skills", "Marketplace", "MCP", "Tools"] as const;
 export type SkillsTab = typeof skillsTabs[number];
 const scopeLabel = (snapshot: Snapshot, projectId: string | null) => projectId === null ? "All projects" : snapshot.projects.find((project) => project.id === projectId)?.name ?? "Removed project";
 const originLabel = (entry: CapabilityEntry) => entry.ownerPluginId ? "Plugin bundle" : entry.marketplace ? "Repository marketplace" : entry.source === "approved-proposal" ? "Approved proposal" : "Installed by you";
@@ -90,13 +92,12 @@ function PendingProposals({ sdk, snapshot, kind }: { sdk: MoguriSdk; snapshot: S
   </section>;
 }
 
+/** Every known skill, grouped by where it came from and expanded here (D57); Settings / Skills shows the same list collapsed. */
 function InstalledSkills({ sdk, snapshot, openSettings }: { sdk: MoguriSdk; snapshot: Snapshot; openSettings: (tab: SettingsTab) => void }) {
-  const skills = snapshot.registry.filter((entry) => entry.kind === "skill");
   return <>
-    <p className="fine-print">Skills add instructions, not tool permissions. Switches save right away; a chat uses a skill only while it's on.</p>
     <div className="button-row"><button type="button" onClick={() => openSettings("skills")}>Import and review in Settings</button></div>
     <PendingProposals sdk={sdk} snapshot={snapshot} kind="skill" />
-    <CapabilityGroups sdk={sdk} snapshot={snapshot} entries={skills} label="Enable skill" empty="No skills installed yet. Browse the Marketplace tab or import a SKILL.md in Settings / Skills." />
+    <SkillList sdk={sdk} snapshot={snapshot} defaultExpanded />
   </>;
 }
 
@@ -109,7 +110,7 @@ function Marketplace({ sdk, snapshot, openSettings }: { sdk: MoguriSdk; snapshot
     if (snapshot.registry.some((entry) => entry.kind === "skill" && entry.projectId === projectId && entry.contentDigest === skill.digest)) return <span className="fine-print">Installed</span>;
     return <button type="button" className="primary" disabled={busy} aria-label={`Install ${skill.name}`} onClick={() => act(async () => {
       const result = await sdk.skills.install(projectId, skill.id, skill.digest);
-      return `${skill.name} is installed in ${scopeLabel(snapshot, projectId)} and off. Turn it on in Customize / Skills.${result.notice ? ` ${result.notice}` : ""}`;
+      return `${skill.name} is installed in ${scopeLabel(snapshot, projectId)} and off. Turn it on in Capabilities / Skills.${result.notice ? ` ${result.notice}` : ""}`;
     })}>Install</button>;
   };
   return <>
@@ -226,8 +227,8 @@ export function SkillsWorkspace({ sdk, snapshot, tab, setTab, openSettings, open
   openSettings: (tab: SettingsTab) => void; openSession: (id: string) => Promise<void>; openAutomations: () => void;
 }) {
   const index = skillsTabs.indexOf(tab);
-  return <section className="skills-workspace" aria-label="Customize">
-    <div className="pr-pane-tabs" role="tablist" aria-label="Customize sections" onKeyDown={(event) => {
+  return <section className="skills-workspace" aria-label="Capabilities">
+    <div className="pr-pane-tabs" role="tablist" aria-label="Capabilities sections" onKeyDown={(event) => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
       const next = event.key === "Home" ? 0 : event.key === "End" ? skillsTabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + skillsTabs.length) % skillsTabs.length;
@@ -237,6 +238,11 @@ export function SkillsWorkspace({ sdk, snapshot, tab, setTab, openSettings, open
     <div id="skills-tabpanel" role="tabpanel" aria-labelledby={`skills-tab-${tab}`} data-skills-tab={tab}>
       {tab === "Skills" && <InstalledSkills sdk={sdk} snapshot={snapshot} openSettings={openSettings} />}
       {tab === "Marketplace" && <Marketplace sdk={sdk} snapshot={snapshot} openSettings={openSettings} />}
+      {tab === "MCP" && <McpInstallPanel servers={snapshot.settings.values.mcpServers} disabled={false} openSettings={() => openSettings("mcpServers")} save={async (mcpServers) => {
+        const current = sdk.settings.get();
+        if (!current) throw new Error("Settings aren't loaded yet. Try again in a moment.");
+        await sdk.settings.update({ ...current.values, mcpServers }, current.revision);
+      }} />}
       {tab === "Tools" && <Tools sdk={sdk} snapshot={snapshot} openSession={openSession} openAutomations={openAutomations} />}
     </div>
   </section>;

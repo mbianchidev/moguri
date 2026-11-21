@@ -98,7 +98,7 @@ test("actual native desktop qualifies reviewed artifacts, stages exact source, a
     const panel = page.getByRole("region", { name: "Sandbox execution and reviewed publication", exact: true });
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
+    await openSettingsSection(page, "Sandbox");
     await page.getByText("Advanced manual configuration", { exact: true }).click();
     await page.getByLabel("SendBox configuration", { exact: true }).fill(JSON.stringify(fixture.reviewedConfiguration));
     await page.getByRole("button", { name: "Save settings", exact: true }).click();

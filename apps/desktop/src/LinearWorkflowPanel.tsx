@@ -180,7 +180,7 @@ export function LinearWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
     <header><h2>Linear workflows</h2><p>Local tickets stay local until you publish or push them.</p></header>
     <p className="fine-print">Profile {snapshot.profileId} · {enabled ? `Enabled team ${board.linear.teamId}` : "Off by default. Choose a team and add an API key in the board settings."}</p>
     {!snapshot.policy.allowedEnvs.includes("Local") && <p role="status">Your execution policy blocks Local, so Linear isn't available here.</p>}
-    {prohibitedSession && <p role="status">This session is Remote, a side chat or read-only, so it can't change Linear or local tickets.</p>}
+    {prohibitedSession && <p role="status">This session runs on a Remote host, is a side chat or is read-only, so it can't change Linear or local tickets.</p>}
     {(error || notice) && <Alert as="p" className={`notice ${error ? "error" : ""}`} role={error ? "alert" : "status"}>{error || notice}</Alert>}
     <fieldset disabled={busy || !enabled || !snapshot.policy.allowedEnvs.includes("Local")}>
       <legend>Browse Linear</legend>

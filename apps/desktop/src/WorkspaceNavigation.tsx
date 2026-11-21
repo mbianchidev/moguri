@@ -5,7 +5,7 @@ import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
 import { useSessionActions, type SessionActionOwner } from "./SessionActions.tsx";
 import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
-import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
+import { GitHubItemPicker, GitHubStateIcon, type GithubSelection } from "./GitHubPickers.tsx";
 import { PolicyNavigationContext } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
 import { BulkSessionActions } from "./BulkSessionActions.tsx";
@@ -51,9 +51,11 @@ const projectDrop = (sourceFolder: string | null, target: ProjectPosition, ratio
   if (ratio >= 0.3 && ratio <= 0.7) return { kind: "new-group" };
   return sourceFolder === null ? { kind: "order", edge: ratio < 0.3 ? "before" : "after" } : null;
 };
-export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy, chooseSession, chooseProject, startSession, openKanban, settings, terminal, modal, allow, prepareSession,
+export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issues = false, busy, chooseSession, chooseProject, startSession, openKanban, settings, terminal, modal, allow, prepareSession,
   sessionActionRequest, onSessionActionRequestHandled, projectActionRequest, onProjectActionRequestHandled, setupSandbox }: {
   sdk: MoguriSdk; snapshot: Snapshot; selectedId: string | null; archived: boolean; busy: boolean;
+  /** The Issues tab: only projects whose Kanban has open issues. */
+  issues?: boolean;
   chooseSession: (id: string) => Promise<void>; chooseProject: (id: string | null) => void; settings: (projectId: string) => void;
   startSession: (projectId: string | null) => Promise<void>;
   openKanban: (projectId: string) => Promise<void>;
@@ -535,8 +537,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       {more(`project:${project.id}`, roots.length, 5, `sessions in ${project.name}`)}</>}
     </section>;
   };
-  const projects = [...snapshot.projects].filter((project) => !matches || searchResults?.projects.has(project.id) ||
-    snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id)))
+  // Archived lists only projects with archived sessions; Issues only projects whose Kanban has issues.
+  const relevant = (project: Project) => archived ? snapshot.sessions.some((session) => session.projectId === project.id && session.status === "archived") :
+    !issues || snapshot.issues.some((issue) => issue.projectId === project.id && !issue.archived);
+  const projects = [...snapshot.projects].filter((project) => relevant(project) && (!matches || searchResults?.projects.has(project.id) ||
+    snapshot.sessions.some((session) => session.projectId === project.id && matches.has(session.id))))
     .sort((a, b) => folder(a).order - folder(b).order || a.name.localeCompare(b.name));
   const general = snapshot.sessions.filter((session) => session.projectId === null && (session.status === "archived") === archived && (!matches || matches.has(session.id)));
   const generalIds = new Set(general.map((session) => session.id));
@@ -582,11 +587,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     {flat ? <section className="project-group prompt-ordered-sessions" aria-label={`Sessions by ${promptOrder} prompt`}>{selection && bulk(selection.projectId)}
       {page("prompt-ordered", flatSessions, 20).map((session) => <div key={session.id}>{renderSession(session, 0, sessionLocation(session))}</div>)}
       {more("prompt-ordered", flatSessions.length, 20, "sessions")}</section> : <>
-    {(!matches || general.length > 0) && <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
+    {(!matches && !archived || general.length > 0) && !issues && <section className="project-group general-chats" aria-label="Chats" onDragOver={(event) => dragHeader(event, null)} onDrop={(event) => detach(event, null)}><header className="project-row"><button className="project-name" onClick={() => chooseProject(null)}><Icon name="Side chat" /><span className="project-label">Chats</span></button>
       <button type="button" className="icon-button" aria-label="New chat" title="New chat" aria-busy={creatingTarget === "chats"}
         disabled={!canCreate || archived} onClick={() => create("chats", async () => { await startSession(null); setSelection(null); setBulkRequest(null); })}><Icon name="Plus" /></button></header>{bulk(null)}{generalTree(null)}</section>}
     {projects.filter((project) => !folder(project).folderId).map(renderProject)}
-    {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches || projects.some((project) => folder(project).folderId === group.id) || general.some((session) => session.projectFolderId === group.id)).map((group) =>
+    {snapshot.projectFolders.slice().sort((a, b) => a.order - b.order).filter((group) => !matches && !archived && !issues || projects.some((project) => folder(project).folderId === group.id) || !issues && general.some((session) => session.projectFolderId === group.id)).map((group) =>
       <details className="project-folder" key={group.id} open={!collapsedFolders.has(group.id)} onDragOver={(event) => dragProjectGroup(event, group)} onDrop={(event) => dropProjectGroup(event, group)}
         onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDrop((value) => value?.id === `folder:${group.id}` ? null : value); }}>
         <summary className={drop?.id === `folder:${group.id}` ? "drop-inside" : undefined} onClick={(event) => {
@@ -606,6 +611,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
       "No sessions match these filters. Change a status or reset filters." : "Try another chat or project name, or clear the search."}</p>}
     {!matches && !snapshot.projects.length && !snapshot.sessions.length && !archived && <p className="nav-empty">Use New for a chat, a local folder or a repository.</p>}
     {!matches && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
+    {!matches && issues && !projects.length && <p className="nav-empty">No project has Kanban issues yet.</p>}
   </div>
   {foldersMenu && <WorkspaceContextMenu label="Projects menu" point={foldersMenu} close={(restore = true) => { const anchor = foldersMenu.anchor; setFoldersMenu(null); if (restore) queueMicrotask(() => anchor.isConnected && anchor.focus()); }}>
     <button role="menuitem" onClick={() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); }}><Icon name="Maximize" />Expand all groups</button>
@@ -690,7 +696,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, busy,
     <LocationActions run={run} announce={setNavigationStatus} open={(action) => window.moguri.sessionLocation(sdk.profileId, menuSession.id, action)}
       unavailable={{ "show-folder": sessionLocalFolder(menuSession, snapshot).diagnostic,
         "open-remote": !menuSession.projectId || menuSession.repositories || menuSession.controls.env === "Sandbox" ?
-          "Open remote needs one project session in Local or Remote Env. No base checkout or other repository was substituted." : undefined }} />
+          "Open remote needs one project session in Local or Remote host Env. No base checkout or other repository was substituted." : undefined }} />
     <MenuSeparator />
     <button role="menuitem" onClick={() => menuSession.status === "archived" ? void run(() => sdk.command({ type: "session.restore", sessionId: menuSession.id })) : actions.request(menuSession, "archive")}><Icon name="Down" />{menuSession.status === "archived" ? "Unarchive" : "Archive"}{contextSelection.length === 1 ? " (1)" : ""}</button>
     <button role="menuitem" className="danger" onClick={() => actions.request(menuSession, "delete")}><Icon name="Trash" />Delete{contextSelection.length === 1 ? " (1)" : ""}</button>
@@ -731,7 +737,7 @@ function SessionIndicators({ indicator }: { indicator: ReturnType<typeof session
       aria-label={`${indicator.kind === "merged" && indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.label}`} title={indicator.label}><Icon name={name} />
       {indicator.kind === "merged" && indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
     {indicator.prUrl && indicator.kind !== "merged" && <span className="session-pr-icon" data-pr-state={indicator.prState} role="img"
-      aria-label={`${indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.prLabel}`} title={indicator.prLabel}><Icon name="PR" />
+      aria-label={`${indicator.prCount > 1 ? `${indicator.prCount} associated pull requests. ` : ""}${indicator.prLabel}`} title={indicator.prLabel}><Icon name={indicator.prState === "draft" ? "PRDraft" : indicator.prState === "merged" ? "PRMerged" : "PR"} />
       {indicator.prCount > 1 && <span className="pr-count" aria-hidden="true">{indicator.prCount}</span>}</span>}
   </span>;
 }
@@ -845,7 +851,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
     {(edit.kind === "pr" || edit.kind === "work") && edit.project && <>
       <GitHubItemPicker sdk={sdk} scope={{ env: "Local", projectId: edit.project.id }} kind={edit.kind === "pr" ? "pull" : "issue"} disabled={busy}
         select={(selection) => { setGithub(selection); if (selection) setValue(""); }} />
-      {github && <section className="github-item" aria-label="Reviewed session source"><h3>#{github.item.number} {github.item.title}</h3>
+      {github && <section className="github-item" aria-label="Reviewed session source"><h3 className="github-item-name"><GitHubStateIcon kind={edit.kind === "pr" ? "pull" : "issue"} item={github.item} />#{github.item.number} {github.item.title}</h3>
         <p className="fine-print path">Source workspace: {github.binding.root.root}</p>
         <Suspense fallback={<p>{github.item.body}</p>}><RichMessage text={github.item.body || "No description."} openLink={(url) => { void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened.")); }} /></Suspense></section>}
     </>}

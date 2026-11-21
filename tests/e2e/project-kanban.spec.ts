@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { kanbanPreferences, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { fixtureProvider, setupFixture } from "../fixture.ts";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -75,7 +76,7 @@ test("Budgets shows originating-provider references and explicit finite-limit co
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Budgets", exact: true }).click();
+    await openSettingsSection(page, "Budgets");
     const region = page.getByRole("region", { name: "Provider API-equivalent prices", exact: true });
     await expect(region).toContainText("aren't your subscription cost");
     const consent = page.getByLabel("Use API-price estimates for USD limits (not exact billing caps)", { exact: true });
@@ -112,7 +113,7 @@ test("typing continue work in the composer creates one visible autonomous task a
     await status.getByRole("button", { name: "Open task", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Generated desktop continuation", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Code change", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Project pull requests", exact: true })).toContainText("Generated full PR description.");
+    await expect(page.getByRole("region", { name: "Session code change", exact: true }).getByRole("region", { name: /^Pull request \d+$/ })).toContainText("Generated full PR description.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
     await mkdir(".moguri/artifacts", { recursive: true });
     await page.screenshot({ path: ".moguri/artifacts/project-kanban-continuation.png" });

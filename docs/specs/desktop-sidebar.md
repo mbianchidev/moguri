@@ -126,13 +126,16 @@ Browser hosts private development previews through the optional [`stainless`](ht
 The alpha's native isolated preview supports optional
 [Local agent browser control](../architecture/agent-browser.md), independent of
 Stainless. A top **Agent control** switch starts off and permits immediate
-revocation/re-enabling. Approved builtin MCP tools navigate, inspect accessible
+revocation/re-enabling. Once on, it stays on for that chat until the user turns
+it off, and the pane stays alive hidden while another panel is shown (D61).
+Approved builtin MCP tools navigate, inspect accessible
 content and interact with this same pane. They never adopt a personal browser
 or bypass normal approvals. The optional [Stainless integration](../architecture/stainless.md)
 (protocol 111, off by default) adds a status strip with **Open in Stainless**
 for Local previews; agents use Stainless only through approved `playwright`
 batches on a new headless instance with a disposable profile, with bounded
-console/network diagnostics. Stainless has no MCP yet ([#80](https://github.com/mbianchidev/moguri/issues/80)).
+console/network diagnostics. While it is on, Chromium `playwright` batches run
+in Stainless by default (D61). Stainless has no MCP yet ([#80](https://github.com/mbianchidev/moguri/issues/80)).
 
 Stainless connection, permission, and health state must be visible. Browser data enters model context only through an explicit user action, tool call, or configured policy. If Stainless is absent or unavailable, the panel shows the missing capability and setup path instead of a broken browser surface.
 

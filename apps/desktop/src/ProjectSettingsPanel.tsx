@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, ProjectScreenshotModeSchema, ProjectInstallerModeSchema, WORKFLOW_GUIDANCE_FIELDS, type InstallerCandidate, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, defaultProjectSettings, effectivePrTourPrompt, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, ProjectScreenshotModeSchema, ProjectInstallerModeSchema, WORKFLOW_GUIDANCE_FIELDS, type InstallerCandidate, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
@@ -9,6 +9,7 @@ import { PathField } from "./PathField.tsx";
 import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
 import { PrAutomationOverrides } from "./PrAutomationSettings.tsx";
+import { PrTourRepositoryPrompt } from "./PrTourSettings.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -118,6 +119,24 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       } finally { ownSave.current = false; }
     });
   };
+  const tourPrompt = (action: "save" | "override" | "inherit") => {
+    if (ownSave.current || busy) { setError("Wait for the current project settings save. Your edit is preserved."); return; }
+    const repo = { ...committedValues.current.repo }, text = action === "override" ? effectivePrTourPrompt(snapshot.settings.values, null) : values.repo.tourPrompt ?? "";
+    if (action === "inherit" || !text.trim()) delete repo.tourPrompt; else repo.tourPrompt = text;
+    setValues((current) => {
+      const next = { ...current.repo };
+      if (repo.tourPrompt === undefined) delete next.tourPrompt; else next.tourPrompt = repo.tourPrompt;
+      return { ...current, repo: next };
+    });
+    return run(async () => {
+      const settings = parse(ProjectSettingsSchema, { ...committedValues.current, repo });
+      ownSave.current = true;
+      try {
+        const result = await sdk.projects.configure(project.id, settings, revision);
+        committedValues.current = settings; setCommitted(structuredClone(settings)); setRevision(result.revision!);
+      } finally { ownSave.current = false; }
+    });
+  };
   const canRun = session?.projectId === project.id && !dirty && !busy;
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
     <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy || trustBusy} onClick={() => void save()}>Save</button></header>
@@ -170,13 +189,16 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     {installers && installers.length > 0 && <p className="fine-print">Found {installers.map((candidate) => candidate.run).join(", ")} in this project.</p>}
     <p className="fine-print">Existing sessions keep their workspace. These choices guide the agent; pushing, merging and running commands follow your normal approvals. A repository override stays when the global default changes; choose the global default again to remove it.</p>
     {saveButton("repo", "Save repository settings")}
+    <PrTourRepositoryPrompt value={values.repo.tourPrompt} saved={committed.repo.tourPrompt} inherited={effectivePrTourPrompt(snapshot.settings.values, null)}
+      disabled={!available || !loaded || busy} override={(enabled) => void tourPrompt(enabled ? "override" : "inherit")}
+      change={(prompt) => change("repo", { ...values.repo, tourPrompt: prompt })} save={() => void tourPrompt("save")} />
     <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
       disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />
     {project.workspaceFolderId ? <p className="fine-print">Moguri doesn't change this repository's remotes because it only reads projects from a workspace folder.</p> :
       <RepositoryRemotePanel sdk={sdk} project={project} snapshot={snapshot} upstream={repositories?.upstream ?? null}
         disabled={!available || !loaded || dirty || busy} onDirty={setRemoteDirty} />}
     <p className="fine-print">Branch pattern placeholders: {"{slug}"}, {"{id}"}. This folder's checkout never switches on its own.</p>
-    <SettingsHelp label="More about this setting" target={<label className="setting-field">GitHub read access<select aria-label="GitHub read access" value={values.repo.githubAccess} onChange={(event) => automatic("repo", { githubAccess: event.target.value === "gh-cli" ? "gh-cli" : "public" })}><option value="public">Public GitHub API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>}>How Moguri reads this repository's GitHub data. Remote chats use the SSH host's account, shown before each lookup; linked-PR checks always run from this Mac.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<label className="setting-field">GitHub read access<select aria-label="GitHub read access" value={values.repo.githubAccess} onChange={(event) => automatic("repo", { githubAccess: event.target.value === "gh-cli" ? "gh-cli" : "public" })}><option value="public">Public GitHub API</option><option value="gh-cli">My signed-in GitHub CLI account</option></select></label>}>How Moguri reads this repository's GitHub data. Remote host chats use the SSH host's account, shown before each lookup; linked-PR checks always run from this Mac.</SettingsHelp>
     <SettingsHelp label="More about this setting" target={<h3>New-session defaults</h3>}>Applies only to new sessions in this project. Policy limits still apply.</SettingsHelp>{json("defaults", "Project startup control overrides")}
 
     {loaded && <ManagedWorkspacePanel sdk={sdk} project={project} settings={values} snapshot={snapshot} disabled={dirty || busy} openSession={openSession} />}
@@ -188,7 +210,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     <Alert as="p" tone="warning" className="settings-warning">These rules limit the agent's tools, not the OS. Tools that can't honor them are turned off; terminals you open aren't restricted.</Alert>
     <h3>Sandbox</h3>{json("sandbox", "Project SendBox configuration (null inherits global)")}
     <p className="fine-print">Saving doesn't make SendBox ready. Sandbox chats never fall back to Local.</p>
-    <h3>Remote SSH workspace</h3><SettingsHelp label="More about this setting" target={<label className="setting-field">Remote path<SettingsInput aria-label="Remote workspace path" value={values.remotePath ?? ""} placeholder="/absolute/path/on/ssh/host" onChange={(event) => change("remotePath", event.target.value || null)} /></label>}>An absolute path on your SSH host; nothing is synced from this Mac. Remote chats in this project can't run until the path is set and verified.</SettingsHelp>
+    <h3>Remote SSH workspace</h3><SettingsHelp label="More about this setting" target={<label className="setting-field">Remote path<SettingsInput aria-label="Remote workspace path" value={values.remotePath ?? ""} placeholder="/absolute/path/on/ssh/host" onChange={(event) => change("remotePath", event.target.value || null)} /></label>}>An absolute path on your SSH host; nothing is synced from this Mac. Remote host chats in this project can't run until the path is set and verified.</SettingsHelp>
     {saveButton("remotePath", "Save remote workspace path")}
 
     <SettingsHelp label="More about this setting" target={<h3>Scripts</h3>}>Each entry needs an id, name and command (for example start, dev or stop). Saving doesn't run anything.</SettingsHelp>{json("scripts", "Project scripts")}

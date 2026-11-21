@@ -1,4 +1,4 @@
-import { openUsageDetails } from "./navigation.ts";
+import { openUsageDetails, openSettingsSection } from "./navigation.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
@@ -43,7 +43,7 @@ test("desktop applies warned estimate-based caps, preserves hard policy through 
     await expect(dashboard).toContainText("42");
     await expect(dashboard).toContainText("solver");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Budgets", exact: true }).click();
+    await openSettingsSection(page, "Budgets");
     const policy = page.getByRole("region", { name: "Profile budget policy", exact: true });
     await policy.getByLabel("profile budget mode", { exact: true }).selectOption("limited");
     await policy.getByLabel("profile token cap", { exact: true }).fill("1");

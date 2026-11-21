@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CandidateTransportRecord, MoguriSdk, Session } from "../../../packages/sdk/src/index.ts";
+import { envLabel } from "../../../packages/sdk/src/index.ts";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -27,14 +28,14 @@ export function CandidateRecoveryPanel({ sdk, session, scope }: { sdk: MoguriSdk
     finally { pending.current = false; setBusy(false); }
   };
   return <section className="candidate-section" aria-label="Original candidate transport recovery" aria-busy={busy}>
-    <h4>Interrupted Remote and Sandbox operations</h4>
+    <h4>Interrupted Remote host and Sandbox operations</h4>
     <p className="fine-print">Reconcile reads the worker's log to find out how an interrupted operation ended. It never reruns anything, and an operation stays partial until its cleanup is confirmed.</p>
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <label className="setting-field">Operation<select aria-label="Retained candidate transport" value={selected?.id ?? ""} disabled={busy}
       onChange={(event) => {
         const value = records.find((record) => record.id === event.target.value) ?? null; setSelected(value); setId(value?.id ?? "");
       }}><option value="">Choose an operation</option>{records.map((record) => <option key={record.id} value={record.id}>
-        {record.boundary.env} / {record.ownerKind} / {record.id} / {record.cleanupConfirmed ? "cleanup confirmed" : "cleanup unconfirmed"}
+        {envLabel(record.boundary.env)} / {record.ownerKind} / {record.id} / {record.cleanupConfirmed ? "cleanup confirmed" : "cleanup unconfirmed"}
       </option>)}</select></label>
     <label className="setting-field">Operation ID<SettingsInput aria-label="Original candidate transport ID" value={id} disabled={busy} onChange={(event) => { setId(event.target.value); setSelected(null); }} /></label>
     <div className="button-row"><button disabled={busy} onClick={() => void run(refresh)}>Refresh</button>
@@ -48,7 +49,7 @@ export function CandidateRecoveryPanel({ sdk, session, scope }: { sdk: MoguriSdk
           await refresh(current);
         })}>Reconcile (read-only)</button></div>
     {selected && <div className="candidate-binding">
-      <p className="fine-print path">{selected.boundary.env} / root: {selected.boundary.sourceRoot}<br />Worker build: {selected.boundary.workerDigest}<br />Operation: {selected.status} · cleanup: {selected.cleanupConfirmed ? "confirmed" : "unconfirmed (resources stay on hold)"}</p>
+      <p className="fine-print path">{envLabel(selected.boundary.env)} / root: {selected.boundary.sourceRoot}<br />Worker build: {selected.boundary.workerDigest}<br />Operation: {selected.status} · cleanup: {selected.cleanupConfirmed ? "confirmed" : "unconfirmed (resources stay on hold)"}</p>
       <p className="fine-print">Moguri acknowledged the final result: {String(selected.terminalAcknowledged)}. {selected.recovery ?
         <>Worker status: {selected.recovery.evidence.journal.status} · acknowledged frames: {selected.recovery.evidence.journal.acknowledged}/{selected.recovery.evidence.journal.sequence}
           {" "}· final frame: {selected.recovery.evidence.terminal.sequence ?? "not saved"}</> : "Worker status: not checked yet."}</p>

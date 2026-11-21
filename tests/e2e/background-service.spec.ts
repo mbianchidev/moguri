@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { MoguriSdk, type StoredEvent } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Background desktop lifecycle uses generated hidden macOS windows.");
@@ -93,7 +94,7 @@ test("a cancelled unsaved Quit cannot turn a later window close into stopping th
     await expect.poll(() => f.requests.length).toBe(1);
     const turnId = f.session().turnId;
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "User guidance", exact: true }).click();
+    await openSettingsSection(page, "User guidance");
     const guidance = page.getByLabel("Global user guidance", { exact: true }), saved = await guidance.inputValue();
     await guidance.fill("Generated uncommitted window-close guidance.");
     await app.evaluate(({ app, BrowserWindow }) => {

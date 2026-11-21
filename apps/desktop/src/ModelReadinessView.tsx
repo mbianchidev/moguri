@@ -3,6 +3,7 @@ import { isModelReadinessReportCurrent, modelReadinessTargetsMatch,
   type ModelInfo, type ModelReadinessMode, type ModelReadinessReport, type ModelReadinessTarget,
   type ModelRuntimePreview, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { ModelReadinessPanel, type ModelReadinessPanelProbe } from "./ModelReadinessPanel.tsx";
+import { envLabel } from "../../../packages/protocol/src/controls.ts";
 import { Alert } from "./Alert.tsx";
 
 interface RuntimeReviewState {
@@ -106,7 +107,7 @@ export function ModelReadinessView({ sdk, session, model, snapshot }: {
       {currentRuntime && runtime.error && <Alert as="p" className="inline-error" role="alert">{runtime.error}</Alert>}
       {currentRuntime && runtime.preview && <fieldset className="model-runtime-review">
         <legend>Exact runtime version review</legend>
-        <dl><dt>Execution Env</dt><dd>{runtime.preview.target.env}</dd>
+        <dl><dt>Execution Env</dt><dd>{envLabel(runtime.preview.target.env)}</dd>
           <dt>Exact fixed program, no shell</dt><dd><code>{runtime.preview.program.executablePath} --version</code></dd>
           <dt>Working directory</dt><dd>{runtime.preview.program.cwd}</dd>
           <dt>Executable SHA-256</dt><dd>{runtime.preview.executableSha256}</dd>

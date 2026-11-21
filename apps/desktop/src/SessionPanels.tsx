@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DraftEditor, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { DraftEditor, envLabel, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { TaskPlanPanel } from "./TaskProgress.tsx";
@@ -13,6 +13,7 @@ import { Alert } from "./Alert.tsx";
 import { StainlessBrowserRow } from "./StainlessPanel.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 import { UnifiedDiff } from "./UnifiedDiff.tsx";
+const CodeView = lazy(() => import("./CodeView.tsx").then((module) => ({ default: module.CodeView })));
 
 export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -84,7 +85,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? (path === "." ? "Workspace root" : path)}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}<PanelError failure={error} projectId={session.projectId} />
-    {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
+    {file ? <Suspense fallback={<pre className="workspace-file-content" tabIndex={0}>{file.text}</pre>}><CodeView path={file.path} text={file.text} label={`File ${file.path}`} /></Suspense> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }
@@ -166,13 +167,14 @@ export function BrowserPanel({ sdk, session, openSettings }: { sdk: MoguriSdk; s
   const [error, setError] = useState("");
   const [statusError, setStatusError] = useState("");
   const [browser, setBrowser] = useState<BrowserState | null>(null);
-  const [enabled, setEnabled] = useState(false);
+  // The switch shows the chat's recorded Agent control choice (D61); a pending toggle shows its requested value until it settles.
+  const [pendingChoice, setPendingChoice] = useState<boolean | null>(null);
+  const enabled = pendingChoice ?? session.browserAgentControl === true;
   const latest = useRef(session); latest.current = session;
   const updateHost = useRef<() => void>(() => {});
   const reload = useRef(false);
   const urlDirty = useRef(false);
   const controlIntent = useRef(0);
-  const controlPending = useRef(false);
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => { setUrl(session.browserUrl ?? ""); urlDirty.current = false; }, [session.id, session.browserUrl]);
   useEffect(() => {
@@ -205,10 +207,9 @@ export function BrowserPanel({ sdk, session, openSettings }: { sdk: MoguriSdk; s
         if (!disposed) {
           setStatusError("");
           setBrowser(browser);
-          if (!controlPending.current) setEnabled(Boolean(browser.controlId));
           if (!urlDirty.current && browser.url && browser.url !== "about:blank") setUrl(browser.url);
         }
-      } catch (error) { if (!disposed) { setEnabled(false); setStatusError(error instanceof Error ? error.message : "Browser authority could not be read."); } }
+      } catch (error) { if (!disposed) { setBrowser(null); setStatusError(error instanceof Error ? error.message : "Browser authority could not be read."); } }
       finally { polling = false; }
     };
     updateHost.current = () => void update();
@@ -225,32 +226,39 @@ export function BrowserPanel({ sdk, session, openSettings }: { sdk: MoguriSdk; s
     const timer = setInterval(() => void status(), 500);
     return () => {
       disposed = true; clearInterval(timer); unsubscribe(); observer.disconnect(); window.removeEventListener("scroll", update, true);
-      controlIntent.current++; controlPending.current = false;
+      controlIntent.current++; setPendingChoice(null);
       void window.moguri.preview(null, sdk.profileId, session.id).catch(() => console.error("Native preview cleanup was not acknowledged."));
     };
   }, [sdk, session.id]);
   useEffect(() => updateHost.current(), [session.browserUrl, session.controls.env]);
   const toggle = async (checked: boolean) => {
     const intent = ++controlIntent.current;
-    controlPending.current = true; setEnabled(checked); setError("");
+    setPendingChoice(checked); setError("");
     try {
       const browser = await window.moguri.browserControl(session.id, checked, sdk.profileId);
-      if (controlIntent.current === intent) { setBrowser(browser); setEnabled(Boolean(browser.controlId)); }
-    } catch (error) { if (controlIntent.current === intent) { setEnabled(false); setError(error instanceof Error ? error.message : "Browser control was not changed."); } }
-    finally { if (controlIntent.current === intent) controlPending.current = false; }
+      if (controlIntent.current === intent) setBrowser(browser);
+    } catch (error) { if (controlIntent.current === intent) setError(error instanceof Error ? error.message : "Browser control was not changed."); }
+    // Read the recorded choice before dropping the pending value so the switch never flickers back.
+    await sdk.refresh().catch(() => {});
+    if (controlIntent.current === intent) setPendingChoice(null);
   };
   const navigate = async () => { setError(""); try { await sdk.sessions.browser(session.id, url); urlDirty.current = false; } catch (error) { setError(error instanceof Error ? error.message : "Preview URL was not accepted."); } };
   const activeUrl = browser?.url && browser.url !== "about:blank" ? browser.url : session.browserUrl;
+  const localAllowed = sdk.getState().snapshot?.policy.allowedEnvs.includes("Local") ?? false;
+  const paused = session.controls.env !== "Local" ? `Paused while this chat runs in ${envLabel(session.controls.env)}` : !localAllowed ? "Paused while policy does not allow Local" :
+    session.mode !== "agent" || session.pendingMode === "read-only" ? "Paused while this chat is read-only" : null;
+  const state = !enabled ? "Agent access off" : paused ? `${paused}. Agent control stays on for this chat until you turn it off` :
+    browser?.controlId ? "Agent control stays on for this chat until you turn it off" : "Agent control stays on for this chat; reconnecting";
   return <section className="browser-panel"><div className="browser-control"><button className="browser-control-toggle" type="button" role="switch" aria-label="Agent browser control" aria-checked={enabled}
     disabled={!enabled && (!browser?.available || session.mode !== "agent" || session.kind !== "agent")} onClick={() => void toggle(!enabled)}>
     <span className="browser-toggle-track" aria-hidden="true"><span className="browser-toggle-thumb" /></span><span>Agent control</span></button>
-    <span>{enabled ? "Agent can use this page" : "Agent access off"}</span></div>
+    <span role="status">{state}</span></div>
     <form className="browser-address" onSubmit={(event) => { event.preventDefault(); void navigate(); }}><input aria-label="Preview URL" placeholder="https://... or local preview URL" value={url} onChange={(event) => { urlDirty.current = true; setUrl(event.target.value); }} />
     <button className="icon-button" type="submit" aria-label="Load preview" title="Load preview"><Icon name="Play" /></button><button className="icon-button" type="button" aria-label="Open preview in default browser" title="Open in browser" disabled={!activeUrl} onClick={() => void window.moguri.openExternal(activeUrl!).catch((error: unknown) => setError(error instanceof Error ? error.message : "Browser could not open."))}><Icon name="Browser" /></button></form>
     <StainlessBrowserRow sdk={sdk} session={session} revision={sdk.getState().snapshot?.settings.revision ?? 0} url={activeUrl} openSettings={openSettings} />
     {(error || statusError) && <Alert as="p" className="inline-error" role="alert">{error || statusError}</Alert>}
     <div ref={host} className="browser-host">{!session.browserUrl && <p>Enter a preview URL. This isolated view has no Moguri bridge, account cookies, filesystem access or automatic model context.</p>}</div>
-    <p className="terminal-boundary">{enabled ? "Approved browser tools can read and control this page. Turn off Agent control to revoke access immediately." :
+    <p className="terminal-boundary">{enabled ? "Approved browser tools can read and control this page, also while you look at another panel. Your own navigation and reconnects give the agent a new identity; turn off Agent control to revoke access immediately." :
       session.controls.env === "Local" ? "Isolated web preview. Agent access is off until you enable it; tool approvals still apply." : "Local preview only. Agent browser control is unavailable in Sandbox and Remote; no Local fallback."}</p>
   </section>;
 }

@@ -5,6 +5,7 @@ import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { profileFixture } from "../fixtures/profiles.ts";
 import { waitFor } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const packagedWorker = process.env.MOGURI_TEST_APP ? resolve(process.env.MOGURI_TEST_APP, "../../Resources/app/dist/worker.mjs") : undefined;
@@ -39,7 +40,7 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     const profile = await waitFor(() => fixture.service.profiles.catalog().profiles.find((profile) => profile.name === "Generated desktop Beta" && profile.status === "ready"));
     await expect(active).toBeEnabled(); await expect(active).toHaveValue("default");
 
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Budgets", exact: true }).click();
+    await openSettingsSection(page, "Budgets");
     const policy = page.getByRole("region", { name: "Profile budget policy", exact: true }), global = page.getByRole("region", { name: "Global budget policy", exact: true });
     for (const [region, scope, tokens] of [[policy, "profile", "100000"], [global, "global", "200000"]] as const) {
       await region.getByLabel(`${scope} budget mode`, { exact: true }).selectOption("limited");

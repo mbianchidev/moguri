@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { activeDecision, automaticApprovalsEnabled, outcomeLabel, sessionStatusLabel, sentPromptText, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
+import { activeDecision, automaticApprovalsEnabled, kupoModeLabel, outcomeLabel, sessionStatusLabel, sentPromptText, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
 import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
@@ -21,7 +21,7 @@ import { AttachmentChip } from "./ContextAttachments.tsx";
 import { SandboxPanel } from "./SandboxPanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
-import { MyWorkFiltersSchema, parse, type MyWorkFilters } from "../../../packages/sdk/src/index.ts";
+import { MyWorkFiltersSchema, autonomyLabel, envLabel, parse, type MyWorkFilters } from "../../../packages/sdk/src/index.ts";
 import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 import { NotificationAudio } from "./notification-audio.ts";
 import { ApprovalActions } from "./ApprovalActions.tsx";
@@ -47,6 +47,7 @@ import { createStartupView, isModelDiscoveryPending, readStartupView, saveStartu
 import { StartupModelContext } from "./StartupModelContext.ts";
 import { CommandMessage } from "./CommandMessage.tsx";
 const SettingsPanel = lazy(() => import("./SettingsPanel.tsx").then((module) => ({ default: module.SettingsPanel })));
+const Onboarding = lazy(() => import("./Onboarding.tsx").then((module) => ({ default: module.Onboarding })));
 const StartDialog = lazy(() => import("./StartDialog.tsx").then((module) => ({ default: module.StartDialog })));
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 const ProjectBoard = lazy(() => import("./ProjectBoard.tsx").then((module) => ({ default: module.ProjectBoard })));
@@ -68,7 +69,7 @@ const globalNavigation: { view: GlobalView; icon: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Attention", icon: "Inbox" }, { view: "Suggestions", icon: "Suggestions" },
   { view: "Automations", icon: "Clock" }, { view: "Skills", icon: "Skill" }, { view: "Artifacts", icon: "Artifacts" },
 ];
-const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view === "Skills" ? "Customize" : view;
+const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view === "Skills" ? "Capabilities" : view;
 const number = (value: number) => new Intl.NumberFormat().format(value);
 interface SidebarLayout { panel: Panel; open: boolean; maximized: boolean; leftWidth: number; rightWidth: number }
 function savedLayout(): SidebarLayout {
@@ -193,6 +194,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [policyFocus, setPolicyFocus] = useState<PolicyFocusRequest | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
+  // Getting started (D54) opens once per profile until finished or skipped, and again whenever Settings restarts it.
+  const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
   const panelDirtyRef = useRef(false);
@@ -236,6 +239,11 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   useEffect(() => {
     if (snapshot) for (const [id, editor] of editors.current) if (!snapshot.sessions.some((session) => session.id === id)) { editor.dispose(); editors.current.delete(id); }
   }, [snapshot]);
+  useEffect(() => {
+    if (!snapshot || onboardingChecked.current === client.profileId) return;
+    onboardingChecked.current = client.profileId;
+    if (window.moguri.automaticOnboarding && !snapshot.settings.values.onboarding) setOnboardingOpen(true);
+  }, [snapshot, client.profileId]);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const sessionPanels = availablePanels(session), shownPanel = sessionPanels.includes(panel) ? panel : "Insights";
   const panelBadges = usePanelBadges(client, session, snapshot);
@@ -368,7 +376,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     if (panelOpen && panel === "Terminal" && (selectedId !== id || globalView !== null || boardOpen || settingsTab !== null)) {
       setTerminalIntent({ panel: "Terminal", sessionId: id, ownership });
     }
-    setSelectedId(id); setProjectId(projectId);
+    setSelectedId(id); setProjectId(projectId); setOnboardingOpen(false);
   };
   const chooseSession = (id: string, ownership?: "agent") => run(async () => {
     if (!canNavigate() || (globalView || id !== session?.id) && !await confirmTerminalNavigation()) return;
@@ -469,7 +477,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       if (profileId === client.profileId && !canNavigate()) return;
       const target = profileId === client.profileId ? client : await openProfile(profileId);
       if (!target || target.profileId !== profileId) return;
-      const entry = target.getState().snapshot?.attention.find((value) => value.id === id && (value.reason === "script-review" || value.reason === "tool-suggestion"));
+      const entry = target.getState().snapshot?.attention.find((value) => value.id === id && (value.reason === "script-review" || value.reason === "tool-suggestion" || value.reason === "automation"));
       if (!entry) throw new Error("The original notification is unavailable in this profile. No different review was opened.");
       if (entry.reason === "tool-suggestion") {
         setSkillsTab("Tools");
@@ -720,7 +728,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <InterruptedNotice sdk={client} session={session} run={run} />
     {session.toolRecovery?.turnId === session.turnId && <Alert as="p" tone="warning" role="status">The agent is continuing read-only recovery. An original tool still has unconfirmed effects or cleanup; further writes remain fenced.</Alert>}
     {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
-      <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
+      <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {autonomyLabel(continuedWork.controls.autonomy)} task to its PR; this chat's controls are unchanged.</p>
         {continuedWork.diagnostic && <p>{continuedWork.diagnostic}</p>}</div>
       {continuedWork.sessionId && snapshot.sessions.some((session) => session.id === continuedWork.sessionId) && <button type="button" onClick={() => void chooseSession(continuedWork.sessionId!)}>Open task</button>}
       {activeProjectWork(continuedWork) && <button type="button" onClick={() => void run(() => client.kanban.cancel(continuedWork.id))}>Stop task</button>}
@@ -732,7 +740,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <RepositoryProposal key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     <InstallerPreference key={`installer:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     {session.pendingApproval && <section className="approval" aria-label="Tool approval"><div className="approval-body">
-      <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
+      <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{autonomyLabel(session.controls.autonomy)}</span></div>
       {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
         <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
       <ApprovalCall call={session.pendingApproval.call} snapshot={snapshot} boundary={approvalBoundary(session.pendingApproval.call, session.controls.env)} />
@@ -763,7 +771,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-scroll">
       <nav className="global-navigation" aria-label="Profile resources">{globalNavigation.map(({ view, icon }) => <button key={view} className="settings-nav-button" aria-label={globalLabel(view)} aria-description={view === "Attention" && inboxUnread ? "Unread notifications" : view === "Suggestions" && pendingSuggestions ? `${pendingSuggestions} suggested improvement${pendingSuggestions === 1 ? "" : "s"} to review` : undefined} aria-pressed={globalView === view} onClick={() => openGlobal(view, null, true)}><Icon name={icon} />{globalLabel(view)}{(view === "Attention" && inboxUnread || view === "Suggestions" && pendingSuggestions > 0) && <span className="attention-unread-dot" aria-hidden="true" />}</button>)}</nav>
       <div className="nav-tabs"><button aria-pressed={!archived && !boardOpen} onClick={() => openSessionList(false)}>Sessions</button><button aria-pressed={archived && !boardOpen} onClick={() => openSessionList(true)}>Archived</button><button aria-pressed={boardOpen} disabled={!project} onClick={openBoard}>Issues</button></div>
-      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startSession={startSession} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
+      {snapshot && <WorkspaceNavigation key={client.profileId} sdk={client} snapshot={snapshot} selectedId={selectedId} archived={archived && !boardOpen} issues={boardOpen} busy={busy} chooseSession={chooseSession} chooseProject={chooseProject} startSession={startSession} openKanban={openKanban} settings={projectSettings} terminal={projectTerminal} modal={setNativeModal} allow={canNavigate} prepareSession={async (id) => { await editors.current.get(id)?.flush(); }}
         setupSandbox={() => openSettings("sendbox")}
         sessionActionRequest={sessionActionRequest} onSessionActionRequestHandled={(nonce) => setSessionActionRequest((request) => request?.nonce === nonce ? null : request)}
         projectActionRequest={projectActionRequest} onProjectActionRequestHandled={(nonce) => setProjectActionRequest((request) => request?.nonce === nonce ? null : request)} />}
@@ -771,7 +779,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       <div className="nav-footer">
         <div className="profile-actions">
         {snapshot && <div className="profile-indicator" aria-label="Current profile">{snapshot.profile?.color && <span className="status-dot" style={{ backgroundColor: snapshot.profile.color }} />}<span>{snapshot.profile?.name ?? client.profileId}</span></div>}
-        <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId, session?.id); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
+        <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
         <Tooltip content="Settings"><button className="icon-button" aria-label="Settings" aria-pressed={settingsTab !== null} onClick={() => { if (settingsTab) leaveSettings(); else openSettings("general"); }}><Icon name="Settings" /></button></Tooltip>
         </div>
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : status === "connecting" ? "running" : "failed"}`} />Local service {status}</div>
@@ -780,7 +788,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <main className="main-pane" inert={panelExpanded} style={panelExpanded ? { display: "none" } : undefined}>
       {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
       {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} restartOnboarding={() => { if (leaveSettings()) setOnboardingOpen(true); }} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
@@ -795,9 +803,11 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} openTools={() => openSkills("Tools")} /></> :
           globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} /> :
           globalView === "Artifacts" ? <ArtifactsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} initialProjectId={session ? session.projectId : project?.id} openSession={chooseSession} openSettings={openSettings} /> :
-          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} openAutomations={() => openGlobal("Automations")} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
         </div>
-      </section> : <>
+      </section> : onboardingOpen && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading Getting started...</div>}>
+        <Onboarding key={client.profileId} sdk={client} snapshot={snapshot} onClose={() => setOnboardingOpen(false)}
+          openProviders={() => { setOnboardingOpen(false); openSettings("providers"); }} /></Suspense> : <>
       <header className="session-header" data-session-id={session?.id}>
         <button className="icon-button nav-toggle" aria-label="Toggle projects" onClick={() => setNavOpen((value) => !value)}><Icon name="Files" /></button>
         {session?.parentSessionId && <button className="icon-button" aria-label="Open parent session" title="Parent session" onClick={() => void chooseSession(session.parentSessionId!)}><Icon name="Back" /></button>}
@@ -805,7 +815,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       </header>
       {!snapshot ? <div className="loading-state" role="status"><div className="skeleton" /><div className="skeleton short" /><p>Connecting to your local workspace...</p></div> :
         !session ? <div className="welcome">
-          <img className="welcome-mascot" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>What are we working on?</h2><p>Start a project-free conversation or open a workspace. Nothing runs until you ask.</p>
+          <img className="welcome-mascot" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>What are we working on{snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?</h2><p>Start a project-free conversation or open a workspace. Nothing runs until you ask.</p>
           <p className="welcome-start-hint">Choose New to open a chat or a project.</p>
           <button onClick={() => openSettings("providers")}>Configure model providers</button>
         </div> :
@@ -850,7 +860,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Show Insights and event trace", action: async () => { if (canNavigate()) beforeHidingTerminal(() => { if (leaveSurface()) { setPanel("Insights"); setPanelOpen(true); } }); } },
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
       { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
-      { name: "Customize: skills, marketplace and agent tools", action: async () => openSkills("Skills") },
+      { name: "Capabilities: skills, marketplace, MCP servers and agent tools", action: async () => openSkills("Skills") },
       { name: "Artifacts by project", action: async () => openGlobal("Artifacts") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
@@ -924,7 +934,7 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
       </article>}{answers.get(message.id)?.map((entry) => <AnsweredQuestion key={entry.id} entry={entry} />)}</Fragment>;
   };
   return <><div className="conversation-history"><div ref={scroll} className={`timeline${empty ? " timeline-empty" : ""}`} role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content} className="timeline-content">
-    {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : "What are we working on?"}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
+    {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : `What are we working on${snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?`}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${envLabel(session.controls.env)} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
     {commands.length > commandLimit && <button className="load-history" onClick={() => setCommandLimit((value) => value + 10)}>Show earlier command responses</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
@@ -993,19 +1003,19 @@ function ClientDiagnostics({ client }: { client: MoguriClient }) {
     <CopyButton label="Copy client request timings" text={text} /><pre>{text}</pre>
   </details>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, initialWorkItemId, initialWorkFilters, chooseWork }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, openAutomations, initialWorkItemId, initialWorkFilters, chooseWork }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; terminalShowAgent?: boolean; onTerminalOpeningHandled?: () => void;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string, ownership?: "agent") => Promise<void>; modal: (open: boolean) => void;
-  setupSandbox: () => void; openSettings: (tab: SettingsTab) => void; openSkills?: (tab: SkillsTab) => void;
+  setupSandbox: () => void; openSettings: (tab: SettingsTab) => void; openSkills?: (tab: SkillsTab) => void; openAutomations?: () => void;
   initialWorkItemId?: string | null; initialWorkFilters?: MyWorkFilters; chooseWork?: (id: string) => void;
 }) {
   const [trace, setTrace] = useState(false);
   if (panel === "Dashboard" && snapshot) return <Suspense fallback={<p role="status">Loading dashboard...</p>}><Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} initialItemId={initialWorkItemId} initialFilters={initialWorkFilters} onDirty={onDirty} /></Suspense>;
   if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} showAgent={terminalShowAgent} onAutoStartHandled={onTerminalOpeningHandled} openAgent={(id) => chooseSession(id, "agent")} /></Suspense>;
-  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} openTools={openSkills && (() => openSkills("Tools"))} />;
+  if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} openTools={openSkills && (() => openSkills("Tools"))} openAutomations={openAutomations} />;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} openTools={openSkills && (() => openSkills("Tools"))} />;
   if (!session) return <div className="panel-empty"><Icon name={panel} /><h2>Your session context</h2><p>Open a session to see its {panel.toLowerCase()}. This panel follows the conversation in the main pane.</p></div>;
   const workspaceScope = JSON.stringify([client.profileId, session.id, session.controls.env, session.workspaceId, project?.path, session.homeRoot,
@@ -1026,8 +1036,8 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
     return <>
       <div className="context-binding"><strong>{title(session)}</strong><StatusBadge status={sessionStatusLabel(session.status)} /></div>
       <h2>Execution</h2><dl className="facts">
-        <dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
-        <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
+        <dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : envLabel(session.controls.env)}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
+        <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{autonomyLabel(session.controls.autonomy)}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
       </dl>
       <details className="session-identity"><summary>Session identity and workspace</summary><dl className="facts">
         <dt>Session ID</dt><dd className="path"><code>{session.id}</code><CopyButton label="Copy session ID" text={session.id} /></dd>
@@ -1036,9 +1046,11 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
         <dt>Profile</dt><dd>{snapshot?.profile?.name ?? client.profileId}</dd>
       </dl><p className="fine-print">Mention <code>:{sessionShortId(session.id)}</code> or the full ID in a composer to attach a reviewed public snapshot. An ID grants no execution or private-console access.</p></details>
       {snapshot && <SessionCoordinationPanel sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} />}
-      {routing && <details><summary>Kupo routing provenance</summary><dl className="facts"><dt>Status</dt><dd>{routing.status}</dd><dt>Workflow</dt><dd>{routing.plan?.pattern ?? "Not selected"}</dd><dt>Classifier</dt><dd className="path">{routing.classifierModelId ?? "Not called (one eligible model)"}</dd><dt>Draft / solver</dt><dd className="path">{routing.plan?.modelId ?? "No accepted plan"}</dd>
+      {routing && <details><summary>Kupo routing provenance</summary><dl className="facts"><dt>Status</dt><dd>{routing.status}</dd><dt>Workflow</dt><dd>{routing.plan?.pattern ?? "Not selected"}</dd>
+        {routing.mode && <><dt>Mode</dt><dd>{kupoModeLabel(routing.mode, routing.plan && "mode" in routing.plan ? routing.plan.mode : undefined)}</dd></>}<dt>Classifier</dt><dd className="path">{routing.classifierModelId ?? "Not called (one eligible model)"}</dd><dt>Draft / solver</dt><dd className="path">{routing.plan?.modelId ?? "No accepted plan"}</dd>
         {routing.plan?.pattern === "cascade" && <><dt>Gate / escalation</dt><dd className="path">{routing.plan.escalationId}</dd></>}
         {routing.plan?.pattern === "critique" && <><dt>Read-only critic</dt><dd className="path">{routing.plan.criticId}</dd></>}
+        {routing.plan?.pattern === "council" && <><dt>Council reviewers</dt><dd className="path">{routing.plan.councilIds.join(", ")}</dd></>}
         <dt>Confidence / threshold</dt><dd>{routing.plan?.confidence ?? "Not classified"} / {routing.policy.minimumConfidence}</dd></dl>
         {routing.plan && <p>{routing.plan.reason}</p>}{routing.diagnostic && <Alert as="p" className="inline-error">{routing.diagnostic}</Alert>}<p className="fine-print">Model-supplied confidence is not calibrated probability or permission. Inspect per-call accounting below for actual dispatches; classifier output never becomes solver instructions.</p></details>}
       {execution && <details><summary>Owned remote execution</summary><p className="path">{execution.id}</p><p>{execution.status} / cancellation {execution.cancellation} / {execution.cleanup}</p><p>{execution.diagnostic}</p><button disabled={Boolean(session.turnId)} onClick={() => void run(() => client.remote.reconcile(execution.id))}>Reconcile receipts</button></details>}
@@ -1059,7 +1071,7 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
   if (panel === "Side chat" && snapshot) return <SideChat sdk={client} parent={session} snapshot={snapshot} selectedId={sideId} select={selectSide} onSlash={onSlash} editorFor={editorFor} onDirty={onDirty}
     openSettings={openSettings} modal={modal} renderTranscript={(side) => <Timeline key={JSON.stringify([client.profileId, side.id])} session={side} editor={editorFor(side)} snapshot={snapshot} run={run} client={client} modal={modal} label="Side chat transcript" navigationLabel="Side chat turns" rewind={false} />}
     renderQueue={(side) => <Queue key={JSON.stringify(["queue", client.profileId, side.id])} session={side} snapshot={snapshot} command={(command) => run(() => client.command(command))} client={client} modal={modal} />} />;
-  if (["Code change", "PR", "Changes"].includes(panel) && snapshot) return <CodeChangePane key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} chooseSession={chooseSession}
+  if (["Code change", "PR", "Changes"].includes(panel) && snapshot) return <CodeChangePane key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} onDirty={onDirty} chooseSession={chooseSession} openSettings={() => openSettings("github")}
     changes={session.controls.env !== "Sandbox" ? <ChangesPanel key={workspaceScope} sdk={client} session={session} /> : <SandboxPanel sdk={client} snapshot={snapshot} session={session} onDirty={onDirty} setup={setupSandbox} sessionOnly />} />;
   if (panel === "Work item" && snapshot) return <section aria-label="Session work item" data-session-id={session.id}><p className="fine-print">{title(session)}</p><SessionGitHub sdk={client} session={session} snapshot={snapshot} kind="issue" onDirty={onDirty} chooseSession={chooseSession} /></section>;
   return <p>Choose a supported panel.</p>;

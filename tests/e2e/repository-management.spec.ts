@@ -62,6 +62,7 @@ test("Settings cancel preserves a partial destination and original service-owned
     await expect.poll(source.held).toBe(true);
     await page.getByRole("button", { name: "Cancel repository import", exact: true }).click();
     await expect(page.getByRole("region", { name: "Repository import results", exact: true }).getByRole("status")).toContainText("partial:");
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     const batch = f.service.controller.snapshot().repositoryImports[0]!, requests = source.requests();
     expect(await realpath(batch.items[0]!.path)).toBe(batch.items[0]!.path);
     await page.reload(); await openSettingsSection(page, "Repositories");
@@ -82,7 +83,8 @@ test("Repositories offers one Manage projects action that lands on Project setti
     await expect(panel.getByRole("button", { name: /^Manage (?!projects$)/ })).toHaveCount(0);
     await panel.getByRole("button", { name: "Manage projects", exact: true }).click();
     await expect(page.getByRole("combobox", { name: "Configuration project", exact: true })).toBeVisible();
-    await expect(panel).toHaveCount(0);
+    // Repositories and Project share the General page, so the action scrolls to the Project section.
+    await expect(page.locator("#settings-section-project")).toBeInViewport();
     expect(f.requests).toHaveLength(0);
   } finally { if (app) await close(app); await f.close(); }
 });

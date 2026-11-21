@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CompactionPreview, CompactionResponse, ContextCompaction, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { isAgentHarnessModel } from "../../../packages/sdk/src/index.ts";
+import { envLabel, isAgentHarnessModel } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -56,7 +56,7 @@ export function ContextCompactionReview({ sdk, session, snapshot, close }: { sdk
     <header><h2>Context review</h2><button type="button" className="icon-button" aria-label="Close context review" onClick={() => dialog.current?.close()}><Icon name="Close" /></button></header>
     <p>Summaries are model-produced context, not user answers, source acceptance or permissions. Proposals made here require review. Smart compaction (Settings, Context compaction) and /compact apply a complete, smaller summary without this step. Original history and your draft stay retained.</p>
     {state ? <><dl className="context-estimates"><dt>Active conversation</dt><dd>~{count(state.estimatedTokens)} tokens</dd><dt>Retained originals</dt><dd>~{count(state.originalEstimatedTokens)} tokens</dd></dl>
-      <p className="fine-print">Conversation estimates exclude system prompt, tools and draft. They are not exact tokenization or billing. Env: {session.controls.env}{session.controls.env === "Remote" ? ", pinned SSH execution, not sandbox isolation" : session.controls.env === "Sandbox" ? ", qualified private native SendBox guest" : ", host execution, not sandboxed"}.</p></> : <p role="status">Loading retained context...</p>}
+      <p className="fine-print">Conversation estimates exclude system prompt, tools and draft. They are not exact tokenization or billing. Env: {envLabel(session.controls.env)}{session.controls.env === "Remote" ? ", pinned SSH execution, not sandbox isolation" : session.controls.env === "Sandbox" ? ", qualified private native SendBox guest" : ", host execution, not sandboxed"}.</p></> : <p role="status">Loading retained context...</p>}
     {stateError && <Alert as="div" role="alert" className="inline-error">{stateError}</Alert>}
     <button type="button" className="quiet" disabled={busy} onClick={() => void refresh()}>Reload context</button>
     <details className="compaction-generation" open={!selected || !["proposed", "restored", "applied"].includes(selected.status)}>

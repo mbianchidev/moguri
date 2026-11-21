@@ -20,6 +20,7 @@ const bridge: DesktopBridge = {
   chooseVoiceModel: () => ipcRenderer.invoke("moguri:choose-voice-model"),
   choosePath: (input) => ipcRenderer.invoke("moguri:choose-path", input),
   homeDirectory: process.argv.find((value) => value.startsWith("--moguri-home="))?.slice("--moguri-home=".length) ?? "",
+  automaticOnboarding: process.argv.includes("--moguri-onboarding=automatic"),
   loadNotificationSound: (profileId, path) => ipcRenderer.invoke("moguri:load-notification-sound", profileId, path),
   openExternal: (url) => ipcRenderer.invoke("moguri:open-external", url),
   projectLocation: (profileId, projectId, expectedPath, action) => ipcRenderer.invoke("moguri:project-location", profileId, projectId, expectedPath, action),

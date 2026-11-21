@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { startService } from "../../apps/service/src/server.ts";
 import { setupFixture } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop settings qualification is macOS-only.");
@@ -16,13 +17,13 @@ test("root menu preference and reviewed whole-store move use real generated stor
     env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_STATE_DIR_EXPLICIT: "0", MOGURI_LOCATION_DIR: locatorDirectory, MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_STORAGE_DESTINATION: destination },
   });
   try {
-    const page = await app.firstWindow(), categories = page.getByRole("navigation", { name: "Settings categories" });
+    const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const menu = page.getByLabel("Show Moguri in the menu bar", { exact: true });
     await expect(menu).toBeChecked(); await menu.uncheck();
     await expect.poll(async () => (await sdk.application.status()).configuration.values.menuBar).toBe(false);
     expect(await page.evaluate(() => window.moguri.applyApplicationPreferences())).toEqual({ menuBar: false, suppressed: true });
-    await categories.getByRole("button", { name: "Retention", exact: true }).click();
+    await openSettingsSection(page, "Retention");
     await page.getByRole("button", { name: "Choose storage parent", exact: true }).click();
     await expect(page.getByLabel("Session storage location", { exact: true })).toHaveValue(destination);
     await page.getByRole("button", { name: "Review storage relocation", exact: true }).click();

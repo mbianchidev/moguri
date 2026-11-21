@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
-import { openSettingsSection } from "./navigation.ts";
+import { openKupoAdvanced, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Settings choices use generated hidden macOS windows.");
@@ -32,6 +32,7 @@ test("settings choices save as soon as they change, without the toolbar Save", a
     await expect(toolbar).toHaveText("Saved");
 
     await openSettingsSection(page, "Kupo routing");
+    await openKupoAdvanced(page);
     await page.getByLabel("kupo workflow", { exact: true }).selectOption("single");
     await expect.poll(() => values().kupo.workflow).toBe("single");
     const threshold = page.getByLabel("Classifier confidence threshold", { exact: true }), before = values().kupo.minimumConfidence;

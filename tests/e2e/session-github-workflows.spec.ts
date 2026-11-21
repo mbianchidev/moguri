@@ -35,8 +35,8 @@ test("issue and PR pickers stay usable beyond twenty seconds when a normal chat 
     const panels = page.getByRole("navigation", { name: "Sidebar panels" });
     await panels.getByRole("button", { name: "Work item", exact: true }).click();
     const issue = page.getByRole("region", { name: "Project work items", exact: true });
-    await expect(issue.getByLabel("GitHub issue", { exact: true })).toBeEnabled();
-    await issue.getByLabel("GitHub issue", { exact: true }).selectOption("7");
+    await expect(issue.getByRole("listbox", { name: "GitHub issue", exact: true })).toBeEnabled();
+    await issue.getByRole("option", { name: /#7 / }).click();
     await expect(issue.getByRole("article", { name: "Issue details", exact: true })).toContainText("issue body");
     await panels.getByRole("button", { name: "Code change", exact: true }).click();
     await page.getByText("Link or open a pull request", { exact: true }).click();
@@ -48,8 +48,8 @@ test("issue and PR pickers stay usable beyond twenty seconds when a normal chat 
     await new Promise((resolve) => setTimeout(resolve, 20_100));
     release();
     const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
-    await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();
-    await pulls.getByLabel("Pull request", { exact: true }).selectOption("11");
+    await expect(pulls.getByRole("listbox", { name: "Pull request", exact: true })).toBeEnabled();
+    await pulls.getByRole("option", { name: /#11 / }).click();
     await expect(pulls.getByRole("article", { name: "Pull request details", exact: true })).toContainText("pull request body");
     await expect(pulls.getByRole("alert")).toHaveCount(0);
     expect(fixture.calls.filter((call) => call.path.includes("/pulls?"))).toHaveLength(1);
@@ -74,8 +74,8 @@ test("repository and project-item dropdowns show the actual account, full source
     await openProjectMenu(page, "checkout");
     await page.getByRole("menuitem", { name: "From PR", exact: true }).click();
     const fromPr = page.getByRole("dialog", { name: "Session from PR", exact: true });
-    await expect(fromPr.getByLabel("Pull request", { exact: true })).toBeEnabled();
-    await fromPr.getByLabel("Pull request", { exact: true }).selectOption("11");
+    await expect(fromPr.getByRole("listbox", { name: "Pull request", exact: true })).toBeEnabled();
+    await fromPr.getByRole("option", { name: /#11 / }).click();
     await expect(fromPr.getByRole("region", { name: "Reviewed session source", exact: true })).toContainText("pull request body");
     await fromPr.getByRole("button", { name: "Start session", exact: true }).click();
     await expect(fromPr).not.toBeVisible();
@@ -86,8 +86,8 @@ test("repository and project-item dropdowns show the actual account, full source
     await openProjectMenu(page, "checkout");
     await page.getByRole("menuitem", { name: "From work item", exact: true }).click();
     const fromIssue = page.getByRole("dialog", { name: "Session from work item", exact: true });
-    await expect(fromIssue.getByLabel("GitHub issue", { exact: true })).toBeEnabled();
-    await fromIssue.getByLabel("GitHub issue", { exact: true }).selectOption("7");
+    await expect(fromIssue.getByRole("listbox", { name: "GitHub issue", exact: true })).toBeEnabled();
+    await fromIssue.getByRole("option", { name: /#7 / }).click();
     await expect(fromIssue.getByRole("region", { name: "Reviewed session source", exact: true })).toContainText("issue body");
     await fromIssue.getByRole("button", { name: "Start session", exact: true }).click();
     await expect(fromIssue).not.toBeVisible();
@@ -136,8 +136,8 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
     await page.getByText("Link or open a pull request", { exact: true }).click();
     const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
-    await expect(pulls.getByLabel("Pull request", { exact: true })).toBeEnabled();
-    await pulls.getByLabel("Pull request", { exact: true }).selectOption("11");
+    await expect(pulls.getByRole("listbox", { name: "Pull request", exact: true })).toBeEnabled();
+    await pulls.getByRole("option", { name: /#11 / }).click();
     await expect(pulls.getByRole("article", { name: "Pull request details", exact: true })).toContainText("pull request body");
     await pulls.getByRole("button", { name: "New pull request", exact: true }).click();
     await expect(pulls.getByLabel("Base branch", { exact: true })).toHaveValue("main");
@@ -176,6 +176,49 @@ test("Code change and Work item publish reviewed PRs/issues once, retain full bo
   } finally { await close(app); await fixture.close(); }
 });
 
+test("Code change lists open PRs first with state icons, Show closed adds merged ones, and New branch pushes a reviewed session branch", async () => {
+  const fixture = await githubApplicationFixture({ ownedNetwork: true });
+  fixture.addPull(12); fixture.mergePull(12);
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
+    await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Code change", exact: true }).click();
+    await page.getByText("Link or open a pull request", { exact: true }).click();
+    const pulls = page.getByRole("region", { name: "Project pull requests", exact: true });
+    const list = pulls.getByRole("listbox", { name: "Pull request", exact: true });
+    await expect(list.getByRole("option")).toHaveCount(1);
+    await expect(list.getByRole("option", { name: /#11 / }).getByRole("img", { name: "Draft pull request", exact: true })).toBeVisible();
+    expect(fixture.calls.some((call) => call.path.startsWith("repos/generated-owner/fixture/pulls?state=open&"))).toBe(true);
+    await pulls.getByRole("switch", { name: "Show closed", exact: true }).check();
+    await expect(list.getByRole("option")).toHaveCount(2);
+    await expect(list.getByRole("option").nth(0)).toContainText("#11");
+    const merged = list.getByRole("option").nth(1);
+    await expect(merged).toContainText("#12");
+    await expect(merged.getByRole("img", { name: "Merged pull request", exact: true })).toHaveAttribute("data-github-state", "merged");
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await pulls.screenshot({ path: resolve(".moguri/artifacts/session-github-pr-list.png") });
+    await merged.click();
+    await expect(pulls.getByRole("article", { name: "Pull request details", exact: true })).toContainText("Generated PR 12");
+    await pulls.getByRole("button", { name: "New branch", exact: true }).click();
+    const form = pulls.getByRole("form", { name: "Create remote branch", exact: true });
+    await expect(form.getByLabel("Branch name", { exact: true })).toHaveValue("generated-feature");
+    await form.getByLabel("Branch name", { exact: true }).fill("generated/session-branch");
+    await form.getByRole("button", { name: "Review branch", exact: true }).click();
+    const review = form.getByRole("region", { name: "Exact branch review", exact: true });
+    await expect(review.getByRole("heading", { name: "Create and switch to branch", exact: true })).toBeVisible();
+    for (const check of await review.getByRole("checkbox").all()) await check.check();
+    await review.getByRole("button", { name: "Create and switch to branch", exact: true }).click();
+    await expect(review.getByRole("heading", { name: "Push and connect branch", exact: true })).toBeVisible();
+    expect(fixture.git(["branch", "--show-current"])).toBe("generated/session-branch");
+    for (const check of await review.getByRole("checkbox").all()) await check.check();
+    await review.getByRole("button", { name: "Push and connect branch", exact: true }).click();
+    await expect(pulls).toContainText("Pushed generated/session-branch to origin.");
+    expect(fixture.bare(["rev-parse", "--verify", "refs/heads/generated/session-branch"])).toBe(fixture.git(["rev-parse", "HEAD"]));
+    expect(fixture.writes()).toEqual({ issues: 0, pulls: 0 }); expect(errors).toEqual([]);
+    await page.screenshot({ path: resolve(".moguri/artifacts/session-github-branch.png") });
+  } finally { await close(app); await fixture.close(); }
+});
+
 test("approval scopes persist across turns, Autopilot explicitly enables unattended approvals and update token help stays read-only", async () => {
   const fixture = await setupFixture(); await fixture.configure();
   await reviewNativeTools(fixture, ["read_file"]);
@@ -192,7 +235,7 @@ test("approval scopes persist across turns, Autopilot explicitly enables unatten
     await fixture.send("generated tool with remembered desktop approval again"); await fixture.terminal();
     await expect(approval).not.toBeVisible();
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
-    await page.getByRole("dialog", { name: "Autonomy level", exact: true }).getByRole("button", { name: /^Autopilot Automatically approve/ }).click();
+    await page.getByRole("dialog", { name: "Autonomy level", exact: true }).getByRole("button", { name: /^Autonomous Automatically approve/ }).click();
     await expect.poll(() => fixture.session().controls.automaticApprovals).toBe(true);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByText("Create a token with the right permissions", { exact: true }).click();

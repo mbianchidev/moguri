@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { agentHarnessProduct, approvalProject, commandFamily, type MoguriSdk, type RememberApproval, type Session } from "../../../packages/sdk/src/index.ts";
+import { envLabel, agentHarnessProduct, approvalProject, commandFamily, type MoguriSdk, type RememberApproval, type Session } from "../../../packages/sdk/src/index.ts";
 
 export function ApprovalActions({ sdk, session, busy, run }: {
   sdk: MoguriSdk; session: Session; busy: boolean; run: (action: () => Promise<unknown>) => Promise<void>;
@@ -38,7 +38,7 @@ export function ApprovalActions({ sdk, session, busy, run }: {
         onChange={(event) => setMatch(event.target.value === "tool" ? "tool" : "exact")}><option value="exact">These exact arguments</option><option value="tool">Always approve {approval.call.name}</option></select></label>}
     </div>
     {script && <p className="fine-print">Only this original source-bound attempt can be approved. Other scripts and changed bytes need a new full review.</p>}
-    {selectedScope !== "once" && <p className="fine-print">Remembered in this profile for {session.controls.env}. {nested ? `Only ${String(approval.call.arguments.serverId)}/${String(approval.call.arguments.tool)} with this schema and server configuration.` :
+    {selectedScope !== "once" && <p className="fine-print">Remembered in this profile for {envLabel(session.controls.env)}. {nested ? `Only ${String(approval.call.arguments.serverId)}/${String(approval.call.arguments.tool)} with this schema and server configuration.` :
       selectedMatch === "family" ? `Future simple ${family} commands, with any arguments. Compound shell expressions still need review.` : selectedMatch === "tool" ? `Future ${approval.call.name} calls with new arguments, within this scope.` : "Only these exact arguments."} Hard denials and environment policy still apply.</p>}
     <div className="approval-actions"><button disabled={busy} onClick={() => void run(() => sdk.approvals.respond(session.id, approval.id, false))}>Deny</button>
       <button className="primary" disabled={busy} onClick={() => void run(() => sdk.approvals.respond(session.id, approval.id, true,

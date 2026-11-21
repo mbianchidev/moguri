@@ -6,6 +6,7 @@ import { compareSessions, isRecord, MoguriSdk } from "../../packages/sdk/src/ind
 import { operationProjection } from "../../apps/service/src/operation-telemetry.ts";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -178,7 +179,7 @@ test("session names open context actions, archive confirmations can be remembere
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === second.id)?.status).toBe("archived");
     await expect(page.getByRole("dialog", { name: "Archive session", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Retention", exact: true }).click();
+    await openSettingsSection(page, "Retention");
     await expect(page.getByLabel("Confirm before archiving a session", { exact: true })).not.toBeChecked();
     await page.getByLabel("Confirm before archiving a session", { exact: true }).check();
     await expect.poll(() => sdk.getState().snapshot?.settings.values.retention.confirmArchive).toBe(true);
@@ -246,7 +247,7 @@ test("desktop slash archive reviews the child tree and remembers its chosen disp
     await expect.poll(() => sdk.getState().snapshot?.sessions.find((session) => session.id === secondChild.id)?.status).toBe("archived");
 
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Retention", exact: true }).click();
+    await openSettingsSection(page, "Retention");
     await page.getByLabel("When archiving a session with subsessions", { exact: true }).selectOption("ask");
     await expect.poll(() => sdk.settings.get()?.values.retention.archiveChildren).toBeUndefined();
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }

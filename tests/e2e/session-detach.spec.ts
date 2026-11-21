@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { compareSessions, isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -68,7 +69,7 @@ test("remembered detachment applies to drag and keyboard actions, survives reloa
     await expect.poll(() => sdk.getState().snapshot!.sessions.find((session) => session.id === next.id)?.parentSessionId ?? null).toBeNull();
     await expect(review(page)).toHaveCount(0);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Confirmations", exact: true }).click();
+    await openSettingsSection(page, "Confirmations");
     const preference = page.getByLabel("Confirm before detaching a child session", { exact: true });
     await expect(preference).not.toBeChecked();
     await preference.check();
@@ -129,7 +130,7 @@ test("global terminal navigation and scope selection are removed without opening
   try {
     const page = await app.firstWindow();
     await expect(page.getByRole("navigation", { name: "Profile resources" }).getByRole("button"))
-      .toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Customize", "Artifacts"]);
+      .toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Capabilities", "Artifacts"]);
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     await expect(page.getByLabel("Terminal scope", { exact: true })).toHaveCount(0);
     await expect.poll(() => sdk.getState().snapshot!.terminals.filter((terminal) => terminal.sessionId === fixture.sessionId && terminal.status === "running").length).toBe(1);

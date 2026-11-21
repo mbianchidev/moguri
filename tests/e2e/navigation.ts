@@ -36,21 +36,24 @@ export async function chooseContextWindow(page: Page, name: string) {
   await page.getByRole("menu", { name: "Working context window", exact: true }).getByRole("menuitemradio", { name, exact: true }).click();
 }
 
-// Opens a Settings item by its label: a rail entry, or a tab inside a tabbed rail entry such as Integrations (#84).
-// Tabs are reached through search, so a test mounts only its target page, never the group's first tab.
+// Opens the Settings page (rail group) that holds an item and brings that item's section into view. A group label opens its page.
+// Every item of a group renders on its page, so there is no per-item rail entry or tab to choose.
 export async function openSettingsSection(page: Page, section: string) {
   const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
   // Settings loads lazily: trust the toggle's pressed state, not a visibility probe that can race the first render.
   const toggle = page.getByRole("button", { name: "Settings", exact: true });
   if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
   await expect(categories).toBeVisible();
-  const group = SETTINGS_GROUPS.find((value) => "tabbed" in value && value.items.some((item) => item.label === section));
-  if (!group) { await categories.getByRole("button", { name: section, exact: true }).click(); return; }
-  const search = page.getByLabel("Search settings", { exact: true }), previous = await search.inputValue();
-  await search.fill(section);
-  await categories.getByRole("region", { name: `${group.label} settings`, exact: true }).getByRole("button", { name: section, exact: true }).click();
-  await search.fill(previous);
-  await expect(page.getByRole("tablist", { name: group.label, exact: true }).getByRole("tab", { name: section, exact: true })).toHaveAttribute("aria-selected", "true");
+  const group = SETTINGS_GROUPS.find((value) => value.label === section || value.items.some((item) => item.label === section));
+  if (!group) throw new Error(`No Settings page or section is named ${section}.`);
+  const search = page.getByLabel("Search settings", { exact: true });
+  if (await search.inputValue()) await search.fill("");
+  await categories.getByRole("button", { name: group.label, exact: true }).click();
+  await expect(categories.getByRole("button", { name: group.label, exact: true })).toHaveAttribute("aria-current", "page");
+  const item = group.items.find((value) => value.label === section);
+  const target = item ? page.locator(`#settings-section-${item.id}`) : page.getByRole("heading", { name: group.label, exact: true, level: 2 });
+  await target.first().scrollIntoViewIfNeeded();
+  await expect(target.first()).toBeVisible();
 }
 
 export async function openUsageDetails(page: Page) {
@@ -81,4 +84,15 @@ export async function openProjectMenu(page: Page, name: string): Promise<Locator
 export async function openGroupMenu(page: Page, name: string): Promise<Locator> {
   await page.locator(".project-folder > summary").filter({ has: page.getByText(name, { exact: true }) }).click({ button: "right" });
   return page.getByRole("menu", { name: `Project group actions for ${name}`, exact: true });
+}
+/** Model lists start with every provider and AI lab group collapsed (D56); open them all. */
+export async function expandModelGroups(scope: Locator) {
+  const closed = scope.locator('.model-group-toggle[aria-expanded="false"]');
+  for (let guard = 0; guard < 200 && await closed.count(); guard++) await closed.first().click();
+}
+/** Automatic Kupo keeps the engine select, capabilities and complete policy under Advanced (D56). */
+export async function openKupoAdvanced(page: Page) {
+  const details = page.locator("#settings-section-kupo details").filter({ has: page.locator("summary", { hasText: /^Advanced$/ }) }).first();
+  await expect(details).toBeAttached();
+  if (!await details.evaluate((element) => (element as HTMLDetailsElement).open)) await details.locator("summary").first().click();
 }

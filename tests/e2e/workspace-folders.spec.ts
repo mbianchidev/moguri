@@ -71,6 +71,8 @@ test("a trusted workspace folder adds chosen repositories as read-only projects 
     const mode = page.getByRole("combobox", { name: "Default project workspace", exact: true });
     await expect(mode).toBeDisabled(); await expect(mode.locator("option")).toHaveText(["A new worktree (always)"]);
     await expect(page.getByText("Moguri doesn't change this repository's remotes because it only reads projects from a workspace folder.")).toBeVisible();
+    // The General page mounts every section; let its saved state settle before closing so the unload guard sees no edit.
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     expect(errors).toEqual([]);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

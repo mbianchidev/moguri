@@ -152,13 +152,15 @@ test("the session browser has a sliding agent access toggle with native button k
   } finally { await owned.close(); }
 });
 
-test("one failed original host poll revokes agent access but recovers the same native owner without replaying an action", async () => {
+test("one failed original host poll revokes agent access and the recovered native owner turns it back on with a new identity without replaying an action", async () => {
   const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
   const query = owned.fixture.service.controller.platform.query.bind(owned.fixture.service.controller.platform);
   let failed = false, recoveryReads = 0;
   try {
     const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
     await toggle.click(); await expect(toggle).toBeChecked();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    const before = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId;
     const original = await owned.app.evaluate(({ webContents }, url) => webContents.getAllWebContents().find((contents) => contents.getURL() === url)?.id, owned.url);
     owned.fixture.service.controller.platform.query = async (...args: Parameters<typeof query>) => {
       if (args[0].type === "browser.host.poll") {
@@ -168,12 +170,14 @@ test("one failed original host poll revokes agent access but recovers the same n
       return query(...args);
     };
     await expect.poll(() => failed).toBe(true);
-    await expect(toggle).not.toBeChecked();
     await expect.poll(() => recoveryReads).toBeGreaterThan(0);
-    await expect(toggle).toBeEnabled();
-    await toggle.click(); await expect(toggle).toBeChecked();
+    // The chat's recorded choice stays on: the recovered owner re-enables control itself, never with the revoked identity.
+    await expect(toggle).toBeChecked();
+    await expect.poll(async () => {
+      const current = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId;
+      return current !== null && current !== before;
+    }).toBe(true);
     const state = (await sdk.browser.state(owned.fixture.sessionId)).browser;
-    expect(state.controlId).not.toBeNull();
     const snapshot = await callBrowser(owned, sdk, "browser_snapshot", { controlId: state.controlId });
     expect(snapshot.job.status).toBe("completed");
     expect(await owned.app.evaluate(({ webContents }, url) => webContents.getAllWebContents().find((contents) => contents.getURL() === url)?.id, owned.url)).toBe(original);
@@ -331,16 +335,21 @@ test("default-off, denied approval, password fields and stale document refs cann
     await owned.page.getByLabel("Preview URL", { exact: true }).fill(`${owned.url}manual`);
     await owned.page.getByRole("button", { name: "Load preview", exact: true }).click();
     await expect.poll(() => owned.requests.includes("/manual")).toBe(true);
-    await expect(toggle).not.toBeChecked();
+    // The user's navigation revokes the old identity; the chat's choice turns control back on with a new one.
+    await expect(toggle).toBeChecked();
+    await expect.poll(async () => {
+      const current = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId;
+      return current !== null && current !== controlId;
+    }).toBe(true);
     const stale = await callBrowser(owned, sdk, "browser_click", { controlId, snapshotId: fresh.snapshotId, ref: fresh.element("button", "Apply generated text") });
     expect(stale.job.status).toBe("failed");
     await sdk.command({ type: "session.resume", sessionId: owned.fixture.sessionId });
-    await expect(toggle).not.toBeChecked();
-    expect((await callBrowser(owned, sdk, "browser_status", {})).text).not.toContain("Generated browser");
+    const resumed = JSON.parse((await callBrowser(owned, sdk, "browser_status", {})).text);
+    expect(resumed.controlId).not.toBeNull(); expect(resumed.controlId).not.toBe(controlId);
   } finally { sdk.disconnect(); await owned.close(); }
 });
 
-test("hiding and reopening the same browser clears its private state and never re-enables agent control", async () => {
+test("hiding and reopening a browser whose agent control was turned off clears its private state and never re-enables control", async () => {
   const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
   try {
     const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
@@ -351,6 +360,9 @@ test("hiding and reopening the same browser clears its private state and never r
       const contents = webContents.getAllWebContents().find((contents) => contents.getURL() === url)!;
       await contents.executeJavaScript("localStorage.setItem('generated-browser-private','generated-value')");
     }, owned.url);
+    await toggle.click(); await expect(toggle).not.toBeChecked();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).toBeNull();
+    expect(owned.fixture.session().browserAgentControl).toBe(false);
     const button = owned.page.getByRole("button", { name: "Browser", exact: true });
     for (let index = 0; index < 3; index++) {
       await button.click(); await expect(toggle).not.toBeVisible();
@@ -478,10 +490,13 @@ test("removing a Local website allowance cancels dispatched native navigation an
     expect(owned.fixture.session().pendingApproval).toBeNull();
     await expect.poll(() => owned.requests.includes("/slow")).toBe(true);
     await sdk.webAllowlist.remove(sdk.webAllowlist.list()[0]!.id);
-    await expect(toggle).not.toBeChecked();
     expect((await sdk.jobs.wait(started.id!)).status).not.toBe("completed");
-    await toggle.click(); await expect(toggle).toBeChecked();
-    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId).not.toBeNull();
+    // The permission change revoked that identity; the chat's choice stays on and returns with a fresh one.
+    await expect(toggle).toBeChecked();
+    await expect.poll(async () => {
+      const current = (await sdk.browser.state(owned.fixture.sessionId)).browser.controlId;
+      return current !== null && current !== controlId;
+    }).toBe(true);
     expect(owned.requests.filter((path) => path === "/slow")).toHaveLength(1);
     expect(owned.fixture.requests).toHaveLength(0);
   } finally { sdk.disconnect(); await owned.close(); }
@@ -510,4 +525,92 @@ test("native browser subresources cannot bypass the initial website approval", a
     sdk.disconnect(); await owned.close(); resource.closeAllConnections();
     await new Promise<void>((resolve) => resource.close(() => resolve()));
   }
+});
+
+const currentControl = async (sdk: MoguriSdk, sessionId: string) => (await sdk.browser.state(sessionId)).browser.controlId;
+const previewHidden = (owned: Awaited<ReturnType<typeof browserFixture>>) => owned.app.evaluate(({ BrowserWindow, WebContentsView }) => {
+  const view = BrowserWindow.getAllWindows()[0]!.contentView.children.find((child) => child instanceof WebContentsView);
+  return view instanceof WebContentsView ? !view.getVisible() : null;
+});
+
+test("agent control stays on while another panel of the chat is shown, and the hidden pane keeps serving approved tools", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  try {
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click(); await expect(toggle).toBeChecked();
+    await expect(owned.page.getByText("Agent control stays on for this chat until you turn it off", { exact: true })).toBeVisible();
+    await expect.poll(() => currentControl(sdk, owned.fixture.sessionId)).not.toBeNull();
+    const controlId = (await currentControl(sdk, owned.fixture.sessionId))!;
+    expect(owned.fixture.session().browserAgentControl).toBe(true);
+    const panels = owned.page.getByRole("navigation", { name: "Sidebar panels", exact: true });
+    await panels.getByRole("button", { name: "Insights", exact: true }).click();
+    await expect(toggle).not.toBeVisible();
+    await expect.poll(() => previewHidden(owned)).toBe(true);
+    const hidden = (await sdk.browser.state(owned.fixture.sessionId)).browser;
+    expect(hidden.available).toBe(true); expect(hidden.controlId).toBe(controlId);
+    const inspected = snapshotData((await callBrowser(owned, sdk, "browser_snapshot", { controlId })).text);
+    const filled = await callBrowser(owned, sdk, "browser_fill", { controlId, snapshotId: inspected.snapshotId, ref: inspected.element("textbox", "Generated text"), text: "Generated hidden input" });
+    expect(filled.job.status).toBe("completed");
+    await panels.getByRole("button", { name: "Browser", exact: true }).click();
+    await expect(toggle).toBeChecked();
+    await expect.poll(() => previewHidden(owned)).toBe(false);
+    expect(await currentControl(sdk, owned.fixture.sessionId)).toBe(controlId);
+    expect(await owned.app.evaluate(async ({ webContents }, url) => webContents.getAllWebContents().find((contents) => contents.getURL() === url)
+      ?.executeJavaScript("document.querySelector('#text').value"), owned.url)).toBe("Generated hidden input");
+    expect(owned.fixture.requests.length).toBe(0);
+  } finally { sdk.disconnect(); await owned.close(); }
+});
+
+test("agent control turns back on with a fresh identity after another chat's pane takes the browser and after a window reload", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  try {
+    await sdk.sessions.rename(owned.fixture.sessionId, "Generated browser chat");
+    await sdk.sessions.create(owned.fixture.session().projectId, "Generated other browser chat");
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    const chat = (name: string) => owned.page.locator(".session-link").filter({ hasText: name });
+    await toggle.click(); await expect(toggle).toBeChecked();
+    await expect.poll(() => currentControl(sdk, owned.fixture.sessionId)).not.toBeNull();
+    const first = (await currentControl(sdk, owned.fixture.sessionId))!;
+    await chat("Generated other browser chat").click();
+    await expect(toggle).not.toBeChecked();
+    await expect.poll(async () => (await sdk.browser.state(owned.fixture.sessionId)).browser.available).toBe(false);
+    expect(owned.fixture.session().browserAgentControl).toBe(true);
+    await chat("Generated browser chat").click();
+    await expect(toggle).toBeChecked();
+    await expect.poll(async () => { const current = await currentControl(sdk, owned.fixture.sessionId); return current !== null && current !== first; }).toBe(true);
+    const stale = await callBrowser(owned, sdk, "browser_navigate", { controlId: first, url: `${owned.url}stale` });
+    expect(stale.job.status).toBe("failed"); expect(owned.requests).not.toContain("/stale");
+    await sdk.command({ type: "session.resume", sessionId: owned.fixture.sessionId });
+    await owned.page.reload();
+    await expect(owned.page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await chat("Generated browser chat").click();
+    await expect(toggle).toBeChecked();
+    await expect.poll(() => currentControl(sdk, owned.fixture.sessionId)).not.toBeNull();
+    const reloaded = (await currentControl(sdk, owned.fixture.sessionId))!;
+    expect((await callBrowser(owned, sdk, "browser_snapshot", { controlId: reloaded })).job.status).toBe("completed");
+    expect(owned.fixture.requests.length).toBe(0);
+  } finally { sdk.disconnect(); await owned.close(); }
+});
+
+test("user navigation in the pane keeps agent control on with a new identity and the old one is never reused", async () => {
+  const owned = await browserFixture(), sdk = await new MoguriSdk(owned.fixture.service.connection).ready();
+  try {
+    const toggle = owned.page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await toggle.click(); await expect(toggle).toBeChecked();
+    await expect.poll(() => currentControl(sdk, owned.fixture.sessionId)).not.toBeNull();
+    const old = (await currentControl(sdk, owned.fixture.sessionId))!;
+    await owned.page.getByLabel("Preview URL", { exact: true }).fill(`${owned.url}next`);
+    await owned.page.getByRole("button", { name: "Load preview", exact: true }).click();
+    await expect.poll(() => owned.requests.includes("/next")).toBe(true);
+    await expect(toggle).toBeChecked();
+    await expect.poll(async () => { const current = await currentControl(sdk, owned.fixture.sessionId); return current !== null && current !== old; }).toBe(true);
+    const current = (await currentControl(sdk, owned.fixture.sessionId))!;
+    const stale = await callBrowser(owned, sdk, "browser_snapshot", { controlId: old });
+    expect(stale.job.status).toBe("failed");
+    await sdk.command({ type: "session.resume", sessionId: owned.fixture.sessionId });
+    const inspected = await callBrowser(owned, sdk, "browser_snapshot", { controlId: current });
+    expect(inspected.job.status).toBe("completed"); expect(inspected.text).toContain(`${owned.url}next`);
+    expect(owned.fixture.session().browserAgentControl).toBe(true);
+    expect(owned.fixture.requests.length).toBe(0);
+  } finally { sdk.disconnect(); await owned.close(); }
 });

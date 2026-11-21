@@ -1,7 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, WinddownResponse } from "../../../packages/sdk/src/index.ts";
-import { isLocalCandidateRecord } from "../../../packages/sdk/src/index.ts";
+import { envLabel, isLocalCandidateRecord } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<WinddownResponse, { type: "winddown.read" }>;
@@ -64,7 +64,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
       {!records.length && <option value="">No checkpoints yet</option>}{records.map((record) => <option key={record.id} value={record.id}>{snapshot.artifacts.find((artifact) => artifact.id === record.id)?.name ?? record.id} / {record.status}</option>)}</select></label>
     {value && <>
       <h4 ref={outcome} tabIndex={-1}>Checkpoint {value.winddown.status}</h4>
-      <p className="fine-print">Finishing model: {value.winddown.step.modelId} · Env: {value.winddown.env} · step: {value.winddown.step.state} · turn: {value.winddown.turnId}</p>
+      <p className="fine-print">Finishing model: {value.winddown.step.modelId} · Env: {envLabel(value.winddown.env)} · step: {value.winddown.step.state} · turn: {value.winddown.turnId}</p>
       {value.winddown.version !== 1 && value.winddown.transport && <p className="fine-print path">Run: {value.winddown.transport.executionId}<br />Worker: {value.winddown.transport.workerDigest}</p>}
       {value.winddown.diagnostic && <Alert as="p" className="settings-warning" role="alert">{value.winddown.diagnostic}</Alert>}
       <details><summary>Model input and output</summary>{value.roleInput && <pre>{value.roleInput}</pre>}{value.result && <pre>{value.result}</pre>}<p className="fine-print">Model output. It can't answer for you, validate work or approve Git.</p></details>
@@ -81,7 +81,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
         })}>Inspect checkpoint result</button>
         {inspection?.scope === scope && <section aria-label="Original checkpoint effect inspection">
           <Alert as="p" tone="warning" className="settings-warning">{inspection.value.review.warning}</Alert>
-          <p className="fine-print path">Env: {inspection.value.review.document.publicationEnv}<br />Root: {inspection.value.review.document.root}<br />Branch now at: {inspection.value.review.document.actualCommit ?? "no commit"}<br />Prepared commit: {inspection.value.preparedCommit ?? "not recorded"}<br />Published commit: {inspection.value.publishedCommit ?? "not recorded"}</p>
+          <p className="fine-print path">Env: {envLabel(inspection.value.review.document.publicationEnv)}<br />Root: {inspection.value.review.document.root}<br />Branch now at: {inspection.value.review.document.actualCommit ?? "no commit"}<br />Prepared commit: {inspection.value.preparedCommit ?? "not recorded"}<br />Published commit: {inspection.value.publishedCommit ?? "not recorded"}</p>
           <details><summary>Inspection details</summary><pre>{JSON.stringify(inspection.value.review.document, null, 2)}</pre></details>
           {value.winddown.status === "partial" && !value.winddown.commit.inspection && <>
             <label className="check-setting"><SettingsInput type="checkbox" aria-label="Reviewed original checkpoint effects" checked={inspectionReviewed} onChange={(event) => setInspectionReviewed(event.target.checked)} />I reviewed this interrupted commit and the branch's current state. Keep it partial with its charges; don't retry or roll back.</label>
@@ -93,7 +93,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
         </section>}
       </>}
       {value.winddown.status === "ready" && value.winddown.env !== "Local" && <Alert as="p" className="fine-print" role="status">
-        This finishing summary came from the {value.winddown.env} worker; it doesn't mark the task done or approve changes. Commits go only to the run's original folder.
+        This finishing summary came from the {envLabel(value.winddown.env)} worker; it doesn't mark the task done or approve changes. Commits go only to the run's original folder.
       </Alert>}
       {value.winddown.status === "ready" && (value.winddown.env === "Local" || (native || remote) && ownSource) && <>
         {!ownSource && <Alert as="p" tone="warning" className="settings-warning">Open the checkpoint's original chat in agent mode, with no turn running, to continue. A deleted, moved or project-free source can't use another checkout.</Alert>}

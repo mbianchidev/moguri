@@ -6,7 +6,7 @@ import { GeneratedIntakeClock } from "../fixtures/intake-clock.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden desktop execution is qualified on macOS.");
-test("Automations creates a recurring workflow, runs it in a new chat and saves the schedule switch immediately", async () => {
+test("Automations creates recurring workflows with or without a project, runs them in new chats, saves the schedule switch immediately and reports runs in Inbox", async () => {
   const clock = new GeneratedIntakeClock(), fixture = await setupFixture({ responseMode: "text", maxOutputTokens: 128, platform: { intakeClock: clock } });
   await fixture.configure();
   const app = await electron.launch({ executablePath: require("electron"), args: ["."],
@@ -47,5 +47,41 @@ test("Automations creates a recurring workflow, runs it in a new chat and saves 
     expect(fixture.requests).toHaveLength(2);
     await card.getByRole("button", { name: "Open chat", exact: true }).click();
     await expect(page.getByRole("article", { name: "User prompt", exact: true }).first()).toContainText("Generated first automation step.");
+
+    await page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Automations", exact: true }).click();
+    await panel.getByRole("button", { name: "New automation", exact: true }).click();
+    const free = page.getByRole("dialog", { name: "New automation", exact: true });
+    await free.getByRole("textbox", { name: "Name", exact: true }).fill("Generated project-free digest");
+    await free.getByRole("combobox", { name: "Project", exact: true }).selectOption({ label: "No project" });
+    await expect(free).toContainText("Each run starts an ordinary project-free chat.");
+    await free.getByRole("textbox", { name: "Timezone", exact: true }).fill("UTC");
+    await free.getByRole("group", { name: "Step 1", exact: true }).getByRole("textbox", { name: "Prompt", exact: true }).fill("Generated project-free automation step.");
+    await free.getByRole("combobox", { name: "Model", exact: true }).selectOption(fixture.modelId);
+    await free.getByRole("button", { name: "Create automation", exact: true }).click();
+    await expect(free).toHaveCount(0);
+    const freeCard = panel.getByRole("article", { name: "Generated project-free digest", exact: true });
+    await expect(freeCard).toContainText("No project");
+    expect(fixture.service.controller.snapshot().automations.find((value) => value.name === "Generated project-free digest")?.projectId).toBeNull();
+    await freeCard.getByRole("button", { name: "Run now", exact: true }).click();
+    await expect(freeCard.getByRole("list", { name: "Recent runs", exact: true }).getByRole("listitem").first()).toContainText("Completed");
+    expect(fixture.requests).toHaveLength(3);
+    const freeRun = fixture.service.controller.snapshot().automationRuns.find((value) => value.name === "Generated project-free digest")!;
+    const freeChat = fixture.service.controller.snapshot().sessions.find((session) => session.id === freeRun.sessionId)!;
+    expect(freeRun.projectId).toBeNull(); expect(freeChat.projectId).toBeNull(); expect(freeChat.homeRoot?.root).toBeTruthy();
+
+    await page.getByRole("navigation", { name: "Profile resources" }).getByRole("button", { name: "Inbox", exact: true }).click();
+    const inbox = page.getByRole("region", { name: "Inbox notifications", exact: true });
+    await expect(inbox).toContainText('Automation "Generated weekday digest" completed its run.');
+    const freeItem = inbox.locator(".attention-item").filter({ hasText: 'Automation "Generated project-free digest" completed its run.' });
+    await expect(freeItem).toHaveCount(1);
+    await expect(inbox).not.toContainText('Automation "Generated project-free digest" started a run');
+    const entry = fixture.service.controller.snapshot().attention.find((value) => value.reason === "automation" && value.messageId === freeRun.id && value.active)!;
+    expect(entry.automation?.status).toBe("completed"); expect(entry.sessionId).toBe(freeChat.id);
+    await freeItem.getByRole("button", { name: `Mark attention read ${entry.id}`, exact: true }).click();
+    await expect.poll(() => fixture.service.controller.snapshot().attention.find((value) => value.id === entry.id)?.acknowledged).toBe(true);
+    expect(fixture.service.controller.snapshot().attention.find((value) => value.id === entry.id)?.active).toBe(true);
+    expect(fixture.requests).toHaveLength(3);
+    await freeItem.getByRole("button", { name: "Generated project-free digest", exact: true }).click();
+    await expect(page.getByRole("article", { name: "User prompt", exact: true }).first()).toContainText("Generated project-free automation step.");
   } finally { await app.close(); await fixture.close(); }
 });

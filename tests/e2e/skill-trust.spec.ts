@@ -44,6 +44,8 @@ test("desktop saves and blocks publisher keys, blocks one version and saves the 
     await expect(risk).not.toBeChecked();
     await risk.check();
     await expect.poll(async () => { await sdk.refresh(); return sdk.settings.get()?.values.scriptReview?.acceptScannerRisk; }).toBe(true);
+    // Settings mounts every section of the page; let its saved state settle before closing so the unload guard sees no edit.
+    await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

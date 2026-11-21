@@ -19,7 +19,7 @@ test("compact navigation, global suggestions and the four graphic dashboard page
     const page = await app.firstWindow(), nav = page.getByRole("navigation", { name: "Projects and sessions", exact: true });
     await expect(nav.getByRole("button", { name: "New", exact: true })).toBeVisible();
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
-    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Customize", "Artifacts"]);
+    await expect(resources.getByRole("button")).toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Capabilities", "Artifacts"]);
     await expect(nav.getByText("GitHub Copilot", { exact: true })).toHaveCount(0);
     await expect(nav.getByRole("button", { name: "Settings", exact: true })).toHaveText("");
     await expect(nav.getByRole("button", { name: "ask Moguri", exact: true })).toHaveText("");
@@ -66,7 +66,6 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
       ipcMain.handle("moguri:copy-text", (_event, text: string) => { process.env.MOGURI_GENERATED_COPY = text; });
     });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
     await openSettingsSection(page, "Appearance");
     const info = page.getByRole("button", { name: "About appearance", exact: true });
     await focusByKeyboard(info);
@@ -79,7 +78,7 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
     await expect(page.getByRole("tooltip")).toHaveCount(0);
     await expect(info).toBeFocused();
     await expect(info).not.toHaveAttribute("aria-describedby");
-    await categories.getByRole("button", { name: "User guidance", exact: true }).click();
+    await openSettingsSection(page, "User guidance");
     const field = page.getByLabel("Global user guidance", { exact: true });
     await field.fill("Generated copyable guidance.");
     await field.hover();
@@ -87,11 +86,11 @@ test("settings explanations are keyboard tooltips and non-secret fields copy the
     expect(await app.evaluate(() => process.env.MOGURI_GENERATED_COPY)).toBe("Generated copyable guidance.");
     await expect(field).toHaveValue("Generated copyable guidance.");
     await page.getByRole("button", { name: "Save user guidance", exact: true }).click();
-    await categories.getByRole("button", { name: "Local models", exact: true }).click();
+    await openSettingsSection(page, "Local models");
     for (const password of await page.locator('input[type="password"]').all()) {
       await expect(password.locator("..").getByRole("button", { name: /^Copy / })).toHaveCount(0);
     }
-    for (const label of ["Artifacts", "Candidates", "Sandbox"]) await expect(categories.getByRole("button", { name: label, exact: true })).toBeVisible();
+    for (const label of ["Artifacts", "Candidates", "Sandbox"]) await openSettingsSection(page, label);
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); await fixture.close(); }
 });
@@ -113,7 +112,6 @@ test("clicked icon tooltips leave with the pointer without stealing focus or bre
     await settings.click();
     const outside = page.getByRole("heading", { name: "Settings", exact: true });
     await outside.hover(); await expect(page.getByRole("tooltip")).toHaveCount(0);
-    const categories = page.getByRole("navigation", { name: "Settings categories" });
     await openSettingsSection(page, "Appearance");
     const info = page.getByRole("button", { name: "About appearance", exact: true });
     await info.click(); await expect(page.getByRole("tooltip")).toContainText("default theme");
@@ -126,7 +124,7 @@ test("clicked icon tooltips leave with the pointer without stealing focus or bre
     await expect(info).toBeFocused();
     expect(await info.evaluate((button) => button.matches(":focus-visible"))).toBe(false);
     await expect(page.getByRole("tooltip")).toHaveCount(0);
-    await categories.getByRole("button", { name: "User guidance", exact: true }).click();
+    await openSettingsSection(page, "User guidance");
     const field = page.getByLabel("Global user guidance", { exact: true });
     await field.fill("Generated tooltip copy value."); await field.hover();
     const copy = page.getByRole("button", { name: "Copy Global user guidance", exact: true });
@@ -178,7 +176,7 @@ test("small real cost estimates remain graphically visible and saved skill folde
     await pages.getByRole("button", { name: "My work", exact: true }).click();
     await page.screenshot({ path: ".moguri/artifacts/workspace-my-work-dashboard.png", animations: "disabled" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Skills", exact: true }).click();
+    await openSettingsSection(page, "Skills");
     const gateway = page.getByRole("region", { name: "Skill gateway settings", exact: true });
     await gateway.getByLabel("Skill source name", { exact: true }).fill("Generated desktop skills");
     await gateway.getByLabel("Skill source location", { exact: true }).fill(root);
@@ -214,8 +212,7 @@ test("cancelling skill discovery stops its download and releases the settings na
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
-    await categories.getByRole("button", { name: "Skills", exact: true }).click();
+    await openSettingsSection(page, "Skills");
     const gateway = page.getByRole("region", { name: "Skill gateway settings", exact: true });
     await gateway.getByRole("button", { name: "Find skills", exact: true }).click();
     await started.promise;
@@ -257,7 +254,7 @@ test("right-rail links follow the selected session and Copilot connection status
     await mkdir(".moguri/artifacts", { recursive: true });
     await page.screenshot({ path: ".moguri/artifacts/workspace-session-links.png", animations: "disabled" });
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories", exact: true }).getByRole("button", { name: "Providers", exact: true }).click();
+    await openSettingsSection(page, "Providers");
     await expect(page.getByText("Connected through your Copilot account.", { exact: true })).toBeVisible();
     expect(fixture.requests.length).toBe(0);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }

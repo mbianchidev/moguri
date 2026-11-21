@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { MoguriSdk, OperationEntry, ProfileStorage, Snapshot, TelemetryQuery, TelemetryResponse, UsageFilters } from "../../../packages/sdk/src/index.ts";
+import { envLabel } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Operations = Extract<TelemetryResponse, { type: "telemetry.operations" }>;
@@ -54,7 +55,7 @@ export function OperationalUsage({ sdk, snapshot, filters }: { sdk: MoguriSdk; s
           {!operations.totals.attempts && <p>No retained attempts match these filters. Previously deleted history is unavailable, not proof of zero calls.</p>}
           {operations.groups.map((group) => <div className="call-record" key={JSON.stringify([group.family, group.serverId, group.name, group.actor])}><strong>{group.serverId ? `${group.serverId} / ` : ""}{group.name ?? "Unverified identifier"}</strong><small>{group.family} / {group.actor === "external" ? "external client" : group.actor === "model" ? "model" : "unverified actor"}</small><span>{group.totals.attempts} attempts / {failureRate(group.totals)}</span><span>{group.totals.partial} partial / {group.totals.unconfirmed} unconfirmed / {group.totals.unknown} unknown</span></div>)}
           <details><summary>Sanitized attempt history</summary>{operations.entries.map((entry) => <div className="call-record" key={entry.id}><strong>{entry.serverId ? `${entry.serverId} / ` : ""}{entry.name ?? "Unverified identifier"}</strong>
-            <small>{entry.actor} / {entry.env} / {entry.outcome}{entry.imported ? " / retained-history import" : ""}</small><span>{entry.requestedAt ?? entry.startedAt ?? "Request/start time unverified"}</span>
+            <small>{entry.actor} / {envLabel(entry.env)} / {entry.outcome}{entry.imported ? " / retained-history import" : ""}</small><span>{entry.requestedAt ?? entry.startedAt ?? "Request/start time unverified"}</span>
             <small>{entry.repository ? `${entry.repository.fullName} / ${entry.repository.visibility}` : "Repository unassigned"}</small>
             <span>{entry.elapsedMs === null ? "No complete timing sample" : `${entry.elapsedMs.toLocaleString()} ms observed lifecycle wall`}</span><small>Event sequence {entry.sourceSeq}{entry.diagnostic ? ` / ${entry.diagnostic}` : ""}</small></div>)}
             <div className="button-row">{offset > 0 && <button type="button" disabled={loading} onClick={() => setPage({ scope, offset: Math.max(0, offset - 20) })}>Previous attempts</button>}{operations.nextOffset !== null && <button type="button" disabled={loading} onClick={() => setPage({ scope, offset: operations.nextOffset! })}>Next attempts</button>}</div>

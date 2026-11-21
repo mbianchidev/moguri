@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { settingsRailEntries } from "../../apps/desktop/src/settings-catalog.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Settings geometry uses generated hidden macOS windows.");
@@ -83,7 +84,7 @@ test("every settings category keeps visible information on its actual title or f
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
     await expect(categories.getByRole("button", { name: "General", exact: true })).toBeVisible();
     const labels = (await categories.getByRole("button").allTextContents()).filter((label) => label.trim() && label.trim() !== "Restore all defaults");
-    expect(labels.length).toBeGreaterThan(20);
+    expect(labels.map((label) => label.trim())).toEqual(settingsRailEntries());
     const settings = page.getByRole("region", { name: "Moguri settings", exact: true });
     let inspected = 0, maximumOffset = 0;
     for (const label of labels) {

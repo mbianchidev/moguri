@@ -27,9 +27,9 @@ export function ModelEvidencePanel({ sdk, model, scope, remote }: { sdk: MoguriS
   return <details className="model-tuning" aria-busy={busy}>
     <summary>Provider-declared model metadata</summary>
     <p className="fine-print">Explicit account-catalogue read only. No project content or inference; provider claims are not independent lineage, quality or approval.</p>
-    {remote && <p className="fine-print">Metadata is read by the local control plane. Remote inference still runs on your configured SSH host.</p>}
+    {remote && <p className="fine-print">Metadata is read by the local control plane. Remote host inference still runs on your configured SSH host.</p>}
     {supported ? <button type="button" disabled={busy} onClick={() => void inspect()}>{busy ? "Reading Copilot catalogue..." : "Read Copilot model declarations"}</button> :
-      <p className="fine-print">Choose an available concrete Copilot model. Local/Remote endpoint families and synthetic model lineage remain unknown; names are never used to invent them.</p>}
+      <p className="fine-print">Choose an available concrete Copilot model. Local and Remote host endpoint families and synthetic model lineage remain unknown; names are never used to invent them.</p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {loaded && <section className="model-evidence" aria-label="Provider-declared model evidence">
       <p className="fine-print" role="status">{loaded.status === "declared" ? "Provider declaration received, not independently verified." : "Provider family is unknown; no family was inferred."}</p>

@@ -78,7 +78,7 @@ test("queued views acknowledge navigation and retain inline responses through re
   try {
     const page = await app.firstWindow(), input = page.getByRole("textbox", { name: "Prompt", exact: true });
     await input.fill("/settings"); await input.press("Enter");
-    await expect(page.getByRole("region", { name: "General settings" }).getByRole("heading", { name: "General", exact: true })).toBeVisible();
+    await expect(page.locator(".settings-content").getByRole("heading", { name: "General", exact: true, level: 2 })).toBeVisible();
     await expect.poll(() => fixture.service.controller.snapshot().commandExecutions.find((entry) => entry.name === "settings")?.status).toBe("completed");
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     for (const action of ["open", "close"] as const) {

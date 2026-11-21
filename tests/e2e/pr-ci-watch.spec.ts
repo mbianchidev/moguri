@@ -24,19 +24,24 @@ test("the selected PR restores an existing watch after reopening and another PR 
     const rail = page.getByRole("navigation", { name: "Sidebar panels" });
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
     const pane = page.getByRole("region", { name: "Session code change", exact: true });
-    const detail = pane.getByRole("region", { name: "Pull request files, Actions and reviews", exact: true });
-    await detail.getByRole("tab", { name: "Actions", exact: true }).click();
+    const watch = async (number: number) => {
+      const view = pane.getByRole("region", { name: `Pull request ${number}`, exact: true });
+      await view.getByRole("tab", { name: /^Checks/ }).click();
+      await view.getByText("Watch CI on this head", { exact: true }).click();
+      return view;
+    };
+    let detail = await watch(11);
     await expect(detail).toContainText(started.id!);
     await expect(detail.getByRole("status").filter({ hasText: "CI: success" })).toBeVisible();
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
     await rail.getByRole("button", { name: "Code change", exact: true }).click();
-    await detail.getByRole("tab", { name: "Actions", exact: true }).click();
+    detail = await watch(11);
     await expect(detail).toContainText(started.id!);
-    await pane.getByLabel("Associated pull request", { exact: true }).selectOption("https://github.com/generated-owner/fixture/pull/12");
-    await detail.getByRole("tab", { name: "Actions", exact: true }).click();
+    await pane.getByRole("tablist", { name: "Session pull requests", exact: true }).getByRole("tab", { name: /^Pull request #12,/ }).click();
+    detail = await watch(12);
     await expect(detail).not.toContainText(started.id!);
     await expect(detail).toContainText("No retained PR watch");
-    expect(f.calls.filter((call) => call.path.includes("/check-runs?"))).toHaveLength(1);
+    expect(f.service.controller.snapshot().githubOperations.filter((operation) => operation.kind === "github.ci.watch")).toHaveLength(1);
     expect(f.writes()).toEqual({ issues: 0, pulls: 0 });
   } finally { await app.close(); await f.close(); }
 });

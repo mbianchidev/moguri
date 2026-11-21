@@ -4,20 +4,18 @@ import { SETTINGS_GROUPS, searchSettings, settingsGroupOf, settingsRailEntries }
 
 test("settings have coherent unique groups and stable routable sections", () => {
   assert.deepEqual(SETTINGS_GROUPS.map((group) => group.label), [
-    "General", "Models", "Integrations", "Execution & permissions", "Sessions", "Instructions", "Interface",
+    "General", "Models", "Integrations", "Boundaries", "Sessions", "Instructions", "Interface",
   ]);
   const ids = SETTINGS_GROUPS.flatMap((group) => group.items.map((item) => item.id));
   assert.equal(new Set(ids).size, ids.length);
-  // #84: every pre-existing item id stays a deep-link target; only the rail shrinks (was 11 groups / 37 entries).
+  // #84: every pre-existing item id stays a deep-link target (now a section on its group's page); only the rail shrinks.
   assert.deepEqual([...ids].sort(), ["accessibility", "appearance", "artifacts", "budgets", "cache", "candidates", "compaction", "decisions", "general", "github",
     "hooks", "instructions", "interactions", "knowledge", "kupo", "linear", "localModels", "marketplace", "mcpServers", "memory", "notifications", "permissions",
     "plugins", "project", "providers", "remote", "repositories", "retention", "scripts", "sendbox", "skills", "sql", "stainless", "startup", "subagents",
     "systemPrompt", "voice"]);
-  assert.equal(settingsRailEntries().length, 28);
-  assert.deepEqual(SETTINGS_GROUPS.filter((group) => "tabbed" in group).map((group) => [group.label, group.items.map((item) => item.label)]), [
-    ["Integrations", ["GitHub", "Linear", "MCP gateway", "sql-not-so-lite", "Stainless", "Plugins", "Marketplace"]],
-    ["Interface", ["Appearance", "Keyboard shortcuts", "Voice dictation", "Notifications"]],
-  ]);
+  // The rail lists only the seven pages; each page shows all of its items as sections, so no group is tabbed or nested.
+  assert.deepEqual(settingsRailEntries(), SETTINGS_GROUPS.map((group) => group.label));
+  assert.ok(SETTINGS_GROUPS.every((group) => !("tabbed" in group)));
   assert.equal(settingsGroupOf("mcpServers").label, "Integrations"); assert.equal(settingsGroupOf("project").label, "General");
   for (const group of SETTINGS_GROUPS) for (const item of group.items) {
     assert.ok(searchSettings(item.label).some((match) => match.label === group.label && match.items.some((value) => value.id === item.id)), item.label);
@@ -31,7 +29,9 @@ test("settings search combines category and control aliases without reading user
   for (const query of ["MCP direct", "tool preference order", "REST CLI"]) assert.ok(ids(query).includes("mcpServers"));
   assert.deepEqual(ids("firewall"), ["permissions"]);
   assert.deepEqual(ids("thinking effort"), ["startup"]);
-  assert.deepEqual(ids("execution permission"), SETTINGS_GROUPS.find((group) => group.label === "Execution & permissions")!.items.map((item) => item.id));
+  const boundaries = SETTINGS_GROUPS.find((group) => group.label === "Boundaries")!.items.map((item) => item.id);
+  assert.deepEqual(ids("execution permission"), boundaries);
+  for (const id of boundaries) assert.ok(ids("Boundaries").includes(id));
   assert.deepEqual(ids("readme readiness"), ["project", "permissions", "sendbox", "retention", "instructions", "skills", "accessibility", "notifications"]);
   assert.deepEqual(ids("GitHub CLI"), ["project", "providers", "github", "instructions"]);
   for (const query of ["GitHub workflows", "Linear workflows"]) assert.ok(ids(query).includes(query.startsWith("GitHub") ? "github" : "linear"));

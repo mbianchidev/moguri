@@ -1,5 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
+import { IntegrationTitle } from "./IntegrationLogo.tsx";
 import {
   HookDefinitionSchema, MarketplaceInputSchema, MarketplaceSourceSchema, parse, type CapabilityEntry, type MarketplacePreview, type MarketplaceCatalogListing,
   type MoguriSdk, type Project, type Session, type Snapshot,
@@ -35,7 +36,7 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
   const stale = Boolean(selected && (!actual || actual.revision !== selected.currentRevision));
   const entries = snapshot.registry.filter((entry) => entry.projectId === project?.id && (mode === "hooks" ? entry.kind === "hook" : Boolean(entry.marketplace || entry.ownerPluginId)));
   return <section aria-label={mode === "hooks" ? "Reviewed lifecycle hooks" : "Repository marketplace"}>
-    <SettingsHelp label="More about this setting" target={<h2>{mode === "hooks" ? "Lifecycle hooks" : "Repository marketplace"}</h2>}>New, updated and rolled-back items install disabled until you enable them. Enabling grants no tool permissions; commands still need approval.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2>{mode === "hooks" ? "Lifecycle hooks" : <IntegrationTitle id="marketplace">Repository marketplace</IntegrationTitle>}</h2>}>New, updated and rolled-back items install disabled until you enable them. Enabling grants no tool permissions; commands still need approval.</SettingsHelp>
     {!project && <Alert as="p" tone="warning" className="settings-warning">Choose a project first.</Alert>}
     {error && <Alert as="p" role="alert" className="notice error">{error}</Alert>}{status && <Alert as="p" role="status">{status}</Alert>}
     {mode === "hooks" ? <>

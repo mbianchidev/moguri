@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { MoguriSdk, type ManagedWorkspace } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
-import { openProjectMenu } from "./navigation.ts";
+import { openProjectMenu, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop execution is qualified on macOS.");
@@ -18,7 +18,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     const page = await app.firstWindow(), failures: string[] = [];
     page.on("pageerror", (error) => failures.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     await page.getByLabel("Managed worktree branch", { exact: true }).fill("moguri/generated-desktop");
     await page.getByLabel("Managed worktree base", { exact: true }).fill("main");
     await page.getByRole("button", { name: "Create worktree", exact: true }).click();
@@ -36,6 +36,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await page.screenshot({ path: resolve(".moguri/artifacts/managed-workspace-settings-compact.png") });
     await page.setViewportSize({ width: 1440, height: 940 });
     await writeFile(join(workspace.path, "workspace-only.txt"), "Generated file exists only in the owned checkout.");
+    await writeFile(join(workspace.path, "generated-view.ts"), "export const generated: number = 1; // generated comment\n");
     await writeFile(join(workspace.path, "fixture.txt"), "Generated desktop worktree change.\n");
     await record.getByRole("button", { name: "New chat", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.sessions.at(-1)?.workspaceId).toBe(workspace.id);
@@ -44,6 +45,14 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await panels.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "workspace-only.txt", exact: true }).click();
     await expect(page.locator(".workspace-file-content")).toContainText("Generated file exists only in the owned checkout.");
+    await expect(page.locator(".workspace-file-content")).toHaveAttribute("data-language", "plaintext");
+    await page.getByRole("button", { name: "Back to folder", exact: true }).click();
+    await page.getByRole("button", { name: "generated-view.ts", exact: true }).click();
+    const code = page.getByLabel("File generated-view.ts", { exact: true });
+    await expect(code).toHaveAttribute("data-language", "typescript");
+    await expect(code.locator(".hljs-keyword").first()).toHaveText("export");
+    await expect(code.locator(".hljs-comment")).toHaveText("// generated comment");
+    await expect(code).toContainText("export const generated: number = 1; // generated comment");
     await panels.getByRole("button", { name: "Code change", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated desktop worktree change");
     await panels.getByRole("button", { name: "Plan", exact: true }).click();
@@ -84,7 +93,7 @@ test("worktree removal uses one explicit dropdown target and a bin action while 
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Project", exact: true }).click();
+    await openSettingsSection(page, "Project");
     const panel = page.getByRole("region", { name: "Managed worktrees", exact: true });
     for (const workspace of workspaces) await panel.locator(".workspace-record").filter({ hasText: workspace.branch }).locator("summary").click();
     const target = panel.getByRole("combobox", { name: "Workspace reviewed for removal", exact: true });

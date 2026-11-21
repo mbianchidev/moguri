@@ -71,14 +71,14 @@ test("a failed ranking save keeps the local order visible and a concurrent clien
     const list = page.getByRole("list", { name: "Tool preference order", exact: true });
     f.service.store.db.exec("CREATE TRIGGER generated_ranking_failure BEFORE INSERT ON events WHEN json_extract(NEW.data,'$.event_type')='settings.updated' BEGIN SELECT RAISE(ABORT,'Generated ranking save failure'); END;");
     await list.getByRole("button", { name: "Reorder CLI", exact: true }).press("Alt+ArrowUp");
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.locator(".settings-alerts").getByRole("alert")).toBeVisible();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Unsaved changes");
     await expect(list.getByRole("listitem").nth(2)).toContainText("CLI");
     expect(effectiveToolPreferences(sdk.settings.get()?.values.toolPreferences).order[3]).toBe("cli");
     f.service.store.db.exec("DROP TRIGGER generated_ranking_failure");
     const before = sdk.settings.get()!;
     await sdk.settings.update({ ...before.values, appearance: { ...before.values.appearance, theme: "light" } }, before.revision);
-    await expect(page.getByRole("alert")).toContainText("Another client changed settings");
+    await expect(page.locator(".settings-alerts").getByRole("alert")).toContainText("Another client changed settings");
     await expect(list.getByRole("listitem").nth(2)).toContainText("CLI");
     await page.getByRole("button", { name: "Reload current settings", exact: true }).click();
     await expect(list.getByRole("listitem").last()).toContainText("CLI");

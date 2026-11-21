@@ -229,7 +229,7 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     await composer.getByRole("button", { name: "Execution environment", exact: true }).click();
     const env = page.getByRole("dialog", { name: "Execution environment", exact: true });
     await expect(env.getByRole("button", { name: "Sandbox Set up SendBox", exact: true })).toBeEnabled();
-    await expect(env.getByRole("button", { name: "Remote Not ready", exact: true })).toBeDisabled();
+    await expect(env.getByRole("button", { name: "Remote host Not ready", exact: true })).toBeDisabled();
     await expect(env.locator('[data-icon="Box"]')).toHaveCount(1);
     await expect(env.locator('[data-icon="Globe"]')).toHaveCount(1);
     await page.keyboard.press("Escape");
@@ -237,7 +237,7 @@ test("compact icon composer preserves queue semantics, model tuning, usage and s
     const autonomy = page.getByRole("dialog", { name: "Autonomy level", exact: true });
     await expect(autonomy.locator('[data-icon="Rocket"]')).toHaveCount(1);
     await expect(autonomy.locator('[data-icon="Car"]')).toHaveCount(1);
-    await expect(autonomy.getByRole("button", { name: /^Autopilot Max/ })).toBeDisabled();
+    await expect(autonomy.getByRole("button", { name: /^Autopilot / })).toBeDisabled();
     await autonomy.getByRole("button", { name: /^Guided/ }).click();
     await expect.poll(() => fixture.session().controls.autonomy).toBe("Guided");
     await expect(composer.getByRole("button", { name: "Autonomy level", exact: true }).locator("svg")).toHaveAttribute("data-icon", "Traffic");

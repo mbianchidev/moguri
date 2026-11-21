@@ -29,6 +29,8 @@ export interface DesktopBridge {
   choosePath(input: { kind: "file" | "folder"; title: string; extensions?: string[]; defaultPath?: string }): Promise<string | null>;
   /** The user's home folder, used to expand `~` in typed paths. */
   readonly homeDirectory: string;
+  /** False in hidden generated test windows unless they opt in; Getting started then opens only from Settings. */
+  readonly automaticOnboarding: boolean;
   loadNotificationSound(profileId: string, path: string): Promise<{ name: string; audio: string }>;
   openExternal(url: string): Promise<void>;
   projectLocation(profileId: string, projectId: string, expectedPath: string, action: "show-folder" | "open-remote"): Promise<{ opened: boolean; location: string }>;

@@ -23,7 +23,7 @@ export function KupoModelProfiles({ sdk, models, disabled, onPrepared, onDirty, 
     sourceUrl: "", sourceText: "", observedAt: "", validUntil: "", limitations: "",
   };
   return <details className="kupo-profile-review"><summary>Add model scores and prices</summary>
-    <p>Balanced works with any model. Savings and Performance only use models with a profile here: class (frontier or economy), scores and API price, taken from a source you reviewed.</p>
+    <p>Savings and Performance class models by their published API price: up to $5 per million output tokens is economy, $20 or more is frontier, and local models are economy. A profile here overrides that class and adds scores for Cascade.</p>
     <p className="fine-print">Profiles expire 30 days after their observation date. Moguri doesn't run benchmarks; scores come from the source you paste.</p>
     <label className="setting-field">Model profile JSON<textarea className="json-editor" value={text} disabled={disabled || busy}
       placeholder={JSON.stringify(template, null, 2)} onChange={(event) => { setText(event.target.value); setProfile(null); setReviewed(false); }} /></label>

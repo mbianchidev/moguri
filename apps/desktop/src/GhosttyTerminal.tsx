@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FitAddon, Ghostty, Terminal } from "ghostty-web";
 import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
-import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
+import { envLabel, shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { Tooltip } from "./Tooltip.tsx";
@@ -19,6 +19,30 @@ function observeTerminalFit(terminal: Terminal, container: HTMLElement): () => v
   const observer = new ResizeObserver(schedule);
   observer.observe(container); schedule();
   return () => { disposed = true; clearTimeout(timer); observer.disconnect(); };
+}
+/**
+ * The pane's real size in cells, measured with a throwaway hidden emulator using the same font, so a new shell starts at
+ * the width it is shown at. Starting at a default 80x24 and resizing afterwards makes zsh print its partial-line `%`
+ * marker and a second prompt drawn for the wrong width.
+ */
+async function measureTerminalSize(container: HTMLElement | null): Promise<{ cols: number; rows: number }> {
+  const fallback = { cols: 80, rows: 24 };
+  if (!container || !container.clientWidth || !container.clientHeight) return fallback;
+  const probe = document.createElement("div"), style = getComputedStyle(container);
+  probe.className = container.className; probe.setAttribute("aria-hidden", "true");
+  Object.assign(probe.style, { position: "absolute", visibility: "hidden", pointerEvents: "none", left: "0", top: "0",
+    width: `${container.clientWidth}px`, height: `${container.clientHeight}px`, padding: style.padding, boxSizing: "border-box" });
+  document.body.append(probe);
+  let measuring: Terminal | undefined;
+  try {
+    ghostty ??= Ghostty.load(wasmUrl);
+    measuring = new Terminal({ ghostty: await ghostty, cols: 80, rows: 24, fontSize: 12, scrollback: 0, disableStdin: true });
+    measuring.open(probe);
+    const fit = new FitAddon(); measuring.loadAddon(fit);
+    const size = fit.proposeDimensions();
+    return size ? { cols: Math.min(500, Math.max(10, size.cols)), rows: Math.min(200, Math.max(2, size.rows)) } : fallback;
+  } catch { return fallback; }
+  finally { measuring?.dispose(); probe.remove(); }
 }
 export function GhosttyOutput({ text, active, scope }: { text: string; active: boolean; scope: string }) {
   const host = useRef<HTMLDivElement>(null), emulator = useRef<Terminal | null>(null), latest = useRef(text);
@@ -38,7 +62,7 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
         const runtime = await ghostty;
         if (disposed || !host.current) return;
         current = new Terminal({ ghostty: runtime, cols: 120, rows: 30, fontSize: 12, scrollback: 1500, disableStdin: true,
-          theme: { background: "#11161e", foreground: "#e1e8f0", cursor: "#a8d7bc" } });
+          theme: { background: "#0e0e10", foreground: "#ececef", cursor: "#a8d7bc" } });
         current.open(host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Agent terminal output");
         host.current.setAttribute("aria-readonly", "true");
@@ -115,7 +139,8 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
     if (actionPending.current) return;
     autoOpened.current = true; onAutoStartHandled?.();
     return run(async () => {
-      const result = await sdk.terminal.open(session.id, 80, 24, undefined, session.repositories ? requestedRoot : session.projectId ? undefined : defaultRoot);
+      const { cols, rows } = await measureTerminalSize(host.current);
+      const result = await sdk.terminal.open(session.id, cols, rows, undefined, session.repositories ? requestedRoot : session.projectId ? undefined : defaultRoot);
       setSelected(result.id!);
     });
   };
@@ -170,7 +195,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
         const runtime = await ghostty;
         if (disposed || !host.current) return;
         current = new Terminal({ ghostty: runtime, cols: terminal.cols, rows: terminal.rows, fontSize: 12, scrollback: 1500,
-          disableStdin: !canInput, theme: { background: "#11161e", foreground: "#e1e8f0", cursor: "#a8d7bc" } });
+          disableStdin: !canInput, theme: { background: "#0e0e10", foreground: "#ececef", cursor: "#a8d7bc" } });
         current.open(host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Ghostty terminal");
         current.textarea?.setAttribute("aria-label", "Terminal input");
@@ -213,7 +238,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
     {terminal?.status === "unconfirmed" && <button disabled={busy || !connected} onClick={() => void run(() => sdk.terminal.acknowledge(terminal.id, true))}>I inspected its processes</button>}
     {owner && <details className="terminal-owner"><summary>Shared {owner.remote ? "Remote" : "Local"} owner / {owner.status}</summary>
       <p><code>{owner.id}</code><br />Broker PID {owner.pid ?? "unobserved"} / private resources {owner.cleanup}</p>
-      {terminal?.binding && <p>Actual {terminal.binding.env} console root: <code>{terminal.binding.root}</code></p>}
+      {terminal?.binding && <p>Actual {envLabel(terminal.binding.env)} console root: <code>{terminal.binding.root}</code></p>}
       {owner.remote && <p>Captured SSH host: <code>{owner.remote.target.user}@{owner.remote.target.host}:{owner.remote.target.port}</code><br />Pinned public key: <code>{owner.remote.target.hostKey}</code></p>}
       {owner.diagnostic && <p>{owner.diagnostic}</p>}
       {!["stopped", "acknowledged"].includes(owner.status) && <button disabled={busy || !connected} onClick={() => void run(async () => { await sdk.terminal.reconcileOwner(owner.id); setViewEpoch((epoch) => epoch + 1); })}>Inspect existing owner</button>}

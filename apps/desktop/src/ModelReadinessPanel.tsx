@@ -3,6 +3,7 @@ import {
   isModelReadinessReportCurrent, type ModelReadinessMode, type ModelReadinessReport, type ModelReadinessTarget,
   type ReadinessEvidence, type ReadinessNumberFact, type ReadinessTextFact,
 } from "../../../packages/protocol/src/model-readiness.ts";
+import { envLabel } from "../../../packages/protocol/src/controls.ts";
 import { Alert } from "./Alert.tsx";
 import { SettingsHelp } from "./SettingsFields.tsx";
 
@@ -149,7 +150,7 @@ export function ModelReadinessPanel({ target, onProbe, mode = "informational", i
       Explicit read-only probes only. No server start, inference, network scan, installation or weights download.
     </SettingsHelp>
     <button type="button" disabled={!busy} onClick={cancel}>Cancel probe</button>
-    <p className="fine-print">Env: {target.env}. {mode === "required" ? "Required mode must reject missing, incompatible or unknown required evidence." :
+    <p className="fine-print">Env: {envLabel(target.env)}. {mode === "required" ? "Required mode must reject missing, incompatible or unknown required evidence." :
       "Informational mode does not disable an endpoint or grant execution/provider permissions."}</p>
     <p className="fine-print" role="status" aria-atomic="true">{message || summary}</p>
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}

@@ -34,7 +34,7 @@ test("bundled setup replaces blank JSON, requires exact approval and autosaves m
     const page = await app.firstWindow(), errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
+    await openSettingsSection(page, "Sandbox");
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
     await expect(panel).toContainText(generated.distribution.vendor.version);
     await expect(page.getByLabel("SendBox configuration", { exact: true })).not.toBeVisible();
@@ -79,7 +79,7 @@ test("an unsupported saved SendBox release opens the bundled review without chan
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "Sandbox", exact: true }).click();
+    await openSettingsSection(page, "Sandbox");
     const panel = page.getByRole("region", { name: "Managed SendBox setup", exact: true });
     await expect(panel).toContainText("Saved SendBox 0.2.0 is no longer supported. Review the bundled 0.2.7 setup to replace it");
     await expect(panel.getByLabel("SendBox version to review", { exact: true })).toHaveValue("0.2.7");

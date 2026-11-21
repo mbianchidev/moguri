@@ -6,7 +6,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
-import { finishIdleSchedule, openModelChoices, openProjectMenu } from "./navigation.ts";
+import { finishIdleSchedule, openModelChoices, openProjectMenu, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 const artifacts = resolve(".moguri/artifacts");
@@ -290,8 +290,7 @@ test("held prompts, shared slash actions, nested sessions, real Ghostty and proj
     await page.getByRole("button", { name: "Save project settings", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().projectConfigurations[0]?.values.port).toBe(4321);
     await page.screenshot({ path: join(artifacts, "desktop-project-settings-compact.png") });
-    const categories = page.getByRole("navigation", { name: "Settings categories" });
-    await categories.getByRole("button", { name: "Retention", exact: true }).click();
+    await openSettingsSection(page, "Retention");
     await expect(page.getByLabel("Delete archived sessions", { exact: true })).not.toBeChecked();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Open parent session", exact: true }).click();

@@ -1,6 +1,6 @@
 import type { WebContents } from "electron";
 import { randomBytes, randomUUID } from "node:crypto";
-import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type BrowserState, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 
 const pointFunction = `function() {
   if (!(this instanceof HTMLElement) || !this.isConnected || this.closest('[inert]') || this.disabled) throw Error('The exact browser element is unavailable or disabled. Take a fresh snapshot.');
@@ -21,12 +21,27 @@ const fillFunction = `function(text) {
   return true;
 }`;
 
+/**
+ * Native owner of one session Browser pane. Agent control follows the user's durable per-chat choice (D61): while it is
+ * on, every revocation (user navigation, reconnect, permission change, watchdog) is followed by a fresh enable with a new
+ * control identity once the cause clears. Earlier approvals, element references and website scope never carry over.
+ */
 export class SessionBrowserHost {
   private readonly owner;
   private sequence = 0;
   private controlId: string | null = null;
   private stopped = false;
   private connected = true;
+  private polling = true;
+  private userSuppressed = false;
+  private userPending = 0;
+  private userEpoch = 0;
+  private intentWrites: Promise<unknown> = Promise.resolve();
+  private navigating = 0;
+  private resuming = false;
+  private resumeAt = 0;
+  private resumeFailures = 0;
+  private wasKeeping = false;
   private debuggerOwned = false;
   private snapshotId: string | null = null;
   private refs = new Map<string, number>();
@@ -47,7 +62,8 @@ export class SessionBrowserHost {
     void this.contents.debugger.sendCommand("Page.handleJavaScriptDialog", { accept: false })
       .catch((error: unknown) => this.report(`Browser page dialog dismissal was not acknowledged: ${error instanceof Error ? error.message : "unknown dialog failure"}`));
   };
-  private constructor(private sdk: MoguriSdk, sessionId: string, private contents: WebContents, private validOwner: () => boolean, private report: (message: string) => void) {
+  private constructor(private sdk: MoguriSdk, sessionId: string, private contents: WebContents, private validOwner: () => boolean, private report: (message: string) => void,
+    private released: () => void) {
     this.owner = { sessionId, hostId: randomUUID(), lease: randomBytes(32).toString("hex") };
     this.connection = { ...sdk.connection };
     contents.on("did-start-navigation", this.navigated);
@@ -67,8 +83,10 @@ export class SessionBrowserHost {
       done({ cancel: !allowed });
     });
   }
-  static async attach(sdk: MoguriSdk, sessionId: string, contents: WebContents, validOwner: () => boolean, report: (message: string) => void): Promise<SessionBrowserHost> {
-    const host = new SessionBrowserHost(sdk, sessionId, contents, validOwner, report);
+  /** `released` runs when this host stops keeping agent control: the user's choice is no longer on, or its poll loop ended. */
+  static async attach(sdk: MoguriSdk, sessionId: string, contents: WebContents, validOwner: () => boolean, report: (message: string) => void,
+    released: () => void = () => {}): Promise<SessionBrowserHost> {
+    const host = new SessionBrowserHost(sdk, sessionId, contents, validOwner, report, released);
     try { await sdk.browser.host.attach(host.owner); }
     catch (error) { contents.removeListener("did-start-navigation", host.navigated); contents.debugger.removeListener("message", host.debugMessage); throw error; }
     try {
@@ -83,6 +101,22 @@ export class SessionBrowserHost {
     return host;
   }
   private clearRefs(): void { this.snapshotId = null; this.refs.clear(); }
+  private session() { return this.sdk.getState().snapshot?.sessions.find((session) => session.id === this.owner.sessionId); }
+  /** The user's recorded choice (D61), unless this pane's own off is still being recorded or failed to record. */
+  intended(): boolean {
+    if (this.session()?.browserAgentControl !== true) { this.userSuppressed = false; return false; }
+    return !this.userSuppressed;
+  }
+  /** Whether control may be held right now. Read-only mode, another Env or an allowed-Env policy without Local only suspend the choice. */
+  private eligible(): boolean {
+    const session = this.session(), policy = this.sdk.getState().snapshot?.policy;
+    return Boolean(session && session.status !== "archived" && session.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" &&
+      session.controls.env === "Local" && policy?.allowedEnvs.includes("Local"));
+  }
+  /** True while the pane should stay alive hidden so the agent keeps its browser: the poll loop runs and the user's choice is on. */
+  keepsControl(): boolean { return !this.stopped && this.polling && this.intended(); }
+  /** True after the poll loop ended; the pane replaces this host on its next attachment. */
+  ended(): boolean { return !this.polling; }
   private sameConnection(): boolean {
     return (["protocolVersion", "pid", "baseUrl", "wsUrl", "token", "storeId"] as const).every((key) => this.connection[key] === this.sdk.connection[key]);
   }
@@ -96,7 +130,7 @@ export class SessionBrowserHost {
   }
   async control(enabled: boolean) {
     if (!this.sameConnection()) throw new Error("The original browser service connection changed. No different lease or page was controlled.");
-    if (enabled && !this.connected) throw new Error("The original browser host disconnected. Close and reopen the pane; no replacement or retry was inferred.");
+    if (enabled && !this.connected) throw new Error("The original browser host is disconnected. No replacement or retry was inferred; if this chat's Agent control stays on, it turns back on with a new identity after the host reconnects.");
     const sequence = ++this.sequence;
     this.revoke();
     try {
@@ -116,15 +150,61 @@ export class SessionBrowserHost {
       throw error;
     }
   }
+  /**
+   * The user's switch in this pane. Off revokes immediately, then records the choice; on records it first so the service
+   * never holds control the user has not chosen. Writes are serialized so the last toggle wins.
+   */
+  async userControl(enabled: boolean): Promise<BrowserState> {
+    if (!this.sameConnection()) throw new Error("The original browser service connection changed. No different lease or page was controlled.");
+    const epoch = ++this.userEpoch;
+    this.userPending++; this.userSuppressed = !enabled; this.resumeFailures = 0; this.resumeAt = 0;
+    const write = this.intentWrites.then(() => this.sdk.sessions.browserControl(this.owner.sessionId, enabled));
+    this.intentWrites = write.catch(() => {});
+    try {
+      if (!enabled) {
+        const browser = await this.control(false);
+        try { await write; }
+        catch (error) { throw new Error(`Agent control is off in this pane for now, but the chat still has it on, so it turns back on when the pane reopens. Switch it off again. ${error instanceof Error ? error.message : "The choice was not saved."}`); }
+        return browser;
+      }
+      await write;
+      if (epoch !== this.userEpoch) return (await this.sdk.browser.state(this.owner.sessionId)).browser;
+      return await this.control(true);
+    } finally {
+      this.userPending--;
+      if (!enabled && !this.intended()) this.released();
+    }
+  }
+  /** Turns control back on with a fresh identity when the user's choice is on and nothing else owns the switch. */
+  private resume(): void {
+    if (!this.intended() || this.controlId || this.resuming || this.userPending || this.navigating || !this.connected || this.stopped ||
+      !this.validOwner() || this.contents.isDestroyed() || !this.sameConnection() || !this.eligible() || Date.now() < this.resumeAt) return;
+    this.resuming = true;
+    void this.control(true).then((browser) => {
+      if (browser.controlId) this.resumeFailures = 0;
+    }).catch((error: unknown) => {
+      this.resumeFailures++;
+      this.resumeAt = Date.now() + Math.min(30_000, 1000 * 2 ** Math.min(this.resumeFailures, 5));
+      this.report(`Agent control is still on for this chat but could not turn back on yet: ${error instanceof Error ? error.message : "unknown failure"}`);
+    }).finally(() => { this.resuming = false; });
+  }
   async navigateByUser(input: string): Promise<void> {
     if (!this.sameConnection()) throw new Error("The original browser service connection changed. Reopen this exact pane before navigation; no other owner was adopted.");
     const url = browserUrl(input);
-    if (this.controlId) await this.control(false);
-    this.revoke();
-    if (this.stopped || !this.validOwner() || this.contents.isDestroyed()) throw new Error("The original user browser closed. No other page was opened.");
-    if (this.guardedNetwork) await this.contents.loadURL("about:blank");
-    this.guardedNetwork = false;
-    await this.contents.loadURL(url.href);
+    // The user's navigation always revokes the current identity; the recorded choice turns control back on after it settles.
+    this.navigating++;
+    try {
+      if (this.controlId) await this.control(false);
+      this.revoke();
+      if (this.stopped || !this.validOwner() || this.contents.isDestroyed()) throw new Error("The original user browser closed. No other page was opened.");
+      if (this.guardedNetwork) await this.contents.loadURL("about:blank");
+      this.guardedNetwork = false;
+      await this.contents.loadURL(url.href);
+    } finally {
+      this.navigating--;
+      this.resumeAt = 0;
+      this.resume();
+    }
   }
   async close(): Promise<void> {
     if (this.stopped) return;
@@ -157,6 +237,9 @@ export class SessionBrowserHost {
         this.lastPoll = Date.now();
         if (this.stopped || !this.validOwner()) break;
         if (sequence === this.sequence && response.controlId !== this.controlId) this.revoke();
+        if (!response.controlId && !this.resuming && sequence === this.sequence) this.resume();
+        if (!this.intended() && this.wasKeeping) { this.wasKeeping = false; this.released(); }
+        else if (this.intended()) this.wasKeeping = true;
         if (sequence === this.sequence && this.active && response.request?.id !== this.active.id) this.active.abort.abort();
         const request = response.request;
         if (request && request.controlId === this.controlId && !this.active && !this.seenRequests.has(request.id)) {
@@ -174,8 +257,11 @@ export class SessionBrowserHost {
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
     } catch (error) {
-      if (!this.stopped) this.report(`Browser host disconnected; agent control is off: ${error instanceof Error ? error.message : "unknown host failure"}`);
-    } finally { this.connected = false; this.revoke(); }
+      if (!this.stopped) this.report(`Browser host disconnected; agent control is off until this pane attaches again: ${error instanceof Error ? error.message : "unknown host failure"}`);
+    } finally {
+      this.connected = false; this.polling = false; this.revoke();
+      if (!this.stopped) this.released();
+    }
   }
   private guard(request: BrowserRequest, signal: AbortSignal): void {
     signal.throwIfAborted();

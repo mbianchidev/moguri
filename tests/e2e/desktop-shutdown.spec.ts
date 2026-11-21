@@ -5,6 +5,7 @@ import { readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { MoguriSdk, PROTOCOL_VERSION, type StoredEvent } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
+import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop service shutdown qualification is macOS-only.");
@@ -59,7 +60,7 @@ test("cancelled unsaved-window close leaves the connected service running", asyn
   try {
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Settings", exact: true }).click();
-    await page.getByRole("navigation", { name: "Settings categories" }).getByRole("button", { name: "User guidance", exact: true }).click();
+    await openSettingsSection(page, "User guidance");
     await page.getByLabel("Global user guidance", { exact: true }).fill("Generated uncommitted close guard.");
     await app.evaluate(({ app, BrowserWindow }) => {
       BrowserWindow.getAllWindows()[0]!.webContents.once("will-prevent-unload", () => Reflect.set(globalThis, "generatedCloseWasCancelled", true));
