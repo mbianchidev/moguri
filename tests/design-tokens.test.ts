@@ -132,6 +132,17 @@ test("fixed-identity brand and chart tokens keep their own contrast", () => {
     for (const lane of ["prompt", "answer", "thinking", "command", "file", "web", "tool", "context"]) {
       assert.ok(colorContrast(value(`--chart-${lane}`), colors.surface) >= 3, `${mode} --chart-${lane} on surface`);
     }
+    for (const token of ["keyword", "string", "comment", "number", "title", "type", "tag", "addition", "deletion"]) {
+      assert.ok(colorContrast(value(`--syntax-${token}`), value("--code")) >= 4.5, `${mode} --syntax-${token} on code`);
+    }
+  }
+  for (const appearance of appearances) {
+    for (const mode of ["dark", "light"] as const) {
+      const { colors, resolve: value } = resolver(appearance, mode);
+      for (const background of backgrounds) for (const state of ["open", "closed", "merged"]) {
+        assert.ok(colorContrast(value(`--github-${state}`), colors[background]) >= 3, `${appearance.palette} ${mode} --github-${state} on ${background}`);
+      }
+    }
   }
 });
 

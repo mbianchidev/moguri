@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DraftEditor, envLabel, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
@@ -13,6 +13,7 @@ import { Alert } from "./Alert.tsx";
 import { StainlessBrowserRow } from "./StainlessPanel.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 import { UnifiedDiff } from "./UnifiedDiff.tsx";
+const CodeView = lazy(() => import("./CodeView.tsx").then((module) => ({ default: module.CodeView })));
 
 export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -84,7 +85,7 @@ export function FilesPanel({ sdk, session }: { sdk: MoguriSdk; session: Session 
     change={(value) => { generation.current++; setFile(null); setEntries([]); setPath("."); setRepository(value); }} label="Files" /><header className="panel-toolbar">
     <button className="icon-button" aria-label={file ? "Back to folder" : "Parent folder"} title={file ? "Back" : "Parent folder"} disabled={!file && path === "."} onClick={() => { generation.current++; if (file) setFile(null); else setPath(path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "."); }}><Icon name="Back" /></button><strong title={file?.path ?? path}>{file?.path ?? (path === "." ? "Workspace root" : path)}</strong></header>
     {loading && <p role="status">Loading from the bound workspace...</p>}<PanelError failure={error} projectId={session.projectId} />
-    {file ? <pre className="workspace-file-content">{file.text}</pre> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
+    {file ? <Suspense fallback={<pre className="workspace-file-content" tabIndex={0}>{file.text}</pre>}><CodeView path={file.path} text={file.text} label={`File ${file.path}`} /></Suspense> : <div className="workspace-file-list">{entries.map((entry) => <button key={entry} onClick={() => open(entry)} disabled={loading}><Icon name={entry.endsWith("/") ? "Files" : "Plan"} /><span>{entry.slice(path === "." ? 0 : path.length + 1)}</span></button>)}{!loading && !error && !entries.length && <p className="fine-print">No allowed files in this directory.</p>}</div>}
     <p className="fine-print">Read-only {session.controls.env === "Remote" ? "SSH workspace" : session.controls.env === "Sandbox" ? "private native stage, not the Local source" : session.homeRoot ? "Home" : "workspace"} view. Protected paths, symlinks and denied folders stay excluded; this is not an attachment or agent permission.</p>
   </section>;
 }

@@ -36,6 +36,7 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await page.screenshot({ path: resolve(".moguri/artifacts/managed-workspace-settings-compact.png") });
     await page.setViewportSize({ width: 1440, height: 940 });
     await writeFile(join(workspace.path, "workspace-only.txt"), "Generated file exists only in the owned checkout.");
+    await writeFile(join(workspace.path, "generated-view.ts"), "export const generated: number = 1; // generated comment\n");
     await writeFile(join(workspace.path, "fixture.txt"), "Generated desktop worktree change.\n");
     await record.getByRole("button", { name: "New chat", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.sessions.at(-1)?.workspaceId).toBe(workspace.id);
@@ -44,6 +45,14 @@ test("desktop worktree creation, new chat, files, diff, plan and terminal all us
     await panels.getByRole("button", { name: "Files", exact: true }).click();
     await page.getByRole("button", { name: "workspace-only.txt", exact: true }).click();
     await expect(page.locator(".workspace-file-content")).toContainText("Generated file exists only in the owned checkout.");
+    await expect(page.locator(".workspace-file-content")).toHaveAttribute("data-language", "plaintext");
+    await page.getByRole("button", { name: "Back to folder", exact: true }).click();
+    await page.getByRole("button", { name: "generated-view.ts", exact: true }).click();
+    const code = page.getByLabel("File generated-view.ts", { exact: true });
+    await expect(code).toHaveAttribute("data-language", "typescript");
+    await expect(code.locator(".hljs-keyword").first()).toHaveText("export");
+    await expect(code.locator(".hljs-comment")).toHaveText("// generated comment");
+    await expect(code).toContainText("export const generated: number = 1; // generated comment");
     await panels.getByRole("button", { name: "Code change", exact: true }).click();
     await expect(page.locator(".unified-diff")).toContainText("Generated desktop worktree change");
     await panels.getByRole("button", { name: "Plan", exact: true }).click();

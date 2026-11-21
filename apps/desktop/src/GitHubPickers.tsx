@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { githubItemIdentity, type GithubItem, type GithubRepository, type GithubResponse, type GithubScope, type GithubSourceBinding, type GithubWorkSource, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
+import { Icon } from "./Icon.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 
 export type GithubProject = Extract<GithubResponse, { type: "github.project" }>;
@@ -46,16 +47,29 @@ export function GitHubRepositoryPicker({ sdk, selected, choose, disabled }: {
   </section>;
 }
 
+/** GitHub's own state vocabulary: open green, closed red, merged purple (completed issues purple); drafts stay neutral. */
+export function githubStateMark(kind: "issue" | "pull", item: Pick<GithubItem, "state" | "draft">): { icon: string; tone: "open" | "closed" | "merged" | "draft"; label: string } {
+  if (kind === "issue") return item.state === "closed" ? { icon: "IssueClosed", tone: "merged", label: "Closed issue" } : { icon: "Issue", tone: "open", label: "Open issue" };
+  if (item.state === "merged") return { icon: "PRMerged", tone: "merged", label: "Merged pull request" };
+  if (item.state === "closed") return { icon: "PRClosed", tone: "closed", label: "Closed pull request" };
+  return item.draft ? { icon: "PRDraft", tone: "draft", label: "Draft pull request" } : { icon: "PR", tone: "open", label: "Open pull request" };
+}
+export function GitHubStateIcon({ kind, item }: { kind: "issue" | "pull"; item: Pick<GithubItem, "state" | "draft"> }) {
+  const mark = githubStateMark(kind, item);
+  return <span className="github-state" data-github-state={mark.tone} role="img" aria-label={mark.label} title={mark.label}><Icon name={mark.icon} /></span>;
+}
+
+/** Lists existing items, open ones first. Closed and merged items load only after "Show closed". */
 export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contextChanged, disabled = false }: {
   sdk: MoguriSdk; scope: GithubScope; kind: "issue" | "pull"; selectedUrl?: string | null;
   select: (selection: GithubSelection | null) => void; contextChanged?: (context: GithubProject) => void; disabled?: boolean;
 }) {
   const [context, setContext] = useState<GithubProject | null>(null), [items, setItems] = useState<GithubItem[]>([]);
-  const [selected, setSelected] = useState(""), [nextPage, setNextPage] = useState<number | null>(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState<PanelFailure | null>(null);
-  const generation = useRef(0), callbacks = useRef({ select, contextChanged });
+  const [selected, setSelected] = useState(""), [nextPage, setNextPage] = useState<number | null>(null), [showClosed, setShowClosed] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState<PanelFailure | null>(null), [active, setActive] = useState(0);
+  const generation = useRef(0), callbacks = useRef({ select, contextChanged }), listId = useId();
   callbacks.current = { select, contextChanged };
-  const scopeKey = JSON.stringify([sdk.profileId, scope, kind, selectedUrl]);
+  const scopeKey = JSON.stringify([sdk.profileId, scope, kind, selectedUrl, showClosed]);
   const read = async (number: number, actual: GithubProject, token: number) => {
     const source: GithubWorkSource = { kind, repository: actual.repository, account: actual.account, accountId: actual.accountId, number };
     const value = await sdk.github.source(scope, source);
@@ -69,7 +83,8 @@ export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contex
     const token = ++generation.current; setBusy(true); setError(null);
     try {
       const actual = page === 1 || !context ? await sdk.github.project(scope) : context;
-      const value = await sdk.github.browse(scope, { resource: kind === "pull" ? "pulls" : "issues", repository: actual.repository, account: actual.account, page, perPage: 30 });
+      const value = await sdk.github.browse(scope, { resource: kind === "pull" ? "pulls" : "issues", repository: actual.repository, account: actual.account,
+        state: showClosed ? "all" : "open", page, perPage: 30 });
       if (value.accountId !== actual.accountId) throw new Error("The GitHub account changed. Reload this project's items before selecting one.");
       if (generation.current !== token) return;
       setContext(actual); callbacks.current.contextChanged?.(actual);
@@ -84,24 +99,42 @@ export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contex
     finally { if (generation.current === token) setBusy(false); }
   };
   useEffect(() => {
-    setItems([]); setContext(null); setSelected(""); callbacks.current.select(null); void load();
+    setItems([]); setContext(null); setSelected(""); setActive(0); callbacks.current.select(null); void load();
     return () => { generation.current++; };
   }, [sdk, scopeKey]);
-  const label = kind === "pull" ? "Pull request" : "GitHub issue";
+  const ordered = [...items.filter((item) => item.state === "open"), ...items.filter((item) => item.state !== "open")];
+  const interactive = !disabled && !busy && Boolean(context);
+  const choose = (number: number) => {
+    if (!interactive || !context) return;
+    setSelected(String(number)); callbacks.current.select(null);
+    const token = ++generation.current; setBusy(true); setError(null);
+    void read(number, context, token).catch((error: unknown) => { if (generation.current === token) setError(panelFailure(error, "The exact selected item could not be read.")); })
+      .finally(() => { if (generation.current === token) setBusy(false); });
+  };
+  const focus = (index: number) => {
+    const next = Math.max(0, Math.min(ordered.length - 1, index)); setActive(next);
+    document.getElementById(`${listId}-${ordered[next]?.number}`)?.scrollIntoView({ block: "nearest" });
+  };
+  const label = kind === "pull" ? "Pull request" : "GitHub issue", plural = kind === "pull" ? "pull requests" : "issues";
   return <section className="github-picker" aria-label={`${label} picker`} aria-busy={busy}>
     {context && <p className="github-binding"><strong>{context.repository}</strong><small>GitHub account: {context.account} / controller, not SSH</small></p>}
-    <label className="setting-field">{label}<select aria-label={label} disabled={disabled || busy || !context} value={selected} onChange={(event) => {
-      const value = event.target.value; setSelected(value); callbacks.current.select(null);
-      if (!value || !context) return;
-      const token = ++generation.current; setBusy(true); setError(null);
-      void read(Number(value), context, token).catch((error: unknown) => { if (generation.current === token) setError(panelFailure(error, "The exact selected item could not be read.")); })
-        .finally(() => { if (generation.current === token) setBusy(false); });
-    }}><option value="">{busy ? "Reading GitHub..." : `Choose ${kind === "pull" ? "a pull request" : "an issue"}`}</option>
-      {items.map((item) => <option key={item.id} value={item.number}>#{item.number} {item.title} / {item.draft ? "draft" : item.state}</option>)}</select></label>
-    <div className="button-row"><button type="button" disabled={disabled || busy} onClick={() => void load()}>Refresh {kind === "pull" ? "pull requests" : "issues"}</button>
-      {nextPage && <button type="button" disabled={disabled || busy} onClick={() => void load(nextPage)}>Load more</button>}</div>
+    <div className="github-item-toolbar"><span className="github-item-heading">{showClosed ? `All ${plural}` : `Open ${plural}`}</span>
+      <button type="button" className="icon-button" aria-label={`Refresh ${plural}`} title={`Refresh ${plural}`} disabled={disabled || busy} onClick={() => void load()}><Icon name="Refresh" /></button>
+      <label className="check-setting"><input type="checkbox" role="switch" checked={showClosed} disabled={disabled || busy} onChange={(event) => setShowClosed(event.target.checked)} />Show closed</label></div>
+    {ordered.length > 0 && <ul className="github-item-list" role="listbox" aria-label={label} tabIndex={interactive ? 0 : -1} aria-disabled={!interactive}
+      aria-activedescendant={ordered[active] ? `${listId}-${ordered[active].number}` : undefined}
+      onKeyDown={(event) => {
+        const moves: Record<string, number> = { ArrowDown: active + 1, ArrowUp: active - 1, Home: 0, End: ordered.length - 1 };
+        if (event.key in moves) { event.preventDefault(); focus(moves[event.key]!); }
+        else if ((event.key === "Enter" || event.key === " ") && ordered[active]) { event.preventDefault(); choose(ordered[active].number!); }
+      }}>
+      {ordered.map((item, index) => <li key={item.id} id={`${listId}-${item.number}`} role="option" aria-selected={selected === String(item.number)}
+        data-active={index === active || undefined} title={`#${item.number} ${item.title}${item.author ? ` by ${item.author}` : ""}`} onClick={() => { setActive(index); choose(item.number!); }}>
+        <GitHubStateIcon kind={kind} item={item} /><span className="github-item-number">#{item.number}</span><span className="github-item-title">{item.title}</span></li>)}
+    </ul>}
+    {nextPage && <div className="button-row"><button type="button" disabled={disabled || busy} onClick={() => void load(nextPage)}>Load more</button></div>}
     <PanelError failure={error} projectId={scope.projectId} />
-    {!busy && context && !items.length && !error && <p className="fine-print">No {kind === "pull" ? "pull requests" : "issues"} on this page. Create one or load another page if available.</p>}
+    {!busy && context && !items.length && !error && <p className="fine-print">{showClosed ? `No ${plural} on this page.` : `No open ${plural}. Turn on Show closed to include closed ones.`}</p>}
     {busy && <p className="fine-print" role="status">Reading the selected repository and account...</p>}
   </section>;
 }

@@ -289,6 +289,11 @@ Dragging a child out asks before detaching, with a saved opt-out in Settings /
 Confirmations. Unpin has a crossed-out
 pin. Global views live on the left; the right rail contains the session tools
 and per-session **Code change** and **Work item** links.
+Their PR and issue lists, and the project's From PR and From work item dialogs,
+show open items first with GitHub's colored state marks; **Show closed** adds
+closed and merged ones. Code change's **New branch** pushes the session's work
+to a reviewed remote branch that the agent keeps using. The Files view
+highlights code syntax ([D63](architecture/decisions.md#d63-github-item-lists-session-branches-and-highlighted-files)).
 Click an active right-rail icon again to collapse its pane back to the rail.
 Terminal belongs to a session: project-free consoles start in configured HOME,
 and project consoles keep their bound worktree. There is no global-terminal UI.

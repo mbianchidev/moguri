@@ -5,7 +5,7 @@ import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { Icon } from "./Icon.tsx";
 import { useSessionActions, type SessionActionOwner } from "./SessionActions.tsx";
 import { SESSION_DRAG_TYPE } from "./ContextAttachments.tsx";
-import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
+import { GitHubItemPicker, GitHubStateIcon, type GithubSelection } from "./GitHubPickers.tsx";
 import { PolicyNavigationContext } from "./PolicyHint.tsx";
 import { Alert } from "./Alert.tsx";
 import { BulkSessionActions } from "./BulkSessionActions.tsx";
@@ -851,7 +851,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
     {(edit.kind === "pr" || edit.kind === "work") && edit.project && <>
       <GitHubItemPicker sdk={sdk} scope={{ env: "Local", projectId: edit.project.id }} kind={edit.kind === "pr" ? "pull" : "issue"} disabled={busy}
         select={(selection) => { setGithub(selection); if (selection) setValue(""); }} />
-      {github && <section className="github-item" aria-label="Reviewed session source"><h3>#{github.item.number} {github.item.title}</h3>
+      {github && <section className="github-item" aria-label="Reviewed session source"><h3 className="github-item-name"><GitHubStateIcon kind={edit.kind === "pr" ? "pull" : "issue"} item={github.item} />#{github.item.number} {github.item.title}</h3>
         <p className="fine-print path">Source workspace: {github.binding.root.root}</p>
         <Suspense fallback={<p>{github.item.body}</p>}><RichMessage text={github.item.body || "No description."} openLink={(url) => { void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened.")); }} /></Suspense></section>}
     </>}

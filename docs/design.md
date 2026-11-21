@@ -204,6 +204,8 @@ pairs below hold for every palette in Dark and Light.
 | Focus | `--focus-ring` (`--focus-ring-width` 2px, `--focus-ring-color` accent), `--focus-ring-offset` 3px | Applied by the global `:focus-visible` rule. |
 | Motion | `--duration-fast` 120ms, `--duration-base` 140ms, `--duration-slow` 200ms, `--ease-standard` | Reduced motion disables transitions and every infinite animation. |
 | Fixed identity | `--brand-*` (startup screen), `--terminal-canvas`, `--chart-*` (analytics lanes, Dark and Light), `--swatch-*` | Intentionally palette-independent. |
+| GitHub state | `--github-open`, `-closed`, `-merged` | GitHub's own hues for PR/issue state marks (D63): open green, closed red, merged and completed issues purple, drafts muted. At least 3:1 on every background; always paired with a labeled icon. |
+| Syntax | `--syntax-keyword`, `-string`, `-comment`, `-number`, `-title`, `-type`, `-tag`, `-addition`, `-deletion` | Files view highlighting (`.hljs-*` classes). At least 4.5:1 on `--code` in Dark and Light. |
 
 Measured minimums across all eleven presets in both modes: body text 11.02:1,
 secondary text 5.82:1, failed/attention/partial/unknown status text 5.16:1,
