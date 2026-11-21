@@ -16,7 +16,7 @@ export function PrTourPromptSettings({ value, saved, snapshot, disabled, change,
     <p className="fine-print">{saved?.trim() ? "You're using your own prompt." : "You're using the default prompt."} Moguri adds the pull request, its exact head and the tour format after it; those parts can't be changed. A blank prompt uses the default.</p>
     <div className="button-row">
       <button type="button" className="primary" aria-label="Save PR tour prompt" disabled={disabled || text === current} onClick={save}>Save</button>
-      <button type="button" aria-label="Reset PR tour prompt to default" disabled={disabled || saved === undefined && value === undefined} onClick={reset}>Reset to default</button>
+      <button type="button" aria-label="Reset to default PR tour prompt" disabled={disabled || saved === undefined && value === undefined} onClick={reset}>Reset to default</button>
     </div>
     <h4>Repository prompts</h4>
     {overrides.length ? <ul className="automation-exceptions" aria-label="Repositories with their own tour prompt">{overrides.map((configuration) => {

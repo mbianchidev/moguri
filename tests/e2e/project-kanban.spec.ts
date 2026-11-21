@@ -113,7 +113,7 @@ test("typing continue work in the composer creates one visible autonomous task a
     await status.getByRole("button", { name: "Open task", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Generated desktop continuation", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Code change", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Project pull requests", exact: true })).toContainText("Generated full PR description.");
+    await expect(page.getByRole("region", { name: "Session code change", exact: true }).getByRole("region", { name: /^Pull request \d+$/ })).toContainText("Generated full PR description.");
     await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toBeVisible();
     await mkdir(".moguri/artifacts", { recursive: true });
     await page.screenshot({ path: ".moguri/artifacts/project-kanban-continuation.png" });
