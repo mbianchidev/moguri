@@ -5521,7 +5521,11 @@ GitHub CLI access, then review the displayed host/key/root before refreshing.
 The observation retains its captured peer and build. Missing tools/accounts,
 stale authority or control loss cannot silently substitute public/Local access.
 Linked-PR observation and client attachments retain their existing explicit
-control-plane reads.
+control-plane reads. A project's **GitHub read access** defaults to public, so a
+private repository's linked PR returns 404. Moguri then says so, and the PR
+view's Follow-up offers **Use my GitHub CLI account for this project**, which
+changes that project setting explicitly; Kanban's separate **GitHub access for
+linked PRs** applies to Kanban issue links only.
 
 ```bash
 node bin/moguri.mjs repository preview --session SESSION_ID
