@@ -294,6 +294,9 @@ show open items first with GitHub's colored state marks; **Show closed** adds
 closed and merged ones. Code change's **New branch** pushes the session's work
 to a reviewed remote branch that the agent keeps using. The Files view
 highlights code syntax ([D63](architecture/decisions.md#d63-github-item-lists-session-branches-and-highlighted-files)).
+A linked pull request opens as a full view: an editable description with reviewers, assignees and labels, files with an on-demand
+agent **Tour**, review activity, GitHub Actions checks that open their workflow runs, and commits. Its Draft / Ready control works for
+you and for the agent ([D64](architecture/decisions.md#d64-pull-request-view-draft-state-and-guided-tours)).
 Click an active right-rail icon again to collapse its pane back to the rail.
 Terminal belongs to a session: project-free consoles start in configured HOME,
 and project consoles keep their bound worktree. There is no global-terminal UI.

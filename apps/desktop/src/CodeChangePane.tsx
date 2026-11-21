@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { sessionPullRequestUrls, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { SessionGitHub } from "./SessionGitHub.tsx";
+import { LinkedPullRequest } from "./PullRequestView.tsx";
 import { PullRequestActions } from "./PullRequestActions.tsx";
 import { PrAutomationPanel } from "./PrAutomationSettings.tsx";
 
-export function CodeChangePane({ sdk, session, snapshot, onDirty, chooseSession, changes }: {
+export function CodeChangePane({ sdk, session, snapshot, onDirty, chooseSession, changes, openSettings }: {
   sdk: MoguriSdk; session: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; chooseSession: (id: string) => Promise<void>; changes: ReactNode;
+  openSettings?: () => void;
 }) {
   const urls = session.repositories ? [] : sessionPullRequestUrls(session, snapshot), [selected, setSelected] = useState<string | null>(urls[0] ?? null);
   const [linking, setLinking] = useState(false);
@@ -20,12 +22,16 @@ export function CodeChangePane({ sdk, session, snapshot, onDirty, chooseSession,
     </details>}
   </section>;
   return <section aria-label="Session code change" data-session-id={session.id} data-code-change="pull-request">
-    <h2>Code change{urls.length > 1 ? ` (${urls.length} PRs)` : ""}</h2>
+    <h2 className="sr-only">Code change{urls.length > 1 ? ` (${urls.length} PRs)` : ""}</h2>
     {urls.length > 1 && <label className="setting-field">Associated pull request<select aria-label="Associated pull request" value={actual}
       onChange={(event) => setSelected(event.target.value)}>{urls.map((url) => <option key={url} value={url}>{url}</option>)}</select></label>}
-    <PullRequestActions sdk={sdk} session={session} url={actual} />
-    <PrAutomationPanel sdk={sdk} session={session} snapshot={snapshot} url={actual} />
-    <SessionGitHub sdk={sdk} session={session} snapshot={snapshot} kind="pull" selectedUrl={actual} onDirty={onDirty} chooseSession={chooseSession} />
+    <LinkedPullRequest key={`${sdk.profileId}:${actual}`} sdk={sdk} session={session} snapshot={snapshot} url={actual} onDirty={onDirty} openSettings={openSettings} />
+    <div className="code-change-follow-up">
+      <PullRequestActions sdk={sdk} session={session} url={actual} />
+      <PrAutomationPanel sdk={sdk} session={session} snapshot={snapshot} url={actual} />
+    </div>
+    <details className="code-change-pr-link"><summary>Link or open another pull request</summary>
+      <SessionGitHub sdk={sdk} session={session} snapshot={snapshot} kind="pull" selectedUrl={null} onDirty={onDirty} chooseSession={chooseSession} /></details>
     <p className="fine-print">Selecting a PR changes only this pane. The first candidate/PR cleanup association is not relinked.</p>
   </section>;
 }

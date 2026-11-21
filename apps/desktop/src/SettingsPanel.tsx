@@ -1,9 +1,10 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { autonomyLabel, autonomyValues, envLabel, automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { autonomyLabel, autonomyValues, envLabel, automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, DEFAULT_PR_TOUR_PROMPT, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { PrAutomationDefaults } from "./PrAutomationSettings.tsx";
+import { PrTourPromptSettings } from "./PrTourSettings.tsx";
 import { RepositoryImportPanel } from "./RepositoryImportPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { McpOAuthPanel } from "./McpOAuthPanel.tsx";
@@ -587,6 +588,17 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
             </section>
             <PrAutomationDefaults values={draft.prAutomation} snapshot={snapshot} disabled={saving}
               onChange={(patch) => automatic("prAutomation", patch, false, DEFAULT_PR_AUTOMATION)}
+              openProject={(projectId) => {
+                if (dirty || nestedDirty) { setError("Save or reload this settings edit before opening a repository's settings."); return; }
+                selectConfigurationProject(projectId); openSection("project");
+              }} />
+            <PrTourPromptSettings value={draft.prTour?.prompt} saved={committed.prTour?.prompt} snapshot={snapshot} disabled={saving}
+              change={(prompt) => change("prTour", { prompt })}
+              save={() => {
+                const prompt = draft.prTour?.prompt ?? "", value = prompt.trim() && prompt !== DEFAULT_PR_TOUR_PROMPT ? { prompt } : undefined;
+                void write({ ...committedValues.current, prTour: value }, () => setDraft((current) => ({ ...current, prTour: value })));
+              }}
+              reset={() => void write({ ...committedValues.current, prTour: undefined }, () => setDraft((current) => ({ ...current, prTour: undefined })))}
               openProject={(projectId) => {
                 if (dirty || nestedDirty) { setError("Save or reload this settings edit before opening a repository's settings."); return; }
                 selectConfigurationProject(projectId); openSection("project");

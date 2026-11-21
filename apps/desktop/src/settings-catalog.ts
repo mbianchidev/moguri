@@ -6,7 +6,7 @@ export const SETTINGS_GROUPS = [
   { label: "General", items: [
     { id: "general", label: "General", keywords: "profiles create rename color accounts application menu bar automatic updates restart OpenTelemetry OTLP collector metadata export sampling", aliases: ["your name getting started onboarding setup"] },
     { id: "repositories", label: "Repositories", keywords: "bulk multiple import clone URL list bullet parent destination remote move organization", aliases: ["workspace folder sync trust"] },
-    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides", aliases: ["fix broken CI automatic conflict resolution override"] },
+    { id: "project", label: "Project", keywords: "Kanban board cards continue work show hide GitHub issues PR Linear folder upstream remote repository documentation merge conflicts CI planning debugging overrides", aliases: ["fix broken CI automatic conflict resolution override", "PR tour prompt override"] },
   ] },
   { label: "Models", items: [
     { id: "providers", label: "Providers", keywords: "GitHub Copilot login sign in connect subscription authentication enable disable models sources duplicates provider selection OpenRouter Anthropic OpenAI ChatGPT Claude Codex", aliases: ["chat topic naming", "small local naming model"] },
@@ -15,7 +15,7 @@ export const SETTINGS_GROUPS = [
     { id: "decisions", label: "Decision providers", keywords: "System One Autopilot Max" },
   ] },
   { label: "Integrations", items: [
-    { id: "github", label: "GitHub", keywords: "workflows GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions", "pull request automation fix broken CI rerun flaky jobs", "automatic conflict resolution repository exceptions"] },
+    { id: "github", label: "GitHub", keywords: "workflows GitHub CLI gh account login pull requests issues reviews branch prefix names", aliases: ["wrap up commit CI follow-up skill suggestions", "pull request automation fix broken CI rerun flaky jobs", "automatic conflict resolution repository exceptions", "PR tour prompt guided review walkthrough"] },
     { id: "linear", label: "Linear", keywords: "workflows login team API key tickets" },
     { id: "mcpServers", label: "MCP gateway", keywords: "servers configs OAuth tools", aliases: ["tool preference order ranking", "MCP direct REST API CLI"] },
     { id: "sql", label: "sql-not-so-lite", keywords: "sqlnotsolite sqlite existing daemon connection health endpoint" },

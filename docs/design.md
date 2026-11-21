@@ -251,6 +251,18 @@ save on change; the optional name saves on Continue and says plainly that it
 goes to the model provider. Skip setup and Finish are always available, and
 choosing a chat closes the thread. Details: [D54](architecture/decisions.md).
 
+### Pull request view
+
+A linked PR fills Code change: a muted repository line with the Draft / Ready
+control on the right, a large title with its `#number` link, a state pill with
+head and base branches, then text tabs (Description, Files, Reviews, Checks,
+Commits) with small count pills. Reviewers, assignees and labels are rounded
+chips that open filterable menus; label swatches use the label's own GitHub
+color. Every GitHub write shows an inline review with its confirmations before
+anything is sent. Check and commit rows are full-width buttons that open
+GitHub, with state icons in `--status-*` and `--github-*` colors next to text.
+Details: [D64](architecture/decisions.md).
+
 ### Components
 
 | Component | Implementation | Rules |

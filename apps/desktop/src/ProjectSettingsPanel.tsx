@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultProjectConfiguration, defaultProjectSettings, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, ProjectScreenshotModeSchema, ProjectInstallerModeSchema, WORKFLOW_GUIDANCE_FIELDS, type InstallerCandidate, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, defaultProjectSettings, effectivePrTourPrompt, parse, ProjectSettingsSchema, ProjectWorkspaceModeSchema, ProjectPullRequestModeSchema, ProjectScreenshotModeSchema, ProjectInstallerModeSchema, WORKFLOW_GUIDANCE_FIELDS, type InstallerCandidate, type ProjectRepositoryLayout, type WorkflowGuidance, type MoguriSdk, type Project, type ProjectSettings, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { ManagedWorkspacePanel } from "./ManagedWorkspacePanel.tsx";
 import { BoardSettings } from "./BoardSettings.tsx";
@@ -9,6 +9,7 @@ import { PathField } from "./PathField.tsx";
 import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
 import { PrAutomationOverrides } from "./PrAutomationSettings.tsx";
+import { PrTourRepositoryPrompt } from "./PrTourSettings.tsx";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -118,6 +119,24 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       } finally { ownSave.current = false; }
     });
   };
+  const tourPrompt = (action: "save" | "override" | "inherit") => {
+    if (ownSave.current || busy) { setError("Wait for the current project settings save. Your edit is preserved."); return; }
+    const repo = { ...committedValues.current.repo }, text = action === "override" ? effectivePrTourPrompt(snapshot.settings.values, null) : values.repo.tourPrompt ?? "";
+    if (action === "inherit" || !text.trim()) delete repo.tourPrompt; else repo.tourPrompt = text;
+    setValues((current) => {
+      const next = { ...current.repo };
+      if (repo.tourPrompt === undefined) delete next.tourPrompt; else next.tourPrompt = repo.tourPrompt;
+      return { ...current, repo: next };
+    });
+    return run(async () => {
+      const settings = parse(ProjectSettingsSchema, { ...committedValues.current, repo });
+      ownSave.current = true;
+      try {
+        const result = await sdk.projects.configure(project.id, settings, revision);
+        committedValues.current = settings; setCommitted(structuredClone(settings)); setRevision(result.revision!);
+      } finally { ownSave.current = false; }
+    });
+  };
   const canRun = session?.projectId === project.id && !dirty && !busy;
   return <section aria-label="Per-project settings"><header className="project-settings-header"><div><h2>{project.name}</h2><p className="fine-print">{project.path}</p></div>
     <button className="primary" aria-label="Save project settings" disabled={!available || !loaded || !dirty || busy || trustBusy} onClick={() => void save()}>Save</button></header>
@@ -170,6 +189,9 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
     {installers && installers.length > 0 && <p className="fine-print">Found {installers.map((candidate) => candidate.run).join(", ")} in this project.</p>}
     <p className="fine-print">Existing sessions keep their workspace. These choices guide the agent; pushing, merging and running commands follow your normal approvals. A repository override stays when the global default changes; choose the global default again to remove it.</p>
     {saveButton("repo", "Save repository settings")}
+    <PrTourRepositoryPrompt value={values.repo.tourPrompt} saved={committed.repo.tourPrompt} inherited={effectivePrTourPrompt(snapshot.settings.values, null)}
+      disabled={!available || !loaded || busy} override={(enabled) => void tourPrompt(enabled ? "override" : "inherit")}
+      change={(prompt) => change("repo", { ...values.repo, tourPrompt: prompt })} save={() => void tourPrompt("save")} />
     <RepositoryTrustPanel key={`${sdk.profileId}:${project.id}`} sdk={sdk} project={project} snapshot={snapshot}
       disabled={!available || !loaded || dirty || busy} onBusy={setTrustBusy} />
     {project.workspaceFolderId ? <p className="fine-print">Moguri doesn't change this repository's remotes because it only reads projects from a workspace folder.</p> :

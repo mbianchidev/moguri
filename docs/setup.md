@@ -5782,6 +5782,13 @@ features, or aborts and asks you. Each repository can override either flag in
 Fix broken CI needs a Local session and the signed-in GitHub CLI account.
 GitLab CI is not supported. See [pull request automation](architecture/pr-automation.md).
 
+In a pull request's **Files** tab, **Tour** asks the chat's agent for a guided
+review: risk, impact and attention ratings, an overview, ordered steps and the
+code snippets to check, each with a **Reviewed** checkbox. It runs as a read-only
+turn in a Local chat with a Moguri model, using the chat's model, Env, budget and
+approvals. Edit the prompt in **Settings / Integrations / GitHub / PR tour** or
+per repository in **Settings / Project**. See [pull request tours](architecture/pr-tours.md).
+
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows
 are the selected set; there are no row checkboxes. Right-click a highlighted
