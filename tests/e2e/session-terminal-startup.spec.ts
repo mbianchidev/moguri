@@ -23,6 +23,12 @@ test("explicit session navigation opens the newly selected console, preserves ex
     const input = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await terminal.click(); await expect(input).toHaveAttribute("aria-disabled", "false");
     const first = await waitFor(() => sdk.getState().snapshot!.terminals.find((entry) => entry.sessionId === fixture.sessionId));
+    // The shell starts at the pane's real width, so zsh never draws a first prompt for 80 columns and then a second one.
+    const opened = fixture.service.controller.events(0).find((event) => event.event_type === "terminal.changed" && event.payload.terminal.id === first.id);
+    if (opened?.event_type !== "terminal.changed") throw new Error("Missing generated terminal open record.");
+    await page.waitForTimeout(400);
+    expect(opened.payload.terminal.cols).not.toBe(80);
+    expect((await sdk.terminal.read(first.id)).terminal.cols).toBe(opened.payload.terminal.cols);
     await navigation.getByRole("button", { name: "Generated project-free console", exact: true }).click();
     await expect.poll(() => sdk.getState().snapshot!.terminals.filter((entry) => entry.sessionId === chat.id).length).toBe(1);
     await expect(input).toHaveAttribute("aria-disabled", "false");

@@ -20,6 +20,30 @@ function observeTerminalFit(terminal: Terminal, container: HTMLElement): () => v
   observer.observe(container); schedule();
   return () => { disposed = true; clearTimeout(timer); observer.disconnect(); };
 }
+/**
+ * The pane's real size in cells, measured with a throwaway hidden emulator using the same font, so a new shell starts at
+ * the width it is shown at. Starting at a default 80x24 and resizing afterwards makes zsh print its partial-line `%`
+ * marker and a second prompt drawn for the wrong width.
+ */
+async function measureTerminalSize(container: HTMLElement | null): Promise<{ cols: number; rows: number }> {
+  const fallback = { cols: 80, rows: 24 };
+  if (!container || !container.clientWidth || !container.clientHeight) return fallback;
+  const probe = document.createElement("div"), style = getComputedStyle(container);
+  probe.className = container.className; probe.setAttribute("aria-hidden", "true");
+  Object.assign(probe.style, { position: "absolute", visibility: "hidden", pointerEvents: "none", left: "0", top: "0",
+    width: `${container.clientWidth}px`, height: `${container.clientHeight}px`, padding: style.padding, boxSizing: "border-box" });
+  document.body.append(probe);
+  let measuring: Terminal | undefined;
+  try {
+    ghostty ??= Ghostty.load(wasmUrl);
+    measuring = new Terminal({ ghostty: await ghostty, cols: 80, rows: 24, fontSize: 12, scrollback: 0, disableStdin: true });
+    measuring.open(probe);
+    const fit = new FitAddon(); measuring.loadAddon(fit);
+    const size = fit.proposeDimensions();
+    return size ? { cols: Math.min(500, Math.max(10, size.cols)), rows: Math.min(200, Math.max(2, size.rows)) } : fallback;
+  } catch { return fallback; }
+  finally { measuring?.dispose(); probe.remove(); }
+}
 export function GhosttyOutput({ text, active, scope }: { text: string; active: boolean; scope: string }) {
   const host = useRef<HTMLDivElement>(null), emulator = useRef<Terminal | null>(null), latest = useRef(text);
   const [error, setError] = useState("");
@@ -115,7 +139,8 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
     if (actionPending.current) return;
     autoOpened.current = true; onAutoStartHandled?.();
     return run(async () => {
-      const result = await sdk.terminal.open(session.id, 80, 24, undefined, session.repositories ? requestedRoot : session.projectId ? undefined : defaultRoot);
+      const { cols, rows } = await measureTerminalSize(host.current);
+      const result = await sdk.terminal.open(session.id, cols, rows, undefined, session.repositories ? requestedRoot : session.projectId ? undefined : defaultRoot);
       setSelected(result.id!);
     });
   };
