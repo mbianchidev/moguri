@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSessionActivity } from "../../../packages/sdk/src/react.ts";
-import { sessionBackgroundWork, sessionTitle, type ActivityResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, sessionBackgroundWork, sessionTitle, type ActivityResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";
@@ -41,12 +41,12 @@ export function AgentTerminal({ sdk, session, snapshot, active, openAgent }: { s
   return <section className="agent-terminal" aria-label="Agent terminal">
     {agents.length > 0 && <section className="background-agents" aria-label="Background subagents">
       <h3>Background agents</h3><ul>{agents.map((child) => <li key={child.id}>
-        <div><strong>{sessionTitle(child)}</strong><small>{child.status.replace("_", " ")} / {child.controls.env} / {child.kind === "subagent" ? "Read-only subagent" : "Coordinated agent"}</small></div>
+        <div><strong>{sessionTitle(child)}</strong><small>{child.status.replace("_", " ")} / {envLabel(child.controls.env)} / {child.kind === "subagent" ? "Read-only subagent" : "Coordinated agent"}</small></div>
         {openAgent && <button type="button" className="quiet" aria-label={`Open background agent ${sessionTitle(child)}`} onClick={() => void openAgent(child.id)}>Open agent</button>}
       </li>)}</ul>
     </section>}
     {scripts.length > 0 && <section className="background-agents" aria-label="Running scripts"><h3>Running scripts</h3>
-      <ul>{scripts.map((script) => <li key={script.id}><div><strong>Running script request</strong><small>{script.env} / {script.outcome} / {script.stepId}</small></div></li>)}</ul>
+      <ul>{scripts.map((script) => <li key={script.id}><div><strong>Running script request</strong><small>{envLabel(script.env)} / {script.outcome} / {script.stepId}</small></div></li>)}</ul>
       <p className="fine-print">Inspect the exact script review and original result in the conversation. No private console output is read here.</p>
     </section>}
     <CommandJobs sdk={sdk} session={session} snapshot={snapshot} active={active} />
@@ -62,7 +62,7 @@ export function AgentTerminal({ sdk, session, snapshot, active, openAgent }: { s
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     {selected ? <>
       <code className="agent-command-line" tabIndex={0}>{selected.subject ?? "Original command text unavailable."}</code>
-      <p className="agent-command-meta"><strong>{selected.status}</strong><span>{selected.env ?? "unknown"} execution</span><span>{activityStarted(selected.startedAt)}</span><span>Duration {activityDuration(selected.durationMs)}</span></p>
+      <p className="agent-command-meta"><strong>{selected.status}</strong><span>{envLabel(selected.env ?? "unknown")} execution</span><span>{activityStarted(selected.startedAt)}</span><span>Duration {activityDuration(selected.durationMs)}</span></p>
       <CurrentActivity entries={activity.activity?.current ?? []} hasMore={(activity.activity?.currentCount ?? 0) > (activity.activity?.current.length ?? 0)} />
       {loading && !result && <p role="status">Reading the original Agent output...</p>}
       <GhosttyOutput text={content?.text ?? ""} active={active} scope={JSON.stringify([sdk.profileId, session.id, selected.id, follow, offset])} />

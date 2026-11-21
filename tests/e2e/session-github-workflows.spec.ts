@@ -192,7 +192,7 @@ test("approval scopes persist across turns, Autopilot explicitly enables unatten
     await fixture.send("generated tool with remembered desktop approval again"); await fixture.terminal();
     await expect(approval).not.toBeVisible();
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
-    await page.getByRole("dialog", { name: "Autonomy level", exact: true }).getByRole("button", { name: /^Autopilot Automatically approve/ }).click();
+    await page.getByRole("dialog", { name: "Autonomy level", exact: true }).getByRole("button", { name: /^Autonomous Automatically approve/ }).click();
     await expect.poll(() => fixture.session().controls.automaticApprovals).toBe(true);
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByText("Create a token with the right permissions", { exact: true }).click();

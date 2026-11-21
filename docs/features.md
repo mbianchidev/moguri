@@ -367,8 +367,8 @@ and pinned SSH workers without modifying a source checkout. See
 These context features are implemented. Final native and integrated acceptance
 remain separate in the [current roadmap](remaining-milestone-gaps.md).
 
-Core **Remote SSH** execution uses an explicitly pinned host and approved
-remote workspace. The existing worker runs inference and file/command tools
+Core **Remote SSH** execution (the **Remote host** Env; `/ssh` inspects or
+probes it) uses an explicitly pinned host and approved remote workspace. The existing worker runs inference and file/command tools
 there; the local service still owns approvals and history. Disconnect/restart
 reconciliation retains late accounting without replaying effects or turning
 partial work into success. Files, Git changes and read-only plan views now use
@@ -410,7 +410,7 @@ outcomes without a model or automatic commit. The exact installed SDK and
 actual packaged app are independently qualified;
 [setup](setup.md#current-qualified-0220-alpha1-checkpoint) records their
 immutable identities. Compound model routing,
-finite kupo wind-down and Max still remain unavailable, not implied by the
+finite kupo wind-down and Autopilot still remain unavailable, not implied by the
 private Cascade/Critique transport proofs.
 Qualified **0.23.0-alpha.1 / protocol 31** adds independently retained planned
 budget capacity and one explicitly cost-reviewed, tool-less Local model
@@ -531,14 +531,21 @@ user console, not an agent permission or a claimed sandbox.
 
 The Local **Browser** pane also supports approved agent navigation, inspection,
 clicks and text input. Its top **Agent control** switch starts off and revokes
-access immediately when disabled. It never adopts a personal browser.
-See [browser control](architecture/agent-browser.md).
+access immediately when disabled. Once turned on it stays on for that chat,
+across panel and chat switches, window reloads and app restarts, until you turn
+it off; each reconnect or your own navigation gives the agent a new identity,
+and the pane keeps working hidden while you look at another panel (D61). It
+never adopts a personal browser.
+See [browser control](architecture/agent-browser.md). While the optional
+Stainless integration is on, agent browser automation through the `playwright`
+tool runs in Stainless instead of Chromium, or stops before launching when
+Stainless is not ready ([Stainless](architecture/stainless.md)).
 
 Attachments stay compact in the composer/chat. Clicking an image opens the
 large, uncropped viewer without changing captured context.
 
 Project-free sessions can open private HOME consoles without granting model
-workspace access. Project-free Autopilot cannot invent workspace access, and side
+workspace access. Project-free Autonomous cannot invent workspace access, and side
 chats expose an explicit concrete-model selector when needed.
 User consoles retain authenticated per-profile/peer owners across
 explicit service restart or controller loss. Ghostty and shared SDK/CLI/TUI
@@ -664,7 +671,7 @@ policy claims, not proof of independent training or calibrated quality.
 Finite Local routing now reserves one actual metadata-only finishing role and
 has separately reviewed actual-user accepted-work checkpoint branches that
 preserve the source index/HEAD. A summary never accepts code or approves Git.
-[Local **Autopilot Max**](architecture/owned-decisions.md) now uses an
+[Local **Autopilot**](architecture/owned-decisions.md) now uses an
 explicitly configured bounded-model System One-compatible alternative with
 fixed or Single-routed solvers. Exact existing tool delegation, user-declared
 technical choices and bounded safe-boundary steering share the real model
@@ -676,11 +683,12 @@ No generative substitution or calibrated reliability is claimed.
 The current generated source, packed SDK and exact native image pass the
 [full acceptance sweep](setup.md#final-protocol-40-source-acceptance).
 Live-provider/calibrated-quality gates, complete remote/native
-side-panel/extension transport, Remote/native compound/Max and
+side-panel/extension transport, Remote/native compound/Autopilot and
 remote/native wind-down remain incomplete.
 Unknown usage and Copilot billing are not presented as zero cost.
-Manual remains the default. Guided still needs human confirmation; Autopilot
-can use only explicit bounded user grants. SendBox has a visible fail-closed
+Manual remains the default. Guided still needs human confirmation; Autonomous
+can use only explicit bounded user grants. Autonomy levels read Manual, Guided,
+Autonomous and Autopilot over unchanged stored values (D60). SendBox has a visible fail-closed
 configuration/readiness surface. The development SDK/client lifecycle
 now passes actual native generated-provider checks, but readiness still needs
 explicit reviewed release/image/network pins and private staging. Endpoint-only

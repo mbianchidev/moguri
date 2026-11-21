@@ -85,8 +85,9 @@ Every workflow is on by default (`kupo.workflows` absent). Each has its own sett
 
 Each preference uses a subset: Savings runs Single and Cascade; Balanced runs every enabled workflow and
 avoids frontier solvers and drafters for requests above 32,768 estimated input tokens while a
-non-frontier model is eligible; Performance runs Single, Critique and Council at each model's highest
-qualified effort (xhigh or max, else High); Dynamic picks per request. The composer's mode list
+non-frontier model is eligible; Performance runs Single, Critique and Council at High or xhigh; Dynamic
+picks per request. Every mode picks thinking effort per request by task complexity, capped at xhigh: Kupo
+never chooses Max, which tends to degrade results. The composer's mode list
 (`routing.modes`) shows which workflows each mode can run with the current models, with eligible pairs
 and Council models.
 
@@ -119,7 +120,7 @@ exact compactor, trigger fraction, recent turns, output bound and per-turn call 
 
 Only a selected original response reaches ordinary permissions. New modes run Cascade with a strictly
 cheaper draft class, Critique with a critic from a different AI lab and Council with one model per lab;
-lab labels are name-based, not proof of independent training. Missing System One/Max transports remain
+lab labels are name-based, not proof of independent training. Missing System One/Autopilot transports remain
 blocked. Sandbox needs fresh exact native-byte qualification; there is no Local fallback.
 
 ## Compound routing policy
@@ -138,7 +139,7 @@ strings. Up to four routes and eight approved role models.
 Public Compound requires exact selected-Env source and stages and a separate actual-user staging/test
 review. Local and pinned SSH use their original roots; native-private (Sandbox) work remains physically
 unqualified until fresh exact-runtime evidence passes. Finite budgets need the selected-boundary reserved
-finishing (wind-down) policy. Max needs an explicit compatible Decision provider and cannot bypass
+finishing (wind-down) policy. Autopilot needs an explicit compatible Decision provider and cannot bypass
 reviews or hard policy. No fallback.
 
 ## Single policy

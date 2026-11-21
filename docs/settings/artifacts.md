@@ -91,4 +91,4 @@ Previously titled "Decision-provider observations". Contracts: `docs/architectur
 - The raw result is raw provider data, not a human instruction or calibrated reliability. The resolved
   provider version is not inferred from a configured API model ID.
 - A failed stop leaves the original held charge and worker to inspect; nothing is retried.
-- Readiness errors: when readiness is unavailable, Max cannot assume a provider or policy.
+- Readiness errors: when readiness is unavailable, Autopilot cannot assume a provider or policy.

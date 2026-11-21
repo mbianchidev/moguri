@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CheckpointResponse, MoguriSdk, RewindFileDecision, RewindPreview, Session, Snapshot, TurnCheckpoint } from "../../../packages/sdk/src/index.ts";
+import { envLabel } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {
@@ -53,7 +54,7 @@ export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; sessio
       </article>)}
       {checkpoints.map((checkpoint) => <article key={checkpoint.id}>
         <h3>{checkpoint.summary || checkpoint.turnId}</h3>
-        <p className="fine-print">{checkpoint.createdAt} / {checkpoint.env} / event {checkpoint.startSequence} / {checkpoint.terminal?.outcome ?? "turn not settled"} / {checkpoint.storageBytes} retained bytes</p>
+        <p className="fine-print">{checkpoint.createdAt} / {envLabel(checkpoint.env)} / event {checkpoint.startSequence} / {checkpoint.terminal?.outcome ?? "turn not settled"} / {checkpoint.storageBytes} retained bytes</p>
         {checkpoint.diagnostics.map((diagnostic) => <p key={diagnostic} className="fine-print">{diagnostic}</p>)}
         <div className="button-row">
           <button type="button" disabled={busy || checkpoint.forgotten} onClick={() => void review(checkpoint, "conversation")}>Review conversation rewind</button>

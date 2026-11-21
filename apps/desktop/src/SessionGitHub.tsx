@@ -72,7 +72,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
   };
   const discard = () => { setCreating(false); setTitle(""); setBody(""); setReview(null); };
   const kanban = kind === "issue" && session.projectId ? <KanbanWorkItem sdk={sdk} session={session} snapshot={snapshot} /> : null;
-  if (!scope) return <section className="session-github"><p className="fine-print">GitHub {label} workflows need an explicit Local project. Remote and Sandbox do not borrow this Mac's account or checkout.</p>
+  if (!scope) return <section className="session-github"><p className="fine-print">GitHub {label} workflows need an explicit Local project. Remote host and Sandbox do not borrow this Mac's account or checkout.</p>
     {kanban}
     {creating && <><Alert as="p" tone="warning" className="settings-warning">Your publication form is preserved. Restore its Local destination or copy/discard the edit explicitly.</Alert>
       <label className="setting-field">Preserved title<input readOnly value={title} /></label><label className="setting-field">Preserved body<textarea readOnly value={body} /></label>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { candidateRootLabel, type CandidateWorkspace, type CandidateWorkspacePreview, type MoguriSdk, type Session } from "../../../packages/sdk/src/index.ts";
+import { envLabel, candidateRootLabel, type CandidateWorkspace, type CandidateWorkspacePreview, type MoguriSdk, type Session } from "../../../packages/sdk/src/index.ts";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -29,8 +29,8 @@ export function CandidateWorkspacePanel({ sdk, session, scope, writable, onWorks
     finally { pending.current = false; setBusy(false); }
   };
   return <section className="candidate-section" aria-label="Owned candidate Env workspaces" aria-busy={busy}>
-    <h4>{session.controls.env} staging areas</h4>
-    <p className="fine-print">Remote staging areas are detached Git worktrees on the SSH host; Sandbox staging areas are copies of the private workspace. They're kept when a proposal or chat is deleted.</p>
+    <h4>{envLabel(session.controls.env)} staging areas</h4>
+    <p className="fine-print">Remote host staging areas are detached Git worktrees on the SSH host; Sandbox staging areas are copies of the private workspace. They're kept when a proposal or chat is deleted.</p>
     {error && <Alert as="p" role="alert">{error}</Alert>}
     <label className="setting-field">Name<SettingsInput aria-label="Candidate workspace name" value={name} disabled={busy || !writable}
       maxLength={120} onChange={(event) => { setName(event.target.value); setPreview(null); }} /></label>
@@ -52,7 +52,7 @@ export function CandidateWorkspacePanel({ sdk, session, scope, writable, onWorks
       })}>Create reviewed workspace</button>
       <button disabled={busy || !name && !preview} onClick={() => { setName(""); setPreview(null); }}>Discard workspace review</button></div>
     {preview && <div className="candidate-binding"><p className="fine-print path">{candidateRootLabel(preview.source)}<br />Source: {preview.source.root}<br />Created under: {preview.stageParent}<br />Review: {preview.digest}</p><p>{preview.diagnostic}</p></div>}
-    {workspaces.map((workspace) => <details key={workspace.id}><summary>{workspace.name} / {workspace.boundary.env} / {workspace.status}</summary>
+    {workspaces.map((workspace) => <details key={workspace.id}><summary>{workspace.name} / {envLabel(workspace.boundary.env)} / {workspace.status}</summary>
       <p className="fine-print path">ID: {workspace.id}<br />Source: {workspace.source.root}<br />Stage: {workspace.plannedRoot}{!workspace.stage && " (creation not confirmed)"}</p>
       {workspace.diagnostic && <Alert as="p" role="status">{workspace.diagnostic}</Alert>}
       {workspace.status === "creating" && <button disabled={busy} onClick={() => void run(async () => { await sdk.candidates.stopWorkspace(workspace.id); })}>Stop this workspace creation</button>}

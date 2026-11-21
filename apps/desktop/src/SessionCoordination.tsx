@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CoordinationRead, CoordinationResponse, MoguriSdk, Session, Snapshot, SessionContextInput, SessionWaitPreview } from "../../../packages/sdk/src/index.ts";
+import { envLabel } from "../../../packages/sdk/src/index.ts";
 import { QuestionCard } from "./QuestionCard.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -75,7 +76,7 @@ export function SessionCoordinationPanel({ sdk, session, snapshot, onDirty }: { 
       {waitReview?.key === key && <section aria-label="Session dependency review"><p>Wait for this exact {waitReview.preview.task.kind}: <code>{waitReview.preview.task.id}</code> in <code>{waitReview.preview.targetSessionId}</code>.</p>
         <p>Only successful completion releases this dependency. Failure, removal or changed ownership stays paused. Held prompts still need explicit release.</p>
         <button type="button" disabled={busy} onClick={() => void perform(async () => { await sdk.sessions.waitFor(waitReview.preview, true); setWaitReview(null); setStatus("Dependency retained for the exact captured task. No work was started."); })}>Wait for this task to succeed</button></section>}
-      {inspection && <section aria-label="Coordinated session state"><p><strong>{inspection.title}</strong>: {inspection.status} / {inspection.mode} / {inspection.env}. {inspection.queued} queued.</p>
+      {inspection && <section aria-label="Coordinated session state"><p><strong>{inspection.title}</strong>: {inspection.status} / {inspection.mode} / {envLabel(inspection.env)}. {inspection.queued} queued.</p>
         {inspection.lastError && <Alert as="p" className="inline-error" role="alert">{inspection.lastError}</Alert>}
         {inspection.plan && <><strong>{inspection.plan.title}</strong><ol>{inspection.plan.steps.map((step, index) => <li key={index}>{step.status}: {step.text}</li>)}</ol><p className="fine-print">Model-authored progress, not task acceptance or permission.</p></>}
         {question && <QuestionCard key={question.id} sdk={sdk} question={question} onDirty={setQuestionDirty} />}

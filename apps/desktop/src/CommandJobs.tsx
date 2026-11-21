@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CommandJobRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 export function CommandJobs({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {
@@ -41,7 +42,7 @@ export function CommandJobs({ sdk, session, snapshot, active }: { sdk: MoguriSdk
       <div className="button-row"><button type="button" disabled={busy} onClick={() => setRevision((value) => value + 1)}>Refresh watch logs</button>
         {selected.status === "running" && <button type="button" disabled={busy} onClick={() => void perform(() => sdk.jobs.cancel(selected.id))}>Stop watch job</button>}</div>
       {data ? <>
-        <p className="fine-print"><strong>{data.status}</strong> / {data.env} / {data.root}. Source: {data.source}. Observed wall time {data.elapsedMs === null ? "unavailable" : `${Math.round(data.elapsedMs)} ms`}; output {data.outputBytes === null ? "unavailable" : `${data.outputBytes} normalized bytes`}.</p>
+        <p className="fine-print"><strong>{data.status}</strong> / {envLabel(data.env)} / {data.root}. Source: {data.source}. Observed wall time {data.elapsedMs === null ? "unavailable" : `${Math.round(data.elapsedMs)} ms`}; output {data.outputBytes === null ? "unavailable" : `${data.outputBytes} normalized bytes`}.</p>
         {data.text !== null && <pre className="command-job-output" tabIndex={0} aria-label="Original watch output">{data.text}</pre>}
         {data.diagnostic && <Alert as="p" className="inline-error" role="alert">{data.diagnostic}</Alert>}
         <div className="button-row">{offset > 0 && <button type="button" onClick={() => setOffset(0)}>First watch page</button>}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  activeAutomationRun, describeAutomationSchedule, describeAutomationStep, outcomeLabel, scheduleLocalChoices, scheduleLocalTime,
+  activeAutomationRun, autonomyLabel, autonomyValues, envLabel, envValues, describeAutomationSchedule, describeAutomationStep, outcomeLabel, scheduleLocalChoices, scheduleLocalTime,
   type Automation, type AutomationDefinition, type AutomationRun, type AutomationSchedule, type AutomationStep, type Controls, type MoguriSdk, type Snapshot,
 } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
@@ -13,8 +13,6 @@ type InterpreterName = Extract<AutomationStep, { kind: "script" }>["interpreter"
 interface StepDraft { kind: "prompt" | "script"; text: string; path: string; interpreter: InterpreterName; args: string }
 const interpreters: InterpreterName[] = ["sh", "bash", "node-module", "node-commonjs", "python3"];
 const weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const autonomies: Controls["autonomy"][] = ["Manual", "Guided", "Autopilot", "Autopilot Max"];
-const envs: Controls["env"][] = ["Local", "Sandbox", "Remote"];
 const when = (value: string) => new Date(value).toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 const budgetText = (controls: Controls) => controls.budget.kind === "unlimited" ? "unlimited budget" : "limited budget";
 const stepDraft = (step?: AutomationStep): StepDraft => step?.kind === "script" ?
@@ -59,7 +57,7 @@ function AutomationCard({ sdk, snapshot, automation, run, openSession, edit }: {
       <dt>Schedule</dt><dd>{describeAutomationSchedule(automation.schedule)}</dd>
       <dt>Next run</dt><dd>{on ? automation.nextAt ? when(automation.nextAt) : "No upcoming time" : "Paused"}</dd>
       <dt>Project</dt><dd>{automation.projectId === null ? "No project" : project?.name ?? "Removed project"}</dd>
-      <dt>Runs with</dt><dd>{automation.controls.env}, {model?.name ?? automation.controls.modelId ?? "no model"}, {automation.controls.autonomy}, {budgetText(automation.controls)}</dd>
+      <dt>Runs with</dt><dd>{envLabel(automation.controls.env)}, {model?.name ?? automation.controls.modelId ?? "no model"}, {autonomyLabel(automation.controls.autonomy)}, {budgetText(automation.controls)}</dd>
     </dl>
     <ol className="automation-steps" aria-label="Steps">{automation.steps.map((step, index) =>
       <li key={index}><strong>{step.kind === "prompt" ? "Prompt" : "Script"}</strong> {describeAutomationStep(step)}</li>)}</ol>
@@ -185,9 +183,9 @@ function AutomationDialog({ sdk, snapshot, automation, close }: { sdk: MoguriSdk
           {!automation && <option value="">{defaultLabel}</option>}
           {snapshot.provider.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
         <label className="setting-field">Env<select value={env} disabled={busy} onChange={(event) => setEnv(event.target.value as Controls["env"] | "")}>
-          {!automation && <option value="">{defaultLabel}</option>}{envs.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          {!automation && <option value="">{defaultLabel}</option>}{envValues.map((value) => <option key={value} value={value}>{envLabel(value)}</option>)}</select></label>
         <label className="setting-field">Autonomy<select value={autonomy} disabled={busy} onChange={(event) => setAutonomy(event.target.value as Controls["autonomy"] | "")}>
-          {!automation && <option value="">{defaultLabel}</option>}{autonomies.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          {!automation && <option value="">{defaultLabel}</option>}{autonomyValues.map((value) => <option key={value} value={value}>{autonomyLabel(value)}</option>)}</select></label>
         <p className="fine-print">Budget follows the {projectId ? "project" : "profile"} default and is shown on the automation once saved.</p>
       </fieldset>
       {!automation && <label className="check-setting"><input type="checkbox" role="switch" checked={enabled} disabled={busy} onChange={(event) => setEnabled(event.target.checked)} />Turn on now</label>}

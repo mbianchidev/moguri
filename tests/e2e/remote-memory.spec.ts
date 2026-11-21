@@ -17,10 +17,10 @@ test("desktop explicitly indexes and searches its captured SSH repository and sh
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     await openSettingsSection(page, "Repository memory");
     await expect(page.getByRole("heading", { name: "Repository memory", exact: true })).toBeVisible();
-    await expect(page.locator("body")).toContainText("Remote memory indexes the repository on the SSH host");
+    await expect(page.locator("body")).toContainText("Remote host memory indexes the repository on the SSH host");
     expect(f.controller.snapshot().jobs.filter((job) => job.kind === "memory.index")).toHaveLength(0);
-    await page.getByRole("button", { name: "Index Remote repository", exact: true }).click();
-    await expect(page.locator("body")).toContainText("Remote repository index / completed");
+    await page.getByRole("button", { name: "Index Remote host repository", exact: true }).click();
+    await expect(page.locator("body")).toContainText("Remote host repository index / completed");
     await page.getByLabel("Search repository memory", { exact: true }).fill("generatedDesktopRemoteKnowledge");
     await page.getByRole("button", { name: "Search vectors", exact: true }).click();
     await expect(page.locator("pre").filter({ hasText: "generatedDesktopRemoteKnowledge" })).toBeVisible();

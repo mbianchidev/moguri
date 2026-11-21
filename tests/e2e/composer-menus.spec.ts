@@ -17,13 +17,13 @@ test("Guardrails and decision settings sit beside their autonomy choices and set
     await expect(menu).toBeVisible();
     expect(await menu.evaluate((element) => element.matches(":popover-open") && !element.closest("#session-sidebar") && Boolean(element.closest(".composer")))).toBe(true);
     await expect(page.getByRole("form", { name: "Message composer", exact: true })).toBeVisible();
-    const autopilot = menu.getByRole("button", { name: /^Autopilot Automatically approve/ });
-    const max = menu.getByRole("button", { name: /^Autopilot Max / });
+    const autonomous = menu.getByRole("button", { name: /^Autonomous Automatically approve/ });
+    const autopilot = menu.getByRole("button", { name: /^Autopilot / });
     const guardrails = menu.getByRole("button", { name: "Guardrails", exact: true }), decisions = menu.getByRole("button", { name: "Decision provider settings", exact: true });
-    expect(await autopilot.evaluate((button) => button.parentElement?.querySelector('[aria-label="Guardrails"]') !== null)).toBe(true);
-    expect(await max.evaluate((button) => button.parentElement?.querySelector('[aria-label="Decision provider settings"]') !== null)).toBe(true);
-    await expect(max).toBeDisabled(); await expect(decisions).toBeEnabled();
-    const selectionBox = await autopilot.boundingBox(), settingBox = await guardrails.boundingBox();
+    expect(await autonomous.evaluate((button) => button.parentElement?.querySelector('[aria-label="Guardrails"]') !== null)).toBe(true);
+    expect(await autopilot.evaluate((button) => button.parentElement?.querySelector('[aria-label="Decision provider settings"]') !== null)).toBe(true);
+    await expect(autopilot).toBeDisabled(); await expect(decisions).toBeEnabled();
+    const selectionBox = await autonomous.boundingBox(), settingBox = await guardrails.boundingBox();
     expect(selectionBox).not.toBeNull(); expect(settingBox).not.toBeNull();
     expect(settingBox!.x).toBeGreaterThanOrEqual(selectionBox!.x + selectionBox!.width);
     await guardrails.focus(); await page.keyboard.press("Enter");
@@ -31,7 +31,7 @@ test("Guardrails and decision settings sit beside their autonomy choices and set
     expect(fixture.session().controls.autonomy).toBe(original);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click(); await decisions.click();
-    await expect(page.getByRole("heading", { name: "Decision providers and Local Max", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Decision providers and Local Autopilot", exact: true })).toBeVisible();
     expect(fixture.session().controls.autonomy).toBe(original); expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }
 });

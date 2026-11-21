@@ -25,7 +25,7 @@ export function SkillAdmissionsPanel({ sdk, session, snapshot }: { sdk: MoguriSd
   return <section className="script-reviews" aria-label="Skill source admission">
     <details><summary>Skill approvals for this session ({admissions.length})</summary>
       <p className="fine-print">Approving a skill lets this session use its instructions with the file access you choose. Skills never get commands, network access or credentials.</p>
-      {!["Local", "Remote"].includes(session.controls.env) && <Alert as="p" tone="warning">Skill approval works in Local and Remote sessions.</Alert>}
+      {!["Local", "Remote"].includes(session.controls.env) && <Alert as="p" tone="warning">Skill approval works in Local and Remote host sessions.</Alert>}
       <button type="button" disabled={busy || !["Local", "Remote"].includes(session.controls.env)} onClick={() => void run(async (current) => {
         const found = await sdk.skills.find("", { sessionId: session.id });
         if (current()) { setSkills(found.skills); setInspection(null); setReviewed(false); }

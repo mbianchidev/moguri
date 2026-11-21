@@ -67,10 +67,11 @@ const audioGranted = () => {
     (!grant.jobId || state.snapshot?.jobs.some((job) => job.id === grant.jobId && job.sessionId === grant.sessionId && job.kind === "voice.capture" && job.status === "running")));
 };
 const banners = new Map<string, Notification>();
-let preview: { view: WebContentsView; storage: Electron.Session; profileId: string; sessionId: string; url: string; host?: SessionBrowserHost; registration?: Promise<void> } | null = null;
+let preview: { view: WebContentsView; storage: Electron.Session; profileId: string; sessionId: string; url: string; host?: SessionBrowserHost; registration?: Promise<void>; parked?: boolean } | null = null;
 let previewGeneration = 0;
 let previewAdmission: { profileId: string; sessionId: string } | null = null;
 let previewCleanup: Promise<void> = Promise.resolve();
+let previewReleases = 0;
 const previewUrl = browserUrl;
 const blockPreviewDownload = (event: Electron.Event) => event.preventDefault();
 const hidePreview = () => {
@@ -84,6 +85,18 @@ const hidePreview = () => {
   void previewCleanup.catch((error: unknown) => console.error("Native browser private cleanup was not acknowledged; replacement remains blocked:", error instanceof Error ? error.message : "unknown browser cleanup failure"));
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.contentView.removeChildView(owned.view);
   if (!owned.view.webContents.isDestroyed()) owned.view.webContents.close();
+};
+/**
+ * The Browser panel left the screen (panel or chat switch, modal, window reload). While the chat's recorded Agent control
+ * choice is on, the one native view and its host stay alive but hidden so approved tools keep working (D61). Otherwise the
+ * view closes as before. Another chat's pane, a profile switch, quitting or turning control off still close it.
+ */
+const releasePreview = () => {
+  previewReleases++;
+  const owned = preview;
+  if (!owned) return;
+  if (owned.host?.keepsControl()) { owned.parked = true; owned.view.setVisible(false); return; }
+  hidePreview();
 };
 const trusted = (event: Electron.IpcMainInvokeEvent) => {
   if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame || !event.senderFrame.url.startsWith("moguri://app/")) {
@@ -724,7 +737,7 @@ else {
         if (folder.diagnostic !== undefined) throw new Error(folder.diagnostic);
         location = await verifiedFolder(folder.path, folder.identity);
       } else {
-        if (!session.projectId || session.repositories || session.controls.env === "Sandbox") throw new Error("Open remote needs one project session in Local or Remote Env. No base checkout or other repository was substituted.");
+        if (!session.projectId || session.repositories || session.controls.env === "Sandbox") throw new Error("Open remote needs one project session in Local or Remote host Env. No base checkout or other repository was substituted.");
         location = repositoryUrl((await client.workspaces.git(sessionId, false)).repository, "This session's checkout");
       }
       if (current().key !== key) throw new Error("The session's bound folder changed while it was being checked. No other location was opened.");
@@ -767,7 +780,7 @@ else {
       trusted(event);
       if (typeof profileId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(profileId) || profileId === GLOBAL_PROFILE_ID) throw new Error("A user profile is required for a native preview.");
       if (input === null) {
-        if (preview?.profileId === profileId && preview.sessionId === closingSessionId) hidePreview();
+        if (preview?.profileId === profileId && preview.sessionId === closingSessionId) releasePreview();
         else if (previewAdmission?.profileId === profileId && previewAdmission.sessionId === closingSessionId) { previewGeneration++; previewAdmission = null; }
         return;
       }
@@ -775,6 +788,7 @@ else {
       if (!isRecord(input) || typeof input.sessionId !== "string" || !/^[A-Za-z0-9-]{1,128}$/.test(input.sessionId) || input.url !== null && typeof input.url !== "string" || !isRecord(input.bounds)) throw new Error("A scoped preview URL and bounds are required.");
       if (input.reload !== undefined && typeof input.reload !== "boolean") throw new Error("Choose an explicit preview reload.");
       const url = input.url === null ? null : previewUrl(input.url);
+      const releases = previewReleases;
       const fields = ["x", "y", "width", "height"] as const;
       for (const field of fields) if (typeof input.bounds[field] !== "number" || !Number.isFinite(input.bounds[field])) throw new Error("Preview bounds must be finite numbers.");
       if (!preview || preview.profileId !== profileId || preview.sessionId !== input.sessionId) {
@@ -793,7 +807,7 @@ else {
         isolated.setPermissionRequestHandler((_view, _permission, done) => done(false));
         isolated.setPermissionCheckHandler(() => false);
         isolated.on("will-download", blockPreviewDownload);
-        const view = new WebContentsView({ webPreferences: { session: isolated, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true } });
+        const view = new WebContentsView({ webPreferences: { session: isolated, sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true, backgroundThrottling: false } });
         view.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
         const navigation = (event: Electron.Event, target: string) => { try { previewUrl(target); } catch { event.preventDefault(); } };
         view.webContents.on("will-navigate", navigation);
@@ -807,21 +821,32 @@ else {
       }
       const owned = preview, scoped = attentionClient;
       const ownerSession = scoped?.getState().snapshot?.sessions.find((session) => session.id === owned.sessionId);
+      // A host whose poll loop ended is replaced when its pane attaches again; the chat's recorded choice then re-enables control.
+      if (owned.host?.ended()) {
+        const ended = owned.host; owned.host = undefined; owned.registration = undefined;
+        await ended.close().catch((error: unknown) => console.error("The ended browser host lease cleanup was not acknowledged:", error instanceof Error ? error.message : "unknown cleanup failure"));
+        if (preview !== owned) return;
+      }
       if (!owned.host && !owned.registration && scoped && ownerSession?.controls.env === "Local" && scoped.getState().snapshot?.policy.allowedEnvs.includes("Local")) {
-        owned.registration = (async () => {
+        const registration: Promise<void> = (async () => {
           const host = await SessionBrowserHost.attach(scoped, owned.sessionId, owned.view.webContents,
             () => preview === owned && activeProfileId === owned.profileId,
-            (message) => console.error(message));
+            (message) => console.error(message),
+            () => { if (preview === owned && owned.parked && !owned.host?.keepsControl()) hidePreview(); });
           if (preview !== owned || activeProfileId !== owned.profileId) { await host.close(); return; }
           owned.host = host;
         })();
+        owned.registration = registration;
+        void registration.catch(() => { if (owned.registration === registration) owned.registration = undefined; });
       }
       await owned.registration;
-      if (preview !== owned) return;
+      // A later release (the panel left the screen or the window reloaded) wins over this older attachment.
+      if (preview !== owned || previewReleases !== releases) return;
       const available = mainWindow!.getContentBounds();
       const x = Math.max(0, Math.min(available.width - 1, Math.round(Number(input.bounds.x))));
       const y = Math.max(0, Math.min(available.height - 1, Math.round(Number(input.bounds.y))));
       preview.view.setBounds({ x, y, width: Math.max(1, Math.min(available.width - x, Math.round(Number(input.bounds.width)))), height: Math.max(1, Math.min(available.height - y, Math.round(Number(input.bounds.height)))) });
+      if (owned.parked) { owned.parked = false; owned.view.setVisible(true); }
       if (url && (input.reload || preview.url !== url.href)) {
         if (owned.host) await owned.host.navigateByUser(url.href);
         else await owned.view.webContents.loadURL(url.href);
@@ -830,11 +855,16 @@ else {
     });
     ipcMain.handle("moguri:browser-control", async (event, sessionId: unknown, enabled: unknown, profileId: unknown) => {
       trusted(event);
-      const owned = preview;
-      if (!owned || owned.profileId !== profileId || activeProfileId !== profileId || owned.sessionId !== sessionId || typeof enabled !== "boolean") throw new Error("Choose the actual active session Browser pane. No other browser was controlled.");
-      await owned.registration;
-      if (preview !== owned || !owned.host) throw new Error("The original browser closed before control changed.");
-      return owned.host.control(enabled);
+      const owned = preview, scoped = attentionClient;
+      if (typeof sessionId !== "string" || typeof enabled !== "boolean" || activeProfileId !== profileId || !scoped || scoped.profileId !== profileId) throw new Error("Choose the actual active session Browser pane. No other browser was controlled.");
+      if (owned?.profileId === profileId && owned.sessionId === sessionId) {
+        await owned.registration;
+        if (preview === owned && owned.host && !owned.host.ended()) return owned.host.userControl(enabled);
+      }
+      // Turning off works without an attached pane (for example while the choice is paused in Sandbox); turning on needs this chat's pane.
+      if (enabled) throw new Error("Choose the actual active session Browser pane. No other browser was controlled.");
+      await scoped.sessions.browserControl(sessionId, false);
+      return (await scoped.browser.state(sessionId)).browser;
     });
     ipcMain.handle("moguri:html-preview", async (event, raw: unknown, profileId: unknown) => {
       trusted(event);
@@ -929,6 +959,8 @@ else {
         else explicitQuitRequested = false;
       });
       mainWindow.on("close", () => { closeIntent = true; });
+      // A renderer reload never runs the Browser panel's cleanup, so hide or close its native view here (D61).
+      mainWindow.webContents.on("did-start-navigation", (details) => { if (details.isMainFrame && !details.isSameDocument) releasePreview(); });
       mainWindow.on("closed", () => { audioGrant = null; hidePreview(); mainWindow = null;
         void htmlPreview.close().catch((error: unknown) => console.error("Original HTML window cleanup is unconfirmed:", error instanceof Error ? error.message : "unknown cleanup")); });
       mainWindow.on("blur", () => { audioGrant = null; mainWindow?.webContents.send("moguri:audio-stop"); });

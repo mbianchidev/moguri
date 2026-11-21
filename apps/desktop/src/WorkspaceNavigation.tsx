@@ -696,7 +696,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
     <LocationActions run={run} announce={setNavigationStatus} open={(action) => window.moguri.sessionLocation(sdk.profileId, menuSession.id, action)}
       unavailable={{ "show-folder": sessionLocalFolder(menuSession, snapshot).diagnostic,
         "open-remote": !menuSession.projectId || menuSession.repositories || menuSession.controls.env === "Sandbox" ?
-          "Open remote needs one project session in Local or Remote Env. No base checkout or other repository was substituted." : undefined }} />
+          "Open remote needs one project session in Local or Remote host Env. No base checkout or other repository was substituted." : undefined }} />
     <MenuSeparator />
     <button role="menuitem" onClick={() => menuSession.status === "archived" ? void run(() => sdk.command({ type: "session.restore", sessionId: menuSession.id })) : actions.request(menuSession, "archive")}><Icon name="Down" />{menuSession.status === "archived" ? "Unarchive" : "Archive"}{contextSelection.length === 1 ? " (1)" : ""}</button>
     <button role="menuitem" className="danger" onClick={() => actions.request(menuSession, "delete")}><Icon name="Trash" />Delete{contextSelection.length === 1 ? " (1)" : ""}</button>

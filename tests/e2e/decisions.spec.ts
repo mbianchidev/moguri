@@ -21,7 +21,7 @@ test("desktop enables unattended Local Max and inspects its actual provider-attr
     const page = await app.firstWindow(), errors: string[] = []; page.on("pageerror", (error) => errors.push(error.message));
     const composer = page.getByRole("form", { name: "Message composer" });
     await composer.getByRole("button", { name: "Autonomy level", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Autopilot Max/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^Autopilot / })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Decision provider settings", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Decision provider settings", exact: true }).click();
     await page.getByLabel("Decision provider policy", { exact: true }).fill(JSON.stringify(policy));
@@ -31,8 +31,8 @@ test("desktop enables unattended Local Max and inspects its actual provider-attr
     expect(f.requests).toHaveLength(0); expect(f.advice.requests).toHaveLength(0);
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await composer.getByRole("button", { name: "Autonomy level", exact: true }).click();
-    await expect(page.getByRole("button", { name: /^Autopilot Max/ })).toBeEnabled();
-    await page.getByRole("button", { name: /^Autopilot Max/ }).click();
+    await expect(page.getByRole("button", { name: /^Autopilot / })).toBeEnabled();
+    await page.getByRole("button", { name: /^Autopilot / }).click();
     await expect.poll(() => f.session().controls.autonomy).toBe("Autopilot Max");
     await expect.poll(() => f.session().controls.automaticApprovals).toBe(true);
     await composer.getByRole("textbox", { name: "Prompt", exact: true }).fill("generated structured question choices only");
@@ -88,7 +88,7 @@ test("desktop preserves explicit Jev configuration but keeps Max blocked with it
     await expect(page.getByRole("status").filter({ hasText: "no enforceable output-token-limit" })).toBeVisible();
     await page.getByRole("button", { name: "Back to session", exact: true }).click();
     await composer.getByRole("button", { name: "Autonomy level", exact: true }).click();
-    const max = page.getByRole("button", { name: /^Autopilot Max/ });
+    const max = page.getByRole("button", { name: /^Autopilot / });
     await expect(max).toBeDisabled(); await expect(max).toContainText("no enforceable output-token-limit");
     expect(f.session().controls.autonomy).toBe("Manual"); expect(f.session().controls.modelId).toBe(f.modelId);
     expect(f.requests).toHaveLength(0); expect(f.advice.requests).toHaveLength(0);

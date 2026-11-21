@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type MyWorkFilters, type Snapshot, type WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
+import { envLabel, sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type MyWorkFilters, type Snapshot, type WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { callEstimate, dollars } from "./BudgetControls.tsx";
@@ -150,7 +150,7 @@ function ActiveSessions({ sdk, snapshot, projectId, connected, disabled, navigat
         session.projectFolderId ? snapshot.projectFolders.find((folder) => folder.id === session.projectFolderId)?.name ?? "Unavailable project group" : "Project-free chat";
       return <li key={session.id}><button type="button" data-session-id={session.id} data-needs-attention={waiting || undefined}
         disabled={!connected || disabled} aria-label={`Open session ${sessionTitle(session)}`} onClick={() => navigate(session.id)}>
-        <span className="dashboard-active-title">{sessionTitle(session)}<small>{owner} / {session.controls.env}</small></span>
+        <span className="dashboard-active-title">{sessionTitle(session)}<small>{owner} / {envLabel(session.controls.env)}</small></span>
         <span className="dashboard-active-state">{connected ? label : `Last observed: ${label}`}</span>
       </button></li>;
     })}</ul> : connected ? <p>No active sessions{projectId ? " in this project" : " in this profile"}.</p> : <p>Current activity is unavailable. Last observed records cannot confirm that no work is running.</p>}

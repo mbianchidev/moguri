@@ -19,7 +19,7 @@ test("legacy Autopilot shows no reselection warning and approves actual commands
     const page = await app.firstWindow();
     await page.getByRole("button", { name: "Autonomy level", exact: true }).click();
     const menu = page.getByRole("dialog", { name: "Autonomy level", exact: true });
-    await expect(menu).toContainText("Autopilot modes are unattended");
+    await expect(menu).toContainText("Autonomous and Autopilot are unattended");
     await expect(menu).not.toContainText("legacy bounded grants");
     await page.keyboard.press("Escape");
     for (const prompt of ["Generated hidden first automatic turn.", "Generated hidden second automatic turn."]) {

@@ -21,7 +21,7 @@ import { AttachmentChip } from "./ContextAttachments.tsx";
 import { SandboxPanel } from "./SandboxPanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
-import { MyWorkFiltersSchema, parse, type MyWorkFilters } from "../../../packages/sdk/src/index.ts";
+import { MyWorkFiltersSchema, autonomyLabel, envLabel, parse, type MyWorkFilters } from "../../../packages/sdk/src/index.ts";
 import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 import { NotificationAudio } from "./notification-audio.ts";
 import { ApprovalActions } from "./ApprovalActions.tsx";
@@ -728,7 +728,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <InterruptedNotice sdk={client} session={session} run={run} />
     {session.toolRecovery?.turnId === session.turnId && <Alert as="p" tone="warning" role="status">The agent is continuing read-only recovery. An original tool still has unconfirmed effects or cleanup; further writes remain fenced.</Alert>}
     {continuedWork && <section className="continuation-status" role="status" aria-label="Project work status">
-      <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {continuedWork.controls.autonomy} task to its PR; this chat's controls are unchanged.</p>
+      <div><strong>{continuedWork.source.title}</strong><p>{continuedWork.status} / one delegated {autonomyLabel(continuedWork.controls.autonomy)} task to its PR; this chat's controls are unchanged.</p>
         {continuedWork.diagnostic && <p>{continuedWork.diagnostic}</p>}</div>
       {continuedWork.sessionId && snapshot.sessions.some((session) => session.id === continuedWork.sessionId) && <button type="button" onClick={() => void chooseSession(continuedWork.sessionId!)}>Open task</button>}
       {activeProjectWork(continuedWork) && <button type="button" onClick={() => void run(() => client.kanban.cancel(continuedWork.id))}>Stop task</button>}
@@ -740,7 +740,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     <RepositoryProposal key={`${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     <InstallerPreference key={`installer:${client.profileId}:${session.id}`} sdk={client} session={session} snapshot={snapshot} />
     {session.pendingApproval && <section className="approval" aria-label="Tool approval"><div className="approval-body">
-      <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{session.controls.autonomy}</span></div>
+      <div className="approval-heading"><span className="attention-dot" /><strong>Your approval is required</strong><span>{autonomyLabel(session.controls.autonomy)}</span></div>
       {decisionReview?.source.kind === "tool" && decisionReview.source.approvalId === session.pendingApproval.id &&
         <p className="fine-print" role="status">A separately metered decision provider is reviewing the existing exact delegation. You can override it now; your actual answer wins and cancelled usage may remain held.</p>}
       <ApprovalCall call={session.pendingApproval.call} snapshot={snapshot} boundary={approvalBoundary(session.pendingApproval.call, session.controls.env)} />
@@ -934,7 +934,7 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
       </article>}{answers.get(message.id)?.map((entry) => <AnsweredQuestion key={entry.id} entry={entry} />)}</Fragment>;
   };
   return <><div className="conversation-history"><div ref={scroll} className={`timeline${empty ? " timeline-empty" : ""}`} role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content} className="timeline-content">
-    {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : `What are we working on${snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?`}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${session.controls.env} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
+    {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : `What are we working on${snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?`}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${envLabel(session.controls.env)} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
     {commands.length > commandLimit && <button className="load-history" onClick={() => setCommandLimit((value) => value + 10)}>Show earlier command responses</button>}
     {activity.activity?.nextBefore !== null && activity.activity?.nextBefore !== undefined && <button className="load-history" disabled={activity.earlierLoading} onClick={() => void activity.loadEarlier()}>Show earlier activity</button>}
@@ -1036,8 +1036,8 @@ function ContextPanel({ panel, session, project, events, client, run, snapshot, 
     return <>
       <div className="context-binding"><strong>{title(session)}</strong><StatusBadge status={sessionStatusLabel(session.status)} /></div>
       <h2>Execution</h2><dl className="facts">
-        <dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : session.controls.env}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
-        <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{session.controls.autonomy}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
+        <dt>Env</dt><dd>{session.localFinishing ? "Local finishing" : envLabel(session.controls.env)}</dd><dt>Boundary</dt><dd>{session.controls.env === "Remote" ? `SSH host ${execution?.target.name ?? snapshot?.settings.values.remote?.name ?? "(unconfigured)"}, not SendBox-isolated` : session.controls.env === "Sandbox" ? "SendBox native guest; private stage, not the Local source" : "Host execution, not isolated"}</dd>
+        <dt>Model</dt><dd>{session.controls.modelId ?? "Not selected"}</dd><dt>Autonomy</dt><dd>{autonomyLabel(session.controls.autonomy)}</dd><dt>Budget</dt><dd>{session.controls.budget.kind === "limited" ? "Estimate-based session cap" : "Unlimited preference"}{snapshot?.budgetPolicy.limit ? " / profile hard cap" : ""}</dd>
       </dl>
       <details className="session-identity"><summary>Session identity and workspace</summary><dl className="facts">
         <dt>Session ID</dt><dd className="path"><code>{session.id}</code><CopyButton label="Copy session ID" text={session.id} /></dd>

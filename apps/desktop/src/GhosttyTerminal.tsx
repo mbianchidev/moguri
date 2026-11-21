@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FitAddon, Ghostty, Terminal } from "ghostty-web";
 import wasmUrl from "ghostty-web/ghostty-vt.wasm?url";
-import { shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
+import { envLabel, shortcutMatches, type MoguriSdk, type RemoteReadiness, type Session, type Snapshot, type TerminalOwner } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { Tooltip } from "./Tooltip.tsx";
@@ -213,7 +213,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
     {terminal?.status === "unconfirmed" && <button disabled={busy || !connected} onClick={() => void run(() => sdk.terminal.acknowledge(terminal.id, true))}>I inspected its processes</button>}
     {owner && <details className="terminal-owner"><summary>Shared {owner.remote ? "Remote" : "Local"} owner / {owner.status}</summary>
       <p><code>{owner.id}</code><br />Broker PID {owner.pid ?? "unobserved"} / private resources {owner.cleanup}</p>
-      {terminal?.binding && <p>Actual {terminal.binding.env} console root: <code>{terminal.binding.root}</code></p>}
+      {terminal?.binding && <p>Actual {envLabel(terminal.binding.env)} console root: <code>{terminal.binding.root}</code></p>}
       {owner.remote && <p>Captured SSH host: <code>{owner.remote.target.user}@{owner.remote.target.host}:{owner.remote.target.port}</code><br />Pinned public key: <code>{owner.remote.target.hostKey}</code></p>}
       {owner.diagnostic && <p>{owner.diagnostic}</p>}
       {!["stopped", "acknowledged"].includes(owner.status) && <button disabled={busy || !connected} onClick={() => void run(async () => { await sdk.terminal.reconcileOwner(owner.id); setViewEpoch((epoch) => epoch + 1); })}>Inspect existing owner</button>}

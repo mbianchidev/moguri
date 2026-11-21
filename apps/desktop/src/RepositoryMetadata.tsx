@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, RepositoryObservation, RepositoryPreview, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { sessionTitle } from "../../../packages/sdk/src/index.ts";
+import { envLabel, sessionTitle } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 interface View { sdk: MoguriSdk; key: string; preview: RepositoryPreview | null; observation: RepositoryObservation | null; pending: boolean; error: string; jobId: string | null }
@@ -59,13 +59,13 @@ export function RepositoryMetadata({ sdk, snapshot }: { sdk: MoguriSdk; snapshot
   }, [sdk, key, job?.id, job?.status, observations, visible?.pending]);
   return <details><summary>Repository attribution</summary><section aria-label="Repository attribution" aria-busy={visible?.pending ?? false}>
     <p className="fine-print">Optional, explicit metadata lookup. Review the actual bound root first; no GitHub request or model call runs just by opening this section. Stored facts label future admitted work, never old calls.</p>
-    <label className="setting-field">Bound session<select aria-label="Repository scope session" value={session?.id ?? ""} onChange={(event) => setSessionId(event.target.value)}><option value="">Choose an explicit project session</option>{snapshot.sessions.filter((session) => session.projectId !== null).map((session) => <option key={session.id} value={session.id}>{sessionTitle(session)} / {session.controls.env}</option>)}</select></label>
+    <label className="setting-field">Bound session<select aria-label="Repository scope session" value={session?.id ?? ""} onChange={(event) => setSessionId(event.target.value)}><option value="">Choose an explicit project session</option>{snapshot.sessions.filter((session) => session.projectId !== null).map((session) => <option key={session.id} value={session.id}>{sessionTitle(session)} / {envLabel(session.controls.env)}</option>)}</select></label>
     <button type="button" disabled={!session || visible?.pending || session.controls.env === "Sandbox"} onClick={() => void preview()}>Review repository binding</button>
     {visible?.pending && <p role="status">Checking this exact repository scope...</p>}{visible?.error && <Alert as="p" className="inline-error" role="alert">{visible.error}</Alert>}
     {visible?.preview && <><dl className="facts"><dt>Observed upstream</dt><dd>{visible.preview.repository}</dd><dt>Actual root</dt><dd className="path">{visible.preview.root}</dd><dt>Execution boundary</dt><dd>{visible.preview.env === "Remote" ? "Pinned SSH root" : "Local host"}</dd><dt>Metadata lookup</dt><dd>{visible.preview.lookupBoundary === "control-plane-public" ? "Public GitHub API from control plane; no credential" : visible.preview.lookupBoundary === "remote-gh-cli" ? "GitHub CLI account on captured SSH host" : "GitHub CLI account on this host"}</dd>
       {visible.preview.remote && <><dt>Captured SSH host</dt><dd>{visible.preview.remote.user}@{visible.preview.remote.host}:{visible.preview.remote.port}</dd><dt>Pinned host key</dt><dd>{visible.preview.remote.hostFingerprint}</dd></>}
     </dl>
-      <p className="fine-print">Refresh sends this repository identity to GitHub using the displayed access. It enables future bound-root Git identity checks for attribution, not execution permissions, model input or background API polling. Remote roots never use a host-local Git/CLI fallback.</p>
+      <p className="fine-print">Refresh sends this repository identity to GitHub using the displayed access. It enables future bound-root Git identity checks for attribution, not execution permissions, model input or background API polling. Remote host roots never use a host-local Git/CLI fallback.</p>
       <button type="button" disabled={visible.pending || jobs.some((job) => ["running", "waiting_input"].includes(job.status))} onClick={() => void refresh()}>Refresh verified metadata</button>
     </>}
     {visible?.observation?.repository && <><h3>Stored observation</h3><dl className="facts"><dt>Repository</dt><dd>{visible.observation.repository.fullName}</dd><dt>Owner kind</dt><dd>{visible.observation.repository.ownerKind}</dd><dt>Visibility as observed</dt><dd>{visible.observation.repository.visibility}</dd><dt>Detected license</dt><dd>{visible.observation.repository.licenseId ?? "Unknown"}</dd><dt>Public + OSI license</dt><dd>{visible.observation.repository.publicOsiLicensed === null ? "Unverified" : visible.observation.repository.publicOsiLicensed ? "Observed" : "Not observed"}</dd><dt>Observed at</dt><dd>{visible.observation.repository.observedAt}</dd>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 import { SettingsAction } from "./SettingsFields.tsx";
 import { ContextDocument } from "./DocumentAttachment.tsx";
@@ -88,7 +88,7 @@ export function AttachmentReview({ request, sdk, close, attach: capture }: { req
   };
   return <dialog ref={dialog} className="workspace-dialog attachment-review" aria-label="Review attachment" onCancel={(event) => { if (busy) event.preventDefault(); }} onClose={close}><header><h2>Review context snapshot</h2><button className="icon-button" type="button" aria-label="Close attachment review" disabled={busy} onClick={close}><Icon name="Close" /></button></header>
     <p><strong>{request.preview.label}</strong></p><p className="fine-print path">{request.preview.source.location}</p>
-    <p>{request.preview.kind} / {new Intl.NumberFormat().format(request.preview.bytes)} bytes. Destination: {request.preview.destination.env} / {request.preview.destination.target}. Model: {request.preview.destination.modelId ?? "not selected yet"}.</p>
+    <p>{request.preview.kind} / {new Intl.NumberFormat().format(request.preview.bytes)} bytes. Destination: {envLabel(request.preview.destination.env)} / {request.preview.destination.target}. Model: {request.preview.destination.modelId ?? "not selected yet"}.</p>
     <p className="fine-print">Only this destination session receives the captured content. No source session is resumed, repository checked out or host folder mounted.</p>
     {request.preview.files.length > 0 && <details open><summary>{request.preview.files.length} approved files</summary>{request.preview.files.map((file) => <p className="fine-print path" key={file.path}>{file.path} / {file.bytes} bytes</p>)}</details>}
     {request.preview.excluded.length > 0 && <details><summary>{request.preview.excluded.length} exclusions</summary>{request.preview.excluded.map((entry) => <p className="fine-print path" key={entry.path}>{entry.path}: {entry.reason}</p>)}</details>}

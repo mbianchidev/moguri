@@ -225,6 +225,10 @@ conversation in the middle and the terminal and other panels on the right.
 Icons come from `lucide-react` through `Icon.tsx`: 16px, 1.75 stroke, inheriting
 `currentColor`, each tagged with `data-icon` for tests. Model brand marks stay
 drawn paths. Add an icon by mapping a name in `Icon.tsx`, never by inlining SVG.
+Third-party services use their own marks: model providers through
+`ProviderLogo.tsx`, integrations (GitHub, Linear, MCP, Stainless) through
+`IntegrationLogo.tsx`, each in a small hairline tile before the section title
+(D62).
 
 ### Model lists
 

@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { activeCompound, candidateRootBase, candidateRootLabel, type CandidateWorkspace, type CompoundInput, type CompoundResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, activeCompound, candidateRootBase, candidateRootLabel, type CandidateWorkspace, type CompoundInput, type CompoundResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<CompoundResponse, { type: "compound.read" }>;
@@ -33,7 +33,7 @@ export function CompoundPanel({ sdk, snapshot, session, envStages = [], reposito
   const writable = local && session?.kind === "agent" && session.mode === "agent" && session.pendingMode !== "read-only" && session.status !== "archived" && !session.turnId && !draftDirty;
   const ownRunning = Boolean(selected && session && selected.sessionId === session.id && selected.id === session.turnId && activeCompound(selected));
   const stages = session?.controls.env === "Local" ? snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session?.workspaceId && workspace.status === "ready").map((stage) => ({ id: stage.id, label: stage.branch })) :
-    envStages.filter((stage) => stage.status === "ready").map((stage) => ({ id: stage.id, label: `${stage.name} / ${stage.boundary.env}` }));
+    envStages.filter((stage) => stage.status === "ready").map((stage) => ({ id: stage.id, label: `${stage.name} / ${envLabel(stage.boundary.env)}` }));
   useEffect(() => { onDirty(dirty || Boolean(busy)); return () => onDirty(false); }, [dirty, busy, onDirty]);
   useEffect(() => { setPreview(null); setCostReviewed(false); }, [inputScope]);
   useEffect(() => { setTestReviewed(false); }, [selected?.id, selected?.revision, snapshot.settings.permissionRevision, snapshot.policy.revision]);

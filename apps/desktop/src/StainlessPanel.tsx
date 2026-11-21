@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { defaultStainlessSettings, stainlessSummary, type MoguriSdk, type Session, type StainlessSettings, type StainlessStatus } from "../../../packages/sdk/src/index.ts";
+import { IntegrationTitle } from "./IntegrationLogo.tsx";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 
@@ -37,7 +38,7 @@ export function StainlessSettingsPanel({ sdk, revision, settings, saving, save }
   };
   const installation = status?.installation;
   return <>
-    <SettingsHelp label="More about this setting" target={<h2>Stainless</h2>}>Use your installed Stainless browser for previews and agent browser automation. Opening a preview hands one URL to Stainless; agents get a new headless Stainless with a throwaway profile, never your profiles, windows or cookies. Off by default.</SettingsHelp>
+    <SettingsHelp label="More about this setting" target={<h2><IntegrationTitle id="stainless">Stainless</IntegrationTitle></h2>}>Use your installed Stainless browser for previews and agent browser automation. Opening a preview hands one URL to Stainless; agents get a new headless Stainless with a throwaway profile, never your profiles, windows or cookies. While on, every agent browser automation runs in Stainless instead of another Chromium, and stops before launching if Stainless isn't ready. Off by default.</SettingsHelp>
     <label className="check-setting"><SettingsInput type="checkbox" checked={committed.enabled} disabled={saving} onChange={(event) => void save({ ...committed, enabled: event.target.checked })} />Use Stainless</label>
     <form className="branch-prefix-form" onSubmit={(event) => { event.preventDefault(); if (pathDirty) void save({ ...committed, appPath: appPath.trim() || null }); }}>
       <label className="setting-field">Stainless app location<SettingsInput aria-label="Stainless app location" value={appPath} placeholder="/Applications/Stainless.app" spellCheck={false}
