@@ -962,9 +962,10 @@ as economy for execution-host loopback models, else by the output price a
 pay-per-use provider declares, else by its exact published output API price
 (economy up to $5 per million tokens, frontier from $20, standard between).
 Savings uses non-frontier models, stays at or below High and prefers local
-models. Performance uses frontier models for substantive work at High for
-simple tasks and xhigh otherwise (High where the transport has no xhigh), never
-lower. Every mode picks effort per task and caps it at xhigh; Kupo never
+models. Performance runs every task role (solver, drafter, critic, reviewer)
+on a frontier model at High for simple tasks and xhigh otherwise (High where
+the transport has no xhigh), never lower. Its classifier only routes, so any
+eligible model can classify, including a pinned economy classifier (D69). Every mode picks effort per task and caps it at xhigh; Kupo never
 chooses Max, which tends to degrade results. Aliases cannot raise an effort and unpriced,
 unreviewed models cannot qualify it. **Dynamic** routes over the Balanced pool and, after
 classification, applies Savings to simple or README/summary/trivial work,
