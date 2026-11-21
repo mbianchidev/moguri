@@ -4245,8 +4245,8 @@ excluded; content is bounded to 12 sessions, eight prompts each, 4,000 Unicode
 characters per prompt and 32 KiB of actual UTF-8 text in total.
 
 **ask Moguri**, `/meta [REQUEST]` and `/metachat [REQUEST]` let you discuss
-Moguri configuration. The desktop button opens its own top-level chat, not a
-child of the chat you were in. The model can read non-secret settings and propose
+Moguri configuration. Each opens its own top-level chat, not a child of the
+chat you were in. The model can read non-secret settings and propose
 changes, never authenticate, execute workspace tools or approve/apply its own
 proposal. Global **User guidance** is separate from the factory system prompt.
 Projects can receive configuration, local instruction-file or disabled-skill

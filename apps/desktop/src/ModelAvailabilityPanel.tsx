@@ -3,7 +3,7 @@ import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
-import { GroupedModelList } from "./GroupedModelList.tsx";
+import { GroupedModelList, modelPriceText } from "./GroupedModelList.tsx";
 
 type AvailabilityChange = { kind: "provider" | "model"; id: string; enabled: boolean } | { kind: "source"; apiModelId: string; modelId: string } | { kind: "refresh" };
 export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
@@ -43,7 +43,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
     <label className="setting-field">Search models<SettingsInput type="search" aria-label="Search model availability" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Model, ID or provider" /></label>
     <p className="fine-print">{catalogue.models.filter((model) => model.diagnostic === null).length} selectable / {catalogue.models.length} known model{catalogue.models.length === 1 ? "" : "s"}.</p>
     <p className="fine-print" role="status" aria-label="Model availability saving">{change?.kind === "refresh" ? "Refreshing available models..." : busy ? "Saving availability..." : "Changes save automatically."}</p>
-    <GroupedModelList label="Models by provider" query={search} emptyText="No models yet. Sign in or configure a provider."
+    <GroupedModelList label="Models by provider" query={search} priceInRow emptyText="No models yet. Sign in or configure a provider."
       items={models.map((model) => {
         // One row per model, under the provider that serves it: the chosen source, else the first available offering.
         const offering = model.offerings.find((entry) => entry.model.id === model.sourceModelId) ?? model.offerings.find((entry) => entry.available) ?? model.offerings[0]!;
@@ -52,6 +52,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
       })}
       row={(item) => { const model = entries.get(item.key)!; return <div className="model-availability-row" role="group" aria-label={`Model ${model.apiModelId}`}>
       <div><strong>{model.name}</strong><code>{model.apiModelId}</code>{model.diagnostic && <small>{model.diagnostic}</small>}</div>
+      <span className="model-price">{modelPriceText(item.price)}</span>
       {model.offerings.length > 1 || model.sourceModelId && !model.offerings.some((entry) => entry.model.id === model.sourceModelId) ?
         <label className="setting-field model-source-choice"><span className="sr-only">Provider for {model.apiModelId}</span><select aria-label={`Provider for ${model.apiModelId}`}
           value={change?.kind === "source" && change.apiModelId === model.apiModelId ? change.modelId : model.sourceModelId ?? ""} disabled={disabled || busy}

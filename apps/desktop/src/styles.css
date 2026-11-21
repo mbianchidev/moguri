@@ -1238,7 +1238,18 @@ summary:hover { color: var(--text); }
 .model-group-rows { padding-left: var(--space-6); }
 .model-lab-group .model-group-rows { padding-left: var(--space-8); }
 .model-group-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, auto); align-items: center; gap: var(--space-3); border-top: 1px solid var(--soft-line); }
+.model-group-row[data-price-in-row] { grid-template-columns: minmax(0, 1fr); }
+.model-group-row > .model-availability-row { grid-template-columns: minmax(0, 1fr) auto auto auto; }
 .model-group-row > .model-availability-row, .model-group-row > .check-setting { border-bottom: 0; margin: 0; }
+.mcp-server-list { list-style: none; margin: 0 0 var(--space-3); padding: 0; max-width: 850px; }
+.mcp-server-list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+.mcp-server-list .check-setting { margin: 0; min-width: 0; }
+.mcp-server-list .check-setting > span { display: flex; flex-direction: column; min-width: 0; }
+.mcp-server-list small { color: var(--muted); font-size: var(--font-size-xs); overflow-wrap: anywhere; }
+.mcp-add { max-width: 850px; margin: 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--subtle); display: flex; flex-direction: column; gap: var(--space-3); }
+.mcp-add > legend { padding: 0 var(--space-1); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.mcp-add .setting-field { margin: 0; }
+.mcp-add input, .mcp-add select { max-width: 480px; }
 .model-price { color: var(--muted); font-size: var(--font-size-xs); text-align: right; }
 .model-provider-row, .model-availability-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
 .model-provider-list { max-width: 850px; }
@@ -1253,6 +1264,7 @@ summary:hover { color: var(--text); }
 @media (max-width: 1100px) {
   .model-availability-row { grid-template-columns: minmax(0, 1fr) auto; }
   .model-availability-row > .model-source-choice, .model-availability-row > .fine-print { grid-column: 1 / -1; grid-row: 2; }
+  .model-group-row > .model-availability-row { grid-template-columns: minmax(0, 1fr) auto auto; }
 }
 .settings-warning { color: var(--warning-text); background: var(--warning-bg); padding: var(--space-3) var(--space-3-5); border: 1px solid var(--warning-line); border-radius: var(--radius-md); font-family: inherit; font-size: var(--font-size-sm); line-height: 1.65; overflow-wrap: anywhere; }
 .settings-content .settings-warning { color: var(--warning-text); font-size: var(--font-size-sm); line-height: 1.65; max-width: 850px; }

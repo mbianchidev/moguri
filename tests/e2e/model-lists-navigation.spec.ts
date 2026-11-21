@@ -46,6 +46,8 @@ test("model lists group by provider and AI lab, order by price and filter; Setti
     await expect(sections.getByRole("link")).toHaveText(["Providers", "Local models", "Kupo routing", "Decision providers"]);
     await sections.getByRole("link", { name: "Kupo routing", exact: true }).click();
     await expect(sections.getByRole("link", { name: "Kupo routing", exact: true })).toHaveAttribute("aria-current", "location");
+    await page.locator("#settings-section-localModels").evaluate((element) => element.scrollIntoView({ block: "start" }));
+    await expect(sections.getByRole("link", { name: "Local models", exact: true })).toHaveAttribute("aria-current", "location");
     await expect(page.locator("#settings-section-kupo")).toBeInViewport();
     await expect(rail.getByRole("button", { name: "Boundaries", exact: true })).toBeVisible();
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");
@@ -84,6 +86,12 @@ test("Archived lists only projects with archived chats, and ask Moguri opens its
     await expect(nav).toContainText("No archived sessions.");
     const extra = await sdk.sessions.create(fixture.session().projectId, "Generated archived chat");
     await sdk.command({ type: "session.archive", sessionId: extra.id! });
+    await expect(project).toHaveCount(1);
+    await page.locator(".nav-tabs").getByRole("button", { name: "Sessions", exact: true }).click();
+    await page.locator(".nav-tabs").getByRole("button", { name: "Issues", exact: true }).click();
+    await expect(project).toHaveCount(0);
+    await expect(nav).toContainText("No project has Kanban issues yet.");
+    await sdk.issues.create(fixture.session().projectId!, { title: "Generated Kanban issue", body: "", kind: "feature", phaseId: "backlog", pullRequestUrl: null });
     await expect(project).toHaveCount(1);
     await page.locator(".nav-tabs").getByRole("button", { name: "Sessions", exact: true }).click();
     const before = new Set(sdk.getState().snapshot!.sessions.map((session) => session.id));

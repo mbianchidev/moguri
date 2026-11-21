@@ -141,7 +141,8 @@ The rail lists only the **7 pages**, one per group, with an icon and the group
 name (follow-up to [#84](https://github.com/mbianchidev/moguri/issues/84)). Each
 page shows every item of its group as a section, so related options are on one
 scrolling page. Under the open page the rail lists that page's sections as small
-anchor links that scroll to them; there are no group headings or tabs.
+anchor links that scroll to them and highlight the section in view; there are no
+group headings or tabs.
 
 | Page | Sections, in order |
 | --- | --- |

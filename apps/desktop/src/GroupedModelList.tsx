@@ -5,7 +5,7 @@ import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
 
 /** One model row in a grouped list: the same model may appear under each provider that offers it. */
 export interface GroupedModelItem { key: string; model: ModelInfo; provider: Pick<ModelProvider, "id" | "name" | "scope"> | null; price: ModelPrice | null }
-const priceText = (price: ModelPrice | null) => !price ? "Price unknown" : price.inputUsdPerMillion === 0 && price.outputUsdPerMillion === 0 ?
+export const modelPriceText = (price: ModelPrice | null) => !price ? "Price unknown" : price.inputUsdPerMillion === 0 && price.outputUsdPerMillion === 0 ?
   price.basis === "local-no-api-fee" ? "Free (local)" : "Free" :
   `$${price.inputUsdPerMillion} in / $${price.outputUsdPerMillion} out per 1M${price.basis === "published-api-equivalent" ? " (API equivalent)" : ""}`;
 /** Free first, then priced (cheapest output, then input), then unknown. */
@@ -48,9 +48,13 @@ function FilterMenu({ label, options, selected, onChange }: {
  * Model lists grouped by provider, then by AI lab when a provider offers several labs. Every group starts collapsed unless
  * `defaultOpen`; a search or filter opens the groups that match. Order by price puts free models first, then priced, then unknown.
  */
-export function GroupedModelList({ label, items, row, query = "", defaultOpen = false, emptyText = "No models." }: {
+export function GroupedModelList({ label, items, row, query = "", defaultOpen = false, emptyText = "No models.", priceInRow = false }: {
   label: string; items: GroupedModelItem[]; row: (item: GroupedModelItem) => ReactNode; query?: string; defaultOpen?: boolean; emptyText?: string;
+  /** The row renders `modelPriceText` itself, for example before its own switch. */
+  priceInRow?: boolean;
 }) {
+  const rendered = (item: GroupedModelItem) => <div key={item.key} className="model-group-row" data-price-in-row={priceInRow || undefined}>{row(item)}
+    {!priceInRow && <span className="model-price">{modelPriceText(item.price)}</span>}</div>;
   const [priceOrder, setPriceOrder] = useState(false), [providers, setProviders] = useState<string[]>([]), [labs, setLabs] = useState<string[]>([]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const labOf = useMemo(() => new Map(items.map((item) => [item.key, modelLab(item.model)])), [items]);
@@ -97,9 +101,9 @@ export function GroupedModelList({ label, items, row, query = "", defaultOpen = 
             const labKey = `${groupKey}:lab:${labOption.id}`, labItems = sorted(group.items.filter((item) => lab(item).id === labOption.id));
             return <div className="model-lab-group" key={labOption.id} role="group" aria-label={`${group.name} ${labOption.name} models`}>
               {header(labKey, <span>{labOption.name}</span>, labItems.length, "lab")}
-              {expanded(labKey) && <div className="model-group-rows">{labItems.map((item) => <div key={item.key} className="model-group-row">{row(item)}<span className="model-price">{priceText(item.price)}</span></div>)}</div>}
+              {expanded(labKey) && <div className="model-group-rows">{labItems.map(rendered)}</div>}
             </div>;
-          }) : <div className="model-group-rows">{sorted(group.items).map((item) => <div key={item.key} className="model-group-row">{row(item)}<span className="model-price">{priceText(item.price)}</span></div>)}</div>)}
+          }) : <div className="model-group-rows">{sorted(group.items).map(rendered)}</div>)}
       </section>;
     })}
     {!groups.length && <p className="fine-print">{filtering ? "No models match these filters." : emptyText}</p>}

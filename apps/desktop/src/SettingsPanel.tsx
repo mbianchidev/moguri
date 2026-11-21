@@ -189,6 +189,27 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     });
     return () => cancelAnimationFrame(frame);
   }, [scrollRequest]);
+  // The rail's section links follow the section in view: the last one whose title has reached the top.
+  const [inView, setInView] = useState<SettingsTab | null>(null);
+  useEffect(() => {
+    const container = content.current;
+    if (!container) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const top = container.getBoundingClientRect().top + 96, ids = activeGroup.items.map((item) => item.id);
+      const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 4 && container.scrollTop > 0;
+      let current: SettingsTab | null = ids[0] ?? null;
+      for (const id of ids) { const element = document.getElementById(`settings-section-${id}`); if (element && element.getBoundingClientRect().top <= top) current = id; }
+      // At the bottom a short last section may never reach the top: keep a chosen section that is on screen, else the last one.
+      const chosen = document.getElementById(`settings-section-${tab}`)?.getBoundingClientRect().top;
+      setInView(atBottom ? chosen !== undefined && chosen >= container.getBoundingClientRect().top && chosen < container.getBoundingClientRect().bottom ? tab : ids.at(-1) ?? current : current);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    schedule(); container.addEventListener("scroll", schedule, { passive: true });
+    return () => { container.removeEventListener("scroll", schedule); if (frame) cancelAnimationFrame(frame); };
+  }, [activeGroup, tab, scrollRequest]);
+  const railSection = inView && activeGroup.items.some((item) => item.id === inView) ? inView : tab;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, groupKey]);
@@ -1185,7 +1206,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <Icon name={GROUP_ICONS[group.label]} /><span>{group.label}</span>
           {matches > 0 && <small id={`settings-matches-${GROUP_SLUGS[group.label]}`}>{matches} {matches === 1 ? "match" : "matches"}</small>}</button>
           {open && group.items.length > 1 && <ul className="settings-subsections" aria-label={`${group.label} sections`}>{group.items.map((item) =>
-            <li key={item.id}><a href={`#settings-section-${item.id}`} aria-current={tab === item.id ? "location" : undefined} className={tab === item.id ? "current" : undefined}
+            <li key={item.id}><a href={`#settings-section-${item.id}`} aria-current={railSection === item.id ? "location" : undefined} className={railSection === item.id ? "current" : undefined}
               onClick={(event) => { event.preventDefault(); if (!railBusy) openSection(item.id); }}>{item.label}</a></li>)}</ul>}</li>;
       })}</ul>
       {!groups.length && <p className="settings-search-empty">No matching settings. Your edits are preserved.</p>}
