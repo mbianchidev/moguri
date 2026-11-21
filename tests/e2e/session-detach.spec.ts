@@ -130,7 +130,7 @@ test("global terminal navigation and scope selection are removed without opening
   try {
     const page = await app.firstWindow();
     await expect(page.getByRole("navigation", { name: "Profile resources" }).getByRole("button"))
-      .toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Capabilities", "Artifacts"]);
+      .toHaveText(["Dashboard", "Inbox", "Suggestions", "Automations", "Personas", "Capabilities", "Artifacts"]);
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     await expect(page.getByLabel("Terminal scope", { exact: true })).toHaveCount(0);
     await expect.poll(() => sdk.getState().snapshot!.terminals.filter((terminal) => terminal.sessionId === fixture.sessionId && terminal.status === "running").length).toBe(1);
