@@ -72,13 +72,14 @@ test("repository and project-item dropdowns show the actual account, full source
     await expect(start).toContainText("Signed in as generated-owner");
     await start.getByRole("button", { name: "Close New", exact: true }).click();
     await openProjectMenu(page, "checkout");
-    await page.getByRole("menuitem", { name: "From PR", exact: true }).click();
-    const fromPr = page.getByRole("dialog", { name: "Session from PR", exact: true });
+    await page.getByRole("menuitem", { name: "From code change", exact: true }).click();
+    const fromPr = page.getByRole("dialog", { name: "Session from code change", exact: true });
     await expect(fromPr.getByRole("listbox", { name: "Pull request", exact: true })).toBeEnabled();
+    // Choosing the pull request starts the session; there is no second confirmation click.
     await fromPr.getByRole("option", { name: /#11 / }).click();
-    await expect(fromPr.getByRole("region", { name: "Reviewed session source", exact: true })).toContainText("pull request body");
-    await fromPr.getByRole("button", { name: "Start session", exact: true }).click();
     await expect(fromPr).not.toBeVisible();
+    // The open PR list is now cached for the next "From code change" (title, number and URL only).
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("moguri.pulls.v1:")).length)).toBe(1);
     await expect.poll(() => fixture.service.controller.snapshot().sessions.at(-1)?.prUrl).toBe("https://github.com/generated-owner/fixture/pull/11");
     expect(fixture.service.controller.snapshot().sessions.at(-1)?.draft.text).toContain("Generated **pull request body**.");
     expect(fixture.service.controller.snapshot().sessions.at(-1)?.turnId).toBeNull();

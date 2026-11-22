@@ -1586,9 +1586,15 @@ Cancellation or uncertain effects remain partial, never retried as a new write.
 Existing advanced Git/review/release operations remain in the collapsed
 **Settings / Integrations / GitHub / Advanced** section.
 
-Project menus offer **From PR** and **From work item** dropdowns for that
-repository. Review the full body, then start an idle session with an unsent
-draft. Its canonical URL, original numeric account identity and exact source
+A project's **+** asks how to start: **New session**, **From code change** or
+**From work item**; the project menu offers the same choices. **From code
+change** lists open pull requests and starts the session as soon as you choose
+one. **From work item** shows the full body to review before **Start session**.
+Either way the session starts idle with an unsent draft. The desktop keeps each
+project's open PR list (number, title, URL and state only) cached per profile:
+a slow background read starts two minutes after launch and visits one project
+every 20 s (each at most every 15 minutes), clicking a project refreshes it
+right away, and choosing a cached PR still rereads the exact PR first. Its canonical URL, original numeric account identity and exact source
 digest are retained. Changed source/account/root bindings require a fresh
 review. No checkout, branch, model call or prompt execution starts implicitly.
 
@@ -2227,7 +2233,7 @@ folder icon shows open or closed. Group rows have no **More** or **+** buttons;
 use the context menu for their actions.
 
 Context menus are split into sections. A project menu lists **New session**,
-**From work item** and **From PR** first, then **Settings**, the project
+**From work item** and **From code change** first, then **Settings**, the project
 terminal, location shortcuts and Kanban, then session organization (**Select
 sessions**, **New session group**, **Move to project group**, **New project
 group**), then the icon color palette, and finally **Change attached folder**

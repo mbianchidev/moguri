@@ -13,6 +13,7 @@ import { MenuSeparator, WorkspaceContextMenu } from "./WorkspaceContextMenu.tsx"
 import { SessionNavigationControls } from "./SessionNavigationControls.tsx";
 import { LocationActions } from "./LocationActions.tsx";
 import { readCollapsedNavigation, saveCollapsedNavigation } from "./navigation-collapse.ts";
+import { usePullRequestPrefetch } from "./pull-request-cache.ts";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 type EditKind = "attach" | "group" | "new-group" | "folder" | "new-folder" | "merge-projects" | "color" | "folder-color" | "pr" | "work" | "relocate" | "remove-project";
@@ -123,7 +124,8 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
   }, [search, statusFilters, snapshot, archived]);
   const matches = searchResults?.visible ?? null;
   const [menu, setMenu] = useState<NavigationMenu | null>(null);
-  const [foldersMenu, setFoldersMenu] = useState<NavigationMenu | null>(null);
+  const [foldersMenu, setFoldersMenu] = useState<NavigationMenu | null>(null), [startMenu, setStartMenu] = useState<NavigationMenu | null>(null);
+  const refreshPullRequests = usePullRequestPrefetch(sdk, snapshot);
   const projectsMenuButton = useRef<HTMLButtonElement>(null), removedFolderFocus = useRef<{ id: string; profileId: string } | null>(null);
   const [savedCollapse] = useState(() => readCollapsedNavigation(localStorage, sdk.profileId));
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(savedCollapse.folders);
@@ -193,7 +195,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
     if (anchor.isConnected) anchor.focus();
   }, [edit]);
   useEffect(() => { if (menu && !(menu.kind === "project" ? snapshot.projects : menu.kind === "folder" ? snapshot.projectFolders : snapshot.sessions).some((entry) => entry.id === menu.id)) setMenu(null); }, [menu, snapshot.projects, snapshot.projectFolders, snapshot.sessions]);
-  useEffect(() => { modal(Boolean(edit || renaming || menu || foldersMenu || controlsOpen || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, renaming, menu, foldersMenu, controlsOpen, actions.reviewing, actions.busy, modal]);
+  useEffect(() => { modal(Boolean(edit || renaming || menu || foldersMenu || startMenu || controlsOpen || actions.reviewing || actions.busy)); return () => modal(false); }, [edit, renaming, menu, foldersMenu, startMenu, controlsOpen, actions.reviewing, actions.busy, modal]);
   const run = async (operation: () => Promise<unknown>) => { setError(""); try { await operation(); } catch (error) { setError(error instanceof Error ? error.message : "Workspace action failed."); } };
   const open = (value: Edit) => { if (allow()) setEdit(value); };
   const canCreate = !busy && !actions.busy && !bulkBusy && creatingTarget === null && sdk.getState().status === "connected";
@@ -202,9 +204,10 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
     creating.current = true; setCreatingTarget(target);
     void run(operation).finally(() => { creating.current = false; setCreatingTarget(null); });
   };
-  const toggleProject = (id: string) => setCollapsedProjects((current) => {
-    const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next;
-  });
+  const toggleProject = (id: string) => {
+    refreshPullRequests(id);
+    setCollapsedProjects((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
   const createProjectSession = (project: Project) => create(project.id, async () => {
     await startSession(project.id);
     setCollapsedProjects((current) => { if (!current.has(project.id)) return current; const next = new Set(current); next.delete(project.id); return next; });
@@ -537,7 +540,11 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
           }
         }}><span className="project-color" style={{ color: configuration.color }}><Icon name={collapsedProjects.has(project.id) ? "Files" : "FolderOpen"} /></span><span className="project-label">{project.name}</span></button>
       {!archived && <button type="button" className="icon-button project-new-session" aria-label={`New session in ${project.name}`} title="New session" aria-busy={creatingTarget === project.id}
-        disabled={!canCreate} onClick={() => createProjectSession(project)}><Icon name="Plus" /></button>}</header>
+        aria-haspopup="menu" aria-expanded={startMenu?.id === project.id} disabled={!canCreate} onClick={(event) => {
+          if (startMenu?.id === project.id) { setStartMenu(null); return; }
+          const bounds = event.currentTarget.getBoundingClientRect();
+          setStartMenu({ kind: "project", id: project.id, x: bounds.left, y: bounds.bottom, anchor: event.currentTarget, trigger: event.currentTarget });
+        }}><Icon name="Plus" /></button>}</header>
       {!collapsedProjects.has(project.id) && <>{bulk(project.id)}{pinned.length > 0 && <div className="pinned-sessions" aria-label={`Pinned sessions in ${project.name}`}>
         {pinned.map((session) => <div key={session.id}>{renderSession(session, 0)}{tree(session.id, session.groupId, 1)}</div>)}</div>}
         {boardVisible && <><button className={`session-link kanban-link ${selectedId === boardChat?.id ? "selected" : ""}`} aria-label={`Kanban for ${project.name}`}
@@ -627,6 +634,16 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
     {!matches && archived && !snapshot.sessions.some((session) => session.status === "archived") && <p className="nav-empty">No archived sessions.</p>}
     {!matches && issues && !projects.length && <p className="nav-empty">No project has Kanban issues yet.</p>}
   </div>
+  {startMenu && (() => {
+    const project = snapshot.projects.find((entry) => entry.id === startMenu.id);
+    if (!project) return null;
+    const close = (restore = true) => { const anchor = startMenu.anchor; setStartMenu(null); if (restore) queueMicrotask(() => anchor.isConnected && anchor.focus()); };
+    return <WorkspaceContextMenu label={`Start a session in ${project.name}`} point={startMenu} close={close}>
+      <button role="menuitem" disabled={!canCreate} onClick={() => { close(false); createProjectSession(project); }}><Icon name="Plus" />New session</button>
+      <button role="menuitem" onClick={() => { close(false); open({ kind: "pr", project }); }}><Icon name="PR" />From code change</button>
+      <button role="menuitem" onClick={() => { close(false); open({ kind: "work", project }); }}><Icon name="Plan" />From work item</button>
+    </WorkspaceContextMenu>;
+  })()}
   {foldersMenu && <WorkspaceContextMenu label="Projects menu" point={foldersMenu} close={(restore = true) => { const anchor = foldersMenu.anchor; setFoldersMenu(null); if (restore) queueMicrotask(() => anchor.isConnected && anchor.focus()); }}>
     <button role="menuitem" onClick={() => { setCollapsedFolders(new Set()); setCollapsedProjects(new Set()); }}><Icon name="Maximize" />Expand all groups</button>
     <button role="menuitem" onClick={() => { setCollapsedFolders(new Set(snapshot.projectFolders.map((folder) => folder.id))); setCollapsedProjects(new Set(snapshot.projects.map((project) => project.id))); }}><Icon name="Minimize" />Collapse all groups</button>
@@ -634,7 +651,7 @@ export function WorkspaceNavigation({ sdk, snapshot, selectedId, archived, issue
   {menu && projectMenu && <WorkspaceContextMenu label={`Project actions for ${projectMenu.name}`} point={menu} close={closeMenu}>
     <button role="menuitem" disabled={!canCreate} onClick={() => createProjectSession(projectMenu)}><Icon name="Plus" />New session</button>
     <button role="menuitem" onClick={() => open({ kind: "work", project: projectMenu })}><Icon name="Plan" />From work item</button>
-    <button role="menuitem" onClick={() => open({ kind: "pr", project: projectMenu })}><Icon name="PR" />From PR</button>
+    <button role="menuitem" onClick={() => open({ kind: "pr", project: projectMenu })}><Icon name="PR" />From code change</button>
     <MenuSeparator />
     <button role="menuitem" onClick={() => settings(projectMenu.id)}><Icon name="Settings" />Settings</button>
     {terminal && <button role="menuitem" onClick={() => terminal(projectMenu.id)}><Icon name="Terminal" />Open project terminal</button>}
@@ -819,7 +836,19 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
   const currentArtifacts = snapshot.artifacts.filter((artifact) => artifact.projectId === edit.project?.id);
   const staleArtifacts = edit.kind === "remove-project" && (!artifactPreview || currentArtifacts.length !== artifactPreview.artifacts.length || currentArtifacts.some((artifact) => !artifactPreview.artifacts.some((entry) => entry.id === artifact.id && entry.revision === artifact.revision)));
   const artifactChoiceMissing = edit.kind === "remove-project" && Boolean(artifactPreview?.artifacts.length) && (!artifactAction || artifactAction === "export" && !exportedDigest || artifactAction === "materialize" && (!materialized || materialized.setDigest !== artifactPreview?.digest));
-  const titles: Record<EditKind, string> = { attach: "Attach session", group: "Session group", "new-group": "New session group", folder: "Project group", "new-folder": "New project group", "merge-projects": "New project group", color: "Project color", "folder-color": "Project group color", pr: "Session from PR", work: "Session from work item", relocate: "Change attached folder", "remove-project": "Remove project" };
+  const titles: Record<EditKind, string> = { attach: "Attach session", group: "Session group", "new-group": "New session group", folder: "Project group", "new-folder": "New project group", "merge-projects": "New project group", color: "Project color", "folder-color": "Project group color", pr: "Session from code change", work: "Session from work item", relocate: "Change attached folder", "remove-project": "Remove project" };
+  const start = async (source: GithubSelection | null) => {
+    if (!edit.project) throw new Error("This action needs a selected project.");
+    const scope = { env: "Local" as const, projectId: edit.project.id };
+    const result = source ? await sdk.github.startSession(scope, source.source, source.digest) :
+      await sdk.sessions.fromWork(scope.projectId, edit.kind === "pr" ? { prUrl: value } : { issueId: value });
+    await chooseSession(result.id!); close();
+  };
+  // Choosing a pull request is the whole decision for "From code change": the session starts without a second click.
+  const startFromPull = (source: GithubSelection) => {
+    setBusy(true); setError("");
+    void start(source).catch((error: unknown) => setError(error instanceof Error ? error.message : "The session was not started.")).finally(() => setBusy(false));
+  };
   const submit = async () => {
     setBusy(true); setError("");
     try {
@@ -846,12 +875,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
           const choice = artifactPreview.artifacts.length && artifactAction ? { action: artifactAction, expectedDigest: artifactPreview.digest, ...(exportedDigest ? { exportedDigest } : {}), ...(materialized ? { materializationId: materialized.jobId } : {}) } : undefined;
           await sdk.projects.remove(requiredProject().id, true, configuration.revision, choice, running.length ? { confirmRunning: true } : {}); break;
         }
-        case "pr": case "work": {
-          const scope = { env: "Local" as const, projectId: requiredProject().id };
-          const result = github ? await sdk.github.startSession(scope, github.source, github.digest) :
-            await sdk.sessions.fromWork(scope.projectId, edit.kind === "pr" ? { prUrl: value } : { issueId: value });
-          await chooseSession(result.id!); break;
-        }
+        case "pr": case "work": await start(github); return;
       }
       close();
     } catch (error) { setError(error instanceof Error ? error.message : "The action failed; no success was recorded."); }
@@ -864,7 +888,7 @@ function NavigationDialog({ edit, sdk, snapshot, close, chooseSession, detach }:
   return <dialog ref={ref} className="workspace-dialog" onClose={close} aria-label={titles[edit.kind]}><form onSubmit={(event) => { event.preventDefault(); void submit(); }}><header><h2>{titles[edit.kind]}</h2><button className="icon-button" type="button" aria-label="Cancel dialog" disabled={busy} onClick={close}><Icon name="Close" /></button></header>
     {(edit.kind === "pr" || edit.kind === "work") && edit.project && <>
       <GitHubItemPicker sdk={sdk} scope={{ env: "Local", projectId: edit.project.id }} kind={edit.kind === "pr" ? "pull" : "issue"} disabled={busy}
-        select={(selection) => { setGithub(selection); if (selection) setValue(""); }} />
+        select={(selection) => { setGithub(selection); if (!selection) return; setValue(""); if (edit.kind === "pr") startFromPull(selection); }} />
       {github && <section className="github-item" aria-label="Reviewed session source"><h3 className="github-item-name"><GitHubStateIcon kind={edit.kind === "pr" ? "pull" : "issue"} item={github.item} />#{github.item.number} {github.item.title}</h3>
         <p className="fine-print path">Source workspace: {github.binding.root.root}</p>
         <Suspense fallback={<p>{github.item.body}</p>}><RichMessage text={github.item.body || "No description."} openLink={(url) => { void window.moguri.openExternal(url).catch((error: unknown) => setError(error instanceof Error ? error.message : "The link could not be opened.")); }} /></Suspense></section>}
