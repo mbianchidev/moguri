@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { buildDmg } from "./dmg-layout.ts";
+import { REPOSITORY } from "./release/assets.mjs";
 
 if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Development packaging is validated for macOS arm64 only.");
 const { values } = parseArgs({ options: { qualifier: { type: "string" } } });
@@ -50,6 +51,6 @@ const { bundleTreeSha512, fileSha512, verifyBundleIdentity, verifyStandaloneInst
 await verifyBundleIdentity(app, version, "arm64");
 await verifyStandaloneInstallerRuntime(join(app, "Contents", "Resources", "app", "node_modules", "node", "bin", "node"));
 const manifest = join(output, `Moguri-${version}-macos-arm64.manifest.json`);
-await writeFile(manifest, JSON.stringify({ schemaVersion: 1, repository: "mbianchidev/moguri", version, arch: "arm64", bundleId: "dev.moguri.app",
+await writeFile(manifest, JSON.stringify({ schemaVersion: 1, repository: REPOSITORY, version, arch: "arm64", bundleId: "dev.moguri.app",
   archive: { name: `Moguri-${version}-macos-arm64.zip`, bytes: (await lstat(archive)).size, sha512: await fileSha512(archive) }, bundleSha512: await bundleTreeSha512(app) }, null, 2), { mode: 0o644 });
 console.log(`Development app: ${app}\nDMG: ${image}\nZIP: ${archive}\nIntegrity manifest: ${manifest}\nAd-hoc signed only. Not notarized; integrity is not Apple signing or production release readiness.`);

@@ -3,7 +3,9 @@
 set -Eeuo pipefail
 export GIT_PAGER=cat GH_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1
 
-readonly REPOSITORY="mbianchidev/moguri"
+# The release repository before and after the planned move to moguri-dev (#93). origin selects one; helpers read it from MOGURI_RELEASE_REPOSITORY.
+readonly RELEASE_REPOSITORIES="mbianchidev/moguri moguri-dev/moguri-desktop"
+REPOSITORY=""
 readonly BASE_BRANCH="main"
 readonly REMOTE="origin"
 readonly CI_WORKFLOW="ci.yml"
@@ -42,7 +44,8 @@ Release Moguri VERSION (x.y.z or vx.y.z, optionally with a -prerelease such as
 updater drop it.
 
 A normal run:
-  1. Checks tools, GitHub auth and that origin is github.com/mbianchidev/moguri.
+  1. Checks tools, GitHub auth and that origin is github.com/mbianchidev/moguri
+     or, after the move, github.com/moguri-dev/moguri-desktop.
   2. Creates an owned worktree from fresh origin/main and bumps package.json and
      package-lock.json with npm version (no tag).
   3. Commits "release: VERSION" and runs the same checks as CI: npm ci, npm
@@ -187,8 +190,14 @@ verify_remote() {
   count="$(git -C "$REPO_ROOT" remote get-url --push --all "$REMOTE" | wc -l | tr -d ' ')"
   [ "$count" = 1 ] || die "Remote $REMOTE has $count push URLs; releases need exactly one."
   push="$(git -C "$REPO_ROOT" remote get-url --push "$REMOTE")"
-  [ "$(remote_repository "$fetch")" = "$REPOSITORY" ] || die "Remote $REMOTE fetches from $fetch, not github.com/$REPOSITORY."
+  REPOSITORY="$(remote_repository "$fetch")"
+  case " $RELEASE_REPOSITORIES " in
+    *" $REPOSITORY "*) ;;
+    *) die "Remote $REMOTE fetches from $fetch, not a Moguri release repository (github.com/${RELEASE_REPOSITORIES// / or github.com/})." ;;
+  esac
   [ "$(remote_repository "$push")" = "$REPOSITORY" ] || die "Remote $REMOTE pushes to $push, not github.com/$REPOSITORY."
+  readonly REPOSITORY
+  export MOGURI_RELEASE_REPOSITORY="$REPOSITORY"
 }
 
 acquire_lock() {
