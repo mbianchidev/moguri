@@ -11,7 +11,7 @@ the [README](../README.md) only summarizes.
 | [Setup and usage](setup.md) | Every workflow in depth: providers, sessions, approvals, environments, Git and GitHub, automations, troubleshooting |
 | [Settings reference](settings/README.md) | What each desktop Settings page does, its defaults and safeguards |
 | [Implemented capabilities](features.md) | What the current alpha implements, by protocol checkpoint |
-| [Remaining milestone gaps](remaining-milestone-gaps.md) | The roadmap and what is not available yet |
+| [Remaining milestone gaps](remaining-milestone-gaps.md) | Milestone 1 acceptance, the roadmap closure and what is not available yet |
 | [Product vision](vision.md) | The broader feature inventory, which is not a list of implemented features |
 
 ## Developers

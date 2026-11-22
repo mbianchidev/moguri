@@ -3,8 +3,8 @@
 This page records what the current Moguri alpha actually implements, release by
 release. It moved here from the README so the README stays a short landing page.
 For the broader product vision, which is not a list of implemented features, see
-[product vision](vision.md). Remaining work is tracked in
-[remaining milestone gaps](remaining-milestone-gaps.md).
+[product vision](vision.md). Milestone 1 acceptance, the roadmap closure and
+unavailable capabilities are in [remaining milestone gaps](remaining-milestone-gaps.md).
 
 The first executable checkpoint includes an **OpenTUI terminal client** and an
 **Electron desktop app** sharing one local service. It supports GitHub Copilot
@@ -395,7 +395,7 @@ failed/conflicting unsent pastes; approved bounded file reads work through Local
 and pinned SSH workers without modifying a source checkout. See
 [usage](setup.md) and the [context boundary](architecture/context-inputs.md).
 These context features are implemented. Final native and integrated acceptance
-remain separate in the [current roadmap](remaining-milestone-gaps.md).
+is in the [acceptance record](remaining-milestone-gaps.md#milestone-1-accepted-2026-11-15).
 
 Core **Remote SSH** execution (the **Remote host** Env; `/ssh` inspects or
 probes it) uses an explicitly pinned host and approved remote workspace. The existing worker runs inference and file/command tools
@@ -499,8 +499,8 @@ source, hidden desktop, SDK and package runs pass. Regression runs now use a
 ([D38](architecture/decisions.md#d38-covering-array-milestone-regression)). The
 [acceptance record and roadmap](remaining-milestone-gaps.md) maps every
 milestone criterion to its evidence, records the user-directed replacement of
-account-blocked hosted CI with local evidence, and lists the remaining roadmap
-owned by [#39](https://github.com/mbianchidev/moguri/issues/39). It is still a
+account-blocked hosted CI with local evidence, and records how every issue of
+the closed [#39](https://github.com/mbianchidev/moguri/issues/39) roadmap ended. It is still a
 development alpha: not signed, notarized or publicly distributed.
 
 The earlier issue-17 checkpoint used **protocol 37** for shared model windows, scoped

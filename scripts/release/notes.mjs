@@ -43,7 +43,7 @@ export function releaseNotes({ version, previous, commit, changes }) {
     "## Known limitations",
     "",
     "- macOS arm64 only. Builds are ad-hoc signed, not Developer ID signed or notarized.",
-    `- Remaining roadmap work and unavailable capabilities: [remaining milestone gaps](${docs("docs/remaining-milestone-gaps.md")}).`,
+    `- Milestone record and unavailable capabilities: [remaining milestone gaps](${docs("docs/remaining-milestone-gaps.md")}).`,
     "",
     "## Verification",
     "",
