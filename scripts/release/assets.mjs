@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { normalizeVersion } from "./version-policy.mjs";
 
-/** The release repository before and after the planned move to moguri-dev (#93). Keep in sync with MOGURI_RELEASE_REPOSITORIES in packages/protocol/src/application-updates.ts. */
+/** The release repository before and after the planned move to moguri-dev (#93). Keep in sync with MOGURI_RELEASE_REPOSITORIES in moguri-sdk's packages/protocol/src/application-updates.ts. */
 export const RELEASE_REPOSITORIES = Object.freeze(["mbianchidev/moguri", "moguri-dev/moguri-desktop"]);
 /** scripts/release.sh sets MOGURI_RELEASE_REPOSITORY from its verified origin; the Release workflow has GITHUB_REPOSITORY. */
 export function releaseRepository(env = process.env) {
