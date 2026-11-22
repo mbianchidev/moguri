@@ -1,9 +1,9 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { MoguriSdk, Project, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { createGithubApi } from "../../../packages/sdk/src/github.ts";
-import { RepositorySettingsSchema, type GithubAction, type GithubBrowse, type GithubPreview, type GithubResponse, type GithubScope } from "../../../packages/protocol/src/github-workflows.ts";
-import { parse } from "../../../packages/protocol/src/core.ts";
+import {
+  createGithubApi, parse, RepositorySettingsSchema, type GithubAction, type GithubBrowse, type GithubPreview, type GithubResponse, type GithubScope,
+  type MoguriSdk, type Project, type Session, type Snapshot,
+} from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.read" }>;

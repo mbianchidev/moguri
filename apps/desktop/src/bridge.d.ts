@@ -1,4 +1,4 @@
-import type { ArtifactExport, BrowserState, Connection, SkillSource } from "../../../packages/protocol/src/index.ts";
+import type { ArtifactExport, BrowserState, Connection, SkillSource } from "../../../packages/sdk/src/index.ts";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 import type { StartupContext } from "./startup-cache.ts";
 import type { RendererTrayAction } from "./tray-menu.ts";
