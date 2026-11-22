@@ -8,6 +8,7 @@ import { compareSessionOrder, DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
 import { NEMOTRON_MODEL } from "@moguri-dev/sdk/testing";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openProjectMenu, openSettingsSection } from "./navigation.ts";
+import { sdkPath } from "../fixtures/sdk-paths.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const launch = (directory: string) => electron.launch({ executablePath: require("electron"), args: [".", "--use-fake-device-for-media-stream"], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -154,7 +155,7 @@ test("native session dragging reorders only at drop, and keyboard reordering use
 });
 
 test("retired global layouts restore a session pane without opening, adopting or terminating retained consoles", async () => {
-  const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GLOBAL_READY\\n'+process.cwd()+'\\n');"], brokerPath: resolve("dist/terminal-broker.mjs") };
+  const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GLOBAL_READY\\n'+process.cwd()+'\\n');"], brokerPath: sdkPath("dist/terminal-broker.mjs") };
   const fixture = await setupFixture({ platform: { terminal: program } }), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const legacy = await sdk.terminal.openGlobal(), app = await launch(fixture.directory);
   try {
