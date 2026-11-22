@@ -142,10 +142,14 @@ remaining work.
 
 **Open follow-on.** [#93](https://github.com/mbianchidev/moguri/issues/93)
 splits the SDK and the TUI into private `moguri-dev/moguri-sdk` and
-`moguri-dev/moguri-tui` repositories with history, makes the updater and
-Sandbox setup safe across the owner's repository transfers, and then adds the
-Homebrew packages. It is tracked on its own, not as a #39 child, and nothing in
-it is on `main` yet.
+`moguri-dev/moguri-tui` repositories with history, keeps the updater and
+release tooling working across the owner's transfer of this repository to
+`moguri-dev/moguri-desktop`, and then adds the Homebrew packages
+([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
+Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
+child. Its first step, protocol 121 (SDK import boundary, transition-safe
+updater and release tooling, Homebrew launcher and updater prerequisites), is
+part of #93 and does not close it.
 
 ### Delivery notes, protocols 112 to 114
 
