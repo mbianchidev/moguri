@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { envLabel, agentHarnessProduct, approvalProject, commandFamily, type MoguriSdk, type RememberApproval, type Session } from "../../../packages/sdk/src/index.ts";
+import { envLabel, agentHarnessProduct, approvalProject, commandFamily, type MoguriSdk, type RememberApproval, type Session } from "@moguri-dev/sdk";
 
 export function ApprovalActions({ sdk, session, busy, run }: {
   sdk: MoguriSdk; session: Session; busy: boolean; run: (action: () => Promise<unknown>) => Promise<void>;

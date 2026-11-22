@@ -1,8 +1,8 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { startService } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);

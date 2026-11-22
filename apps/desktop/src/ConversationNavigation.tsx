@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import type { ConversationNavigationEntry, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { ConversationNavigationEntry, MoguriSdk, Session, Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Tooltip } from "./Tooltip.tsx";
 import { Alert } from "./Alert.tsx";

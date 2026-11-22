@@ -5,9 +5,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { candidateApiFixture } from "../fixtures/candidate-api.ts";
-import { PROTOCOL_VERSION, type CandidateTransportRecord } from "../../packages/sdk/src/index.ts";
-import { digest } from "../../apps/service/src/store.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { PROTOCOL_VERSION, type CandidateTransportRecord } from "@moguri-dev/sdk";
+import { digest } from "@moguri-dev/sdk/testing";
+import { startService } from "@moguri-dev/sdk/testing";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native candidate clients are qualified on macOS.");

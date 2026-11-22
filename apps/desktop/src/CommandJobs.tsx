@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { CommandJobRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { envLabel } from "../../../packages/sdk/src/index.ts";
+import type { CommandJobRead, MoguriSdk, Session, Snapshot } from "@moguri-dev/sdk";
+import { envLabel } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function CommandJobs({ sdk, session, snapshot, active }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; active: boolean }) {

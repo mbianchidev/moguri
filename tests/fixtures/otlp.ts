@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { isRecord } from "../../packages/sdk/src/index.ts";
+import { isRecord } from "@moguri-dev/sdk";
 import { createServer } from "node:http";
 import { once } from "node:events";
 

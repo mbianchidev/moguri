@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import type { KnowledgeRecord, KnowledgeTier, MoguriSdk, Project, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { KnowledgeRecord, KnowledgeTier, MoguriSdk, Project, Session, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {

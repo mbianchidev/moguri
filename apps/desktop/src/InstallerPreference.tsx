@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { defaultProjectConfiguration, parse, ProjectSettingsSchema, type InstallerCandidate, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultProjectConfiguration, parse, ProjectSettingsSchema, type InstallerCandidate, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 

@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import { audioFromBase64, type MoguriSdk, type NotificationToneKind, type Snapshot, type UserSettings } from "../../../packages/sdk/src/index.ts";
+import { audioFromBase64, type MoguriSdk, type NotificationToneKind, type Snapshot, type UserSettings } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { PathField, localPath } from "./PathField.tsx";
 

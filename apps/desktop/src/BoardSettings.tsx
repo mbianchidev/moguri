@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "@moguri-dev/sdk";
 import { ReorderList } from "./ReorderList.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";

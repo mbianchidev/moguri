@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { CheckpointResponse, MoguriSdk, RewindFileDecision, RewindPreview, Session, Snapshot, TurnCheckpoint } from "../../../packages/sdk/src/index.ts";
-import { envLabel } from "../../../packages/sdk/src/index.ts";
+import type { CheckpointResponse, MoguriSdk, RewindFileDecision, RewindPreview, Session, Snapshot, TurnCheckpoint } from "@moguri-dev/sdk";
+import { envLabel } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function RewindPanel({ sdk, session, snapshot }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot }) {

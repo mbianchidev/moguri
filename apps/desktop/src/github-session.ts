@@ -1,4 +1,4 @@
-import type { GithubScope, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { GithubScope, Session, Snapshot } from "@moguri-dev/sdk";
 
 /** The exact Local project scope a session's GitHub reads and writes use, or null when the session has no Local project. */
 export function sessionGithubScope(session: Session): GithubScope | null {

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Session, Snapshot } from "@moguri-dev/sdk";
 import { AgentTerminal } from "./AgentTerminal.tsx";
 import { GhosttyTerminal } from "./GhosttyTerminal.tsx";
 import { Tooltip } from "./Tooltip.tsx";

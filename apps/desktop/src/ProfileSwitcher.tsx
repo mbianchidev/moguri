@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import type { MoguriSdk, Profile, ProfileCatalog, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Profile, ProfileCatalog, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function ProfileSwitcher({ sdk, snapshot, disabled, expanded, setExpanded, onSwitch, onDirty }: {

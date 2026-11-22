@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { MoguriSdk, type ManagedWorkspace } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, type ManagedWorkspace } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { openProjectMenu, openSettingsSection } from "./navigation.ts";

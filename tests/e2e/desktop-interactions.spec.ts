@@ -4,8 +4,8 @@ import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
-import { compareSessionOrder, DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
+import { compareSessionOrder, DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
+import { NEMOTRON_MODEL } from "@moguri-dev/sdk/testing";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openProjectMenu, openSettingsSection } from "./navigation.ts";
 

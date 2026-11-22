@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { trayMenu, trayTemplate, type RendererTrayAction, type TrayMenuOption } from "../../apps/desktop/src/tray-menu.ts";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 

@@ -1,7 +1,7 @@
 import { WebContentsView, session as electronSession, type BrowserWindow } from "electron";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { isolatedHtmlDocument, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { isolatedHtmlDocument, type MoguriSdk } from "@moguri-dev/sdk";
 
 export interface HtmlPreviewRequest {
   sessionId: string; attachmentId: string; digest: string;

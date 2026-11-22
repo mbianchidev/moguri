@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
-import { outcomeLabel, type ActivityContent, type ActivityEntry, type ActivityResponse, type BudgetTotals, type MoguriSdk, type TurnInfo, type UsageEstimate } from "../../../packages/sdk/src/index.ts";
+import { outcomeLabel, type ActivityContent, type ActivityEntry, type ActivityResponse, type BudgetTotals, type MoguriSdk, type TurnInfo, type UsageEstimate } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { dollars } from "./BudgetControls.tsx";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { attachmentStatus, type DocumentAttachment, type DocumentPage, type DocumentReadOptions, type DocumentSearch, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { attachmentStatus, type DocumentAttachment, type DocumentPage, type DocumentReadOptions, type DocumentSearch, type MoguriSdk } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { SettingsAction } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";

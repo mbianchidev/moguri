@@ -6,10 +6,10 @@ import { parse as parseYaml } from "yaml";
 import {
   MoguriSdk, attentionDescription, describeAutomationSchedule, dueAutomationOccurrences, executeAutomationsCommand, nextAutomationOccurrence, parseAutomationWorkflow, validateAutomation,
   type Attention, type AutomationDefinition, type AutomationRun, type AutomationSchedule, type Snapshot,
-} from "../packages/sdk/src/index.ts";
-import { startService } from "../apps/service/src/server.ts";
-import { EventStore } from "../apps/service/src/store.ts";
-import { projectEvents } from "../packages/protocol/src/index.ts";
+} from "@moguri-dev/sdk";
+import { startService } from "@moguri-dev/sdk/testing";
+import { EventStore } from "@moguri-dev/sdk/testing";
+import { projectEvents } from "@moguri-dev/sdk/testing";
 import { setupFixture, waitFor } from "./fixture.ts";
 import { GeneratedIntakeClock } from "./fixtures/intake-clock.ts";
 import { AttentionNotifier, notificationToneAllowed, type Banner } from "../apps/desktop/src/notifications.ts";

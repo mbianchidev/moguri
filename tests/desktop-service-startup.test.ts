@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DesktopServiceStartup } from "../apps/desktop/src/service-startup.ts";
-import { ServiceStartupUnconfirmed, type ServiceStartupReview } from "../packages/sdk/src/node.ts";
-import { PROTOCOL_VERSION, type Connection } from "../packages/sdk/src/index.ts";
+import { ServiceStartupUnconfirmed, type ServiceStartupReview } from "@moguri-dev/sdk/node";
+import { PROTOCOL_VERSION, type Connection } from "@moguri-dev/sdk";
 import { waitFor } from "./fixture.ts";
 
 const review: ServiceStartupReview = {

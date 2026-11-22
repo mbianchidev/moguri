@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import { formatDiskBytes, VIRTUAL_DISK_SIZES_GIB, type MoguriSdk, type Snapshot, type VirtualDiskStatus } from "../../../packages/sdk/src/index.ts";
+import { formatDiskBytes, VIRTUAL_DISK_SIZES_GIB, type MoguriSdk, type Snapshot, type VirtualDiskStatus } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 const DEFAULT_SIZE_GIB = 50;

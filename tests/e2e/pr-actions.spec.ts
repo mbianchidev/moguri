@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { GENERATED_PR_BRANCH, GENERATED_PR_URL, generatedPrCliRead, generatedPrFetch, type GeneratedPrState } from "../fixtures/pr-status.ts";

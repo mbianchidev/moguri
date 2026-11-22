@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { sessionPullRequestStates, sessionPullRequestUrls, type MoguriSdk, type PullRequestLink, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { sessionPullRequestStates, sessionPullRequestUrls, type MoguriSdk, type PullRequestLink, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { GitHubStateIcon, githubStateMark } from "./GitHubPickers.tsx";
 import { SessionGitHub } from "./SessionGitHub.tsx";
 import { LinkedPullRequest } from "./PullRequestView.tsx";

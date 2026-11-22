@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { colorContrast, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { colorContrast, MoguriSdk } from "@moguri-dev/sdk";
 import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);

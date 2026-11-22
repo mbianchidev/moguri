@@ -1,12 +1,12 @@
 import { SettingsAction, SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, CandidateStagePreview, CandidateGenerationResponse, CandidateRoleReference, CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { CandidateApplyPreview, CandidateDocument, CandidatePatch, CandidateStagePreview, CandidateGenerationResponse, CandidateRoleReference, CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "@moguri-dev/sdk";
 import { CandidateGenerationPanel } from "./CandidateGenerationPanel.tsx";
 import { CandidateRoleProposalPanel } from "./CandidateRoleProposalPanel.tsx";
 import { CompoundPanel } from "./CompoundPanel.tsx";
 import { WinddownPanel } from "./WinddownPanel.tsx";
 import { Alert } from "./Alert.tsx";
-import { envLabel, candidateRootBase, candidateRootLabel, type CandidateWorkspace } from "../../../packages/sdk/src/index.ts";
+import { envLabel, candidateRootBase, candidateRootLabel, type CandidateWorkspace } from "@moguri-dev/sdk";
 import { CandidateWorkspacePanel } from "./CandidateWorkspacePanel.tsx";
 import { CandidateRecoveryPanel } from "./CandidateRecoveryPanel.tsx";
 

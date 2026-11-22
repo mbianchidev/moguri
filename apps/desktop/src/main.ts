@@ -7,11 +7,11 @@ import { homedir } from "node:os";
 import { lstat, mkdir, readFile, realpath, rename } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm, LoopDelay } from "../../../packages/sdk/src/node.ts";
+import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm, LoopDelay } from "@moguri-dev/sdk/node";
 import {
   audioBase64, browserUrl, ClientError, defaultNotificationWav, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, MoguriSdk, parse, PROFILE_ID,
   QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, shortcutLabel, type Connection, type NotificationToneKind,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";

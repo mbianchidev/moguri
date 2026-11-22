@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { isRecord, MoguriSdk, SCRIPT_REVIEW_MAX_BYTES, webAccessAllows } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriSdk, SCRIPT_REVIEW_MAX_BYTES, webAccessAllows } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 
 export async function scriptReviewFixture(options: { unsafe?: boolean; attemptUnsafe?: boolean; autopilot?: boolean; publicUrl?: boolean; sourcePadding?: number; findings?: string[]; trustAttemptAfterReview?: boolean;

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { appearanceColors, themePalettes, DEFAULT_SESSION_LIFECYCLE, type ApplicationConfiguration, type ApplicationPreferences, type MoguriSdk, type Snapshot, type ThemeMode, type UserSettings } from "../../../packages/sdk/src/index.ts";
+import { appearanceColors, themePalettes, DEFAULT_SESSION_LIFECYCLE, type ApplicationConfiguration, type ApplicationPreferences, type MoguriSdk, type Snapshot, type ThemeMode, type UserSettings } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Step = "name" | "accent" | "theme" | "preferences" | "done";

@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSessionSearch, openGroupMenu } from "./navigation.ts";
 

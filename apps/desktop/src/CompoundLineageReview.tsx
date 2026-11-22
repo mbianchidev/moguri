@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import { type CompoundLineageInput, type CompoundLineageReview, type ModelInfo, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { type CompoundLineageInput, type CompoundLineageReview, type ModelInfo, type MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDirty, onBusy }: {

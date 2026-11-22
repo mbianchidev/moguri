@@ -1,6 +1,6 @@
 import { SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { envLabel, activeDecision, type DecisionResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, activeDecision, type DecisionResponse, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Status = Extract<DecisionResponse, { type: "decisions.status" }>;

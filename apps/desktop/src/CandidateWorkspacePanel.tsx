@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { envLabel, candidateRootLabel, type CandidateWorkspace, type CandidateWorkspacePreview, type MoguriSdk, type Session } from "../../../packages/sdk/src/index.ts";
+import { envLabel, candidateRootLabel, type CandidateWorkspace, type CandidateWorkspacePreview, type MoguriSdk, type Session } from "@moguri-dev/sdk";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 

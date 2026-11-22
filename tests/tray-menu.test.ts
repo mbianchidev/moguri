@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { electronAccelerator, trayMenu, type TrayItem } from "../apps/desktop/src/tray-menu.ts";
-import { validateShortcutSet, type Snapshot } from "../packages/sdk/src/index.ts";
+import { validateShortcutSet, type Snapshot } from "@moguri-dev/sdk";
 import { setupFixture } from "./fixture.ts";
 
 const labels = (items: TrayItem[]) => items.map((item) => item.type === "separator" ? "---" : item.type === "submenu" ? `${item.label} >` : item.label);

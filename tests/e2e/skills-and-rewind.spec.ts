@@ -2,9 +2,9 @@ import { _electron as electron, expect, test, type Page } from "@playwright/test
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { defaultSandboxManagement, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { digest } from "../../apps/service/src/store.ts";
-import { distributionConfiguration, readSandboxDistribution } from "../../apps/service/src/sandbox-distribution.ts";
+import { defaultSandboxManagement, MoguriSdk } from "@moguri-dev/sdk";
+import { digest } from "@moguri-dev/sdk/testing";
+import { distributionConfiguration, readSandboxDistribution } from "@moguri-dev/sdk/testing";
 import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";

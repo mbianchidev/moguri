@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { kanbanPreferences, type MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, type MoguriSdk } from "@moguri-dev/sdk";
 import { SETTINGS_GROUPS } from "../../apps/desktop/src/settings-catalog.ts";
 
 export async function waitForWorkspace(page: Page) {

@@ -3,9 +3,9 @@ import test from "node:test";
 import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MoguriSdk, defaultProjectSettings, isRecord } from "../packages/sdk/src/index.ts";
-import { detectInstallers } from "../apps/service/src/installer-detection.ts";
-import { workflowMediaGuidance } from "../apps/service/src/platform.ts";
+import { MoguriSdk, defaultProjectSettings, isRecord } from "@moguri-dev/sdk";
+import { detectInstallers } from "@moguri-dev/sdk/testing";
+import { workflowMediaGuidance } from "@moguri-dev/sdk/testing";
 import { setupFixture, waitFor } from "./fixture.ts";
 
 test("installer detection reads only root package scripts and Makefile targets, with the project's runner", async () => {

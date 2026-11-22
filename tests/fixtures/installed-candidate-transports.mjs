@@ -7,8 +7,8 @@ import { createSshTarget } from "./ssh-target.ts";
 import { initializeGeneratedRepository } from "./git-project.ts";
 
 const installed = await realpath(process.argv[2]);
-const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { PROTOCOL_VERSION } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { PROTOCOL_VERSION } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 assert.ok(PROTOCOL_VERSION >= 92);
 const directory = await realpath(await mkdtemp(join(tmpdir(), "moguri-installed-candidate-envs-")));
 const project = join(directory, "local-project"), peer = join(directory, "peer-project"), home = join(directory, "home"), stateDir = join(directory, "state");

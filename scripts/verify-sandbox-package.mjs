@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { readSandboxDistribution, SENDBOX_027 } from "../apps/service/src/sandbox-distribution.ts";
-import { defaultSandboxManagement, PROTOCOL_VERSION } from "../packages/protocol/src/index.ts";
+import { readSandboxDistribution, SENDBOX_027 } from "@moguri-dev/sdk/testing";
+import { defaultSandboxManagement, PROTOCOL_VERSION } from "@moguri-dev/sdk";
 import { APPLE_INIT } from "./prepare-apple-init.mjs";
 
 if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Packaged native setup verification requires macOS arm64.");

@@ -53,6 +53,10 @@ workflow checks again immediately before undrafting.
   Python 3.10+, Apple `container`, and the system `hdiutil`, `codesign`,
   `ditto` and `shasum`.
 - `gh` logged in to github.com with push access: `gh auth login --hostname github.com`.
+- A classic token with `read:packages` in your user `~/.npmrc`
+  (`//npm.pkg.github.com/:_authToken=...`), so `npm ci` can install the
+  private `@moguri-dev/sdk`. The Release workflow uses the
+  `MOGURI_PACKAGES_TOKEN` secret.
 - The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`, or
   `github.com/moguri-dev/moguri-desktop` after the move (SSH or HTTPS), with
   exactly one push URL. The verified origin selects the release repository and
@@ -76,7 +80,7 @@ workflow checks again immediately before undrafting.
    and `package-lock.json`, and commits `release: <version>` without signing
    or hooks. Your own checkout is never modified.
 4. **Validate and package.** Runs `npm ci`, `npm audit --audit-level=moderate`,
-   `npm run typecheck`, `npm run build`, `npm test`, `npm run verify:sdk`,
+   `npm run typecheck`, `npm run build`, `npm test`,
    hidden `npm run test:e2e`, `node scripts/package.mjs` and
    `npm run verify:update`. Validation must leave the tree clean. This mirrors
    [CI](../.github/workflows/ci.yml), which runs only on `main`.

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CommandExecution, MoguriSdk, SlashResult } from "../../../packages/sdk/src/index.ts";
+import type { CommandExecution, MoguriSdk, SlashResult } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 import { Icon } from "./Icon.tsx";

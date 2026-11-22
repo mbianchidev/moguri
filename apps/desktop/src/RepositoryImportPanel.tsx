@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { successfulImportItem, type MoguriSdk, type RepositoryImportPreview, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { successfulImportItem, type MoguriSdk, type RepositoryImportPreview, type Snapshot } from "@moguri-dev/sdk";
 import { SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { WorkspaceFolderPanel } from "./WorkspaceFolderPanel.tsx";

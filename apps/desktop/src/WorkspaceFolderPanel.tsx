@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Snapshot, WorkspaceFolderObservation, WorkspaceFolderPreview } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Snapshot, WorkspaceFolderObservation, WorkspaceFolderPreview } from "@moguri-dev/sdk";
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { PathField, localPath } from "./PathField.tsx";

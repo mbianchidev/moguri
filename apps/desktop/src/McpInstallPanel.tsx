@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { McpServerConfig } from "../../../packages/sdk/src/index.ts";
+import type { McpServerConfig } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 100) || "server";

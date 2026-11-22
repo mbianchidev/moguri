@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk, effectiveToolPreferences } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, effectiveToolPreferences } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 

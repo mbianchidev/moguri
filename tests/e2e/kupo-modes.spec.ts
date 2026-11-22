@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { defaultKupoSettings, KUPO_MODEL_ID } from "../../packages/sdk/src/index.ts";
+import { defaultKupoSettings, KUPO_MODEL_ID } from "@moguri-dev/sdk";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { generatedKupoProfile } from "../fixtures/kupo-profiles.ts";
 import { openSettingsSection } from "./navigation.ts";

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { defaultNotificationWav, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { defaultNotificationWav, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { generatedGguf, sha256, transcribeStreamingGguf, transcribeWhisperGguf } from "../fixtures/voice-models.ts";
 import { openSettingsSection } from "./navigation.ts";

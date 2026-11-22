@@ -2,17 +2,18 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, realpath, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { createSshTarget } from "../fixtures/ssh-target.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { focusByKeyboard, openSettingsSection } from "./navigation.ts";
+import { sdkPath } from "../fixtures/sdk-paths.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop/SSH execution is qualified on macOS.");
 test("SSH setup, explicit workspace, model-preserving env selection and real remote execution share the SDK", async () => {
   const secrets = new Map<string, string>();
-  const fixture = await setupFixture({ workerPath: resolve("dist/worker.mjs"), exposeModels: true, platform: { remote: { vault: {
+  const fixture = await setupFixture({ workerPath: sdkPath("dist/worker.mjs"), exposeModels: true, platform: { remote: { vault: {
     read: async (id) => secrets.get(id) ?? null, write: async (id, token) => { secrets.set(id, token); }, remove: async (id) => { secrets.delete(id); },
   } } } });
   await fixture.configure();
@@ -22,7 +23,7 @@ test("SSH setup, explicit workspace, model-preserving env selection and real rem
   initializeGeneratedRepository(workspace);
   await writeFile(join(workspace, "fixture.txt"), "Generated remote-only panel change.\n");
   await mkdir(join(workspace, "docs")); await writeFile(join(workspace, "docs/plan.md"), "Generated remote-only desktop plan.\n");
-  const ssh = await createSshTarget(sshDirectory); ssh.target.command = [process.execPath, resolve("dist/remote-bridge.mjs")];
+  const ssh = await createSshTarget(sshDirectory); ssh.target.command = [process.execPath, sdkPath("dist/remote-bridge.mjs")];
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {

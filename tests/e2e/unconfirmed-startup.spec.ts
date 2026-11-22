@@ -4,8 +4,8 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { readPrivateConnection } from "../../packages/client/src/node.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { readPrivateConnection } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 
@@ -87,7 +87,7 @@ test("the real unconfirmed deadline preserves saved drafts without a startup com
   } finally {
     live?.disconnect(); sdk.disconnect(); await app?.close();
     if (child && child.exitCode === null && child.signalCode === null) {
-      const { stopMoguriService } = await import("../../packages/sdk/src/node.ts");
+      const { stopMoguriService } = await import("@moguri-dev/sdk/node");
       const original = await readPrivateConnection(stateDir);
       if (original.pid !== child.pid) throw new Error("Generated startup owner changed; no different process was stopped or fixture root deleted.");
       await stopMoguriService(stateDir, { expectedConnection: original });

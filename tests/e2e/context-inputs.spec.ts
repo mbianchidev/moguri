@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
-import { DraftEditor, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriError, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { finishIdleSchedule } from "./navigation.ts";
 

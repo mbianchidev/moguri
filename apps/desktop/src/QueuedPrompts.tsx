@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { isRecord, type Attachment, type Command, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { isRecord, type Attachment, type Command, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { AnchoredMenu } from "./AnchoredMenu.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, stageReviewed, clipboardImage, SESSION_DRAG_TYPE, type AttachmentReviewRequest } from "./ContextAttachments.tsx";

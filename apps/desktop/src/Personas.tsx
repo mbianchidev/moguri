@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   activePersonaRun, outcomeLabel, personaPresets, skillListGroups,
   type GatewaySkill, type MoguriSdk, type Persona, type PersonaDefinition, type PersonaPreset, type PersonaRun, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { AnchoredMenu } from "./AnchoredMenu.tsx";
 import { Icon } from "./Icon.tsx";

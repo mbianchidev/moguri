@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 import { reviewNativeTools } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";

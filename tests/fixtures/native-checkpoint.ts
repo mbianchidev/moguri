@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { defaultSandboxManagement, type SandboxConfiguration, type StoredEvent } from "../../packages/sdk/src/index.ts";
-import { envelope } from "../../apps/service/src/controller.ts";
+import { defaultSandboxManagement, type SandboxConfiguration, type StoredEvent } from "@moguri-dev/sdk";
+import { envelope } from "@moguri-dev/sdk/testing";
 import { nativeApiFixture } from "./native-api.ts";
 import { initializeGeneratedRepository } from "./git-project.ts";
 import { waitFor } from "../fixture.ts";

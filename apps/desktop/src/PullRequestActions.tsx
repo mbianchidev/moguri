@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ClientError, PR_ACTION_KINDS, PR_ACTION_LABELS, prActionPrompt, type MoguriSdk, type PrAction, type PrStatus, type Session } from "../../../packages/sdk/src/index.ts";
+import { ClientError, PR_ACTION_KINDS, PR_ACTION_LABELS, prActionPrompt, type MoguriSdk, type PrAction, type PrStatus, type Session } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 

@@ -1,7 +1,7 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Session, Snapshot, WinddownResponse } from "../../../packages/sdk/src/index.ts";
-import { envLabel, isLocalCandidateRecord } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Session, Snapshot, WinddownResponse } from "@moguri-dev/sdk";
+import { envLabel, isLocalCandidateRecord } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<WinddownResponse, { type: "winddown.read" }>;

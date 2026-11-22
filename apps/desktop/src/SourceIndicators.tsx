@@ -1,4 +1,4 @@
-import { sourceIndicatorRule, type SourceIndicatorGate, type SourceIndicatorReport } from "../../../packages/sdk/src/index.ts";
+import { sourceIndicatorRule, type SourceIndicatorGate, type SourceIndicatorReport } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 const gateText: Record<SourceIndicatorGate, string> = {

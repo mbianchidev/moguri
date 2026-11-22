@@ -20,20 +20,22 @@ const { generatedRemoteGithub } = await tsImport("../tests/fixtures/remote-githu
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
 const root = join(app, "Contents", "Resources", "app");
+const sdkRoot = join(root, "node_modules", "@moguri-dev", "sdk");
 for (const path of [".moguri", ".native", ".impeccable", ".copilot", ".test-output", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
 const node = join(root, "node_modules", "node", "bin", "node");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inherit" });
-const { PROTOCOL_VERSION, BROWSER_MCP_TOOLS, defaultSettings } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+const { PROTOCOL_VERSION, BROWSER_MCP_TOOLS, defaultSettings } = await import(pathToFileURL(join(sdkRoot, "dist", "sdk", "index.mjs")).href);
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);
 assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
 await access(join(root, "dist", "moguri"), constants.X_OK);
 assert.match(execFileSync(join(root, "dist", "moguri"), ["--help"], { encoding: "utf8", env: { ...process.env, PATH: "/usr/bin:/bin" } }), /Moguri CLI \+ SDK/);
-await access(join(root, "dist", "remote-bridge.mjs"));
-if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(root, "dist", path));
-if (PROTOCOL_VERSION >= 25) await access(join(root, "dist", "terminal-bridge.mjs"));
+await access(join(sdkRoot, "dist", "remote-bridge.mjs"));
+for (const path of ["service.mjs", "update-installer.mjs"]) await access(join(root, "dist", path)); // markers for pre-split updaters
+if (PROTOCOL_VERSION >= 23) for (const path of ["terminal-broker.mjs", "runtime.mjs"]) await access(join(sdkRoot, "dist", path));
+if (PROTOCOL_VERSION >= 25) await access(join(sdkRoot, "dist", "terminal-bridge.mjs"));
 if (PROTOCOL_VERSION >= 87) execFileSync(node, [resolve("tests/fixtures/installed-session-controls.mjs"), root], { stdio: "inherit", timeout: 60_000 });
-const nodeSdk = await import(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href);
+const nodeSdk = await import(pathToFileURL(join(sdkRoot, "dist", "sdk", "node.mjs")).href);
 if (PROTOCOL_VERSION >= 96) execFileSync(node, [resolve("tests/fixtures/installed-service-startup.mjs"), root],
   { stdio: "inherit", timeout: 90_000 });
 if (PROTOCOL_VERSION >= 92) {
@@ -44,9 +46,9 @@ if (typeof nodeSdk.restartMoguriService === "function") execFileSync(node, [reso
 if (PROTOCOL_VERSION >= 88) execFileSync(node, [resolve("tests/fixtures/installed-service-negotiation.mjs"), root, app], { stdio: "inherit", timeout: 45_000 });
 if (PROTOCOL_VERSION >= 90) execFileSync(node, ["--import", "tsx", resolve("tests/fixtures/installed-live-chat.mjs"), root], { stdio: "inherit", timeout: 90_000 });
 assert.match(execFileSync(node, [join(root, "node_modules", "pnpm", "bin", "pnpm.mjs"), "--version"], { encoding: "utf8" }), /12\.14\.0/);
-assert.match(execFileSync(join(root, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
+assert.match(execFileSync(join(sdkRoot, "dist", "native", "speech", "bin", "nemo-speech"), ["--version"], { encoding: "utf8" }), /0\.2\.0/);
 // The packaged transcribe.cpp host exits cleanly only after loading the exact pinned library version through node:ffi.
-execFileSync(node, ["--disable-warning=ExperimentalWarning", join(root, "dist", "transcribe-host.mjs"), join(root, "dist", "native", "transcribe", "libtranscribe.dylib")], { input: "", timeout: 30_000 });
+execFileSync(node, ["--disable-warning=ExperimentalWarning", join(sdkRoot, "dist", "transcribe-host.mjs"), join(sdkRoot, "dist", "native", "transcribe", "libtranscribe.dylib")], { input: "", timeout: 30_000 });
 const iconName = execFileSync("plutil", ["-extract", "CFBundleIconFile", "raw", "-o", "-", join(app, "Contents", "Info.plist")], { encoding: "utf8" }).trim();
 const icon = join(app, "Contents", "Resources", iconName.endsWith(".icns") ? iconName : `${iconName}.icns`);
 await access(icon);
@@ -72,7 +74,7 @@ try {
   ssh = await createSshTarget(sshRoot);
   ssh.target.command = [node, join(root, "bin", "moguri.mjs"), "worker", "--stdio"]; ssh.target.allowCopilot = false;
   if (PROTOCOL_VERSION >= 26) {
-    github = await generatedRemoteGithub(sshRoot, ssh.target, { bridge: join(root, "dist", "remote-bridge.mjs"), node });
+    github = await generatedRemoteGithub(sshRoot, ssh.target, { bridge: join(sdkRoot, "dist", "remote-bridge.mjs"), node });
     ssh.target = github.target;
   }
   const project = join(temporary, "generated-project");
@@ -82,7 +84,7 @@ try {
   const generatedBin = join(temporary, "generated-bin"); await mkdir(generatedBin);
   await writeFile(join(generatedBin, "gh"), `#!/bin/sh\nprintf '%s' '${JSON.stringify(generatedRepositoryMetadata())}'\n`, { mode: 0o700 });
   const source = `
-    import {createRuntime} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
+    import {createRuntime} from ${JSON.stringify(pathToFileURL(join(sdkRoot, "dist", "sdk", "node.mjs")).href)};
     const provider={
       state:${JSON.stringify(modelFixture.provider.state)},
       onChange:()=>{},refresh:async()=>provider.onChange(),
@@ -159,7 +161,7 @@ try {
   const configured = await (await fetch(`${connection.baseUrl}/v1/snapshot`, { headers })).json();
   assert.equal(configured.settings.values.instructions, "Generated packaged guidance.");
   assert.deepEqual(configured.settings.values.notifications, defaultSettings().notifications);
-  const { MoguriSdk } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+  const { MoguriSdk } = await import(pathToFileURL(join(sdkRoot, "dist", "sdk", "index.mjs")).href);
   const sdk = await new MoguriSdk(connection).ready();
   try {
     if (PROTOCOL_VERSION >= 72) {
@@ -494,7 +496,7 @@ try {
     } finally { await desktop?.close(); consoleSdk.disconnect(); }
   }
   if (PROTOCOL_VERSION >= 29) {
-    const { MoguriSdk } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+    const { MoguriSdk } = await import(pathToFileURL(join(sdkRoot, "dist", "sdk", "index.mjs")).href);
     const { DatabaseSync } = await import("node:sqlite");
     const directory = join(temporary, "generated-packaged-candidate"); await mkdir(directory);
     const original = "Generated actual packaged candidate base.\n", proposed = "Generated actual packaged reviewed bytes.\n";
@@ -530,7 +532,7 @@ try {
     } finally { client.disconnect(); }
   }
   if (PROTOCOL_VERSION >= 31) {
-    const { MoguriSdk } = await import(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href);
+    const { MoguriSdk } = await import(pathToFileURL(join(sdkRoot, "dist", "sdk", "index.mjs")).href);
     let client = await new MoguriSdk(connection).ready();
     const originalReply = modelOptions.replyText;
     try {
@@ -547,7 +549,7 @@ try {
       import assert from "node:assert/strict";
       import {execFile} from "node:child_process";
       import {promisify} from "node:util";
-      import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
+      import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(sdkRoot, "dist", "sdk", "node.mjs")).href)};
       const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
         refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in role inspection.");},prepare:async()=>{throw Error("No model calls in retained role inspection.");}};
       const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider,platform:{sandbox:{setup:{automatic:false,fetch:async()=>Response.json([])}}}};
@@ -606,7 +608,7 @@ try {
         import {readFile} from "node:fs/promises";
         import {join} from "node:path";
         import {promisify} from "node:util";
-        import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)};
+        import {createRuntime,connectMoguri} from ${JSON.stringify(pathToFileURL(join(sdkRoot, "dist", "sdk", "node.mjs")).href)};
         const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
           refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in native role proposals.");},
           prepare:async()=>{throw Error("No model preparation in native role proposals.");}};

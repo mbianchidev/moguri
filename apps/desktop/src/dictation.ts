@@ -1,4 +1,4 @@
-import { encodeSpeechPcm, encodeSpeechWav } from "../../../packages/sdk/src/index.ts";
+import { encodeSpeechPcm, encodeSpeechWav } from "@moguri-dev/sdk";
 
 export interface CaptureLease { id: string; token: string }
 export interface CaptureRecorder { ready?: Promise<void>; finish(): Promise<Float32Array>; discard(): Promise<void> }

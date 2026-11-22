@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import {
   envLabel, isModelReadinessReportCurrent, type ModelReadinessMode, type ModelReadinessReport, type ModelReadinessTarget,
   type ReadinessEvidence, type ReadinessNumberFact, type ReadinessTextFact,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { SettingsHelp } from "./SettingsFields.tsx";
 

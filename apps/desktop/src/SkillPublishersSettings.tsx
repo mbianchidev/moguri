@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { outcomeLabel, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { outcomeLabel, type MoguriSdk, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 import { SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";

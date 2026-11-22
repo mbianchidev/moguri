@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsHelp } from "./SettingsFields.tsx";
 import { useState } from "react";
-import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Snapshot } from "@moguri-dev/sdk";
 import { useSessionActions } from "./SessionActions.tsx";
 import { Alert } from "./Alert.tsx";
 

@@ -8,19 +8,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   defaultBoard, defaultProjectConfiguration, factoryControls, isRecord, projectEvents, PROTOCOL_VERSION, type CapabilityJob, type CommandResult,
   type EventInput, type LocalIssue, type Snapshot,
-} from "../packages/protocol/src/index.ts";
+} from "@moguri-dev/sdk/testing";
 import {
   isLinearCommand, isLinearQuery, projectLinearOperation, type LinearCommand, type LinearOperation, type LinearPreview,
   type LinearSnapshot, type LinearWorkflowInput,
-} from "../packages/protocol/src/linear-workflows.ts";
-import { LinearWorkflows } from "../apps/service/src/linear-workflows.ts";
-import { ProjectIntegrations } from "../apps/service/src/project-integrations.ts";
-import type { WorkspaceFinish } from "../apps/service/src/session-workspace.ts";
-import { digest, EventStore } from "../apps/service/src/store.ts";
+} from "@moguri-dev/sdk/testing";
+import { LinearWorkflows } from "@moguri-dev/sdk/testing";
+import { ProjectIntegrations } from "@moguri-dev/sdk/testing";
+import type { WorkspaceFinish } from "@moguri-dev/sdk/testing";
+import { digest, EventStore } from "@moguri-dev/sdk/testing";
 import { removePost44FixtureMarkers } from "./fixtures/legacy-state.ts";
-import type { WorkflowHost } from "../apps/service/src/workflow-host.ts";
+import type { WorkflowHost } from "@moguri-dev/sdk/testing";
 import { LinearWorkflowPanel } from "../apps/desktop/src/LinearWorkflowPanel.tsx";
-import { MoguriSdk } from "../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import {
   GeneratedLinear, GeneratedLinearVault as Vault, linearFixtureIds as ids, LINEAR_FIXTURE_TIME as T0,
   LINEAR_FIXTURE_TOKEN as generatedToken, linearFixtureNodes as nodes, linearFixtureTimestamp as tick,

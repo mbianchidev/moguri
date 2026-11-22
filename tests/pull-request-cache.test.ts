@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cachedItems, readCachedPullRequests, saveCachedPullRequests } from "../apps/desktop/src/pull-request-cache.ts";
-import type { GithubItem } from "../packages/sdk/src/index.ts";
+import type { GithubItem } from "@moguri-dev/sdk";
 
 class GeneratedStorage {
   values = new Map<string, string>();

@@ -5951,20 +5951,18 @@ npm run typecheck
 npm run build
 npm test
 npm run test:e2e
-npm run verify:sdk
-npm run spike:workspace
 npm run spike:sessions
-npm run spike:models
-npm run spike:engagement
-npm run spike:runtime
-npm run spike:remote
 npm run spike
 npm audit --audit-level=moderate
 ```
 
+The SDK's packed-package check (`verify:sdk`) and its workspace, model,
+engagement, runtime and SSH spikes run in
+[moguri-sdk](https://github.com/moguri-dev/moguri-sdk).
+
 Build before running the test suite on a clean checkout. Compiled CLI and
-worker integration tests exercise `dist/cli.mjs` and other actual bundled
-entrypoints; dependency installation does not create them. Main-only CI follows
+TUI integration tests exercise `dist/cli.mjs` and the installed SDK's worker
+bundles; dependency installation does not build the clients. Main-only CI follows
 the same build-before-test order on both runners.
 
 Focused checks use `node --import tsx --test tests/<name>.test.ts`. The native

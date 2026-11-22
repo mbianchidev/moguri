@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PathField, localPath } from "./PathField.tsx";
-import { builtinClashNotice, type GatewaySkill, type MoguriSdk, type SkillSource } from "../../../packages/sdk/src/index.ts";
+import { builtinClashNotice, type GatewaySkill, type MoguriSdk, type SkillSource } from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";

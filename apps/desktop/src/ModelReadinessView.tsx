@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { envLabel, isModelReadinessReportCurrent, modelReadinessTargetsMatch,
   type ModelInfo, type ModelReadinessMode, type ModelReadinessReport, type ModelReadinessTarget,
-  type ModelRuntimePreview, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+  type ModelRuntimePreview, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { ModelReadinessPanel, type ModelReadinessPanelProbe } from "./ModelReadinessPanel.tsx";
 import { Alert } from "./Alert.tsx";
 

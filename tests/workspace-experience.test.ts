@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { MoguriSdk } from "../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { searchSettings } from "../apps/desktop/src/settings-catalog.ts";
 import { setupFixture } from "./fixture.ts";
 

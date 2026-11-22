@@ -1,7 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { IntegrationTitle } from "./IntegrationLogo.tsx";
-import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { GitHubConnection, LinearConnection, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal?: () => void }) {

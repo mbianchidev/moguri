@@ -2,8 +2,8 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { startService } from "@moguri-dev/sdk/testing";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");

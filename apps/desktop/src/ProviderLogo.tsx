@@ -25,7 +25,7 @@
  * SOFTWARE.
  */
 import { Children, type ReactNode } from "react";
-import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, type ModelProvider } from "../../../packages/sdk/src/index.ts";
+import { CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, type ModelProvider } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { InfoTip } from "./Tooltip.tsx";
 

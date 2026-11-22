@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { openSettingsSection } from "./navigation.ts";

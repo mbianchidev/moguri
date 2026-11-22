@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk, type StoredEvent } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, type StoredEvent } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 import { openSettingsSection } from "./navigation.ts";

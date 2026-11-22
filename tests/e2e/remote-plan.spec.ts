@@ -3,7 +3,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { isRecord } from "../../packages/sdk/src/index.ts";
+import { isRecord } from "@moguri-dev/sdk";
 import { remotePlanFixture } from "../fixtures/remote-plan-service.ts";
 import { createRemoteFrameGate } from "../fixtures/remote-frame-gate.ts";
 

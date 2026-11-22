@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { settingsRailEntries } from "../../apps/desktop/src/settings-catalog.ts";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";

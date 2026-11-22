@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, RemoteMcpPreview, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, RemoteMcpPreview, Session, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function RemoteMcpPanel({ sdk, snapshot, session, serverId, disabled }: {

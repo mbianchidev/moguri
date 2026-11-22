@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { effectiveWebAllowances, type MoguriSdk, type Project, type Session, type Snapshot, type WebScope } from "../../../packages/sdk/src/index.ts";
+import { effectiveWebAllowances, type MoguriSdk, type Project, type Session, type Snapshot, type WebScope } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";

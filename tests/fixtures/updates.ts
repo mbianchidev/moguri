@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { chmod, mkdir, symlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { bundleTreeSha512 } from "../../apps/service/src/bundle-tree.ts";
-import type { UpdateManifest } from "../../packages/protocol/src/application-updates.ts";
+import { bundleTreeSha512 } from "@moguri-dev/sdk/testing";
+import type { UpdateManifest } from "@moguri-dev/sdk/testing";
 import { generatedZip, type GeneratedZipEntry } from "./documents.ts";
 
 export async function generatedApplication(directory: string, version = "0.31.0-alpha.1", arch: "arm64" | "x64" = "arm64") {

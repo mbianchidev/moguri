@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, MyWorkEntry, MyWorkFilters, MyWorkResponse, MyWorkSourcePreview, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, MyWorkEntry, MyWorkFilters, MyWorkResponse, MyWorkSourcePreview, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Inbox = Extract<MyWorkResponse, { type: "my_work.query" }>;

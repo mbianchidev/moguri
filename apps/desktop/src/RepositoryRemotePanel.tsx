@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { GithubPreview, MoguriSdk, Project, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { GithubPreview, MoguriSdk, Project, Snapshot } from "@moguri-dev/sdk";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { likelyQuestion } from "../apps/service/src/attention.ts";
+import { likelyQuestion } from "@moguri-dev/sdk/testing";
 import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
-import { MoguriSdk, type Snapshot, type StoredEvent } from "../packages/sdk/src/index.ts";
+import { MoguriSdk, type Snapshot, type StoredEvent } from "@moguri-dev/sdk";
 import { reviewNativeTools, setupFixture, waitFor } from "./fixture.ts";
 
 test("question hints work across languages and ignore fenced code, quotations, inline examples and URLs", () => {

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { factoryControls, type EventInput, type LocalIssue } from "../../packages/protocol/src/index.ts";
+import { factoryControls, type EventInput, type LocalIssue } from "@moguri-dev/sdk/testing";
 import { generatedNegotiationHistory } from "./negotiation-history.ts";
 
 export function generatedResponsiveHistory(sessionId: string, projectId: string): EventInput[] {

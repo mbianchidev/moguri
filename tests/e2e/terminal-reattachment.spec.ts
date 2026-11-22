@@ -2,13 +2,14 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { startService } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
+import { sdkPath } from "../fixtures/sdk-paths.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GHOSTTY_REATTACH_READY\\n');"],
-  brokerPath: resolve("dist/terminal-broker.mjs") };
+  brokerPath: sdkPath("dist/terminal-broker.mjs") };
 const launch = (stateDir: string) => electron.launch({
   executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
   env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" },

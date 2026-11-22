@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { compareSessions, isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { compareSessions, isRecord, MoguriError, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 

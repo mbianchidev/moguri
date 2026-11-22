@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PROTOCOL_VERSION } from "../../packages/sdk/src/index.ts";
+import { PROTOCOL_VERSION } from "@moguri-dev/sdk";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native upgrade confirmation qualification is macOS-only.");

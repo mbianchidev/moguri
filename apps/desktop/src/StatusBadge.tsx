@@ -1,4 +1,4 @@
-import type { StatusLabel } from "../../../packages/sdk/src/index.ts";
+import type { StatusLabel } from "@moguri-dev/sdk";
 
 /** Dot plus a text label from the shared status vocabulary; the tone only selects the status color role. */
 export function StatusBadge({ status, className, title }: { status: StatusLabel; className?: string; title?: string }) {

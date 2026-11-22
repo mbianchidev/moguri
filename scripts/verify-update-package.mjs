@@ -3,9 +3,10 @@ import { lstat, mkdir, mkdtemp, readFile, readlink, rm, stat } from "node:fs/pro
 import { basename, dirname, join, resolve } from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { parseArgs, promisify } from "node:util";
-import { stageUpdateArchive } from "../apps/service/src/update-archive.ts";
-import { parse, UpdateManifestSchema } from "../packages/protocol/src/index.ts";
-import { bundleTreeSha512, verifyBundleIdentity } from "../apps/service/src/bundle-tree.ts";
+import { stageUpdateArchive } from "@moguri-dev/sdk/testing";
+import { parse, UpdateManifestSchema } from "@moguri-dev/sdk";
+
+const { bundleTreeSha512, verifyBundleIdentity } = await import(new URL("dist/update-tools.mjs", import.meta.resolve("@moguri-dev/sdk/package.json")).href);
 import { verifyDmgLayout } from "./dmg-layout.ts";
 
 if (process.platform !== "darwin") throw new Error("Actual macOS update-package roundtrip is not Linux release qualification.");

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { setupFixture } from "../fixture.ts";
-import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriError, MoguriSdk } from "@moguri-dev/sdk";
 import { chooseContextWindow, chooseThinkingEffort, finishIdleSchedule, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);

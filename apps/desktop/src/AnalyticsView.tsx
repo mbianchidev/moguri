@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ANALYTICS_LANES, outcomeLabel, sessionStatusLabel, type StatusLabel, type AnalyticsEvent, type AnalyticsLane, type AnalyticsOverview, type AnalyticsSessionDetail, type AnalyticsSessionSummary, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { ANALYTICS_LANES, outcomeLabel, sessionStatusLabel, type StatusLabel, type AnalyticsEvent, type AnalyticsLane, type AnalyticsOverview, type AnalyticsSessionDetail, type AnalyticsSessionSummary, type MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 

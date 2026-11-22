@@ -1,4 +1,4 @@
-import type { MoguriSdk, ProviderState } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, ProviderState } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { ProviderCard, providerStatus } from "./ProviderLogo.tsx";
 

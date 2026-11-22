@@ -1,6 +1,6 @@
 import { SettingsHelp } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { CandidateRoleProposalRead, MoguriSdk, Session, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function CandidateRoleProposalPanel({ sdk, snapshot, session, scope, sourceRoot, writable, draftDirty, loadedSequenceId, onLoad }: {

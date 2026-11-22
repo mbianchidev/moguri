@@ -1,5 +1,5 @@
-import { ServiceStartupUnconfirmed, type ServiceStartupReview } from "../../../packages/sdk/src/node.ts";
-import type { Connection } from "../../../packages/sdk/src/index.ts";
+import { ServiceStartupUnconfirmed, type ServiceStartupReview } from "@moguri-dev/sdk/node";
+import type { Connection } from "@moguri-dev/sdk";
 
 export class DesktopServiceStartup {
   private task?: Promise<Connection>;

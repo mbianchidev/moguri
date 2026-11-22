@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { activeProjectWork, claimedProjectWork, compareIssues, defaultBoard, githubManagedIssue, githubSyncSettings, issuePosition, kanbanPreferences, type IssueInput, type IssueKind, type IssuePosition, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeProjectWork, claimedProjectWork, compareIssues, defaultBoard, githubManagedIssue, githubSyncSettings, issuePosition, kanbanPreferences, type IssueInput, type IssueKind, type IssuePosition, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";

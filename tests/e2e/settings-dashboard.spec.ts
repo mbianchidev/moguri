@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { isRecord, MoguriError, MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriError, MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { profileFixture } from "../fixtures/profiles.ts";
 import { focusByKeyboard, openSettingsSection, waitForWorkspace } from "./navigation.ts";

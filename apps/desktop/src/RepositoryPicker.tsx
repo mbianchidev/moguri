@@ -1,4 +1,4 @@
-import type { Session } from "../../../packages/sdk/src/index.ts";
+import type { Session } from "@moguri-dev/sdk";
 
 export function RepositoryPicker({ session, value, change, label }: {
   session: Session; value: string; change: (repository: string) => void; label: string;

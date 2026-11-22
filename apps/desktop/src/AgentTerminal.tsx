@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useSessionActivity } from "../../../packages/sdk/src/react.ts";
-import { envLabel, sessionBackgroundWork, sessionTitle, type ActivityResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { useSessionActivity } from "@moguri-dev/sdk/react";
+import { envLabel, sessionBackgroundWork, sessionTitle, type ActivityResponse, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { activityDuration, activityStarted, CurrentActivity } from "./ChatActivity.tsx";
 import { GhosttyOutput } from "./GhosttyTerminal.tsx";
 import { CommandJobs } from "./CommandJobs.tsx";

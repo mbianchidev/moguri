@@ -5,14 +5,14 @@ service is the only durable writer; the SDK exposes its typed commands,
 queries, sequenced events, optimistic revisions and cancellation. Electron does
 not own a second agent loop, settings store or provider connection.
 
-Clients reach the SDK only through its four entrypoints: the browser-safe root
-(`moguri`), `moguri/node`, `moguri/react` and `moguri/mcp`
-(`tests/client-sdk-boundary.test.ts`). Per
-[D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)
-the SDK moves with its history to private `moguri-dev/moguri-sdk` and ships as
-`@moguri-dev/sdk`; that repository becomes the source of truth once
-[#93](https://github.com/mbianchidev/moguri/issues/93) swaps the clients to the
-package. Protocol **121** accepts update manifests from either release
+The SDK ships as the private `@moguri-dev/sdk` package from
+[moguri-sdk](https://github.com/moguri-dev/moguri-sdk), its source of truth
+([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
+Clients reach it only through its supported entrypoints: the browser-safe root
+(`@moguri-dev/sdk`), `@moguri-dev/sdk/node`, `@moguri-dev/sdk/react`,
+`@moguri-dev/sdk/mcp` and `@moguri-dev/sdk/remote-bridge`
+(`tests/client-sdk-boundary.test.ts`). This page documents the SDK from the
+clients' side together with the `moguri` CLI. Protocol **121** accepts update manifests from either release
 repository and reports a Homebrew update manager in `UpdateStatus.manager`.
 
 Current source uses protocol **103** for
@@ -552,7 +552,7 @@ browser. Only Local is qualified for this capability.
 
 `sessions.progress(sessionId)` reads the explicit current model plan when present,
 otherwise the separately bound workspace-file checklist, and compares it with
-optional owning-model advice. `useTaskProgress` in `moguri/react` refreshes
+optional owning-model advice. `useTaskProgress` in `@moguri-dev/sdk/react` refreshes
 every 15 seconds without overlapping polls or model calls. CLI
 `moguri progress --session ID` and `/progress` expose the same typed observation.
 Unknown, stale and disagreeing estimates never change actual lifecycle outcomes.
@@ -1065,7 +1065,7 @@ The optional session binds actual profile/project/Local scope; omitting it is
 an explicit user control-plane preview, not an inherited project. Configured
 source discovery on Remote/Sandbox agents remains unqualified.
 
-The `moguri/mcp` entrypoint adds `moguri_find_skills` and `moguri_read_skill` to
+The `@moguri-dev/sdk/mcp` entrypoint adds `moguri_find_skills` and `moguri_read_skill` to
 the existing single stdio gateway. It binds its own session, rejects foreign
 authority fields and exposes no source-configuration or self-approval tools.
 SDK/MCP cancellation propagates through the authenticated request into the
@@ -1273,7 +1273,7 @@ counts preserve partial totals without treating missing reports as zero.
 Explicit zero needs presence evidence; positive normalized counts do not depend
 on transport presence flags. No private role prompts or reasoning are exposed.
 
-`useSessionActivity` in `moguri/react` provides scoped, non-overlapping refresh,
+`useSessionActivity` in `@moguri-dev/sdk/react` provides scoped, non-overlapping refresh,
 earlier-page loading and stale-response isolation. No refresh runs a model,
 tool, provider metadata lookup or terminal. Thought sources are already-public
 provider reasoning only; request time is not separate thinking time.
@@ -1428,7 +1428,7 @@ dependencies, the embedding application's root manifest can use:
 ```json
 {
   "overrides": {
-    "moguri": {
+    "@moguri-dev/sdk": {
       "encoding-sniffer": "1.0.2",
       "node-fetch": "npm:node-fetch-native@1.6.7"
     }
@@ -1904,18 +1904,19 @@ steps. A file-tarball dependency is approved by package name rather than a
 registry-version selector. Do not approve unused provider lifecycle scripts.
 
 For an installed file tarball, complete its reviewed native-helper setup with
-`npm install-scripts approve moguri` then `npm rebuild moguri`.
+`npm install-scripts approve @moguri-dev/sdk` then `npm rebuild @moguri-dev/sdk`.
 The approval command resolves the package name to that exact file dependency;
 an unapproved install notice is not proof that its postinstall ran.
 
 | Import | Surface |
 | --- | --- |
-| `moguri` | Browser-safe `MoguriSdk`, typed protocol, defaults, `DraftEditor`, ASCII identity |
-| `moguri/node` | `connectMoguri`, `createRuntime`, private service discovery and explicit owned-service shutdown |
-| `moguri/react` | Renderer-independent `useMoguri` subscription hook |
-| `moguri/mcp` | The single outward native MCP server, bound to one session |
+| `@moguri-dev/sdk` | Browser-safe `MoguriSdk`, typed protocol, defaults, `DraftEditor`, ASCII identity |
+| `@moguri-dev/sdk/node` | `connectMoguri`, `createRuntime`, private service discovery and explicit owned-service shutdown |
+| `@moguri-dev/sdk/react` | Renderer-independent `useMoguri` subscription hook |
+| `@moguri-dev/sdk/mcp` | The single outward native MCP server, bound to one session |
 
-`npm run verify:sdk` packs and installs into a separate temporary consumer,
+In [moguri-sdk](https://github.com/moguri-dev/moguri-sdk), `npm run verify:sdk`
+packs and installs into a separate temporary consumer,
 type-checks all four entrypoints without the repository's tsconfig, and runs an
 embedded service with real vector retrieval and native MCP discovery. It also
 exercises the packed package's actual PTY transport on macOS after explicit
@@ -1933,7 +1934,7 @@ reattaching or continuing an old worker.
 ## Connect to the shared service
 
 ```ts
-import { connectMoguri } from "moguri/node";
+import { connectMoguri } from "@moguri-dev/sdk/node";
 
 const sdk = await connectMoguri();
 try {
@@ -1955,7 +1956,7 @@ response does not authorize an automatic resend.
 Embedding is explicit:
 
 ```ts
-import { createRuntime, connectMoguri } from "moguri/node";
+import { createRuntime, connectMoguri } from "@moguri-dev/sdk/node";
 
 const stateDir = "/absolute/private/moguri-state";
 const runtime = await createRuntime({ stateDir });
@@ -2801,7 +2802,7 @@ Navigation attachment alone never grants another parent's context.
 ### Held prompts, modes and retained plans
 
 ```ts
-import { DraftEditor } from "moguri";
+import { DraftEditor } from "@moguri-dev/sdk";
 
 const session = sdk.getState().snapshot?.sessions.find((item) => item.id === sessionId);
 if (!session) throw new Error("Choose a session.");
@@ -3200,7 +3201,7 @@ diagnostic without creating a job, artifact or model call. It never borrows a
 previous project. Direct manual/generated/compound commands enforce this too.
 
 ```ts
-import type { CandidatePatch } from "moguri";
+import type { CandidatePatch } from "@moguri-dev/sdk";
 
 const base = await sdk.workspaces.file(sourceSessionId, "src/example.ts");
 const patch: CandidatePatch = {

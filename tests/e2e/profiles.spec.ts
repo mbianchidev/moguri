@@ -8,7 +8,7 @@ import { waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
-const packagedWorker = process.env.MOGURI_TEST_APP ? resolve(process.env.MOGURI_TEST_APP, "../../Resources/app/dist/worker.mjs") : undefined;
+const packagedWorker = process.env.MOGURI_TEST_APP ? resolve(process.env.MOGURI_TEST_APP, "../../Resources/app/node_modules/@moguri-dev/sdk/dist/worker.mjs") : undefined;
 test.skip(process.platform !== "darwin", "Profile UI execution is qualified on macOS.");
 const launch = (stateDir: string, profileId = "default") => electron.launch({
   executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],

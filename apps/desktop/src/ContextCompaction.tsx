@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CompactionPreview, CompactionResponse, ContextCompaction, MoguriSdk, Session, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { envLabel, isAgentHarnessModel } from "../../../packages/sdk/src/index.ts";
+import type { CompactionPreview, CompactionResponse, ContextCompaction, MoguriSdk, Session, Snapshot } from "@moguri-dev/sdk";
+import { envLabel, isAgentHarnessModel } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 

@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { CHAT_TITLE_PROMPT, CHAT_TITLE_REFRESH_PROMPT, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { CHAT_TITLE_PROMPT, CHAT_TITLE_REFRESH_PROMPT, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);

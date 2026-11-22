@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { KUPO_MODEL_ID } from "../../packages/sdk/src/index.ts";
+import { KUPO_MODEL_ID } from "@moguri-dev/sdk";
 import { reviewNativeTools } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { generatedDocx } from "../fixtures/documents.ts";

@@ -22,10 +22,10 @@ export default defineConfig({
   plugins: [react(), externalGhosttyWasm()],
   build: {
     outDir: "../../dist/desktop/renderer", emptyOutDir: true, target: "chrome148",
-    // Splitting the shared protocol/SDK code needs strict order: its schemas reference each other across modules.
+    // The installed SDK is one prebuilt module; keep it in its own chunk, in strict order with the code that uses it.
     // Keep `/*! @license */` notices, such as the vendored provider marks' MIT notice, in the shipped renderer.
     rolldownOptions: { output: { comments: { legal: true, annotation: false, jsdoc: false }, strictExecutionOrder: true, codeSplitting: { groups: [
-      { name: "shared", test: /[\\/]packages[\\/](?:protocol|sdk|client)[\\/]src[\\/]/, maxSize: 450 * 1024 },
+      { name: "shared", test: /[\\/]node_modules[\\/]@moguri-dev[\\/]sdk[\\/]/ },
     ] } } },
   },
 });

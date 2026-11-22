@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useState } from "react";
-import { generatedBranchName, type MoguriSdk, type Project, type ProjectSettings, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { generatedBranchName, type MoguriSdk, type Project, type ProjectSettings, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 

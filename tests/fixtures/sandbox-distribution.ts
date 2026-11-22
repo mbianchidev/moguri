@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PROTOCOL_VERSION, type SandboxDistribution, type SandboxVendor } from "../../packages/sdk/src/index.ts";
-import { SENDBOX_027 } from "../../apps/service/src/sandbox-distribution.ts";
+import { PROTOCOL_VERSION, type SandboxDistribution, type SandboxVendor } from "@moguri-dev/sdk";
+import { SENDBOX_027 } from "@moguri-dev/sdk/testing";
 
 export async function generatedSandboxDistribution(vendor: Omit<SandboxVendor, "installer"> = SENDBOX_027) {
   const directory = await realpath(await mkdtemp(join(tmpdir(), "moguri-generated-sandbox-distribution-")));

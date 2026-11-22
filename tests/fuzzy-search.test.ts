@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fuzzyMatch, wordMatch } from "../packages/protocol/src/search.ts";
+import { fuzzyMatch, wordMatch } from "@moguri-dev/sdk/testing";
 import { searchSettings } from "../apps/desktop/src/settings-catalog.ts";
 
 test("shared fuzzy matching is case-insensitive, ordered and literal on both query and name", () => {

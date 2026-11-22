@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { runningSessionNames, runningSessions, sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, type SessionChildrenAction, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { runningSessionNames, runningSessions, sessionChildBindings, sessionSubtree, type MoguriSdk, type Session, type SessionChildrenAction, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Action = "archive" | "delete" | "detach";

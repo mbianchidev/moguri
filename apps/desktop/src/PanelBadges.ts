@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { githubItemIdentity, sessionBackgroundWork, sessionPullRequestUrls, type MoguriSdk, type Session, type SessionPanel, type Snapshot } from "../../../packages/sdk/src/index.ts";
-import { useTaskProgress } from "../../../packages/sdk/src/react.ts";
+import { githubItemIdentity, sessionBackgroundWork, sessionPullRequestUrls, type MoguriSdk, type Session, type SessionPanel, type Snapshot } from "@moguri-dev/sdk";
+import { useTaskProgress } from "@moguri-dev/sdk/react";
 
 export interface PanelBadge { value: string; hint: string }
 export type PanelBadges = Partial<Record<SessionPanel, PanelBadge>>;

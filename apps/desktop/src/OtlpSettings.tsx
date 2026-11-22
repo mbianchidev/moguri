@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, OtlpConfiguration, OtlpExportStatus, OtlpReview } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, OtlpConfiguration, OtlpExportStatus, OtlpReview } from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 

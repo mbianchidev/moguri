@@ -6,7 +6,7 @@ import { setupRemoteDecisions } from "../fixtures/decisions-api.ts";
 import { remoteWinddownApiFixture } from "../fixtures/winddown-api.ts";
 import { openSettingsSection } from "./navigation.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
-import { MoguriError } from "../../packages/sdk/src/index.ts";
+import { MoguriError } from "@moguri-dev/sdk";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Owned SSH/native model transports use generated macOS fixtures.");

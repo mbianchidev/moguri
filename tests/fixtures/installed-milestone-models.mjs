@@ -54,8 +54,8 @@ const provider = { state: { status: "disconnected", models: [], login: null, dia
 const values = new Map(), vault = { read: async (id) => values.get(id) ?? null,
   write: async (id, value) => { values.set(id, value); }, remove: async (id) => { values.delete(id); } };
 let runtime, sdk;
-const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { PROTOCOL_VERSION, KUPO_MODEL_ID, configuredReadinessModels } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { PROTOCOL_VERSION, KUPO_MODEL_ID, configuredReadinessModels } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 const options = { stateDir, retentionKey: Buffer.alloc(32, 0x62), provider, platform: { vault,
   terminal: { vault, defaultRoot: home, executable: process.execPath, args: ["-e", "process.stdin.resume()"] },
   sandbox: { setup: { automatic: false } } } };

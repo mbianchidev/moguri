@@ -1,4 +1,4 @@
-import { audioFromBase64, validateNotificationWav } from "../../../packages/sdk/src/index.ts";
+import { audioFromBase64, validateNotificationWav } from "@moguri-dev/sdk";
 
 export class NotificationAudio {
   private generation = 0;

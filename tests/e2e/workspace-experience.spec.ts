@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { setupFixture } from "../fixture.ts";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { focusByKeyboard, waitForWorkspace, openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);

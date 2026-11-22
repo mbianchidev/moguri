@@ -1,4 +1,4 @@
-import type { EventInput } from "../../packages/protocol/src/index.ts";
+import type { EventInput } from "@moguri-dev/sdk/testing";
 
 export function generatedNegotiationHistory(sessionId: string, projectId: string | null, finalText: string, profileId = "default"): EventInput[] {
   const text = "Generated retained handshake history. ".repeat(1650);

@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { builtinClashNotice, skillListGroups, type GatewaySkill, type MoguriSdk, type SkillListGroup, type SkillListItem, type SkillSourceFailure, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { builtinClashNotice, skillListGroups, type GatewaySkill, type MoguriSdk, type SkillListGroup, type SkillListItem, type SkillSourceFailure, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 

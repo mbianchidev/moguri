@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { DraftEditor, envLabel, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "../../../packages/sdk/src/index.ts";
+import { DraftEditor, envLabel, type BrowserState, type MoguriSdk, type Session, type Snapshot, type PlanBinding } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { ChatComposer } from "./ChatComposer.tsx";
 import { TaskPlanPanel } from "./TaskProgress.tsx";

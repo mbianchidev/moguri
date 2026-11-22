@@ -2413,6 +2413,23 @@ valid and older readers refuse the newer store. Revisit if GitHub changes how
 renamed repositories redirect, the owner picks a different repository name, or
 Sendbox moves after all.
 
+**SDK extraction, 2026-11-23.** `moguri-dev/moguri-sdk` carries `packages/`,
+`apps/service/`, the 453 SDK test files with their fixtures, the SDK scripts and
+docs, with history from `5652dd8`. Its `@moguri-dev/sdk` 0.32.0-alpha.1 package
+also provides `./remote-bridge` (and a `moguri-worker` bin) for SSH hosts,
+`./sandbox-distribution` for packaging clients, and an unstable `./testing`
+entry. The testing entry re-exports the service internals client test suites
+drive directly (`startService`, `EventStore` and about 130 more); it carries no
+compatibility promise and product code must not import it. The `node`, `react`
+and `mcp` entries share the root bundle, so combined entrypoints load one SDK
+instance. The service pins the packaged app by the bundle's own version, since
+the desktop now versions independently, and accepts the service either in
+`dist/` or in `node_modules/@moguri-dev/sdk`. Packaged apps keep small
+`dist/service.mjs` and `dist/update-installer.mjs` markers so updaters from
+before the split still accept the new layout. This repository consumes the
+exact pin from GitHub Packages; CI uses the `MOGURI_PACKAGES_TOKEN` secret. No
+protocol or schema change.
+
 ## Still open
 
 Earlier SendBox releases were qualified and superseded; their receipts are

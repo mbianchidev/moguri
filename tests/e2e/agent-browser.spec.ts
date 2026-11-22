@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { dirname, join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import sharp from "sharp";
-import { MoguriSdk, MoguriError, isRecord } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, MoguriError, isRecord } from "@moguri-dev/sdk";
 import { setupFixture, type GeneratedProviderOptions } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);

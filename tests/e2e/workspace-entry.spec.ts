@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { cloneRepositoryFixture } from "../fixtures/clone-repository.ts";
 import { openModelChoices, waitForWorkspace, openProjectMenu } from "./navigation.ts";

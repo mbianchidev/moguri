@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { GithubAction, GithubItem, GithubPreview, GithubScope, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { GithubAction, GithubItem, GithubPreview, GithubScope, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 /** `after` receives the resource GitHub acknowledged, for example the pull request a revert opened. */

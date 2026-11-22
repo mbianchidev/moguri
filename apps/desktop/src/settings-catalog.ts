@@ -1,4 +1,4 @@
-import { fuzzyMatch } from "../../../packages/sdk/src/index.ts";
+import { fuzzyMatch } from "@moguri-dev/sdk";
 
 // Settings pages (docs/design.md#settings-rail-structure). The rail lists only the groups; each group is one page that shows all
 // of its items as sections. Item ids are stable deep-link targets: openSettings, policy hints and restored layouts scroll to an item.

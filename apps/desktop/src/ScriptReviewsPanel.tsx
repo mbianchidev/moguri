@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { scriptReviewNeedsApproval, type MoguriSdk, type ScriptReviewResponse, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { scriptReviewNeedsApproval, type MoguriSdk, type ScriptReviewResponse, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { SourceIndicators } from "./SourceIndicators.tsx";
 

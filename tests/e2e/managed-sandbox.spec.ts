@@ -2,12 +2,12 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { defaultSandboxManagement, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { defaultSandboxManagement, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { generatedSandboxDistribution } from "../fixtures/sandbox-distribution.ts";
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";
-import { frameDigest } from "../../apps/service/src/worker-wire.ts";
+import { frameDigest } from "@moguri-dev/sdk/testing";
 import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);

@@ -4,7 +4,7 @@ import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { MOGURI_RELEASE_REPOSITORIES } from "../packages/protocol/src/application-updates.ts";
+import { MOGURI_RELEASE_REPOSITORIES } from "@moguri-dev/sdk/testing";
 import { assetNames, fileDigest, RELEASE_REPOSITORIES, releaseRepository, REPOSITORY, stageAssets, verifyAssets } from "../scripts/release/assets.mjs";
 
 const version = "0.33.0-alpha.1", identity = { version, tag: `v${version}`, prerelease: true, commit: "a".repeat(40), tree: "b".repeat(40) };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Snapshot } from "@moguri-dev/sdk";
 import { SandboxSetupPanel } from "./SandboxSetupPanel.tsx";
 
 const unchanged = () => {};

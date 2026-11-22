@@ -3,8 +3,8 @@ import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { audioBase64, defaultNotificationWav, encodeSpeechWav, MAX_NOTIFICATION_AUDIO_BYTES, validateNotificationWav } from "../packages/sdk/src/index.ts";
-import { loadNotificationSoundFile } from "../packages/sdk/src/node.ts";
+import { audioBase64, defaultNotificationWav, encodeSpeechWav, MAX_NOTIFICATION_AUDIO_BYTES, validateNotificationWav } from "@moguri-dev/sdk";
+import { loadNotificationSoundFile } from "@moguri-dev/sdk/node";
 import { NotificationAudio } from "../apps/desktop/src/notification-audio.ts";
 
 test("original generated defaults are distinct bounded PCM and file loading rejects links, malformed headers and excess duration", async () => {

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { githubItemIdentity, githubSourceOwner, type GithubAction, type GithubBrowse, type GithubItem, type GithubResponse, type GithubScope,
-  type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+  type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { GitHubStateIcon, githubStateMark, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
 import { AnchoredMenu } from "./AnchoredMenu.tsx";

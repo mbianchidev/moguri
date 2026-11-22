@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { SCRIPT_TOOL_CONTRACT, TOOL_SCRIPT_NAME, toolScriptPrompt, type CapabilityEntry, type GatewaySkill, type MoguriSdk, type Proposal, type Snapshot, type ToolsetCatalog, type ToolSuggestion, type UserSettings } from "../../../packages/sdk/src/index.ts";
+import { SCRIPT_TOOL_CONTRACT, TOOL_SCRIPT_NAME, toolScriptPrompt, type CapabilityEntry, type GatewaySkill, type MoguriSdk, type Proposal, type Snapshot, type ToolsetCatalog, type ToolSuggestion, type UserSettings } from "@moguri-dev/sdk";
 import { McpInstallPanel } from "./McpInstallPanel.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";

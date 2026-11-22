@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useTaskProgress } from "../../../packages/sdk/src/react.ts";
-import type { MoguriSdk, Session, TaskProgress } from "../../../packages/sdk/src/index.ts";
+import { useTaskProgress } from "@moguri-dev/sdk/react";
+import type { MoguriSdk, Session, TaskProgress } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 

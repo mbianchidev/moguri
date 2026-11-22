@@ -4,7 +4,7 @@ import { StartupWorkspace } from "./StartupWorkspace.tsx";
 import { SelectSearch } from "./SelectSearch.tsx";
 import type { StartupView } from "./startup-cache.ts";
 import type { AppProps } from "./App.tsx";
-import type { MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk } from "@moguri-dev/sdk";
 import type { DesktopStartupPhase } from "./bridge.d.ts";
 import "./styles.css";
 
@@ -23,7 +23,7 @@ function DesktopStartup() {
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
       const [{ App }, loaded] = await Promise.all([import("./App.tsx"), (async () => {
         const [sdk, cache, connection] = await Promise.all([
-          import("../../../packages/sdk/src/index.ts"), import("./startup-cache.ts"), window.moguri.connection(),
+          import("@moguri-dev/sdk"), import("./startup-cache.ts"), window.moguri.connection(),
         ]);
         if (!active || failed) return null;
         let profileId = context.profileId, cached: StartupView | null = null;

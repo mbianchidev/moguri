@@ -5,9 +5,9 @@ import { execFileSync } from "node:child_process";
 import { appendFile, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
-import { isRecord, KUPO_MODEL_ID, PROTOCOL_VERSION, type Controls } from "../../packages/sdk/src/index.ts";
-import { frameDigest } from "../../apps/service/src/worker-wire.ts";
-import { remoteRootLease } from "../../apps/service/src/remote.ts";
+import { isRecord, KUPO_MODEL_ID, PROTOCOL_VERSION, type Controls } from "@moguri-dev/sdk";
+import { frameDigest } from "@moguri-dev/sdk/testing";
+import { remoteRootLease } from "@moguri-dev/sdk/testing";
 import { routedFixture } from "./single-routing.ts";
 import { generatedDocx } from "./documents.ts";
 import { nativeConfiguration } from "./native-target.ts";
@@ -301,11 +301,12 @@ export async function runSourceMatrix(t: TestContext, options: { method: MatrixM
   try {
     await mkdir(matrixDirectory, { recursive: true });
     await writeFile(journalPath, `${JSON.stringify({ version: 2, method, startedAt, sourceStatus: "RUNNING", nativeStatus: "UNQUALIFIED", axes: milestoneAxes })}\n`, { flag: "wx" });
-    const paths = ["package.json", "package-lock.json", "scripts/worker-image/Containerfile",
-      "apps/service/src/worker.ts", "apps/service/src/remote-bridge.ts", "dist/worker.mjs", "dist/remote-bridge.mjs",
+    const sdk = "node_modules/@moguri-dev/sdk/";
+    const paths = ["package.json", "package-lock.json", `${sdk}package.json`, `${sdk}scripts/worker-image/Containerfile`,
+      `${sdk}dist/worker.mjs`, `${sdk}dist/remote-bridge.mjs`,
       "apps/desktop/src/BudgetControls.tsx", "apps/desktop/src/SettingsPanel.tsx",
-      "dist/mcp-worker.mjs", "dist/data-worker.mjs", "dist/service.mjs", "dist/cli.mjs", "dist/tui.mjs",
-      "dist/runtime.mjs", "dist/sdk/index.mjs", "dist/desktop/main.mjs", "dist/desktop/renderer/index.html",
+      `${sdk}dist/mcp-worker.mjs`, `${sdk}dist/data-worker.mjs`, `${sdk}dist/service.mjs`, "dist/cli.mjs", "dist/tui.mjs",
+      `${sdk}dist/runtime.mjs`, `${sdk}dist/sdk/index.mjs`, "dist/desktop/main.mjs", "dist/desktop/renderer/index.html",
       ...(await readdir("dist/desktop/renderer/assets")).sort().map((name) => `dist/desktop/renderer/assets/${name}`),
       "tests/fixtures/single-routing.ts", "tests/fixtures/milestone-combinations.ts", "tests/fixtures/milestone-runner.ts",
       ...coveringInputs(method), options.caseFile,
@@ -404,8 +405,9 @@ export async function runNativeMatrix(t: TestContext, options: {
     await mkdir(matrixDirectory, { recursive: true });
     await writeFile(journalPath, `${JSON.stringify({ version: 2, method, startedAt,
       ...(groupMode ? { nativeGroupStatus: "RUNNING" } : { nativeNominalStatus: "RUNNING" }), axes: milestoneAxes })}\n`, { flag: "wx" });
-    const inputs = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
-      "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile", "apps/service/src/native-evidence.ts",
+    const sdk = "node_modules/@moguri-dev/sdk/";
+    const inputs = ["package.json", "package-lock.json", `${sdk}package.json`, `${sdk}dist/worker.mjs`, `${sdk}dist/remote-bridge.mjs`, `${sdk}dist/mcp-worker.mjs`,
+      `${sdk}dist/service.mjs`, `${sdk}dist/runtime.mjs`, `${sdk}dist/sdk/index.mjs`, `${sdk}scripts/worker-image/Containerfile`,
       options.caseFile, "tests/fixtures/milestone-runner.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
       "tests/fixture.ts", "tests/fixtures/native-milestone-api.ts", ...coveringInputs(method),
       "tests/fixtures/milestone-combinations.ts", "tests/fixtures/milestone-response.ts", "tests/fixtures/native-milestone-provider.mjs"];

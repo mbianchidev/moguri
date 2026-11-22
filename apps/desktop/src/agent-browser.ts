@@ -1,6 +1,6 @@
 import type { WebContents } from "electron";
 import { randomBytes, randomUUID } from "node:crypto";
-import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type BrowserState, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type BrowserState, type MoguriSdk } from "@moguri-dev/sdk";
 
 const pointFunction = `function() {
   if (!(this instanceof HTMLElement) || !this.isConnected || this.closest('[inert]') || this.disabled) throw Error('The exact browser element is unavailable or disabled. Take a fresh snapshot.');

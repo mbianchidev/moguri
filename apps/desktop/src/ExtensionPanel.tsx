@@ -4,7 +4,7 @@ import { IntegrationTitle } from "./IntegrationLogo.tsx";
 import {
   HookDefinitionSchema, MarketplaceInputSchema, MarketplaceSourceSchema, parse, type CapabilityEntry, type MarketplacePreview, type MarketplaceCatalogListing,
   type MoguriSdk, type Project, type Session, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty }: {

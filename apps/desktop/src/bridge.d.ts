@@ -1,4 +1,4 @@
-import type { ArtifactExport, BrowserState, Connection, SkillSource } from "../../../packages/sdk/src/index.ts";
+import type { ArtifactExport, BrowserState, Connection, SkillSource } from "@moguri-dev/sdk";
 import type { CliInstallationRequest, CliInstallationStatus } from "./cli-installation.ts";
 import type { StartupContext } from "./startup-cache.ts";
 import type { RendererTrayAction } from "./tray-menu.ts";
@@ -14,7 +14,7 @@ export interface DesktopStartupStatus {
   diagnostic: string | null;
 }
 export interface DesktopBridge {
-  previewHtml(input: import("../../../packages/sdk/src/index.ts").HtmlPreviewInput, profileId: string): Promise<void>;
+  previewHtml(input: import("@moguri-dev/sdk").HtmlPreviewInput, profileId: string): Promise<void>;
   onHtmlDismiss(listener: (attachmentId: string) => void): () => void;
   connection(): Promise<Connection>;
   startupContext(): Promise<StartupContext>;

@@ -149,7 +149,9 @@ release tooling working across the owner's transfer of this repository to
 Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
 child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
-part of #93 and does not close it.
+on `main` (#98). The second step consumes `@moguri-dev/sdk` 0.32.0-alpha.1 from
+`moguri-dev/moguri-sdk` and removes the embedded SDK. Neither closes #93; the
+TUI split and the Homebrew packages remain.
 
 ### Delivery notes, protocols 112 to 114
 

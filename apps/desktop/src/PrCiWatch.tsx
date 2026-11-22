@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   githubCiOperationMatches, githubSourceOwner, type GithubPullSource, type GithubPreview, type GithubResponse,
   type GithubScope, type MoguriSdk, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import type { GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
 

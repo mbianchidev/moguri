@@ -49,7 +49,7 @@ A normal run:
   2. Creates an owned worktree from fresh origin/main and bumps package.json and
      package-lock.json with npm version (no tag).
   3. Commits "release: VERSION" and runs the same checks as CI: npm ci, npm
-     audit, typecheck, build, npm test, verify:sdk and test:e2e. It then packages
+     audit, typecheck, build, npm test and test:e2e. It then packages
      the DMG and ZIP and verifies them with verify:update.
   4. Pushes release/vVERSION, opens a ready PR, watches any PR checks and
      merges it (squash, exact head) without admin bypass.
@@ -324,7 +324,6 @@ validate_and_package() {
   run_in "$dir" "Building" npm run build
   run_in "$dir" "Installing Playwright Chromium" npm exec -- playwright install chromium
   run_in "$dir" "Running the test suite" npm test
-  run_in "$dir" "Verifying the packed SDK" npm run verify:sdk
   run_in "$dir" "Running hidden desktop end-to-end tests" env MOGURI_TEST_WINDOW=hidden npm run test:e2e
   run_in "$dir" "Packaging the macOS app" node scripts/package.mjs
   run_in "$dir" "Verifying the update ZIP and DMG" npm run verify:update
@@ -396,7 +395,7 @@ open_pr() {
   local body
   body="Release bump for Moguri $VERSION, created by \`scripts/release.sh\`.
 
-Local validation on macOS arm64 passed for this exact tree: \`npm ci\`, \`npm audit --audit-level=moderate\`, \`npm run typecheck\`, \`npm run build\`, \`npm test\`, \`npm run verify:sdk\`, \`npm run test:e2e\`, packaging and \`npm run verify:update\`.
+Local validation on macOS arm64 passed for this exact tree: \`npm ci\`, \`npm audit --audit-level=moderate\`, \`npm run typecheck\`, \`npm run build\`, \`npm test\`, \`npm run test:e2e\`, packaging and \`npm run verify:update\`.
 
 After merge, the script waits for main CI on the merge commit, uploads a draft release built from it, pushes the annotated \`$TAG\` tag and watches the Release workflow, which verifies and publishes the draft."
   PR_URL="$(gh pr create --repo "$REPOSITORY" --base "$BASE_BRANCH" --head "$BRANCH" --title "release: $VERSION" --body "$body")" || die "Could not open the release PR."

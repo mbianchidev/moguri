@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ModelAdviceSource, MoguriSdk, UserQuestion } from "../../../packages/sdk/src/index.ts";
+import type { ModelAdviceSource, MoguriSdk, UserQuestion } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 

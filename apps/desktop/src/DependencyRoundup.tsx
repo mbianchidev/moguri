@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ROUNDUP_DEFAULT_BOTS, activeRoundupRun, describeAutomationSchedule, outcomeLabel,
   type AutomationSchedule, type MoguriSdk, type RoundupFilters, type RoundupResponse, type RoundupUpdate, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 

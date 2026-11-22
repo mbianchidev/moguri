@@ -6,8 +6,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { MoguriSdk, isRecord, MoguriError } from "../../packages/sdk/src/index.ts";
-import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
+import { MoguriSdk, isRecord, MoguriError } from "@moguri-dev/sdk";
+import { NEMOTRON_MODEL } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 

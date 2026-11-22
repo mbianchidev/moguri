@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { modelLab, type ModelInfo, type ModelLab, type ModelPrice, type ModelProvider, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { modelLab, type ModelInfo, type ModelLab, type ModelPrice, type ModelProvider, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
 
