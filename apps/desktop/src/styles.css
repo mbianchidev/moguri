@@ -18,7 +18,6 @@
   --syntax-keyword: #ff7b72; --syntax-string: #a5d6ff; --syntax-comment: #9198a1; --syntax-number: #79c0ff;
   --syntax-title: #d2a8ff; --syntax-type: #ffa657; --syntax-tag: #7ee787; --syntax-addition: #aff5b4; --syntax-deletion: #ffdcd7;
   --github-open: #3fb950; --github-closed: #f85149; --github-merged: #a371f7;
-  --diff-add-bg: #12261c; --diff-add-gutter: #1a3a28; --diff-remove-bg: #2c1517; --diff-remove-gutter: #45201f; --diff-focus: #1f6feb; --diff-focus-text: #ffffff;
   --warning-bg: #30291d; --warning-text: #efd397; --warning-line: #89713d; --warning-code: #211e16;
   --error-bg: #352024; --error-text: #ffc1b7; --error-line: #ad726b;
   /* Status color roles. Never the only signal: pair them with a text label or a labeled icon. */
@@ -74,7 +73,6 @@
   --syntax-keyword: #c4141f; --syntax-string: #0a3069; --syntax-comment: #57606a; --syntax-number: #0550ae;
   --syntax-title: #6639ba; --syntax-type: #8a3300; --syntax-tag: #116329; --syntax-addition: #116329; --syntax-deletion: #82071e;
   --github-open: #1a7f37; --github-closed: #cf222e; --github-merged: #8250df;
-  --diff-add-bg: #e6ffec; --diff-add-gutter: #ccffd8; --diff-remove-bg: #ffebe9; --diff-remove-gutter: #ffd7d5; --diff-focus: #0969da; --diff-focus-text: #ffffff;
   --warning-bg: #fcf9f0; --warning-text: #795c24; --warning-line: #d5be8d; --warning-code: #f4efe0;
   --error-bg: #fbf0ee; --error-text: #85352f; --error-line: #ddc5c2;
   --status-running: var(--session-running, #2563eb);
@@ -557,27 +555,12 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .pr-diff-toolbar .pr-files-summary { text-align: start; }
 .pr-file { content-visibility: auto; contain-intrinsic-size: auto 240px; }
 .pr-file-badge { flex-shrink: 0; min-width: 28px; color: var(--status-running); font-family: var(--font-mono); font-size: var(--font-size-2xs); font-weight: var(--font-weight-bold); }
-.pr-diff-rows { overflow-x: auto; background: var(--code); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: var(--line-height-normal); }
-.pr-diff-row { position: relative; display: grid; grid-template-columns: 44px 44px 16px minmax(0, 1fr); min-width: max-content; }
-.pr-diff-row[data-kind="add"] { background: var(--diff-add-bg); }
-.pr-diff-row[data-kind="remove"] { background: var(--diff-remove-bg); }
-.pr-diff-row[data-active] { box-shadow: inset 0 0 0 1px var(--diff-focus); }
-.pr-diff-num { padding-inline: var(--space-1-5); text-align: end; color: var(--muted); user-select: none; }
-.pr-diff-row[data-kind="add"] .pr-diff-num { background: var(--diff-add-gutter); }
-.pr-diff-row[data-kind="remove"] .pr-diff-num { background: var(--diff-remove-gutter); }
-.pr-diff-sign { color: var(--muted); text-align: center; user-select: none; }
-.pr-diff-code { padding-inline-end: var(--space-3); white-space: pre; background: transparent; font: inherit; }
-.pr-diff-add { position: absolute; inset-block-start: 0; inset-inline-start: 72px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
-  min-height: 0; padding: 0; border: 0; border-radius: var(--radius-pill); background: var(--diff-focus); color: var(--diff-focus-text); opacity: 0; }
-.pr-diff-add svg { width: 14px; height: 14px; }
-.pr-diff-row:hover .pr-diff-add, .pr-diff-add:focus-visible, .pr-diff-row[data-active] .pr-diff-add { opacity: 1; }
-.pr-diff-add:hover:not(:disabled) { background: var(--diff-focus); color: var(--diff-focus-text); }
-.pr-diff-gap { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--target-size); padding: var(--space-1) var(--space-3); border: 0; border-block: 1px solid var(--line);
-  border-radius: 0; background: var(--subtle); color: var(--muted); font-family: var(--font-sans); font-size: var(--font-size-sm); text-align: start; }
-.pr-diff-gap:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.pr-diff-rows { overflow-x: auto; background: var(--code); font-size: var(--font-size-xs); }
 .pr-diff-comment { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-2) var(--space-3); padding: var(--space-2-5) var(--space-3);
   border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); font-family: var(--font-sans); font-size: var(--font-size-sm); white-space: normal; }
 .pr-diff-comment header { display: flex; align-items: baseline; gap: var(--space-2); }
+.pr-diff-comment-line { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--muted); font-size: var(--font-size-xs); }
+.pr-diff-comment-line input { width: 6em; }
 .pr-diff-comment textarea { width: 100%; resize: vertical; }
 .pr-diff-comment .button-row { justify-content: flex-end; }
 .pr-diff-note { padding: var(--space-2) var(--space-3); margin: 0; }

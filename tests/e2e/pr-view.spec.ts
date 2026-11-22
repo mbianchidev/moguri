@@ -89,11 +89,11 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await view.getByRole("tab", { name: /^Files/ }).click();
     const diff = view.getByRole("region", { name: "Diff of generated.ts", exact: true });
     await expect(diff).toContainText("new generated line");
-    await expect(diff.locator('.pr-diff-row[data-kind="add"] .hljs-keyword').first()).toHaveText("new");
-    await diff.getByRole("button", { name: "Show the rest of the file", exact: true }).click();
+    // @pierre/diffs colours Shiki tokens with inline styles inside its shadow root (D70).
+    await expect.poll(() => diff.locator('[data-line-type="change-addition"] span[style]').count()).toBeGreaterThan(0);
+    await view.getByRole("button", { name: "Show the full file generated.ts", exact: true }).click();
     await expect(diff).toContainText("generated third line");
-    await expect(diff.getByRole("button", { name: /^Comment on line 3 of/ })).toHaveCount(0);
-    await diff.getByRole("button", { name: "Comment on line 1 of generated.ts", exact: true }).click();
+    await view.getByRole("button", { name: "Comment on generated.ts", exact: true }).click();
     const comment = diff.getByRole("form", { name: "Review comment on generated.ts line 1", exact: true });
     await comment.getByLabel("Review comment", { exact: true }).fill("Generated inline review note.");
     await comment.getByRole("button", { name: "Comment", exact: true }).click();
