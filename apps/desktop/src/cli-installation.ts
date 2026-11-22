@@ -22,9 +22,18 @@ fi
 exec "$app_root/node_modules/node/bin/node" "$app_root/dist/cli.mjs" "$@"
 `;
 
+// Package managers such as Homebrew expose the bundled launcher through a symlink, so it follows its own link chain to find the app.
 export function bundledCliLauncher(): string {
   return `#!/bin/sh
-app_root=$(CDPATH= cd -P -- "$(/usr/bin/dirname -- "$0")/.." && pwd -P) || exit 127
+self=$0
+hops=0
+while [ -L "$self" ]; do
+  hops=$((hops + 1))
+  if [ "$hops" -gt 40 ]; then printf '%s\\n' "Moguri: too many symbolic links while resolving $0." >&2; exit 127; fi
+  target=$(/usr/bin/readlink -- "$self") || exit 127
+  case $target in /*) self=$target ;; *) self=$(/usr/bin/dirname -- "$self")/$target ;; esac
+done
+app_root=$(CDPATH= cd -P -- "$(/usr/bin/dirname -- "$self")/.." && pwd -P) || exit 127
 ${launch}`;
 }
 
