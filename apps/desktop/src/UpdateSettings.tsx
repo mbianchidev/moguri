@@ -26,9 +26,9 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
     finally { setBusy(false); }
   };
   const operation = status?.operation, owned = Boolean(operation && ["checking", "downloading", "cancelling", "installing"].includes(operation.status));
-  return <section aria-label="Application updates"><SettingsHelp label="More about this setting" target={<h3>GitHub updates</h3>}>Updates come from the public mbianchidev/moguri releases and need no token. While that repository is private, or to raise GitHub's rate limit, save a fine-grained token with read-only Contents access. It stays separate from Copilot and the GitHub CLI.</SettingsHelp>
+  return <section aria-label="Application updates"><SettingsHelp label="More about this setting" target={<h3>GitHub updates</h3>}>Updates come from Moguri's public GitHub releases and need no token. While the release repository is private, or to raise GitHub's rate limit, save a fine-grained token with read-only Contents access. It stays separate from Copilot and the GitHub CLI.</SettingsHelp>
     <button type="button" disabled={busy} aria-describedby={setupDescription} onClick={() => void run(async () => { await window.moguri.openExternal(UPDATE_TOKEN_CREATION_URL); })}>Set up read-only update access</button>
-    <p id={setupDescription} className="fine-print">Optional. Opens GitHub with read-only Contents access prefilled. Under Repository access, choose Only select repositories, then moguri.</p>
+    <p id={setupDescription} className="fine-print">Optional. Opens GitHub with read-only Contents access prefilled. Under Repository access, choose Only select repositories, then the Moguri release repository.</p>
     <details className="update-token-help"><summary>Create a token with the right permissions</summary><ol>{UPDATE_TOKEN_GUIDANCE.map((step) => <li key={step}>{step}</li>)}</ol></details>
     <p className="fine-print">Version: {status?.currentVersion ?? "checking..."} · Update token: {UPDATE_CREDENTIAL_LABELS[status?.credential ?? "unobserved"]}</p>
     <label className="setting-field">Release access token (optional)<SettingsInput type="password" aria-label="Release access token" autoComplete="off" value={token} disabled={disabled || busy || owned} onChange={(event) => setToken(event.target.value)} /></label>
@@ -46,7 +46,7 @@ export function UpdateSettings({ sdk, revision, disabled, onBusy, prepareMainten
       {operation && ["checking", "downloading"].includes(operation.status) && <button type="button" disabled={busy} onClick={() => void run(async () => { await sdk.application.updates.cancel(operation.id); })} aria-label="Cancel original update">Cancel</button>}</div>
     {operation && <><p role="status">Update: {operation.status}{operation.release ? ` / ${operation.release.manifest.version}` : ""}. {operation.diagnostic}</p>
       {operation.stagedBundle && <p className="fine-print path">Verified download: {operation.stagedBundle}</p>}
-      {operation.status === "ready" && !status?.installable && <SettingsHelp label="About source-runtime update limits" target={<p className="fine-print">Installing updates requires Moguri's packaged app.</p>}>This development build can check for and download updates, but it can't install them.</SettingsHelp>}
+      {operation.status === "ready" && !status?.installable && !status?.manager && <SettingsHelp label="About source-runtime update limits" target={<p className="fine-print">Installing updates requires Moguri's packaged app.</p>}>This development build can check for and download updates, but it can't install them.</SettingsHelp>}
       {operation.status === "ready" && status?.installable && <button type="button" disabled={disabled || busy || Boolean(token)} onClick={() => void run(async () => {
         setReview((await sdk.application.updates.installPreview(operation.id)).review); setConfirmed(false);
       })} aria-label="Review install and restart">Review install</button>}</>}

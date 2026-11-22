@@ -255,7 +255,7 @@ test("private update setup exposes supported owner/Contents prefill and disclose
     expect(opened).toBe(UPDATE_TOKEN_CREATION_URL);
     const url = new URL(opened!);
     expect(url.origin).toBe("https://github.com"); expect(url.pathname).toBe("/settings/personal-access-tokens/new");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ name: "Moguri updates", description: "Read Moguri release assets", target_name: "mbianchidev", expires_in: "30", contents: "read" });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ name: "Moguri updates", description: "Read Moguri release assets", expires_in: "30", contents: "read" });
     await expect(update.getByLabel("Release access token", { exact: true })).toHaveValue("");
     expect(fixture.service.store.events().some((event) => event.event_type === "application.update_recorded")).toBe(false);
     expect(fixture.requests).toHaveLength(0);
