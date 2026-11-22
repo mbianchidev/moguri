@@ -3,6 +3,7 @@ import { githubItemIdentity, type GithubItem, type GithubRepository, type Github
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
+import { cachedItems, readCachedPullRequests, saveCachedPullRequests } from "./pull-request-cache.ts";
 
 export type GithubProject = Extract<GithubResponse, { type: "github.project" }>;
 export interface GithubSelection { context: GithubProject; source: GithubWorkSource; binding: GithubSourceBinding; item: GithubItem; digest: string }
@@ -67,7 +68,9 @@ export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contex
   const [context, setContext] = useState<GithubProject | null>(null), [items, setItems] = useState<GithubItem[]>([]);
   const [selected, setSelected] = useState(""), [nextPage, setNextPage] = useState<number | null>(null), [showClosed, setShowClosed] = useState(false);
   const [busy, setBusy] = useState(false), [error, setError] = useState<PanelFailure | null>(null), [active, setActive] = useState(0);
-  const generation = useRef(0), callbacks = useRef({ select, contextChanged }), listId = useId();
+  const generation = useRef(0), callbacks = useRef({ select, contextChanged }), listId = useId(), pending = useRef<number | null>(null);
+  // Open PRs of a project's own checkout are cached, so the list shows at once while the live read refreshes it.
+  const cacheable = kind === "pull" && scope.env === "Local" && Boolean(scope.projectId) && !scope.workspaceId;
   callbacks.current = { select, contextChanged };
   const scopeKey = JSON.stringify([sdk.profileId, scope, kind, selectedUrl, showClosed]);
   const read = async (number: number, actual: GithubProject, token: number) => {
@@ -90,21 +93,30 @@ export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contex
       setContext(actual); callbacks.current.contextChanged?.(actual);
       setItems((previous) => page === 1 ? value.items : [...previous, ...value.items.filter((item) => !previous.some((entry) => entry.id === item.id))]);
       setNextPage(value.nextPage);
+      if (cacheable && page === 1 && !showClosed) saveCachedPullRequests(localStorage, sdk.profileId, scope.projectId!, actual.repository, actual.accountId, value.items);
       if (page === 1 && selectedUrl) {
         const binding = githubItemIdentity(selectedUrl);
         if (binding.repository.toLowerCase() !== actual.repository.toLowerCase() || binding.kind !== kind) throw new Error("The linked item belongs to another repository. It was not read using this project's account.");
         await read(binding.number, actual, token);
+      } else if (page === 1 && pending.current !== null) {
+        const number = pending.current; pending.current = null;
+        if (value.items.some((item) => item.number === number)) await read(number, actual, token);
+        else { setSelected(""); throw new Error(`Pull request #${number} is no longer open. Choose another one.`); }
       }
     } catch (error) { if (generation.current === token) setError(panelFailure(error, "GitHub items could not be read. Check this project's upstream and GitHub CLI sign-in.")); }
     finally { if (generation.current === token) setBusy(false); }
   };
   useEffect(() => {
-    setItems([]); setContext(null); setSelected(""); setActive(0); callbacks.current.select(null); void load();
+    const cached = cacheable && !showClosed ? readCachedPullRequests(localStorage, sdk.profileId, scope.projectId!) : null;
+    pending.current = null;
+    setItems(cached ? cachedItems(cached) : []); setContext(null); setSelected(""); setActive(0); callbacks.current.select(null); void load();
     return () => { generation.current++; };
   }, [sdk, scopeKey]);
   const ordered = [...items.filter((item) => item.state === "open"), ...items.filter((item) => item.state !== "open")];
   const interactive = !disabled && !busy && Boolean(context);
   const choose = (number: number) => {
+    // A cached item picked before the live read finishes is read as soon as that read confirms it is still open.
+    if (!disabled && !context) { pending.current = number; setSelected(String(number)); return; }
     if (!interactive || !context) return;
     setSelected(String(number)); callbacks.current.select(null);
     const token = ++generation.current; setBusy(true); setError(null);
@@ -121,7 +133,7 @@ export function GitHubItemPicker({ sdk, scope, kind, selectedUrl, select, contex
     <div className="github-item-toolbar"><span className="github-item-heading">{showClosed ? `All ${plural}` : `Open ${plural}`}</span>
       <button type="button" className="icon-button" aria-label={`Refresh ${plural}`} title={`Refresh ${plural}`} disabled={disabled || busy} onClick={() => void load()}><Icon name="Refresh" /></button>
       <label className="check-setting"><input type="checkbox" role="switch" checked={showClosed} disabled={disabled || busy} onChange={(event) => setShowClosed(event.target.checked)} />Show closed</label></div>
-    {ordered.length > 0 && <ul className="github-item-list" role="listbox" aria-label={label} tabIndex={interactive ? 0 : -1} aria-disabled={!interactive}
+    {ordered.length > 0 && <ul className="github-item-list" role="listbox" aria-label={label} tabIndex={disabled ? -1 : 0} aria-disabled={disabled || Boolean(context) && busy}
       aria-activedescendant={ordered[active] ? `${listId}-${ordered[active].number}` : undefined}
       onKeyDown={(event) => {
         const moves: Record<string, number> = { ArrowDown: active + 1, ArrowUp: active - 1, Home: 0, End: ordered.length - 1 };

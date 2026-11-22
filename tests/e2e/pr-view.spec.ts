@@ -89,11 +89,11 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await view.getByRole("tab", { name: /^Files/ }).click();
     const diff = view.getByRole("region", { name: "Diff of generated.ts", exact: true });
     await expect(diff).toContainText("new generated line");
-    await expect(diff.locator('.pr-diff-row[data-kind="add"] .hljs-keyword').first()).toHaveText("new");
-    await diff.getByRole("button", { name: "Show the rest of the file", exact: true }).click();
+    // @pierre/diffs colours Shiki tokens with inline styles inside its shadow root (D70).
+    await expect.poll(() => diff.locator('[data-line-type="change-addition"] span[style]').count()).toBeGreaterThan(0);
+    await view.getByRole("button", { name: "Show the full file generated.ts", exact: true }).click();
     await expect(diff).toContainText("generated third line");
-    await expect(diff.getByRole("button", { name: /^Comment on line 3 of/ })).toHaveCount(0);
-    await diff.getByRole("button", { name: "Comment on line 1 of generated.ts", exact: true }).click();
+    await view.getByRole("button", { name: "Comment on generated.ts", exact: true }).click();
     const comment = diff.getByRole("form", { name: "Review comment on generated.ts line 1", exact: true });
     await comment.getByLabel("Review comment", { exact: true }).fill("Generated inline review note.");
     await comment.getByRole("button", { name: "Comment", exact: true }).click();
@@ -146,6 +146,26 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await view.getByRole("button", { name: "Filter and sort activity", exact: true }).click();
     await page.getByRole("dialog", { name: "Filter and sort activity", exact: true }).getByRole("menuitemradio", { name: "All" }).click();
     await page.screenshot({ path: resolve(".moguri/artifacts/pr-view-reviews.png") });
+
+    // Merge, then the explicit branch deletion and revert that only a merged PR offers (D71).
+    await expect(view.getByRole("button", { name: "Delete branch", exact: true })).toHaveCount(0);
+    await view.getByRole("button", { name: "Merge", exact: true }).click();
+    await page.getByRole("dialog", { name: "Merge pull request", exact: true }).getByRole("menuitem", { name: /Squash and merge/ }).click();
+    await expect(review).toContainText("I explicitly approve squash merging PR #11");
+    await confirm();
+    await expect(view.locator(".pr-state-badge")).toContainText("Merged");
+    expect(f.workItem(11)!.merged).toBe(true);
+    expect(f.deletedBranches()).toEqual([]);
+    await view.getByRole("button", { name: "Delete branch", exact: true }).click();
+    await expect(review).toContainText("Delete branch generated-feature on GitHub, merged with pull request #11");
+    await confirm();
+    await expect.poll(() => f.deletedBranches()).toEqual(["generated-feature"]);
+    await view.getByRole("button", { name: "Revert", exact: true }).click();
+    await page.getByRole("dialog", { name: "Revert pull request", exact: true }).getByRole("menuitem", { name: /Open it as a draft/ }).click();
+    await expect(review).toContainText("Open a draft pull request that reverts pull request #11.");
+    await confirm();
+    await expect(view.getByText(/^Revert pull request #\d+ is open\./)).toBeVisible();
+    await expect(view.getByRole("button", { name: /^Open #\d+ on GitHub$/ })).toBeVisible();
 
     await switcher.getByRole("tab", { name: /^Pull request #12,/ }).click();
     await expect(pane.getByRole("region", { name: "Pull request 12", exact: true }).getByRole("heading", { level: 3 })).toContainText("Generated PR 12");

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { MoguriSdk } from "../../packages/sdk/src/index.ts";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
-import { GENERATED_PR_BRANCH, GENERATED_PR_URL, generatedPrFetch, type GeneratedPrState } from "../fixtures/pr-status.ts";
+import { GENERATED_PR_BRANCH, GENERATED_PR_URL, generatedPrCliRead, generatedPrFetch, type GeneratedPrState } from "../fixtures/pr-status.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -13,7 +13,7 @@ test.skip(process.platform !== "darwin", "Native desktop interaction qualificati
 
 test("Code change enables only the PR follow-ups that apply and queues the chosen one in this chat", async () => {
   let pr: GeneratedPrState = { mergeable: true, mergeableState: "clean", reviews: [], checks: [{ name: "generated-test", status: "completed", conclusion: "failure" }] };
-  const f = await setupFixture({ platform: { integrations: { fetch: generatedPrFetch(() => pr) } } }), sdk = await new MoguriSdk(f.service.connection).ready();
+  const f = await setupFixture({ platform: { integrations: { fetch: generatedPrFetch(() => pr), githubCliRead: generatedPrCliRead(() => pr) } } }), sdk = await new MoguriSdk(f.service.connection).ready();
   const git = initializeGeneratedRepository(f.project); git(["checkout", "-b", GENERATED_PR_BRANCH]);
   await f.configure();
   await sdk.sessions.organize(f.sessionId, { prUrl: GENERATED_PR_URL }, f.session().revision);

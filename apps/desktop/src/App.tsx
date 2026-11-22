@@ -21,7 +21,7 @@ import { AttachmentChip } from "./ContextAttachments.tsx";
 import { SandboxPanel } from "./SandboxPanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
-import { MyWorkFiltersSchema, autonomyLabel, envLabel, parse, type MyWorkFilters } from "../../../packages/sdk/src/index.ts";
+import { MyWorkFiltersSchema, RoundupFiltersSchema, autonomyLabel, envLabel, parse, type MyWorkFilters, type RoundupFilters } from "../../../packages/sdk/src/index.ts";
 import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 import { NotificationAudio } from "./notification-audio.ts";
 import { ApprovalActions } from "./ApprovalActions.tsx";
@@ -160,6 +160,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [globalView, setGlobalView] = useState<GlobalView | null>(isGlobalPanel(layout.panel) ? layout.panel : null);
   const [skillsTab, setSkillsTab] = useState<SkillsTab>("Skills");
   const [inboxItemId, setInboxItemId] = useState<string | null>(null), [inboxFilters, setInboxFilters] = useState<MyWorkFilters | undefined>();
+  const [roundupFilters, setRoundupFilters] = useState<RoundupFilters | undefined>();
   const [globalSessionId, setGlobalSessionId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(layout.open);
   const [panelMaximized, setPanelMaximized] = useState(layout.maximized);
@@ -425,7 +426,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       const restored = next.getState().snapshot?.sessions.find((session) => session.id === (targetSessionId ?? remembered?.session?.id));
       setSelectedId(restored?.id ?? null); setProjectId(null); setSettingsProjectId(null); setArchived(restored?.status === "archived"); setSettingsTab(null); setPolicyFocus(null); setBoardOpen(false); setGlobalView(null); setGlobalSessionId(null); setSideSessionId(null); setTerminalIntent(null);
       setPalette(false); setArtifactRequest(null); setSessionActionRequest(null); setNotice(null);
-      setInboxItemId(null); setInboxFilters(undefined);
+      setInboxItemId(null); setInboxFilters(undefined); setRoundupFilters(undefined);
       return next;
     } catch (error) { next?.disconnect(); throw error; }
     finally { switchingProfile.current = false; setBusy(false); setProfilePending(false); }
@@ -549,7 +550,11 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       if (result.name === "code-requests") { await openSessionPanel("Code change"); return; }
       if (result.name === "my-work") {
         if (!canNavigate()) throw new Error("Save/discard the current edit before opening the inbox.");
-        setInboxItemId(null); setInboxFilters(parse(MyWorkFiltersSchema, JSON.parse(result.argument))); openGlobal("Dashboard", null); return;
+        setInboxItemId(null); setInboxFilters(parse(MyWorkFiltersSchema, JSON.parse(result.argument))); setRoundupFilters(undefined); openGlobal("Dashboard", null); return;
+      }
+      if (result.name === "dependency-roundup") {
+        if (!canNavigate()) throw new Error("Save/discard the current edit before opening the roundup.");
+        setInboxItemId(null); setInboxFilters(undefined); setRoundupFilters(parse(RoundupFiltersSchema, JSON.parse(result.argument))); openGlobal("Dashboard", null); return;
       }
       if (result.name === "sidebar") {
         if (result.argument && !["open", "close"].includes(result.argument)) throw new Error("Use /sidebar [open|close].");
@@ -664,6 +669,10 @@ export function App({ client: initialClient, startupScope = null, startupView = 
           if (result.name === "my-work") {
             const inbox = document.querySelector<HTMLElement>(".my-work-inbox[data-ready='true']");
             return Boolean(inbox && inbox.dataset.filters === result.argument);
+          }
+          if (result.name === "dependency-roundup") {
+            const roundup = document.querySelector<HTMLElement>(".dependency-roundup[data-ready='true']");
+            return Boolean(roundup && roundup.dataset.filters === result.argument);
           }
           const target = result.name === "work-items" ? "Work item" : result.name === "code-requests" ? "Code change" : null;
           return target !== null && shell.classList.contains("context-open") && document.querySelector<HTMLElement>("#session-sidebar")?.dataset.sessionPanel === target;
@@ -801,9 +810,9 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         </header>
         <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <><AutomationsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} />
           <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} openTools={() => openSkills("Tools")} /></> :
-          globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} /> :
+          globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} run={run} /> :
           globalView === "Artifacts" ? <ArtifactsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} initialProjectId={session ? session.projectId : project?.id} openSession={chooseSession} openSettings={openSettings} /> :
-          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} openAutomations={() => openGlobal("Automations")} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} chooseWork={openInbox} />}
+          <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} openAutomations={() => openGlobal("Automations")} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} initialRoundupFilters={roundupFilters} chooseWork={openInbox} />}
         </div>
       </section> : onboardingOpen && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading Getting started...</div>}>
         <Onboarding key={client.profileId} sdk={client} snapshot={snapshot} onClose={() => setOnboardingOpen(false)}
@@ -861,6 +870,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
       { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
       { name: "Capabilities: skills, marketplace, MCP servers and agent tools", action: async () => openSkills("Skills") },
+      { name: "Capabilities: custom agents you tag with @handle", action: async () => openSkills("Custom agents") },
       { name: "Artifacts by project", action: async () => openGlobal("Artifacts") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
@@ -1003,17 +1013,17 @@ function ClientDiagnostics({ client }: { client: MoguriClient }) {
     <CopyButton label="Copy client request timings" text={text} /><pre>{text}</pre>
   </details>;
 }
-function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, openAutomations, initialWorkItemId, initialWorkFilters, chooseWork }: {
+function ContextPanel({ panel, session, project, events, client, run, snapshot, sideId, selectSide, onDirty, onSlash, editorFor, nativeAllowed, visible = true, terminalAutoStart = false, terminalShowAgent = false, onTerminalOpeningHandled, suggestionsAll, chooseSession, modal, setupSandbox, openSettings, openSkills, openAutomations, initialWorkItemId, initialWorkFilters, initialRoundupFilters, chooseWork }: {
   panel: Panel; session?: Session; project?: Project; events: StoredEvent[]; client: MoguriClient; run: Run; snapshot: Snapshot | null;
   prUrl: string | null; sideId: string | null; selectSide: (id: string) => void; onDirty: (dirty: boolean) => void;
   onSlash: (session: Session, editor: DraftEditor, text: string) => Promise<void>; nativeAllowed: boolean; visible?: boolean; terminalAutoStart?: boolean; terminalShowAgent?: boolean; onTerminalOpeningHandled?: () => void;
   editorFor: (session: Session) => DraftEditor;
   suggestionsAll: boolean; chooseSession: (id: string, ownership?: "agent") => Promise<void>; modal: (open: boolean) => void;
   setupSandbox: () => void; openSettings: (tab: SettingsTab) => void; openSkills?: (tab: SkillsTab) => void; openAutomations?: () => void;
-  initialWorkItemId?: string | null; initialWorkFilters?: MyWorkFilters; chooseWork?: (id: string) => void;
+  initialWorkItemId?: string | null; initialWorkFilters?: MyWorkFilters; initialRoundupFilters?: RoundupFilters; chooseWork?: (id: string) => void;
 }) {
   const [trace, setTrace] = useState(false);
-  if (panel === "Dashboard" && snapshot) return <Suspense fallback={<p role="status">Loading dashboard...</p>}><Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} initialItemId={initialWorkItemId} initialFilters={initialWorkFilters} onDirty={onDirty} /></Suspense>;
+  if (panel === "Dashboard" && snapshot) return <Suspense fallback={<p role="status">Loading dashboard...</p>}><Dashboard key={client.profileId} sdk={client} snapshot={snapshot} openSession={chooseSession} initialItemId={initialWorkItemId} initialFilters={initialWorkFilters} initialRoundupFilters={initialRoundupFilters} onDirty={onDirty} /></Suspense>;
   if (panel === "Terminal" && snapshot && session) return <Suspense fallback={<p role="status">Loading Ghostty...</p>}><SessionTerminal sdk={client} session={session} snapshot={snapshot} active={nativeAllowed} visible={visible} autoStart={terminalAutoStart} showAgent={terminalShowAgent} onAutoStartHandled={onTerminalOpeningHandled} openAgent={(id) => chooseSession(id, "agent")} /></Suspense>;
   if (panel === "Attention" && snapshot) return <AttentionPanel sdk={client} snapshot={snapshot} chooseSession={chooseSession} chooseWork={chooseWork} openTools={openSkills && (() => openSkills("Tools"))} openAutomations={openAutomations} />;
   if (panel === "Suggestions" && snapshot) return <SuggestionsPanel sdk={client} snapshot={snapshot} session={session} allProjects={!session || session.projectId === null && suggestionsAll} chooseSession={chooseSession} modal={modal} openTools={openSkills && (() => openSkills("Tools"))} />;

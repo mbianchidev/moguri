@@ -137,6 +137,23 @@ answers or approves anything.
 Desktop, TUI (`/automations`, F9) and CLI (`moguri automations`, YAML/JSON
 workflow files) share the same state.
 
+[Dependency roundups](architecture/dependency-roundups.md) (protocol 119) group
+open Dependabot, Renovate and other update-bot PRs from the My Work sources you
+choose, by package, keeping every PR's identity, sources and CI/review state.
+Security notes come only from each PR's labels, title and advisory links, and
+"likely breaking" is a labelled heuristic; no model is called and nothing is
+installed, pushed or merged. Roundups refresh manually or on a #6 schedule;
+each run owns one My Work refresh and stopping it stops only that read. Desktop
+**Dashboard > Dependencies**, `/roundups` and `moguri roundups`.
+
+[Personas](architecture/personas.md) (protocol 119) are named `@handle`
+definitions (instructions, scope, model, read-only or writable tools, skills,
+budget, time limit, output) that start off. Tagging an enabled persona in a
+message starts it in a linked subsession under Manual autonomy; the tagging
+chat orchestrates and receives its reply. Presets: Product Manager,
+Maintenance and Docs. An automation that tags a persona runs it on a schedule.
+Desktop **Capabilities > Custom agents**, `/personas` and `moguri personas`.
+
 The owner-requested [protocol-41 platform extension](architecture/platform-workflows.md)
 adds **Sky/Terra/Glacier knowledge**, reviewed lifecycle hooks and immutable
 repository-backed marketplace bundles. Imports/updates/rollbacks stay disabled;
@@ -289,7 +306,7 @@ Dragging a child out asks before detaching, with a saved opt-out in Settings /
 Confirmations. Unpin has a crossed-out
 pin. Global views live on the left; the right rail contains the session tools
 and per-session **Code change** and **Work item** links.
-Their PR and issue lists, and the project's From PR and From work item dialogs,
+Their PR and issue lists, and the project's From code change and From work item dialogs,
 show open items first with GitHub's colored state marks; **Show closed** adds
 closed and merged ones. Code change's **New branch** pushes the session's work
 to a reviewed remote branch that the agent keeps using. The Files view
@@ -300,6 +317,8 @@ you and for the agent ([D64](architecture/decisions.md#d64-pull-request-view-dra
 Diff lines take inline review comments that post to GitHub and show under Reviews. A session's pull requests stay linked once
 associated; switch between them with the PR tabs, and the sidebar mark is green, grey or purple for all of them together
 ([D65](architecture/decisions.md#d65-inline-review-comments-fixed-pr-associations-and-one-session-pr-mark)).
+Its header merges the PR, deletes the merged remote branch on request and opens a revert pull request, each after a review
+([D71](architecture/decisions.md#d71-merge-delete-the-merged-branch-and-revert-from-the-pr-view)).
 Click an active right-rail icon again to collapse its pane back to the rail.
 Terminal belongs to a session: project-free consoles start in configured HOME,
 and project consoles keep their bound worktree. There is no global-terminal UI.
@@ -508,7 +527,9 @@ autonomy, unlimited-budget/usage, microphone and paper-plane Send. Holding
 Cmd/Ctrl turns idle Send into a queue clock; active turns show a red Stop icon
 in that same slot. A blocked session uses a Resume/play control there instead,
 preserving the unsent draft; inspect effects before continuing. Enter uses the
-current action; Shift+Enter adds a line.
+current action; Shift+Enter adds a line. The message box grows with longer
+text up to a few more lines; **Enlarge** (top-right corner) switches to a
+taller, drag-resizable box and toggles back to normal.
 Both sidebars resize, and message copy appears on hover or keyboard focus.
 Toggle/dropdown preferences, model context and supported thinking effort save
 automatically through shared SDK controls; text settings retain explicit saves.

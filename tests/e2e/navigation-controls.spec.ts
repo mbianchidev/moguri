@@ -62,6 +62,23 @@ test("search opens explicitly, prompt order flattens every group and filters/ord
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
+test("project collapse survives a reload and an empty project shows No sessions", async () => {
+  const f = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(f.service.connection).ready();
+  const empty = join(f.directory, "generated-empty-project"); await mkdir(empty); await sdk.projects.add(empty);
+  const app = await launch(f.directory);
+  try {
+    const page = await app.firstWindow();
+    const project = page.getByRole("region", { name: "Project project", exact: true }).getByRole("button", { name: "project", exact: true });
+    const emptyProject = page.getByRole("region", { name: "Project generated-empty-project", exact: true });
+    await expect(emptyProject.getByText("No sessions", { exact: true })).toBeVisible();
+    await project.click(); await expect(project).toHaveAttribute("aria-expanded", "false");
+    await page.reload();
+    await expect(project).toHaveAttribute("aria-expanded", "false");
+    await expect(emptyProject.getByRole("button", { name: "generated-empty-project", exact: true })).toHaveAttribute("aria-expanded", "true");
+    await expect(emptyProject.getByText("No sessions", { exact: true })).toBeVisible();
+  } finally { await app.close(); sdk.disconnect(); await f.close(); }
+});
+
 test("composer and queue align with the message column at wide/narrow widths and with turn previews open", async () => {
   const f = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(f.service.connection).ready();
   await f.configure(); await f.send("Generated aligned prompt."); await f.terminal(); await sdk.refresh();

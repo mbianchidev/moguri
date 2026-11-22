@@ -231,6 +231,8 @@ test("dropping a project into an existing group joins it without proposing a new
     const page = await app.firstWindow();
     const row = (projectId: string) => page.locator(`.project-row:has(> button[data-project-id="${projectId}"])`);
     const folder = page.locator(".project-folder").filter({ hasText: "Generated music" });
+    // Empty projects show a "No sessions" row, so the drop target can start below the hidden window's sidebar footer.
+    await row(member).scrollIntoViewIfNeeded();
     await row(viaProject).dragTo(row(member));
     await expect.poll(() => configuration(viaProject)?.folderId).toBe(grouped.id);
     expect(configuration(viaProject)?.order).toBe(2);

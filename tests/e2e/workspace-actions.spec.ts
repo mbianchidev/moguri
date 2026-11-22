@@ -80,7 +80,7 @@ test("an individual project collapses only its navigation sessions and remains e
   } finally { await app.close(); await fixture.close(); }
 });
 
-test("a project's hover plus starts a session in that project and reopens it when collapsed", async () => {
+test("a project's hover plus offers how to start and starts a session in that project, reopening it when collapsed", async () => {
   const fixture = await setupFixture(), project = fixture.service.controller.snapshot().projects[0]!, app = await launch(fixture.directory);
   try {
     const page = await app.firstWindow(), section = page.getByRole("region", { name: `Project ${project.name}`, exact: true });
@@ -91,6 +91,9 @@ test("a project's hover plus starts a session in that project and reopens it whe
     await row.click(); await expect(row).toHaveAttribute("aria-expanded", "false");
     const before = new Set(fixture.service.controller.snapshot().sessions.map((session) => session.id));
     await plus.click();
+    const start = page.getByRole("menu", { name: `Start a session in ${project.name}`, exact: true });
+    await expect(start.getByRole("menuitem")).toHaveText(["New session", "From code change", "From work item"]);
+    await start.getByRole("menuitem", { name: "New session", exact: true }).click();
     await expect.poll(() => fixture.service.controller.snapshot().sessions.filter((session) => !before.has(session.id)).length).toBe(1);
     const created = fixture.service.controller.snapshot().sessions.find((session) => !before.has(session.id))!;
     expect(created.projectId).toBe(project.id);

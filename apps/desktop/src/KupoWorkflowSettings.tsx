@@ -31,7 +31,7 @@ export function KupoWorkflowSettings({ snapshot, policy, models, disabled, save,
   return <>
     <SettingsHelp label="About Kupo preferences" target={<h3>Preferences</h3>}>Each chat picks a preference in the composer. Kupo then chooses the workflow and models for every request by its complexity.</SettingsHelp>
     <dl className="facts kupo-preferences">{kupoModes.map((mode) => <div key={mode.id}><dt>{mode.name}</dt><dd>{mode.id === "savings" ? "Cheaper models and workflows: Single or Cascade, no frontier models." :
-      mode.id === "balanced" ? "Whatever fits best, avoiding frontier models on long, heavy tasks." : mode.id === "performance" ? "Mainly frontier models at their highest supported effort: Single, Critique or Council." :
+      mode.id === "balanced" ? "Whatever fits best, avoiding frontier models on long, heavy tasks." : mode.id === "performance" ? "Frontier models only for the task, at their highest supported effort: Single, Critique or Council. The classifier may be any model." :
         "Picks Savings, Balanced or Performance for each request from its complexity."}</dd></div>)}</dl>
     <button type="button" className="quiet" onClick={openStartupDefaults}>Choose the default for new chats</button>
 

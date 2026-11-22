@@ -75,7 +75,9 @@ column, excluding the adjacent turn rail; compact expanded turn lists remain
 overlays. Navigation starts with Search/Filter/Order icons. Search reveals its
 focused field on demand, while active status/order choices expose Reset.
 Filters preserve parent context and collapsed-group intent rather than
-restructuring the workspace. Location shortcuts live in the sidebar session and
+restructuring the workspace. Collapsed projects and groups persist per profile;
+search expands them only temporarily. Empty expanded projects and groups show
+a muted **No sessions** row. Location shortcuts live in the sidebar session and
 project context menus, not Settings; unavailable roots stay visible but
 disabled with their reason. Global skill-folder switches show an exact-path confirmation
 before adding a saved discovery source, never an implied execution grant.

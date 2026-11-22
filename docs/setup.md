@@ -519,7 +519,10 @@ chooses each actual role's supported thinking automatically. Manual
 or inference. A retained old override stays blocked until explicitly cleared
 with **Use automatic thinking** or `/thinking default`, preserving its window.
 `/context-window TOKENS` and `routing.options` keep exact supported windows,
-not silent clamps. Compound
+not silent clamps. Without a pinned window, Kupo shows and uses up to its
+largest eligible model's window: each request, including the classifier call,
+goes only to models whose own window fits it (D68). A pinned window narrows the
+pool to models that support it. Compound
 reports include the classifier and every eligible route role's real output
 bound. Its immutable source/stages/script preview must still fit all complete
 future role/test context and receive its separate actual-user review.
@@ -872,6 +875,58 @@ or deleting it never answers, approves, stops or reruns anything, and your
 in-app and OS notification settings apply. The CLI and TUI show the same
 entries with `moguri inbox list` and `/inbox`.
 
+## Dependency update roundups
+
+A roundup groups open dependency and security update PRs from Dependabot,
+Renovate and other bots you name, across the My Work sources you choose
+([contract](architecture/dependency-roundups.md)). Configure the repositories in
+My Work first; a roundup never reads anything else.
+
+- **Desktop:** **Dashboard > Dependencies > Set up roundups**: tick My Work
+  sources, edit the bot logins, optionally pick a schedule, then **Save roundup
+  settings**. **Refresh roundup** reads the sources now; **Stop** stops only that
+  read. The **On schedule** switch saves immediately. Each group shows the
+  package, ecosystems and target versions with **Security reported**, **Likely
+  breaking** and failing-check marks; each PR has **Open on GitHub** and **Open
+  in My Work**, where a reviewed follow-up creates an idle chat.
+- **TUI and slash:** `/roundups` shows the roundup; `/roundups refresh`,
+  `stop RUN_ID`, `configure SOURCE_IDS [BOTS]` and `schedule on|off`.
+- **CLI:** `moguri roundups [--json]`, `refresh`, `wait RUN_ID`, `stop RUN_ID`,
+  `configure SOURCE_IDS [BOTS]`, `schedule on|off` and `schedule set FILE` (the
+  automation schedule syntax, for example `kind: daily`, `time: "09:00"`,
+  `timeZone: Europe/Rome`).
+
+Roundups never call a model and never install, push, rebase or merge. A PR
+without advisory labels or links shows "No advisory information", which does
+not mean the package is secure. Rate limits, revoked access and partial reads
+stay visible per source and mark the roundup incomplete.
+
+## Custom agents (personas)
+
+Custom agents are named helpers you tag with `@handle`
+([contract](architecture/personas.md)); the protocol and commands still call
+them personas. They start off.
+
+- **Desktop:** **Capabilities > Custom agents**: **Add Product Manager**,
+  **Add Maintenance**, **Add Docs** or **New custom agent**, then turn on its
+  **On** switch. **Choose skills** picks the skills it loads from your existing
+  skills list, with search. Each card shows where it can be tagged, its model,
+  tools, budget, time limit and recent runs with **Open tagging chat**, **Open
+  agent chat** and **Stop**.
+- **TUI and slash:** `/personas`, `/personas add docs`, `/personas enable @docs`,
+  `pause`, `delete [stop-running]` and `stop RUN_ID`.
+- **CLI:** `moguri personas list|runs|presets|add PRESET|create FILE|update
+  HANDLE FILE|enable|pause HANDLE|delete HANDLE [--stop-running]|stop RUN_ID`.
+
+Write `@docs` or `@product-manager` in any message to an agent chat. Each
+enabled persona you tag (up to 8) starts in its own subsession under that chat,
+under Manual autonomy, with its model and the stricter of its budget and the
+chat's. The chat gets a notice and, later, the persona's reply. Tagging grants
+no permission: approvals, hard policy and allowed Envs still apply, and you can
+stop, intervene in or delete a persona's chat like any other. Mentions in code,
+emails and file paths don't count. To run a persona on a schedule, create an
+automation whose prompt tags it.
+
 ## Interrupted chats after a restart
 
 When Moguri quits, restarts or crashes while a chat is working, it records the
@@ -909,9 +964,10 @@ as economy for execution-host loopback models, else by the output price a
 pay-per-use provider declares, else by its exact published output API price
 (economy up to $5 per million tokens, frontier from $20, standard between).
 Savings uses non-frontier models, stays at or below High and prefers local
-models. Performance uses frontier models for substantive work at High for
-simple tasks and xhigh otherwise (High where the transport has no xhigh), never
-lower. Every mode picks effort per task and caps it at xhigh; Kupo never
+models. Performance runs every task role (solver, drafter, critic, reviewer)
+on a frontier model at High for simple tasks and xhigh otherwise (High where
+the transport has no xhigh), never lower. Its classifier only routes, so any
+eligible model can classify, including a pinned economy classifier (D69). Every mode picks effort per task and caps it at xhigh; Kupo never
 chooses Max, which tends to degrade results. Aliases cannot raise an effort and unpriced,
 unreviewed models cannot qualify it. **Dynamic** routes over the Balanced pool and, after
 classification, applies Savings to simple or README/summary/trivial work,
@@ -1327,7 +1383,10 @@ drops between members of the same group reorder them instead.
 The files are not moved. Its **+** starts a Local chat with every current member
 repository captured explicitly; each nested project's **+** still starts a
 single-repository chat. Click the folder header to expand/collapse it, or use
-**Projects menu / Expand all groups / Collapse all groups**.
+**Projects menu / Expand all groups / Collapse all groups**. Which projects and
+groups are collapsed is remembered per profile across restarts on this
+machine; it is desktop presentation state, not synced through the service.
+An expanded project or group with nothing in it shows **No sessions**.
 Edge drops continue to reorder projects.
 
 Folder tools explicitly select a captured repository by ID or original name.
@@ -1529,9 +1588,15 @@ Cancellation or uncertain effects remain partial, never retried as a new write.
 Existing advanced Git/review/release operations remain in the collapsed
 **Settings / Integrations / GitHub / Advanced** section.
 
-Project menus offer **From PR** and **From work item** dropdowns for that
-repository. Review the full body, then start an idle session with an unsent
-draft. Its canonical URL, original numeric account identity and exact source
+A project's **+** asks how to start: **New session**, **From code change** or
+**From work item**; the project menu offers the same choices. **From code
+change** lists open pull requests and starts the session as soon as you choose
+one. **From work item** shows the full body to review before **Start session**.
+Either way the session starts idle with an unsent draft. The desktop keeps each
+project's open PR list (number, title, URL and state only) cached per profile:
+a slow background read starts two minutes after launch and visits one project
+every 20 s (each at most every 15 minutes), clicking a project refreshes it
+right away, and choosing a cached PR still rereads the exact PR first. Its canonical URL, original numeric account identity and exact source
 digest are retained. Changed source/account/root bindings require a fresh
 review. No checkout, branch, model call or prompt execution starts implicitly.
 
@@ -2170,7 +2235,7 @@ folder icon shows open or closed. Group rows have no **More** or **+** buttons;
 use the context menu for their actions.
 
 Context menus are split into sections. A project menu lists **New session**,
-**From work item** and **From PR** first, then **Settings**, the project
+**From work item** and **From code change** first, then **Settings**, the project
 terminal, location shortcuts and Kanban, then session organization (**Select
 sessions**, **New session group**, **Move to project group**, **New project
 group**), then the icon color palette, and finally **Change attached folder**
@@ -5464,7 +5529,14 @@ GitHub CLI access, then review the displayed host/key/root before refreshing.
 The observation retains its captured peer and build. Missing tools/accounts,
 stale authority or control loss cannot silently substitute public/Local access.
 Linked-PR observation and client attachments retain their existing explicit
-control-plane reads.
+control-plane reads. A project's **GitHub read access** defaults to public, so background
+observation of a private repository's linked PR returns 404. The PR view and
+its Follow-up read through your GitHub CLI account instead
+([D73](architecture/decisions.md#d73-pr-follow-ups-read-with-the-pr-views-github-account)).
+If a hard policy excludes that account, Follow-up uses the project setting and
+offers **Use my GitHub CLI account for this project**, which changes it
+explicitly; Kanban's separate **GitHub access for linked PRs** applies to
+Kanban issue links only.
 
 ```bash
 node bin/moguri.mjs repository preview --session SESSION_ID
@@ -5788,6 +5860,13 @@ code snippets to check, each with a **Reviewed** checkbox. It runs as a read-onl
 turn in a Local chat with a Moguri model, using the chat's model, Env, budget and
 approvals. Edit the prompt in **Settings / Integrations / GitHub / PR tour** or
 per repository in **Settings / Project**. See [pull request tours](architecture/pr-tours.md).
+
+The pull request view's header has **Merge** (choose merge, squash or rebase)
+for open, non-draft PRs. Once merged, **Delete branch** removes the PR's remote
+branch on GitHub, only when you click it and only while the branch still points
+at the merged commit, and **Revert** opens a pull request (optionally a draft)
+that undoes the merge. Each one shows a review to confirm first. See
+[D71](architecture/decisions.md#d71-merge-delete-the-merged-branch-and-revert-from-the-pr-view).
 
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows
@@ -6388,7 +6467,8 @@ One actual root-less read-only worker can continue only after an explicit
 retained result, valid bounded reported usage and fresh host authorization.
 Earlier output is not automatically inherited. Generated actual-worker and
 budget probes cover three acknowledged roles, real SQLite receipt failure,
-control loss and the existing 32-step bound. This does not expose
+control loss and the 32-step bound that owned internal roles keep
+([D72](architecture/decisions.md#d72-agent-turns-have-no-step-cap)). This does not expose
 Cascade/Critique, choose model families or authorize a user action; fixed-model
 generation remains a separately reviewed one-call operation.
 The combined private transport/owned-worker spike passes **32/32 in 5.08 s**,

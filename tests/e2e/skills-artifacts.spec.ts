@@ -32,7 +32,7 @@ test("Capabilities installs and toggles skills, lists toolsets and opens a proje
     const resources = page.getByRole("navigation", { name: "Profile resources", exact: true });
     await resources.getByRole("button", { name: "Capabilities", exact: true }).click();
     const workspace = page.getByRole("region", { name: "Capabilities", exact: true });
-    await expect(workspace.getByRole("tab")).toHaveText(["Skills", "Marketplace", "MCP", "Tools"]);
+    await expect(workspace.getByRole("tab")).toHaveText(["Skills", "Custom agents", "Marketplace", "MCP", "Tools"]);
     // Every known skill is listed, expanded here (D57); a configured folder's skills are on by default.
     await expect(workspace.getByRole("region", { name: "Generated market", exact: true })
       .getByRole("switch", { name: "Enable skill generated-tab-skill from Generated market", exact: true })).toBeChecked();

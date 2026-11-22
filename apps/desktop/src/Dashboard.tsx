@@ -1,14 +1,15 @@
 import { useEffect, useId, useState } from "react";
-import { envLabel, sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type MyWorkFilters, type Snapshot, type WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
+import { envLabel, sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type MyWorkFilters, type RoundupFilters, type Snapshot, type WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
 import { useMoguri } from "../../../packages/sdk/src/react.ts";
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { InfoTip } from "./Tooltip.tsx";
 import { Alert } from "./Alert.tsx";
 import { MyWorkInbox } from "./MyWorkInbox.tsx";
+import { DependencyRoundup } from "./DependencyRoundup.tsx";
 import { AnalyticsView } from "./AnalyticsView.tsx";
 
-const pages = ["My work", "Analytics", "Usage", "Cost", "Velocity"] as const;
+const pages = ["My work", "Dependencies", "Analytics", "Usage", "Cost", "Velocity"] as const;
 type Page = typeof pages[number];
 const DAY = 86_400_000, day = (time: number) => new Date(time).toISOString().slice(0, 10);
 const count = (value: number) => value.toLocaleString();
@@ -46,15 +47,18 @@ function Breakdown({ title, values, money = false }: { title: string; values: { 
   </li>)}</ul> : <p className="fine-print">No recorded model calls or holds in this range.</p>}</section>;
 }
 
-export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFilters, onDirty }: { sdk: MoguriSdk; snapshot: Snapshot; openSession: (id: string) => Promise<void>; initialItemId?: string | null; initialFilters?: MyWorkFilters; onDirty?: (dirty: boolean) => void }) {
+export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFilters, initialRoundupFilters, onDirty }: { sdk: MoguriSdk; snapshot: Snapshot; openSession: (id: string) => Promise<void>; initialItemId?: string | null; initialFilters?: MyWorkFilters; initialRoundupFilters?: RoundupFilters; onDirty?: (dirty: boolean) => void }) {
   const { status } = useMoguri(sdk), connected = status === "connected" && snapshot.profileId === sdk.profileId;
   const [page, setPage] = useState<Page>("My work"), [range, setRange] = useState<BudgetRange>({ kind: "days", days: 7 }), [projectId, setProjectId] = useState("");
   const [custom, setCustom] = useState(() => ({ from: day(Date.now() - 364 * DAY), to: day(Date.now()) }));
   const [state, setState] = useState<{ sdk: MoguriSdk; key: string; value?: WorkspaceDashboard; error?: string } | null>(null), [navigationError, setNavigationError] = useState("");
   const [opening, setOpening] = useState<string | null>(null);
+  const [roundupItem, setRoundupItem] = useState<string | null>(null);
   useEffect(() => {
-    if (initialItemId || initialFilters !== undefined) { setPage("My work"); setProjectId(initialFilters?.projectId ?? ""); }
+    // A newer inbox navigation replaces an earlier "Open in My Work" choice from the roundup.
+    if (initialItemId || initialFilters !== undefined) { setRoundupItem(null); setPage("My work"); setProjectId(initialFilters?.projectId ?? ""); }
   }, [initialItemId, initialFilters]);
+  useEffect(() => { if (initialRoundupFilters) setPage("Dependencies"); }, [initialRoundupFilters]);
   const stamp = JSON.stringify([snapshot.sessions.map((session) => [session.id, session.revision, session.status, session.turnId, session.updatedAt]), snapshot.budgetEntries, snapshot.budgetPlans, snapshot.projects, snapshot.budgetPolicy.revision]);
   const key = JSON.stringify([range, projectId, stamp, connected]), current = state?.sdk === sdk && state.key === key, data = current ? state.value : undefined;
   useEffect(() => {
@@ -81,7 +85,7 @@ export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFi
     if (value === "custom") setRange({ kind: "custom", ...custom });
     else { const days = presets.find((days) => String(days) === value); if (days) setRange({ kind: "days", days }); }
   };
-  const analytics = page === "Analytics";
+  const analytics = page === "Analytics" || page === "Dependencies";
   return <section className="workspace-dashboard" aria-label="Profile dashboard">
     <nav className="dashboard-pages" aria-label="Dashboard pages">{pages.map((name) => <button key={name} type="button" aria-current={page === name ? "page" : undefined} onClick={() => setPage(name)}>{name}</button>)}</nav>
     {!analytics && <><div className="dashboard-filters"><label>Range<select aria-label="Dashboard date range" value={range.kind === "days" ? String(range.days) : "custom"} onChange={(event) => selectRange(event.target.value)}>
@@ -91,9 +95,11 @@ export function Dashboard({ sdk, snapshot, openSession, initialItemId, initialFi
     </div>
     {range.kind === "custom" && <div className="dashboard-custom"><label>From<input type="date" aria-label="Dashboard range from" value={custom.from} onChange={(event) => setCustom((value) => ({ ...value, from: event.target.value }))} /></label><label>Through<input type="date" aria-label="Dashboard range through" value={custom.to} onChange={(event) => setCustom((value) => ({ ...value, to: event.target.value }))} /></label>
       <button type="button" disabled={!custom.from || !custom.to || custom.from > custom.to} onClick={() => setRange({ kind: "custom", ...custom })}>Apply range</button>{custom.from > custom.to && <Alert as="span" role="alert">From must be on or before Through.</Alert>}</div>}</>}
-    {page === "My work" && <><MyWorkInbox sdk={sdk} snapshot={snapshot} connected={connected} openSession={openSession} projectId={projectId} initialItemId={initialItemId} initialFilters={initialFilters} onDirty={onDirty} />
+    {page === "My work" && <><MyWorkInbox sdk={sdk} snapshot={snapshot} connected={connected} openSession={openSession} projectId={projectId} initialItemId={roundupItem ?? initialItemId} initialFilters={initialFilters} onDirty={onDirty} />
       <ActiveSessions sdk={sdk} snapshot={snapshot} projectId={projectId} connected={connected} disabled={opening !== null} navigate={navigate} /></>}
-    {analytics && <AnalyticsView sdk={sdk} connected={connected} openSession={navigate} />}
+    {page === "Analytics" && <AnalyticsView sdk={sdk} connected={connected} openSession={navigate} />}
+    {page === "Dependencies" && <DependencyRoundup sdk={sdk} snapshot={snapshot} connected={connected} initialFilters={initialRoundupFilters}
+      openItem={(itemId) => { setProjectId(""); setRoundupItem(itemId); setPage("My work"); }} />}
     {!analytics && current && state.error && <Alert as="p" className="inline-error" role="alert">{state.error}</Alert>}{navigationError && <Alert as="p" className="inline-error" role="alert">{navigationError}</Alert>}
     {!analytics && !data && !(current && state.error) && <p role="status">Reading authoritative dashboard data...</p>}
     {!analytics && data && <section aria-label={`${page} dashboard`}>

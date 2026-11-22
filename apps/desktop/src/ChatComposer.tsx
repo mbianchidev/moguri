@@ -55,6 +55,8 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
 }) {
   const draft = useSyncExternalStore(editor.subscribe, editor.getState, editor.getState);
   const input = useRef<HTMLTextAreaElement>(null), dictated = useRef<DraftDictation | null>(null);
+  // The box grows with its text up to a few more lines; Enlarge gives a taller, drag-resizable box until it's restored.
+  const [enlarged, setEnlarged] = useState(false);
   const [insertedTranscript, setInsertedTranscript] = useState<string | null>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
   const [sandboxSetup, setSandboxSetup] = useState<{ revision: number } | null>(null);
@@ -389,7 +391,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
         await attachSession(source.sessionId);
       });
     }}
-    aria-label="Message composer" data-question-pending={question ? true : undefined}
+    aria-label="Message composer" data-question-pending={question ? true : undefined} data-enlarged={enlarged || undefined}
     aria-description={retryAction ? "Enter retries the original failed model request without sending or clearing this draft. Earlier tools and hooks are not replayed." : resumeAction ? "Enter resumes existing work without sending this draft. Inspect unconfirmed effects first. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without resuming." : answering ? "Enter answers. Shift+Enter adds a line. Cmd/Ctrl+Enter queues without answering." : "Enter sends. Shift+Enter adds a line. Cmd/Ctrl+Enter holds or schedules without starting work."}>
     {failedRequest && <Alert as="p" className="composer-context-warning" role="status">{failedRequest.status === "exhausted" ? "Automatic recovery exhausted all four rounds. Retry remains an explicit action." :
       failedRequest.status === "blocked" ? failedRequest.diagnostic : nextRecoveryAt ? `Automatic recovery round ${recoveryCycle!.round + 1} is scheduled for ${nextRecoveryAt.toLocaleTimeString()}. Retry now leaves that countdown unchanged unless the response succeeds.` : failedRequest.diagnostic} Your unsent draft and queued prompts are preserved.</Alert>}
@@ -410,42 +412,47 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
     {draft.attachments.length > 0 && <div className="attachment-list">{draft.attachments.map((attachment) => <AttachmentChip key={attachment.id} sdk={client} sessionId={session.id} attachment={attachment} remove={() => removeAttachment(attachment.id)} onOpenChange={setPreviewOpen} />)}</div>}
     {dragging && <p className="session-drop-hint" role="status">Drop to attach this session's content</p>}
     <label className="sr-only" htmlFor={`prompt-${session.id}`}>{inputLabel}</label>
-    <textarea ref={input} autoFocus={autoFocus} id={`prompt-${session.id}`} rows={question ? 1 : undefined} aria-controls={suggestions.length ? slashListId : undefined}
-      aria-autocomplete={suggestions.length ? "list" : undefined} aria-haspopup={suggestions.length ? "listbox" : undefined}
-      aria-activedescendant={suggestions[slashOption] ? `${slashListId}-${slashOption}` : undefined}
-      placeholder={answering ? question?.allowFreeform ? "Type your answer..." : "Choose one of the offered answers above..." : session.kind === "metachat" ? "Ask about Moguri settings..." : session.kind === "side" ? "Ask about the main conversation..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
-      onPaste={(event) => {
-        const files = Array.from(event.clipboardData.files);
-        if (!files.length) {
-          const text = event.clipboardData.getData("text/plain");
-          if (pasteLineCount(text) > 50) {
-            event.preventDefault();
-            const { selectionStart, selectionEnd } = event.currentTarget;
-            void run(() => editor.paste(text, selectionStart, selectionEnd));
+    <div className="composer-input">
+      <textarea ref={input} autoFocus={autoFocus} id={`prompt-${session.id}`} rows={question ? 1 : undefined} aria-controls={suggestions.length ? slashListId : undefined}
+        aria-autocomplete={suggestions.length ? "list" : undefined} aria-haspopup={suggestions.length ? "listbox" : undefined}
+        aria-activedescendant={suggestions[slashOption] ? `${slashListId}-${slashOption}` : undefined}
+        placeholder={answering ? question?.allowFreeform ? "Type your answer..." : "Choose one of the offered answers above..." : session.kind === "metachat" ? "Ask about Moguri settings..." : session.kind === "side" ? "Ask about the main conversation..." : project ? "Ask anything about this project..." : "Ask anything..."} value={draft.text} disabled={session.status === "archived"} onChange={(event) => editor.edit(event.target.value)}
+        onPaste={(event) => {
+          const files = Array.from(event.clipboardData.files);
+          if (!files.length) {
+            const text = event.clipboardData.getData("text/plain");
+            if (pasteLineCount(text) > 50) {
+              event.preventDefault();
+              const { selectionStart, selectionEnd } = event.currentTarget;
+              void run(() => editor.paste(text, selectionStart, selectionEnd));
+            }
+            return;
           }
-          return;
-        }
-        event.preventDefault();
-        void capture(async () => { if (files.length !== 1) throw new Error("Paste one image at a time. No clipboard files were attached or sent."); const file = files[0]!; await client.attachments.image(session.id, await clipboardImage(file), (file.name || "Clipboard image").slice(0, 100)); });
-      }}
-      onKeyDown={(event) => {
-        if (event.nativeEvent.isComposing || event.keyCode === 229) return;
-        if (suggestions.length && ["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); setSlashOption((index) => (index + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length); }
-        else if (sessionOptions.length && ["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); setSessionOption((index) => (index + (event.key === "ArrowDown" ? 1 : -1) + sessionOptions.length) % sessionOptions.length); }
-        else if (sessionOptions.length && event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey) { event.preventDefault(); chooseAttachmentTrigger(); }
-        else if (event.key === "Tab" && suggestions[slashOption]) { event.preventDefault(); selectSlash(suggestions[slashOption]); }
-        else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
-        else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && recallPrompt(event)) event.preventDefault();
-        else {
-          const action = chatSubmission(event);
-          if (!action) return;
           event.preventDefault();
-          const text = event.currentTarget.value;
-          if (text !== draft.text && text !== editor.getState().text) editor.edit(text);
-          const current = editor.getState();
-          if (current.text.startsWith("!") ? canRunShell(current) : current.text.startsWith("/") || action === "hold" ? canQueueDraft(current) : failedRequest ? canRetry : needsResume ? canResume : canSendDraft(current)) submit(undefined, action === "hold");
-        }
-      }} />
+          void capture(async () => { if (files.length !== 1) throw new Error("Paste one image at a time. No clipboard files were attached or sent."); const file = files[0]!; await client.attachments.image(session.id, await clipboardImage(file), (file.name || "Clipboard image").slice(0, 100)); });
+        }}
+        onKeyDown={(event) => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          if (suggestions.length && ["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); setSlashOption((index) => (index + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length); }
+          else if (sessionOptions.length && ["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); setSessionOption((index) => (index + (event.key === "ArrowDown" ? 1 : -1) + sessionOptions.length) % sessionOptions.length); }
+          else if (sessionOptions.length && event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.shiftKey) { event.preventDefault(); chooseAttachmentTrigger(); }
+          else if (event.key === "Tab" && suggestions[slashOption]) { event.preventDefault(); selectSlash(suggestions[slashOption]); }
+          else if (event.key === "Tab" && attachmentTrigger) { event.preventDefault(); chooseAttachmentTrigger(); }
+          else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && recallPrompt(event)) event.preventDefault();
+          else {
+            const action = chatSubmission(event);
+            if (!action) return;
+            event.preventDefault();
+            const text = event.currentTarget.value;
+            if (text !== draft.text && text !== editor.getState().text) editor.edit(text);
+            const current = editor.getState();
+            if (current.text.startsWith("!") ? canRunShell(current) : current.text.startsWith("/") || action === "hold" ? canQueueDraft(current) : failedRequest ? canRetry : needsResume ? canResume : canSendDraft(current)) submit(undefined, action === "hold");
+          }
+        }} />
+      {!question && <button type="button" className="icon-button composer-enlarge" aria-pressed={enlarged} aria-label={enlarged ? "Restore the message box" : "Enlarge the message box"}
+        title={enlarged ? "Restore the message box" : "Enlarge the message box"}
+        onClick={() => { if (input.current) input.current.style.height = ""; setEnlarged((value) => !value); input.current?.focus(); }}><Icon name={enlarged ? "Minimize" : "Maximize"} /></button>}
+    </div>
     {suggestions.length > 0 && <div ref={slashList} id={slashListId} className="slash-suggestions" role="listbox" aria-label="Slash commands">{suggestions.map((suggestion, index) => <button type="button" role="option" id={`${slashListId}-${index}`} tabIndex={-1}
       aria-selected={index === slashOption} aria-disabled={suggestion.kind === "shadowed" || undefined} key={suggestion.kind === "builtin" ? suggestion.name : suggestion.skill.id} data-command-kind={suggestion.kind}
       onClick={() => selectSlash(suggestion)}><strong>/{suggestion.name}{suggestion.kind !== "builtin" && <small>{suggestion.kind === "shadowed" ? "Skill to rename" : "Skill"} / {suggestion.skill.sourceName}</small>}</strong><span>{suggestion.description}</span></button>)}</div>}
@@ -712,7 +719,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
         !current ? "Select a model to apply this preference." : effort ? `Using ${effortLabel(effort)} for this model; the original preference returns on a supporting model.` :
           "This model has no adjustable thinking; the preference returns on a supporting model."}
     </p>}
-    <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
+    <ModelSubmenu label="Working context window" text="Context window" value={window ? compact(Number(window)) : windows?.values[0] ? current?.synthetic ? `Up to ${compact(windows.values[0])}` : compact(windows.values[0]) : current?.synthetic ? "Managed by Kupo" : "Not selected"}
       open={submenu === "context"} disabled={locked || !windows?.values.length} toggle={() => setSubmenu(submenu === "context" ? null : "context")} close={() => setSubmenu(null)}>
       {[null, ...contextChoices].map((value) => <button key={value ?? "default"} type="button" role="menuitemradio" aria-checked={window === (value?.toString() ?? "")}
         onClick={() => {
@@ -720,7 +727,7 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
           setWindow(value?.toString() ?? ""); setSubmenu(null); void save({ ...(value ? { contextWindow: value } : {}), ...(effort ? { thinkingEffort: effort } : {}) });
         }}>
         <span>{value === null ? "Model default" : `${count(value)} tokens`}</span>{window === (value?.toString() ?? "") && <Icon name="Check" />}</button>)}
-      {current?.synthetic && <p className="fine-print">Shared exact ceiling for the eligible pool, rechecked before every role. Default uses each model's qualified window; history and attachments are never truncated.</p>}
+      {current?.synthetic && <p className="fine-print">Model default lets each request use any eligible model whose own qualified window fits it. A ceiling narrows Kupo to models that support it; history and attachments are never truncated.</p>}
     </ModelSubmenu>
     {current?.synthetic && poolControls && !poolControls.available && <Alert as="p" className="inline-error" role="alert">{poolControls.diagnostic}
       {effort ? <button type="button" disabled={locked} onClick={() => {

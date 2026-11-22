@@ -85,7 +85,8 @@ Every workflow is on by default (`kupo.workflows` absent). Each has its own sett
 
 Each preference uses a subset: Savings runs Single and Cascade; Balanced runs every enabled workflow and
 avoids frontier solvers and drafters for requests above 32,768 estimated input tokens while a
-non-frontier model is eligible; Performance runs Single, Critique and Council at High or xhigh; Dynamic
+non-frontier model is eligible; Performance runs Single, Critique and Council at High or xhigh, with
+every task role on a frontier model while the classifier may be any eligible model (D69); Dynamic
 picks per request. Every mode picks thinking effort per request by task complexity, capped at xhigh: Kupo
 never chooses Max, which tends to degrade results. The composer's mode list
 (`routing.modes`) shows which workflows each mode can run with the current models, with eligible pairs

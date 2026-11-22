@@ -83,6 +83,25 @@ async function readPages(read: (page: number) => Promise<Browse>, accountId: str
   }
   return { items, more: true };
 }
+type Pages = { items: GithubItem[]; more: boolean };
+interface Preloaded<T> { value: T | null; error: string; refresh: () => void }
+/**
+ * Starts a read as soon as the PR is shown, so tabs open on data that is already loading or loaded.
+ * `refresh` rereads in the background and keeps showing the previous value until the new one arrives.
+ */
+function usePreload<T>(key: string, read: (() => Promise<T>) | null, fallback: string): Preloaded<T> {
+  const [state, setState] = useState<{ key: string; value: T | null; error: string }>({ key, value: null, error: "" }), [round, setRound] = useState(0);
+  useEffect(() => {
+    if (!read) return;
+    let live = true;
+    setState((current) => current.key === key ? { ...current, error: "" } : { key, value: null, error: "" });
+    read().then((value) => { if (live) setState({ key, value, error: "" }); },
+      (error: unknown) => { if (live) setState((current) => ({ key, value: current.key === key ? current.value : null, error: failure(error, fallback) })); });
+    return () => { live = false; };
+  }, [key, round]);
+  const refresh = () => setRound((value) => value + 1);
+  return state.key === key ? { value: state.value, error: state.error, refresh } : { value: null, error: "", refresh };
+}
 
 /** Loads the session's linked PR through the project's exact account, then shows it. */
 export function LinkedPullRequest({ sdk, session, snapshot, url, onDirty, openSettings, observed }: {
@@ -123,11 +142,15 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
 }) {
   const { item } = selection, { repository, account } = selection.source, number = item.number, head = item.headSha;
   const key = JSON.stringify([sdk.profileId, scope, selection.context.accountId, repository, number, head, githubSourceOwner(selection.binding)]);
-  const writable = sessionGithubWritable(session, snapshot) && item.state === "open";
+  const canWrite = sessionGithubWritable(session, snapshot), writable = canWrite && item.state === "open";
+  const sameRepository = !item.headRepository || item.headRepository.toLowerCase() === repository.toLowerCase();
   const [tab, setTab] = useState<Tab>("Description"), [checks, setChecks] = useState<{ items: GithubItem[]; runs: Map<number, string>; more: boolean } | null>(null);
   const reviewed = useReviewedWrite(sdk, scope, reload), { pending, busy, error, notice, setError } = reviewed;
-  const [stateMenu, setStateMenu] = useState(false);
-  const stateButton = useRef<HTMLButtonElement>(null), current = useRef(key); current.current = key;
+  const [stateMenu, setStateMenu] = useState(false), [mergeMenu, setMergeMenu] = useState(false), [revertMenu, setRevertMenu] = useState(false);
+  const [revertPull, setRevertPull] = useState<GithubItem | null>(null);
+  const stateButton = useRef<HTMLButtonElement>(null), mergeButton = useRef<HTMLButtonElement>(null), revertButton = useRef<HTMLButtonElement>(null);
+  const current = useRef(key); current.current = key;
+  const readOnly = "This session can't change GitHub. Use an agent session that is not read-only.";
   const loadChecks = async () => {
     if (!head) { setError("This pull request has no verified head. No checks were guessed."); return; }
     const captured = key;
@@ -140,7 +163,17 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
     } catch (error) { if (current.current === captured) { setChecks(null); setError(failure(error, "Checks could not be read. Missing CI is not successful CI.")); } }
   };
   useEffect(() => { setChecks(null); reviewed.cancel(); setError(""); void loadChecks(); }, [key]);
-  const write = (label: string, action: GithubAction, after?: () => void) => reviewed.start(label, action, after);
+  const accountId = selection.context.accountId;
+  const files = usePreload<Pages>(key, head ? () => readPages((page) => sdk.github.files(scope, repository, account, number!, head, page, 100), accountId) : null, "Changed files could not be read.");
+  const timeline = usePreload<Pages>(key, () => readPages((page) => sdk.github.browse(scope, { resource: "timeline", repository, account, number: number!, page, perPage: 100 }), accountId), "Review activity could not be read.");
+  const threads = usePreload<Pages>(key, () => readPages((page) => sdk.github.threads(scope, repository, account, number!, page, 100), accountId), "Review threads could not be read.");
+  const commits = usePreload<Pages>(key, () => readPages((page) => sdk.github.browse(scope, { resource: "commits", repository, account, number: number!, page, perPage: 100 }), accountId), "Commits could not be read.");
+  const write = (label: string, action: GithubAction, after?: (resource: GithubItem | null) => void) => reviewed.start(label, action, after);
+  const merge = (method: "merge" | "squash" | "rebase", label: string) => { setMergeMenu(false); void write(label, { kind: "github.pr.merge", repository, account, number: number!, method }); };
+  const revert = (draft: boolean) => {
+    setRevertMenu(false); setRevertPull(null);
+    void write(draft ? "Open a draft revert pull request" : "Open a revert pull request", { kind: "github.pr.revert", repository, account, number: number!, draft }, setRevertPull);
+  };
   const mark = githubStateMark("pull", item), host = upstreamLabel(item.url);
   const failing = checks?.items.filter((check) => checkGroup(check) === "failing").length ?? 0;
   const badge: Partial<Record<Tab, ReactNode>> = {
@@ -166,7 +199,29 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
               <Icon name={item.draft ? "PR" : "PRDraft"} /><span><strong>{item.draft ? "Ready for review" : "Convert to draft"}</strong>
                 <small>{item.draft ? "Reviewers are notified and the PR can be merged." : "Reviewers are not asked to review until it is ready again."}</small></span></button>
           </AnchoredMenu>}
-        </div> : <span className="pr-state-badge" data-github-state={mark.tone}><GitHubStateIcon kind="pull" item={item} />{mark.label.replace(" pull request", "")}</span>}
+          <button ref={mergeButton} type="button" className="pr-state-button" aria-haspopup="dialog" aria-expanded={mergeMenu} disabled={!writable || busy || item.draft}
+            title={!writable ? readOnly : item.draft ? "Mark the pull request ready for review before merging." : undefined} onClick={() => setMergeMenu((value) => !value)}>
+            <Icon name="PRMerged" /><span>Merge</span><Icon name="Down" /></button>
+          {mergeMenu && <AnchoredMenu label="Merge pull request" trigger={mergeButton} close={() => setMergeMenu(false)} className="pr-state-menu">
+            {([["merge", "Create a merge commit", "Keeps every commit and adds a merge commit."], ["squash", "Squash and merge", "Combines the commits into one on the base branch."],
+              ["rebase", "Rebase and merge", "Replays each commit onto the base branch."]] as const).map(([method, title, detail]) =>
+              <button key={method} type="button" role="menuitem" disabled={busy} onClick={() => merge(method, title)}>
+                <Icon name="PRMerged" /><span><strong>{title}</strong><small>{detail} You review the exact head before anything is sent.</small></span></button>)}
+          </AnchoredMenu>}
+        </div> : <div className="pr-state-control">
+          <span className="pr-state-badge" data-github-state={mark.tone}><GitHubStateIcon kind="pull" item={item} />{mark.label.replace(" pull request", "")}</span>
+          {item.state === "merged" && item.head && sameRepository && <button type="button" className="pr-state-button" disabled={!canWrite || busy}
+            title={canWrite ? `Delete branch ${item.head} on GitHub` : readOnly} onClick={() => void write(`Delete branch ${item.head}`,
+              { kind: "github.branch.delete", repository, account, number: number!, branch: item.head! })}><Icon name="Trash" /><span>Delete branch</span></button>}
+          {item.state === "merged" && <><button ref={revertButton} type="button" className="pr-state-button" aria-haspopup="dialog" aria-expanded={revertMenu}
+            disabled={!canWrite || busy} title={canWrite ? undefined : readOnly} onClick={() => setRevertMenu((value) => !value)}><Icon name="Undo" /><span>Revert</span><Icon name="Down" /></button>
+            {revertMenu && <AnchoredMenu label="Revert pull request" trigger={revertButton} close={() => setRevertMenu(false)} className="pr-state-menu">
+              <button type="button" role="menuitem" disabled={busy} onClick={() => revert(false)}><Icon name="PR" /><span><strong>Open a revert pull request</strong>
+                <small>GitHub adds a commit that undoes these changes on a new branch. Nothing is merged.</small></span></button>
+              <button type="button" role="menuitem" disabled={busy} onClick={() => revert(true)}><Icon name="PRDraft" /><span><strong>Open it as a draft</strong>
+                <small>Same revert, opened as a draft pull request.</small></span></button>
+            </AnchoredMenu>}</>}
+        </div>}
       </div>
       <h3 className="pr-view-title">{item.title} <button type="button" className="pr-view-number" disabled={!item.url} title={`Open on ${host}`}
         aria-label={`Open pull request #${number} on ${host}`} onClick={() => open(item.url)}>#{number}</button></h3>
@@ -183,14 +238,16 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
       onClick={() => setTab(name)}>{name}{badge[name]}</button>)}</div>
     <ReviewedWritePanel write={reviewed} target={`${repository}#${number} / ${selection.context.account}`} />
     {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
+    {revertPull?.number && <p className="fine-print" role="status">Revert pull request #{revertPull.number} is open.
+      <button type="button" className="quiet" disabled={!revertPull.url} onClick={() => open(revertPull.url)}>Open #{revertPull.number} on {upstreamLabel(revertPull.url)}</button></p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <div role="tabpanel" aria-label={tab} className="pr-view-panel">
       {tab === "Description" && <DescriptionTab key={key} sdk={sdk} scope={scope} selection={selection} writable={writable && !busy && !pending} write={write} onDirty={onDirty} />}
-      {tab === "Files" && <FilesTab key={key} sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection} writable={writable} openSettings={openSettings} />}
-      {tab === "Reviews" && <ReviewsTab key={key} sdk={sdk} scope={scope} selection={selection} />}
+      {tab === "Files" && <FilesTab key={key} sdk={sdk} session={session} snapshot={snapshot} scope={scope} selection={selection} writable={writable} openSettings={openSettings} files={files} />}
+      {tab === "Reviews" && <ReviewsTab key={key} selection={selection} timeline={timeline} threads={threads} />}
       {tab === "Checks" && <ChecksTab checks={checks} reload={() => { setChecks(null); setError(""); void loadChecks(); }}
         watch={head ? <PrCiWatch sdk={sdk} scope={scope} snapshot={snapshot} selection={selection} reloadSource={reload} /> : null} />}
-      {tab === "Commits" && <CommitsTab key={key} sdk={sdk} scope={scope} selection={selection} />}
+      {tab === "Commits" && <CommitsTab key={key} commits={commits} />}
     </div>
     {footer}
   </section>;
@@ -278,19 +335,11 @@ function MetaPicker({ sdk, scope, selection, kind, label, icon, values, disabled
   </span>;
 }
 
-function FilesTab({ sdk, session, snapshot, scope, selection, writable, openSettings }: {
-  sdk: MoguriSdk; session: Session; snapshot: Snapshot; scope: GithubScope; selection: GithubSelection; writable: boolean; openSettings?: () => void;
+function FilesTab({ sdk, session, snapshot, scope, selection, writable, openSettings, files: preloaded }: {
+  sdk: MoguriSdk; session: Session; snapshot: Snapshot; scope: GithubScope; selection: GithubSelection; writable: boolean; openSettings?: () => void; files: Preloaded<Pages>;
 }) {
-  const [view, setView] = useState<"diff" | "tour">("diff"), [files, setFiles] = useState<{ items: GithubItem[]; more: boolean } | null>(null), [error, setError] = useState("");
-  const { repository, account } = selection.source, number = selection.item.number!, head = selection.item.headSha;
-  useEffect(() => {
-    if (view !== "diff" || files) return;
-    if (!head) { setError("This pull request has no verified head. No diff was guessed."); return; }
-    let live = true;
-    void readPages((page) => sdk.github.files(scope, repository, account, number, head, page, 100), selection.context.accountId)
-      .then((value) => { if (live) setFiles(value); }).catch((error: unknown) => { if (live) setError(failure(error, "Changed files could not be read.")); });
-    return () => { live = false; };
-  }, [view]);
+  const [view, setView] = useState<"diff" | "tour">("diff"), files = preloaded.value;
+  const error = selection.item.headSha ? preloaded.error : "This pull request has no verified head. No diff was guessed.";
   return <div className="pr-files">
     <div className="pr-files-toolbar"><div className="pr-segmented" role="group" aria-label="Files view">
       <button type="button" aria-pressed={view === "diff"} onClick={() => setView("diff")}>Diff</button>
@@ -317,19 +366,11 @@ const EVENT_TEXT: Record<string, string> = {
 };
 const REVIEW_TEXT: Record<string, string> = { APPROVED: "approved these changes", CHANGES_REQUESTED: "requested changes", COMMENTED: "reviewed", DISMISSED: "had a review dismissed" };
 
-function ReviewsTab({ sdk, scope, selection }: { sdk: MoguriSdk; scope: GithubScope; selection: GithubSelection }) {
+function ReviewsTab({ selection, timeline: loadedTimeline, threads: loadedThreads }: { selection: GithubSelection; timeline: Preloaded<Pages>; threads: Preloaded<Pages> }) {
   const [filter, setFilter] = useState<ReviewFilter>("all"), [newest, setNewest] = useState(false), [menu, setMenu] = useState(false);
-  const [timeline, setTimeline] = useState<{ items: GithubItem[]; more: boolean } | null>(null), [threads, setThreads] = useState<GithubItem[] | null>(null), [error, setError] = useState("");
-  const trigger = useRef<HTMLButtonElement>(null), { repository, account } = selection.source, number = selection.item.number!;
-  useEffect(() => {
-    let live = true;
-    const read = filter === "unresolved" ? threads ? null : readPages((page) => sdk.github.threads(scope, repository, account, number, page, 100), selection.context.accountId)
-      .then((value) => { if (live) setThreads(value.items); }) : timeline ? null :
-      readPages((page) => sdk.github.browse(scope, { resource: "timeline", repository, account, number, page, perPage: 100 }), selection.context.accountId)
-        .then((value) => { if (live) setTimeline(value); });
-    void read?.catch((error: unknown) => { if (live) setError(failure(error, "Review activity could not be read.")); });
-    return () => { live = false; };
-  }, [filter]);
+  const timeline = loadedTimeline.value, threads = loadedThreads.value?.items ?? null, error = filter === "unresolved" ? loadedThreads.error : loadedTimeline.error;
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => { loadedTimeline.refresh(); loadedThreads.refresh(); }, []);
   const source = filter === "unresolved" ? (threads ?? []).filter((thread) => thread.state === "unresolved") : (timeline?.items ?? []).filter((entry) =>
     filter === "all" || filter === "comments" && entry.kind === "comment" || filter === "reviews" && entry.kind === "review" || filter === "events" && (entry.kind === "event" || entry.kind === "commit"));
   const ordered = source.map((entry, index) => ({ entry, index })).sort((a, b) => {
@@ -404,15 +445,8 @@ function ChecksTab({ checks, reload, watch }: { checks: { items: GithubItem[]; r
   </div>;
 }
 
-function CommitsTab({ sdk, scope, selection }: { sdk: MoguriSdk; scope: GithubScope; selection: GithubSelection }) {
-  const [commits, setCommits] = useState<{ items: GithubItem[]; more: boolean } | null>(null), [error, setError] = useState(""), [folded, setFolded] = useState<string[]>([]);
-  const { repository, account } = selection.source, number = selection.item.number!;
-  useEffect(() => {
-    let live = true;
-    void readPages((page) => sdk.github.browse(scope, { resource: "commits", repository, account, number, page, perPage: 100 }), selection.context.accountId)
-      .then((value) => { if (live) setCommits(value); }).catch((error: unknown) => { if (live) setError(failure(error, "Commits could not be read.")); });
-    return () => { live = false; };
-  }, []);
+function CommitsTab({ commits: loaded }: { commits: Preloaded<Pages> }) {
+  const [folded, setFolded] = useState<string[]>([]), commits = loaded.value, error = loaded.error;
   if (error) return <Alert as="p" className="inline-error" role="alert">{error}</Alert>;
   if (!commits) return <p className="fine-print" role="status">Reading commits...</p>;
   if (!commits.items.length) return <p className="fine-print">No commits reported.</p>;
