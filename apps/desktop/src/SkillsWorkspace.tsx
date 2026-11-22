@@ -6,9 +6,11 @@ import { Alert } from "./Alert.tsx";
 import { SkillGatewaySettings } from "./SkillGatewaySettings.tsx";
 import { SkillList } from "./SkillList.tsx";
 import type { SettingsTab } from "./SettingsPanel.tsx";
+import { PersonasPanel } from "./Personas.tsx";
 
-export const skillsTabs = ["Skills", "Marketplace", "MCP", "Tools"] as const;
+export const skillsTabs = ["Skills", "Custom agents", "Marketplace", "MCP", "Tools"] as const;
 export type SkillsTab = typeof skillsTabs[number];
+const tabId = (tab: SkillsTab) => `skills-tab-${tab.replaceAll(" ", "-")}`;
 const scopeLabel = (snapshot: Snapshot, projectId: string | null) => projectId === null ? "All projects" : snapshot.projects.find((project) => project.id === projectId)?.name ?? "Removed project";
 const originLabel = (entry: CapabilityEntry) => entry.ownerPluginId ? "Plugin bundle" : entry.marketplace ? "Repository marketplace" : entry.source === "approved-proposal" ? "Approved proposal" : "Installed by you";
 const scriptTemplate = `// description: Describe when an agent should use this tool.
@@ -222,9 +224,10 @@ function Tools({ sdk, snapshot, openSession, openAutomations }: { sdk: MoguriSdk
   </>;
 }
 
-export function SkillsWorkspace({ sdk, snapshot, tab, setTab, openSettings, openSession, openAutomations }: {
+export function SkillsWorkspace({ sdk, snapshot, tab, setTab, openSettings, openSession, openAutomations, run }: {
   sdk: MoguriSdk; snapshot: Snapshot; tab: SkillsTab; setTab: (tab: SkillsTab) => void;
   openSettings: (tab: SettingsTab) => void; openSession: (id: string) => Promise<void>; openAutomations: () => void;
+  run: Parameters<typeof PersonasPanel>[0]["run"];
 }) {
   const index = skillsTabs.indexOf(tab);
   return <section className="skills-workspace" aria-label="Capabilities">
@@ -233,10 +236,11 @@ export function SkillsWorkspace({ sdk, snapshot, tab, setTab, openSettings, open
       event.preventDefault();
       const next = event.key === "Home" ? 0 : event.key === "End" ? skillsTabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + skillsTabs.length) % skillsTabs.length;
       setTab(skillsTabs[next]!); event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-    }}>{skillsTabs.map((name) => <button key={name} id={`skills-tab-${name}`} type="button" role="tab" aria-selected={tab === name} aria-controls="skills-tabpanel"
+    }}>{skillsTabs.map((name) => <button key={name} id={tabId(name)} type="button" role="tab" aria-selected={tab === name} aria-controls="skills-tabpanel"
       tabIndex={tab === name ? 0 : -1} onClick={() => setTab(name)}>{name}</button>)}</div>
-    <div id="skills-tabpanel" role="tabpanel" aria-labelledby={`skills-tab-${tab}`} data-skills-tab={tab}>
+    <div id="skills-tabpanel" role="tabpanel" aria-labelledby={tabId(tab)} data-skills-tab={tab}>
       {tab === "Skills" && <InstalledSkills sdk={sdk} snapshot={snapshot} openSettings={openSettings} />}
+      {tab === "Custom agents" && <PersonasPanel sdk={sdk} snapshot={snapshot} run={run} openSession={(id) => void openSession(id)} />}
       {tab === "Marketplace" && <Marketplace sdk={sdk} snapshot={snapshot} openSettings={openSettings} />}
       {tab === "MCP" && <McpInstallPanel servers={snapshot.settings.values.mcpServers} disabled={false} openSettings={() => openSettings("mcpServers")} save={async (mcpServers) => {
         const current = sdk.settings.get();

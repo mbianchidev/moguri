@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  activePersonaRun, outcomeLabel, personaPresets,
-  type MoguriSdk, type Persona, type PersonaDefinition, type PersonaPreset, type PersonaRun, type Snapshot,
+  activePersonaRun, outcomeLabel, personaPresets, skillListGroups,
+  type GatewaySkill, type MoguriSdk, type Persona, type PersonaDefinition, type PersonaPreset, type PersonaRun, type Snapshot,
 } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
+import { AnchoredMenu } from "./AnchoredMenu.tsx";
 import { Icon } from "./Icon.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
 
@@ -20,15 +21,15 @@ export function PersonasPanel({ sdk, snapshot, run, openSession }: { sdk: Moguri
   const [editing, setEditing] = useState<Persona | PersonaPreset | "new" | null>(null);
   const personas = [...snapshot.personas].sort((a, b) => a.handle.localeCompare(b.handle));
   const unused = (Object.keys(personaPresets) as PersonaPreset[]).filter((preset) => !snapshot.personas.some((persona) => persona.handle === personaPresets[preset].handle));
-  return <section className="automations-panel personas-panel" aria-label="Personas">
-    <header><Icon name="User" /><h2>Personas</h2>
-      <button type="button" className="primary" onClick={() => setEditing("new")}>New persona</button></header>
-    <p className="fine-print">Tag an enabled persona with its @handle in a chat message. It starts in a linked subsession under that chat, which orchestrates and receives its reply.
-      Tagging grants no permission: the subsession starts under Manual autonomy, and approvals, hard policy and budgets still apply. Read-only personas can work at the same time;
-      writable ones take turns on the same files. To run a persona on a schedule, create an automation whose prompt tags it.</p>
+  return <section className="automations-panel personas-panel" aria-label="Custom agents">
+    <header><Icon name="User" /><h2>Custom agents</h2>
+      <button type="button" className="primary" onClick={() => setEditing("new")}>New custom agent</button></header>
+    <p className="fine-print">Tag an enabled custom agent with its @handle in a chat message. It starts in a linked subsession under that chat, which orchestrates and receives its reply.
+      Tagging grants no permission: the subsession starts under Manual autonomy, and approvals, hard policy and budgets still apply. Read-only agents can work at the same time;
+      writable ones take turns on the same files. To run one on a schedule, create an automation whose prompt tags it.</p>
     {unused.length > 0 && <div className="button-row" role="group" aria-label="Presets">{unused.map((preset) =>
       <button key={preset} type="button" onClick={() => setEditing(preset)}>Add {presetNames[preset]}</button>)}</div>}
-    {!personas.length && <p>No personas yet. Personas start off until you turn them on.</p>}
+    {!personas.length && <p>No custom agents yet. Custom agents start off until you turn them on.</p>}
     {personas.map((persona) => <PersonaCard key={persona.id} sdk={sdk} snapshot={snapshot} persona={persona} run={run} openSession={openSession} edit={() => setEditing(persona)} />)}
     <OrphanRuns sdk={sdk} snapshot={snapshot} run={run} openSession={openSession} />
     {editing && <PersonaDialog sdk={sdk} snapshot={snapshot} persona={typeof editing === "string" ? null : editing} preset={typeof editing === "string" && editing !== "new" ? editing : null}
@@ -67,7 +68,7 @@ function PersonaCard({ sdk, snapshot, persona, run, openSession, edit }: {
     <div className="automation-actions">
       <button type="button" disabled={busy} onClick={edit}>Edit</button>
       {confirming ? <>
-        <span className="fine-print">{active.length ? "Stop its active runs and delete this persona? Its chats are kept." : "Delete this persona? Its chats are kept."}</span>
+        <span className="fine-print">{active.length ? "Stop its active runs and delete this custom agent? Its chats are kept." : "Delete this custom agent? Its chats are kept."}</span>
         <button type="button" className="danger" disabled={busy} onClick={() => act(() => sdk.personas.delete(persona.id, { stopRunning: active.length > 0, expectedRevision: persona.revision }))}>
           {active.length ? "Stop runs and delete" : "Delete"}</button>
         <button type="button" className="quiet" disabled={busy} onClick={() => setConfirming(false)}>Cancel</button>
@@ -81,7 +82,7 @@ function PersonaCard({ sdk, snapshot, persona, run, openSession, edit }: {
 
 function OrphanRuns({ sdk, snapshot, run, openSession }: { sdk: MoguriSdk; snapshot: Snapshot; run: Run; openSession: (id: string) => void }) {
   const runs = snapshot.personaRuns.filter((value) => !snapshot.personas.some((persona) => persona.id === value.personaId)).slice(0, 10);
-  return runs.length ? <section aria-label="Runs of deleted personas"><h4>Runs of deleted personas</h4>
+  return runs.length ? <section aria-label="Runs of deleted custom agents"><h4>Runs of deleted custom agents</h4>
     <ul className="automation-runs">{runs.map((value) => <PersonaRunRow key={value.id} sdk={sdk} snapshot={snapshot} value={value} run={run} openSession={openSession} />)}</ul></section> : null;
 }
 
@@ -97,7 +98,7 @@ function PersonaRunRow({ sdk, snapshot, value, run, openSession }: { sdk: Moguri
     {value.diagnostic && <p className="scheduled-prompt-diagnostic">{value.diagnostic}</p>}
     <span className="automation-run-actions">
       {source && <button type="button" className="quiet" onClick={() => openSession(source.id)}>Open tagging chat</button>}
-      {child && <button type="button" className="quiet" onClick={() => openSession(child.id)}>Open persona chat</button>}
+      {child && <button type="button" className="quiet" onClick={() => openSession(child.id)}>Open agent chat</button>}
       {activePersonaRun(value) && !value.stopRequested && <button type="button" onClick={() => void run(() => sdk.personas.stopRun(value.id))}>Stop</button>}
     </span>
   </li>;
@@ -109,7 +110,7 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
     access: "read-only", skills: [], budget: null, timeoutMinutes: 30, output: "reply", mention: true });
   const [handle, setHandle] = useState(base.handle), [name, setName] = useState(base.name), [description, setDescription] = useState(base.description);
   const [instructions, setInstructions] = useState(base.instructions), [projectId, setProjectId] = useState(base.projectId ?? "");
-  const [modelId, setModelId] = useState(base.modelId ?? ""), [access, setAccess] = useState(base.access), [skills, setSkills] = useState(base.skills.join(", "));
+  const [modelId, setModelId] = useState(base.modelId ?? ""), [access, setAccess] = useState(base.access), [skills, setSkills] = useState(base.skills);
   const [tokens, setTokens] = useState(base.budget?.kind === "limited" && base.budget.tokens ? String(base.budget.tokens) : "");
   const [usd, setUsd] = useState(base.budget?.kind === "limited" && base.budget.usd ? String(base.budget.usd) : "");
   const [timeout, setTimeoutMinutes] = useState(String(base.timeoutMinutes)), [output, setOutput] = useState(base.output), [mention, setMention] = useState(base.mention);
@@ -124,16 +125,16 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
     pending.current = true; setBusy(true); setError("");
     try {
       const definition: PersonaDefinition = { handle: handle.trim().replace(/^@/, "").toLowerCase(), name: name.trim(), description: description.trim(), instructions,
-        projectId: projectId || null, modelId: modelId || null, access, skills: skills.split(",").map((value) => value.trim()).filter(Boolean),
+        projectId: projectId || null, modelId: modelId || null, access, skills,
         budget: tokens || usd ? { kind: "limited", ...(tokens ? { tokens: Number(tokens) } : {}), ...(usd ? { usd: Number(usd) } : {}), basis: "estimate" } : null,
         timeoutMinutes: Number(timeout), output, mention };
       if (persona) await sdk.personas.update(persona.id, definition, persona.revision);
       else await sdk.personas.create(definition, preset ?? undefined);
       close();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "The persona was not saved."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The custom agent was not saved."); }
     finally { pending.current = false; setBusy(false); }
   };
-  const title = persona ? `Edit @${persona.handle}` : preset ? `Add ${presetNames[preset]}` : "New persona";
+  const title = persona ? `Edit @${persona.handle}` : preset ? `Add ${presetNames[preset]}` : "New custom agent";
   return <dialog ref={dialog} className="workspace-dialog automation-dialog" aria-label={title} onCancel={(event) => { event.preventDefault(); if (!pending.current) close(); }}>
     <header><h2>{title}</h2></header>
     <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
@@ -147,7 +148,7 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
         <option value="">The tagging chat's model</option>{snapshot.provider.models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
       <label className="setting-field">Tools<select value={access} disabled={busy} onChange={(event) => setAccess(event.target.value as PersonaDefinition["access"])}>
         <option value="read-only">Read-only (investigate and recommend)</option><option value="agent">Writable agent (changes need approval)</option></select></label>
-      <label className="setting-field">Skills to load when relevant (comma-separated)<input value={skills} disabled={busy} onChange={(event) => setSkills(event.target.value)} /></label>
+      <SkillPicker sdk={sdk} snapshot={snapshot} value={skills} change={setSkills} disabled={busy} />
       <label className="setting-field">Token cap per run (empty uses the chat's budget)<input type="number" min={1} value={tokens} disabled={busy} onChange={(event) => setTokens(event.target.value)} /></label>
       <label className="setting-field">USD cap per run (empty uses the chat's budget)<input type="number" min={0.01} step={0.01} value={usd} disabled={busy} onChange={(event) => setUsd(event.target.value)} /></label>
       {(tokens || usd) && <p className="fine-print">Caps count estimated usage; the stricter of these caps and the chat's budget applies.</p>}
@@ -155,10 +156,49 @@ function PersonaDialog({ sdk, snapshot, persona, preset, close }: { sdk: MoguriS
       <label className="setting-field">Returns<select value={output} disabled={busy} onChange={(event) => setOutput(event.target.value as PersonaDefinition["output"])}>
         <option value="reply">A reply</option><option value="report">A short report</option></select></label>
       <label className="check-setting"><input type="checkbox" checked={mention} disabled={busy} onChange={(event) => setMention(event.target.checked)} />Start when tagged with @handle</label>
-      {!persona && <p className="fine-print">New personas start off. Turn one on from its card when you want it to answer tags.</p>}
+      {!persona && <p className="fine-print">New custom agents start off. Turn one on from its card when you want it to answer tags.</p>}
       {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
       <footer><button type="button" disabled={busy} onClick={close}>Cancel</button>
-        <button type="submit" className="primary" disabled={busy || !handle.trim() || !name.trim() || !instructions.trim()}>{persona ? "Save changes" : "Create persona"}</button></footer>
+        <button type="submit" className="primary" disabled={busy || !handle.trim() || !name.trim() || !instructions.trim()}>{persona ? "Save changes" : "Create custom agent"}</button></footer>
     </form>
   </dialog>;
+}
+
+const MAX_SKILLS = 20;
+/** Chooses skills from the profile's existing skills list (installed, bundled and source skills) with a searchable dropdown. */
+function SkillPicker({ sdk, snapshot, value, change, disabled }: { sdk: MoguriSdk; snapshot: Snapshot; value: string[]; change: (skills: string[]) => void; disabled: boolean }) {
+  const [open, setOpen] = useState(false), [query, setQuery] = useState(""), [sourceSkills, setSourceSkills] = useState<GatewaySkill[] | null>(null), [error, setError] = useState("");
+  const trigger = useRef<HTMLButtonElement>(null), sources = snapshot.settings.values.skillSources ?? [];
+  const reading = open && sourceSkills === null && sources.some((source) => source.enabled);
+  useEffect(() => {
+    if (!reading) return;
+    const abort = new AbortController();
+    void sdk.skills.sources(abort.signal).then((result) => { if (!abort.signal.aborted) setSourceSkills(result.skills); },
+      (failure: unknown) => { if (!abort.signal.aborted) { setSourceSkills([]); setError(failure instanceof Error ? failure.message : "Skill sources couldn't be read; installed skills are still listed."); } });
+    return () => abort.abort(new Error("The skill picker closed before its sources were read."));
+  }, [reading, sdk]);
+  const names = useMemo(() => [...new Set(skillListGroups({ registry: snapshot.registry, projects: snapshot.projects, sources, switches: snapshot.settings.values.skillSwitches,
+    sourceSkills, failures: [] }).flatMap((group) => group.skills.map((skill) => skill.name)))].sort((a, b) => a.localeCompare(b)), [snapshot.registry, snapshot.projects, sources, snapshot.settings.values.skillSwitches, sourceSkills]);
+  const shown = names.filter((name) => name.toLowerCase().includes(query.trim().toLowerCase()));
+  const toggle = (name: string) => change(value.includes(name) ? value.filter((entry) => entry !== name) : [...value, name]);
+  const available = names.length > 0 || sources.some((source) => source.enabled);
+  return <fieldset className="setting-field persona-skills" disabled={disabled}><legend>Skills to load when relevant</legend>
+    {value.length > 0 ? <ul className="persona-skill-chips" aria-label="Chosen skills">{value.map((name) => <li key={name}><span>{name}</span>
+      <button type="button" className="icon-button" aria-label={`Remove skill ${name}`} title="Remove" onClick={() => change(value.filter((entry) => entry !== name))}><Icon name="Close" /></button></li>)}</ul> :
+      <p className="fine-print">No skills chosen. The agent still sees the chat's enabled skills.</p>}
+    {available ? <button ref={trigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+      <Icon name="Plus" />Choose skills</button> : <p className="fine-print">No skills yet. Add some in Capabilities / Skills or Marketplace.</p>}
+    {open && <AnchoredMenu label="Choose skills" trigger={trigger} close={() => { setOpen(false); setQuery(""); }} className="pr-meta-menu">
+      <input type="search" aria-label="Filter skills" placeholder="Filter skills" value={query} onChange={(event) => setQuery(event.target.value)} />
+      {reading && <p className="fine-print" role="status">Reading skill sources...</p>}
+      {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
+      <div role="group" aria-label="Skills">{shown.map((name) => {
+        const selected = value.includes(name);
+        return <button key={name} type="button" role="menuitemcheckbox" aria-checked={selected} disabled={!selected && value.length >= MAX_SKILLS} onClick={() => toggle(name)}>
+          <span className="pr-meta-check" aria-hidden="true">{selected ? <Icon name="Check" /> : null}</span><span>{name}</span></button>;
+      })}</div>
+      {!reading && !shown.length && <p className="fine-print">{names.length ? "No matching skills." : "No skills found."}</p>}
+      {value.length >= MAX_SKILLS && <p className="fine-print">A custom agent can list up to {MAX_SKILLS} skills.</p>}
+    </AnchoredMenu>}
+  </fieldset>;
 }

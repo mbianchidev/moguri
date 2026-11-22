@@ -901,16 +901,18 @@ without advisory labels or links shows "No advisory information", which does
 not mean the package is secure. Rate limits, revoked access and partial reads
 stay visible per source and mark the roundup incomplete.
 
-## Personas
+## Custom agents (personas)
 
-Personas are named helpers you tag with `@handle`
-([contract](architecture/personas.md)). They start off.
+Custom agents are named helpers you tag with `@handle`
+([contract](architecture/personas.md)); the protocol and commands still call
+them personas. They start off.
 
-- **Desktop:** **Personas** (next to Automations): **Add Product Manager**,
-  **Add Maintenance**, **Add Docs** or **New persona**, then turn on its **On**
-  switch. Each card shows where it can be tagged, its model, tools, budget, time
-  limit and recent runs with **Open tagging chat**, **Open persona chat** and
-  **Stop**.
+- **Desktop:** **Capabilities > Custom agents**: **Add Product Manager**,
+  **Add Maintenance**, **Add Docs** or **New custom agent**, then turn on its
+  **On** switch. **Choose skills** picks the skills it loads from your existing
+  skills list, with search. Each card shows where it can be tagged, its model,
+  tools, budget, time limit and recent runs with **Open tagging chat**, **Open
+  agent chat** and **Stop**.
 - **TUI and slash:** `/personas`, `/personas add docs`, `/personas enable @docs`,
   `pause`, `delete [stop-running]` and `stop RUN_ID`.
 - **CLI:** `moguri personas list|runs|presets|add PRESET|create FILE|update

@@ -216,6 +216,10 @@ svg { flex-shrink: 0; }
 .roundup-update { display: flex; flex-direction: column; gap: var(--space-1); border-top: 1px solid var(--line); padding-top: var(--space-3); overflow-wrap: anywhere; }
 .roundup-security { font-size: var(--font-size-sm); }
 .persona-instructions { white-space: pre-wrap; font-size: var(--font-size-sm); margin: var(--space-2) 0; overflow-wrap: anywhere; }
+.persona-skills { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1-5); margin: 0; padding: 0; border: 0; }
+.persona-skill-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.persona-skill-chips li { display: inline-flex; align-items: center; gap: var(--space-1); padding-inline-start: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-pill); font-size: var(--font-size-xs); }
+.persona-skill-chips .icon-button { width: 22px; min-width: 22px; height: 22px; min-height: 22px; padding: var(--space-0); }
 .automations-panel { min-width: 0; }
 .automations-panel > header { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .automations-panel > header h2 { font-size: var(--font-size-lg); margin: 0; flex: 1; }

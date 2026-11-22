@@ -39,7 +39,6 @@ import { Alert } from "./Alert.tsx";
 import { ProjectFolderActions, type ProjectFolderAction } from "./PanelFailure.tsx";
 import { GhostPrompts, ScheduledPromptsPanel } from "./ScheduledPrompts.tsx";
 import { AutomationsPanel } from "./Automations.tsx";
-import { PersonasPanel } from "./Personas.tsx";
 import { hasUnsavedWork, saveUnsavedWork } from "./unsaved-work.ts";
 import { InterruptedNotice, InterruptedWorkPrompt } from "./InterruptedWork.tsx";
 import { SkillsWorkspace, type SkillsTab } from "./SkillsWorkspace.tsx";
@@ -63,12 +62,12 @@ const availablePanels = (session?: Session): Panel[] => session && !session.proj
 const panelUnavailable = (panel: Panel) => `${panel} needs a project or project group chat. Chats show Side chat, Plan, Insights, Browser and Terminal.`;
 const globalPanels = ["Suggestions", "Dashboard", "Attention"] as const;
 const savedPanels: Panel[] = [...panels, ...globalPanels, "Artifacts", "Candidates", "Sandbox", "PR", "Changes"];
-type GlobalView = typeof globalPanels[number] | "Automations" | "Personas" | "Skills" | "Artifacts";
+type GlobalView = typeof globalPanels[number] | "Automations" | "Skills" | "Artifacts";
 const isGlobalPanel = (value: Panel): value is typeof globalPanels[number] => globalPanels.some((panel) => panel === value);
 const resourceSettings = (panel: Panel): SettingsTab | null => panel === "Artifacts" ? "artifacts" : panel === "Candidates" ? "candidates" : panel === "Sandbox" ? "sendbox" : null;
 const globalNavigation: { view: GlobalView; icon: string }[] = [
   { view: "Dashboard", icon: "Dashboard" }, { view: "Attention", icon: "Inbox" }, { view: "Suggestions", icon: "Suggestions" },
-  { view: "Automations", icon: "Clock" }, { view: "Personas", icon: "User" }, { view: "Skills", icon: "Skill" }, { view: "Artifacts", icon: "Artifacts" },
+  { view: "Automations", icon: "Clock" }, { view: "Skills", icon: "Skill" }, { view: "Artifacts", icon: "Artifacts" },
 ];
 const globalLabel = (view: GlobalView) => view === "Attention" ? "Inbox" : view === "Skills" ? "Capabilities" : view;
 const number = (value: number) => new Intl.NumberFormat().format(value);
@@ -811,8 +810,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
         </header>
         <div className={`global-content panel-${globalView.toLowerCase().replaceAll(" ", "-")}`}>{globalView === "Automations" ? <><AutomationsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} />
           <ScheduledPromptsPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} openTools={() => openSkills("Tools")} /></> :
-          globalView === "Personas" ? <PersonasPanel sdk={client} snapshot={snapshot} run={run} openSession={(id) => void chooseSession(id)} /> :
-          globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} /> :
+          globalView === "Skills" ? <SkillsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} tab={skillsTab} setTab={setSkillsTab} openSettings={openSettings} openSession={chooseSession} openAutomations={() => openGlobal("Automations")} run={run} /> :
           globalView === "Artifacts" ? <ArtifactsWorkspace key={client.profileId} sdk={client} snapshot={snapshot} initialProjectId={session ? session.projectId : project?.id} openSession={chooseSession} openSettings={openSettings} /> :
           <ContextPanel key={`${client.profileId}-${globalView}-${globalSessionId}`} panel={globalView} session={globalSession} project={globalProject} events={events} client={client} run={run} snapshot={snapshot} prUrl={null} sideId={null} selectSide={setSideSessionId} onDirty={reportPanelDirty} onSlash={handleSlash} editorFor={editorFor} suggestionsAll={suggestionsAll} chooseSession={chooseSession} openSettings={openSettings} openSkills={openSkills} openAutomations={() => openGlobal("Automations")} setupSandbox={() => openSettings("sendbox")} modal={setNativeModal} nativeAllowed={!palette && !nativeModal} initialWorkItemId={inboxItemId} initialWorkFilters={inboxFilters} initialRoundupFilters={roundupFilters} chooseWork={openInbox} />}
         </div>
@@ -872,6 +870,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       { name: "Settings and editable system prompt", action: async () => openSettings("systemPrompt") },
       { name: "Profiles: choose, create or rename", action: async () => openSettings("general") },
       { name: "Capabilities: skills, marketplace, MCP servers and agent tools", action: async () => openSkills("Skills") },
+      { name: "Capabilities: custom agents you tag with @handle", action: async () => openSkills("Custom agents") },
       { name: "Artifacts by project", action: async () => openGlobal("Artifacts") },
       { name: "Local project issue board", action: async () => openBoard() },
       { name: "Shared dependency cache", action: async () => openSettings("cache") },
