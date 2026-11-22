@@ -1,11 +1,10 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { defaultBoard, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
-import { createLinearWorkflowApi } from "../../../packages/sdk/src/linear.ts";
-import type {
-  LinearCatalogResource, LinearEntity, LinearIssueFields, LinearOperation, LinearPhaseMapping, LinearPreview,
-  LinearProjectFields, LinearResponse, LinearSnapshot, LinearWorkflowInput,
-} from "../../../packages/protocol/src/linear-workflows.ts";
+import {
+  createLinearWorkflowApi, defaultBoard, type MoguriSdk, type Project, type Session, type Snapshot,
+  type LinearCatalogResource, type LinearEntity, type LinearIssueFields, type LinearOperation, type LinearPhaseMapping, type LinearPreview,
+  type LinearProjectFields, type LinearResponse, type LinearSnapshot, type LinearWorkflowInput,
+} from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 type Action = LinearWorkflowInput["action"];

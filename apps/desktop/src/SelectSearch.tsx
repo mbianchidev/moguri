@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { wordMatch } from "../../../packages/protocol/src/search.ts";
+import { wordMatch } from "../../../packages/sdk/src/index.ts";
 import { Icon } from "./Icon.tsx";
 
 /** Single-choice dropdowns with more than this many selectable options always open with search. */

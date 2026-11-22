@@ -38,6 +38,21 @@ test("the bundled launcher uses its own Node and preserves arguments, working di
   } finally { await f.close(); }
 });
 
+test("the bundled launcher follows absolute and relative symlink chains, as a Homebrew cask binary link needs", async () => {
+  const f = await fixture();
+  try {
+    const bin = join(f.directory, "generated-prefix", "bin"), links = join(f.directory, "generated-prefix", "links");
+    await mkdir(bin, { recursive: true }); await mkdir(links, { recursive: true });
+    await symlink(join(f.appRoot, "dist", "moguri"), join(links, "moguri"));
+    await symlink(join("..", "links", "moguri"), join(bin, "moguri"));
+    const result = await execute(join(bin, "moguri"), ["generated"], { cwd: f.directory, env: { PATH: `${bin}:/usr/bin:/bin` } });
+    assert.deepEqual(JSON.parse(result.stdout).args, ["generated"]);
+    assert.equal(JSON.parse((await execute("moguri", [], { cwd: f.directory, env: { PATH: `${bin}:/usr/bin:/bin` } })).stdout).runtime, process.execPath);
+    await symlink(join(bin, "loop-b"), join(bin, "loop-a")); await symlink(join(bin, "loop-a"), join(bin, "loop-b"));
+    await assert.rejects(() => execute("/bin/sh", ["-c", bundledCliLauncher(), join(bin, "loop-a")], { env: { PATH: "/usr/bin:/bin" } }), { code: 127, stderr: /too many symbolic links/ });
+  } finally { await f.close(); }
+});
+
 test("explicit installation publishes an executable bound to this app without changing shell configuration", async () => {
   const f = await fixture();
   try {

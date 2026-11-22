@@ -1,9 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
-  isModelReadinessReportCurrent, type ModelReadinessMode, type ModelReadinessReport, type ModelReadinessTarget,
+  envLabel, isModelReadinessReportCurrent, type ModelReadinessMode, type ModelReadinessReport, type ModelReadinessTarget,
   type ReadinessEvidence, type ReadinessNumberFact, type ReadinessTextFact,
-} from "../../../packages/protocol/src/model-readiness.ts";
-import { envLabel } from "../../../packages/protocol/src/controls.ts";
+} from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 import { SettingsHelp } from "./SettingsFields.tsx";
 

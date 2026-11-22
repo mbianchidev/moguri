@@ -1,8 +1,8 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import { type DependencyPlan, type MoguriSdk, type PackageManager, type Project } from "../../../packages/sdk/src/index.ts";
-import type { DependencyRegistryConfig, DependencyRegistryPreview } from "../../../packages/protocol/src/workspace.ts";
-import { createCacheApi } from "../../../packages/sdk/src/cache.ts";
+import {
+  createCacheApi, type DependencyPlan, type DependencyRegistryConfig, type DependencyRegistryPreview, type MoguriSdk, type PackageManager, type Project,
+} from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
 export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: MoguriSdk; project?: Project; workspaceId?: string }) {

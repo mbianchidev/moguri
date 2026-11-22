@@ -1,4 +1,7 @@
-export const REPOSITORY: "mbianchidev/moguri";
+export const RELEASE_REPOSITORIES: readonly ["mbianchidev/moguri", "moguri-dev/moguri-desktop"];
+export type ReleaseRepository = typeof RELEASE_REPOSITORIES[number];
+export function releaseRepository(env?: Record<string, string | undefined>): ReleaseRepository;
+export const REPOSITORY: ReleaseRepository;
 export const ARCH: "arm64";
 export interface AssetNames { dmg: string; zip: string; manifest: string; provenance: string; sums: string }
 export interface AssetIdentity { version: string; tag: string; commit: string; tree: string; prerelease: boolean }

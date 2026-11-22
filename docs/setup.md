@@ -1627,17 +1627,20 @@ authentication remains explicit. After installing a build containing this fix,
 quit and reopen Moguri so its original background service restarts with the
 corrected environment; existing healthy services are not silently replaced.
 
-**Settings / General / GitHub updates** reads the public `mbianchidev/moguri`
-releases without a token. A token is optional: it is needed only while the
+**Settings / General / GitHub updates** reads the public Moguri releases
+(`mbianchidev/moguri`, or `moguri-dev/moguri-desktop` after the planned move)
+without a token. A token is optional: it is needed only while the
 repository is private, or to raise GitHub's anonymous rate limit.
 **Set up read-only update access**
 opens a prefilled fine-grained-token link only when clicked. **Create a token
 with the right permissions** contains the complete steps:
-resource owner `mbianchidev`, **Only select repositories / moguri**, **Contents /
-Read-only**, included Metadata read access, and a short expiration. GitHub's
-supported URL parameters cannot preselect the repository: explicitly choose
-**Only select repositories / moguri** and finish authorization yourself. The
-update source stays `mbianchidev/moguri`, not the project currently being viewed.
+the release repository's owner, **Only select repositories** and that repository,
+**Contents / Read-only**, included Metadata read access, and a short expiration.
+GitHub's supported URL parameters cannot preselect the owner or repository:
+choose them explicitly and finish authorization yourself. The update source stays
+the Moguri release repository, not the project currently being viewed. A
+Homebrew-managed app reports new releases but updates only through
+`brew upgrade --cask moguri`.
 The updater needs no write, Workflows, Actions or administration permissions. Paste the token only
 into **Release access token**, never chat. `/updates token-help` exposes the same
 guidance in TUI/CLI. See the [workflow contract](architecture/session-github-workflows.md).
@@ -4444,12 +4447,13 @@ create a real menu-bar item. Its menu lists open chats grouped by project with
 Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
 in **Settings / Interface / Keyboard shortcuts**), Settings and Quit.
 
-**Settings / General / GitHub updates** checks the upstream `mbianchidev/moguri`
-releases. Without a saved token it reads public releases anonymously, contacting
+**Settings / General / GitHub updates** checks the upstream Moguri release
+repository (`mbianchidev/moguri`, followed to `moguri-dev/moguri-desktop` after
+the planned move). Without a saved token it reads public releases anonymously, contacting
 only `api.github.com` and GitHub's release download host. The optional token is
 stored in the secure secret backend and is needed only while the repository is
 private or to raise the rate limit. It is not Copilot sign-in or `gh`
-authentication. Prefer a fine-grained token limited to `mbianchidev/moguri` with
+authentication. Prefer a fine-grained token limited to the release repository with
 Contents read access.
 The password field has its own Save; the automatic-check toggle never commits a
 pending token. By default the running desktop checks at startup and every four

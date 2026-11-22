@@ -20,7 +20,7 @@ scripts/release.sh --dry-run 0.33.0
 
 | Item | Decision |
 | --- | --- |
-| Destination | GitHub Releases of `mbianchidev/moguri`, which the in-app updater reads |
+| Destination | GitHub Releases of `mbianchidev/moguri`, which the in-app updater reads. After the planned move it is `moguri-dev/moguri-desktop`; see [Repository move](#repository-move) |
 | Platform | macOS on Apple silicon (arm64) only |
 | Signing | Ad-hoc signed; not Developer ID signed or notarized |
 | Tags | Annotated `v<version>` on the squash-merged `release: <version>` commit on `main` |
@@ -53,8 +53,11 @@ workflow checks again immediately before undrafting.
   Python 3.10+, Apple `container`, and the system `hdiutil`, `codesign`,
   `ditto` and `shasum`.
 - `gh` logged in to github.com with push access: `gh auth login --hostname github.com`.
-- The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`
-  (SSH or HTTPS), with exactly one push URL.
+- The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`, or
+  `github.com/moguri-dev/moguri-desktop` after the move (SSH or HTTPS), with
+  exactly one push URL. The verified origin selects the release repository and
+  is passed to the Node helpers as `MOGURI_RELEASE_REPOSITORY`; the Release
+  workflow uses `GITHUB_REPOSITORY`. Any other origin is refused.
 - Working GitHub Actions. The script waits for main CI, and only the Release
   workflow can publish.
 - Time and disk: the run executes the full CI-equivalent suite and builds a
@@ -170,6 +173,27 @@ disposable `HOME`. Lint the entrypoint and workflow with
   read-only token until it is public; after that it updates from public
   releases with no token. The Homebrew cask cannot download releases yet.
 
+## Repository move
+
+[#93](https://github.com/mbianchidev/moguri/issues/93) plans to transfer this
+repository to the moguri-dev organization as `moguri-dev/moguri-desktop`
+([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
+Sendbox stays at `mbianchidev/sendbox`. Release from either origin:
+
+- `scripts/release.sh` and its helpers accept only `mbianchidev/moguri` and
+  `moguri-dev/moguri-desktop`, and stamp the verified one into the update
+  manifest.
+- The in-app updater (protocol 121 and later) still starts at
+  `api.github.com/repos/mbianchidev/moguri`. After the transfer GitHub answers
+  that path with one 301 to `api.github.com/repositories/<id>`; the updater
+  follows only that same-origin hop, accepts either repository name and reads
+  releases and assets through the ID path.
+- **Order:** publish a release that contains protocol 121 **before** the
+  transfer. Older installs reject the redirect and the new name, so they stop
+  updating after the move and must be reinstalled by hand (accepted gap).
+- Never create a new repository at `mbianchidev/moguri` after the transfer; it
+  would replace GitHub's redirect.
+
 ## Homebrew cask
 
 The owner chose on 2026-11-19 to publish a cask to `mbianchidev/homebrew-tap`
@@ -189,9 +213,12 @@ At that point, open a draft PR in the tap that follows its `AGENTS.md`:
   and `SHA256SUMS`, with prerelease handling for alpha versions), with tests,
   docs and the README rows.
 
-Before then, #93 also needs two Moguri changes. The bundled launcher
-(`Moguri.app/Contents/Resources/app/dist/moguri`) derives the app from
-`dirname "$0"`, so a plain cask `binary` symlink would resolve Homebrew's
-prefix instead of the app; the command needs a wrapper or a launcher that
-follows its own symlink. And the in-app updater must not replace a
-Homebrew-managed installation.
+The Moguri-side prerequisites are on `main` (protocol 121):
+
+- The bundled launcher (`Moguri.app/Contents/Resources/app/dist/moguri`)
+  follows its own symlink chain before locating the app, so a cask `binary`
+  symlink works.
+- The in-app updater detects a Homebrew-managed app (a `Caskroom/moguri`
+  directory under `HOMEBREW_PREFIX`, `/opt/homebrew` or `/usr/local`). It still
+  reports newer releases but downloads nothing, never replaces the app and
+  points to `brew upgrade --cask moguri`.

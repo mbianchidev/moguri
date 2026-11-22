@@ -7,17 +7,17 @@ import { homedir } from "node:os";
 import { lstat, mkdir, readFile, realpath, rename } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm } from "../../../packages/sdk/src/node.ts";
-import type { Connection } from "../../../packages/protocol/src/index.ts";
-import { browserUrl, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, parse, PROFILE_ID } from "../../../packages/protocol/src/index.ts";
-import { audioBase64, ClientError, defaultNotificationWav, MoguriSdk, QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, shortcutLabel, type NotificationToneKind } from "../../../packages/sdk/src/index.ts";
+import { createGlobalSkillFolder, ensureConnection, globalSkillSources, loadNotificationSoundFile, readConnection, reviewServiceStartup, saveArtifactExport, ServiceUpgradeCancelled, stateDirectory, stopMoguriService, waitForStartupService, waitForStorageRelocation, waitForUpdateInstallArm, LoopDelay } from "../../../packages/sdk/src/node.ts";
+import {
+  audioBase64, browserUrl, ClientError, defaultNotificationWav, GLOBAL_PROFILE_ID, HtmlPreviewInputSchema, isRecord, MoguriSdk, parse, PROFILE_ID,
+  QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, shortcutLabel, type Connection, type NotificationToneKind,
+} from "../../../packages/sdk/src/index.ts";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
 import { SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
 import { HtmlPreviewHost } from "./html-preview.ts";
 import { microphonePermission } from "./microphone-permission.ts";
 import type { DesktopStartupPhase, DesktopStartupStatus } from "./bridge.d.ts";
-import { LoopDelay } from "../../service/src/loop-delay.ts";
 import { DesktopServiceStartup } from "./service-startup.ts";
 
 protocol.registerSchemesAsPrivileged([{ scheme: "moguri", privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);

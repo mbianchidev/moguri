@@ -8,7 +8,15 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { normalizeVersion } from "./version-policy.mjs";
 
-export const REPOSITORY = "mbianchidev/moguri";
+/** The release repository before and after the planned move to moguri-dev (#93). Keep in sync with MOGURI_RELEASE_REPOSITORIES in packages/protocol/src/application-updates.ts. */
+export const RELEASE_REPOSITORIES = Object.freeze(["mbianchidev/moguri", "moguri-dev/moguri-desktop"]);
+/** scripts/release.sh sets MOGURI_RELEASE_REPOSITORY from its verified origin; the Release workflow has GITHUB_REPOSITORY. */
+export function releaseRepository(env = process.env) {
+  const repository = env.MOGURI_RELEASE_REPOSITORY || env.GITHUB_REPOSITORY || RELEASE_REPOSITORIES[0];
+  if (!RELEASE_REPOSITORIES.includes(repository)) throw new Error(`${repository} is not a Moguri release repository (${RELEASE_REPOSITORIES.join(" or ")}).`);
+  return repository;
+}
+export const REPOSITORY = releaseRepository();
 export const ARCH = "arm64";
 
 export function assetNames(version) {

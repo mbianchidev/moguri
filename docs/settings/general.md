@@ -47,7 +47,8 @@ this page keeps the full detail.
 - Automatic checks run at app startup and every four hours, and successful checks download and stage
   (verify) the update. Previous label: "Automatically check and stage updates at app startup and every four
   hours".
-- Checks read the public `mbianchidev/moguri` GitHub Releases without a token. They contact only
+- Checks read the public Moguri GitHub Releases (`mbianchidev/moguri`, or `moguri-dev/moguri-desktop` after
+  the planned move) without a token. They contact only
   `api.github.com` and GitHub's release download host, and send no account, project or usage data. When an
   optional update token is saved, checks use it instead. Checks never use a provider login.
 - Installation and restart always require explicit user confirmation.
@@ -102,7 +103,13 @@ this page keeps the full detail.
 
 Previously titled "Private GitHub updates".
 
-- The update source is fixed to the upstream `mbianchidev/moguri` repository, also for builds from a fork.
+- The update source is fixed to the upstream Moguri release repository, also for builds from a fork. Checks
+  start at `mbianchidev/moguri`; after the planned transfer to `moguri-dev/moguri-desktop`, GitHub redirects
+  that path once to the repository's own ID, which the updater follows. Any other redirect or repository name
+  fails the check without forwarding the token.
+- Homebrew: when Homebrew manages the app (a `Caskroom/moguri` directory exists under `HOMEBREW_PREFIX`,
+  `/opt/homebrew` or `/usr/local`), checks report a newer release without downloading it, and the app never
+  replaces itself. Update with `brew upgrade --cask moguri`.
 - No token is needed for public releases: without one, the updater reads releases anonymously and applies the
   same manifest, size, SHA-512 and bundle checks.
 - **Release access token (optional)**, previously "Private release PAT": needed only while the repository is
@@ -115,9 +122,10 @@ Previously titled "Private GitHub updates".
 - Anonymous checks of a private repository fail with "Public Moguri releases aren't reachable without a
   token"; a rate-limited check says so and downloads nothing.
 - Prefer a fine-grained token limited to this repository with Contents read-only access.
-- "Set up read-only update access" opens GitHub only when clicked. The link prefills resource owner
-  `mbianchidev`, Contents: Read-only and a 30-day expiration. GitHub cannot preselect the repository: choose
-  Only select repositories, then `moguri`. You review repository access and generate the token yourself.
+- "Set up read-only update access" opens GitHub only when clicked. The link prefills Contents: Read-only and
+  a 30-day expiration. It does not preselect the resource owner, so the same link works before and after the
+  move: choose `mbianchidev` (or `moguri-dev` after the move), then Only select repositories and the release
+  repository. You review repository access and generate the token yourself.
   Never select or grant access to all repositories for updates.
 - Status line: "Running build" is the current app version; "Update token" is the credential state
   (`unobserved`, `configured`, `missing` or `failed`). `missing` is shown as "none, using public releases".
