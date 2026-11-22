@@ -317,6 +317,8 @@ you and for the agent ([D64](architecture/decisions.md#d64-pull-request-view-dra
 Diff lines take inline review comments that post to GitHub and show under Reviews. A session's pull requests stay linked once
 associated; switch between them with the PR tabs, and the sidebar mark is green, grey or purple for all of them together
 ([D65](architecture/decisions.md#d65-inline-review-comments-fixed-pr-associations-and-one-session-pr-mark)).
+Its header merges the PR, deletes the merged remote branch on request and opens a revert pull request, each after a review
+([D71](architecture/decisions.md#d71-merge-delete-the-merged-branch-and-revert-from-the-pr-view)).
 Click an active right-rail icon again to collapse its pane back to the rail.
 Terminal belongs to a session: project-free consoles start in configured HOME,
 and project consoles keep their bound worktree. There is no global-terminal UI.

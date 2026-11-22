@@ -142,11 +142,15 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
 }) {
   const { item } = selection, { repository, account } = selection.source, number = item.number, head = item.headSha;
   const key = JSON.stringify([sdk.profileId, scope, selection.context.accountId, repository, number, head, githubSourceOwner(selection.binding)]);
-  const writable = sessionGithubWritable(session, snapshot) && item.state === "open";
+  const canWrite = sessionGithubWritable(session, snapshot), writable = canWrite && item.state === "open";
+  const sameRepository = !item.headRepository || item.headRepository.toLowerCase() === repository.toLowerCase();
   const [tab, setTab] = useState<Tab>("Description"), [checks, setChecks] = useState<{ items: GithubItem[]; runs: Map<number, string>; more: boolean } | null>(null);
   const reviewed = useReviewedWrite(sdk, scope, reload), { pending, busy, error, notice, setError } = reviewed;
-  const [stateMenu, setStateMenu] = useState(false);
-  const stateButton = useRef<HTMLButtonElement>(null), current = useRef(key); current.current = key;
+  const [stateMenu, setStateMenu] = useState(false), [mergeMenu, setMergeMenu] = useState(false), [revertMenu, setRevertMenu] = useState(false);
+  const [revertPull, setRevertPull] = useState<GithubItem | null>(null);
+  const stateButton = useRef<HTMLButtonElement>(null), mergeButton = useRef<HTMLButtonElement>(null), revertButton = useRef<HTMLButtonElement>(null);
+  const current = useRef(key); current.current = key;
+  const readOnly = "This session can't change GitHub. Use an agent session that is not read-only.";
   const loadChecks = async () => {
     if (!head) { setError("This pull request has no verified head. No checks were guessed."); return; }
     const captured = key;
@@ -164,7 +168,12 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
   const timeline = usePreload<Pages>(key, () => readPages((page) => sdk.github.browse(scope, { resource: "timeline", repository, account, number: number!, page, perPage: 100 }), accountId), "Review activity could not be read.");
   const threads = usePreload<Pages>(key, () => readPages((page) => sdk.github.threads(scope, repository, account, number!, page, 100), accountId), "Review threads could not be read.");
   const commits = usePreload<Pages>(key, () => readPages((page) => sdk.github.browse(scope, { resource: "commits", repository, account, number: number!, page, perPage: 100 }), accountId), "Commits could not be read.");
-  const write = (label: string, action: GithubAction, after?: () => void) => reviewed.start(label, action, after);
+  const write = (label: string, action: GithubAction, after?: (resource: GithubItem | null) => void) => reviewed.start(label, action, after);
+  const merge = (method: "merge" | "squash" | "rebase", label: string) => { setMergeMenu(false); void write(label, { kind: "github.pr.merge", repository, account, number: number!, method }); };
+  const revert = (draft: boolean) => {
+    setRevertMenu(false); setRevertPull(null);
+    void write(draft ? "Open a draft revert pull request" : "Open a revert pull request", { kind: "github.pr.revert", repository, account, number: number!, draft }, setRevertPull);
+  };
   const mark = githubStateMark("pull", item), host = upstreamLabel(item.url);
   const failing = checks?.items.filter((check) => checkGroup(check) === "failing").length ?? 0;
   const badge: Partial<Record<Tab, ReactNode>> = {
@@ -190,7 +199,29 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
               <Icon name={item.draft ? "PR" : "PRDraft"} /><span><strong>{item.draft ? "Ready for review" : "Convert to draft"}</strong>
                 <small>{item.draft ? "Reviewers are notified and the PR can be merged." : "Reviewers are not asked to review until it is ready again."}</small></span></button>
           </AnchoredMenu>}
-        </div> : <span className="pr-state-badge" data-github-state={mark.tone}><GitHubStateIcon kind="pull" item={item} />{mark.label.replace(" pull request", "")}</span>}
+          <button ref={mergeButton} type="button" className="pr-state-button" aria-haspopup="dialog" aria-expanded={mergeMenu} disabled={!writable || busy || item.draft}
+            title={!writable ? readOnly : item.draft ? "Mark the pull request ready for review before merging." : undefined} onClick={() => setMergeMenu((value) => !value)}>
+            <Icon name="PRMerged" /><span>Merge</span><Icon name="Down" /></button>
+          {mergeMenu && <AnchoredMenu label="Merge pull request" trigger={mergeButton} close={() => setMergeMenu(false)} className="pr-state-menu">
+            {([["merge", "Create a merge commit", "Keeps every commit and adds a merge commit."], ["squash", "Squash and merge", "Combines the commits into one on the base branch."],
+              ["rebase", "Rebase and merge", "Replays each commit onto the base branch."]] as const).map(([method, title, detail]) =>
+              <button key={method} type="button" role="menuitem" disabled={busy} onClick={() => merge(method, title)}>
+                <Icon name="PRMerged" /><span><strong>{title}</strong><small>{detail} You review the exact head before anything is sent.</small></span></button>)}
+          </AnchoredMenu>}
+        </div> : <div className="pr-state-control">
+          <span className="pr-state-badge" data-github-state={mark.tone}><GitHubStateIcon kind="pull" item={item} />{mark.label.replace(" pull request", "")}</span>
+          {item.state === "merged" && item.head && sameRepository && <button type="button" className="pr-state-button" disabled={!canWrite || busy}
+            title={canWrite ? `Delete branch ${item.head} on GitHub` : readOnly} onClick={() => void write(`Delete branch ${item.head}`,
+              { kind: "github.branch.delete", repository, account, number: number!, branch: item.head! })}><Icon name="Trash" /><span>Delete branch</span></button>}
+          {item.state === "merged" && <><button ref={revertButton} type="button" className="pr-state-button" aria-haspopup="dialog" aria-expanded={revertMenu}
+            disabled={!canWrite || busy} title={canWrite ? undefined : readOnly} onClick={() => setRevertMenu((value) => !value)}><Icon name="Undo" /><span>Revert</span><Icon name="Down" /></button>
+            {revertMenu && <AnchoredMenu label="Revert pull request" trigger={revertButton} close={() => setRevertMenu(false)} className="pr-state-menu">
+              <button type="button" role="menuitem" disabled={busy} onClick={() => revert(false)}><Icon name="PR" /><span><strong>Open a revert pull request</strong>
+                <small>GitHub adds a commit that undoes these changes on a new branch. Nothing is merged.</small></span></button>
+              <button type="button" role="menuitem" disabled={busy} onClick={() => revert(true)}><Icon name="PRDraft" /><span><strong>Open it as a draft</strong>
+                <small>Same revert, opened as a draft pull request.</small></span></button>
+            </AnchoredMenu>}</>}
+        </div>}
       </div>
       <h3 className="pr-view-title">{item.title} <button type="button" className="pr-view-number" disabled={!item.url} title={`Open on ${host}`}
         aria-label={`Open pull request #${number} on ${host}`} onClick={() => open(item.url)}>#{number}</button></h3>
@@ -207,6 +238,8 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
       onClick={() => setTab(name)}>{name}{badge[name]}</button>)}</div>
     <ReviewedWritePanel write={reviewed} target={`${repository}#${number} / ${selection.context.account}`} />
     {notice && <Alert as="p" className="fine-print" role="status">{notice}</Alert>}
+    {revertPull?.number && <p className="fine-print" role="status">Revert pull request #{revertPull.number} is open.
+      <button type="button" className="quiet" disabled={!revertPull.url} onClick={() => open(revertPull.url)}>Open #{revertPull.number} on {upstreamLabel(revertPull.url)}</button></p>}
     {error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}
     <div role="tabpanel" aria-label={tab} className="pr-view-panel">
       {tab === "Description" && <DescriptionTab key={key} sdk={sdk} scope={scope} selection={selection} writable={writable && !busy && !pending} write={write} onDirty={onDirty} />}

@@ -5858,6 +5858,13 @@ turn in a Local chat with a Moguri model, using the chat's model, Env, budget an
 approvals. Edit the prompt in **Settings / Integrations / GitHub / PR tour** or
 per repository in **Settings / Project**. See [pull request tours](architecture/pr-tours.md).
 
+The pull request view's header has **Merge** (choose merge, squash or rebase)
+for open, non-draft PRs. Once merged, **Delete branch** removes the PR's remote
+branch on GitHub, only when you click it and only while the branch still points
+at the merged commit, and **Revert** opens a pull request (optionally a draft)
+that undoes the merge. Each one shows a review to confirm first. See
+[D71](architecture/decisions.md#d71-merge-delete-the-merged-branch-and-revert-from-the-pr-view).
+
 Use the **+** beside **Chats** for a new chat. Right-click a session and choose
 **Select**, then click or use Space/Enter on other sessions. Highlighted rows
 are the selected set; there are no row checkboxes. Right-click a highlighted

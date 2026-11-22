@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import type { GithubAction, GithubPreview, GithubScope, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { GithubAction, GithubItem, GithubPreview, GithubScope, MoguriSdk } from "../../../packages/sdk/src/index.ts";
 import { Alert } from "./Alert.tsx";
 
-export interface PendingWrite { label: string; preview: GithubPreview; confirmed: string[]; after?: () => void }
+/** `after` receives the resource GitHub acknowledged, for example the pull request a revert opened. */
+export interface PendingWrite { label: string; preview: GithubPreview; confirmed: string[]; after?: (resource: GithubItem | null) => void }
 const failure = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback;
 
 /** One reviewed GitHub write at a time: exact preview, the user's confirmations, then execute and wait for the retained result. */
 export function useReviewedWrite(sdk: MoguriSdk, scope: GithubScope, reload: () => Promise<void>) {
   const [pending, setPending] = useState<PendingWrite | null>(null), [busy, setBusy] = useState(false);
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
-  const start = async (label: string, action: GithubAction, after?: () => void) => {
+  const start = async (label: string, action: GithubAction, after?: (resource: GithubItem | null) => void) => {
     if (busy) return;
     setBusy(true); setError(""); setNotice(""); setPending(null);
     try { const { preview } = await sdk.github.preview(scope, action); setPending({ label, preview, confirmed: [], ...(after ? { after } : {}) }); }
@@ -24,7 +25,7 @@ export function useReviewedWrite(sdk: MoguriSdk, scope: GithubScope, reload: () 
       if (!started.id) throw new Error("GitHub did not acknowledge the change. Inspect GitHub workflow history before trying again.");
       const retained = await sdk.github.wait(started.id);
       if (retained.operation.status !== "completed") throw new Error(retained.operation.diagnostic ?? `The change is ${retained.operation.status}. Inspect its retained result; it was not replayed.`);
-      setNotice(`${pending.label}: done.`); setPending(null); pending.after?.();
+      setNotice(`${pending.label}: done.`); setPending(null); pending.after?.(retained.result?.resource ?? null);
       await reload();
     } catch (error) { setError(failure(error, "The change's outcome is unconfirmed. Inspect GitHub workflow history before trying again.")); }
     finally { setBusy(false); }

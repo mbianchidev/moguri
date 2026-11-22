@@ -21,7 +21,8 @@ const actions: Array<[PanelAction, string]> = [
   ["github.issue.assignees", "Replace issue or PR assignees"], ["github.pr.reviewers", "Request / remove PR reviewers"],
   ["github.comment.update", "Edit issue, PR or review comment"], ["github.comment.delete", "Delete issue, PR or review comment"],
   ["github.review.submit", "Submit PR review"], ["github.review.comment", "Comment on PR diff lines"], ["github.review.reply", "Reply to review thread"], ["github.review.resolve", "Resolve / reopen review thread"],
-  ["github.pr.merge", "Merge pull request"], ["github.release.create", "Create GitHub release"],
+  ["github.pr.merge", "Merge pull request"], ["github.branch.delete", "Delete a merged PR's branch"], ["github.pr.revert", "Revert a merged pull request"],
+  ["github.release.create", "Create GitHub release"],
   ["github.release.update", "Update GitHub release"], ["github.release.publish", "Publish draft release"], ["github.ci.watch", "Watch CI for a commit"],
   ["github.repo.settings", "Change repository settings"],
 ];
@@ -83,7 +84,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
   const selected = records.find((value) => value.id === selectedId), value = read?.operation.id === selected?.id && read?.operation.revision === selected?.revision ? read : null;
   const numbered = ["github.issue.update", "github.issue.comment", "github.pr.update", "github.pr.comment", "github.pr.merge",
     "github.review.submit", "github.review.reply", "github.review.resolve", "github.comment.update", "github.comment.delete",
-    "github.pr.draft", "github.issue.labels", "github.issue.assignees", "github.pr.reviewers", "github.review.comment"].includes(kind);
+    "github.pr.draft", "github.issue.labels", "github.issue.assignees", "github.pr.reviewers", "github.review.comment", "github.branch.delete", "github.pr.revert"].includes(kind);
   const editing = kind === "github.issue.update" || kind === "github.pr.update", releasing = kind === "github.release.create" || kind === "github.release.update";
   useEffect(() => { setPreview(null); setConfirmations([]); }, [scopeKey]);
   useEffect(() => { setInspectionReviewed(false); }, [sdk.profileId, selected?.id, selected?.revision, selected?.inputDigest]);
@@ -131,7 +132,8 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         ...(diffStartLine ? { startLine: positive(diffStartLine, "first line number"), startSide: diffSide } : {}), body };
       case "github.review.resolve": return { kind, ...gh, number: n(), threadId, resolve: resolveThread };
       case "github.pr.merge": return { kind, ...gh, number: n(), method: mergeMethod };
-      case "github.pr.draft": return { kind, ...gh, number: n(), draft };
+      case "github.pr.draft": case "github.pr.revert": return { kind, ...gh, number: n(), draft };
+      case "github.branch.delete": return { kind, ...gh, number: n(), branch };
       case "github.issue.labels": return { kind, ...gh, number: n(), labels: names };
       case "github.issue.assignees": return { kind, ...gh, number: n(), assignees: names };
       case "github.pr.reviewers": return { kind, ...gh, number: n(), operation: reviewerOperation, reviewers: names };
@@ -178,6 +180,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         <label className="setting-field">gh account login<SettingsInput value={account} onChange={(event) => setAccount(event.target.value)} autoComplete="off" /></label>
       </div>
       {(kind === "git.push" || kind === "git.tag.push" || kind === "git.tag.delete" && deleteLocation === "remote") && <label className="setting-field">Git remote<SettingsInput value={remote} onChange={(event) => setRemote(event.target.value)} /></label>}
+      {kind === "github.branch.delete" && <label className="setting-field">Merged PR's head branch<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>}
       {["git.branch.create", "git.branch.rename", "git.switch"].includes(kind) && <label className="setting-field">{kind === "git.branch.create" ? "New local branch" : kind === "git.branch.rename" ? "Current branch" : "Existing local branch"}<SettingsInput value={branch} onChange={(event) => setBranch(event.target.value)} /></label>}
       {(kind === "git.branch.create" || kind === "git.branch.rename") && <label className="setting-field">{kind === "git.branch.rename" ? "New branch name" : "Start from branch or commit"}<SettingsInput value={target} onChange={(event) => setTarget(event.target.value)} /></label>}
       {kind === "git.branch.create" && <label className="check-setting"><SettingsInput type="checkbox" checked={checkout} onChange={(event) => setCheckout(event.target.checked)} />Also switch to the new branch (requires a clean checkout)</label>}
@@ -213,7 +216,7 @@ export function GitHubWorkflowPanel({ sdk, project, session, snapshot }: { sdk: 
         <label className="setting-field">PR head branch (optional owner:branch)<SettingsInput value={head} onChange={(event) => setHead(event.target.value)} /></label>
         <label className="setting-field">Fork head repository (owner/name, blank for this repository)<SettingsInput value={headRepository} onChange={(event) => setHeadRepository(event.target.value)} /></label>
       </>}
-      {(releasing || kind === "github.pr.create") && <label className="check-setting"><SettingsInput type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />Draft (publishing needs a separate confirmation)</label>}
+      {(releasing || kind === "github.pr.create" || kind === "github.pr.revert") && <label className="check-setting"><SettingsInput type="checkbox" checked={draft} onChange={(event) => setDraft(event.target.checked)} />Draft (publishing needs a separate confirmation)</label>}
       {releasing && <label className="check-setting"><SettingsInput type="checkbox" checked={prerelease} onChange={(event) => setPrerelease(event.target.checked)} />Prerelease</label>}
       {kind === "github.pr.draft" && <label className="setting-field"><span id={`${uid}-draft-state`}>Change to</span><select aria-labelledby={`${uid}-draft-state`} value={draft ? "draft" : "ready"} onChange={(event) => setDraft(event.target.value === "draft")}><option value="ready">Ready for review</option><option value="draft">Draft</option></select></label>}
       {(kind === "github.issue.labels" || kind === "github.issue.assignees" || kind === "github.pr.reviewers") && <label className="setting-field">{kind === "github.issue.labels" ? "Labels, one per line (replaces every label; leave empty to remove all)" :
