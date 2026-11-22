@@ -527,7 +527,9 @@ autonomy, unlimited-budget/usage, microphone and paper-plane Send. Holding
 Cmd/Ctrl turns idle Send into a queue clock; active turns show a red Stop icon
 in that same slot. A blocked session uses a Resume/play control there instead,
 preserving the unsent draft; inspect effects before continuing. Enter uses the
-current action; Shift+Enter adds a line.
+current action; Shift+Enter adds a line. The message box grows with longer
+text up to a few more lines; **Enlarge** (top-right corner) switches to a
+taller, drag-resizable box and toggles back to normal.
 Both sidebars resize, and message copy appears on hover or keyboard focus.
 Toggle/dropdown preferences, model context and supported thinking effort save
 automatically through shared SDK controls; text settings retain explicit saves.

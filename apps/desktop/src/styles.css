@@ -830,7 +830,12 @@ summary:hover { color: var(--text); }
 .approval-raw pre { margin: var(--space-1-5) 0 0; padding: var(--space-2) var(--space-2-5); border-radius: var(--radius-sm); }
 .composer { flex-shrink: 0; margin: 0 var(--space-6) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: none; transition: border-color var(--duration-fast) var(--ease-standard); }
 .composer:focus-within { border-color: var(--control-line); }
-.composer > textarea { display: block; width: 100%; border: 0; border-radius: var(--radius-lg); min-height: 100px; max-height: 220px; padding: var(--space-4); font-size: var(--font-size-base); line-height: 1.65; resize: vertical; outline-offset: -3px; }
+.composer-input { position: relative; }
+.composer-input > textarea { display: block; width: 100%; border: 0; border-radius: var(--radius-lg); min-height: 100px; max-height: 260px; padding: var(--space-4) var(--space-8) var(--space-4) var(--space-4); font-size: var(--font-size-base); line-height: 1.65; field-sizing: content; resize: vertical; outline-offset: -3px; }
+.composer[data-enlarged] .composer-input > textarea { field-sizing: fixed; height: 45vh; min-height: 260px; max-height: 75vh; }
+.composer-enlarge { position: absolute; top: var(--space-1-5); right: var(--space-1-5); z-index: 1; width: 28px; height: 28px; padding: var(--space-1); color: var(--muted); }
+.composer-enlarge:hover, .composer-enlarge[aria-pressed="true"] { color: inherit; }
+.composer-enlarge svg { width: 15px; height: 15px; }
 .composer textarea::placeholder { color: var(--muted); opacity: 1; }
 .composer-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1); padding: var(--space-1-5) var(--space-2); border-top: 1px solid var(--soft-line); min-width: 0; }
 .composer-leading, .composer-trailing, .composer-send-group { display: flex; align-items: center; gap: var(--space-0); min-width: 0; }
@@ -1818,8 +1823,8 @@ summary:hover { color: var(--text); }
   .session-empty h2 { margin: var(--space-3) 0 var(--space-2); font-size: var(--font-size-2xl); }
   .session-empty p { font-size: var(--font-size-md); line-height: 1.6; }
   .empty-contract { gap: var(--space-1-5) var(--space-3); padding-top: var(--space-3); }
-  .composer > textarea { min-height: 72px; }
-  .composer[data-question-pending] > textarea { min-height: 44px; max-height: 140px; padding: var(--space-2) var(--space-3); }
+  .composer-input > textarea { min-height: 72px; }
+  .composer[data-question-pending] .composer-input > textarea { min-height: 44px; max-height: 140px; padding: var(--space-2) var(--space-3); }
   .user-question { max-height: min(360px, 50dvh); }
   .question-context { max-height: min(64px, 12dvh); }
   .queue { max-height: 20dvh; }

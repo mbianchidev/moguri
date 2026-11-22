@@ -5529,11 +5529,14 @@ GitHub CLI access, then review the displayed host/key/root before refreshing.
 The observation retains its captured peer and build. Missing tools/accounts,
 stale authority or control loss cannot silently substitute public/Local access.
 Linked-PR observation and client attachments retain their existing explicit
-control-plane reads. A project's **GitHub read access** defaults to public, so a
-private repository's linked PR returns 404. Moguri then says so, and the PR
-view's Follow-up offers **Use my GitHub CLI account for this project**, which
-changes that project setting explicitly; Kanban's separate **GitHub access for
-linked PRs** applies to Kanban issue links only.
+control-plane reads. A project's **GitHub read access** defaults to public, so background
+observation of a private repository's linked PR returns 404. The PR view and
+its Follow-up read through your GitHub CLI account instead
+([D73](architecture/decisions.md#d73-pr-follow-ups-read-with-the-pr-views-github-account)).
+If a hard policy excludes that account, Follow-up uses the project setting and
+offers **Use my GitHub CLI account for this project**, which changes it
+explicitly; Kanban's separate **GitHub access for linked PRs** applies to
+Kanban issue links only.
 
 ```bash
 node bin/moguri.mjs repository preview --session SESSION_ID
@@ -6464,7 +6467,8 @@ One actual root-less read-only worker can continue only after an explicit
 retained result, valid bounded reported usage and fresh host authorization.
 Earlier output is not automatically inherited. Generated actual-worker and
 budget probes cover three acknowledged roles, real SQLite receipt failure,
-control loss and the existing 32-step bound. This does not expose
+control loss and the 32-step bound that owned internal roles keep
+([D72](architecture/decisions.md#d72-agent-turns-have-no-step-cap)). This does not expose
 Cascade/Critique, choose model families or authorize a user action; fixed-model
 generation remains a separately reviewed one-call operation.
 The combined private transport/owned-worker spike passes **32/32 in 5.08 s**,

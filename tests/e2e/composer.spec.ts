@@ -31,6 +31,38 @@ test("one Enter captures the native text even when its content-change notificati
   } finally { await app.close(); await fixture.close(); }
 });
 
+test("the message box grows with longer text and Enlarge toggles a taller box back to normal", async () => {
+  const fixture = await setupFixture({ responseMode: "text" });
+  await fixture.configure();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), prompt = page.getByLabel("Prompt", { exact: true });
+    const height = () => prompt.evaluate((element) => element.getBoundingClientRect().height);
+    await expect(prompt).toBeVisible();
+    const empty = await height();
+    await prompt.fill(Array.from({ length: 8 }, (_, index) => `Generated line ${index + 1}`).join("\n"));
+    await expect.poll(height).toBeGreaterThan(empty + 40);
+    const grown = await height();
+    await mkdir(resolve(".moguri/artifacts"), { recursive: true });
+    await page.locator("form.composer").screenshot({ path: resolve(".moguri/artifacts/composer-grown.png") });
+    await prompt.fill(Array.from({ length: 60 }, (_, index) => `Generated line ${index + 1}`).join("\n"));
+    await expect.poll(height).toBeLessThanOrEqual(260);
+    const enlarge = page.getByRole("button", { name: "Enlarge the message box", exact: true });
+    await enlarge.click();
+    const restore = page.getByRole("button", { name: "Restore the message box", exact: true });
+    await expect(restore).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(height).toBeGreaterThan(260);
+    await expect(prompt).toBeFocused();
+    await page.locator("form.composer").screenshot({ path: resolve(".moguri/artifacts/composer-enlarged.png") });
+    await restore.click();
+    await expect(enlarge).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(height).toBeLessThanOrEqual(260);
+    await prompt.fill("Generated short line");
+    await expect.poll(height).toBeLessThan(grown);
+  } finally { await app.close(); await fixture.close(); }
+});
+
 test("a single native Enter runs a fresh slash command and active autosave never consumes the ordinary send keystroke", async () => {
   const fixture = await setupFixture({ responseMode: "text" });
   await fixture.configure();
