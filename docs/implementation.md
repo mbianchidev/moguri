@@ -5,7 +5,8 @@
 Moguri gives developers one place to run, inspect, steer, stop, resume, and understand AI software work across a terminal UI and desktop application.
 
 The [2026-11-06 merged-code audit](remaining-milestone-gaps.md#merged-code-audit-2026-11-06)
-reconciles protocol 92 / #51 with the live [roadmap #39](https://github.com/mbianchidev/moguri/issues/39).
+reconciled protocol 92 / #51 with [roadmap #39](https://github.com/mbianchidev/moguri/issues/39),
+which has since closed ([roadmap closure](remaining-milestone-gaps.md#roadmap-closure-2026-11-22)).
 Runtime readiness, pooled Kupo controls, candidate transports and the final
 implementation-owned source checks are delivered, not pending draft work.
 Exact native physical acceptance and the current GitHub CI account-eligibility
@@ -100,7 +101,7 @@ It is built from zero: Moguri owns its domain model, event store, protocol, loca
 > with optional [user-toggled Local agent control](architecture/agent-browser.md)
 > and SDK-backed diff/plan panels. The optional [Stainless integration](architecture/stainless.md)
 > (protocol 111) is Moguri-owned headless automation plus open-with; Stainless MCP
-> (#80) and the rest of the first-release acceptance gates are not implied complete.
+> (#80, not planned) and the rest of the first-release acceptance gates are not implied complete.
 
 > The [runtime/input foundation](architecture/runtime-foundation.md) adds
 > explicit local generative endpoints, snapshotted control inheritance and

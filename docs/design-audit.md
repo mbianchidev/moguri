@@ -261,8 +261,9 @@ box and in Ctrl+V.
 
 ## Remaining limitations
 
-- App-wide accessibility verification is tracked in
-  [#77](https://github.com/mbianchidev/moguri/issues/77): no human screen-reader,
+- App-wide accessibility verification moved to
+  [#77](https://github.com/mbianchidev/moguri/issues/77), which is closed as not
+  planned ([D74](architecture/decisions.md#d74-roadmap-39-closes)): no human screen-reader,
   WCAG 2.2 AA or physical-display audit was performed here, and ratios are
   computed from declared colors.
 - Custom user colors are validated by the existing appearance checks, not by

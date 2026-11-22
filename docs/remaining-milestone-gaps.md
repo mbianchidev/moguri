@@ -11,8 +11,9 @@ Milestone 1 is accepted on draft
 (protocol 106, `0.32.0-alpha.1`, SendBox 0.2.7), with native runs at
 `e67faf5` whose runtime and native harness bytes are identical. Every required
 nominal cell, native gate and milestone criterion passes.
-[#39](https://github.com/mbianchidev/moguri/issues/39) owns this acceptance;
-#17 was consolidated into it. Merging #68 delivers it to `main`.
+[#39](https://github.com/mbianchidev/moguri/issues/39) owned this acceptance
+and the later roadmap; #17 was consolidated into it. #68 delivered it to `main`
+on 2026-11-15, and #39 closed with the [roadmap closure](#roadmap-closure-2026-11-22).
 
 ### User-directed scope revision
 
@@ -107,29 +108,49 @@ not a milestone gate.
 | #71; closes #63 | All five #63 connection options through the shared service, SDK, desktop and TUI: GitHub Copilot (unchanged), OpenAI-compatible endpoints with custom headers, header-scoped keys and explicit-only models, OpenRouter (key or sign-in), the Anthropic API (key only; Claude.ai sign-in and subscription tokens refused) and OpenAI API keys separate from Sign in with ChatGPT. Separately decided D36 adds off-by-default Claude Agent and Codex Agent harnesses that run the user's own CLI. Tested against generated fakes only, not real accounts. [Hosted provider](architecture/hosted-providers.md) and [agent harness](architecture/agent-harnesses.md) contracts. |
 | #72; closes #69 (owner sign-off 2026-11-16) | [D38](architecture/decisions.md#d38-covering-array-milestone-regression): `npm test` runs a checked-in 78-cell covering array (pairwise plus Env x selection x budget/input/effort tuples and the 15 client journeys) and 72 exact manual-Kupo-effort refusals instead of the 10,080-cell product; the full product is opt-in `npm run test:matrix`. Milestone 1's full-product acceptance is not re-qualified or relabeled. [Method and measured times](architecture/milestone-combination-matrix.md#regression-method-covering-array). |
 | #87; closes #6 | Protocol 115 [automations](architecture/automations.md) ([D50](architecture/decisions.md#d50-recurring-automations-and-declarative-workflows)): once, interval, daily and weekly schedules with explicit activation, DST-aware wall times, missed occurrences run once and overlapping ones skipped, each run in a new chat with captured controls, chained prompt steps and model-free repository-trusted script steps under normal approval, stop/delete propagation and restart without replay, across SDK, desktop, TUI and CLI (YAML/JSON workflow files). Runs need the service running; server delegation and non-time triggers stay deferred. The same change (D51) saves drafts and open queued-prompt edits before the app closes and lets interrupted chats be continued one by one, all at once or automatically after a restart. |
-| #81; closes #12 | Optional, off-by-default [Stainless integration](architecture/stainless.md) ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)): Info.plist-only detection, a user-run headless compatibility check, owned headless `playwright` batches with a disposable profile and bounded console/network diagnostics, and Open in Stainless for Local previews across SDK, desktop, TUI and CLI. Stainless has no MCP yet; that is #80. |
+| #81; closes #12 | Optional, off-by-default [Stainless integration](architecture/stainless.md) ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)): Info.plist-only detection, a user-run headless compatibility check, owned headless `playwright` batches with a disposable profile and bounded console/network diagnostics, and Open in Stainless for Local previews across SDK, desktop, TUI and CLI. Stainless has no MCP yet; its gateway follow-up #80 is not planned. |
 | #78; closed #45/#23 (2026-11-19) | The remaining applicable #45 AST controls with owner-signed exclusions ([D40](architecture/decisions.md#d40-owasp-agentic-skills-top-10-follow-up-45)) and the remaining #23 OTLP scope ([D41](architecture/decisions.md#d41-otlp-logs-credential-headers-and-coverage-23)), both described below. |
 | #86; closes #82 | Protocol 114 Skills and Artifacts tabs next to Automations ([D49](architecture/decisions.md#d49-skills-and-artifacts-workspace-tabs)): skill toggles, digest-bound disabled installs from configured skill sources, built-in toolsets, user- or agent-written script tools, local repeated-task tool suggestions with an off-by-default recurring check, and a metadata-only per-project artifact library linked to each chat. [Contract](architecture/skills-tools-artifacts.md). |
+| #88; closes #64 | Protocol 113 **Fix broken CI** and **automatic conflict resolution** flags, off by default, with per-repository inherit/on/off overrides. Fix broken CI is service-owned and model-free: it checks GitHub Status first (an outage defers, unknown status is never healthy), classifies the failed job's own log (deterministic failures and unclear logs are never retried), reruns transient failures at most twice per job and head with backoff, retains each attempt as admitted before calling GitHub and never requests an interrupted attempt again after restart. Conflict resolution queues one bound feature-preserving lifecycle turn per head (merge, never rebase or force-push) and reports `merged` only after a read-only verification. [Contract](architecture/pr-automation.md). |
 | #94; closes #8 and #10 | Protocol 119 [dependency update roundups](architecture/dependency-roundups.md) ([D66](architecture/decisions.md#d66-dependency-update-roundups-over-my-work)): a read-only, model-free roundup of Dependabot, Renovate and other configured bot PRs over explicitly selected My Work sources, grouped by package with every PR identity, provider-reported security only and a labelled breaking heuristic; each manual or #6-scheduled run owns one refresh, schedule-started refreshes record `actor: "schedule"`, and rate limits are explicit. [Taggable personas](architecture/personas.md) ([D67](architecture/decisions.md#d67-taggable-personas-under-an-implicit-orchestrator)): disabled-by-default `@handle` definitions with Product Manager, Maintenance and Docs presets; tagging from messages, queued work or automation steps starts a linked Manual subsession under the tagging chat (the orchestrator), bound to its exact task and turn, with stop/time-limit/deletion recorded as requested and no re-dispatch after restart. SDK, desktop (**Dashboard > Dependencies**, **Capabilities > Custom agents**), TUI/slash and CLI. Also [D68](architecture/decisions.md#d68-kupo-windows-follow-the-request-not-the-smallest-pool-model): Kupo sizes its classifier to the complete routing input and advertises its largest qualified window instead of the smallest pool model's; [D69](architecture/decisions.md#d69-performance-limits-task-roles-not-the-classifier): Performance runs every task role on frontier models while any eligible model, including a pinned economy one, may classify; [D70](architecture/decisions.md#d70-pull-request-diffs-render-with-pierrediffs): PR diffs render with `@pierre/diffs` and Shiki highlighting; protocol 120 [D71](architecture/decisions.md#d71-merge-delete-the-merged-branch-and-revert-from-the-pr-view): the PR view merges, deletes the merged remote branch only on request and opens revert PRs; [D72](architecture/decisions.md#d72-agent-turns-have-no-step-cap): agent turns have no step cap; [D73](architecture/decisions.md#d73-pr-follow-ups-read-with-the-pr-views-github-account): PR follow-ups read with the PR view's GitHub account. Generated fixtures only. |
-| #90; closes #84 | Settings rail reduced from 11 groups / 37 entries to 7 groups / 28 ([structure](design.md#settings-rail-structure)). Integrations (GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace) and Interface (Appearance, Keyboard shortcuts, Voice dictation, Notifications) are single rail entries with WAI-ARIA keyboard tabs; integration tabs show text status from already-loaded state. Item ids, deep links, restored layouts, search, save rules and dirty-state blocking are unchanged; no schema change. Covered by `tests/settings-navigation.test.ts` and the hidden `tests/e2e/settings-navigation.spec.ts`. |
+| #90; closes #84 | Settings rail reduced from 11 groups / 37 entries to 7 groups / 28 ([structure](design.md#settings-rail-structure)). Integrations (GitHub, Linear, MCP gateway, sql-not-so-lite, Stainless, Plugins, Marketplace) and Interface (Appearance, Keyboard shortcuts, Voice dictation, Notifications) are single rail entries with WAI-ARIA keyboard tabs; integration tabs show text status from already-loaded state. Item ids, deep links, restored layouts, search, save rules and dirty-state blocking are unchanged; no schema change. Covered by `tests/settings-navigation.test.ts` and the hidden `tests/e2e/settings-navigation.spec.ts`. The same PR adds the MIT license, community files, generated third-party notices, the hybrid local-build/CI-publish [release process](releasing.md) and token-free update checks against public releases. |
+| #91 | Protocol 116: the Git remote is read live from each folder's Git config instead of a stored upstream; saved folder, worktree, source and digest identities compare canonical path and inode so they survive the device numbers macOS reassigns at boot (pre-116 digests still accepted); artifact deletion from the Artifacts tab; the Customize tab with every-chat scripts, bounded `github_read` additions and reviewed model GitHub writes ([D52](architecture/decisions.md#d52-customize-tab-every-chat-scripts-and-reviewed-model-github-writes)). |
+| #92 | Protocols 117 and 118 ([D53](architecture/decisions.md#d53-queued-prompts-you-held-start-after-each-completed-turn) to [D65](architecture/decisions.md#d65-inline-review-comments-fixed-pr-associations-and-one-session-pr-mark)): held prompts start after each completed turn, Getting started, Kupo price classes with Dynamic mode, [Kupo workflows](architecture/decisions.md#d56-kupo-workflows-price-class-cascade-cross-lab-critique-and-council) (price-class Cascade, cross-lab Critique and Council), the skills list and marketplace trust, project-free automations, grouped model lists, Autonomy and Remote host labels with `/ssh`, agent browser control, integration logos, GitHub item lists, the pull request view with tours and inline review comments. Settings became one scrolling page per group, replacing #90's tabbed Integrations and Interface entries, and Artifacts gained All projects. |
 
 Closed #35 keeps its historical exact-artifact scope. Closed #22 is a completed
 Rust feasibility study, not production adoption; #1 is reference material.
 No closed implementation/research issue certifies first-milestone acceptance.
 
-## Ordered remaining roadmap
+## Roadmap closure, 2026-11-22
 
-Ordering is triage, not permission to implement or an invented dependency chain.
-Delivered #6/#7/#8/#9/#10/#12/#13/#23/#36/#37/#38/#45/#53/#55/#63/#69/#82/#84 do not reappear as new implementation work.
+<a id="ordered-remaining-roadmap"></a>
+
+Audited 2026-11-22 against main
+[`1506735`](https://github.com/mbianchidev/moguri/commit/150673573b94cd49f99575b29ed84141a9d0eb54) (protocol 120,
+`0.32.0-alpha.1`, SendBox 0.2.7). Every issue tracked under #39 is closed, so
+#39 closes with this record ([D74](architecture/decisions.md#d74-roadmap-39-closes)).
+No remaining roadmap is tracked here, and closed issues never reappear as
+remaining work.
+
+| Outcome | Issues |
+| --- | --- |
+| Delivered | #6 (#87), #7 (#52), #8 and #10 (#94), #9 (#58), #12 (#81), #13 (#60), #23 and #45 (#78), #36 and #37 (#51), #38 (#56), #53 (#79), #55 (#76), #63 (#71), #64 (#88), #69 (#72), #82 (#86), #84 (#90). See the table above. |
+| Covered by delivered work | #11 Deep Search, SRE, Stabilize, Swarm and Team presets: the owner closed it on 2026-11-21 as covered by [Kupo workflows](architecture/decisions.md#d56-kupo-workflows-price-class-cascade-cross-lab-critique-and-council) (D56: price-class Cascade, cross-lab Critique and Council) and [taggable personas](architecture/personas.md) (D67). No preset with those names ships. |
+| Moved to its own moguri-dev repository | #85 phone steering over Tailscale Serve (`moguri-dev/moguri-mobile-client`), #46 Slack mentions (`moguri-dev/moguri-slack`), #67 `moguri-assistant` (`moguri-dev/moguri-assistant`), #34 Laya and other decision providers (`moguri-dev/moguri-decision`), #14 the website (the existing `moguri-dev/moguri.synctune.it`). #85 closed here as completed on 2026-11-21 once its scope moved; the others closed as not planned on 2026-11-20. |
+| Folded into #93 | #26 Homebrew distribution: the tap's cask and TUI formula wait for public releases, and the launcher-symlink and Homebrew-managed-updater prerequisites in [releasing](releasing.md#homebrew-cask) are part of #93. |
+| Not planned (owner, 2026-11-20) | #77 app-wide accessibility verification (no VoiceOver pass, WCAG 2.2 AA audit or physical-display contrast check is claimed; see [ACCESSIBILITY.md](../ACCESSIBILITY.md)), #80 Stainless MCP gateway ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)'s revisit condition still applies if Stainless ships one), #54 GetMoshi. |
+
+**Open follow-on.** [#93](https://github.com/mbianchidev/moguri/issues/93)
+splits the SDK and the TUI into private `moguri-dev/moguri-sdk` and
+`moguri-dev/moguri-tui` repositories with history, makes the updater and
+Sandbox setup safe across the owner's repository transfers, and then adds the
+Homebrew packages. It is tracked on its own, not as a #39 child, and nothing in
+it is on `main` yet.
+
+### Delivery notes, protocols 112 to 114
+
 #53's audit, visual system and UI/UX polish are recorded in the [design audit](design-audit.md);
 #55 smart compaction is on by default since protocol 110 ([D31 revision](architecture/decisions.md)).
-
-| Order | Actual remaining scope |
-| --- | --- |
-| 1. Everyday UX and existing integrations | #77 app-wide accessibility verification (screen reader, WCAG 2.2 AA, keyboard/focus, physical-display contrast), deferred from #53. |
-| 2. Distribution and docs | #26 Homebrew cask/access/install/update ownership; #14 landing/downloads/user/developer site. The owner chose the MIT license, a hybrid local-build/CI-publish [release process](releasing.md) and a Homebrew cask on 2026-11-19; the repository stays private for now. The cask waits for a published public release, and signing/notarization still needs a decision. |
-| 3. Optional providers and automation | #80 Stainless MCP integration once mbianchidev/stainless#22 ships, #34 Laya (its real-weight qualification needs a separately provisioned Laya service), #11 bounded specialized presets (which can build on the D67 personas), #46 Slack mentions, #85 phone steering over Tailscale Serve (scoped paired gateway and PWA client; `/remote` is already the SSH command), #54 GetMoshi integration and #64 global/repository flags for evidence-gated flaky-CI retries (provider status preflight, bounded attempts) and feature-preserving conflict resolution. Automations (#6), exact-PR CI watches (#52), the reviewed rebase/conflict workflow and reviewed compaction are not those broader features; dependency roundups (#8) and personas (#10) are delivered by #94. |
-| 4. Separate product | #67 `moguri-assistant`, a separate repository embedding the shared SDK as a personal assistant (calendar, mail, messaging, releases, browser and more). Not started here; each external tool needs its own credential, permission and data-handling decision. |
 
 Protocol 112 delivers the remaining #23 scope ([D41](architecture/decisions.md#d41-otlp-logs-credential-headers-and-coverage-23)):
 opt-in fixed-template diagnostic logs correlated with trace/span IDs, finite
@@ -178,12 +199,14 @@ Protocol 114 adds Skills and Artifacts tabs next to Automations (#82,
 skill toggles, installs from configured skill sources, toolsets, user- or
 agent-written script tools, repeated-task tool suggestions with an optional
 recurring check, and a per-project artifact library linked to each chat. A
-hosted multi-publisher gallery and recurring prompt/workflow schedules (#6)
-remain open.
+hosted multi-publisher gallery is still not implemented; recurring
+prompt/workflow schedules (#6) later shipped in #87.
 
-At the live read the repository is private and has no GitHub releases. It is
+At the 2026-11-22 read the repository is private and has no GitHub releases. It is
 MIT-licensed, with a tag-triggered [release process](releasing.md) whose first
-run waits for GitHub Actions billing to be fixed. Development macOS
+run waits for GitHub Actions billing to be fixed (main CI
+[run 45005983722](https://github.com/mbianchidev/moguri/actions/runs/45005983722)
+started no job). Development macOS
 app/DMG/ZIP artifacts are ad-hoc signed, not notarized or public distribution. This audit opens no other-repository PR,
 changes no upstream dependency and makes no publication/installation decision.
 Future Rust adoption still requires explicit direction, current-protocol parity,
@@ -199,8 +222,10 @@ and a qualified SendBox requirement for whole-descendant containment.
 This request does not change this handoff's first-milestone estimate or
 retrospectively qualify older images/archives.
 
-Broader orchestrator/session groups, multi-repo coordination, Porto/database
-plugins, scheduling, specialized modes and managed cloud provisioning remain
+Recurring schedules ([D50](architecture/decisions.md#d50-recurring-automations-and-declarative-workflows))
+and the Kupo workflows and personas that cover specialized modes (D56, D67)
+have since shipped as their own decisions. Broader session groups, multi-repo
+coordination, Porto/database plugins and managed cloud provisioning remain
 separate deferred work. Do not silently make them new first-milestone blockers.
 The [cloud fleet on Agent Substrate analysis](architecture/cloud-fleet-substrate.md)
 records how hosted fleets could follow production SendBox; it is not roadmap work.

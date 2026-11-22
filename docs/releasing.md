@@ -173,7 +173,8 @@ disposable `HOME`. Lint the entrypoint and workflow with
 ## Homebrew cask
 
 The owner chose on 2026-11-19 to publish a cask to `mbianchidev/homebrew-tap`
-(tracked in [#26](https://github.com/mbianchidev/moguri/issues/26)). The tap
+(first [#26](https://github.com/mbianchidev/moguri/issues/26), now part of
+[#93](https://github.com/mbianchidev/moguri/issues/93)). The tap
 accepts only immutable, published `vX.Y.Z` release assets whose `sha256`
 matches the GitHub digest and `SHA256SUMS`. It never accepts a placeholder or
 locally rebuilt checksum, so the cask PR can only be opened after the first
@@ -188,7 +189,7 @@ At that point, open a draft PR in the tap that follows its `AGENTS.md`:
   and `SHA256SUMS`, with prerelease handling for alpha versions), with tests,
   docs and the README rows.
 
-Before then, #26 also needs two Moguri changes. The bundled launcher
+Before then, #93 also needs two Moguri changes. The bundled launcher
 (`Moguri.app/Contents/Resources/app/dist/moguri`) derives the app from
 `dirname "$0"`, so a plain cask `binary` symlink would resolve Homebrew's
 prefix instead of the app; the command needs a wrapper or a launcher that
