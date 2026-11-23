@@ -152,7 +152,7 @@ child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
 on `main` (#98). The second step, draft
 [#99](https://github.com/mbianchidev/moguri/pull/99), consumes
-`@moguri-dev/sdk` and `@moguri-dev/tui` 0.32.0-alpha.1 and removes the
+`@moguri-dev/sdk` 0.32.0-alpha.1 and `@moguri-dev/tui` 0.32.0-alpha.2 and removes the
 embedded SDK, TUI and CLI. Neither closes #93; the repository transfer and the
 Homebrew packages remain.
 
