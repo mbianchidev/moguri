@@ -2438,8 +2438,11 @@ public, including `moguri-sdk` and its `v0.32.0-alpha.1` release, after a
 gitleaks 8.30.1 scan of every ref found only reviewed false positives (pinned
 public-key checksums, public model identifiers and one generated fake token,
 recorded in its `.gitleaksignore`). Secret scanning and push protection are on.
-The `@moguri-dev/sdk` package on GitHub Packages stays private, and this
-repository stays private until its transfer.
+The `@moguri-dev/sdk` package on GitHub Packages stays private. Later that day
+the owner also made this repository public, after the same review of all 25
+branches, 63 pull request refs, issues, comments and Actions artifacts. Its
+findings were the false positives already in `.gitleaksignore`. Every Moguri
+repository is MIT-licensed.
 
 ## Still open
 

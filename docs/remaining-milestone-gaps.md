@@ -217,9 +217,10 @@ recurring check, and a per-project artifact library linked to each chat. A
 hosted multi-publisher gallery is still not implemented; recurring
 prompt/workflow schedules (#6) later shipped in #87.
 
-At the 2026-11-22 read the repository is private and has no GitHub releases. It is
+At the 2026-11-22 read the repository is private and has no GitHub releases. It
+became public on 2026-11-23, which also lets Actions jobs start again. It is
 MIT-licensed, with a tag-triggered [release process](releasing.md) whose first
-run waits for GitHub Actions billing to be fixed (main CI
+run previously waited for GitHub Actions billing to be fixed (main CI
 [run 45005983722](https://github.com/mbianchidev/moguri/actions/runs/45005983722)
 started no job). Development macOS
 app/DMG/ZIP artifacts are ad-hoc signed, not notarized or public distribution. This audit opens no other-repository PR,
