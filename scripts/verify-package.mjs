@@ -415,7 +415,7 @@ try {
     try {
       const configuration = (await sdk.projects.configuration(project.id)).configuration;
       await sdk.projects.configure(project.id, { ...configuration.values, repo: { ...configuration.values.repo, githubAccess: "gh-cli" } }, configuration.revision);
-      const session = await sdk.sessions.create(project.id, "Generated real packaged attributed call", { modelId: modelFixture.modelId, env: "Local" });
+      const session = await sdk.sessions.create(project.id, "Generated real packaged attributed call", { modelId: modelFixture.modelId, env: "Local" }, undefined, "checkout");
       const preview = (await sdk.repositories.preview(session.id)).preview, refresh = await sdk.repositories.refresh(session.id, preview.bindingDigest, preview.revision, true);
       assert.equal((await sdk.jobs.wait(refresh.id)).status, "completed");
       await sdk.command({ type: "draft.save", sessionId: session.id, expectedRevision: 0, text: "Generated actual bundled repository-attributed model call.", attachments: [] });
@@ -507,7 +507,7 @@ try {
     let client = await new MoguriSdk(connection).ready();
     try {
       const beforeCalls = modelFixture.requests.length, project = await client.command({ type: "project.add", path: directory });
-      const source = await client.sessions.create(project.id, "Generated packaged candidate source", { env: "Local", modelId: null });
+      const source = await client.sessions.create(project.id, "Generated packaged candidate source", { env: "Local", modelId: null }, undefined, "checkout");
       const created = await client.workspaces.create(project.id, "moguri/generated-packaged-candidate"), stage = await client.workspaces.wait(created.id);
       const index = await readFile(join(directory, ".git/index")), head = git(["rev-parse", "HEAD"]);
       const patch = { kind: "patch", summary: "Generated actual packaged candidate.", edits: [{ path: "candidate.txt", baseDigest: (await import("node:crypto")).createHash("sha256").update(original).digest("hex"), text: proposed }] };
@@ -642,7 +642,7 @@ try {
           const copy=JSON.parse((await sdk.artifacts.export(staged.candidate.id)).export.text);assert.equal(copy.schemaVersion,sessionOwned?10:5);
           for(const digest of [evidence.origin.sequenceInputDigest,evidence.origin.roleInputDigest,evidence.origin.resultDigest])
             assert.ok(copy.documents[0].candidate.results.some(result=>result.digest===digest&&result.text.length));
-          const user=await sdk.sessions.create(evidence.projectId,"Generated native role-copy reviewer",{env:"Local"});
+          const user=await sdk.sessions.create(evidence.projectId,"Generated native role-copy reviewer",{env:"Local"},undefined,"checkout");
           const apply=(await sdk.candidates.applyPreview(staged.candidate.id,user.id)).preview;
           const applied=await invoke(["apply",staged.candidate.id,"--session",user.id,"--revision",String(staged.candidate.revision),"--digest",apply.digest,"--confirm-write"]);
           assert.equal(applied.candidate.status,"applied");assert.equal(applied.candidate.acceptance.actor,"user");assert.deepEqual(applied.candidate.roleOrigin,evidence.origin);
