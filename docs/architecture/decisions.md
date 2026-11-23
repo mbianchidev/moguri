@@ -2420,9 +2420,12 @@ also provides `./remote-bridge` (and a `moguri-worker` bin) for SSH hosts,
 `./sandbox-distribution` for packaging clients, and an unstable `./testing`
 entry. The testing entry re-exports the service internals client test suites
 drive directly (`startService`, `EventStore` and about 130 more); it carries no
-compatibility promise and product code must not import it. The `node`, `react`
-and `mcp` entries share the root bundle, so combined entrypoints load one SDK
-instance. The service pins the packaged app by the bundle's own version, since
+compatibility promise and product code must not import it. The `node`, `react`,
+`mcp` and `testing` entries share the root bundle, so combined entrypoints load
+one SDK instance and one `MoguriError` class. Clients start the service through
+`sdkServicePath()`, and the launcher's `worker` mode imports
+`@moguri-dev/sdk/remote-bridge`. Native speech libraries ship as regular files
+because `npm pack` drops symlinks. The service pins the packaged app by the bundle's own version, since
 the desktop now versions independently, and accepts the service either in
 `dist/` or in `node_modules/@moguri-dev/sdk`. Packaged apps keep small
 `dist/service.mjs` and `dist/update-installer.mjs` markers so updaters from
