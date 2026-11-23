@@ -2433,6 +2433,14 @@ before the split still accept the new layout. This repository consumes the
 exact pin from GitHub Packages; CI uses the `MOGURI_PACKAGES_TOKEN` secret. No
 protocol or schema change.
 
+**Open-sourced, 2026-11-23.** The owner made every moguri-dev repository
+public, including `moguri-sdk` and its `v0.32.0-alpha.1` release, after a
+gitleaks 8.30.1 scan of every ref found only reviewed false positives (pinned
+public-key checksums, public model identifiers and one generated fake token,
+recorded in its `.gitleaksignore`). Secret scanning and push protection are on.
+The `@moguri-dev/sdk` package on GitHub Packages stays private, and this
+repository stays private until its transfer.
+
 ## Still open
 
 Earlier SendBox releases were qualified and superseded; their receipts are

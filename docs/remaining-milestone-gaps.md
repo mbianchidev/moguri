@@ -141,8 +141,8 @@ remaining work.
 | Not planned (owner, 2026-11-20) | #77 app-wide accessibility verification (no VoiceOver pass, WCAG 2.2 AA audit or physical-display contrast check is claimed; see [ACCESSIBILITY.md](../ACCESSIBILITY.md)), #80 Stainless MCP gateway ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)'s revisit condition still applies if Stainless ships one), #54 GetMoshi. |
 
 **Open follow-ons.** [#93](https://github.com/mbianchidev/moguri/issues/93)
-splits the SDK and the TUI into private `moguri-dev/moguri-sdk` and
-`moguri-dev/moguri-tui` repositories with history, keeps the updater and
+splits the SDK and the TUI into `moguri-dev/moguri-sdk` (public since
+2026-11-23) and `moguri-dev/moguri-tui` repositories with history, keeps the updater and
 release tooling working across the owner's transfer of this repository to
 `moguri-dev/moguri-desktop`, and then adds the Homebrew packages
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
