@@ -106,7 +106,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
 test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation and restart", async () => {
   const packaged = process.env.MOGURI_TEST_APP;
   const packagedRoot = packaged ? resolve(packaged, "../../Resources/app") : undefined;
-  const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined });
+  const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "node_modules", "@moguri-dev", "sdk", "dist", "worker.mjs") : undefined });
   await fixture.provider.logout();
   let app: ElectronApplication | undefined, restarted: Awaited<ReturnType<typeof startService>> | undefined;
   const other = new MoguriClient(fixture.service.connection);
@@ -165,7 +165,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await app.close();
     app = undefined; other.disconnect();
     restarted = await startService({ stateDir: join(fixture.directory, "state"), provider: fixture.provider, retentionKey: fixture.retentionKey,
-      workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined, platform: { terminal: { vault: fixture.terminalVault } } });
+      workerPath: packagedRoot ? join(packagedRoot, "node_modules", "@moguri-dev", "sdk", "dist", "worker.mjs") : undefined, platform: { terminal: { vault: fixture.terminalVault } } });
     app = await launch();
     page = await app.firstWindow();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");

@@ -6,12 +6,12 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { readSandboxDistribution, SENDBOX_027 } from "@moguri-dev/sdk/testing";
 import { defaultSandboxManagement, PROTOCOL_VERSION } from "@moguri-dev/sdk";
-import { APPLE_INIT } from "./prepare-apple-init.mjs";
+import { APPLE_INIT } from "@moguri-dev/sdk/sandbox-distribution";
 
 if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Packaged native setup verification requires macOS arm64.");
 const version = JSON.parse(await readFile("package.json", "utf8")).version;
 const app = resolve(process.argv[2] ?? `release/builds.noindex/${version}/Moguri-darwin-arm64/Moguri.app`);
-const resources = join(app, "Contents", "Resources"), runtime = join(resources, "app"), started = performance.now();
+const resources = join(app, "Contents", "Resources"), runtime = join(resources, "app"), sdkRoot = join(runtime, "node_modules", "@moguri-dev", "sdk"), started = performance.now();
 const definition = await readSandboxDistribution(join(resources, "moguri-native"), AbortSignal.timeout(60_000));
 const { installer, ...vendor } = definition.distribution.vendor;
 assert.deepEqual(vendor, SENDBOX_027, "The actual app must contain the exact current pinned release, not an old cached installer.");
@@ -25,7 +25,7 @@ assert.deepEqual(runtimeIndex.manifests.map((value) => value.digest).sort(),
   "The actual runtime archive must contain both exact worker and qualified Apple init images, not require a cold network fetch.");
 for (const [name, expected] of [["worker", definition.distribution.worker.workerDigest],
   ["remote-bridge", definition.distribution.worker.bridgeDigest], ["mcp-worker", definition.distribution.worker.mcpWorkerDigest]]) {
-  assert.equal(createHash("sha256").update(await readFile(join(runtime, "dist", `${name}.mjs`))).digest("hex"), expected);
+  assert.equal(createHash("sha256").update(await readFile(join(sdkRoot, "dist", `${name}.mjs`))).digest("hex"), expected);
 }
 await mkdir(".moguri", { recursive: true });
 const directory = await mkdtemp(resolve(".moguri/packaged-sandbox-")), expanded = join(directory, "installer-metadata");
@@ -39,8 +39,8 @@ try {
   assert.ok(owners.trim().split("\n").every((line) => { const fields = line.split("\t"); return fields[1] === "0" && fields[2] === "0"; }));
   const script = `
     import assert from 'node:assert/strict';
-    import { startService } from ${JSON.stringify(pathToFileURL(join(runtime, "dist", "runtime.mjs")).href)};
-    import { KUPO_MODEL_ID } from ${JSON.stringify(pathToFileURL(join(runtime, "dist", "sdk", "index.mjs")).href)};
+    import { startService } from ${JSON.stringify(pathToFileURL(join(sdkRoot, "dist", "runtime.mjs")).href)};
+    import { KUPO_MODEL_ID } from ${JSON.stringify(pathToFileURL(join(sdkRoot, "dist", "sdk", "index.mjs")).href)};
     globalThis.fetch = async () => { throw new Error("Generated packaged discovery cannot access a real account or network."); };
     const provider = {state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},refresh:async()=>{},login:()=>{throw Error("No generated login.");},
       cancel:async()=>{},logout:async()=>{},prepare:async()=>{throw Error("No generated model.");}};

@@ -28,8 +28,8 @@ export async function qualifyModelEvidence({ node = process.execPath, packageRoo
       'async deleteCredential(signal){this.check(signal).password=null;return true;}}');
     const hooks=registerHooks({resolve(specifier,context,next){return specifier==="@napi-rs/keyring"?{url:replacement,shortCircuit:true}:next(specifier,context);}});
     assert.equal((await import("@napi-rs/keyring")).qualificationBackend,"generated-memory-only");
-    const {createRuntime}=await import(${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)});
-    const {MoguriSdk}=await import(${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href)});
+    const {createRuntime}=await import(${JSON.stringify(pathToFileURL(join(root, "node_modules", "@moguri-dev", "sdk", "dist", "sdk", "node.mjs")).href)});
+    const {MoguriSdk}=await import(${JSON.stringify(pathToFileURL(join(root, "node_modules", "@moguri-dev", "sdk", "dist", "sdk", "index.mjs")).href)});
     let catalogue={data:[{id:model.id,vendor:"Generated provider claim",version:"generated-provider-version",
       capabilities:{family:"generated-provider-declaration"},unrelated:"Generated omitted provider data"}]},reads=0,runtime,sdk;
     const originalFetch=globalThis.fetch,origins=new Set(),secrets=new Map();

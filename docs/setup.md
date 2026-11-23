@@ -4141,7 +4141,8 @@ composer Env menu shows this mode as **Remote host**; its stored value, policy
 entry and CLI/SDK value stay `Remote`.
 Install this exact packed Moguri build and Node 26.4+ (26.x) on the target
 first. The worker command may use `moguri worker --stdio`, or an absolute
-compatible Node path followed by the installed `dist/remote-bridge.mjs`.
+compatible Node path followed by the installed SDK's
+`node_modules/@moguri-dev/sdk/dist/remote-bridge.mjs`.
 No automatic cloud provisioning, identity discovery or remote package install
 runs when saving settings.
 

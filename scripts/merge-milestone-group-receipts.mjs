@@ -100,7 +100,7 @@ function receipt(cell, identity) {
   const value = cell.nativeReceipt;
   assert.ok(isRecord(value));
   assert.equal(value.image, identity.image);
-  assert.equal(value.workerDigest, identity.inputs["dist/worker.mjs"]);
+  assert.equal(value.workerDigest, identity.inputs[`${sdk}dist/worker.mjs`]);
   assert.equal(value.journal?.status, "verified");
   assert.equal(value.ownedGuestAbsent, true);
   assert.equal(value.sourceUnchanged, true);
