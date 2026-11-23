@@ -72,7 +72,7 @@ try {
   const sshRoot = join(temporary, "generated-ssh"), remoteRoot = join(temporary, "generated-remote-project");
   await mkdir(sshRoot, { mode: 0o700 }); await mkdir(remoteRoot, { mode: 0o700 });
   ssh = await createSshTarget(sshRoot);
-  ssh.target.command = [node, join(root, "bin", "moguri.mjs"), "worker", "--stdio"]; ssh.target.allowCopilot = false;
+  ssh.target.command = [node, join(tuiRoot, "bin", "moguri.mjs"), "worker", "--stdio"]; ssh.target.allowCopilot = false;
   if (PROTOCOL_VERSION >= 26) {
     github = await generatedRemoteGithub(sshRoot, ssh.target, { bridge: join(sdkRoot, "dist", "remote-bridge.mjs"), node });
     ssh.target = github.target;
@@ -342,7 +342,7 @@ try {
       assert.equal((await remoteSdk.jobs.wait(refresh.id)).status, "completed");
       const retained = (await remoteSdk.repositories.state(session.id)).observation;
       assert.equal(retained.repository.visibility, "private"); assert.deepEqual(retained.remote, preview.remote);
-      const cli = execFileSync(node, [join(root, "bin", "moguri.mjs"), "slash", "/repository state", "--session", session.id], { env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") }, encoding: "utf8" });
+      const cli = execFileSync(node, [join(tuiRoot, "bin", "moguri.mjs"), "slash", "/repository state", "--session", session.id], { env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") }, encoding: "utf8" });
       assert.match(cli, /remote-gh-cli/);
       remoteSdk.disconnect(); await replaceService(true); remoteSdk = await new MoguriSdk(connection).ready();
       await remoteSdk.remote.probe(); assert.deepEqual((await remoteSdk.repositories.state(session.id)).observation, retained);
@@ -358,7 +358,7 @@ try {
       const before = (await remoteSdk.memory.state(session.id)).index; assert.equal(before.binding.env, "Remote"); assert.equal(before.binding.root, await realpath(remoteRoot));
       const hits = await remoteSdk.memory.searchSession(session.id, "Generated actual packaged service");
       assert.ok(hits.items.some((hit) => hit.text.includes("Generated actual packaged service") && !hit.stale));
-      const cli = execFileSync(node, [join(root, "bin", "moguri.mjs"), "memory", "search", "Generated actual packaged service", "--session", session.id],
+      const cli = execFileSync(node, [join(tuiRoot, "bin", "moguri.mjs"), "memory", "search", "Generated actual packaged service", "--session", session.id],
         { env: { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") }, encoding: "utf8" });
       assert.match(cli, /Generated actual packaged service/);
       remoteSdk.disconnect(); await replaceService(true); remoteSdk = await new MoguriSdk(connection).ready();
@@ -512,7 +512,7 @@ try {
       const index = await readFile(join(directory, ".git/index")), head = git(["rev-parse", "HEAD"]);
       const patch = { kind: "patch", summary: "Generated actual packaged candidate.", edits: [{ path: "candidate.txt", baseDigest: (await import("node:crypto")).createHash("sha256").update(original).digest("hex"), text: proposed }] };
       const path = join(temporary, "generated-packaged-patch.json"); await writeFile(path, JSON.stringify(patch));
-      const cli = join(root, "bin", "moguri.mjs"), env = { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") };
+      const cli = join(tuiRoot, "bin", "moguri.mjs"), env = { ...process.env, MOGURI_STATE_DIR: join(temporary, "state") };
       const preview = JSON.parse(execFileSync(node, [cli, "candidate", "preview", path, "--session", source.id, "--workspace", stage.id], { env, encoding: "utf8" })).preview;
       const staged = JSON.parse(execFileSync(node, [cli, "candidate", "stage", path, "--session", source.id, "--workspace", stage.id, "--digest", preview.digest, "--confirm-write"], { env, encoding: "utf8" }));
       assert.equal(staged.candidate.status, "staged"); assert.equal(await readFile(join(directory, "candidate.txt"), "utf8"), original);
@@ -536,7 +536,7 @@ try {
     let client = await new MoguriSdk(connection).ready();
     const originalReply = modelOptions.replyText;
     try {
-      const proof = await qualifyCandidateGeneration({ sdk: client, node, cli: join(root, "bin", "moguri.mjs"), directory: join(temporary, "generated-packaged-generation"),
+      const proof = await qualifyCandidateGeneration({ sdk: client, node, cli: join(tuiRoot, "bin", "moguri.mjs"), directory: join(temporary, "generated-packaged-generation"),
         stateDir: join(temporary, "state"), modelId: modelFixture.modelId, setReply: (value) => { modelOptions.replyText = value ?? originalReply; }, requests: modelFixture.requests });
       client.disconnect(); await replaceService(true); client = await new MoguriSdk(connection).ready(); await proof.verifyRecovery(client);
       console.log("Actual bundled Node/service/SDK/CLI generation, one owned metered model draft, immutable provenance and ownership-bearing export, separate reviewed stage/apply and missing-receipt restart replay passed without personal inference.");
@@ -559,7 +559,7 @@ try {
         const value=await sdk.roleSequences.read(evidence.sequenceId,1);
         assert.equal(value.sequence.status,"completed");assert.equal(value.sequence.inputDigest,evidence.inputDigest);assert.ok(value.step.result.includes(evidence.rawMarker));
         assert.equal(sdk.getState().snapshot.projects.length,0);assert.equal(sdk.getState().snapshot.sessions.some(session=>session.id===evidence.originSessionId),false);
-        const cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
+        const cli=${JSON.stringify(join(tuiRoot, "bin", "moguri.mjs"))};
         const called=JSON.parse((await promisify(execFile)(process.execPath,[cli,"roles",evidence.sequenceId,"1"],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
         console.log("GENERATED_PACKAGED_ROLE_CLI_READY");
         assert.ok(called.step.result.includes(evidence.rawMarker));assert.equal(JSON.parse((await sdk.artifacts.export(evidence.sequenceId)).export.text).schemaVersion,4);
@@ -612,7 +612,7 @@ try {
         const evidence=${JSON.stringify(evidence)},provider={state:{status:"disconnected",models:[],login:null,diagnostic:null},onChange:()=>{},
           refresh:async()=>{},cancel:async()=>{},logout:async()=>{},login:()=>{throw Error("No personal authorization in native role proposals.");},
           prepare:async()=>{throw Error("No model preparation in native role proposals.");}};
-        const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider,platform:{sandbox:{setup:{automatic:false,fetch:async()=>Response.json([])}}}},cli=${JSON.stringify(join(root, "bin", "moguri.mjs"))};
+        const options={stateDir:evidence.stateDir,retentionKey:Buffer.alloc(32,0x67),provider,platform:{sandbox:{setup:{automatic:false,fetch:async()=>Response.json([])}}}},cli=${JSON.stringify(join(tuiRoot, "bin", "moguri.mjs"))};
         const invoke=async args=>JSON.parse((await promisify(execFile)(process.execPath,[cli,"candidate",...args],{env:{...process.env,MOGURI_STATE_DIR:options.stateDir}})).stdout);
         const git=args=>execFileSync("git",["--no-pager","-c","core.hooksPath=/dev/null","-c","core.fsmonitor=false",...args],{cwd:evidence.sourceRoot,encoding:"utf8"});
         const index=await readFile(join(evidence.sourceRoot,".git/index")),head=git(["rev-parse","HEAD"]);
