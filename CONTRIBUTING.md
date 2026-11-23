@@ -52,7 +52,10 @@ process, which only maintainers run.
    The SDK, protocol and local service live in
    [moguri-sdk](https://github.com/moguri-dev/moguri-sdk): change them there,
    release a new `@moguri-dev/sdk` version, then bump the exact pin here.
-   Clients import only the supported package entrypoints.
+   The TUI and CLI live in
+   [moguri-tui](https://github.com/moguri-dev/moguri-tui) and arrive the same
+   way as `@moguri-dev/tui`. Clients import only the supported package
+   entrypoints.
 3. Add or update tests that would fail without your change. Use generated
    fixtures only: no real credentials, customer data or personal data.
 4. Update the relevant documentation under `docs/` in the same change. Keep

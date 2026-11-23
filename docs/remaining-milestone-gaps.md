@@ -141,17 +141,20 @@ remaining work.
 | Not planned (owner, 2026-11-20) | #77 app-wide accessibility verification (no VoiceOver pass, WCAG 2.2 AA audit or physical-display contrast check is claimed; see [ACCESSIBILITY.md](../ACCESSIBILITY.md)), #80 Stainless MCP gateway ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)'s revisit condition still applies if Stainless ships one), #54 GetMoshi. |
 
 **Open follow-ons.** [#93](https://github.com/mbianchidev/moguri/issues/93)
-splits the SDK and the TUI into `moguri-dev/moguri-sdk` (public since
-2026-11-23) and `moguri-dev/moguri-tui` repositories with history, keeps the updater and
+splits the SDK and the TUI into `moguri-dev/moguri-sdk` and
+`moguri-dev/moguri-tui` repositories with history (both public since
+2026-11-23), keeps the updater and
 release tooling working across the owner's transfer of this repository to
 `moguri-dev/moguri-desktop`, and then adds the Homebrew packages
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
 Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
 child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
-on `main` (#98). The second step consumes `@moguri-dev/sdk` 0.32.0-alpha.1 from
-`moguri-dev/moguri-sdk` and removes the embedded SDK. Neither closes #93; the
-TUI split and the Homebrew packages remain.
+on `main` (#98). The second step, draft
+[#99](https://github.com/mbianchidev/moguri/pull/99), consumes
+`@moguri-dev/sdk` and `@moguri-dev/tui` 0.32.0-alpha.1 and removes the
+embedded SDK, TUI and CLI. Neither closes #93; the repository transfer and the
+Homebrew packages remain.
 
 Two feature requests filed after this closure are also tracked on their own
 and not started: [#96](https://github.com/mbianchidev/moguri/issues/96)

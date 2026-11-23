@@ -89,7 +89,7 @@ try {
   assert.equal(version.observations.runtime.version.status, "unknown");
   assert.equal(version.observations.runtime.version.evidence.code, "runtime-executable-mutable");
   await assert.rejects(() => sdk.models.readinessWithRuntimeReview(created.id, model.id, reviewed.id), /consumed|replay|already/i);
-  const cli = await promisify(execFile)(process.execPath, [join(installed, "bin/moguri.mjs"), "models", "readiness", model.id, "--session", created.id], {
+  const cli = await promisify(execFile)(process.execPath, [join(installed, "node_modules/@moguri-dev/tui/bin/moguri.mjs"), "models", "readiness", model.id, "--session", created.id], {
     env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_PROFILE_ID: sdk.profileId }, timeout: 15000,
   });
   assert.equal(JSON.parse(cli.stdout).readiness.target.modelId, model.id); assert.equal(requests.length, 0);

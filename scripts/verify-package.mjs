@@ -20,13 +20,13 @@ const { generatedRemoteGithub } = await tsImport("../tests/fixtures/remote-githu
 const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const app = resolve(process.argv[2] ?? `release/${version}/Moguri-darwin-arm64/Moguri.app`);
 const root = join(app, "Contents", "Resources", "app");
-const sdkRoot = join(root, "node_modules", "@moguri-dev", "sdk");
+const sdkRoot = join(root, "node_modules", "@moguri-dev", "sdk"), tuiRoot = join(root, "node_modules", "@moguri-dev", "tui");
 for (const path of [".moguri", ".native", ".impeccable", ".copilot", ".test-output", "test-results", "playwright-report"]) await assert.rejects(() => access(join(root, path)), { code: "ENOENT" });
 const node = join(root, "node_modules", "node", "bin", "node");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app], { stdio: "inherit" });
 const { PROTOCOL_VERSION, BROWSER_MCP_TOOLS, defaultSettings } = await import(pathToFileURL(join(sdkRoot, "dist", "sdk", "index.mjs")).href);
 assert.match(execFileSync(node, ["--version"], { encoding: "utf8" }), /v26\.12\.0/);
-assert.match(execFileSync(node, [join(root, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
+assert.match(execFileSync(node, [join(tuiRoot, "dist", "tui.mjs"), "--help"], { encoding: "utf8" }), /Moguri TUI/);
 assert.match(execFileSync(node, [join(root, "dist", "cli.mjs"), "--help"], { encoding: "utf8" }), /Moguri CLI \+ SDK/);
 await access(join(root, "dist", "moguri"), constants.X_OK);
 assert.match(execFileSync(join(root, "dist", "moguri"), ["--help"], { encoding: "utf8", env: { ...process.env, PATH: "/usr/bin:/bin" } }), /Moguri CLI \+ SDK/);

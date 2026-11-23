@@ -14,13 +14,16 @@ dependency, bundled component or service Moguri connects to.
   license files in place.
 - `npm run build` writes `dist/THIRD_PARTY_NOTICES.md`, which reproduces the
   license files of every package the esbuild and Vite builds bundle into the
-  desktop, TUI and CLI JavaScript. The packaged app ships it next to
+  desktop JavaScript. The packaged app ships it next to
   `LICENSE.md` under `Moguri.app/Contents/Resources/app/`, and packaging fails
   without them. Moguri's own `@moguri-dev` packages are covered by
   `LICENSE.md` and not listed.
 - The `@moguri-dev/sdk` package ([moguri-sdk](https://github.com/moguri-dev/moguri-sdk))
   ships its own `dist/THIRD_PARTY_NOTICES.md` for the service and workers it
-  bundles, under `node_modules/@moguri-dev/sdk/` in the app.
+  bundles, under `node_modules/@moguri-dev/sdk/` in the app. The
+  `@moguri-dev/tui` package ([moguri-tui](https://github.com/moguri-dev/moguri-tui))
+  ships the CLI and TUI bundles with their own notices under
+  `node_modules/@moguri-dev/tui/`.
 - Those notices list bundled components without an OSI-approved license
   first. Today that is only `@anthropic-ai/claude-agent-sdk`: proprietary,
   "© Anthropic PBC. All rights reserved", and governed by

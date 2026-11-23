@@ -55,7 +55,8 @@ workflow checks again immediately before undrafting.
 - `gh` logged in to github.com with push access: `gh auth login --hostname github.com`.
 - A classic token with `read:packages` in your user `~/.npmrc`
   (`//npm.pkg.github.com/:_authToken=...`), so `npm ci` can install
-  `@moguri-dev/sdk`: GitHub Packages needs a token even for public packages.
+  `@moguri-dev/sdk` and `@moguri-dev/tui`: GitHub Packages needs a token even
+  for public packages.
   The Release workflow reads it with its own `GITHUB_TOKEN`.
 - The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`, or
   `github.com/moguri-dev/moguri-desktop` after the move (SSH or HTTPS), with
@@ -169,13 +170,12 @@ disposable `HOME`. Lint the entrypoint and workflow with
 
 ## Current blockers
 
-- **GitHub Actions does not start jobs:** account billing or the spending
-  limit blocks them, as it has for `main` CI since before Milestone 1. Until
-  it is fixed, the main CI gate and the Release workflow fail, so nothing can
-  publish.
-- **The repository is private:** the in-app updater needs an optional
-  read-only token until it is public; after that it updates from public
-  releases with no token. The Homebrew cask cannot download releases yet.
+- **No green main CI run yet:** Actions start jobs since the repository
+  became public on 2026-11-23, but the last `main` run (`5652dd8`) stalled in
+  the SSH compound-environment tests and was cancelled. The release script
+  waits for a passing main CI run on the release merge commit.
+- **No release yet:** the in-app updater reads public releases without a
+  token once one exists. The Homebrew cask waits for the first release (D75).
 
 ## Repository move
 

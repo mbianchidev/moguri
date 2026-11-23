@@ -2444,6 +2444,20 @@ after the same review of all 25 branches, 63 pull request refs, issues,
 comments and Actions artifacts; its findings were the false positives already
 in `.gitleaksignore`. Every Moguri repository is MIT-licensed.
 
+**TUI extraction, 2026-11-23.** `moguri-dev/moguri-tui` is public and carries
+`apps/cli/`, `apps/tui/`, `bin/moguri.mjs`, the 46 TUI and CLI test files with
+their fixtures, and the TUI docs, with history from this repository's #99
+branch. A gitleaks 8.30.1 scan of its 409 commits found nothing. It ships
+`@moguri-dev/tui` 0.32.0-alpha.1 on GitHub Packages with an exact
+`@moguri-dev/sdk` pin, the `moguri` bin and a `./cli` entry whose `run(argv)`
+keeps the CLI's error reporting. This repository now pins `@moguri-dev/tui`
+too. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
+the app's `dist/moguri` launcher and already installed `moguri` commands keep
+working unchanged. `npm start` runs the installed TUI. `moguri desktop` runs
+only from a desktop source checkout. The OpenTUI Phase 0 spike and the TUI's
+half of the CI-watch and SDK-boundary tests moved with it. No protocol or
+schema change.
+
 ## Still open
 
 Earlier SendBox releases were qualified and superseded; their receipts are

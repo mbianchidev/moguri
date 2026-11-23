@@ -301,16 +301,17 @@ export async function runSourceMatrix(t: TestContext, options: { method: MatrixM
   try {
     await mkdir(matrixDirectory, { recursive: true });
     await writeFile(journalPath, `${JSON.stringify({ version: 2, method, startedAt, sourceStatus: "RUNNING", nativeStatus: "UNQUALIFIED", axes: milestoneAxes })}\n`, { flag: "wx" });
-    const sdk = "node_modules/@moguri-dev/sdk/";
+    const sdk = "node_modules/@moguri-dev/sdk/", tui = "node_modules/@moguri-dev/tui/";
     const paths = ["package.json", "package-lock.json", `${sdk}package.json`, `${sdk}scripts/worker-image/Containerfile`,
       `${sdk}dist/worker.mjs`, `${sdk}dist/remote-bridge.mjs`,
       "apps/desktop/src/BudgetControls.tsx", "apps/desktop/src/SettingsPanel.tsx",
-      `${sdk}dist/mcp-worker.mjs`, `${sdk}dist/data-worker.mjs`, `${sdk}dist/service.mjs`, "dist/cli.mjs", "dist/tui.mjs",
+      `${sdk}dist/mcp-worker.mjs`, `${sdk}dist/data-worker.mjs`, `${sdk}dist/service.mjs`, "dist/cli.mjs",
+      `${tui}package.json`, `${tui}dist/cli.mjs`, `${tui}dist/tui.mjs`,
       `${sdk}dist/runtime.mjs`, `${sdk}dist/sdk/index.mjs`, "dist/desktop/main.mjs", "dist/desktop/renderer/index.html",
       ...(await readdir("dist/desktop/renderer/assets")).sort().map((name) => `dist/desktop/renderer/assets/${name}`),
       "tests/fixtures/single-routing.ts", "tests/fixtures/milestone-combinations.ts", "tests/fixtures/milestone-runner.ts",
       ...coveringInputs(method), options.caseFile,
-      "tests/tui-milestone-combinations.test.ts", "tests/e2e/milestone-combinations.spec.ts"];
+      "tests/e2e/milestone-combinations.spec.ts"];
     identity.inputs = Object.fromEntries(await Promise.all(paths.map(async (path) => [path, await sha256File(path)])));
     await journal({ type: "identity", identity });
     await Promise.all(groups.map((group) => {

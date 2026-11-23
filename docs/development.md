@@ -34,7 +34,9 @@ npm start -- --project /absolute/path/to/project   # TUI
 npm run desktop                                    # desktop app, same service and sessions
 ```
 
-`npm run dev:tui` runs the TUI from TypeScript sources without building;
+`npm start` runs the TUI from the installed `@moguri-dev/tui` package, and
+`npx moguri` its CLI; their sources live in
+[moguri-tui](https://github.com/moguri-dev/moguri-tui).
 `npm run service` runs the installed SDK's service. State goes to
 `~/Library/Application Support/Moguri` unless `MOGURI_STATE_DIR` points to a
 private directory; use a separate one for development. The service writes
@@ -45,8 +47,8 @@ diagnostics to `service.log` in that directory; see
 
 | Path | Contents |
 | --- | --- |
-| `apps/cli`, `apps/tui` | The `moguri` CLI and the OpenTUI terminal client |
 | `apps/desktop` | The Electron main process and the React renderer |
+| `node_modules/@moguri-dev/tui` | The `moguri` CLI and the OpenTUI terminal client, from [moguri-tui](https://github.com/moguri-dev/moguri-tui). The build's `dist/cli.mjs` shim runs its `./cli` entry for the app's `dist/moguri` launcher |
 | `node_modules/@moguri-dev/sdk` | The SDK, protocol, local control plane and workers, from [moguri-sdk](https://github.com/moguri-dev/moguri-sdk). Clients import only `@moguri-dev/sdk`, `/node`, `/react`, `/mcp` and `/remote-bridge`; tests may also use the unstable `/testing` entry |
 | `scripts` | Build, packaging, spikes, qualification and [release](releasing.md) tooling |
 | `tests` | Node test runner suites; `tests/e2e` holds hidden Electron Playwright specs |
@@ -61,13 +63,20 @@ The [SDK reference](sdk.md) documents the public API and CLI.
 
 | Command | Purpose |
 | --- | --- |
-| `npm run typecheck` | TypeScript for the desktop, CLI, TUI and tests |
-| `npm run build` | CLI, TUI and desktop bundles and `dist/THIRD_PARTY_NOTICES.md` |
-| `npm test` | Full Node suite, including the native TUI interaction test and the covering-array milestone matrix. Run `npm run build` first: some tests execute `dist` bundles |
+| `npm run typecheck` | TypeScript for the desktop and tests |
+| `npm run build` | Desktop bundles, the `dist/moguri` launcher with its `dist/cli.mjs` shim and `dist/THIRD_PARTY_NOTICES.md` |
+| `npm test` | Full Node suite, including the covering-array milestone matrix. Run `npm run build` first: some tests execute `dist` bundles. TUI and CLI suites run in moguri-tui |
 | `node --import tsx --test tests/<name>.test.ts` | One or more focused suites |
 | `npm run test:e2e` | Hidden Electron end-to-end tests. Needs a build and `npm exec -- playwright install chromium` once |
 | `npm audit --audit-level=moderate` | Dependency audit |
 | `npm run test:matrix` | Opt-in full 10,080-cell milestone matrix |
+
+Documentation cites test evidence by file name. Since the
+[D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)
+split, SDK, service and worker suites live in
+[moguri-sdk](https://github.com/moguri-dev/moguri-sdk) and TUI and CLI suites
+in [moguri-tui](https://github.com/moguri-dev/moguri-tui); a cited test that is
+not in `tests/` here is in one of those repositories.
 
 Tests use generated fixtures only: no real credentials, personal data,
 microphones or live provider logins. Electron tests run hidden and never open

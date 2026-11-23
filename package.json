@@ -5,15 +5,12 @@
   "license": "MIT",
   "description": "A local-first AI coding workspace for terminal and desktop",
   "type": "module",
-  "bin": {
-    "moguri": "bin/moguri.mjs"
-  },
   "engines": {
     "node": ">=26.4.0 <27"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p apps/tui/tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test --test-concurrency=1 --test-force-exit tests/*.test.ts",
     "test:matrix": "node --import tsx --test --test-concurrency=1 tests/matrix/*.test.ts",
     "generate:covering": "node --import tsx scripts/generate-milestone-covering-array.mjs",
@@ -24,14 +21,12 @@
     "start": "node scripts/launch.mjs tui",
     "desktop": "node scripts/launch.mjs desktop",
     "service": "node scripts/launch.mjs service",
-    "dev:tui": "node --import tsx apps/tui/src/main.tsx",
     "cli": "node dist/cli.mjs",
     "package:mac": "npm run build && node scripts/package.mjs"
   },
   "dependencies": {
     "@moguri-dev/sdk": "0.32.0-alpha.1",
-    "@opentui/core": "0.6.6",
-    "@opentui/react": "0.6.6",
+    "@moguri-dev/tui": "0.32.0-alpha.1",
     "@pierre/diffs": "1.6.4",
     "@types/node": "26.6.5",
     "ghostty-web": "0.4.0",

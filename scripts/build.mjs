@@ -9,14 +9,14 @@ await rm("dist", { recursive: true, force: true });
 await mkdir("dist/desktop", { recursive: true });
 await writeFile("dist/moguri", bundledCliLauncher(), { mode: 0o755 });
 await chmod("dist/moguri", 0o755);
+// The CLI and TUI ship in @moguri-dev/tui. The app's launcher and already installed moguri commands keep running dist/cli.mjs.
+await writeFile("dist/cli.mjs", 'import { run } from "@moguri-dev/tui/cli";\nawait run(process.argv.slice(2));\n');
 const version = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
 const define = { __MOGURI_BUILD_VERSION__: JSON.stringify(version) };
 const bundle = (options) => build({ ...options, metafile: true });
-// The service, runtime and workers ship inside the installed @moguri-dev/sdk package; clients bundle only their own code.
+// The service, runtime and workers ship inside the installed @moguri-dev/sdk package; the desktop bundles only its own code.
 const nodeBuild = { bundle: true, platform: "node", format: "esm", target: "node26", packages: "external", define };
 const bundled = await Promise.all([
-  bundle({ ...nodeBuild, entryPoints: ["apps/cli/src/main.ts"], outfile: "dist/cli.mjs" }),
-  bundle({ ...nodeBuild, entryPoints: ["apps/tui/src/main.tsx"], outfile: "dist/tui.mjs", jsx: "automatic", jsxImportSource: "@opentui/react" }),
   bundle({ ...nodeBuild, entryPoints: ["apps/desktop/src/main.ts"], outfile: "dist/desktop/main.mjs" }),
   bundle({ entryPoints: ["apps/desktop/src/preload.ts"], outfile: "dist/desktop/preload.cjs", bundle: true, platform: "node", format: "cjs", target: "node26", external: ["electron"] }),
   bundle({ entryPoints: ["apps/desktop/src/html-preload.ts"], outfile: "dist/desktop/html-preload.cjs", bundle: true, platform: "browser", format: "cjs", target: "es2024" }),
@@ -29,4 +29,4 @@ const bundledIds = bundled.flatMap((result) => [
 ]);
 const notices = await writeThirdPartyNotices(bundledIds, "dist/THIRD_PARTY_NOTICES.md");
 console.log(`Third-party notices: ${notices.length} bundled packages in dist/THIRD_PARTY_NOTICES.md.`);
-console.log("Built the CLI/exec launcher, TUI and desktop against the installed @moguri-dev/sdk.");
+console.log("Built the desktop and CLI launcher against the installed @moguri-dev/sdk and @moguri-dev/tui.");

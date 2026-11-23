@@ -20,14 +20,15 @@ let connection, sdk, application, launched = false;
 try {
   await mkdir(dependencies, { recursive: true }); await mkdir(home);
   await cp(join(installed, "dist"), join(appRoot, "dist"), { recursive: true });
-  await cp(join(installed, "bin"), join(appRoot, "bin"), { recursive: true });
   await copyFile(join(installed, "package.json"), join(appRoot, "package.json"));
   const manifest = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
   const sdkRoot = join(installed, "node_modules", "@moguri-dev", "sdk"), sdkManifest = JSON.parse(await readFile(join(sdkRoot, "package.json"), "utf8"));
-  // A real copy, not a symlink: the service must resolve the generated keyring below rather than the real one beside the SDK's own path.
+  const tuiRoot = join(installed, "node_modules", "@moguri-dev", "tui"), tuiManifest = JSON.parse(await readFile(join(tuiRoot, "package.json"), "utf8"));
+  // Real copies, not symlinks: the service and the CLI that starts it must resolve the generated keyring below rather than the real one beside their own paths.
   await cp(sdkRoot, join(dependencies, "@moguri-dev", "sdk"), { recursive: true, verbatimSymlinks: true });
-  for (const name of new Set([...Object.keys(manifest.dependencies), ...Object.keys(sdkManifest.dependencies)])) {
-    if (name === "@napi-rs/keyring" || name === "node" || name === "@moguri-dev/sdk") continue;
+  await cp(tuiRoot, join(dependencies, "@moguri-dev", "tui"), { recursive: true, verbatimSymlinks: true });
+  for (const name of new Set([...Object.keys(manifest.dependencies), ...Object.keys(sdkManifest.dependencies), ...Object.keys(tuiManifest.dependencies)])) {
+    if (name === "@napi-rs/keyring" || name === "node" || name === "@moguri-dev/sdk" || name === "@moguri-dev/tui") continue;
     let dependency;
     for (const directory of require.resolve.paths(name) ?? []) {
       try { await lstat(join(directory, name, "package.json")); dependency = join(directory, name); break; }
@@ -107,7 +108,7 @@ try {
   await cli("stop"); launched = false; connection = undefined;
   const keyBytes = await readFile(join(root, "generated-secrets.json"), "utf8");
   await cli("stop");
-  const recovered = JSON.parse((await execute(node, [join(appRoot, "bin", "moguri.mjs"), "service", "restart"], { env, timeout: 15_000 })).stdout);
+  const recovered = JSON.parse((await execute(node, [join(dependencies, "@moguri-dev", "tui", "bin", "moguri.mjs"), "service", "restart"], { env, timeout: 15_000 })).stdout);
   launched = true; connection = await readConnection(stateDir);
   assert.equal(recovered.pid, connection.pid);
   assert.equal(await readFile(join(root, "generated-secrets.json"), "utf8"), keyBytes);

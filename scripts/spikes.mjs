@@ -7,9 +7,6 @@ import { DatabaseSync } from "node:sqlite";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createModels, InMemoryCredentialStore } from "@earendil-works/pi-ai";
 import { githubCopilotProvider } from "@earendil-works/pi-ai/providers/github-copilot";
-import { createTestRenderer } from "@opentui/core/testing";
-import { createRoot, flushSync } from "@opentui/react";
-import { createElement } from "react";
 import * as pty from "node-pty";
 
 await mkdir(".moguri", { recursive: true });
@@ -156,24 +153,7 @@ try {
     }
   });
 
-  await measure("OpenTUI React streaming timeline on Node", async () => {
-    const setup = await createTestRenderer({ width: 100, height: 30 });
-    try {
-      const root = createRoot(setup.renderer);
-      const started = performance.now();
-      for (let i = 0; i < 60; i++) {
-        flushSync(() => root.render(createElement("box", { flexDirection: "column" },
-          createElement("text", {}, "Moguri / GitHub Copilot"),
-          createElement("text", {}, "generated ".repeat(i + 1)),
-        )));
-        await setup.flush();
-      }
-      assert.ok(setup.captureCharFrame().includes("GitHub Copilot"), "Rendered frame must contain GitHub Copilot");
-      flushSync(() => root.unmount());
-      return { updates: 60, averageUpdateMs: (performance.now() - started) / 60, node: process.version };
-    } finally { await setup.dispose(); }
-  });
-
+  // The OpenTUI rendering spike moved with the TUI to moguri-dev/moguri-tui, whose TUI tests render through OpenTUI.
   await measure("Electron shell, long timeline startup, memory and scrolling", async () => {
     const electron = (await import("electron")).default;
     const child = spawn(electron, [resolve("scripts/spike-electron.cjs")], { stdio: ["ignore", "pipe", "pipe"], timeout: 30_000 });

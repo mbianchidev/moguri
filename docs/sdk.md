@@ -1850,7 +1850,7 @@ Current state migrations preserve schema-1 through schema-33 history, sessions, 
 receipts, blobs, indexes and retention compartments. Migration 5 adds optional
 model controls without resetting prior defaults. Migration 6 adds nullable project
 scope, reviewed configuration and OAuth/attention state. Restart a previously running alpha service explicitly with
-`node bin/moguri.mjs service restart`; do not delete its state.
+`npx moguri service restart`; do not delete its state.
 
 The issue-17 source uses protocol/database **36** for scoped pasted-text file
 descriptors and optional queue-edit attachments. Schema 35 upgrades without
@@ -3532,7 +3532,7 @@ fingerprint; an old approval cannot silently execute changed content.
 ## One native MCP
 
 ```bash
-node bin/moguri.mjs mcp --session SESSION_ID
+npx moguri mcp --session SESSION_ID
 ```
 
 Configure that command as a stdio MCP in another client. It exposes only
@@ -3725,7 +3725,7 @@ shell arguments; TUI `/linear token` uses a dedicated masked editor.
 
 ### Client lifecycle
 
-`node bin/moguri.mjs --help` lists supported commands. A normally installed
+`npx moguri --help` lists supported commands. A normally installed
 package also supplies the `moguri` executable. `moguri status` exposes project
 and session IDs without printing transcripts or connection credentials.
 `config`, `prompt`, `memory`, `skills`, `plugins`, `mcp`, `agents`, `dictate`

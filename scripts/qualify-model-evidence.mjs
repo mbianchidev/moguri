@@ -62,7 +62,7 @@ export async function qualifyModelEvidence({ node = process.execPath, packageRoo
       const session=await sdk.sessions.create(null,"Generated explicit catalogue inspector");
       const controls=structuredClone(sdk.getState().snapshot.sessions.find(value=>value.id===session.id).controls),events=runtime.controller.events(0).length;
       const report=(await sdk.models.evidence(model.id)).evidence;verify(report);assert.equal(report.status,"declared");assert.equal(reads,1);
-      const run=async args=>JSON.parse((await promisify(execFile)(${JSON.stringify(node)},[${JSON.stringify(join(root, "bin", "moguri.mjs"))},"models",...args],
+      const run=async args=>JSON.parse((await promisify(execFile)(${JSON.stringify(node)},[${JSON.stringify(join(root, "node_modules", "@moguri-dev", "tui", "bin", "moguri.mjs"))},"models",...args],
         {cwd:${JSON.stringify(root)},env:{...process.env,MOGURI_STATE_DIR:${JSON.stringify(stateDir)}},timeout:5000})).stdout);
       verify((await run(["evidence",model.id])).evidence);assert.equal(reads,2);
       const shared=await sdk.slash(session.id,"/model-evidence "+model.id,"tui");assert.equal(shared.kind,"text");verify(JSON.parse(shared.text).evidence);assert.equal(reads,3);
