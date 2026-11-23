@@ -5,7 +5,7 @@ service is the only durable writer; the SDK exposes its typed commands,
 queries, sequenced events, optimistic revisions and cancellation. Electron does
 not own a second agent loop, settings store or provider connection.
 
-The SDK ships as the private `@moguri-dev/sdk` package from
+The SDK ships as the public `@moguri-dev/sdk` package on GitHub Packages from
 [moguri-sdk](https://github.com/moguri-dev/moguri-sdk), its source of truth
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
 Clients reach it only through its supported entrypoints: the browser-safe root

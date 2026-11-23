@@ -54,8 +54,9 @@ workflow checks again immediately before undrafting.
   `ditto` and `shasum`.
 - `gh` logged in to github.com with push access: `gh auth login --hostname github.com`.
 - A classic token with `read:packages` in your user `~/.npmrc`
-  (`//npm.pkg.github.com/:_authToken=...`), so `npm ci` can install the
-  private `@moguri-dev/sdk`. The Release workflow uses the
+  (`//npm.pkg.github.com/:_authToken=...`), so `npm ci` can install
+  `@moguri-dev/sdk`: GitHub Packages needs a token even for public packages.
+  The Release workflow uses the
   `MOGURI_PACKAGES_TOKEN` secret.
 - The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`, or
   `github.com/moguri-dev/moguri-desktop` after the move (SSH or HTTPS), with
