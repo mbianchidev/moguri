@@ -2430,7 +2430,7 @@ the desktop now versions independently, and accepts the service either in
 `dist/` or in `node_modules/@moguri-dev/sdk`. Packaged apps keep small
 `dist/service.mjs` and `dist/update-installer.mjs` markers so updaters from
 before the split still accept the new layout. This repository consumes the
-exact pin from GitHub Packages; CI uses the `MOGURI_PACKAGES_TOKEN` secret. No
+exact pin from GitHub Packages; CI reads the public package with its own `GITHUB_TOKEN`. No
 protocol or schema change.
 
 **Open-sourced, 2026-11-23.** The owner made every moguri-dev repository
