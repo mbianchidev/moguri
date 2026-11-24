@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { envLabel, candidateRootLabel, type CandidateWorkspace, type CandidateWorkspacePreview, type MoguriSdk, type Session } from "@moguri-dev/sdk";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function CandidateWorkspacePanel({ sdk, session, scope, writable, onWorkspaces, onDirty }: {
   sdk: MoguriSdk; session?: Session; scope: string; writable: boolean;
@@ -11,6 +12,7 @@ export function CandidateWorkspacePanel({ sdk, session, scope, writable, onWorks
   const [workspaces, setWorkspaces] = useState<CandidateWorkspace[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const generation = useRef(0), pending = useRef(false), actualScope = useRef(scope); actualScope.current = scope;
   const nativeOrPeer = Boolean(session && session.controls.env !== "Local");
+  usePendingWork(busy);
   useEffect(() => { onDirty(Boolean(name) || busy); return () => onDirty(false); }, [name, busy, onDirty]);
   useEffect(() => {
     const token = ++generation.current; setPreview(null); setWorkspaces([]); onWorkspaces([]);

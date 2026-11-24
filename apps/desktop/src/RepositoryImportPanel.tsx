@@ -4,6 +4,7 @@ import { SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { WorkspaceFolderPanel } from "./WorkspaceFolderPanel.tsx";
 import { PathField, localPath } from "./PathField.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject }: {
   sdk: MoguriSdk; snapshot: Snapshot; onDirty: (dirty: boolean) => void; configureProject: (id?: string) => void;
@@ -21,6 +22,7 @@ export function RepositoryImportPanel({ sdk, snapshot, onDirty, configureProject
     snapshot.projects.map((project) => [project.id, project.path]), snapshot.projectConfigurations.map((configuration) => [configuration.projectId, configuration.revision])]);
   useEffect(() => { setPreview(null); setReviewed(false); }, [revisionKey]);
   useEffect(() => { setInspected([]); }, [selected?.id, selected?.revision]);
+  usePendingWork(busy);
   useEffect(() => { onDirty(Boolean(text) || busy || folderDirty); return () => onDirty(false); }, [text, busy, folderDirty, onDirty]);
   const invalidate = () => { setPreview(null); setReviewed(false); setError(""); };
   const run = async (operation: (owned: () => boolean) => Promise<void>) => {

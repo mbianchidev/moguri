@@ -2,6 +2,7 @@ import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.
 import { useEffect, useState } from "react";
 import { type CompoundLineageInput, type CompoundLineageReview, type ModelInfo, type MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDirty, onBusy }: {
   sdk: MoguriSdk; models: ModelInfo[]; disabled: boolean;
@@ -17,6 +18,7 @@ export function CompoundLineageReview({ sdk, models, disabled, onPrepared, onDir
   const dirty = Boolean(draftModelId || criticModelId || draftLineage || criticLineage || sourceUrl || sourceText || limitations);
   const fields = JSON.stringify([draftModelId, criticModelId, draftLineage, criticLineage, sourceKind, sourceUrl, sourceText, limitations, validUntil]);
   useEffect(() => { setReviewed(false); }, [fields]);
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty || busy); return () => onDirty(false); }, [dirty, busy, onDirty]);
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   const reset = () => { setDraftModel(""); setCriticModel(""); setDraftLineage(""); setCriticLineage(""); setSourceUrl(""); setSourceText(""); setLimitations(""); setReviewed(false); };

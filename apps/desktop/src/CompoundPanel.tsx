@@ -2,6 +2,7 @@ import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.
 import { useEffect, useRef, useState } from "react";
 import { envLabel, activeCompound, candidateRootBase, candidateRootLabel, type CandidateWorkspace, type CompoundInput, type CompoundResponse, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 type Read = Extract<CompoundResponse, { type: "compound.read" }>;
 type Preview = Extract<CompoundResponse, { type: "compound.preview" }>["preview"];
@@ -34,6 +35,7 @@ export function CompoundPanel({ sdk, snapshot, session, envStages = [], reposito
   const ownRunning = Boolean(selected && session && selected.sessionId === session.id && selected.id === session.turnId && activeCompound(selected));
   const stages = session?.controls.env === "Local" ? snapshot.managedWorkspaces.filter((workspace) => workspace.projectId === session?.projectId && workspace.id !== session?.workspaceId && workspace.status === "ready").map((stage) => ({ id: stage.id, label: stage.branch })) :
     envStages.filter((stage) => stage.status === "ready").map((stage) => ({ id: stage.id, label: `${stage.name} / ${envLabel(stage.boundary.env)}` }));
+  usePendingWork(Boolean(busy));
   useEffect(() => { onDirty(dirty || Boolean(busy)); return () => onDirty(false); }, [dirty, busy, onDirty]);
   useEffect(() => { setPreview(null); setCostReviewed(false); }, [inputScope]);
   useEffect(() => { setTestReviewed(false); }, [selected?.id, selected?.revision, snapshot.settings.permissionRevision, snapshot.policy.revision]);

@@ -9,6 +9,7 @@ import { Alert } from "./Alert.tsx";
 import { envLabel, candidateRootBase, candidateRootLabel, type CandidateWorkspace } from "@moguri-dev/sdk";
 import { CandidateWorkspacePanel } from "./CandidateWorkspacePanel.tsx";
 import { CandidateRecoveryPanel } from "./CandidateRecoveryPanel.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 interface DraftFile { path: string; baseDigest: string; baseText: string; text: string }
 const summaryDefault = "Review repository changes";
@@ -43,6 +44,7 @@ export function CandidatePanel({ sdk, snapshot, session, onDirty }: { sdk: Mogur
   const candidates = snapshot.candidates.filter((candidate) => !session?.projectId || candidate.projectId === session.projectId || candidate.id === selectedId).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const artifact = snapshot.artifacts.find((artifact) => artifact.id === selectedId);
   const active = selected && ["staging", "applying"].includes(selected.status);
+  usePendingWork(Boolean(busy));
   useEffect(() => { onDirty(dirty || Boolean(busy) || generationDirty || compoundDirty || winddownDirty || workspaceDirty); return () => onDirty(false); }, [dirty, busy, generationDirty, compoundDirty, winddownDirty, workspaceDirty, onDirty]);
   useEffect(() => {
     let current = true;

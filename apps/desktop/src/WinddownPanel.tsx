@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MoguriSdk, Session, Snapshot, WinddownResponse } from "@moguri-dev/sdk";
 import { envLabel, isLocalCandidateRecord } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 type Read = Extract<WinddownResponse, { type: "winddown.read" }>;
 type Preview = Extract<WinddownResponse, { type: "winddown.commit.preview" }>["preview"];
@@ -36,6 +37,7 @@ export function WinddownPanel({ sdk, snapshot, session, onDirty }: { sdk: Moguri
     record?.id, record?.revision, fields, snapshot.policy.revision, snapshot.settings.permissionRevision,
     snapshot.projectConfigurations.find((configuration) => configuration.projectId === record?.projectId)?.revision]);
   const currentScope = useRef(scope); currentScope.current = scope;
+  usePendingWork(Boolean(busy));
   useEffect(() => { onDirty(dirty || Boolean(busy)); return () => onDirty(false); }, [dirty, busy, onDirty]);
   useEffect(() => { setPreview(null); setReviewed(false); setSourcePreview(null); setSourceReviewed(false); setInspection(null); setInspectionReviewed(false); }, [scope]);
   useEffect(() => {
