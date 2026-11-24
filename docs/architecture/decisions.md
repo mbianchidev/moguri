@@ -2457,14 +2457,25 @@ branch. A gitleaks 8.30.1 scan of all 411 commits pushed found nothing. It ships
 `@moguri-dev/tui` 0.32.0-alpha.1 on GitHub Packages with an exact
 `@moguri-dev/sdk` pin, the `moguri` bin and a `./cli` entry whose `run(argv)`
 keeps the CLI's error reporting. This repository now pins `@moguri-dev/tui`
-too, at 0.32.0-alpha.2: that release makes `moguri desktop` use only the
+too. `@moguri-dev/tui` 0.32.0-alpha.2 makes `moguri desktop` use only the
 checkout's own Electron, so a packaged app refuses it clearly instead of
-running an Electron found in a parent folder. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
+running an Electron found in a parent folder. The pins are `@moguri-dev/sdk`
+0.32.0-alpha.2, whose `refresh()` reads a snapshot requested after the call,
+and `@moguri-dev/tui` 0.32.0-alpha.3, built on it. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
 the app's `dist/moguri` launcher and already installed `moguri` commands keep
 working unchanged. `npm start` runs the installed TUI. `moguri desktop` runs
 only from a desktop source checkout. The OpenTUI Phase 0 spike and the TUI's
 half of the CI-watch and SDK-boundary tests moved with it. No protocol or
 schema change.
+
+**CI on slower runners, 2026-11-24.** Shared macOS runners run the suites
+three to four times slower than a developer Mac. Desktop, TUI and CLI CI set
+`MOGURI_TEST_TIME_SCALE=4`, which stretches harness deadlines only (`ciTime()`
+in `tests/fixtures/time-scale.ts`); product latency budgets are not scaled and
+failed tests are never retried. On those runners the desktop e2e budgets for
+`startup.window` (1500 ms), `startup.ready` (3000 ms) and `message.send`
+(700 ms) are still exceeded; whether CI enforces them is the owner's
+decision.
 
 ## Still open
 
