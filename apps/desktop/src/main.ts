@@ -13,7 +13,7 @@ import {
   QUERY_TIMEOUT_MS, QUERY_REPLY_GRACE_MS, sessionLocalFolder, shortcutLabel, type Connection, type NotificationToneKind,
 } from "@moguri-dev/sdk";
 import { AttentionNotifier, notificationToneAllowed, type NotificationTone } from "./notifications.ts";
-import { SessionBrowserHost } from "./agent-browser.ts";
+import { BrowserAttachmentCleanupError, SessionBrowserHost } from "./agent-browser.ts";
 import { CliInstallation } from "./cli-installation.ts";
 import { HtmlPreviewHost } from "./html-preview.ts";
 import { microphonePermission } from "./microphone-permission.ts";
@@ -79,7 +79,9 @@ const hidePreview = () => {
   if (!preview) return;
   const owned = preview; preview = null;
   owned.storage.removeListener("will-download", blockPreviewDownload);
-  const detach = owned.host?.close() ?? owned.registration ?? Promise.resolve();
+  // An attachment still in flight ends unattached or by detaching itself, because its view closes below; only an unacknowledged
+  // detach keeps a replacement blocked.
+  const detach = owned.host?.close() ?? owned.registration?.catch((error: unknown) => { if (error instanceof BrowserAttachmentCleanupError) throw error; }) ?? Promise.resolve();
   const clear = owned.storage.clearStorageData();
   previewCleanup = Promise.all([previewCleanup, detach, clear]).then(() => {});
   void previewCleanup.catch((error: unknown) => console.error("Native browser private cleanup was not acknowledged; replacement remains blocked:", error instanceof Error ? error.message : "unknown browser cleanup failure"));

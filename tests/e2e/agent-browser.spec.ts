@@ -6,6 +6,7 @@ import { mkdir } from "node:fs/promises";
 import sharp from "sharp";
 import { MoguriSdk, MoguriError, isRecord } from "@moguri-dev/sdk";
 import { setupFixture, type GeneratedProviderOptions } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The native browser is qualified on macOS.");
@@ -590,6 +591,38 @@ test("agent control turns back on with a fresh identity after another chat's pan
     expect((await callBrowser(owned, sdk, "browser_snapshot", { controlId: reloaded })).job.status).toBe("completed");
     expect(owned.fixture.requests.length).toBe(0);
   } finally { sdk.disconnect(); await owned.close(); }
+});
+
+// A pane closed while its host is still attaching (a chat switch on a slow machine) must not block the chat's next pane.
+test("a Browser pane closed while its host is still attaching leaves the next pane free to attach and take agent control", async () => {
+  const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
+  const platform = (f.service.controller as unknown as { platform: { execute(command: { type: string; sessionId?: string }, finish: unknown): Promise<unknown> } }).platform;
+  const execute = platform.execute.bind(platform);
+  let held: "none" | "holding" | "released" = "none";
+  platform.execute = async (command, finish) => {
+    if (command.type === "browser.host.attach" && command.sessionId === f.sessionId && held === "none") {
+      held = "holding"; await new Promise((resolve) => setTimeout(resolve, ciTime(1500))); held = "released";
+    }
+    return execute(command, finish);
+  };
+  const app = await electron.launch({
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
+  });
+  try {
+    const page = await app.firstWindow(), button = page.getByRole("button", { name: "Browser", exact: true });
+    const toggle = page.getByRole("switch", { name: "Agent browser control", exact: true });
+    await expect(page.getByLabel("Prompt", { exact: true })).toBeEnabled();
+    await button.click();
+    await expect.poll(() => held).toBe("holding");
+    await button.click(); await expect(toggle).not.toBeVisible();
+    await expect.poll(() => held).toBe("released");
+    await button.click(); await expect(toggle).toBeEnabled();
+    await expect.poll(async () => (await sdk.browser.state(f.sessionId)).browser.available).toBe(true);
+    await toggle.click(); await expect(toggle).toBeChecked();
+    await expect.poll(() => currentControl(sdk, f.sessionId)).not.toBeNull();
+    expect(f.requests.length).toBe(0);
+  } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
 test("user navigation in the pane keeps agent control on with a new identity and the old one is never reused", async () => {

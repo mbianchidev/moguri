@@ -50,7 +50,10 @@ Space/Enter interaction, visible keyboard focus and a 44-pixel hit target.
   A monotonic native toggle sequence rejects a late old enable after off.
   Tool request IDs are consumed once, including when a poll/reply crosses.
   Closed-view storage and lease cleanup settle before replacement; unknown
-  cleanup failures remain visible and block replacement.
+  cleanup failures remain visible and block replacement. A view closed while
+  its host is still attaching (a chat switch on a slow machine) ends that
+  attachment unattached or detached; only an unacknowledged detach blocks the
+  next pane.
 - SDK users, CLI/TUI agents and desktop share the same service APIs and
   builtin MCP schemas. Without the actual desktop-owned pane, tools report
   unavailable rather than launching a substitute browser.
