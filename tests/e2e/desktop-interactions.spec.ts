@@ -240,8 +240,12 @@ test("generated streamed dictation preserves typing during finalization and inse
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated existing draft.");
     await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
+    // The recognizer streams its first words into the draft; typing during finalization replaces only the earlier draft text,
+    // because deleting streamed words is the user's choice and the final transcript then doesn't bring them back.
+    await expect(prompt).toHaveValue(/^Generated existing draft\. Generated local/);
     await page.getByRole("button", { name: "Stop local dictation", exact: true }).click();
-    await prompt.fill("Generated typing during finalization.");
+    await prompt.evaluate((element: HTMLTextAreaElement) => { element.focus(); element.setSelectionRange(0, "Generated existing draft.".length); });
+    await page.keyboard.type("Generated typing during finalization.");
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
     await expect(prompt).toHaveValue("Generated typing during finalization. Generated local dictation.");
     await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);
