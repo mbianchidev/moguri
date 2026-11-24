@@ -152,7 +152,7 @@ child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
 on `main` (#98). The second step, draft
 [#99](https://github.com/mbianchidev/moguri/pull/99), consumes
-`@moguri-dev/sdk` 0.32.0-alpha.3 and `@moguri-dev/tui` 0.32.0-alpha.4 and removes the
+`@moguri-dev/sdk` 0.32.0-alpha.4 and `@moguri-dev/tui` 0.32.0-alpha.5 and removes the
 embedded SDK, TUI and CLI. Neither closes #93; the repository transfer and the
 Homebrew packages remain.
 
@@ -167,8 +167,9 @@ switcher with per-profile onboarding) is delivered in draft #99, which closes
 it when it merges ([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage),
 protocol 122). Its service and protocol parts are in
 [moguri-dev/moguri-sdk#8](https://github.com/moguri-dev/moguri-sdk/pull/8)
-(`@moguri-dev/sdk` 0.32.0-alpha.3) and its TUI and CLI parts in
-`@moguri-dev/tui` 0.32.0-alpha.4.
+and [#10](https://github.com/moguri-dev/moguri-sdk/pull/10)
+(`@moguri-dev/sdk` 0.32.0-alpha.4) and its TUI and CLI parts in
+`@moguri-dev/tui` 0.32.0-alpha.5.
 
 Running the desktop suites on shared macOS runners for #99 found two desktop
 bugs, both fixed in draft #99, which closes them when it merges:

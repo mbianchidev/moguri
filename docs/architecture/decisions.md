@@ -2461,9 +2461,10 @@ too. `@moguri-dev/tui` 0.32.0-alpha.2 makes `moguri desktop` use only the
 checkout's own Electron, so a packaged app refuses it clearly instead of
 running an Electron found in a parent folder. `@moguri-dev/sdk`
 0.32.0-alpha.2 makes `refresh()` read a snapshot requested after the call. The
-pins are `@moguri-dev/sdk` 0.32.0-alpha.3 (protocol 122,
-[D76](#d76-reviewed-profile-imports-and-live-disk-usage)) and
-`@moguri-dev/tui` 0.32.0-alpha.4, built on it. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
+pins are `@moguri-dev/sdk` 0.32.0-alpha.4 (protocol 122,
+[D76](#d76-reviewed-profile-imports-and-live-disk-usage); alpha.4 sends the
+disk status inside `ready` so a client with a snapshot over 4 MB is not closed
+for backpressure) and `@moguri-dev/tui` 0.32.0-alpha.5, built on it. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
 the app's `dist/moguri` launcher and already installed `moguri` commands keep
 working unchanged. `npm start` runs the installed TUI. `moguri desktop` runs
 only from a desktop source checkout. The OpenTUI Phase 0 spike and the TUI's
