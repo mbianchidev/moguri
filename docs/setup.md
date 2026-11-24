@@ -1402,8 +1402,9 @@ Drop a session onto another to attach its navigation, including project-free
 chats; edge drops reorder. This does not change original context/coordination
 ownership. Search sessions by fuzzy, case-insensitive name. Settings use the
 same matching, switches for booleans, dropdowns for exclusive choices and
-grips for reorderable lists; Alt+Up/Down is the keyboard alternative.
-Icon actions retain accessible names and tooltips.
+grips for reorderable lists; Alt+Up/Down is the keyboard alternative, and
+focus stays on the moved item's grip after each save, so repeated presses keep
+moving it. Icon actions retain accessible names and tooltips.
 Information icons share the row of the title, toggle, field or disclosure they
 explain; wrapped labels keep the icon aligned with the first control line.
 Help remains keyboard-focusable and Escape dismisses it without changing the

@@ -320,7 +320,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     if (raw[section] !== undefined) { setError("Save or reload this section's JSON before changing its controls. Your text is preserved."); return; }
     const value = replace ? patch : { ...fallback, ...committedValues.current[section], ...patch };
     setDraft((current) => ({ ...current, [section]: replace ? value : { ...fallback, ...current[section], ...patch } }));
-    void write({ ...committedValues.current, [section]: value }, () => {});
+    // Returned so a control such as a reorder list stays busy until the save settles, then restores keyboard focus.
+    return write({ ...committedValues.current, [section]: value }, () => {});
   };
   /** Saves a whole section immediately, for list choices such as adding, enabling or removing a skill source. */
   const commitSection = <K extends SettingsSection>(section: K, value: UserSettings[K]) => {
