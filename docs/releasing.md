@@ -84,7 +84,9 @@ workflow checks again immediately before undrafting.
    `npm run typecheck`, `npm run build`, `npm test`,
    hidden `npm run test:e2e`, `node scripts/package.mjs` and
    `npm run verify:update`. Validation must leave the tree clean. This mirrors
-   [CI](../.github/workflows/ci.yml), which skips `release/**` branches.
+   [CI](../.github/workflows/ci.yml), which skips `release/**` branches, but
+   always enforces the product latency budgets that CI only reports
+   (`MOGURI_SKIP_LATENCY_BUDGETS` is cleared for these runs).
 5. **Pull request.** Pushes `release/v<version>` and opens a ready PR. It
    watches any PR checks; release branches have none by design. It then merges
    with `gh pr merge --squash --auto --match-head-commit`. GitHub merges

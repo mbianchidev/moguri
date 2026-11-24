@@ -101,6 +101,13 @@ runner's cell and setup timeouts and Playwright's waits, each wrapped in
 tests assert (for example the startup and input budgets) are never scaled, and
 CI never retries failed tests. Wrap new harness timeouts in `ciTime()`.
 
+Those runners still miss the budgets in `tests/fixtures/latency-budgets.ts`, so
+CI also sets `MOGURI_SKIP_LATENCY_BUDGETS=1`: a missed budget is logged as
+"Latency budget not enforced on CI" instead of failing. Local runs and
+`scripts/release.sh`, which clears the variable, always enforce them. Inline
+budget checks in a spec follow the same switch through
+`latencyBudgetsEnforced`.
+
 The tag-triggered
 [`release.yml`](../.github/workflows/release.yml) verifies and publishes
 releases; see [releasing](releasing.md).

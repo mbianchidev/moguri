@@ -323,8 +323,9 @@ validate_and_package() {
   run_in "$dir" "Type checking" npm run typecheck
   run_in "$dir" "Building" npm run build
   run_in "$dir" "Installing Playwright Chromium" npm exec -- playwright install chromium
-  run_in "$dir" "Running the test suite" npm test
-  run_in "$dir" "Running hidden desktop end-to-end tests" env MOGURI_TEST_WINDOW=hidden npm run test:e2e
+  # Releases always enforce the product latency budgets that CI only reports on shared runners.
+  run_in "$dir" "Running the test suite" env -u MOGURI_SKIP_LATENCY_BUDGETS npm test
+  run_in "$dir" "Running hidden desktop end-to-end tests" env -u MOGURI_SKIP_LATENCY_BUDGETS MOGURI_TEST_WINDOW=hidden npm run test:e2e
   run_in "$dir" "Packaging the macOS app" node scripts/package.mjs
   run_in "$dir" "Verifying the update ZIP and DMG" npm run verify:update
   [ -z "$(git -C "$dir" status --porcelain)" ] || { git -C "$dir" status --short >&2; die "Validation changed tracked or unignored files. Nothing was published."; }

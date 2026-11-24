@@ -2474,8 +2474,11 @@ three to four times slower than a developer Mac. Desktop, TUI and CLI CI set
 in `tests/fixtures/time-scale.ts`); product latency budgets are not scaled and
 failed tests are never retried. On those runners the desktop e2e budgets for
 `startup.window` (1500 ms), `startup.ready` (3000 ms) and `message.send`
-(700 ms) are still exceeded; whether CI enforces them is the owner's
-decision.
+(700 ms) are still exceeded. The owner chose on 2026-11-24 to keep the budgets
+unchanged and enforce them on local runs and in `scripts/release.sh`, while CI
+sets `MOGURI_SKIP_LATENCY_BUDGETS=1` and only logs a miss
+(`tests/fixtures/latency-budgets.ts`). `release.sh` clears that variable, so a
+release can't skip a budget.
 
 ## Still open
 
