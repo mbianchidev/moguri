@@ -166,13 +166,14 @@ switcher with per-profile onboarding). Their service and protocol parts land in
 `moguri-dev/moguri-sdk`.
 
 Running the desktop suites on shared macOS runners for #99 found two desktop
-bugs, tracked on their own and not started:
+bugs, both fixed in draft #99, which closes them when it merges:
 [#100](https://github.com/mbianchidev/moguri/issues/100) (a hidden test window
-closed during an in-flight edit stays open, so e2e teardown hangs; an
-automatic save could be awaited like pending drafts) and
-[#101](https://github.com/mbianchidev/moguri/issues/101) (the composer is offset
-from the message column by the scroll bar width when macOS always shows scroll
-bars).
+closed during an in-flight edit stayed open, so e2e teardown hung; automatic
+saves and loads in flight are now awaited like pending drafts) and
+[#101](https://github.com/mbianchidev/moguri/issues/101) (the composer was
+offset from the message column by the scroll bar width when macOS always shows
+scroll bars; the transcript keeps a stable gutter and the composer column adds
+the measured width).
 
 ### Delivery notes, protocols 112 to 114
 
