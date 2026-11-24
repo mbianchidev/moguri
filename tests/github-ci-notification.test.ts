@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { githubApplicationFixture } from "./github-workflows-fixture.ts";
 import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
+import { ciTime } from "./fixtures/time-scale.ts";
 
-test("CI failure raises one private source-bound notification and marking it read never answers or restarts work", { timeout: 30_000 }, async () => {
+test("CI failure raises one private source-bound notification and marking it read never answers or restarts work", { timeout: ciTime(30_000) }, async () => {
   const f = await githubApplicationFixture();
   try {
     const project = await f.sdk.github.project(f.scope), head = f.git(["rev-parse", "HEAD"]);

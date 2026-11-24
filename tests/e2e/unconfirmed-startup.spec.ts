@@ -8,6 +8,7 @@ import { MoguriSdk } from "@moguri-dev/sdk";
 import { readPrivateConnection } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Original-owner deferred startup uses generated hidden macOS windows.");
@@ -15,7 +16,7 @@ const launch = (stateDir: string) => electron.launch({ executablePath: process.e
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
 
 test("the real unconfirmed deadline preserves saved drafts without a startup composer and reconnects only to the late original service", async () => {
-  test.setTimeout(95_000);
+  test.setTimeout(ciTime(95_000));
   const f = await setupFixture(), stateDir = join(f.directory, "state"), sdk = await new MoguriSdk(f.service.connection).ready();
   const provider = structuredClone(f.provider.state);
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined, child: ReturnType<typeof spawn> | undefined;
@@ -54,7 +55,7 @@ test("the real unconfirmed deadline preserves saved drafts without a startup com
     const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
     await expect(opening.getByRole("textbox")).toHaveCount(0);
     await expect(opening.getByText("Draft while waiting", { exact: true })).toHaveCount(0);
-    await expect(opening.getByRole("heading", { name: "Startup not yet confirmed", exact: true })).toBeVisible({ timeout: 65_000 });
+    await expect(opening.getByRole("heading", { name: "Startup not yet confirmed", exact: true })).toBeVisible({ timeout: ciTime(65_000) });
     const unconfirmedMs = performance.now() - began;
     const status = await page.evaluate(() => window.moguri.startupStatus());
     expect(status.phase).toBe("service"); expect(status.canReconnect).toBe(true);
@@ -64,7 +65,7 @@ test("the real unconfirmed deadline preserves saved drafts without a startup com
     await expect.poll(async () => {
       try { return (await readPrivateConnection(stateDir)).pid; }
       catch (error) { if (error instanceof Error && "code" in error && error.code === "ENOENT") return null; throw error; }
-    }, { timeout: 10_000 }).toBe(child.pid);
+    }, { timeout: ciTime(10_000) }).toBe(child.pid);
     const connection = await readPrivateConnection(stateDir);
     live = await new MoguriSdk(connection).ready();
     expect(live.sessions.get(f.sessionId)?.draft.text).toBe(original);

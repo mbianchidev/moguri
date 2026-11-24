@@ -1,3 +1,4 @@
+import { ciTime } from "./fixtures/time-scale.ts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import os from "node:os";
@@ -283,7 +284,7 @@ test("metadata-only discovery does not execute unreviewed, mutable, symlinked, O
   }
 });
 
-test("pre-abort and in-flight cancellation propagate without publishing or dispatching later probes", { timeout: 2000 }, async () => {
+test("pre-abort and in-flight cancellation propagate without publishing or dispatching later probes", { timeout: ciTime(2000) }, async () => {
   const pre = generatedFixture(), stopped = new AbortController(); stopped.abort("generated-private-reason");
   await assert.rejects(() => collectModelReadiness({ target, storagePath: "/generated/root" },
     { signal: stopped.signal, probes: pre.suite, now: () => now }), { code: "model_readiness_cancelled" });
@@ -300,7 +301,7 @@ test("pre-abort and in-flight cancellation propagate without publishing or dispa
   assert.equal(fixture.requests.length, 1);
 });
 
-test("both probe and total deadlines abort unresponsive read-only fixtures and never publish partial evidence", { timeout: 2000 }, async () => {
+test("both probe and total deadlines abort unresponsive read-only fixtures and never publish partial evidence", { timeout: ciTime(2000) }, async () => {
   const fixture = generatedFixture(); let observedSignal: AbortSignal | undefined;
   fixture.suite.run = async (request) => { observedSignal = request.signal; return new Promise<string>(() => {}); };
   await assert.rejects(() => collectModelReadiness({ target, runtime: configuration, requirements, storagePath: "/generated/root" },
@@ -462,7 +463,7 @@ test("the browser-safe panel uses native controls and evidence tables, never a f
   assert.doesNotMatch(render(target, now + report.freshness.maxAgeMs), /build:9911@/);
 });
 
-test("the readiness panel has strict types and bundles for browsers without the SDK service runtime", { timeout: 120_000 }, async () => {
+test("the readiness panel has strict types and bundles for browsers without the SDK service runtime", { timeout: ciTime(120_000) }, async () => {
   const paths = ["apps/desktop/src/ModelReadinessPanel.tsx", "tests/model-readiness-probes.test.ts"];
   const configPath = resolve(".model-readiness-virtual-typecheck.json");
   const configuration = JSON.stringify({

@@ -6,6 +6,7 @@ import { MoguriSdk, type StoredEvent } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Background desktop lifecycle uses generated hidden macOS windows.");
@@ -13,7 +14,7 @@ const launch = (stateDir: string) => electron.launch({ executablePath: process.e
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
 
 test("last-window close keeps the exact agent and user terminal working; reopening is prompt and explicit Quit stops them", async () => {
-  test.setTimeout(45_000);
+  test.setTimeout(ciTime(45_000));
   const f = await setupFixture({ platform: { terminal: { executable: "/bin/sh", args: ["-c", "printf 'GENERATED_BACKGROUND_CONSOLE\\n'; exec cat"] } } });
   const stateDir = join(f.directory, "state"), sdk = await new MoguriSdk(f.service.connection).ready();
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined;

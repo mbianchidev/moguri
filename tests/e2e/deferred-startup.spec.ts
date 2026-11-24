@@ -9,6 +9,7 @@ import { EventStore } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 import { generatedIssueRevisions, generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
 import { assertOperationLatency, LATENCY_SAMPLES } from "../fixtures/latency-budgets.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Deferred startup uses a generated hidden desktop.");
@@ -161,7 +162,7 @@ test("cached model and effort labels remain read-only while current provider dis
 });
 
 for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/runtime opening ${sample + 1} renders the game-only shell before retained backend hydration finishes`, async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
   const sdk = await new MoguriSdk(f.service.connection).ready();
   const created = await sdk.sessions.create(null, "Generated cold remembered chat");

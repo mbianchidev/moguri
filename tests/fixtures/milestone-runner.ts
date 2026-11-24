@@ -1,3 +1,4 @@
+import { ciTime } from "./time-scale.ts";
 import assert from "node:assert/strict";
 import type { TestContext } from "node:test";
 import { createHash } from "node:crypto";
@@ -19,7 +20,7 @@ import {
 } from "./milestone-combinations.ts";
 
 export const native = await nativeConfiguration(true);
-export const concurrency = 4, cellTimeout = 45000, setupTimeout = 15000;
+export const concurrency = 4, cellTimeout = ciTime(45000), setupTimeout = ciTime(15000);
 export type MatrixMethod = "covering-array" | "full-product";
 export const matrixDirectory = ".test-output/milestone-combinations";
 export const matrixPrefix = (method: MatrixMethod) => method === "covering-array" ? "covering-" : "";

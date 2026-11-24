@@ -7,6 +7,7 @@ import { focusByKeyboard, waitForWorkspace } from "./navigation.ts";
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeMilestoneFixture } from "../fixtures/native-milestone-api.ts";
 import { waitFor } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 const native = await nativeConfiguration(true);
@@ -96,7 +97,7 @@ test("Inbox groups script assessments, collapses exact source and clears the gro
 
 test("the actual native desktop force discloses a model-free guest and still requires separate normal execution approval", async () => {
   test.skip(!native, "Requires the explicitly reviewed current native image and receipt inputs.");
-  test.setTimeout(180000);
+  test.setTimeout(ciTime(180000));
   const f = await nativeMilestoneFixture(native!, "scripts");
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
   try {

@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { generatedStainless } from "../fixtures/stainless.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Stainless runs on macOS.");
@@ -41,7 +42,7 @@ test("Stainless stays off until enabled, checks a generated bundle and opens Loc
     await expect.poll(() => sdk.settings.get()?.values.integrations?.stainless?.enabled).toBe(true);
     await expect(page.getByRole("status", { name: "Stainless status", exact: true })).toHaveText(/untested\. Run Check compatibility/);
     await check.click();
-    await expect(page.getByRole("status", { name: "Stainless status", exact: true })).toHaveText(/is ready \(checked on this Mac\)\./, { timeout: 30_000 });
+    await expect(page.getByRole("status", { name: "Stainless status", exact: true })).toHaveText(/is ready \(checked on this Mac\)\./, { timeout: ciTime(30_000) });
     expect((await sdk.stainless.status()).automation).toBe("ready");
 
     await page.getByRole("button", { name: "Back to session", exact: true }).click();

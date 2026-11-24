@@ -10,6 +10,7 @@ import { configureMilestoneRouting, milestoneCellId, milestoneCalls, milestoneCl
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeMilestoneFixture } from "../fixtures/native-milestone-api.ts";
 import { chooseContextWindow } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Required client combinations use a generated hidden macOS app, not physical native qualification.");
@@ -19,7 +20,7 @@ for (const cell of milestoneClientCells()) {
 const { env, selection } = cell;
 test(`desktop ${env}/${selection} preserves its document draft while configuring exact controls and separately approving the selected tool`, async () => {
   test.skip(env === "Sandbox" && !native, "This client needs exact reviewed native installation/current payload receipts.");
-  test.setTimeout(45000);
+  test.setTimeout(ciTime(45000));
   const fixture = env === "Sandbox" ? await nativeMilestoneFixture(native!) :
     await routedFixture({ env, legacy: false, configured: false, reasoningRoles: true, imageInput: true, toolInput: true });
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined;

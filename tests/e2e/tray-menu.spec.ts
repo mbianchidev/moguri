@@ -5,6 +5,7 @@ import { trayMenu, trayTemplate, type RendererTrayAction, type TrayMenuOption } 
 import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The menu-bar flows use generated hidden macOS windows; hidden runs never create a real tray item.");
@@ -14,7 +15,7 @@ const send = (app: ElectronApplication, action: RendererTrayAction, profileId: s
 }, { action, profileId });
 
 test("the menu-bar menu builds natively and its window actions start chats, projects and archive reviews", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure(); await fixture.send("Generated tray session"); await fixture.terminal();
   const projectId = fixture.session().projectId!, sessions = () => sdk.getState().snapshot!.sessions;

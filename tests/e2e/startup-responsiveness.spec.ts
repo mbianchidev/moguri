@@ -10,6 +10,7 @@ import { GLOBAL_PROFILE_ID, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedIssueRevisions, generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
 import { assertOperationLatency, LATENCY_SAMPLES } from "../fixtures/latency-budgets.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden desktop startup qualification is macOS-only.");
@@ -17,7 +18,7 @@ const executablePath = () => process.env.MOGURI_TEST_APP ?? require("electron");
 const args = () => process.env.MOGURI_TEST_APP ? [] : ["."];
 
 test("the startup window appears before service recovery and new-chat clicks settle promptly with retained multi-chat history", async () => {
-  test.setTimeout(45_000);
+  test.setTimeout(ciTime(45_000));
   const f = await setupFixture(), stateDir = join(f.directory, "state"), gate = Promise.withResolvers<void>();
   const events = generatedResponsiveHistory(f.sessionId, f.session().projectId);
   await f.service.close();
@@ -87,7 +88,7 @@ test("the startup window appears before service recovery and new-chat clicks set
 });
 
 test("issue-heavy authenticated startup and visible new-chat acknowledgement stay quick without an artificial recovery pause", async () => {
-  test.setTimeout(45_000);
+  test.setTimeout(ciTime(45_000));
   const f = await setupFixture(), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
   await f.service.close();
   const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
@@ -133,7 +134,7 @@ test("issue-heavy authenticated startup and visible new-chat acknowledgement sta
 });
 
 test("ordinary first Send acknowledges and renders the exact unsaved prompt within budget with mixed retained history", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture({ responseMode: "text" }), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
   await f.service.close();
   const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);

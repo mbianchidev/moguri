@@ -9,6 +9,7 @@ import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";
 import { frameDigest } from "@moguri-dev/sdk/testing";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (state: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -94,7 +95,7 @@ test("an unsupported saved SendBox release opens the bundled review without chan
 for (const projectFree of [false, true]) test(`actual first-use SendBox sends in ${projectFree ? "a root-less chat" : "a project"} without settings or a file preview`, async () => {
   const configuration = await nativeConfiguration(), distribution = process.env.MOGURI_SANDBOX_DISTRIBUTION;
   test.skip(!configuration || !distribution, "Explicit current native and bundled-distribution receipts are required.");
-  test.setTimeout(120_000);
+  test.setTimeout(ciTime(120_000));
   if (!configuration || !distribution) return;
   const fixture = await nativeApiFixture(configuration, { distribution, providerBaseUrl: "https://api.individual.githubcopilot.com",
     dns: { addresses: async () => ["1.1.1.1"], aliases: async (host) => host === "api.individual.githubcopilot.com" ? ["api.githubcopilot.com"] : [] } });
@@ -117,13 +118,13 @@ for (const projectFree of [false, true]) test(`actual first-use SendBox sends in
     const review = setup.getByRole("region", { name: "Exact managed Sandbox review", exact: true });
     await review.getByLabel("I reviewed this SendBox runtime, worker image", { exact: false }).check();
     await review.getByRole("button", { name: "Enable SendBox", exact: true }).click();
-    await expect.poll(() => session().controls.env, { timeout: 30_000 }).toBe("Sandbox");
+    await expect.poll(() => session().controls.env, { timeout: ciTime(30_000) }).toBe("Sandbox");
     await expect(setup).toBeHidden();
     await page.getByLabel("Prompt", { exact: true }).fill("generated native write");
     await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     await expect(page.getByRole("button", { name: /^Review a private native workspace/ })).toHaveCount(0);
     await page.getByRole("button", { name: "Send", exact: true }).click();
-    await expect.poll(() => session().status, { timeout: 30_000 }).toBe("completed");
+    await expect.poll(() => session().status, { timeout: ciTime(30_000) }).toBe("completed");
     expect(session().pendingApproval).toBeNull();
     expect(await readFile(join(project, "fixture.txt"), "utf8")).toBe("generated source original\n");
     if (projectFree) {

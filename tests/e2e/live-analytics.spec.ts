@@ -2,12 +2,13 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Analytics uses generated hidden macOS windows.");
 
 test("Analytics shows a recent generated turn on lanes, filters lanes, finds events and selects them by keyboard", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const fixture = await setupFixture();
   await fixture.configure();
   await fixture.send("Generated analytics timeline prompt");

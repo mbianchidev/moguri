@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
+import { ciTime } from "./fixtures/time-scale.ts";
 
 const run = promisify(execFile);
 const supported = process.platform === "darwin" && process.arch === "arm64";
@@ -95,7 +96,7 @@ for (const suffix of ["dmg", "zip", "manifest.json"]) await writeFile(\`release/
   return { root, bare, work, env, git, release, snapshot, ghCalls, owned };
 }
 
-test("a dry run previews a first release without commits, refs, worktrees, journals or GitHub writes", { skip: !supported, timeout: 120_000 }, async () => {
+test("a dry run previews a first release without commits, refs, worktrees, journals or GitHub writes", { skip: !supported, timeout: ciTime(120_000) }, async () => {
   const fixture = await generatedRelease();
   try {
     const before = await fixture.snapshot();
@@ -113,7 +114,7 @@ test("a dry run previews a first release without commits, refs, worktrees, journ
   }
 });
 
-test("dry runs reject invalid, backwards and misrouted releases and warn about skipped versions", { skip: !supported, timeout: 120_000 }, async () => {
+test("dry runs reject invalid, backwards and misrouted releases and warn about skipped versions", { skip: !supported, timeout: ciTime(120_000) }, async () => {
   const fixture = await generatedRelease();
   try {
     const invalid = await fixture.release("--dry-run", "1.0");
@@ -141,7 +142,7 @@ test("dry runs reject invalid, backwards and misrouted releases and warn about s
   }
 });
 
-test("dry runs follow the moved moguri-dev/moguri-desktop origin and reject any other origin", { skip: !supported, timeout: 120_000 }, async () => {
+test("dry runs follow the moved moguri-dev/moguri-desktop origin and reject any other origin", { skip: !supported, timeout: ciTime(120_000) }, async () => {
   const fixture = await generatedRelease("moguri-dev/moguri-desktop");
   try {
     const moved = await fixture.release("--dry-run", "v0.33.0");
@@ -158,7 +159,7 @@ test("dry runs follow the moved moguri-dev/moguri-desktop origin and reject any 
   }
 });
 
-test("a dry run resumes an existing open release PR instead of creating another bump", { skip: !supported, timeout: 120_000 }, async () => {
+test("a dry run resumes an existing open release PR instead of creating another bump", { skip: !supported, timeout: ciTime(120_000) }, async () => {
   const fixture = await generatedRelease();
   try {
     const head = (await fixture.git(fixture.work, "rev-parse", "HEAD")).stdout.trim();
@@ -176,7 +177,7 @@ test("a dry run resumes an existing open release PR instead of creating another 
   }
 });
 
-test("local-only validation keeps its artifacts and removes its owned worktree, temporary directory and lock", { skip: !supported, timeout: 120_000 }, async () => {
+test("local-only validation keeps its artifacts and removes its owned worktree, temporary directory and lock", { skip: !supported, timeout: ciTime(120_000) }, async () => {
   const fixture = await generatedRelease();
   try {
     const remote = (await fixture.snapshot()).remote;
@@ -196,7 +197,7 @@ test("local-only validation keeps its artifacts and removes its owned worktree, 
   }
 });
 
-test("a failed or terminated validation leaves no owned worktree, temporary directory, lock or remote change", { skip: !supported, timeout: 120_000 }, async () => {
+test("a failed or terminated validation leaves no owned worktree, temporary directory, lock or remote change", { skip: !supported, timeout: ciTime(120_000) }, async () => {
   const fixture = await generatedRelease();
   try {
     const remote = (await fixture.snapshot()).remote;

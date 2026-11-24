@@ -1,3 +1,4 @@
+import { ciTime } from "../fixtures/time-scale.ts";
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
 import {
@@ -9,7 +10,7 @@ const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The hidden native desktop Linear checkpoint is qualified on macOS.");
 
 test("Settings Linear workflows explicitly reviews an issue write and ticket pull, redacts reflected credentials, and retains receipts after source deletion", async () => {
-  test.setTimeout(45_000);
+  test.setTimeout(ciTime(45_000));
   const f = await linearServiceFixture();
   let app: ElectronApplication | undefined;
   try {

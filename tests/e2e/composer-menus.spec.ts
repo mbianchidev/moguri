@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { MoguriSdk, slashCommands } from "@moguri-dev/sdk";
 import { admitGeneratedSkill, setupFixture } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Composer menus use generated hidden macOS windows.");
@@ -232,7 +233,7 @@ test("composer controls stay usable during a turn and queue their exact slash co
     await expect(root.getByRole("status").filter({ hasText: `Queued /model ${fixture.modelId}` })).toBeVisible();
     await expect.poll(() => fixture.session().queue.map((item) => item.text)).toEqual(["/autonomy Guided", `/model ${fixture.modelId}`]);
     expect(fixture.session().controls.autonomy).toBe("Manual");
-    await expect.poll(() => fixture.session().controls.autonomy, { timeout: 20_000 }).toBe("Guided");
+    await expect.poll(() => fixture.session().controls.autonomy, { timeout: ciTime(20_000) }).toBe("Guided");
     await expect.poll(() => fixture.session().queue.length).toBe(0);
     expect(fixture.requests).toHaveLength(1);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }

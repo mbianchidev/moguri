@@ -91,7 +91,17 @@ build, `npm test` and, on macOS, `test:e2e`. It installs the public SDK
 package with the workflow's own `GITHUB_TOKEN`. A new push to a branch cancels
 that branch's superseded run; `main` keeps one run per commit. Pull request
 events (including fork PRs) and tags do not trigger it, so still run the
-relevant checks locally before pushing. The tag-triggered
+relevant checks locally before pushing.
+
+Shared macOS runners run the suites three to four times slower than a
+developer Mac, so CI sets `MOGURI_TEST_TIME_SCALE=4`. It stretches harness
+deadlines only: `waitFor`, per-test and polling timeouts, the milestone
+runner's cell and setup timeouts and Playwright's waits, each wrapped in
+`ciTime()` from `tests/fixtures/time-scale.ts`. Product latency budgets that
+tests assert (for example the startup and input budgets) are never scaled, and
+CI never retries failed tests. Wrap new harness timeouts in `ciTime()`.
+
+The tag-triggered
 [`release.yml`](../.github/workflows/release.yml) verifies and publishes
 releases; see [releasing](releasing.md).
 

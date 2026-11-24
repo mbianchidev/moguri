@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { waitForWorkspace } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Getting started is qualified on macOS.");
@@ -12,7 +13,7 @@ const launch = (directory: string) => electron.launch({
 });
 
 test("Getting started opens until finished, saves each answer as it goes and restarts from Settings", async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(ciTime(120_000));
   const fixture = await setupFixture();
   const values = () => fixture.service.controller.snapshot().settings.values;
   const app = await launch(fixture.directory);

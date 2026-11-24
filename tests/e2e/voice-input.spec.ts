@@ -8,6 +8,7 @@ import { NEMOTRON_MODEL } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 import { sha256, transcribeStreamingGguf } from "../fixtures/voice-models.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Native desktop audio qualification is macOS-only.");
@@ -538,7 +539,7 @@ test("Ctrl+Space streams words into the textbox while held and release flushes o
     await expect(page.locator(".composer-mic svg[data-icon='Mic']")).toBeVisible();
     await expect(page.locator(".composer-mic svg[data-icon='Stop']")).toHaveCount(0);
     await expect(page.locator(".composer-mic")).toHaveClass(/recording/);
-    await expect(prompt).toHaveValue(/Generated/, { timeout: 5000 });
+    await expect(prompt).toHaveValue(/Generated/, { timeout: ciTime(5000) });
     expect(fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("running");
     expect(fixture.requests).toHaveLength(0);
     await page.keyboard.up("Space"); await page.keyboard.up("Control");

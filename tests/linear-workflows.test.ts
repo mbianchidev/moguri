@@ -1,3 +1,4 @@
+import { ciTime } from "./fixtures/time-scale.ts";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm } from "node:fs/promises";
@@ -638,7 +639,7 @@ test("Linear projection rejects changed intent, erased effects, fabricated succe
   } finally { await f.close(); }
 });
 
-test("Linear SDK and real local HTTP/event transport share reviewed state and retain session-owned results after session deletion", { timeout: 20_000 }, async () => {
+test("Linear SDK and real local HTTP/event transport share reviewed state and retain session-owned results after session deletion", { timeout: ciTime(20_000) }, async () => {
   const f = await sdkFixture();
   try {
     await f.enable();
@@ -673,7 +674,7 @@ test("Linear SDK and real local HTTP/event transport share reviewed state and re
   } finally { await f.close(); }
 });
 
-test("Linear SDK generic job cancellation records actual stop intent and retains dispatched remote receipts", { timeout: 20_000 }, async () => {
+test("Linear SDK generic job cancellation records actual stop intent and retains dispatched remote receipts", { timeout: ciTime(20_000) }, async () => {
   const f = await sdkFixture();
   let entered!: () => void, release!: () => void;
   const started = new Promise<void>((resolve) => { entered = resolve; }), held = new Promise<void>((resolve) => { release = resolve; });
@@ -694,7 +695,7 @@ test("Linear SDK generic job cancellation records actual stop intent and retains
   } finally { release?.(); await f.close(); }
 });
 
-test("Linear actual source-session deletion aborts and joins its owned request without deleting the independent partial result", { timeout: 20_000 }, async () => {
+test("Linear actual source-session deletion aborts and joins its owned request without deleting the independent partial result", { timeout: ciTime(20_000) }, async () => {
   const f = await sdkFixture();
   let entered!: () => void; const started = new Promise<void>((resolve) => { entered = resolve; });
   try {

@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import sharp from "sharp";
 import { buildDmg, dmgBackground, DMG_LAYOUT, prepareDmgTools, verifyDmgLayout } from "../scripts/dmg-layout.ts";
+import { ciTime } from "./fixtures/time-scale.ts";
 
 const run = promisify(execFile);
 test("DMG artwork matches the reference window, icon proportions and centered dashed arrow at both densities", async () => {
@@ -26,7 +27,7 @@ test("DMG artwork matches the reference window, icon proportions and centered da
   }
 });
 
-test("a real headless DMG retains exact Finder geometry and portable retina artwork and rejects altered bounds", { skip: process.platform !== "darwin", timeout: 180_000 }, async () => {
+test("a real headless DMG retains exact Finder geometry and portable retina artwork and rejects altered bounds", { skip: process.platform !== "darwin", timeout: ciTime(180_000) }, async () => {
   const parent = resolve(".moguri"); await mkdir(parent, { recursive: true });
   const directory = await mkdtemp(join(parent, "generated-dmg-layout-")), mountpoint = join(directory, "mount");
   let mounted = false;

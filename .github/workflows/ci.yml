@@ -19,6 +19,10 @@ jobs:
       matrix:
         os: [macos-15, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # Shared macOS runners run the suites three to four times slower than a developer Mac, so harness deadlines
+      # (waitFor, per-test, polling and Playwright waits, never product latency budgets) stretch 4x. See docs/development.md.
+      MOGURI_TEST_TIME_SCALE: "4"
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6

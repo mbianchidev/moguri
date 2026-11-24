@@ -6,6 +6,7 @@ import { setupFixture } from "../fixture.ts";
 import { cloneRepositoryFixture } from "../fixtures/clone-repository.ts";
 import { githubServiceFixture } from "../github-workflows-fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -18,7 +19,7 @@ async function close(app: ElectronApplication) {
 test.skip(process.platform !== "darwin", "Repository Settings use generated hidden macOS windows.");
 
 test("Settings reviews and imports an actual generated 38-URL bullet list, retains results on reload and never starts a model", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const source = await cloneRepositoryFixture(Array.from({ length: 38 }, (_, index) => `/generated-${index}/project.git`)), f = await setupFixture();
   let app: ElectronApplication | undefined;
   try {
@@ -37,7 +38,7 @@ test("Settings reviews and imports an actual generated 38-URL bullet list, retai
     await page.screenshot({ path: resolve(".moguri/artifacts/repository-import-review.png") });
     await reviewed.getByRole("button", { name: "Import repositories", exact: true }).click();
     const results = panel.getByRole("region", { name: "Repository import results", exact: true });
-    await expect(results.getByRole("status")).toContainText("completed: 38 of 38", { timeout: 40_000 });
+    await expect(results.getByRole("status")).toContainText("completed: 38 of 38", { timeout: ciTime(40_000) });
     expect(f.service.controller.snapshot().projects).toHaveLength(39);
     const batch = f.service.controller.snapshot().repositoryImports[0]!;
     for (const item of batch.items) expect(await readFile(join(item.path, "generated.txt"), "utf8")).toContain("Generated repository clone contents.");
@@ -112,7 +113,7 @@ test("Project Settings changes a shared remote only after exact confirmation and
     for (const checkbox of await review.getByRole("switch").all()) { await checkbox.focus(); await page.keyboard.press("Space"); }
     await mkdir(resolve(".moguri/artifacts"), { recursive: true }); await page.screenshot({ path: resolve(".moguri/artifacts/repository-remote-review.png") });
     await review.getByRole("button", { name: "Apply reviewed remote URL", exact: true }).click();
-    await expect(panel.getByRole("status")).toContainText("completed", { timeout: 15_000 });
+    await expect(panel.getByRole("status")).toContainText("completed", { timeout: ciTime(15_000) });
     expect(f.git(["remote", "get-url", "origin"])).toBe("git@github.com:generated-settings-org/fixture.git");
     expect(await readFile(join(f.root, ".git", "index"))).toEqual(before);
     expect(await readFile(join(f.root, "fixture.txt"), "utf8")).toBe("Generated Settings dirty bytes.\n");

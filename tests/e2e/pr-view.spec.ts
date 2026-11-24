@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
 import { fixtureProvider } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden native PR view qualification is macOS-only.");
@@ -108,7 +109,7 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await view.getByRole("button", { name: "Tour", exact: true }).click();
     const tour = view.getByRole("region", { name: "Pull request tour", exact: true });
     await tour.getByRole("button", { name: "Generate tour", exact: true }).click();
-    await expect(tour.getByRole("list", { name: "Tour steps", exact: true })).toContainText("Generated first step", { timeout: 20_000 });
+    await expect(tour.getByRole("list", { name: "Tour steps", exact: true })).toContainText("Generated first step", { timeout: ciTime(20_000) });
     await expect(tour).toContainText("Generated overview of");
     await expect(tour).toContainText("generated dependency");
     await expect(tour.getByRole("region", { name: /^Diff of generated\.ts/ })).toContainText("new generated line");

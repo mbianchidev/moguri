@@ -6,13 +6,14 @@ import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { waitForWorkspace } from "./navigation.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop qualification is macOS-only.");
 const screenshots = process.env.MOGURI_SKILLS_CAPTURES;
 
 test("Capabilities installs and toggles skills, lists toolsets and opens a project-free editable script request; Artifacts lists project outputs with their chat", async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(ciTime(90_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, projectPath = f.service.controller.snapshot().projects.find((project) => project.id === projectId)!.path;
   const market = join(f.directory, "generated-market", "generated-tab-skill");
@@ -85,7 +86,7 @@ test("Capabilities installs and toggles skills, lists toolsets and opens a proje
 });
 
 test("Artifacts deletes selected saved notes and moves selected files to the Trash only after confirmation, keeping chats and other files", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, dist = join(f.directory, "project", "dist"), trash = join(f.directory, "generated-trash");
   await mkdir(dist, { recursive: true });
@@ -128,7 +129,7 @@ test("Artifacts deletes selected saved notes and moves selected files to the Tra
 });
 
 test("Artifacts never offers or performs Trash for files in a workspace folder's own read-only checkout", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const root = join(f.directory, "generated-folder"), alpha = join(root, "alpha"), trash = join(f.directory, "generated-trash");
   await mkdir(join(alpha, "dist"), { recursive: true });
@@ -155,7 +156,7 @@ test("Artifacts never offers or performs Trash for files in a workspace folder's
 });
 
 test("Artifacts All projects lists every project and project-free note with its owner and trashes each file through its own project", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const first = f.service.controller.snapshot().projects.find((project) => project.id === f.session().projectId)!;
   const secondRoot = join(f.directory, "generated-second"), trash = join(f.directory, "generated-trash");
