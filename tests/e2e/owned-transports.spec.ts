@@ -113,6 +113,8 @@ test("hidden desktop leaves private native restaging off until the actual user e
     const policy = page.getByLabel("Allow Sandbox model retries from the saved workspace snapshot", { exact: true });
     await expect(policy).not.toBeChecked(); await policy.check();
     await expect.poll(() => f.sdk.settings.get()!.values.interactions.nativeRetryRestaging).toBe(true);
+    // The service can commit before this window's save settles; closing during it keeps a hidden window open for the pending edit.
+    await expect(policy).toBeEnabled();
     expect(f.requests).toHaveLength(0); expect(f.solver.requests).toHaveLength(0);
   } finally { await app.close(); await f.close(); }
 });
