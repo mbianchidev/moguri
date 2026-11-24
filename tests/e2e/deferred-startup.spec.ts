@@ -254,7 +254,8 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
       };
       observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
       check();
-    }), { sessionId, text: savedText, deadline: ciTime(5000) });
+    // A harness wait only: the startup.ready budget below is the actual check (the service alone took 16 s on a shared runner).
+    }), { sessionId, text: savedText, deadline: ciTime(10_000) });
     const fullyReadyMs = performance.now() - began;
     const startup = await page.evaluate(() => window.moguri.startupStatus());
     console.log(JSON.stringify({ primitive: "generated-real-cold-cached-opening", sample: sample + 1, shellMs, totalToShellMs, fullyReadyMs,
