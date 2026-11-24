@@ -8,7 +8,7 @@ import type { RendererTrayAction } from "./tray-menu.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
-import { pendingWork, pendingWorkJustSettled, pendingWorkSettled } from "./pending-work.ts";
+import { pendingWork, pendingWorkSettled } from "./pending-work.ts";
 import { StatusBadge } from "./StatusBadge.tsx";
 import { ApprovalCall, approvalBoundary } from "./ApprovalCall.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
@@ -311,17 +311,19 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   useEffect(() => {
     const pendingDrafts = () => hasUnsavedWork() || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving);
     // Drafts and queued-prompt edits are saved before closing instead of asking (D51); explicit-save edits still ask.
-    // In-flight automatic saves and loads settle first; the retried close then asks only about edits that are still unsaved.
-    // Lets React commit a parent's unsaved flag after its child's request settled (hidden windows may pause animation frames).
-    const nextCommit = () => new Promise<void>((resolve) => setTimeout(resolve, 50));
-    const saveDrafts = async () => {
-      await Promise.race([pendingWorkSettled().then(nextCommit).then(() => Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()])),
+    // Requests in flight settle first, and an edit flag gets one settle pass before it can refuse the close: a panel's flag reaches
+    // this component through effect renders, so it can still read dirty just after a save. The retried close then asks only about
+    // edits that are still unsaved. A timer, not an animation frame, because hidden windows may pause frames.
+    const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
+    const saveDrafts = async (settling: boolean) => {
+      await Promise.race([pendingWorkSettled().then(() => settling ? settle() : undefined).then(() => Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()])),
         new Promise((_resolve, reject) => setTimeout(() => reject(new Error("Saving didn't finish within 10 seconds.")), 10_000))]);
       if (pendingDrafts()) throw new Error("A draft changed or conflicts with another client while saving.");
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      const settling = pendingWork() || pendingWorkJustSettled() && !settledForClose.current;
-      if (!settling && (panelDirtyRef.current || settingsUnsavedRef.current || profilePending)) {
+      const edits = panelDirtyRef.current || settingsUnsavedRef.current || profilePending;
+      const settling = pendingWork() || edits && !settledForClose.current;
+      if (!settling && edits) {
         settledForClose.current = false;
         event.preventDefault(); event.returnValue = ""; window.moguri?.unloadBlocked("edits"); return;
       }
@@ -329,7 +331,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       settledForClose.current = settling;
       event.preventDefault(); event.returnValue = "";
       window.moguri?.unloadBlocked("drafts");
-      closingSave.current ??= saveDrafts().then(() => window.moguri?.draftsSettled({ ok: true }),
+      closingSave.current ??= saveDrafts(settling).then(() => window.moguri?.draftsSettled({ ok: true }),
         (error: unknown) => window.moguri?.draftsSettled({ ok: false, error: error instanceof Error ? error.message : "The draft could not be saved." }))
         .finally(() => { closingSave.current = null; });
     };

@@ -98,11 +98,11 @@ test("a cancelled unsaved Quit cannot turn a later window close into stopping th
     await openSettingsSection(page, "User guidance");
     const guidance = page.getByLabel("Global user guidance", { exact: true }), saved = await guidance.inputValue();
     await guidance.fill("Generated uncommitted window-close guidance.");
-    await app.evaluate(({ app, BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0]!.webContents.once("will-prevent-unload", () => Reflect.set(globalThis, "generatedBackgroundQuitCancelled", true));
-      setTimeout(() => app.quit(), 10);
-    });
-    await expect.poll(() => app.evaluate(() => Reflect.get(globalThis, "generatedBackgroundQuitCancelled"))).toBe(true);
+    // The quit is cancelled only when the window refuses it for the unsaved edit. The first deferred close can be a settle pass
+    // for work in flight (#100), after which the original quit would continue, so wait for the hidden window's actual refusal.
+    let stderr = ""; processOwner.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    await app.evaluate(({ app }) => { setTimeout(() => app.quit(), 10); });
+    await expect.poll(() => stderr.includes("Hidden generated window kept open for pending edits.")).toBe(true);
     expect(f.service.store.db.isOpen).toBe(true);
     await guidance.fill(saved);
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");

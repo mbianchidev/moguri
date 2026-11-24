@@ -5,6 +5,7 @@ import { Icon } from "./Icon.tsx";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { DecisionPanel } from "./DecisionPanel.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status, folderId: value.folderId ?? null, workItemId: value.workItemId ?? null });
@@ -48,6 +49,8 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
     sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // A save or load clears the edit flag only once it settles, so closing in between waits for it (#100).
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   const accept = (value: ArtifactEditorRequest) => {
     setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null); setRoleIndex("0"); setRoleData(null); setRoleContract(null);
