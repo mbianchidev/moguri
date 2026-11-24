@@ -179,7 +179,11 @@ saves and loads in flight are now awaited like pending drafts) and
 [#101](https://github.com/mbianchidev/moguri/issues/101) (the composer was
 offset from the message column by the scroll bar width when macOS always shows
 scroll bars; the transcript keeps a stable gutter and the composer column adds
-the measured width).
+the measured width). A third,
+[#102](https://github.com/mbianchidev/moguri/issues/102), is open: on shared
+runners agent browser control sometimes does not turn back on after another
+chat's pane took the browser (`agent-browser.spec.ts:564`, seen before and
+after #97, not reproduced locally).
 
 ### Delivery notes, protocols 112 to 114
 
