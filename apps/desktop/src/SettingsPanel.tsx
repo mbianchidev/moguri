@@ -883,7 +883,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       case "retention": return <>{<><SettingsHelp label="More about this setting" target={<h2>Archived-session retention</h2>}>Deleting a session, or merging its linked PR, also deletes its candidate proposals; archiving keeps them. Artifacts, applied code, worktrees and PRs stay.</SettingsHelp>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the data directory..."}</p>
           <StorageSettings sdk={sdk} disabled={dirty || saving || otherNestedDirty} onBusy={setStorageBusy} prepareMaintenance={prepareMaintenance} />
-          <VirtualDiskSettings sdk={sdk} snapshot={snapshot} />
+          <VirtualDiskSettings sdk={sdk} />
           <h3>Keep awake</h3><label className="check-setting"><SettingsInput type="checkbox" checked={draft.lifecycle?.keepAwake ?? false} onChange={(event) => automatic("lifecycle", { keepAwake: event.target.checked })} />Prevent idle sleep while this profile has work running</label>
           <label className="setting-field">Minutes to stay awake after work finishes<SettingsInput aria-label="Keep-awake tail minutes" type="number" min={0} max={1440} value={draft.lifecycle?.tailMinutes ?? 5} onChange={(event) => change("lifecycle", { keepAwake: draft.lifecycle?.keepAwake ?? false, tailMinutes: Number(event.target.value) })} /></label>
           <button type="button" className="primary" aria-label="Save keep-awake tail" disabled={saving || draft.lifecycle?.tailMinutes === committed.lifecycle?.tailMinutes} onClick={() => {

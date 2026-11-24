@@ -161,6 +161,8 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await expect(review).toContainText("Delete branch generated-feature on GitHub, merged with pull request #11");
     await confirm();
     await expect.poll(() => f.deletedBranches()).toEqual(["generated-feature"]);
+    // D76: the reread item reports the branch as deleted, so the button goes away without a manual refresh.
+    await expect(view.getByRole("button", { name: "Delete branch", exact: true })).toHaveCount(0);
     await view.getByRole("button", { name: "Revert", exact: true }).click();
     await page.getByRole("dialog", { name: "Revert pull request", exact: true }).getByRole("menuitem", { name: /Open it as a draft/ }).click();
     await expect(review).toContainText("Open a draft pull request that reverts pull request #11.");
@@ -168,8 +170,14 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await expect(view.getByText(/^Revert pull request #\d+ is open\./)).toBeVisible();
     await expect(view.getByRole("button", { name: /^Open #\d+ on GitHub$/ })).toBeVisible();
 
+    // A PR merged on GitHub whose branch is already gone (like GitHub's automatic head-branch deletion) never offers Delete branch.
+    f.mergePull(12);
     await switcher.getByRole("tab", { name: /^Pull request #12,/ }).click();
-    await expect(pane.getByRole("region", { name: "Pull request 12", exact: true }).getByRole("heading", { level: 3 })).toContainText("Generated PR 12");
+    const merged = pane.getByRole("region", { name: "Pull request 12", exact: true });
+    await expect(merged.getByRole("heading", { level: 3 })).toContainText("Generated PR 12");
+    await expect(merged.locator(".pr-state-badge")).toContainText("Merged");
+    await expect(merged.getByRole("button", { name: "Revert", exact: true })).toBeVisible();
+    await expect(merged.getByRole("button", { name: "Delete branch", exact: true })).toHaveCount(0);
     await switcher.getByRole("tab", { name: /^Pull request #11,/ }).click();
     await expect(pane.getByRole("region", { name: "Pull request 11", exact: true })).toBeVisible();
     await pane.getByText("Open another pull request", { exact: true }).click();

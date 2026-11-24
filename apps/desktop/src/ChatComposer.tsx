@@ -147,7 +147,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
   const answering = Boolean(question && (delivery === "queue" || delivery === "auto") && !isSlash);
   const diskVolume = session.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.volume : undefined;
-  const disk = useVirtualDisk(client, snapshot, Boolean(diskVolume))?.disk;
+  const disk = useVirtualDisk(client, Boolean(diskVolume))?.disk;
   const diskPaused = Boolean(diskVolume && disk?.id === diskVolume.diskId && (disk.pressure?.paused || disk.status === "resizing"));
   const needsResume = !session.turnId && (snapshot.blockedSessions.includes(session.id) ||
     Boolean(session.workspaceId && snapshot.blockedWorkspaces.includes(session.workspaceId)) ||

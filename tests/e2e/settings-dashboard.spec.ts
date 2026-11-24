@@ -161,7 +161,7 @@ test("project configuration has an honest empty state and never lists another pr
     await expect(active).toContainText("No active sessions in this profile.");
     await expect(active.getByRole("status")).toContainText("0 active");
     await openSettingsSection(page, "General"); await page.getByLabel("Active profile", { exact: true }).selectOption(profile.id);
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText(profile.name);
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText(profile.name);
     await openSettingsSection(page, "Project");
     await expect(select).toBeEnabled(); await expect(select).toHaveValue("");
     expect(await select.locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(["", project]);

@@ -28,6 +28,8 @@ import { NotificationAudio } from "./notification-audio.ts";
 import { ApprovalActions } from "./ApprovalActions.tsx";
 import { SessionGitHub } from "./SessionGitHub.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { SidebarDisk } from "./VirtualDiskSettings.tsx";
+import { ProfileMenu } from "./ProfileMenu.tsx";
 import { ContinueWorkDialog } from "./ContinueWorkDialog.tsx";
 import type { SessionActionOwner } from "./SessionActions.tsx";
 import type { CommandClientAttachment, CommandExecution, CommandViewContext, CommandViewOutcome } from "@moguri-dev/sdk";
@@ -199,7 +201,7 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const reportSettingsUnsaved = useCallback((unsaved: boolean) => { settingsUnsavedRef.current = unsaved; setSettingsUnsaved(unsaved); }, []);
   const [boardOpen, setBoardOpen] = useState(false);
   // Getting started (D54) opens once per profile until finished or skipped, and again whenever Settings restarts it.
-  const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null), onboardProfile = useRef<string | null>(null);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
   const panelDirtyRef = useRef(false);
@@ -246,7 +248,9 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   useEffect(() => {
     if (!snapshot || onboardingChecked.current === client.profileId) return;
     onboardingChecked.current = client.profileId;
-    if (window.moguri.automaticOnboarding && !snapshot.settings.values.onboarding) setOnboardingOpen(true);
+    const created = onboardProfile.current === client.profileId;
+    if (created) onboardProfile.current = null;
+    if ((window.moguri.automaticOnboarding || created) && !snapshot.settings.values.onboarding) setOnboardingOpen(true);
   }, [snapshot, client.profileId]);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const sessionPanels = availablePanels(session), shownPanel = sessionPanels.includes(panel) ? panel : "Insights";
@@ -791,10 +795,17 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       </div>
       <div className="nav-footer">
         <div className="profile-actions">
-        {snapshot && <div className="profile-indicator" aria-label="Current profile">{snapshot.profile?.color && <span className="status-dot" style={{ backgroundColor: snapshot.profile.color }} />}<span>{snapshot.profile?.name ?? client.profileId}</span></div>}
+        {snapshot && <ProfileMenu key={client.profileId} sdk={client} snapshot={snapshot} onSwitch={async (id) => { await openProfile(id); }} onManage={() => openSettings("general")}
+          onError={(text) => setNotice(text)} onCreated={async (id) => {
+            // D76: a profile created here opens with its own onboarding, even when the app otherwise uses manual onboarding.
+            onboardProfile.current = id;
+            try { await openProfile(id); }
+            catch (error) { setNotice(`The new profile was created. ${error instanceof Error ? error.message : "Switch to it from the sidebar."}`); }
+          }} />}
         <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
         <Tooltip content="Settings"><button className="icon-button" aria-label="Settings" aria-pressed={settingsTab !== null} onClick={() => { if (settingsTab) leaveSettings(); else openSettings("general"); }}><Icon name="Settings" /></button></Tooltip>
         </div>
+        <SidebarDisk sdk={client} open={() => openSettings("retention")} />
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : status === "connecting" ? "running" : "failed"}`} />Local service {status}</div>
       </div>
     </nav>

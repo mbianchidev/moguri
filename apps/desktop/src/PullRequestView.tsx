@@ -210,7 +210,7 @@ export function PullRequestView({ sdk, session, snapshot, scope, selection, relo
           </AnchoredMenu>}
         </div> : <div className="pr-state-control">
           <span className="pr-state-badge" data-github-state={mark.tone}><GitHubStateIcon kind="pull" item={item} />{mark.label.replace(" pull request", "")}</span>
-          {item.state === "merged" && item.head && sameRepository && <button type="button" className="pr-state-button" disabled={!canWrite || busy}
+          {item.state === "merged" && item.head && sameRepository && item.headBranch === "exists" && <button type="button" className="pr-state-button" disabled={!canWrite || busy}
             title={canWrite ? `Delete branch ${item.head} on GitHub` : readOnly} onClick={() => void write(`Delete branch ${item.head}`,
               { kind: "github.branch.delete", repository, account, number: number!, branch: item.head! })}><Icon name="Trash" /><span>Delete branch</span></button>}
           {item.state === "merged" && <><button ref={revertButton} type="button" className="pr-state-button" aria-haspopup="dialog" aria-expanded={revertMenu}
