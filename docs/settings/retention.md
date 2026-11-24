@@ -26,6 +26,12 @@ this page keeps the full detail.
 - Off by default. The switch creates a fixed-size macOS disk image (APFS sparse
   bundle) for new session worktrees, so session work can't fill your Mac. The
   size select (5 to 500 GB) saves immediately.
+- While the disk is on, a usage bar sits above its summary, with a mark at the
+  reserve. The sidebar shows the same bar, without text, above the service
+  status; hover it for the numbers or click it to open this section. Both
+  update live as worktrees grow or are removed. A full disk turns the bar to
+  the warning color; creating, resizing and turning off show a muted bar, and
+  an unmounted or failed disk shows an empty bar with an error outline.
 - The encrypted store, dependency cache and model files stay outside the disk.
   Existing worktrees stay where they were created.
 - When free space drops below 5% of the size (at least 512 MB), Moguri first

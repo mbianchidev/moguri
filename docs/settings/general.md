@@ -12,8 +12,20 @@ this page keeps the full detail.
 - **Restart Getting started** reopens the first-run setup in the main pane with your current choices
   selected; it resets nothing. It is unavailable while Settings has unsaved edits.
 - Getting started opens by itself once per profile, until **Finish** or **Skip setup** records
-  `onboarding.completedAt`. Hidden test windows skip it unless `MOGURI_TEST_ONBOARDING=1`. See D54 in
+  `onboarding.completedAt`. A profile created from the sidebar always opens its own Getting started.
+  Hidden test windows otherwise skip it unless `MOGURI_TEST_ONBOARDING=1`. See D54 and D76 in
   [decisions](../architecture/decisions.md).
+- With another ready profile, Getting started offers to copy from it after the preferences step. Pick
+  the profile, or **Start fresh** to skip. Then three optional steps, each with **Skip**:
+  - **Models**: API keys for hosted providers, model endpoints (with their stored keys) and the model
+    switches and source choices. Sign-ins (Copilot, ChatGPT, OpenRouter sign-in, MCP OAuth) are listed
+    but never copied; sign in again in the new profile.
+  - **Repositories**: added at the same folders, not cloned, so both profiles use one checkout.
+  - **Skills**: skill sources. Marketplace skills stay off until you trust them in the new profile.
+
+  Tick the items, choose **Review** to see exactly what will be copied, then **Import**. Keys are copied
+  inside Moguri into the new profile's own keychain slots, so each can be removed or rotated on its own;
+  they never pass through the window. The other profile is never changed.
 
 ## Application
 
@@ -146,9 +158,16 @@ Previously titled "Private GitHub updates".
 
 ## Profiles
 
-- Creating or renaming a profile saves only its metadata (name and accent color). It does not switch to the
-  new profile; choose a profile explicitly in the Profile menu. Accounts and project data are never copied
-  between profiles.
+- The profile in the sidebar footer is a button. With one profile it opens **Create profile**; with more
+  it opens a menu of profiles (the current one is checked) plus **New profile...** and **Manage profiles**,
+  which opens this section. Switching from the menu has the same guards as the Active profile select:
+  unsaved edits and dialogs block it, and running work stays in its own profile.
+- **Create profile** asks for a name and an accent: a palette swatch, or **Custom** with a color picker and
+  a hex field. **Create and open** switches to the new profile and starts its Getting started, where you
+  can copy model keys, repositories and skills from another profile (see above).
+- Creating or renaming a profile here saves only its metadata (name and accent color). It does not switch to
+  the new profile; choose a profile explicitly. Nothing is copied between profiles unless you import it
+  during Getting started, or with `/profile import` in the TUI or `moguri profile import` in the CLI.
 - While a new profile is being set up, Moguri prepares that profile's own resources. Setup does not sign in to
   a provider or copy data from another profile.
 - If profile setup fails, Retry requires you to confirm that you inspected that profile's own data directory

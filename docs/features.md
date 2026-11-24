@@ -282,10 +282,16 @@ re-enabling. [Provider/model controls](setup.md#provider-and-model-availability)
 
 Isolated **profiles** use immutable SDK clients over the same local authority.
 Desktop's profile selector, TUI **F8** and CLI `--profile ID` preserve separate
-accounts, projects, drafts, memory and artifacts. Creating a profile neither
-copies data nor selects it. Global environment policy, shared startup
-preferences and optional global hard budgets cannot be escaped by switching.
-Old owned work stays in its original profile.
+accounts, projects, drafts, memory and artifacts. Global environment policy,
+shared startup preferences and optional global hard budgets cannot be escaped
+by switching. Old owned work stays in its original profile. The desktop sidebar
+profile switches profiles or creates one (swatch or custom accent), which then
+opens its own Getting started. There, or with `/profile import` and
+`moguri profile import`, a new profile can copy reviewed items from another:
+API keys (into its own keychain slots), model endpoints and choices, skill
+sources and repositories at the same folders. Sign-ins are never copied and the
+source profile is never changed
+([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage)).
 Remote writers sharing a pinned peer and canonical workspace serialize across
 profile/target aliases and Local mappings; failed-root quarantine survives restart.
 Guided questions can include an explicitly labeled current-solver recommendation
@@ -319,6 +325,8 @@ associated; switch between them with the PR tabs, and the sidebar mark is green,
 ([D65](architecture/decisions.md#d65-inline-review-comments-fixed-pr-associations-and-one-session-pr-mark)).
 Its header merges the PR, deletes the merged remote branch on request and opens a revert pull request, each after a review
 ([D71](architecture/decisions.md#d71-merge-delete-the-merged-branch-and-revert-from-the-pr-view)).
+**Delete branch** appears only while that branch still exists on GitHub, so a branch GitHub already removed on merge offers nothing
+to delete ([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage)).
 Click an active right-rail icon again to collapse its pane back to the rail.
 Terminal belongs to a session: project-free consoles start in configured HOME,
 and project consoles keep their bound worktree. There is no global-terminal UI.

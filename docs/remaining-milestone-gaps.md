@@ -152,18 +152,23 @@ child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
 on `main` (#98). The second step, draft
 [#99](https://github.com/mbianchidev/moguri/pull/99), consumes
-`@moguri-dev/sdk` 0.32.0-alpha.2 and `@moguri-dev/tui` 0.32.0-alpha.3 and removes the
+`@moguri-dev/sdk` 0.32.0-alpha.3 and `@moguri-dev/tui` 0.32.0-alpha.4 and removes the
 embedded SDK, TUI and CLI. Neither closes #93; the repository transfer and the
 Homebrew packages remain.
 
-Two feature requests filed after this closure are also tracked on their own
-and not started: [#96](https://github.com/mbianchidev/moguri/issues/96)
+Two feature requests were filed after this closure and are tracked on their
+own. [#96](https://github.com/mbianchidev/moguri/issues/96)
 (Google Gemini API and Vertex AI, Amazon Bedrock and more hosted providers,
-plus an Antigravity agent harness) and
+plus an Antigravity agent harness) is not started; its service and protocol
+parts land in `moguri-dev/moguri-sdk`.
 [#97](https://github.com/mbianchidev/moguri/issues/97) (desktop Delete branch
 only for existing branches, live virtual disk bars and a sidebar profile
-switcher with per-profile onboarding). Their service and protocol parts land in
-`moguri-dev/moguri-sdk`.
+switcher with per-profile onboarding) is delivered in draft #99, which closes
+it when it merges ([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage),
+protocol 122). Its service and protocol parts are in
+[moguri-dev/moguri-sdk#8](https://github.com/moguri-dev/moguri-sdk/pull/8)
+(`@moguri-dev/sdk` 0.32.0-alpha.3) and its TUI and CLI parts in
+`@moguri-dev/tui` 0.32.0-alpha.4.
 
 Running the desktop suites on shared macOS runners for #99 found two desktop
 bugs, both fixed in draft #99, which closes them when it merges:

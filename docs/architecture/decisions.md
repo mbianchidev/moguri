@@ -2459,9 +2459,11 @@ branch. A gitleaks 8.30.1 scan of all 411 commits pushed found nothing. It ships
 keeps the CLI's error reporting. This repository now pins `@moguri-dev/tui`
 too. `@moguri-dev/tui` 0.32.0-alpha.2 makes `moguri desktop` use only the
 checkout's own Electron, so a packaged app refuses it clearly instead of
-running an Electron found in a parent folder. The pins are `@moguri-dev/sdk`
-0.32.0-alpha.2, whose `refresh()` reads a snapshot requested after the call,
-and `@moguri-dev/tui` 0.32.0-alpha.3, built on it. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
+running an Electron found in a parent folder. `@moguri-dev/sdk`
+0.32.0-alpha.2 makes `refresh()` read a snapshot requested after the call. The
+pins are `@moguri-dev/sdk` 0.32.0-alpha.3 (protocol 122,
+[D76](#d76-reviewed-profile-imports-and-live-disk-usage)) and
+`@moguri-dev/tui` 0.32.0-alpha.4, built on it. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
 the app's `dist/moguri` launcher and already installed `moguri` commands keep
 working unchanged. `npm start` runs the installed TUI. `moguri desktop` runs
 only from a desktop source checkout. The OpenTUI Phase 0 spike and the TUI's
@@ -2479,6 +2481,46 @@ unchanged and enforce them on local runs and in `scripts/release.sh`, while CI
 sets `MOGURI_SKIP_LATENCY_BUDGETS=1` and only logs a miss
 (`tests/fixtures/latency-budgets.ts`). `release.sh` clears that variable, so a
 release can't skip a budget.
+
+## D76. Reviewed profile imports and live disk usage
+
+**Decision, 2026-11-22, by the project owner**, tracked by
+[#97](https://github.com/mbianchidev/moguri/issues/97). Protocol 122.
+
+- **Profile imports.** A profile can copy chosen items from another ready
+  profile: hosted providers with an API key, model endpoints with their keys,
+  model preferences and skill sources, plus its Local repositories. Only
+  settings and API keys carry over. The service copies each key into the
+  receiving profile's own secret slot, so it is a separate credential with its
+  own revision, removal and rotation. Keys never reach a client, event or log.
+  Sign-ins (Copilot, ChatGPT, OpenRouter sign-in, MCP OAuth) are never cloned,
+  because both profiles would then share one account authorization.
+  Repositories are registered at the same local folder, not cloned. Every item
+  needs an explicit choice after a digest-bound review, and the source profile
+  is never modified. This narrows the earlier rule that a new profile starts
+  disconnected with no Default data copied: that still holds unless the user
+  imports. See [profiles](profiles.md#reviewed-imports-from-another-profile).
+- **Onboarding per profile.** Every profile, including one just created from
+  the desktop sidebar, opens its own onboarding on first use, even when the
+  app otherwise uses manual onboarding. Generated hidden-window tests keep an
+  explicit opt-in so they stay deterministic.
+- **Live disk usage.** The root-owned virtual disk pushes its status on the
+  event connection (`disk` frame, `ClientState.disk`), so the desktop and TUI
+  show live usage bars without polling. See
+  [virtual disk](virtual-disk.md#clients).
+- **Delete branch.** `github.source` reports a merged same-repository PR's
+  head branch as `exists`, `deleted` or `unknown`; the PR view offers
+  **Delete branch** only when it exists. The service checks stay
+  authoritative. See [session GitHub workflows](session-github-workflows.md).
+- **Desktop.** The sidebar profile is a menu button: with one profile it opens
+  **Create profile** (name, an accent from the palette swatches or a custom
+  color picker and hex; the stored value stays a hex color), otherwise it lists
+  the profiles to switch to with the same guards as Settings, plus
+  **New profile...** and **Manage profiles**. Creating a profile there switches
+  to it and opens its onboarding, whose optional Models, Repositories and
+  Skills steps each need a choice and a review before anything is copied.
+  The TUI and CLI use `/profile import` and `moguri profile import`. See
+  [Settings / General](../settings/general.md#profiles).
 
 ## Still open
 

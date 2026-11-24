@@ -4006,9 +4006,14 @@ reviewed worktree workflow or lifts a hard cap.
 ## Isolated profiles
 
 Desktop's **Profile** selector and **Manage profiles** create, rename/color and
-explicitly choose a profile. TUI **F8** provides the same operations even
-without a session, including partial setup inspection/retry/stop. Creation
-does not choose the new profile, copy private data or log in. CLI examples:
+explicitly choose a profile. The sidebar profile button switches profiles or,
+with one profile, opens **Create profile**; a profile created there opens with
+its own Getting started. TUI **F8** provides the same operations even without
+a session, including partial setup inspection/retry/stop. Creation does not
+copy private data or log in. A new profile can import reviewed items from
+another (D76): API keys and endpoint keys (copied in the service into its own
+keychain slots), model choices, skill sources and repositories at the same
+folders. Sign-ins are never copied. CLI examples:
 
 ```bash
 npx moguri profile list
@@ -4017,6 +4022,9 @@ npx moguri status --profile PROFILE_ID
 npx moguri tui --profile PROFILE_ID
 npx moguri desktop --profile PROFILE_ID
 npx moguri profile update PROFILE_ID changes.json --revision OBSERVED_REVISION
+npx moguri profile import default --profile PROFILE_ID          # review, no secrets
+npx moguri profile import default key:anthropic skills:SOURCE_ID repo:PROJECT_ID \
+  --digest REVIEW_SHA --confirm-review --profile PROFILE_ID
 ```
 
 Metadata changes accept `{"name":"Work renamed","color":"#776655"}` or a
@@ -4530,7 +4538,8 @@ backup instead of deleting state or forcing a stale writer.
 worktrees on a fixed-size macOS disk image that Moguri creates and mounts under
 its resource folder with `hdiutil`; no root is needed. When it fills, Moguri
 removes the oldest archived worktrees that are clean and fully pushed, then
-pauses work on the disk until there's room. CLI `storage disk status`,
+pauses work on the disk until there's room. While it's on, Settings and the
+sidebar show a live usage bar and the TUI status line shows its usage. CLI `storage disk status`,
 `storage disk size GB` and `storage disk off`, and TUI `/runtime disk`,
 `/runtime disk-size GB` and `/runtime disk-off`, use the same SDK calls. The
 disk stays mounted while the service is stopped; eject it from Finder only
