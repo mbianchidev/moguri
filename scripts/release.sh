@@ -413,7 +413,7 @@ gate_pr_checks() {
     count="$(gh pr view "$PR_URL" --repo "$REPOSITORY" --json statusCheckRollup --jq '.statusCheckRollup | length')"
     [ "$count" -gt 0 ] && break
     if [ "$(now)" -ge "$deadline" ]; then
-      note "No PR checks reported: this repository runs CI only on pushes to $BASE_BRANCH."
+      note "No PR checks reported: CI skips release/** branches."
       note "The local validation above gates this PR; main CI on the merge commit gates the tag."
       return
     fi

@@ -84,9 +84,9 @@ workflow checks again immediately before undrafting.
    `npm run typecheck`, `npm run build`, `npm test`,
    hidden `npm run test:e2e`, `node scripts/package.mjs` and
    `npm run verify:update`. Validation must leave the tree clean. This mirrors
-   [CI](../.github/workflows/ci.yml), which runs only on `main`.
+   [CI](../.github/workflows/ci.yml), which skips `release/**` branches.
 5. **Pull request.** Pushes `release/v<version>` and opens a ready PR. It
-   watches any PR checks; this repository has none by design. It then merges
+   watches any PR checks; release branches have none by design. It then merges
    with `gh pr merge --squash --auto --match-head-commit`. GitHub merges
    immediately when nothing blocks. Rejection leaves the PR open; there is no
    admin merge or direct push to `main`.

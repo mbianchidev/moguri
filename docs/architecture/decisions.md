@@ -877,7 +877,13 @@ Those original observation/import paths do not start CI, merge, push or grant
 permissions. D27 adds separately reviewed user workflows, not automatic export
 or a mutation hidden inside an observation.
 
-CI is restricted to pushes to `main`. Feature/PR checks are performed locally.
+CI was restricted to pushes to `main`. Since 2026-11-24, at the owner's request
+after the repository became public, it also runs on pushes to every working
+branch except `release/**`, whose release PR is validated locally and gated by
+`main` CI. Superseded branch runs are cancelled; `main` keeps one run per
+commit. Pull request events and tags still do not trigger it, and checks still
+run locally first. Earlier slice records describe the main-only policy of
+their time.
 The [metadata-only OTLP contract](otlp-export.md) is a bounded D14 extension:
 explicit profile-owned opt-in exports existing committed execution/accounting
 records through pinned Apache-2.0 OpenTelemetry codecs. It adds no accounting

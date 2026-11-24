@@ -60,8 +60,8 @@ process, which only maintainers run.
    fixtures only: no real credentials, customer data or personal data.
 4. Update the relevant documentation under `docs/` in the same change. Keep
    the README short.
-5. Run the checks locally. CI runs only after merging to `main`, not on pull
-   requests:
+5. Run the checks locally. CI also runs on every push to your branch, but it
+   is slow and timing-sensitive on shared runners, so check first:
 
    ```sh
    npm run typecheck

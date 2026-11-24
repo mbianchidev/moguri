@@ -1,13 +1,15 @@
 name: CI
 on:
   push:
-    branches: [main]
+    # Every branch except release/**: scripts/release.sh validates those locally and main CI gates the tag. Tags never trigger CI.
+    branches: ["**", "!release/**"]
 permissions:
   contents: read
   packages: read
-# One group per commit: a later push to main must not cancel the run that gates a release (docs/releasing.md).
+# Main keeps one group per commit, so a later push cannot cancel the run that gates a release (docs/releasing.md).
+# Other branches share one group per ref, so a new push cancels the superseded run.
 concurrency:
-  group: ci-${{ github.ref }}-${{ github.sha }}
+  group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'latest' }}
   cancel-in-progress: true
 jobs:
   verify:

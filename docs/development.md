@@ -85,11 +85,13 @@ the real GitHub authorization page. Phase 0 and platform spikes
 
 ## Continuous integration
 
-[`ci.yml`](../.github/workflows/ci.yml) runs only on pushes to `main`, on
-macOS and Ubuntu: audit, typecheck, build, `npm test` and, on macOS,
-`test:e2e`. It installs the public SDK package with the workflow's own `GITHUB_TOKEN`. It
-does not run on pull requests or feature branches, so run
-the relevant checks locally before opening a PR. The tag-triggered
+[`ci.yml`](../.github/workflows/ci.yml) runs on pushes to `main` and every
+other branch except `release/**`, on macOS and Ubuntu: audit, typecheck,
+build, `npm test` and, on macOS, `test:e2e`. It installs the public SDK
+package with the workflow's own `GITHUB_TOKEN`. A new push to a branch cancels
+that branch's superseded run; `main` keeps one run per commit. Pull request
+events (including fork PRs) and tags do not trigger it, so still run the
+relevant checks locally before pushing. The tag-triggered
 [`release.yml`](../.github/workflows/release.yml) verifies and publishes
 releases; see [releasing](releasing.md).
 

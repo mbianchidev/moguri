@@ -7590,8 +7590,9 @@ than opening authorization or touching a personal account.
 
 Remaining blockers and unsupported capabilities are listed in
 [Phase 0](architecture/phase-zero.md) and the canonical implementation spec.
-CI is configured only for pushes to `main`. PRs/feature branches do not trigger
-it; development verification runs locally, without manual CI dispatch.
+CI runs on pushes to `main` and every working branch except `release/**`; pull
+request events and tags do not trigger it. Development verification still runs
+locally first, without manual CI dispatch.
 
 `node scripts/decision-spike.mjs` runs the separate generated
 [System One prerequisite](architecture/decision-primitives.md). It does not

@@ -758,7 +758,8 @@ start the TUI or add a shell command. Use **Settings > General > Command line >
 Install `moguri` command**, then follow the [PATH setup instructions](setup.md#macos-command-line-installation).
 That guide also documents removal, moved-app recovery and the manual workaround
 for older builds.
-CI runs only on pushes to `main`, not pull requests or feature branches.
+CI runs on pushes to `main` and every working branch except `release/**`, not
+on pull request events or tags.
 The explicit 30-minute cap is removed; GitHub-hosted jobs still have the
 [platform's six-hour limit](https://docs.github.com/en/actions/reference/limits).
 
