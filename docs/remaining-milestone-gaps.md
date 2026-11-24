@@ -165,6 +165,15 @@ only for existing branches, live virtual disk bars and a sidebar profile
 switcher with per-profile onboarding). Their service and protocol parts land in
 `moguri-dev/moguri-sdk`.
 
+Running the desktop suites on shared macOS runners for #99 found two desktop
+bugs, tracked on their own and not started:
+[#100](https://github.com/mbianchidev/moguri/issues/100) (a hidden test window
+closed during an in-flight edit stays open, so e2e teardown hangs; an
+automatic save could be awaited like pending drafts) and
+[#101](https://github.com/mbianchidev/moguri/issues/101) (the composer is offset
+from the message column by the scroll bar width when macOS always shows scroll
+bars).
+
 ### Delivery notes, protocols 112 to 114
 
 #53's audit, visual system and UI/UX polish are recorded in the [design audit](design-audit.md);
