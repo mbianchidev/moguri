@@ -26,6 +26,13 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const [roleIndex, setRoleIndex] = useState("0"), [roleData, setRoleData] = useState<string | null>(null), [roleContract, setRoleContract] = useState<string | null>(null);
   const roleOutput = useRef<HTMLPreElement>(null);
   const contractOutput = useRef<HTMLPreElement>(null);
+  // Focus moves to an output only after React has rendered it; an animation frame can run before that commit.
+  const focusOutput = useRef<"role" | "contract" | null>(null);
+  useEffect(() => {
+    const target = focusOutput.current === "role" ? roleOutput.current : focusOutput.current === "contract" ? contractOutput.current : null;
+    if (!target) return;
+    focusOutput.current = null; target.focus(); target.scrollIntoView({ block: "nearest" });
+  }, [roleData, roleContract]);
   const generation = useRef(0), sourceSession = useRef(session?.id), dirty = Boolean(draft && fields(draft) !== baseline);
   sourceSession.current = session?.id;
   const current = draft?.id ? snapshot.artifacts.find((artifact) => artifact.id === draft.id) : undefined;
@@ -97,8 +104,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
         <button disabled={busy} onClick={() => void run(async () => {
           const token = generation.current, value = await sdk.roleSequences.read(sequence.id, Number(roleIndex));
           if (generation.current === token) {
-            setRoleData(JSON.stringify(value.step, null, 2));
-            requestAnimationFrame(() => { roleOutput.current?.focus(); roleOutput.current?.scrollIntoView({ block: "nearest" }); });
+            focusOutput.current = "role"; setRoleData(JSON.stringify(value.step, null, 2));
           }
         })} aria-label="View role from original record">View role</button>
         {roleData !== null && <pre ref={roleOutput} tabIndex={0} aria-label="Recorded role data">{roleData}</pre>}
@@ -106,8 +112,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
           <SettingsHelp label="More about this setting" target={<button disabled={busy} onClick={() => void run(async () => {
             const token = generation.current, value = await sdk.roleSequences.contract(sequence.id, Number(roleIndex));
             if (generation.current === token) {
-              setRoleContract(JSON.stringify(value, null, 2));
-              requestAnimationFrame(() => { contractOutput.current?.focus(); contractOutput.current?.scrollIntoView({ block: "nearest" }); });
+              focusOutput.current = "contract"; setRoleContract(JSON.stringify(value, null, 2));
             }
           })} aria-label="View contract for original role">View contract</button>} descriptionFirst>Shows whether the role's output passed its declared format and context checks. Passing says nothing about code quality.</SettingsHelp>
           {roleContract !== null && <pre ref={contractOutput} tabIndex={0} aria-label="Role contract evaluation">{roleContract}</pre>}
