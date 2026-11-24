@@ -54,6 +54,7 @@ import { ReorderList } from "./ReorderList.tsx";
 import { Alert } from "./Alert.tsx";
 import { StainlessSettingsPanel } from "./StainlessPanel.tsx";
 import { PathField, localPath } from "./PathField.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
@@ -213,6 +214,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   }, [activeGroup, tab, scrollRequest]);
   const railSection = inView && activeGroup.items.some((item) => item.id === inView) ? inView : tab;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
+  usePendingWork(saving || sandboxBusy || devicesBusy || lineageBusy || soundsBusy || applicationBusy || modelsBusy || capabilityBusy || webBusy);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, groupKey]);
   useEffect(() => {

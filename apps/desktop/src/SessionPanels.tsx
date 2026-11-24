@@ -13,6 +13,7 @@ import { Alert } from "./Alert.tsx";
 import { StainlessBrowserRow } from "./StainlessPanel.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 import { UnifiedDiff } from "./UnifiedDiff.tsx";
+import { usePendingWork } from "./pending-work.ts";
 const CodeView = lazy(() => import("./CodeView.tsx").then((module) => ({ default: module.CodeView })));
 
 export function HomeWriterReview({ sdk, session, snapshot, chooseSession }: { sdk: MoguriSdk; session: Session; snapshot: Snapshot; chooseSession: (id: string) => Promise<void> }) {
@@ -111,6 +112,7 @@ function WorkspacePlanFile({ sdk, session, snapshot, workspaceScope, onDirty }: 
   const save = snapshot.planSaves.findLast((entry) => entry.sessionId === session.id);
   const execution = snapshot.executions.find((entry) => entry.id === save?.executionId);
   const dirty = plan !== null && text !== plan.text;
+  usePendingWork(saving);
   useEffect(() => { onDirty(dirty || saving); return () => onDirty(false); }, [dirty, saving, onDirty]);
   useEffect(() => {
     const close = (event: BeforeUnloadEvent) => { if (dirty || saving) { event.preventDefault(); event.returnValue = ""; } };

@@ -8,6 +8,7 @@ import type { RendererTrayAction } from "./tray-menu.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
+import { pendingWork, pendingWorkSettled } from "./pending-work.ts";
 import { StatusBadge } from "./StatusBadge.tsx";
 import { ApprovalCall, approvalBoundary } from "./ApprovalCall.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
@@ -194,6 +195,8 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(resourceSettings(layout.panel));
   const [policyFocus, setPolicyFocus] = useState<PolicyFocusRequest | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
+  const settingsUnsavedRef = useRef(false);
+  const reportSettingsUnsaved = useCallback((unsaved: boolean) => { settingsUnsavedRef.current = unsaved; setSettingsUnsaved(unsaved); }, []);
   const [boardOpen, setBoardOpen] = useState(false);
   // Getting started (D54) opens once per profile until finished or skipped, and again whenever Settings restarts it.
   const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null);
@@ -304,16 +307,17 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   useEffect(() => {
     const pendingDrafts = () => hasUnsavedWork() || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving);
     // Drafts and queued-prompt edits are saved before closing instead of asking (D51); explicit-save edits still ask.
+    // In-flight automatic saves and loads settle first; the retried close then asks only about edits that are still unsaved.
     const saveDrafts = async () => {
-      await Promise.race([Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()]),
+      await Promise.race([pendingWorkSettled().then(() => Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()])),
         new Promise((_resolve, reject) => setTimeout(() => reject(new Error("Saving didn't finish within 10 seconds.")), 10_000))]);
       if (pendingDrafts()) throw new Error("A draft changed or conflicts with another client while saving.");
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (panelDirtyRef.current || settingsUnsaved || profilePending) {
+      if (!pendingWork() && (panelDirtyRef.current || settingsUnsavedRef.current || profilePending)) {
         event.preventDefault(); event.returnValue = ""; window.moguri?.unloadBlocked("edits"); return;
       }
-      if (!pendingDrafts()) return;
+      if (!pendingWork() && !pendingDrafts()) return;
       event.preventDefault(); event.returnValue = "";
       window.moguri?.unloadBlocked("drafts");
       closingSave.current ??= saveDrafts().then(() => window.moguri?.draftsSettled({ ok: true }),
@@ -796,12 +800,12 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     </nav>
     <main className="main-pane" inert={panelExpanded} style={panelExpanded ? { display: "none" } : undefined}>
       {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
-      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} restartOnboarding={() => { if (leaveSettings()) setOnboardingOpen(true); }} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={reportSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} restartOnboarding={() => { if (leaveSettings()) setOnboardingOpen(true); }} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={reportSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
-      }} openTerminal={() => { setTerminalIntent({ panel: "Terminal", sessionId: session?.id ?? null }); setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
+      }} openTerminal={() => { setTerminalIntent({ panel: "Terminal", sessionId: session?.id ?? null }); setSettingsTab(null); reportSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
       globalView && snapshot ? <section className="global-page" aria-label={`${globalLabel(globalView)} workspace`}>
         <header className="global-toolbar"><button className="icon-button" aria-label="Back to chat" onClick={() => { if (canNavigate()) beforeHidingTerminal(() => { leaveSurface(); }); }}><Icon name="Back" /></button><h1>{globalLabel(globalView)}</h1>
           {globalView === "Suggestions" && <label>Scope<select aria-label="Resource source chat" value={globalSessionId ?? ""} onChange={(event) => { if (canNavigate()) setGlobalSessionId(event.target.value || null); }}>

@@ -6,6 +6,7 @@ import {
   type MoguriSdk, type Project, type Session, type Snapshot,
 } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; project?: Project; session?: Session; mode: "hooks" | "marketplace"; onDirty: (value: boolean) => void;
@@ -21,6 +22,7 @@ export function ExtensionPanel({ sdk, snapshot, project, session, mode, onDirty 
   const [reviewed, setReviewed] = useState(false), [contentReviewed, setContentReviewed] = useState(false);
   const [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false);
   const [error, setError] = useState(""), [status, setStatus] = useState("");
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty || busy); return () => onDirty(false); }, [dirty, busy, onDirty]);
   const invalidate = () => { setPreview(null); setCatalog(null); setReviewed(false); setDirty(true); };
   const run = async (operation: () => Promise<void>) => {

@@ -42,6 +42,16 @@ dropped.
    or after 15 seconds without a report it shows **Draft not saved** with **Keep
    Moguri open** or **Close without saving**.
 4. For `edits`, the existing **Unsaved changes** dialog is unchanged.
+5. An automatic save or load still in flight (a Settings or Per-project
+   settings change saving or loading, a Kanban item being created, a plan file
+   saving) is not an unsaved edit. Components report it through
+   `usePendingWork` (`apps/desktop/src/pending-work.ts`); while any is in flight
+   the close takes the `drafts` path, waits for it within the same 10 seconds,
+   and the retried close then asks only about edits that are still unsaved.
+   Long operations (storage relocation, update install, candidate, sandbox and
+   Git actions) still ask. Before this, closing during such a save showed
+   **Unsaved changes**, and a hidden test window stayed open until the test
+   timed out (#100).
 
 A draft conflict with another client counts as a failure, so neither version is
 overwritten. A queued prompt that the service already claimed keeps its

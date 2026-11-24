@@ -3,6 +3,7 @@ import { activeProjectWork, claimedProjectWork, compareIssues, defaultBoard, git
 import { Icon } from "./Icon.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const newFields = (phaseId: string): IssueInput => ({ title: "", body: "", kind: "feature", phaseId, pullRequestUrl: null });
 const CARD_DRAG = "application/x-moguri-kanban-card";
@@ -42,6 +43,7 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange, 
     const card = [...document.querySelectorAll<HTMLElement>(".issue-ticket[data-issue-id]")].find((element) => element.dataset.issueId === target.id && element.dataset.phaseId === target.phaseId);
     if (card) { card.focus(); focusCard.current = null; }
   }, [issues, busy]);
+  usePendingWork(busy);
   useEffect(() => { onUnsavedChange(dirty || busy); return () => onUnsavedChange(false); }, [dirty, busy, onUnsavedChange]);
   const run = async (operation: () => Promise<void>) => {
     setError(""); setNotice(""); setBusy(true);

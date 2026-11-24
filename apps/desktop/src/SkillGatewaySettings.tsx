@@ -4,6 +4,7 @@ import { builtinClashNotice, type GatewaySkill, type MoguriSdk, type SkillSource
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 /** Source list changes (add, enable, remove, confirmed global folder) save immediately through `change`; only the new-source fields are typed before Add. */
 export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDirty, install }: {
@@ -22,6 +23,7 @@ export function SkillGatewaySettings({ sdk, value, change, dirty, disabled, onDi
   const generation = useRef(0), pending = useRef(false), request = useRef<AbortController | null>(null), scope = JSON.stringify([sdk.profileId, value]);
   const currentScope = useRef(scope); currentScope.current = scope;
   const draft = Boolean(name || location);
+  usePendingWork(busy);
   useEffect(() => { onDirty(draft || busy || Boolean(globalReview)); return () => onDirty(false); }, [draft, busy, globalReview, onDirty]);
   useEffect(() => { generation.current++; request.current?.abort(); setResult(null); setBody(""); setGlobalReview(null); }, [sdk, scope]);
   useEffect(() => {

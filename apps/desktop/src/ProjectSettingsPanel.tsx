@@ -10,6 +10,7 @@ import { RepositoryTrustPanel } from "./RepositoryTrustPanel.tsx";
 import { Alert } from "./Alert.tsx";
 import { PrAutomationOverrides } from "./PrAutomationSettings.tsx";
 import { PrTourRepositoryPrompt } from "./PrTourSettings.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty, openTerminal, openSession, available = true, discardUnavailable }: {
   sdk: MoguriSdk; project: Project; session?: Session; snapshot: Snapshot; onDirty: (dirty: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
@@ -61,6 +62,7 @@ export function ProjectSettingsPanel({ sdk, project, session, snapshot, onDirty,
       .catch((error: unknown) => { if (current) { setRepositories(null); setError(error instanceof Error ? error.message : "Couldn't check the repository layout."); } });
     return () => { current = false; };
   }, [sdk, project.id, project.path, available, JSON.stringify(presentation.values.deniedFolders)]);
+  usePendingWork(busy || trustBusy);
   useEffect(() => { onDirty(dirty || busy || boardDirty || remoteDirty || trustBusy); return () => onDirty(false); }, [dirty, busy, boardDirty, remoteDirty, trustBusy, onDirty]);
   const committedRevision = snapshot.projectConfigurations.find((entry) => entry.projectId === project.id)?.revision ?? 0;
   useEffect(() => {

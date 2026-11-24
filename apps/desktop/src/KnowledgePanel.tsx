@@ -2,6 +2,7 @@ import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.
 import { useEffect, useState } from "react";
 import type { KnowledgeRecord, KnowledgeTier, MoguriSdk, Project, Session, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
   sdk: MoguriSdk; snapshot: Snapshot; project?: Project; session?: Session; onDirty: (value: boolean) => void;
@@ -17,6 +18,7 @@ export function KnowledgePanel({ sdk, snapshot, project, session, onDirty }: {
   const [reviewed, setReviewed] = useState(false), [forget, setForget] = useState(false), [rollback, setRollback] = useState(false);
   const [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false);
   const [error, setError] = useState(""), [status, setStatus] = useState("");
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty || busy); return () => onDirty(false); }, [dirty, busy, onDirty]);
   const run = async (operation: () => Promise<void>) => {
     setBusy(true); setError("");
