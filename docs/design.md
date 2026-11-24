@@ -327,8 +327,10 @@ narrower layouts appear when the page is zoomed.
 Classic scroll bars (macOS "Show scroll bars: Always", or no trackpad) take
 layout width, unlike overlay scroll bars. The transcript and the global pages
 keep a stable scroll bar gutter, so content doesn't shift when it starts to
-scroll, and the composer, queue, approval and question cards add the measured
-`--scrollbar-width` so they line up with the message column. E2E tests pin the
+scroll. The transcript's scroll bar sits in its end gutter (measured as
+`--scrollbar-width`), and the composer, queue, approval and question cards move
+in only by the part wider than that gutter, so they line up with the message
+column without narrowing at ordinary widths. E2E tests pin the
 style with the `-AppleShowScrollBars Always|WhenScrolling` launch argument
 instead of changing the system setting.
 

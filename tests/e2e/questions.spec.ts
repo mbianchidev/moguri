@@ -131,7 +131,10 @@ test("long offered answers form one scrollable list and clicking a choice sends 
     await buttons.first().focus();
     for (let index = 1; index < choices.length; index++) await page.keyboard.press("Tab");
     await expect(buttons.last()).toBeFocused();
-    await expect(buttons.last()).toBeInViewport({ ratio: 1 });
+    // At this width one long answer can be taller than the list (classic scroll bars narrow it further), so focus must
+    // reveal as much of it as the list can show.
+    const visible = Math.min(1, await list.evaluate((element) => element.clientHeight) / (await buttons.last().boundingBox())!.height);
+    await expect(buttons.last()).toBeInViewport({ ratio: visible - 0.01 });
     expect(await list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     await expect(card.getByRole("textbox", { name: "Other answer", exact: true })).toBeInViewport({ ratio: 1 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);

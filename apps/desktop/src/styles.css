@@ -659,7 +659,8 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 :is(.main-pane, .side-chat-panel):has(> .conversation-history > .turn-navigation.expanded) { --conversation-rail: 240px; }
 :is(.main-pane, .side-chat-panel):has(> .conversation-history > .turn-navigation[data-compact="true"].expanded) { --conversation-rail: 0px; }
 .conversation-history { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-.timeline { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: var(--space-6) var(--conversation-gutter); min-width: 0; min-height: 0; scroll-behavior: auto; }
+/* A classic scroll bar sits inside the transcript's end gutter; only the part wider than that gutter moves the composer column in. */
+.timeline { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: var(--space-6) var(--conversation-gutter); padding-inline-end: max(0px, var(--conversation-gutter) - var(--scrollbar-width)); min-width: 0; min-height: 0; scroll-behavior: auto; }
 .timeline-empty { display: flex; align-items: safe center; justify-content: center; }
 .timeline-empty > .timeline-content { width: 100%; }
 .turn-navigation { display: flex; flex-direction: column; width: 40px; flex-shrink: 0; min-height: 0; padding: var(--space-2-5) var(--space-0); border-left: 1px solid var(--soft-line); background: var(--canvas); }
@@ -693,7 +694,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .main-pane > .conversation-history > .turn-navigation { position: absolute; z-index: 3; right: 0; top: anchor(--main-conversation top); bottom: 0; }
 .main-pane > .conversation-history > .turn-navigation[data-compact="true"].expanded { top: anchor(--main-conversation top); bottom: 0; }
 .main-pane:has(> .conversation-history > .turn-navigation) > .conversation-history ~ :is(.repository-proposal, .configuration-proposals) {
-  margin-inline: var(--conversation-gutter) calc(var(--conversation-gutter) + var(--conversation-rail) + var(--scrollbar-width));
+  margin-inline: var(--conversation-gutter) calc(var(--conversation-gutter) + var(--conversation-rail) + max(0px, var(--scrollbar-width) - var(--conversation-gutter)));
 }
 .turn-checkpoints { flex-shrink: 0; border-top: 1px solid var(--soft-line); padding-top: var(--space-1-5); }
 .turn-checkpoints > .tooltip-trigger { display: flex; }
@@ -1049,7 +1050,7 @@ summary:hover { color: var(--text); }
 .background-agents strong { display: block; font-size: var(--font-size-xs); font-weight: 500; overflow-wrap: anywhere; }
 .background-agents small { display: block; color: var(--muted); font-size: var(--font-size-2xs); }
 .background-agents .quiet { flex-shrink: 0; font-size: var(--font-size-xs); }
-:is(.main-pane, .side-chat-panel) > :is(.composer, .queue, .approval, .user-question) { margin-inline-start: var(--conversation-gutter); margin-inline-end: calc(var(--conversation-gutter) + var(--conversation-rail) + var(--scrollbar-width)); }
+:is(.main-pane, .side-chat-panel) > :is(.composer, .queue, .approval, .user-question) { margin-inline-start: var(--conversation-gutter); margin-inline-end: calc(var(--conversation-gutter) + var(--conversation-rail) + max(0px, var(--scrollbar-width) - var(--conversation-gutter))); }
 .context-pane { position: relative; background: var(--subtle); border-left: 1px solid var(--line); min-width: 0; overflow: hidden; display: none; flex-direction: column; }
 .context-open .context-pane { display: flex; }
 .context-heading { height: 58px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); font-size: var(--font-size-sm); }
