@@ -106,7 +106,9 @@ CI also sets `MOGURI_SKIP_LATENCY_BUDGETS=1`: a missed budget is logged as
 "Latency budget not enforced on CI" instead of failing. Local runs and
 `scripts/release.sh`, which clears the variable, always enforce them. Inline
 budget checks in a spec follow the same switch through
-`latencyBudgetsEnforced`.
+`latencyBudgetsEnforced`. The macOS e2e step also sets `DEBUG=pw:browser`, so the job
+log includes each hidden app's stderr, such as a refused close or a browser
+host report, for failures that only happen on the runner.
 
 The tag-triggered
 [`release.yml`](../.github/workflows/release.yml) verifies and publishes
