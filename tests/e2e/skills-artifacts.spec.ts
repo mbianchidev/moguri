@@ -117,7 +117,7 @@ test("Artifacts deletes selected saved notes and moves selected files to the Tra
     await deleteSelected.click();
     await expect(confirm).toContainText("Move 2 files to the Trash and delete 1 saved note?");
     await confirm.getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(library.getByRole("status")).toContainText("Moved 2 files to the Trash. Deleted 1 saved note.");
+    await expect(library.getByRole("status").filter({ hasText: "Moved 2 files to the Trash. Deleted 1 saved note." })).toBeVisible();
     expect((await readdir(dist)).sort()).toEqual(["Generated-keep.pdf"]);
     expect((await readdir(trash)).map((name) => name.replace(/^[0-9a-f-]{36}-/, "")).sort()).toEqual(["Generated-a.dmg", "Generated-b.zip"]);
     await waitFor(() => !f.service.controller.snapshot().artifacts.some((artifact) => artifact.id === note.id));
@@ -186,7 +186,8 @@ test("Artifacts All projects lists every project and project-free note with its 
     const confirm = library.getByRole("alertdialog", { name: "Confirm artifact deletion", exact: true });
     await expect(confirm).toContainText(`dist/Generated-second.zip (${second.name})`);
     await confirm.getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(library.getByRole("status")).toContainText("Moved 1 file to the Trash.");
+    // The deletion also starts a rescan, whose "Looking for output files..." status can still be showing beside this notice.
+    await expect(library.getByRole("status").filter({ hasText: "Moved 1 file to the Trash." })).toBeVisible();
     expect(await readdir(join(secondRoot, "dist"))).toEqual([]);
     expect(await readdir(join(first.path, "dist"))).toEqual(["Generated-first.dmg"]);
     await expect(firstFile).toBeVisible();
