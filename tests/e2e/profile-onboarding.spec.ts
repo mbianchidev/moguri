@@ -74,7 +74,7 @@ test("the sidebar profile creates a profile with a swatch or custom accent, open
 
     const target = await fixture.service.profiles.control(created.id), values = target.snapshot().settings.values;
     expect(values.hostedProviders).toEqual(["anthropic"]);
-    expect(values.skillSources?.map((source) => source.path)).toEqual([skills]);
+    expect(values.skillSources?.map((source) => source.kind === "local" ? source.path : source.url)).toEqual([skills]);
     expect(target.snapshot().projects.map((project) => project.path)).toEqual(fixture.sdk.getState().snapshot!.projects.map((project) => project.path));
     expect(JSON.parse(models.get(created.id)!.get("hosted.anthropic")!)).toEqual({ type: "api_key", key: anthropicKey });
     expect(JSON.parse(models.get("default")!.get("hosted.anthropic")!)).toEqual({ type: "api_key", key: anthropicKey });
