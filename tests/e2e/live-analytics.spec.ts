@@ -14,7 +14,8 @@ test("Analytics shows a recent generated turn on lanes, filters lanes, finds eve
   await fixture.send("Generated analytics timeline prompt");
   await fixture.terminal();
   const app = await electron.launch({
-    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    // Classic scroll bars (pinned through the macOS launch argument) must not shift the dashboard when a page starts to scroll (#101).
+    executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: [...process.env.MOGURI_TEST_APP ? [] : ["."], "-AppleShowScrollBars", "Always"],
     env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" },
   });
   try {

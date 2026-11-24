@@ -54,6 +54,8 @@
   --focus-ring-width: 2px; --focus-ring-color: var(--accent); --focus-ring-offset: 3px;
   --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
   --duration-fast: 120ms; --duration-base: 140ms; --duration-slow: 200ms; --ease-standard: ease-out;
+  /* Layout width of a classic scroll bar; overlay scroll bars take none. The renderer measures it at startup and on focus. */
+  --scrollbar-width: 0px;
   /* Fixed-identity surfaces: the brand startup screen, terminal canvas, chart lanes and the custom swatch. */
   --brand-night: #000; --brand-ink: #f4efe9; --brand-mist: #b6aebf; --brand-violet: #a58acf; --brand-violet-deep: #70538e;
   --brand-lilac: #b6a6c8; --brand-plum: #302939; --brand-gold: #f4d38a; --brand-gold-deep: #8d743c; --brand-rose: #dba3ad;
@@ -608,7 +610,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .global-toolbar h1 { font-size: var(--font-size-xl); margin: 0; flex: 1; }
 .global-toolbar label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--muted); min-width: 0; }
 .global-toolbar select { min-width: 0; max-width: 280px; }
-.global-content { flex: 1; min-height: 0; overflow: auto; padding: var(--space-6) clamp(20px, 4vw, 64px); }
+.global-content { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable both-edges; padding: var(--space-6) clamp(20px, 4vw, 64px); }
 .global-content > section { max-width: 1100px; margin-inline: auto; }
 .global-content.panel-global-terminal { display: flex; padding: 0; }
 .global-content.panel-global-terminal > section { flex: 1; width: 100%; }
@@ -644,7 +646,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 :is(.main-pane, .side-chat-panel):has(> .conversation-history > .turn-navigation.expanded) { --conversation-rail: 240px; }
 :is(.main-pane, .side-chat-panel):has(> .conversation-history > .turn-navigation[data-compact="true"].expanded) { --conversation-rail: 0px; }
 .conversation-history { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-.timeline { flex: 1; overflow: auto; padding: var(--space-6) var(--conversation-gutter); min-width: 0; min-height: 0; scroll-behavior: auto; }
+.timeline { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: var(--space-6) var(--conversation-gutter); min-width: 0; min-height: 0; scroll-behavior: auto; }
 .timeline-empty { display: flex; align-items: safe center; justify-content: center; }
 .timeline-empty > .timeline-content { width: 100%; }
 .turn-navigation { display: flex; flex-direction: column; width: 40px; flex-shrink: 0; min-height: 0; padding: var(--space-2-5) var(--space-0); border-left: 1px solid var(--soft-line); background: var(--canvas); }
@@ -678,7 +680,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .main-pane > .conversation-history > .turn-navigation { position: absolute; z-index: 3; right: 0; top: anchor(--main-conversation top); bottom: 0; }
 .main-pane > .conversation-history > .turn-navigation[data-compact="true"].expanded { top: anchor(--main-conversation top); bottom: 0; }
 .main-pane:has(> .conversation-history > .turn-navigation) > .conversation-history ~ :is(.repository-proposal, .configuration-proposals) {
-  margin-inline: var(--conversation-gutter) calc(var(--conversation-gutter) + var(--conversation-rail));
+  margin-inline: var(--conversation-gutter) calc(var(--conversation-gutter) + var(--conversation-rail) + var(--scrollbar-width));
 }
 .turn-checkpoints { flex-shrink: 0; border-top: 1px solid var(--soft-line); padding-top: var(--space-1-5); }
 .turn-checkpoints > .tooltip-trigger { display: flex; }
@@ -1034,7 +1036,7 @@ summary:hover { color: var(--text); }
 .background-agents strong { display: block; font-size: var(--font-size-xs); font-weight: 500; overflow-wrap: anywhere; }
 .background-agents small { display: block; color: var(--muted); font-size: var(--font-size-2xs); }
 .background-agents .quiet { flex-shrink: 0; font-size: var(--font-size-xs); }
-:is(.main-pane, .side-chat-panel) > :is(.composer, .queue, .approval, .user-question) { margin-inline-start: var(--conversation-gutter); margin-inline-end: calc(var(--conversation-gutter) + var(--conversation-rail)); }
+:is(.main-pane, .side-chat-panel) > :is(.composer, .queue, .approval, .user-question) { margin-inline-start: var(--conversation-gutter); margin-inline-end: calc(var(--conversation-gutter) + var(--conversation-rail) + var(--scrollbar-width)); }
 .context-pane { position: relative; background: var(--subtle); border-left: 1px solid var(--line); min-width: 0; overflow: hidden; display: none; flex-direction: column; }
 .context-open .context-pane { display: flex; }
 .context-heading { height: 58px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); font-size: var(--font-size-sm); }

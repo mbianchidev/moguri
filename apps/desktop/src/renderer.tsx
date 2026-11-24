@@ -9,6 +9,17 @@ import type { DesktopStartupPhase } from "./bridge.d.ts";
 import "./styles.css";
 
 const root = createRoot(document.getElementById("root")!);
+// Classic (always shown) scroll bars take layout width and overlay ones take none; columns that line up across a scroller add it (#101).
+const measureScrollbar = () => {
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:absolute;top:-200px;width:100px;height:100px;overflow:scroll;visibility:hidden";
+  document.body.append(probe);
+  document.documentElement.style.setProperty("--scrollbar-width", `${probe.offsetWidth - probe.clientWidth}px`);
+  probe.remove();
+};
+measureScrollbar();
+// The macOS scroll bar setting can change while Moguri runs; it is read again when the window returns to focus.
+window.addEventListener("focus", measureScrollbar);
 function DesktopStartup() {
   const [phase, setPhase] = useState<DesktopStartupPhase>("window");
   const [error, setError] = useState<string | null>(null), [cacheError, setCacheError] = useState<string | null>(null);
