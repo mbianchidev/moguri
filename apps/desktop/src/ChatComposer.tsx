@@ -620,6 +620,14 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     return () => { active = false; };
   }, [sdk, modeScope]);
   const revision = useRef(session.revision);
+  // Choices here save at once, so only a save in flight is unsaved. Otherwise adopt a newer session revision and its
+  // options, so a change from another client never leaves this panel sending an older revision than it shows.
+  useEffect(() => {
+    if (saving || session.revision <= revision.current) return;
+    revision.current = session.revision;
+    setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? "");
+    setEffort(session.controls.modelOptions?.thinkingEffort ?? "");
+  }, [session.revision, saving]);
   const windows = current?.synthetic ? poolControls?.available ? poolControls.windows : null : current ? modelContextWindows(current) : null;
   const staleWindow = Boolean(window && (current?.synthetic ? poolControls?.available && !poolControls.windows.values.includes(Number(window)) :
     !current || !supportsModelContextWindow(current, Number(window))));
