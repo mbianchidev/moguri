@@ -43,7 +43,8 @@ test("the session disk shows a live usage bar in the sidebar and Settings, warns
 
     space.freeBytes = 40 * GiB;
     await expect(meter).toHaveAttribute("aria-valuetext", "Session disk: 10.0 GB used of 50.0 GB, 40.0 GB free", { timeout: ciTime(5000) });
-    await settings.getByLabel("Limit session worktrees to a virtual disk", { exact: true }).uncheck();
+    // The switch shows the disk's actual state, so it stays checked until the service reports the disk turning off.
+    await settings.getByLabel("Limit session worktrees to a virtual disk", { exact: true }).click();
     await expect.poll(async () => (await status()).disk?.status, { timeout: ciTime(10_000) }).toBe("off");
     await expect(meter).toHaveCount(0);
     await expect(sidebar).toHaveCount(0);

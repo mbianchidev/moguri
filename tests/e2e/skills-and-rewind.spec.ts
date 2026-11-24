@@ -255,7 +255,7 @@ test("Settings skill reviews clear across explicit source chats and profiles wit
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     await openSettingsSection(page, "General");
     await page.getByRole("combobox", { name: "Active profile", exact: true }).selectOption(profile.id);
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated empty skills profile");
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Generated empty skills profile");
     await expect(page.getByRole("button", { name: "Checkpoints and rewind", exact: true })).toHaveCount(0);
     await openSettingsSection(page, "Skills");
     await expect(source).toHaveValue("");
