@@ -27,6 +27,8 @@ test("the requested factory ranking is active immediately and actual keyboard re
     await expect(list.getByRole("listitem").last()).toContainText("CLI");
     const handle = list.getByRole("button", { name: "Reorder CLI", exact: true });
     for (let index = 2; index >= 0; index--) {
+      // The list ignores a move while its previous save is in flight; the saved order arrives before that save settles.
+      await expect(list).toHaveAttribute("aria-busy", "false");
       await handle.press("Alt+ArrowUp");
       await expect.poll(() => effectiveToolPreferences(sdk.settings.get()?.values.toolPreferences).order.indexOf("cli")).toBe(index);
     }
