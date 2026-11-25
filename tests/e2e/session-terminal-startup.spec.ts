@@ -165,6 +165,8 @@ test("a Remote console probe settles its own gate before the pending explicit op
     await page.getByRole("button", { name: "Probe SSH target", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Ghostty terminal", exact: true })).toHaveAttribute("aria-disabled", "false");
     await expect.poll(() => opens).toBe(1);
+    // This client's snapshot can trail the dispatched open; wait for the terminal it published.
+    await expect.poll(() => sdk.getState().snapshot!.terminals.length).toBeGreaterThan(0);
     const terminal = sdk.getState().snapshot!.terminals[0]!;
     expect(terminal.env).toBe("Remote"); expect(terminal.binding?.root).toBe(fixture.workspace);
     expect(sdk.getState().snapshot!.terminalOwners.find((owner) => owner.id === terminal.ownerId)?.remote).toBeDefined();

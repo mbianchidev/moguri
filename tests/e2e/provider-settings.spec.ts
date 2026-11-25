@@ -137,7 +137,7 @@ test("Bedrock and Azure keys are saved with their Region or endpoint and deploym
     await bedrock.getByRole("button", { name: "Save key", exact: true }).click();
     await expect(bedrock.locator(".provider-status")).toHaveText("Connected");
     await expect(bedrock.locator(".provider-card-meta")).toContainText("in eu-west-1");
-    expect(sdk.getState().snapshot!.settings.values.hostedProviderOptions?.bedrock).toEqual({ region: "eu-west-1" });
+    await expect.poll(() => sdk.getState().snapshot!.settings.values.hostedProviderOptions?.bedrock).toEqual({ region: "eu-west-1" });
 
     const azure = page.getByRole("region", { name: "Azure OpenAI account", exact: true });
     await azure.getByRole("button", { name: "Add API key", exact: true }).click();
@@ -147,7 +147,7 @@ test("Bedrock and Azure keys are saved with their Region or endpoint and deploym
     await azure.getByRole("button", { name: "Save key", exact: true }).click();
     await expect(azure.locator(".provider-status")).toHaveText("Connected");
     await expect(azure.locator(".provider-card-meta")).toContainText("to generated-resource.openai.azure.com. 2 models selectable.");
-    expect(sdk.getState().snapshot!.settings.values.hostedProviderOptions?.azure).toEqual({ endpoint: "https://generated-resource.openai.azure.com",
+    await expect.poll(() => sdk.getState().snapshot!.settings.values.hostedProviderOptions?.azure).toEqual({ endpoint: "https://generated-resource.openai.azure.com",
       deployments: [{ name: "generated-prod", model: "gpt-5.4" }, { name: "generated-mini", model: "gpt-4.1-mini" }] });
 
     // Replace key reopens the form with the saved details, so a new Region goes out with the new key.
