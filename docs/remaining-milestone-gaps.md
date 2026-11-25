@@ -150,29 +150,37 @@ release tooling working across the owner's transfer of this repository to
 Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
 child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
-on `main` (#98). The second step, draft
-[#99](https://github.com/mbianchidev/moguri/pull/99), consumes
-`@moguri-dev/sdk` 0.32.0-alpha.4 and `@moguri-dev/tui` 0.32.0-alpha.5 and removes the
-embedded SDK, TUI and CLI. Neither closes #93; the repository transfer and the
-Homebrew packages remain.
+on `main` (#98). The second step,
+[#99](https://github.com/moguri-dev/moguri/pull/99) (merged 2026-11-25),
+consumes `@moguri-dev/sdk` 0.32.0-alpha.4 and `@moguri-dev/tui` 0.32.0-alpha.5
+and removes the embedded SDK, TUI and CLI. Neither closes #93; the Homebrew
+packages remain. The repository now lives at `moguri-dev/moguri`, while the
+release tooling and the updater still accept only `mbianchidev/moguri` and
+`moguri-dev/moguri-desktop` as release repositories.
 
-Two feature requests were filed after this closure and are tracked on their
-own. [#96](https://github.com/mbianchidev/moguri/issues/96)
+Three requests were filed after this closure and are tracked on their own.
+[#96](https://github.com/mbianchidev/moguri/issues/96)
 (Google Gemini API and Vertex AI, Amazon Bedrock and more hosted providers,
 plus an Antigravity agent harness) is not started; its service and protocol
 parts land in `moguri-dev/moguri-sdk`.
 [#97](https://github.com/mbianchidev/moguri/issues/97) (desktop Delete branch
 only for existing branches, live virtual disk bars and a sidebar profile
-switcher with per-profile onboarding) is delivered in draft #99, which closes
-it when it merges ([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage),
+switcher with per-profile onboarding) was delivered by #99 and is closed
+([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage),
 protocol 122). Its service and protocol parts are in
 [moguri-dev/moguri-sdk#8](https://github.com/moguri-dev/moguri-sdk/pull/8)
 and [#10](https://github.com/moguri-dev/moguri-sdk/pull/10)
 (`@moguri-dev/sdk` 0.32.0-alpha.4) and its TUI and CLI parts in
 `@moguri-dev/tui` 0.32.0-alpha.5.
+[#103](https://github.com/moguri-dev/moguri/issues/103) (update the provider
+API prices) is not started: the bundled price table was observed on 2026-10-26,
+so from 2026-11-25 every bundled rate is past the default 30-day limit and
+refused as stale, several current models have no price, and **Refresh** fails
+for Google after its pricing page moved. Its changes land in
+`moguri-dev/moguri-sdk`.
 
 Running the desktop suites on shared macOS runners for #99 found two desktop
-bugs, both fixed in draft #99, which closes them when it merges:
+bugs, both fixed by #99 and closed:
 [#100](https://github.com/mbianchidev/moguri/issues/100) (a hidden test window
 closed during an in-flight edit stayed open, so e2e teardown hung; automatic
 saves and loads in flight are now awaited like pending drafts) and
@@ -180,7 +188,7 @@ saves and loads in flight are now awaited like pending drafts) and
 offset from the message column by the scroll bar width when macOS always shows
 scroll bars; the transcript keeps a stable gutter and the composer column adds
 the measured width). A third,
-[#102](https://github.com/mbianchidev/moguri/issues/102), is also fixed in #99:
+[#102](https://github.com/mbianchidev/moguri/issues/102), was also fixed by #99:
 a Browser pane closed while its host was still attaching made every later pane
 fail, so agent control never came back after another chat's pane took the
 browser (`agent-browser.spec.ts:564` on shared runners).
