@@ -155,7 +155,7 @@ on `main` (#98). The second step,
 consumes `@moguri-dev/sdk` 0.32.0-alpha.4 and `@moguri-dev/tui` 0.32.0-alpha.5
 and removes the embedded SDK, TUI and CLI. Neither closes #93; the Homebrew
 packages remain. The owner kept the transferred name `moguri-dev/moguri`
-instead of renaming it to `moguri-dev/moguri-desktop`. PR-TBD and
+instead of renaming it to `moguri-dev/moguri-desktop`. #105 and
 [moguri-dev/moguri-sdk#16](https://github.com/moguri-dev/moguri-sdk/pull/16)
 (`@moguri-dev/sdk` 0.32.0-alpha.5, protocol 123) make the release tooling and
 the updater accept `moguri-dev/moguri` and `mbianchidev/moguri`, which fixes
@@ -185,7 +185,7 @@ and [#10](https://github.com/moguri-dev/moguri-sdk/pull/10)
 (`@moguri-dev/sdk` 0.32.0-alpha.4) and its TUI and CLI parts in
 `@moguri-dev/tui` 0.32.0-alpha.5.
 [#103](https://github.com/moguri-dev/moguri/issues/103) (update the provider
-API prices) is delivered by PR-TBD with
+API prices) is delivered by #105 with
 [moguri-dev/moguri-sdk#16](https://github.com/moguri-dev/moguri-sdk/pull/16)
 ([D77](architecture/decisions.md#d77-provider-price-refresh-dated-prices-and-freshness),
 protocol 123). The bundled Anthropic, OpenAI, Google and xAI tables were
