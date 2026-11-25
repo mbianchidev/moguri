@@ -158,7 +158,14 @@ packages remain. The repository now lives at `moguri-dev/moguri`, while the
 release tooling and the updater still accept only `mbianchidev/moguri` and
 `moguri-dev/moguri-desktop` as release repositories.
 
-Three requests were filed after this closure and are tracked on their own.
+Requests filed after this closure are tracked on their own.
+[moguri-dev/moguri-sdk#15](https://github.com/moguri-dev/moguri-sdk/issues/15)
+tracks a standalone developer preview: a TypeScript starter, token-free
+installation pending npm release policy approval, and a supported public SDK
+contract. Linux runtime qualification follows the macOS preview. The issue
+is open and not started as of the 2026-11-25 audit of desktop `main`
+([`64e1938`](https://github.com/moguri-dev/moguri/commit/64e19382a12aeca02d4683e5f318fbfbc22c94e3),
+`0.32.0-alpha.1`; SDK `0.32.0-alpha.4`, protocol 122).
 [#96](https://github.com/mbianchidev/moguri/issues/96)
 (Google Gemini API and Vertex AI, Amazon Bedrock and more hosted providers,
 plus an Antigravity agent harness) is not started; its service and protocol
