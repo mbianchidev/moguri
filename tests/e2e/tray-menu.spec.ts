@@ -38,11 +38,17 @@ test("the menu-bar menu builds natively and its window actions start chats, proj
     expect(built.find((item) => item.label === "Open Moguri")?.accelerator).toBe("CommandOrControl+Shift+O");
     expect(built.at(-1)?.role).toBe("quit");
 
+    // Each action finishes in the window (selecting the new chat and closing New) after the service acknowledges it, so the
+    // next action waits for that selection; otherwise its New dialog is closed by the previous action's completion.
+    const shell = page.locator(".app-shell");
     const before = sessions().length;
     await send(app, { kind: "new-chat" }, sdk.profileId);
-    await waitFor(() => sessions().length === before + 1 && sessions().some((session) => session.projectId === null));
+    const chat = await waitFor(() => sessions().length === before + 1 && sessions().find((session) => session.projectId === null));
+    await expect(shell).toHaveAttribute("data-session-id", chat.id);
     await send(app, { kind: "new-session", projectId }, sdk.profileId);
-    await waitFor(() => sessions().filter((session) => session.projectId === projectId).length === 2);
+    const created = await waitFor(() => sessions().filter((session) => session.projectId === projectId).length === 2 &&
+      sessions().find((session) => session.projectId === projectId && session.id !== fixture.sessionId));
+    await expect(shell).toHaveAttribute("data-session-id", created.id);
 
     await send(app, { kind: "new-project" }, sdk.profileId);
     const start = page.getByRole("dialog", { name: "New", exact: true });
