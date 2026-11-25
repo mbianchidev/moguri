@@ -186,7 +186,8 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
     await expect(first.getByText("Draft saved", { exact: true })).toBeVisible();
     await app.close(); app = undefined; sdk.disconnect(); await f.service.close();
     const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
-    try { store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId, 25_535)]); }
+    // A retained store reaches this state only after its one-time polling compaction pass (startup-responsiveness.md), so the cold reopen measures the steady state.
+    try { store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId, 25_535)]); store.compactPollingHistory(); }
     finally { store.close(); }
     const began = performance.now();
     const bundledRoot = process.env.MOGURI_TEST_APP ? join(dirname(dirname(process.env.MOGURI_TEST_APP)), "Resources", "app") : process.cwd();

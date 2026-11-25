@@ -93,7 +93,8 @@ test("issue-heavy authenticated startup and visible new-chat acknowledgement sta
   await f.service.close();
   const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
   try {
-    store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId)]);
+    // A retained store reaches this state only after its one-time polling compaction pass (startup-responsiveness.md), so startup measures the steady state.
+    store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId)]); store.compactPollingHistory();
     const global = store.view(GLOBAL_PROFILE_ID);
     try { global.commit([{ event_type: "global.budget_changed", profile_id: GLOBAL_PROFILE_ID,
       payload: { revision: 1, limit: { basis: "estimate", tokens: 1_000_000_000 } } }]); }
@@ -138,7 +139,7 @@ test("ordinary first Send acknowledges and renders the exact unsaved prompt with
   const f = await setupFixture({ responseMode: "text" }), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
   await f.service.close();
   const store = new EventStore(join(stateDir, "state.sqlite"), f.retentionKey);
-  try { store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId)]); }
+  try { store.commit([...generatedResponsiveHistory(f.sessionId, projectId), ...generatedIssueRevisions(projectId)]); store.compactPollingHistory(); }
   finally { store.close(); }
   let runtime: Awaited<ReturnType<typeof startService>> | undefined, app: Awaited<ReturnType<typeof electron.launch>> | undefined, sdk: MoguriSdk | undefined;
   try {
