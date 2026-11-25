@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   createGithubApi, parse, RepositorySettingsSchema, type GithubAction, type GithubBrowse, type GithubPreview, type GithubResponse, type GithubScope,
   type MoguriSdk, type Project, type Session, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Read = Extract<GithubResponse, { type: "github.read" }>;

@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
 

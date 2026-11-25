@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { GithubPreview, MoguriSdk, Project, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { GithubPreview, MoguriSdk, Project, Snapshot } from "@moguri-dev/sdk";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function RepositoryRemotePanel({ sdk, project, snapshot, upstream, disabled, onDirty }: {
   sdk: MoguriSdk; project: Project; snapshot: Snapshot; upstream: string | null; disabled: boolean; onDirty: (dirty: boolean) => void;
@@ -19,6 +20,7 @@ export function RepositoryRemotePanel({ sdk, project, snapshot, upstream, disabl
   const records = snapshot.githubOperations.filter((operation) => operation.projectId === project.id && operation.kind === "git.remote.set").slice().reverse();
   const active = records.some((operation) => operation.status === "running");
   useEffect(() => { setPreview(null); setConfirmations([]); }, [key]);
+  usePendingWork(busy);
   useEffect(() => { onDirty(Boolean(url) || busy); return () => onDirty(false); }, [url, busy, onDirty]);
   const invalidate = () => { setPreview(null); setConfirmations([]); setError(""); };
   const run = async (operation: (owned: () => boolean) => Promise<void>) => {

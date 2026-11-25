@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { routedFixture } from "../fixtures/single-routing.ts";
-import { defaultSingleKupoSettings } from "../../packages/sdk/src/index.ts";
+import { defaultSingleKupoSettings } from "@moguri-dev/sdk";
 import { expandModelGroups, openModelChoices } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);

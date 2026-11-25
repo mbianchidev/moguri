@@ -7,8 +7,8 @@ import { pathToFileURL } from "node:url";
 import { generatedNegotiationHistory } from "./negotiation-history.ts";
 
 const installed = resolve(process.argv[2] ?? "."), require = createRequire(import.meta.url);
-const { createRuntime } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { MoguriSdk } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { MoguriSdk } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 const root = await realpath(await mkdtemp(join(tmpdir(), "moguri-installed-negotiation-")));
 const stateDir = join(root, "state"), project = join(root, "project"), home = join(root, "home");
 await mkdir(project); await mkdir(home);

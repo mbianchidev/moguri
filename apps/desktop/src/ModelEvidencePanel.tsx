@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ModelEvidenceReport, ModelInfo, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { ModelEvidenceReport, ModelInfo, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function ModelEvidencePanel({ sdk, model, scope, remote }: { sdk: MoguriSdk; model?: ModelInfo; scope: string; remote: boolean }) {

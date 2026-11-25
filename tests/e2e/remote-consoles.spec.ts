@@ -2,8 +2,8 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { startService } from "@moguri-dev/sdk/testing";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
@@ -35,6 +35,8 @@ test("Ghostty explicitly opens a no-model Remote console, shows its real boundar
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     const panel = page.getByRole("region", { name: "Embedded Ghostty terminal", exact: true });
     await expect.poll(() => f.controller.snapshot().terminals.length).toBe(1);
+    // The record appears before its remote process starts; capture it once it has the pid that must survive reconnecting.
+    await expect.poll(() => f.controller.snapshot().terminals[0]?.pid ?? null).not.toBeNull();
     const terminal = f.controller.snapshot().terminals[0]!;
     const tty = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(tty).toHaveAttribute("aria-disabled", "false");
@@ -81,6 +83,7 @@ test("desktop reopens the same Remote owner after service restart without a prob
     let page = await app.firstWindow();
     await page.getByRole("navigation", { name: "Sidebar panels" }).getByRole("button", { name: "Terminal", exact: true }).click();
     await expect.poll(() => f.controller.snapshot().terminals.length).toBe(1);
+    await expect.poll(() => f.controller.snapshot().terminals[0]?.pid != null && f.controller.snapshot().terminalOwners[0]?.pid != null).toBe(true);
     const terminal = f.controller.snapshot().terminals[0]!, owner = f.controller.snapshot().terminalOwners[0]!;
     let tty = page.getByRole("textbox", { name: "Ghostty terminal", exact: true });
     await expect(tty).toHaveAttribute("aria-disabled", "false"); await tty.focus(); await page.keyboard.type("GENERATED_REMOTE_NATIVE_BEFORE_RESTART");

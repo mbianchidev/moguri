@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { HOSTED_PROVIDERS, type HostedProviderId, type MoguriSdk, type ProviderState } from "../../../packages/sdk/src/index.ts";
+import { HOSTED_PROVIDERS, type HostedProviderId, type MoguriSdk, type ProviderState } from "@moguri-dev/sdk";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProviderCard, providerLogoId, providerStatus } from "./ProviderLogo.tsx";

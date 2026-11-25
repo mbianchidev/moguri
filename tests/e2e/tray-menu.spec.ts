@@ -2,9 +2,10 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { trayMenu, trayTemplate, type RendererTrayAction, type TrayMenuOption } from "../../apps/desktop/src/tray-menu.ts";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "The menu-bar flows use generated hidden macOS windows; hidden runs never create a real tray item.");
@@ -14,7 +15,7 @@ const send = (app: ElectronApplication, action: RendererTrayAction, profileId: s
 }, { action, profileId });
 
 test("the menu-bar menu builds natively and its window actions start chats, projects and archive reviews", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   await fixture.configure(); await fixture.send("Generated tray session"); await fixture.terminal();
   const projectId = fixture.session().projectId!, sessions = () => sdk.getState().snapshot!.sessions;
@@ -37,11 +38,17 @@ test("the menu-bar menu builds natively and its window actions start chats, proj
     expect(built.find((item) => item.label === "Open Moguri")?.accelerator).toBe("CommandOrControl+Shift+O");
     expect(built.at(-1)?.role).toBe("quit");
 
+    // Each action finishes in the window (selecting the new chat and closing New) after the service acknowledges it, so the
+    // next action waits for that selection; otherwise its New dialog is closed by the previous action's completion.
+    const shell = page.locator(".app-shell");
     const before = sessions().length;
     await send(app, { kind: "new-chat" }, sdk.profileId);
-    await waitFor(() => sessions().length === before + 1 && sessions().some((session) => session.projectId === null));
+    const chat = await waitFor(() => sessions().length === before + 1 && sessions().find((session) => session.projectId === null));
+    await expect(shell).toHaveAttribute("data-session-id", chat.id);
     await send(app, { kind: "new-session", projectId }, sdk.profileId);
-    await waitFor(() => sessions().filter((session) => session.projectId === projectId).length === 2);
+    const created = await waitFor(() => sessions().filter((session) => session.projectId === projectId).length === 2 &&
+      sessions().find((session) => session.projectId === projectId && session.id !== fixture.sessionId));
+    await expect(shell).toHaveAttribute("data-session-id", created.id);
 
     await send(app, { kind: "new-project" }, sdk.profileId);
     const start = page.getByRole("dialog", { name: "New", exact: true });

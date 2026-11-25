@@ -3,11 +3,11 @@ import test from "node:test";
 import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { scriptReviewFixture } from "./fixtures/script-review.ts";
-import { isRecord, MoguriSdk } from "../packages/sdk/src/index.ts";
-import { startService } from "../apps/service/src/server.ts";
+import { isRecord, MoguriSdk } from "@moguri-dev/sdk";
+import { startService } from "@moguri-dev/sdk/testing";
 import { waitFor } from "./fixture.ts";
 import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
-import { projectScriptReview } from "../packages/protocol/src/script-reviews.ts";
+import { projectScriptReview } from "@moguri-dev/sdk/testing";
 
 test("native review grants and results advance once without rebinding a source, owner or retained observation", { skip: process.platform !== "darwin" }, async () => {
   const f = await scriptReviewFixture({ autopilot: true });

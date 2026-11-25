@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { kanbanPreferences, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, MoguriSdk } from "@moguri-dev/sdk";
 import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
 import { openSettingsSection, showKanban } from "./navigation.ts";

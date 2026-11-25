@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, RepositoryObservation, RepositoryPreview, Snapshot } from "../../../packages/sdk/src/index.ts";
-import { envLabel, sessionTitle } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, RepositoryObservation, RepositoryPreview, Snapshot } from "@moguri-dev/sdk";
+import { envLabel, sessionTitle } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 interface View { sdk: MoguriSdk; key: string; preview: RepositoryPreview | null; observation: RepositoryObservation | null; pending: boolean; error: string; jobId: string | null }

@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { KUPO_MODEL_ID, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { KUPO_MODEL_ID, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { compoundApiFixture } from "../fixtures/compound-api.ts";
 

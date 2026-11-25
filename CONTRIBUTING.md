@@ -48,19 +48,20 @@ process, which only maintainers run.
 ## Making a change
 
 1. Create a branch from `main` and keep the change focused on one problem.
-2. Change the service, SDK and clients together where needed. TUI, desktop
-   and CLI share one SDK and must not keep client-only state. Clients import
-   only the SDK entrypoints (`packages/sdk/src/{index,node,react,mcp-server}.ts`);
-   re-export anything else they need from there. The SDK is moving to its own
-   repository, `moguri-dev/moguri-sdk`, which becomes its source of truth once
-   [#93](https://github.com/mbianchidev/moguri/issues/93) swaps this repository
-   to the published `@moguri-dev/sdk` package.
+2. TUI, desktop and CLI share one SDK and must not keep client-only state.
+   The SDK, protocol and local service live in
+   [moguri-sdk](https://github.com/moguri-dev/moguri-sdk): change them there,
+   release a new `@moguri-dev/sdk` version, then bump the exact pin here.
+   The TUI and CLI live in
+   [moguri-tui](https://github.com/moguri-dev/moguri-tui) and arrive the same
+   way as `@moguri-dev/tui`. Clients import only the supported package
+   entrypoints.
 3. Add or update tests that would fail without your change. Use generated
    fixtures only: no real credentials, customer data or personal data.
 4. Update the relevant documentation under `docs/` in the same change. Keep
    the README short.
-5. Run the checks locally. CI runs only after merging to `main`, not on pull
-   requests:
+5. Run the checks locally. CI also runs on every push to your branch, but it
+   is slow and timing-sensitive on shared runners, so check first:
 
    ```sh
    npm run typecheck

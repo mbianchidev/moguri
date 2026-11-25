@@ -18,7 +18,7 @@ if (values.qualifier) {
   if (present) throw new Error("This qualified output already exists. Choose a new qualifier; previous artifacts were preserved.");
 }
 const require = createRequire(import.meta.url);
-const { prepareSandboxDistribution } = await import("./prepare-sandbox-distribution.mjs");
+const { prepareSandboxDistribution } = await import("@moguri-dev/sdk/sandbox-distribution");
 const native = await prepareSandboxDistribution();
 const electronVersion = require("electron/package.json").version;
 const version = require("../package.json").version;
@@ -36,6 +36,12 @@ const paths = await packager({
 const app = resolve(paths[0], "Moguri.app");
 await access(join(app, "Contents", "Resources", "app", "dist", "moguri"), constants.X_OK);
 for (const path of ["LICENSE.md", "dist/THIRD_PARTY_NOTICES.md"]) await access(join(app, "Contents", "Resources", "app", path));
+// Updaters before the SDK split (protocol 121 and older) require these files in a staged bundle; the service now ships in
+// node_modules/@moguri-dev/sdk, so they only mark the bundle as complete and are never executed.
+for (const name of ["service.mjs", "update-installer.mjs"]) {
+  await writeFile(join(app, "Contents", "Resources", "app", "dist", name),
+    'throw new Error("Moguri\'s service ships inside node_modules/@moguri-dev/sdk. This file only satisfies older updaters.");\n', { mode: 0o644 });
+}
 const nativeRoot = join(app, "Contents", "Resources", "moguri-native"); await mkdir(nativeRoot);
 for (const path of ["manifest.json", native.distribution.vendor.installer.path, native.distribution.worker.archive.path, "SendBox.LICENSE", "AppleContainerization.LICENSE"]) {
   await copyFile(join(native.root, path), join(nativeRoot, path));
@@ -47,7 +53,7 @@ await rm(archive, { force: true });
 execFileSync("ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", app, archive]);
 const image = join(output, `Moguri-${version}-macos-arm64.dmg`);
 await buildDmg(app, image, version);
-const { bundleTreeSha512, fileSha512, verifyBundleIdentity, verifyStandaloneInstallerRuntime } = await import("../dist/update-tools.mjs");
+const { bundleTreeSha512, fileSha512, verifyBundleIdentity, verifyStandaloneInstallerRuntime } = await import(new URL("dist/update-tools.mjs", import.meta.resolve("@moguri-dev/sdk/package.json")).href);
 await verifyBundleIdentity(app, version, "arm64");
 await verifyStandaloneInstallerRuntime(join(app, "Contents", "Resources", "app", "node_modules", "node", "bin", "node"));
 const manifest = join(output, `Moguri-${version}-macos-arm64.manifest.json`);

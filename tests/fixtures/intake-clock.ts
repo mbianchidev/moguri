@@ -1,4 +1,4 @@
-import type { IntakeClock } from "../../apps/service/src/session-intake.ts";
+import type { IntakeClock } from "@moguri-dev/sdk/testing";
 
 export class GeneratedIntakeClock implements IntakeClock {
   private instant: number;

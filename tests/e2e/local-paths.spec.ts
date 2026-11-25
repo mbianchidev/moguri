@@ -3,17 +3,18 @@ import { createRequire } from "node:module";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { defaultNotificationWav, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { defaultNotificationWav, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { generatedGguf, sha256, transcribeStreamingGguf, transcribeWhisperGguf } from "../fixtures/voice-models.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Local path fields use generated files in hidden macOS windows.");
 async function write(path: string, bytes: Buffer) { await mkdir(dirname(path), { recursive: true }); await writeFile(path, bytes); return path; }
 
 test("speech models can be found on request, typed or chosen, and every local path field accepts a typed path or a picker", async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(ciTime(120_000));
   const home = await mkdtemp(join(tmpdir(), "moguri-generated-home-"));
   const handy = join(home, "Library", "Application Support", "com.pais.handy", "models"), moonshine = transcribeStreamingGguf();
   await write(join(handy, "moonshine-streaming.gguf"), moonshine);

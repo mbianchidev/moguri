@@ -155,14 +155,14 @@ test("hidden My Work profile switching never exposes another profile's source/bo
     const inbox = page.getByRole("region", { name: "GitHub My Work inbox", exact: true });
     await expect(inbox).toContainText("Configure a repository"); await expect(inbox).not.toContainText("generated-a:42");
     await openSettingsSection(page, "General"); await page.getByLabel("Active profile", { exact: true }).selectOption(profile.id);
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText(profile.name);
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText(profile.name);
     await dashboard(); await expect(inbox.locator(".my-work-card")).toHaveCount(1);
     await inbox.getByRole("button", { name: `Inspect ${f.first.repository}#11`, exact: true }).click();
     await inbox.getByText("Complete retained PR body", { exact: true }).click();
     await expect(inbox).toContainText("GENERATED_PRIVATE_PROFILE_INBOX_BODY");
     await inbox.getByLabel("My Work search", { exact: true }).fill("GENERATED_BETA_FILTER");
     await openSettingsSection(page, "General"); await page.getByLabel("Active profile", { exact: true }).selectOption("default");
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Default");
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Default");
     await dashboard(); await expect(inbox.getByLabel("My Work search", { exact: true })).toHaveValue("");
     await expect(inbox).not.toContainText("GENERATED_PRIVATE_PROFILE_INBOX_BODY"); await expect(inbox).not.toContainText("generated-a:42");
   } finally { await close(app); await profiles.close(); await f.close(); }

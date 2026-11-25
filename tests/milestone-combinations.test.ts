@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
-import { KUPO_MODEL_ID } from "../packages/sdk/src/index.ts";
+import { KUPO_MODEL_ID } from "@moguri-dev/sdk";
 import { routedFixture } from "./fixtures/single-routing.ts";
 import { generatedDocx } from "./fixtures/documents.ts";
 import { initializeGeneratedRepository } from "./fixtures/git-project.ts";

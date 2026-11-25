@@ -1,8 +1,9 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { CHAT_TITLE_PROMPT, CHAT_TITLE_REFRESH_PROMPT, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { CHAT_TITLE_PROMPT, CHAT_TITLE_REFRESH_PROMPT, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Live composer/naming uses a generated hidden desktop.");
@@ -34,7 +35,7 @@ test("ordinary active input has a Send now action and an acknowledged live row w
 });
 
 test("a topic refresh that lands while the user is renaming never blocks the user's name, and no later refresh renames it", async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(ciTime(90_000));
   const refresh = CHAT_TITLE_REFRESH_PROMPT.split("\n")[0]!, first = CHAT_TITLE_PROMPT.split("\n")[0]!;
   const f = await setupFixture({ respond: (request) => {
     const text = JSON.stringify(request.messages);
@@ -67,8 +68,8 @@ test("a topic refresh that lands while the user is renaming never blocks the use
     await expect.poll(() => Boolean(!current().turnId)).toBe(true);
     const before = f.requests.length;
     await prompt.fill("Write a migration guide for the billing database schema with rollback steps and verification queries."); await prompt.press("Enter");
-    await expect.poll(() => f.requests.length, { timeout: 15_000 }).toBeGreaterThan(before);
-    await expect.poll(() => Boolean(!current().turnId && current().status === "completed"), { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => f.requests.length, { timeout: ciTime(15_000) }).toBeGreaterThan(before);
+    await expect.poll(() => Boolean(!current().turnId && current().status === "completed"), { timeout: ciTime(15_000) }).toBe(true);
     expect(current().title).toBe("Generated user kept name");
     expect(f.requests.filter((request) => JSON.stringify(request.messages).includes(refresh))).toHaveLength(1);
   } finally { await app.close(); sdk.disconnect(); await f.close(); }

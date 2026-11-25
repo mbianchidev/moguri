@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { appearanceColors, colorContrast, MoguriSdk, themePalettes, themeVariable } from "../../packages/sdk/src/index.ts";
+import { appearanceColors, colorContrast, MoguriSdk, themePalettes, themeVariable } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 

@@ -1,3 +1,4 @@
+import { ciTime } from "./fixtures/time-scale.ts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import os from "node:os";
@@ -13,7 +14,7 @@ import {
   ModelReadinessReportSchema, isModelReadinessReportCurrent,
   type LocalRuntimeConfiguration, type LocalRuntimeExecutableReview, type ModelReadinessTarget,
   type ModelRequirements,
-} from "../packages/protocol/src/model-readiness.ts";
+} from "@moguri-dev/sdk/testing";
 import {
   collectModelReadiness, modelReadinessConfigurationDigest,
   createNodeReadinessFileSystem,
@@ -22,7 +23,7 @@ import {
   type ReadinessFileInspection, type ReadinessFileSystem, type ReadinessHostFacts,
   type ReadinessProbeRequest, type ReadinessProbeSuite,
   type ReadinessExecutingBoundary,
-} from "../apps/service/src/model-readiness.ts";
+} from "@moguri-dev/sdk/testing";
 import { ModelReadinessPanel } from "../apps/desktop/src/ModelReadinessPanel.tsx";
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -283,7 +284,7 @@ test("metadata-only discovery does not execute unreviewed, mutable, symlinked, O
   }
 });
 
-test("pre-abort and in-flight cancellation propagate without publishing or dispatching later probes", { timeout: 2000 }, async () => {
+test("pre-abort and in-flight cancellation propagate without publishing or dispatching later probes", { timeout: ciTime(2000) }, async () => {
   const pre = generatedFixture(), stopped = new AbortController(); stopped.abort("generated-private-reason");
   await assert.rejects(() => collectModelReadiness({ target, storagePath: "/generated/root" },
     { signal: stopped.signal, probes: pre.suite, now: () => now }), { code: "model_readiness_cancelled" });
@@ -300,7 +301,7 @@ test("pre-abort and in-flight cancellation propagate without publishing or dispa
   assert.equal(fixture.requests.length, 1);
 });
 
-test("both probe and total deadlines abort unresponsive read-only fixtures and never publish partial evidence", { timeout: 2000 }, async () => {
+test("both probe and total deadlines abort unresponsive read-only fixtures and never publish partial evidence", { timeout: ciTime(2000) }, async () => {
   const fixture = generatedFixture(); let observedSignal: AbortSignal | undefined;
   fixture.suite.run = async (request) => { observedSignal = request.signal; return new Promise<string>(() => {}); };
   await assert.rejects(() => collectModelReadiness({ target, runtime: configuration, requirements, storagePath: "/generated/root" },
@@ -462,11 +463,8 @@ test("the browser-safe panel uses native controls and evidence tables, never a f
   assert.doesNotMatch(render(target, now + report.freshness.maxAgeMs), /build:9911@/);
 });
 
-test("owned readiness modules have strict types and the protocol/panel bundle for browsers without Node runtime imports", { timeout: 120_000 }, async () => {
-  const paths = [
-    "packages/protocol/src/model-readiness.ts", "apps/service/src/model-readiness.ts",
-    "apps/desktop/src/ModelReadinessPanel.tsx", "tests/model-readiness.test.ts", "tests/model-readiness-probes.test.ts",
-  ];
+test("the readiness panel has strict types and bundles for browsers without the SDK service runtime", { timeout: ciTime(120_000) }, async () => {
+  const paths = ["apps/desktop/src/ModelReadinessPanel.tsx", "tests/model-readiness-probes.test.ts"];
   const configPath = resolve(".model-readiness-virtual-typecheck.json");
   const configuration = JSON.stringify({
     compilerOptions: { target: "ES2024", lib: ["ES2024", "DOM", "DOM.Iterable"], module: "ESNext", moduleResolution: "Bundler",
@@ -491,9 +489,9 @@ test("owned readiness modules have strict types and the protocol/panel bundle fo
     await snapshot.dispose();
   } finally { await api.close(); }
   const bundled = await build({
-    entryPoints: ["apps/desktop/src/ModelReadinessPanel.tsx", "packages/protocol/src/model-readiness.ts"],
+    entryPoints: ["apps/desktop/src/ModelReadinessPanel.tsx"],
     outdir: "readiness-unused-output", bundle: true, write: false, platform: "browser", format: "esm", metafile: true, logLevel: "silent",
   });
-  assert.equal(bundled.outputFiles.length, 2);
-  assert.equal(Object.keys(bundled.metafile.inputs).some((path) => path.startsWith("apps/service/")), false);
+  assert.equal(bundled.outputFiles.length, 1);
+  assert.equal(Object.keys(bundled.metafile.inputs).some((path) => /@moguri-dev\/sdk\/dist\/(?!sdk\/)/.test(path)), false);
 });

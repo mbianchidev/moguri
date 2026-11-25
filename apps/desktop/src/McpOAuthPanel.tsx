@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
-import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function McpOAuthPanel({ sdk, serverId, sessionId, snapshot }: { sdk: MoguriSdk; serverId: string; sessionId?: string; snapshot: Snapshot }) {

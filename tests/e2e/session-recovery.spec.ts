@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { appendLegacyAutopilot } from "../fixtures/legacy-state.ts";
-import { MoguriError } from "../../packages/sdk/src/index.ts";
+import { MoguriError } from "@moguri-dev/sdk";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden native session recovery is qualified on macOS.");

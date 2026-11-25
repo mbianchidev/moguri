@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { kanbanPreferences, MoguriSdk, sessionTitle } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, MoguriSdk, sessionTitle } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { githubBoardFixture } from "../fixtures/github-board.ts";
 import { openSessionSearch, showKanban, waitForWorkspace } from "./navigation.ts";

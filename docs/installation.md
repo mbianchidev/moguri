@@ -85,8 +85,8 @@ Open the app and choose **Settings > General > Command line > Install
 - **In the app:** by default Moguri checks the upstream GitHub releases at
   startup and every four hours, verifies the ZIP against the release's
   integrity manifest and stages it. You review and confirm the install and
-  restart. Public releases need no token. While the repository is private, or
-  to raise GitHub's rate limit, save a read-only token under **Settings >
+  restart. Public releases need no token. To raise GitHub's rate limit, save a
+  read-only token under **Settings >
   General > GitHub updates**; see
   [General settings](settings/general.md#github-updates). Turn off
   **Check for and download updates automatically** in the same page to check

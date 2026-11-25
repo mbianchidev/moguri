@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Project, RepositoryTrustPreview, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Project, RepositoryTrustPreview, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function RepositoryTrustPanel({ sdk, project, snapshot, disabled, onBusy }: {

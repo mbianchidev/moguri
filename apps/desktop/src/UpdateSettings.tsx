@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useId, useState } from "react";
-import { UPDATE_TOKEN_CREATION_URL, UPDATE_TOKEN_GUIDANCE, type MoguriSdk, type UpdateInstallReview, type UpdateStatus } from "../../../packages/sdk/src/index.ts";
+import { UPDATE_TOKEN_CREATION_URL, UPDATE_TOKEN_GUIDANCE, type MoguriSdk, type UpdateInstallReview, type UpdateStatus } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 const UPDATE_CREDENTIAL_LABELS: Record<UpdateStatus["credential"], string> = {

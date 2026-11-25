@@ -1,8 +1,9 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useState } from "react";
 import { IntegrationTitle } from "./IntegrationLogo.tsx";
-import type { GitHubConnection, LinearConnection, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { GitHubConnection, LinearConnection, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; openTerminal?: () => void }) {
   const [connection, setConnection] = useState<GitHubConnection | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -31,6 +32,7 @@ export function GitHubConnectionPanel({ sdk, openTerminal }: { sdk: MoguriSdk; o
 export function LinearConnectionPanel({ sdk, onDirty }: { sdk: MoguriSdk; onDirty: (dirty: boolean) => void }) {
   const [connection, setConnection] = useState<LinearConnection | null>(null), [token, setToken] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  usePendingWork(busy);
   useEffect(() => { onDirty(token.length > 0 || busy); return () => onDirty(false); }, [token, busy, onDirty]);
   useEffect(() => {
     let current = true;

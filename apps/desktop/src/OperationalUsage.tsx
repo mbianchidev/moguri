@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { MoguriSdk, OperationEntry, ProfileStorage, Snapshot, TelemetryQuery, TelemetryResponse, UsageFilters } from "../../../packages/sdk/src/index.ts";
-import { envLabel } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, OperationEntry, ProfileStorage, Snapshot, TelemetryQuery, TelemetryResponse, UsageFilters } from "@moguri-dev/sdk";
+import { envLabel } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Operations = Extract<TelemetryResponse, { type: "telemetry.operations" }>;

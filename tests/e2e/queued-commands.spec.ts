@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);
@@ -113,7 +113,9 @@ test("command responses keep their conversation position between prompts after r
     await expect.poll(() => fixture.requests.length).toBe(1); await fixture.terminal();
     await input.fill("/defaults"); await input.press("Enter");
     await expect.poll(() => fixture.service.controller.snapshot().commandExecutions[0]?.status).toBe("completed");
-    await input.fill("Generated prompt after the command."); await input.press("Enter");
+    // The service completes the command before the composer's own run settles; Enter is ignored until Send is enabled.
+    await input.fill("Generated prompt after the command.");
+    await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled(); await input.press("Enter");
     await expect.poll(() => fixture.requests.length).toBe(2); await fixture.terminal();
     const transcript = page.getByRole("log", { name: "Session transcript", exact: true });
     const verifyOrder = async () => {

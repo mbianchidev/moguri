@@ -3,12 +3,13 @@ import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { dirname, join } from "node:path";
-import { isRecord, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { readPrivateServiceFile } from "../../packages/client/src/service-files.ts";
-import { EventStore } from "../../apps/service/src/store.ts";
+import { isRecord, MoguriSdk } from "@moguri-dev/sdk";
+import { readPrivateServiceFile } from "@moguri-dev/sdk/testing";
+import { EventStore } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 import { generatedIssueRevisions, generatedResponsiveHistory } from "../fixtures/responsive-history.ts";
-import { assertOperationLatency, LATENCY_SAMPLES } from "../fixtures/latency-budgets.ts";
+import { assertOperationLatency, LATENCY_SAMPLES, latencyBudgetsEnforced, OPERATION_LATENCY_MS } from "../fixtures/latency-budgets.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Deferred startup uses a generated hidden desktop.");
@@ -53,9 +54,10 @@ for (const outcome of ["exact", "peer", "deleted", "store"] as const) test(`game
     const began = performance.now();
     await page.reload({ waitUntil: "domcontentloaded" });
     const opening = page.getByRole("region", { name: "Opening workspace", exact: true });
-    await expect(opening.getByRole("button", { name: "Flap Moguri's wings", exact: true })).toBeVisible({ timeout: 1500 });
+    await expect(opening.getByRole("button", { name: "Flap Moguri's wings", exact: true })).toBeVisible({ timeout: latencyBudgetsEnforced ? 1500 : ciTime(1500) });
     const interactiveMs = performance.now() - began;
-    expect(interactiveMs).toBeLessThanOrEqual(700);
+    if (latencyBudgetsEnforced) expect(interactiveMs).toBeLessThanOrEqual(700);
+    else if (interactiveMs > 700) console.log(`Latency budget not enforced on CI: the opening shell took ${interactiveMs.toFixed(2)} ms; budget is 700 ms.`);
     await expect(opening.getByRole("textbox")).toHaveCount(0);
     await expect(opening.getByText("Draft while waiting", { exact: true })).toHaveCount(0);
     await page.keyboard.press("Meta+Enter");
@@ -161,7 +163,7 @@ test("cached model and effort labels remain read-only while current provider dis
 });
 
 for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/runtime opening ${sample + 1} renders the game-only shell before retained backend hydration finishes`, async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), stateDir = join(f.directory, "state"), projectId = f.session().projectId;
   const sdk = await new MoguriSdk(f.service.connection).ready();
   const created = await sdk.sessions.create(null, "Generated cold remembered chat");
@@ -220,12 +222,14 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
     app = await launch(f.directory);
     const page = await app.firstWindow(), opening = page.getByRole("region", { name: "Opening workspace", exact: true });
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.webContents.setBackgroundThrottling(false));
-    await expect(opening.getByRole("button", { name: "Flap Moguri's wings", exact: true })).toBeVisible({ timeout: 1500 });
+    // Where budgets are enforced the shell must appear within startup.window; on CI this is only a scaled wait.
+    const shellWait = latencyBudgetsEnforced ? OPERATION_LATENCY_MS["startup.window"] : ciTime(OPERATION_LATENCY_MS["startup.window"]);
+    await expect(opening.getByRole("button", { name: "Flap Moguri's wings", exact: true })).toBeVisible({ timeout: shellWait });
     await expect(opening.getByRole("textbox")).toHaveCount(0);
     const shellMs = performance.now() - launchBegan, totalToShellMs = performance.now() - began;
     assertOperationLatency("startup.window", shellMs);
     expect(ready, "The opening game must be usable before the actual retained runtime is ready.").toBe(false);
-    await page.evaluate(({ sessionId, text }) => new Promise<void>((resolve, reject) => {
+    await page.evaluate(({ sessionId, text, deadline }) => new Promise<void>((resolve, reject) => {
       let framePending = false;
       const current = () => {
         const shell = document.querySelector<HTMLElement>(".app-shell[data-session-id]");
@@ -238,7 +242,7 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
           Array.from(composer?.querySelectorAll('[role="status"]') ?? []).some((node) => node.textContent?.trim() === "Draft saved");
       };
       const observer = new MutationObserver(() => check());
-      const timeout = window.setTimeout(() => { observer.disconnect(); reject(new Error("The generated live editor and original saved draft did not finish rendering.")); }, 5000);
+      const timeout = window.setTimeout(() => { observer.disconnect(); reject(new Error("The generated live editor and original saved draft did not finish rendering.")); }, deadline);
       const check = () => {
         if (framePending || !current()) return;
         framePending = true;
@@ -250,7 +254,8 @@ for (let sample = 0; sample < LATENCY_SAMPLES; sample++) test(`real cold main/ru
       };
       observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true });
       check();
-    }), { sessionId, text: savedText });
+    // A harness wait only: the startup.ready budget below is the actual check (the service alone took 16 s on a shared runner).
+    }), { sessionId, text: savedText, deadline: ciTime(10_000) });
     const fullyReadyMs = performance.now() - began;
     const startup = await page.evaluate(() => window.moguri.startupStatus());
     console.log(JSON.stringify({ primitive: "generated-real-cold-cached-opening", sample: sample + 1, shellMs, totalToShellMs, fullyReadyMs,

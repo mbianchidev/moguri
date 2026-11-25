@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
-import { envLabel, sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type MyWorkFilters, type RoundupFilters, type Snapshot, type WorkspaceDashboard } from "../../../packages/sdk/src/index.ts";
-import { useMoguri } from "../../../packages/sdk/src/react.ts";
+import { envLabel, sessionIndicator, sessionTitle, type BudgetRange, type BudgetTotals, type MoguriSdk, type MyWorkFilters, type RoundupFilters, type Snapshot, type WorkspaceDashboard } from "@moguri-dev/sdk";
+import { useMoguri } from "@moguri-dev/sdk/react";
 import { UsageDashboard } from "./UsageDashboard.tsx";
 import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { InfoTip } from "./Tooltip.tsx";

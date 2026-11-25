@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriError, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
 

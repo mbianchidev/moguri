@@ -1,8 +1,8 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { frameDigest } from "../../apps/service/src/worker-wire.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { frameDigest } from "@moguri-dev/sdk/testing";
 import { generatedSandboxDistribution } from "../fixtures/sandbox-distribution.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 import { setupFixture } from "../fixture.ts";

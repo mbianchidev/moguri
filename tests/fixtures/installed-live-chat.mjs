@@ -10,8 +10,8 @@ import { otlpCollector } from "./otlp.ts";
 
 const installed = process.argv[2];
 if (!installed) throw new Error("Provide the independently installed package root.");
-const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { CHAT_TITLE_PROMPT, DraftEditor, PROTOCOL_VERSION } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { CHAT_TITLE_PROMPT, DraftEditor, PROTOCOL_VERSION } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 assert.ok(PROTOCOL_VERSION >= 90);
 const collector = PROTOCOL_VERSION >= 97 ? await otlpCollector() : null;
 const provider = await fixtureProvider({ respond: (request) => {

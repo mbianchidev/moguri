@@ -7,8 +7,8 @@ import { createSshTarget } from "./ssh-target.ts";
 import { initializeGeneratedRepository } from "./git-project.ts";
 
 const installed = await realpath(process.argv[2]);
-const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { PROTOCOL_VERSION } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { PROTOCOL_VERSION } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 assert.ok(PROTOCOL_VERSION >= 92);
 const directory = await realpath(await mkdtemp(join(tmpdir(), "moguri-installed-candidate-envs-")));
 const project = join(directory, "local-project"), peer = join(directory, "peer-project"), home = join(directory, "home"), stateDir = join(directory, "state");
@@ -19,7 +19,7 @@ const git = initializeGeneratedRepository(peer);
 await writeFile(join(peer, "unrelated.txt"), "Generated installed user's staged intent.\n"); git(["add", "--", "unrelated.txt"]);
 const index = await readFile(join(peer, ".git/index")), head = git(["rev-parse", "HEAD"]);
 const ssh = await createSshTarget(join(directory, "ssh"));
-ssh.target.command = [process.execPath, join(installed, "bin/moguri.mjs"), "worker", "--stdio"];
+ssh.target.command = [process.execPath, join(installed, "node_modules/@moguri-dev/tui/bin/moguri.mjs"), "worker", "--stdio"];
 ssh.target.allowCopilot = false;
 const provider = { state: { status: "disconnected", models: [], login: null, diagnostic: "Generated model-free candidate fixture." },
   onChange() {}, async refresh() {}, async cancel() {}, async logout() {},

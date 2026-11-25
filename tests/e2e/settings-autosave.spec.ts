@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openKupoAdvanced, openSettingsSection } from "./navigation.ts";
 

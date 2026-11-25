@@ -251,7 +251,12 @@ asks one question at a time; each answered step collapses into a row with its
 value and a Change button. Choices (accent swatches, theme, behavior switches)
 save on change; the optional name saves on Continue and says plainly that it
 goes to the model provider. Skip setup and Finish are always available, and
-choosing a chat closes the thread. Details: [D54](architecture/decisions.md).
+choosing a chat closes the thread. A profile created from the sidebar always
+opens its own thread. With another ready profile, a "copy from" choice (or
+Start fresh) leads to optional Models, Repositories and Skills steps: tick
+items, **Review** shows exactly what will be copied, **Import** applies it, and
+each step can be skipped. Imported steps collapse into a row with what was
+imported. Details: [D54 and D76](architecture/decisions.md).
 
 ### Pull request view
 
@@ -283,6 +288,8 @@ Details: [D64 and D65](architecture/decisions.md).
 | Dialog | native `dialog.workspace-dialog`, `.command-palette` | Modal, `--backdrop`, explicit primary and cancel actions. Header is an `h2` with a labeled close icon; focus starts in the first field. A filtered list says when nothing matches. |
 | Field | `.setting-field` via `SettingsFields.tsx`, `PathField.tsx`, `SettingsCommitInput` | Label above; information button after the title. |
 | Switch | `input[role="switch"]` inside `.check-setting`, `.setting-toggle`, `.agent-follow` | Saves on change in Settings. |
+| Usage bar | `DiskUsageBar.tsx` (`.disk-usage-bar[data-disk-tone]`, `role="meter"`), `SidebarDisk` in `VirtualDiskSettings.tsx` | Fill in `--accent`, `--warning-text` when full, a pulsing muted fill while changing (still under reduced motion), an error outline when unavailable, and a reserve mark. The sidebar variant has no text: its button carries the full value as accessible name and tooltip. |
+| Profile menu | `ProfileMenu.tsx` (`.profile-menu-button`, `CreateProfileDialog`) | The sidebar profile opens Create profile with one profile, otherwise a menu of `menuitemradio` profiles with their accent dots, New profile... and Manage profiles. Accents use the palette swatches or a custom picker and hex. |
 | Tooltip | `Tooltip` and `InfoTip` in `Tooltip.tsx` (`.compact-tooltip`), `.sidebar-tooltip` | Opens on hover or keyboard focus, closes on Escape. |
 | Alert | `Alert.tsx` (`.app-alert[data-alert-tone]`, `.notice`), `.settings-warning`, `.inline-error`, `PanelError` in `PanelFailure.tsx` | Errors use `role="alert"`; warnings only for real risk; dismissal restores focus. |
 | Empty, loading, error | `.session-empty`, `.panel-empty`, `.nav-empty`, `.loading-state` with `role="status"`, `PanelError` | A heading is always followed by content or a one-line state. An expected condition is not an error: `PanelError` shows a folder without Git as an empty state, with the exact Git detail in a disclosure. |
@@ -316,6 +323,16 @@ the open supporting panel keeps its own column. At 560 and below the panel
 overlays as a drawer, but pending approvals, questions and the composer stack
 above it, so a decision is never hidden. The window minimum is 840px, so the
 narrower layouts appear when the page is zoomed.
+
+Classic scroll bars (macOS "Show scroll bars: Always", or no trackpad) take
+layout width, unlike overlay scroll bars. The transcript and the global pages
+keep a stable scroll bar gutter, so content doesn't shift when it starts to
+scroll. The transcript's scroll bar sits in its end gutter (measured as
+`--scrollbar-width`), and the composer, queue, approval and question cards move
+in only by the part wider than that gutter, so they line up with the message
+column without narrowing at ordinary widths. E2E tests pin the
+style with the `-AppleShowScrollBars Always|WhenScrolling` launch argument
+instead of changing the system setting.
 
 ## Terminal
 

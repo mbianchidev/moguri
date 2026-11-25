@@ -1,15 +1,16 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection, waitForWorkspace } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop navigation uses generated hidden macOS windows.");
 
 test("model lists group by provider and AI lab, order by price and filter; Settings links sections; Capabilities installs MCP servers", async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(ciTime(90_000));
   const fixture = await setupFixture(), original = fixture.provider.state.models[0]!;
   const generated = [["gpt-6-astra", "Generated GPT Astra"], ["gpt-6-luna", "Generated GPT Luna"], ["gpt-5-nano", "Generated GPT Nano"], ["gpt-generated-beta", "Generated GPT Beta"],
     ["claude-opus-5.5", "Generated Claude Opus"]].map(([id, name]) => ({ ...original, id: id!, apiModelId: id!, name: name! }));

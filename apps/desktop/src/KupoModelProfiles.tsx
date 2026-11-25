@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { KupoModelProfileInputSchema, parse, type KupoModelProfile, type ModelInfo, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { KupoModelProfileInputSchema, parse, type KupoModelProfile, type ModelInfo, type MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function KupoModelProfiles({ sdk, models, disabled, onPrepared, onDirty, onBusy }: {

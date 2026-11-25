@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { parseShortcut, shortcutMatches, shortcutModifiersHeld, voiceShortcutMode, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { parseShortcut, shortcutMatches, shortcutModifiersHeld, voiceShortcutMode, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { captureBrowserAudio, prepareBrowserAudio, prepareBrowserMicrophone, type BrowserAudioPreparation, type BrowserMicrophonePreparation } from "./browser-audio.ts";
 import { SpeechCaptureController } from "./dictation.ts";
 

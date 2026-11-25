@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { startService } from "../../apps/service/src/server.ts";
+import { startService } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);

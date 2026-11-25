@@ -1,9 +1,10 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultBoard, githubSyncSettings, kanbanPreferences, type BoardConfig, type KanbanSource, type MoguriSdk, type Project, type Snapshot } from "@moguri-dev/sdk";
 import { ReorderList } from "./ReorderList.tsx";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const values = (board: BoardConfig): BoardConfig => ({ columns: structuredClone(board.columns), mergedColumnId: board.mergedColumnId,
   autoRefreshPrs: board.autoRefreshPrs, githubAccess: board.githubAccess, linear: { ...board.linear }, kanban: structuredClone(kanbanPreferences(board)),
@@ -16,6 +17,7 @@ export function BoardSettings({ sdk, project, snapshot, onDirty }: {
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const base = useRef(board.revision), actual = useRef(committed), pending = useRef(false);
   const dirty = JSON.stringify(draft) !== JSON.stringify(committed);
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty || busy); return () => onDirty(false); }, [dirty, busy, onDirty]);
   const reload = () => { const value = values(board); actual.current = value; base.current = board.revision; setDraft(value); setCommitted(value); setError(""); };
   useEffect(() => {

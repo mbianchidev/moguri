@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { defaultStainlessSettings, stainlessSummary, type MoguriSdk, type Session, type StainlessSettings, type StainlessStatus } from "../../../packages/sdk/src/index.ts";
+import { defaultStainlessSettings, stainlessSummary, type MoguriSdk, type Session, type StainlessSettings, type StainlessStatus } from "@moguri-dev/sdk";
 import { IntegrationTitle } from "./IntegrationLogo.tsx";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";

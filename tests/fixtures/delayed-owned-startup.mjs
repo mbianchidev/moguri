@@ -10,7 +10,7 @@ if (!Number.isSafeInteger(config.delayMs) || config.delayMs < 0 || config.delayM
   typeof config.packageRoot !== "string" || !isAbsolute(config.packageRoot) || typeof config.home !== "string" || !isAbsolute(config.home)) {
   throw new Error("Generated delayed startup requires an exact package/root and a bounded initialization delay.");
 }
-const { createRuntime } = await import(pathToFileURL(join(config.packageRoot, "dist/sdk/node.mjs")).href);
+const { createRuntime } = await import(pathToFileURL(join(config.packageRoot, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
 const values = new Map(), vault = {
   read: async (id) => values.get(id) ?? null,
   write: async (id, value) => { values.set(id, value); },

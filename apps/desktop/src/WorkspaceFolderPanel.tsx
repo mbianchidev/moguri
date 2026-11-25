@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Snapshot, WorkspaceFolderObservation, WorkspaceFolderPreview } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Snapshot, WorkspaceFolderObservation, WorkspaceFolderPreview } from "@moguri-dev/sdk";
 import { SettingsAction, SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { PathField, localPath } from "./PathField.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const plural = (count: number, word: string, many = `${word}s`) => `${count} ${count === 1 ? word : many}`;
 const checkedLabel = (status: WorkspaceFolderObservation | undefined) => {
@@ -24,6 +25,7 @@ export function WorkspaceFolderPanel({ sdk, snapshot, onDirty }: { sdk: MoguriSd
   const folders = snapshot.workspaceFolders, localAllowed = snapshot.policy.allowedEnvs.includes("Local");
   const folderKey = JSON.stringify([sdk.profileId, folders.map((folder) => [folder.id, folder.revision]), snapshot.projects.length]);
   const checking = status.some((entry) => entry.status === "checking");
+  usePendingWork(busy);
   useEffect(() => { onDirty(Boolean(preview) || busy); return () => onDirty(false); }, [preview, busy, onDirty]);
   useEffect(() => {
     let current = true;

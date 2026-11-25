@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { processFile, type DiffLineAnnotation, type FileDiffContentsLoader, type FileDiffMetadata, type SelectedLineRange } from "@pierre/diffs";
 import { FileDiff, type FileDiffOptions } from "@pierre/diffs/react";
-import type { GithubItem, GithubScope, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { GithubItem, GithubScope, MoguriSdk } from "@moguri-dev/sdk";
 import type { GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";

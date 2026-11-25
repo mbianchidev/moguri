@@ -2,7 +2,7 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { audioBase64, defaultNotificationWav, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { audioBase64, defaultNotificationWav, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 

@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type Page } from "@playwright/test
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { compareSessions, isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { compareSessions, isRecord, MoguriError, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 
 const require = createRequire(import.meta.url);

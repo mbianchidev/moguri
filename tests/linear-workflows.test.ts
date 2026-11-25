@@ -1,3 +1,4 @@
+import { ciTime } from "./fixtures/time-scale.ts";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm } from "node:fs/promises";
@@ -8,19 +9,19 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   defaultBoard, defaultProjectConfiguration, factoryControls, isRecord, projectEvents, PROTOCOL_VERSION, type CapabilityJob, type CommandResult,
   type EventInput, type LocalIssue, type Snapshot,
-} from "../packages/protocol/src/index.ts";
+} from "@moguri-dev/sdk/testing";
 import {
   isLinearCommand, isLinearQuery, projectLinearOperation, type LinearCommand, type LinearOperation, type LinearPreview,
   type LinearSnapshot, type LinearWorkflowInput,
-} from "../packages/protocol/src/linear-workflows.ts";
-import { LinearWorkflows } from "../apps/service/src/linear-workflows.ts";
-import { ProjectIntegrations } from "../apps/service/src/project-integrations.ts";
-import type { WorkspaceFinish } from "../apps/service/src/session-workspace.ts";
-import { digest, EventStore } from "../apps/service/src/store.ts";
+} from "@moguri-dev/sdk/testing";
+import { LinearWorkflows } from "@moguri-dev/sdk/testing";
+import { ProjectIntegrations } from "@moguri-dev/sdk/testing";
+import type { WorkspaceFinish } from "@moguri-dev/sdk/testing";
+import { digest, EventStore } from "@moguri-dev/sdk/testing";
 import { removePost44FixtureMarkers } from "./fixtures/legacy-state.ts";
-import type { WorkflowHost } from "../apps/service/src/workflow-host.ts";
+import type { WorkflowHost } from "@moguri-dev/sdk/testing";
 import { LinearWorkflowPanel } from "../apps/desktop/src/LinearWorkflowPanel.tsx";
-import { MoguriSdk } from "../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import {
   GeneratedLinear, GeneratedLinearVault as Vault, linearFixtureIds as ids, LINEAR_FIXTURE_TIME as T0,
   LINEAR_FIXTURE_TOKEN as generatedToken, linearFixtureNodes as nodes, linearFixtureTimestamp as tick,
@@ -638,7 +639,7 @@ test("Linear projection rejects changed intent, erased effects, fabricated succe
   } finally { await f.close(); }
 });
 
-test("Linear SDK and real local HTTP/event transport share reviewed state and retain session-owned results after session deletion", { timeout: 20_000 }, async () => {
+test("Linear SDK and real local HTTP/event transport share reviewed state and retain session-owned results after session deletion", { timeout: ciTime(20_000) }, async () => {
   const f = await sdkFixture();
   try {
     await f.enable();
@@ -673,7 +674,7 @@ test("Linear SDK and real local HTTP/event transport share reviewed state and re
   } finally { await f.close(); }
 });
 
-test("Linear SDK generic job cancellation records actual stop intent and retains dispatched remote receipts", { timeout: 20_000 }, async () => {
+test("Linear SDK generic job cancellation records actual stop intent and retains dispatched remote receipts", { timeout: ciTime(20_000) }, async () => {
   const f = await sdkFixture();
   let entered!: () => void, release!: () => void;
   const started = new Promise<void>((resolve) => { entered = resolve; }), held = new Promise<void>((resolve) => { release = resolve; });
@@ -694,7 +695,7 @@ test("Linear SDK generic job cancellation records actual stop intent and retains
   } finally { release?.(); await f.close(); }
 });
 
-test("Linear actual source-session deletion aborts and joins its owned request without deleting the independent partial result", { timeout: 20_000 }, async () => {
+test("Linear actual source-session deletion aborts and joins its owned request without deleting the independent partial result", { timeout: ciTime(20_000) }, async () => {
   const f = await sdkFixture();
   let entered!: () => void; const started = new Promise<void>((resolve) => { entered = resolve; });
   try {

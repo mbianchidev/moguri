@@ -1,4 +1,4 @@
-import { automationAttentionText, scriptReviewNeedsApproval, type Attention, type Snapshot, type StoredEvent } from "../../../packages/sdk/src/index.ts";
+import { automationAttentionText, scriptReviewNeedsApproval, type Attention, type Snapshot, type StoredEvent } from "@moguri-dev/sdk";
 
 export interface Banner { id: string; sessionId: string | null; itemId?: string; inbox?: true; suggestions?: true; title: string; body: string; kind: Attention["kind"] }
 export type NotificationTone = { sessionId: string; kind: "completed"; soundId: string } |

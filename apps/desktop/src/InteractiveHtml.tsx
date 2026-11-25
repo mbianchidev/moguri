@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import type { Attachment, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { Attachment, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { CopyButton } from "./CopyButton.tsx";
 

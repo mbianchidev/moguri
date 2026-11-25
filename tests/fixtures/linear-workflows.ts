@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { isRecord } from "../../packages/protocol/src/index.ts";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { envelope } from "../../apps/service/src/controller.ts";
-import type { SecretVault } from "../../apps/service/src/gateway.ts";
-import type { ProviderAdapter } from "../../apps/service/src/provider.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { isRecord } from "@moguri-dev/sdk/testing";
+import { MoguriSdk } from "@moguri-dev/sdk";
+import { envelope } from "@moguri-dev/sdk/testing";
+import type { SecretVault } from "@moguri-dev/sdk/testing";
+import type { ProviderAdapter } from "@moguri-dev/sdk/testing";
+import { startService } from "@moguri-dev/sdk/testing";
 
 export const linearFixtureUuid = (value: number) => `${value.toString(16).padStart(8, "0")}-0000-4000-8000-000000000000`;
 export const linearFixtureIds = {

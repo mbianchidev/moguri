@@ -1,9 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { appearanceColors, themePalettes, DEFAULT_SESSION_LIFECYCLE, type ApplicationConfiguration, type ApplicationPreferences, type MoguriSdk, type Snapshot, type ThemeMode, type UserSettings } from "../../../packages/sdk/src/index.ts";
+import { appearanceColors, themePalettes, DEFAULT_SESSION_LIFECYCLE, type ApplicationConfiguration, type ApplicationPreferences, type MoguriSdk, type Profile, type Snapshot, type ThemeMode, type UserSettings } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { ImportStep, type ImportKind } from "./OnboardingImports.tsx";
 
-type Step = "name" | "accent" | "theme" | "preferences" | "done";
-const steps: Step[] = ["name", "accent", "theme", "preferences", "done"];
+type Step = "name" | "accent" | "theme" | "preferences" | "source" | ImportKind | "done";
+const steps: Step[] = ["name", "accent", "theme", "preferences", "source", "models", "repositories", "skills", "done"];
+const importSteps: { kind: ImportKind; line: (source: string) => string; label: string }[] = [
+  { kind: "models", line: (source) => `Models from ${source}: copy API keys, endpoints and model choices, or skip and connect fresh later.`, label: "Models" },
+  { kind: "repositories", line: (source) => `Repositories from ${source}: add any of them here at the same folders.`, label: "Repositories" },
+  { kind: "skills", line: (source) => `Skills from ${source}: add any of its skill sources here.`, label: "Skills" },
+];
 const themes = [{ id: "dark", label: "Dark" }, { id: "light", label: "Light" }, { id: "system", label: "Match macOS" }] as const;
 const palettes = themePalettes.filter((palette) => palette.id !== "custom");
 const message = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
@@ -11,8 +17,9 @@ const completed = (current: UserSettings): UserSettings => ({ ...current, onboar
 
 /**
  * Getting started (D54): a short conversational setup for the optional name Moguri uses to address the user, an accent palette,
- * the theme and a few behaviors. Choices save as they change, like Settings; the name saves on Continue. Finishing or skipping
- * records `onboarding.completedAt`; Settings / General can run it again.
+ * the theme and a few behaviors. Choices save as they change, like Settings; the name saves on Continue. With another ready profile,
+ * optional reviewed steps copy its model keys, repositories and skill sources (D76). Finishing or skipping records
+ * `onboarding.completedAt`; Settings / General can run it again.
  */
 export function Onboarding({ sdk, snapshot, onClose, openProviders }: {
   sdk: MoguriSdk; snapshot: Snapshot; onClose: () => void; openProviders: () => void;
@@ -22,12 +29,16 @@ export function Onboarding({ sdk, snapshot, onClose, openProviders }: {
   const [name, setName] = useState(values.user?.name ?? "");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [application, setApplication] = useState<ApplicationConfiguration | null>(null);
+  const [others, setOthers] = useState<Profile[]>([]), [source, setSource] = useState(""), [imported, setImported] = useState<Partial<Record<ImportKind, string>>>({});
   useEffect(() => {
     let current = true;
     void sdk.application.status().then((value) => { if (current) setApplication(value.configuration); },
       (failure: unknown) => { if (current) setError(message(failure, "App preferences couldn't be read. Change them later in Settings / General.")); });
+    void sdk.profiles.list().then((value) => { if (current) setOthers(value.catalog.profiles.filter((profile) => profile.status === "ready" && profile.id !== sdk.profileId)); },
+      () => undefined);
     return () => { current = false; };
   }, [sdk]);
+  const sourceProfile = others.find((profile) => profile.id === source);
   const reached = (target: Step) => steps.indexOf(step) >= steps.indexOf(target);
   const mode: ThemeMode = values.appearance.theme === "light" || values.appearance.theme === "system" && !window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "light" : "dark";
   const save = async (change: (current: UserSettings) => UserSettings) => {
@@ -125,8 +136,25 @@ export function Onboarding({ sdk, snapshot, onClose, openProviders }: {
           {appToggles.map((toggle) => <li key={toggle.id}><label className="check-setting"><input type="checkbox" role="switch" checked={application?.values[toggle.id] ?? true}
             disabled={busy || !application} onChange={(event) => preference(toggle.id, event.target.checked)} /><span>{toggle.label}<small>{toggle.hint}</small></span></label></li>)}
         </ul>
-        <div className="button-row"><button type="button" className="primary" disabled={busy} onClick={() => setStep("done")}>Continue</button></div>
-      </div> : reached("done") && answer("Preferences", "Saved", "preferences")}
+        <div className="button-row"><button type="button" className="primary" disabled={busy} onClick={() => setStep(others.length ? "source" : "done")}>Continue</button></div>
+      </div> : reached(others.length ? "source" : "done") && answer("Preferences", "Saved", "preferences")}
+
+      {others.length > 0 && reached("source") && <p className="onboarding-line">This profile starts empty, like a separate Moguri. Want to bring things over from another profile? Nothing is copied unless you choose it and confirm.</p>}
+      {step === "source" ? <div className="onboarding-card">
+        <div className="onboarding-choices" role="radiogroup" aria-label="Copy from profile">
+          {others.map((profile) => <button key={profile.id} type="button" role="radio" aria-checked={source === profile.id} disabled={busy} onClick={() => setSource(profile.id)}>
+            {profile.color && <span className="status-dot" style={{ backgroundColor: profile.color }} aria-hidden="true" />}{profile.name}</button>)}
+        </div>
+        <div className="button-row"><button type="button" className="primary" disabled={busy || !sourceProfile} onClick={() => setStep("models")}>Continue</button>
+          <button type="button" disabled={busy} onClick={() => { setSource(""); setStep("done"); }}>Start fresh</button></div>
+      </div> : others.length > 0 && reached("models") && <div className="onboarding-answer"><span>Copy from</span>{sourceProfile ? <strong>{sourceProfile.name}</strong> : <em>Start fresh</em>}</div>}
+
+      {sourceProfile && importSteps.map(({ kind, line, label }, index) => reached(kind) && <div key={kind} className="onboarding-import">
+        <p className="onboarding-line">{line(sourceProfile.name)}</p>
+        {step === kind ? <ImportStep sdk={sdk} kind={kind} sourceId={sourceProfile.id} sourceName={sourceProfile.name}
+          done={(result) => { setImported((current) => ({ ...current, [kind]: result })); setStep(importSteps[index + 1]?.kind ?? "done"); }} /> :
+          <div className="onboarding-answer"><span>{label}</span><strong>{imported[kind] ?? "Skipped"}</strong></div>}
+      </div>)}
 
       {step === "done" && <>
         <p className="onboarding-line">You're all set{addressed ? `, ${addressed}` : ""}. Connect a model provider if you haven't yet, then start a chat.</p>

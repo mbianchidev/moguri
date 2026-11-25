@@ -1,7 +1,8 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Session, Snapshot, SandboxWorkspacePreview, SandboxResult, SandboxPublicationPreview } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Session, Snapshot, SandboxWorkspacePreview, SandboxResult, SandboxPublicationPreview } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOnly = false }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; onDirty: (dirty: boolean) => void; setup: () => void; sessionOnly?: boolean;
@@ -41,6 +42,7 @@ export function SandboxPanel({ sdk, snapshot, session, onDirty, setup, sessionOn
   useEffect(() => { setResult(null); setSelectedPaths([]); setRepositoryId(""); setInspectionReviewed(false); }, [resultScope]);
   useEffect(() => { setReview(null); setAccepted(false); }, [publicationScope]);
   useEffect(() => { if (publication && focusOutcome.current) { focusOutcome.current = false; outcome.current?.focus(); outcome.current?.scrollIntoView({ block: "nearest" }); } }, [publication?.id]);
+  usePendingWork(Boolean(busy));
   useEffect(() => { onDirty(Boolean(busy) || Boolean(paths && !workspace)); return () => onDirty(false); }, [busy, paths, workspace?.id, onDirty]);
   const run = async (name: string, operation: (current: () => boolean) => Promise<void>) => {
     if (pending.current) return;

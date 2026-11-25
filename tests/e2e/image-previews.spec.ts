@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");

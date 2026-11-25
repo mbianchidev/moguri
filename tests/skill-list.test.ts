@@ -4,9 +4,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MoguriSdk, skillListGroups, sourceSkillState, type CapabilityEntry, type GatewaySkill, type SkillSource, type Snapshot } from "../packages/sdk/src/index.ts";
+import { MoguriSdk, skillListGroups, sourceSkillState, type CapabilityEntry, type GatewaySkill, type SkillSource, type Snapshot } from "@moguri-dev/sdk";
 import { SkillList } from "../apps/desktop/src/SkillList.tsx";
-import { startService } from "../apps/service/src/server.ts";
+import { startService } from "@moguri-dev/sdk/testing";
 import { setupFixture } from "./fixture.ts";
 import { generatedZip } from "./fixtures/documents.ts";
 

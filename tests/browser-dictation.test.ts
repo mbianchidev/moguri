@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SpeechCaptureController, type CaptureLease } from "../apps/desktop/src/dictation.ts";
-import { validateSpeechWav } from "../packages/protocol/src/audio.ts";
+import { validateSpeechWav } from "@moguri-dev/sdk/testing";
 
 test("push-to-talk release before service admission never opens a late microphone or uploads audio", async () => {
   const admitted = Promise.withResolvers<CaptureLease>();

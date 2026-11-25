@@ -4,7 +4,7 @@ import {
   createLinearWorkflowApi, defaultBoard, type MoguriSdk, type Project, type Session, type Snapshot,
   type LinearCatalogResource, type LinearEntity, type LinearIssueFields, type LinearOperation, type LinearPhaseMapping, type LinearPreview,
   type LinearProjectFields, type LinearResponse, type LinearSnapshot, type LinearWorkflowInput,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 type Action = LinearWorkflowInput["action"];

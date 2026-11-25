@@ -877,7 +877,13 @@ Those original observation/import paths do not start CI, merge, push or grant
 permissions. D27 adds separately reviewed user workflows, not automatic export
 or a mutation hidden inside an observation.
 
-CI is restricted to pushes to `main`. Feature/PR checks are performed locally.
+CI was restricted to pushes to `main`. Since 2026-11-24, at the owner's request
+after the repository became public, it also runs on pushes to every working
+branch except `release/**`, whose release PR is validated locally and gated by
+`main` CI. Superseded branch runs are cancelled; `main` keeps one run per
+commit. Pull request events and tags still do not trigger it, and checks still
+run locally first. Earlier slice records describe the main-only policy of
+their time.
 The [metadata-only OTLP contract](otlp-export.md) is a bounded D14 extension:
 explicit profile-owned opt-in exports existing committed execution/accounting
 records through pinned Apache-2.0 OpenTelemetry codecs. It adds no accounting
@@ -2412,6 +2418,110 @@ Protocol 121's store step only advances `user_version`; existing rows stay
 valid and older readers refuse the newer store. Revisit if GitHub changes how
 renamed repositories redirect, the owner picks a different repository name, or
 Sendbox moves after all.
+
+**SDK extraction, 2026-11-23.** `moguri-dev/moguri-sdk` carries `packages/`,
+`apps/service/`, the 453 SDK test files with their fixtures, the SDK scripts and
+docs, with history from `5652dd8`. Its `@moguri-dev/sdk` 0.32.0-alpha.1 package
+also provides `./remote-bridge` (and a `moguri-worker` bin) for SSH hosts,
+`./sandbox-distribution` for packaging clients, and an unstable `./testing`
+entry. The testing entry re-exports the service internals client test suites
+drive directly (`startService`, `EventStore` and about 130 more); it carries no
+compatibility promise and product code must not import it. The `node`, `react`,
+`mcp` and `testing` entries share the root bundle, so combined entrypoints load
+one SDK instance and one `MoguriError` class. Clients start the service through
+`sdkServicePath()`, and the launcher's `worker` mode imports
+`@moguri-dev/sdk/remote-bridge`. Native speech libraries ship as regular files
+because `npm pack` drops symlinks. The service pins the packaged app by the bundle's own version, since
+the desktop now versions independently, and accepts the service either in
+`dist/` or in `node_modules/@moguri-dev/sdk`. Packaged apps keep small
+`dist/service.mjs` and `dist/update-installer.mjs` markers so updaters from
+before the split still accept the new layout. This repository consumes the
+exact pin from GitHub Packages; CI reads the public package with its own `GITHUB_TOKEN`. No
+protocol or schema change.
+
+**Open-sourced, 2026-11-23.** The owner made every moguri-dev repository
+public, including `moguri-sdk` and its `v0.32.0-alpha.1` release, after a
+gitleaks 8.30.1 scan of every ref found only reviewed false positives (pinned
+public-key checksums, public model identifiers and one generated fake token,
+recorded in its `.gitleaksignore`). Secret scanning and push protection are on.
+Later that day the owner made the `@moguri-dev/sdk` package public (GitHub
+Packages still needs a token to install it). This repository went public too,
+after the same review of all 25 branches, 63 pull request refs, issues,
+comments and Actions artifacts; its findings were the false positives already
+in `.gitleaksignore`. Every Moguri repository is MIT-licensed.
+
+**TUI extraction, 2026-11-23.** `moguri-dev/moguri-tui` is public and carries
+`apps/cli/`, `apps/tui/`, `bin/moguri.mjs`, the 46 TUI and CLI test files with
+their fixtures, and the TUI docs, with history from this repository's #99
+branch. A gitleaks 8.30.1 scan of all 411 commits pushed found nothing. It ships
+`@moguri-dev/tui` 0.32.0-alpha.1 on GitHub Packages with an exact
+`@moguri-dev/sdk` pin, the `moguri` bin and a `./cli` entry whose `run(argv)`
+keeps the CLI's error reporting. This repository now pins `@moguri-dev/tui`
+too. `@moguri-dev/tui` 0.32.0-alpha.2 makes `moguri desktop` use only the
+checkout's own Electron, so a packaged app refuses it clearly instead of
+running an Electron found in a parent folder. `@moguri-dev/sdk`
+0.32.0-alpha.2 makes `refresh()` read a snapshot requested after the call. The
+pins are `@moguri-dev/sdk` 0.32.0-alpha.4 (protocol 122,
+[D76](#d76-reviewed-profile-imports-and-live-disk-usage); alpha.4 sends the
+disk status inside `ready` so a client with a snapshot over 4 MB is not closed
+for backpressure) and `@moguri-dev/tui` 0.32.0-alpha.5, built on it. Its build writes `dist/cli.mjs` as a shim over `@moguri-dev/tui/cli`, so
+the app's `dist/moguri` launcher and already installed `moguri` commands keep
+working unchanged. `npm start` runs the installed TUI. `moguri desktop` runs
+only from a desktop source checkout. The OpenTUI Phase 0 spike and the TUI's
+half of the CI-watch and SDK-boundary tests moved with it. No protocol or
+schema change.
+
+**CI on slower runners, 2026-11-24.** Shared macOS runners run the suites
+three to four times slower than a developer Mac. Desktop, TUI and CLI CI set
+`MOGURI_TEST_TIME_SCALE=4`, which stretches harness deadlines only (`ciTime()`
+in `tests/fixtures/time-scale.ts`); product latency budgets are not scaled and
+failed tests are never retried. On those runners the desktop e2e budgets for
+`startup.window` (1500 ms), `startup.ready` (3000 ms) and `message.send`
+(700 ms) are still exceeded. The owner chose on 2026-11-24 to keep the budgets
+unchanged and enforce them on local runs and in `scripts/release.sh`, while CI
+sets `MOGURI_SKIP_LATENCY_BUDGETS=1` and only logs a miss
+(`tests/fixtures/latency-budgets.ts`). `release.sh` clears that variable, so a
+release can't skip a budget.
+
+## D76. Reviewed profile imports and live disk usage
+
+**Decision, 2026-11-22, by the project owner**, tracked by
+[#97](https://github.com/mbianchidev/moguri/issues/97). Protocol 122.
+
+- **Profile imports.** A profile can copy chosen items from another ready
+  profile: hosted providers with an API key, model endpoints with their keys,
+  model preferences and skill sources, plus its Local repositories. Only
+  settings and API keys carry over. The service copies each key into the
+  receiving profile's own secret slot, so it is a separate credential with its
+  own revision, removal and rotation. Keys never reach a client, event or log.
+  Sign-ins (Copilot, ChatGPT, OpenRouter sign-in, MCP OAuth) are never cloned,
+  because both profiles would then share one account authorization.
+  Repositories are registered at the same local folder, not cloned. Every item
+  needs an explicit choice after a digest-bound review, and the source profile
+  is never modified. This narrows the earlier rule that a new profile starts
+  disconnected with no Default data copied: that still holds unless the user
+  imports. See [profiles](profiles.md#reviewed-imports-from-another-profile).
+- **Onboarding per profile.** Every profile, including one just created from
+  the desktop sidebar, opens its own onboarding on first use, even when the
+  app otherwise uses manual onboarding. Generated hidden-window tests keep an
+  explicit opt-in so they stay deterministic.
+- **Live disk usage.** The root-owned virtual disk pushes its status on the
+  event connection (`disk` frame, `ClientState.disk`), so the desktop and TUI
+  show live usage bars without polling. See
+  [virtual disk](virtual-disk.md#clients).
+- **Delete branch.** `github.source` reports a merged same-repository PR's
+  head branch as `exists`, `deleted` or `unknown`; the PR view offers
+  **Delete branch** only when it exists. The service checks stay
+  authoritative. See [session GitHub workflows](session-github-workflows.md).
+- **Desktop.** The sidebar profile is a menu button: with one profile it opens
+  **Create profile** (name, an accent from the palette swatches or a custom
+  color picker and hex; the stored value stays a hex color), otherwise it lists
+  the profiles to switch to with the same guards as Settings, plus
+  **New profile...** and **Manage profiles**. Creating a profile there switches
+  to it and opens its onboarding, whose optional Models, Repositories and
+  Skills steps each need a choice and a review before anything is copied.
+  The TUI and CLI use `/profile import` and `moguri profile import`. See
+  [Settings / General](../settings/general.md#profiles).
 
 ## Still open
 

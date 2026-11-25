@@ -1,6 +1,6 @@
 import { cp } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import { PROTOCOL_VERSION } from "../../packages/protocol/src/index.ts";
+import { PROTOCOL_VERSION } from "@moguri-dev/sdk/testing";
 import { writeLegacyState } from "./legacy-state.ts";
 import { roleSequenceFixture } from "./role-sequence-api.ts";
 

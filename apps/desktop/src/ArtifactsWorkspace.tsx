@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { messageLinks, sessionTitle, type ArtifactFile, type ArtifactLibrary, type Attachment, type MoguriSdk, type RetainedArtifact, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { messageLinks, sessionTitle, type ArtifactFile, type ArtifactLibrary, type Attachment, type MoguriSdk, type RetainedArtifact, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 import { ContextImage } from "./ContextAttachments.tsx";

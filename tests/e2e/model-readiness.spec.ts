@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type ElectronApplication } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { configureGeneratedReadiness, generatedReadinessCollector, generatedReviewedReadinessCollector } from "../fixtures/model-readiness.ts";
 

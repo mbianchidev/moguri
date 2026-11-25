@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
 import { fixtureProvider } from "../fixture.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden native PR view qualification is macOS-only.");
@@ -108,7 +109,7 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await view.getByRole("button", { name: "Tour", exact: true }).click();
     const tour = view.getByRole("region", { name: "Pull request tour", exact: true });
     await tour.getByRole("button", { name: "Generate tour", exact: true }).click();
-    await expect(tour.getByRole("list", { name: "Tour steps", exact: true })).toContainText("Generated first step", { timeout: 20_000 });
+    await expect(tour.getByRole("list", { name: "Tour steps", exact: true })).toContainText("Generated first step", { timeout: ciTime(20_000) });
     await expect(tour).toContainText("Generated overview of");
     await expect(tour).toContainText("generated dependency");
     await expect(tour.getByRole("region", { name: /^Diff of generated\.ts/ })).toContainText("new generated line");
@@ -160,6 +161,8 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await expect(review).toContainText("Delete branch generated-feature on GitHub, merged with pull request #11");
     await confirm();
     await expect.poll(() => f.deletedBranches()).toEqual(["generated-feature"]);
+    // D76: the reread item reports the branch as deleted, so the button goes away without a manual refresh.
+    await expect(view.getByRole("button", { name: "Delete branch", exact: true })).toHaveCount(0);
     await view.getByRole("button", { name: "Revert", exact: true }).click();
     await page.getByRole("dialog", { name: "Revert pull request", exact: true }).getByRole("menuitem", { name: /Open it as a draft/ }).click();
     await expect(review).toContainText("Open a draft pull request that reverts pull request #11.");
@@ -167,8 +170,14 @@ test("a linked PR opens as tabs: reviewed edits, draft state, files with an agen
     await expect(view.getByText(/^Revert pull request #\d+ is open\./)).toBeVisible();
     await expect(view.getByRole("button", { name: /^Open #\d+ on GitHub$/ })).toBeVisible();
 
+    // A PR merged on GitHub whose branch is already gone (like GitHub's automatic head-branch deletion) never offers Delete branch.
+    f.mergePull(12);
     await switcher.getByRole("tab", { name: /^Pull request #12,/ }).click();
-    await expect(pane.getByRole("region", { name: "Pull request 12", exact: true }).getByRole("heading", { level: 3 })).toContainText("Generated PR 12");
+    const merged = pane.getByRole("region", { name: "Pull request 12", exact: true });
+    await expect(merged.getByRole("heading", { level: 3 })).toContainText("Generated PR 12");
+    await expect(merged.locator(".pr-state-badge")).toContainText("Merged");
+    await expect(merged.getByRole("button", { name: "Revert", exact: true })).toBeVisible();
+    await expect(merged.getByRole("button", { name: "Delete branch", exact: true })).toHaveCount(0);
     await switcher.getByRole("tab", { name: /^Pull request #11,/ }).click();
     await expect(pane.getByRole("region", { name: "Pull request 11", exact: true })).toBeVisible();
     await pane.getByText("Open another pull request", { exact: true }).click();

@@ -1,4 +1,4 @@
-import { compareSessionPriority, defaultProjectConfiguration, parseShortcut, sessionIndicator, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { compareSessionPriority, defaultProjectConfiguration, parseShortcut, sessionIndicator, type Session, type Snapshot } from "@moguri-dev/sdk";
 
 /** What a tray click asks for. Renderer actions reuse the window's own flows (confirmations, unsaved-edit guards). */
 export type TrayAction =

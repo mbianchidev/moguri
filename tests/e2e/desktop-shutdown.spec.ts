@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk, PROTOCOL_VERSION, type StoredEvent } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, PROTOCOL_VERSION, type StoredEvent } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 

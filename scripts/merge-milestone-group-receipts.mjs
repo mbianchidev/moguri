@@ -12,8 +12,9 @@ const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const digest = (value) => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 const caseFile = "tests/matrix/milestone-full-product.test.ts";
-const inputPaths = ["package.json", "package-lock.json", "dist/worker.mjs", "dist/remote-bridge.mjs", "dist/mcp-worker.mjs",
-  "dist/service.mjs", "dist/runtime.mjs", "dist/sdk/index.mjs", "scripts/worker-image/Containerfile", "apps/service/src/native-evidence.ts",
+const sdk = "node_modules/@moguri-dev/sdk/";
+const inputPaths = ["package.json", "package-lock.json", `${sdk}package.json`, `${sdk}dist/worker.mjs`, `${sdk}dist/remote-bridge.mjs`, `${sdk}dist/mcp-worker.mjs`,
+  `${sdk}dist/service.mjs`, `${sdk}dist/runtime.mjs`, `${sdk}dist/sdk/index.mjs`, `${sdk}scripts/worker-image/Containerfile`,
   caseFile, "tests/fixtures/milestone-runner.ts", "tests/fixtures/single-routing.ts", "tests/fixtures/native-target.ts", "tests/fixtures/native-api.ts",
   "tests/fixture.ts", "tests/fixtures/native-milestone-api.ts", "tests/fixtures/milestone-combinations.ts",
   "tests/fixtures/milestone-response.ts", "tests/fixtures/native-milestone-provider.mjs"];
@@ -99,7 +100,7 @@ function receipt(cell, identity) {
   const value = cell.nativeReceipt;
   assert.ok(isRecord(value));
   assert.equal(value.image, identity.image);
-  assert.equal(value.workerDigest, identity.inputs["dist/worker.mjs"]);
+  assert.equal(value.workerDigest, identity.inputs[`${sdk}dist/worker.mjs`]);
   assert.equal(value.journal?.status, "verified");
   assert.equal(value.ownedGuestAbsent, true);
   assert.equal(value.sourceUnchanged, true);

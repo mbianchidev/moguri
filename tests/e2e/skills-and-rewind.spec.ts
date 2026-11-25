@@ -2,9 +2,9 @@ import { _electron as electron, expect, test, type Page } from "@playwright/test
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { defaultSandboxManagement, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { digest } from "../../apps/service/src/store.ts";
-import { distributionConfiguration, readSandboxDistribution } from "../../apps/service/src/sandbox-distribution.ts";
+import { defaultSandboxManagement, MoguriSdk } from "@moguri-dev/sdk";
+import { digest } from "@moguri-dev/sdk/testing";
+import { distributionConfiguration, readSandboxDistribution } from "@moguri-dev/sdk/testing";
 import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";
@@ -255,7 +255,7 @@ test("Settings skill reviews clear across explicit source chats and profiles wit
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setSize(840, 620));
     await openSettingsSection(page, "General");
     await page.getByRole("combobox", { name: "Active profile", exact: true }).selectOption(profile.id);
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated empty skills profile");
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Generated empty skills profile");
     await expect(page.getByRole("button", { name: "Checkpoints and rewind", exact: true })).toHaveCount(0);
     await openSettingsSection(page, "Skills");
     await expect(source).toHaveValue("");

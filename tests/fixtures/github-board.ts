@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
-import type { IntegrationOptions } from "../../apps/service/src/project-integrations.ts";
+import type { IntegrationOptions } from "@moguri-dev/sdk/testing";
 
 export interface GeneratedGithubCard {
   number: number; title: string; body: string; state: "OPEN" | "CLOSED"; reason: "COMPLETED" | "NOT_PLANNED" | "DUPLICATE" | null;

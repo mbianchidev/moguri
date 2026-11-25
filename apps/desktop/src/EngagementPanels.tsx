@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { attentionDescription, attentionTypeLabels, AttentionFiltersSchema, filterInboxAttention, inboxAttention, parse, type AttentionFilters, type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "../../../packages/sdk/src/index.ts";
+import { attentionDescription, attentionTypeLabels, AttentionFiltersSchema, filterInboxAttention, inboxAttention, parse, type AttentionFilters, type MoguriSdk, type Session, type Snapshot, type SuggestionPreview } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { Alert } from "./Alert.tsx";
 import { ScriptReviewsPanel } from "./ScriptReviewsPanel.tsx";

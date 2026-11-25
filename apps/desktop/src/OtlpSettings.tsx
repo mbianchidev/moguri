@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, OtlpConfiguration, OtlpExportStatus, OtlpReview } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, OtlpConfiguration, OtlpExportStatus, OtlpReview } from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const formFor = (configuration: OtlpConfiguration) => ({
   enabled: configuration.enabled, endpoint: configuration.endpoint ?? "", sampling: String(configuration.samplingRatio),
@@ -19,6 +20,7 @@ export function OtlpSettings({ sdk, configuration, disabled, onDirty }: {
   const alive = useRef(false), pending = useRef(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(formFor(base)), stale = configuration.revision > base.revision;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, [sdk]);
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty || busy || review !== null); return () => onDirty(false); }, [dirty, busy, review, onDirty]);
   useEffect(() => {
     if (pending.current || configuration.revision <= base.revision) return;

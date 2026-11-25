@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fuzzyMatch, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { fuzzyMatch, type MoguriSdk, type Snapshot } from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";

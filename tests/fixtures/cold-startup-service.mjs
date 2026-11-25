@@ -11,7 +11,7 @@ process.on("message", (value) => {
 });
 const configuration = await configured.promise, began = performance.now();
 assert.equal(configuration.retentionKey, "67".repeat(32), "Only the public generated fixture key may be used.");
-const { createRuntime } = await import(pathToFileURL(join(process.argv[2], "dist/sdk/node.mjs")).href);
+const { createRuntime } = await import(pathToFileURL(join(process.argv[2], "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
 const provider = {
   state: configuration.provider, onChange: () => {}, refresh: async () => {}, cancel: async () => {},
   login: async () => { throw new Error("Personal authorization is forbidden in a generated cold startup."); },

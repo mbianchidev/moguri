@@ -1,10 +1,11 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { activeCompound, activeDecision, ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeCompound, activeDecision, ArtifactKindSchema, parse, type ArtifactEditorRequest, type ArtifactKind, type ArtifactSourcePreview, type MoguriSdk, type RetainedArtifact, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { ArtifactRepositoryCopy } from "./ArtifactRepositoryCopy.tsx";
 import { DecisionPanel } from "./DecisionPanel.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const kinds: ArtifactKind[] = ["plan", "decision", "answer", "research-note", "report"];
 const fields = (value: ArtifactEditorRequest) => JSON.stringify({ name: value.name, text: value.text, kind: value.kind, projectId: value.projectId, status: value.status, folderId: value.folderId ?? null, workItemId: value.workItemId ?? null });
@@ -26,6 +27,13 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
   const [roleIndex, setRoleIndex] = useState("0"), [roleData, setRoleData] = useState<string | null>(null), [roleContract, setRoleContract] = useState<string | null>(null);
   const roleOutput = useRef<HTMLPreElement>(null);
   const contractOutput = useRef<HTMLPreElement>(null);
+  // Focus moves to an output only after React has rendered it; an animation frame can run before that commit.
+  const focusOutput = useRef<"role" | "contract" | null>(null);
+  useEffect(() => {
+    const target = focusOutput.current === "role" ? roleOutput.current : focusOutput.current === "contract" ? contractOutput.current : null;
+    if (!target) return;
+    focusOutput.current = null; target.focus(); target.scrollIntoView({ block: "nearest" });
+  }, [roleData, roleContract]);
   const generation = useRef(0), sourceSession = useRef(session?.id), dirty = Boolean(draft && fields(draft) !== baseline);
   sourceSession.current = session?.id;
   const current = draft?.id ? snapshot.artifacts.find((artifact) => artifact.id === draft.id) : undefined;
@@ -41,6 +49,8 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
     sequence?.status === "running" || generated?.status === "running" || candidate && (["staging", "applying"].includes(candidate.status) || snapshot.jobs.some((job) => job.candidate?.candidateId === candidate.id && ["running", "waiting_input"].includes(job.status)));
   const conflict = Boolean(draft?.id && (!current || current.revision !== draft.revision));
   const documents = snapshot.artifacts.filter((artifact) => showArchived || artifact.status !== "archived" || artifact.id === draft?.id).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // A save or load clears the edit flag only once it settles, so closing in between waits for it (#100).
+  usePendingWork(busy);
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   const accept = (value: ArtifactEditorRequest) => {
     setDraft(value); setBaseline(fields(value)); setConfirmed(false); setHistory([]); setNextOffset(0); setOldText(null); setRoleIndex("0"); setRoleData(null); setRoleContract(null);
@@ -97,8 +107,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
         <button disabled={busy} onClick={() => void run(async () => {
           const token = generation.current, value = await sdk.roleSequences.read(sequence.id, Number(roleIndex));
           if (generation.current === token) {
-            setRoleData(JSON.stringify(value.step, null, 2));
-            requestAnimationFrame(() => { roleOutput.current?.focus(); roleOutput.current?.scrollIntoView({ block: "nearest" }); });
+            focusOutput.current = "role"; setRoleData(JSON.stringify(value.step, null, 2));
           }
         })} aria-label="View role from original record">View role</button>
         {roleData !== null && <pre ref={roleOutput} tabIndex={0} aria-label="Recorded role data">{roleData}</pre>}
@@ -106,8 +115,7 @@ export function ArtifactPanel({ sdk, snapshot, session, projectId, request, onDi
           <SettingsHelp label="More about this setting" target={<button disabled={busy} onClick={() => void run(async () => {
             const token = generation.current, value = await sdk.roleSequences.contract(sequence.id, Number(roleIndex));
             if (generation.current === token) {
-              setRoleContract(JSON.stringify(value, null, 2));
-              requestAnimationFrame(() => { contractOutput.current?.focus(); contractOutput.current?.scrollIntoView({ block: "nearest" }); });
+              focusOutput.current = "contract"; setRoleContract(JSON.stringify(value, null, 2));
             }
           })} aria-label="View contract for original role">View contract</button>} descriptionFirst>Shows whether the role's output passed its declared format and context checks. Passing says nothing about code quality.</SettingsHelp>
           {roleContract !== null && <pre ref={contractOutput} tabIndex={0} aria-label="Role contract evaluation">{roleContract}</pre>}

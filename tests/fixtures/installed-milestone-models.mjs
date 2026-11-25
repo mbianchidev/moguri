@@ -54,8 +54,8 @@ const provider = { state: { status: "disconnected", models: [], login: null, dia
 const values = new Map(), vault = { read: async (id) => values.get(id) ?? null,
   write: async (id, value) => { values.set(id, value); }, remove: async (id) => { values.delete(id); } };
 let runtime, sdk;
-const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { PROTOCOL_VERSION, KUPO_MODEL_ID, configuredReadinessModels } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime, connectMoguri } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { PROTOCOL_VERSION, KUPO_MODEL_ID, configuredReadinessModels } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 const options = { stateDir, retentionKey: Buffer.alloc(32, 0x62), provider, platform: { vault,
   terminal: { vault, defaultRoot: home, executable: process.execPath, args: ["-e", "process.stdin.resume()"] },
   sandbox: { setup: { automatic: false } } } };
@@ -89,7 +89,7 @@ try {
   assert.equal(version.observations.runtime.version.status, "unknown");
   assert.equal(version.observations.runtime.version.evidence.code, "runtime-executable-mutable");
   await assert.rejects(() => sdk.models.readinessWithRuntimeReview(created.id, model.id, reviewed.id), /consumed|replay|already/i);
-  const cli = await promisify(execFile)(process.execPath, [join(installed, "bin/moguri.mjs"), "models", "readiness", model.id, "--session", created.id], {
+  const cli = await promisify(execFile)(process.execPath, [join(installed, "node_modules/@moguri-dev/tui/bin/moguri.mjs"), "models", "readiness", model.id, "--session", created.id], {
     env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_PROFILE_ID: sdk.profileId }, timeout: 15000,
   });
   assert.equal(JSON.parse(cli.stdout).readiness.target.modelId, model.id); assert.equal(requests.length, 0);

@@ -316,7 +316,8 @@ References name executable tests, not historical pass totals.
 ### Client evidence boundary
 
 The service/worker matrix is not a screenshot or a client-owned mock.
-`tests/tui-milestone-combinations.test.ts` and
+`tests/tui-milestone-combinations.test.ts` (in
+[moguri-tui](https://github.com/moguri-dev/moguri-tui)) and
 `tests/e2e/milestone-combinations.spec.ts` additionally exercise the 15
 covering-array client journeys (`milestoneClientCells()`: every Env x
 selection pair, the Sandbox five native-gated) through actual OpenTUI and
@@ -326,7 +327,7 @@ send through the same SDK, and perform the exact human document-tool approval.
 These are presentation/interaction contracts over the same authority, not a
 claim that every nominal cell was separately clicked in each UI.
 
-Compiled CLI evidence remains in `candidates-clients.test.ts`,
+Compiled CLI evidence remains in moguri-tui's `candidates-clients.test.ts`,
 `decisions-clients.test.ts`, `model-readiness-cli.test.ts` and shared slash
 tests. Installed SDK/application evidence remains separate from source imports.
 Native TUI and hidden desktop journeys run separately on the physical guest;
@@ -345,11 +346,12 @@ npm ci
 npm run build
 npm run typecheck
 npm exec -- playwright install chromium
-node --import tsx --test tests/milestone-combinations.test.ts tests/tui-milestone-combinations.test.ts
+node --import tsx --test tests/milestone-combinations.test.ts
+# The TUI mirror runs from a moguri-tui checkout: node --import tsx --test tests/tui-milestone-combinations.test.ts
 npm run test:e2e -- tests/e2e/milestone-combinations.spec.ts
 npm test
 npm run test:e2e
-npm run verify:sdk
+# The independently installed SDK consumer check runs from a moguri-sdk checkout: npm run verify:sdk
 npm audit --audit-level=moderate
 npm run test:matrix   # opt-in full product, about 1.5 h of Local/SSH cells
 ```

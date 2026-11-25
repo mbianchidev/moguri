@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { describeInterruption, interruptedSessions, sessionTitle, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { describeInterruption, interruptedSessions, sessionTitle, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 const key = (session: Session) => `${session.id}:${session.interruption?.at ?? ""}`;

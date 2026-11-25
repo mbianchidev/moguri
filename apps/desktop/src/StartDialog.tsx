@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { GitHubRepositoryPicker } from "./GitHubPickers.tsx";
 import { PolicyHint } from "./PolicyHint.tsx";

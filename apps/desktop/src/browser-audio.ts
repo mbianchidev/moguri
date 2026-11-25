@@ -1,4 +1,4 @@
-import { isRecord, MAX_SPEECH_SAMPLES, SPEECH_SAMPLE_RATE } from "../../../packages/sdk/src/index.ts";
+import { isRecord, MAX_SPEECH_SAMPLES, SPEECH_SAMPLE_RATE } from "@moguri-dev/sdk";
 import type { CaptureLease, CaptureRecorder } from "./dictation.ts";
 
 export interface MicrophoneChoice { id: string; label: string }

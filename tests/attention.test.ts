@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { likelyQuestion } from "../apps/service/src/attention.ts";
+import { likelyQuestion } from "@moguri-dev/sdk/testing";
 import { AttentionNotifier, type Banner } from "../apps/desktop/src/notifications.ts";
-import { MoguriSdk, type Snapshot, type StoredEvent } from "../packages/sdk/src/index.ts";
+import { MoguriSdk, type Snapshot, type StoredEvent } from "@moguri-dev/sdk";
 import { reviewNativeTools, setupFixture, waitFor } from "./fixture.ts";
+import { ciTime } from "./fixtures/time-scale.ts";
 
 test("question hints work across languages and ignore fenced code, quotations, inline examples and URLs", () => {
   assert.equal(likelyQuestion("Which generated option would you prefer?"), true);
@@ -15,7 +16,7 @@ test("question hints work across languages and ignore fenced code, quotations, i
   assert.equal(likelyQuestion("`Which generated option?`"), false);
   assert.equal(likelyQuestion("https://example.test/query?"), false);
 });
-test("attention shares atomic state, reading never answers/approves, and notification replay stays private and deduplicated", { skip: process.platform !== "darwin", timeout: 20_000 }, async () => {
+test("attention shares atomic state, reading never answers/approves, and notification replay stays private and deduplicated", { skip: process.platform !== "darwin", timeout: ciTime(20_000) }, async () => {
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const frames: StoredEvent[][] = []; fixture.service.controller.on("change", (events: StoredEvent[]) => frames.push(events));
   try {
@@ -61,7 +62,7 @@ test("attention shares atomic state, reading never answers/approves, and notific
     assert.equal(sdk.getState().snapshot!.attention.find((entry) => entry.active)?.kind, "done");
   } finally { sdk.disconnect(); await fixture.close(); }
 });
-test("a completed turn with already-admitted follow-up work does not claim the agent is done and waiting", { skip: process.platform !== "darwin", timeout: 20_000 }, async () => {
+test("a completed turn with already-admitted follow-up work does not claim the agent is done and waiting", { skip: process.platform !== "darwin", timeout: ciTime(20_000) }, async () => {
   const fixture = await setupFixture();
   try {
     await fixture.configure(); await fixture.send("generated delayed first turn");

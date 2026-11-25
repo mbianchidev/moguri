@@ -1,6 +1,6 @@
 import type { WebContents } from "electron";
 import { randomBytes, randomUUID } from "node:crypto";
-import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type BrowserState, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { browserUrl, ClientError, isRecord, validateBrowserArguments, webAccessAllows, type Connection, type WebAccess, type BrowserRequest, type BrowserResult, type BrowserState, type MoguriSdk } from "@moguri-dev/sdk";
 
 const pointFunction = `function() {
   if (!(this instanceof HTMLElement) || !this.isConnected || this.closest('[inert]') || this.disabled) throw Error('The exact browser element is unavailable or disabled. Take a fresh snapshot.');
@@ -26,6 +26,9 @@ const fillFunction = `function(text) {
  * on, every revocation (user navigation, reconnect, permission change, watchdog) is followed by a fresh enable with a new
  * control identity once the cause clears. Earlier approvals, element references and website scope never carry over.
  */
+/** An abandoned attachment whose service detach was not acknowledged; only this keeps a replacement pane blocked. */
+export class BrowserAttachmentCleanupError extends Error {}
+
 export class SessionBrowserHost {
   private readonly owner;
   private sequence = 0;
@@ -88,19 +91,31 @@ export class SessionBrowserHost {
     released: () => void = () => {}): Promise<SessionBrowserHost> {
     const host = new SessionBrowserHost(sdk, sessionId, contents, validOwner, report, released);
     try { await sdk.browser.host.attach(host.owner); }
-    catch (error) { contents.removeListener("did-start-navigation", host.navigated); contents.debugger.removeListener("message", host.debugMessage); throw error; }
+    catch (error) { host.unlisten(); throw error; }
     try {
       if (contents.isDestroyed() || !validOwner()) throw new Error("The original native browser closed during attachment. No other view was adopted.");
       host.installNetworkGate();
     } catch (error) {
-      await sdk.browser.host.detach(host.owner).catch((failure: unknown) => report(`Browser attachment cleanup was not acknowledged: ${failure instanceof Error ? failure.message : "unknown cleanup failure"}`));
-      contents.removeListener("did-start-navigation", host.navigated); contents.debugger.removeListener("message", host.debugMessage); throw error;
+      host.unlisten();
+      try { await sdk.browser.host.detach(host.owner); }
+      catch (failure) {
+        const message = `Browser attachment cleanup was not acknowledged: ${failure instanceof Error ? failure.message : "unknown cleanup failure"}`;
+        report(message); throw new BrowserAttachmentCleanupError(message, { cause: error });
+      }
+      throw error;
     }
     host.watchdog = setInterval(() => { if (Date.now() - host.lastPoll > 8000) host.revoke(); }, 1000);
     void host.poll();
     return host;
   }
   private clearRefs(): void { this.snapshotId = null; this.refs.clear(); }
+  // A view closed while attaching (another chat's pane took the browser) has already dropped its listeners; touching its
+  // debugger then throws "Object has been destroyed".
+  private unlisten(): void {
+    if (this.contents.isDestroyed()) return;
+    this.contents.removeListener("did-start-navigation", this.navigated);
+    this.contents.debugger.removeListener("message", this.debugMessage);
+  }
   private session() { return this.sdk.getState().snapshot?.sessions.find((session) => session.id === this.owner.sessionId); }
   /** The user's recorded choice (D61), unless this pane's own off is still being recorded or failed to record. */
   intended(): boolean {
@@ -208,9 +223,7 @@ export class SessionBrowserHost {
   }
   async close(): Promise<void> {
     if (this.stopped) return;
-    this.stopped = true; clearInterval(this.watchdog); this.revoke();
-    this.contents.removeListener("did-start-navigation", this.navigated);
-    this.contents.debugger.removeListener("message", this.debugMessage);
+    this.stopped = true; clearInterval(this.watchdog); this.revoke(); this.unlisten();
     await this.sdk.browser.host.detach(this.owner);
   }
   private async poll(): Promise<void> {

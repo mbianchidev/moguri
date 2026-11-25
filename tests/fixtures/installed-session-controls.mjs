@@ -6,10 +6,10 @@ import { pathToFileURL } from "node:url";
 
 const installed = process.argv[2];
 if (!installed) throw new Error("Provide the actual independently installed package root.");
-const { createRuntime } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
-const { MoguriSdk, PROTOCOL_VERSION, voiceShortcutMode } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { createRuntime } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
+const { MoguriSdk, PROTOCOL_VERSION, voiceShortcutMode } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 assert.ok(PROTOCOL_VERSION >= 87);
-for (const path of ["dist/playwright-worker.mjs", "dist/data-worker.mjs", "dist/desktop/html-preload.cjs"]) await access(join(installed, path));
+for (const path of ["node_modules/@moguri-dev/sdk/dist/playwright-worker.mjs", "node_modules/@moguri-dev/sdk/dist/data-worker.mjs", "dist/desktop/html-preload.cjs"]) await access(join(installed, path));
 const directory = await mkdtemp(join(tmpdir(), "moguri-installed-session-controls-"));
 const project = join(directory, "project"), home = join(directory, "home");
 await mkdir(project); await mkdir(home);

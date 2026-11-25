@@ -1402,8 +1402,9 @@ Drop a session onto another to attach its navigation, including project-free
 chats; edge drops reorder. This does not change original context/coordination
 ownership. Search sessions by fuzzy, case-insensitive name. Settings use the
 same matching, switches for booleans, dropdowns for exclusive choices and
-grips for reorderable lists; Alt+Up/Down is the keyboard alternative.
-Icon actions retain accessible names and tooltips.
+grips for reorderable lists; Alt+Up/Down is the keyboard alternative, and
+focus stays on the moved item's grip after each save, so repeated presses keep
+moving it. Icon actions retain accessible names and tooltips.
 Information icons share the row of the title, toggle, field or disclosure they
 explain; wrapped labels keep the icon aligned with the first control line.
 Help remains keyboard-focusable and Escape dismisses it without changing the
@@ -4006,17 +4007,25 @@ reviewed worktree workflow or lifts a hard cap.
 ## Isolated profiles
 
 Desktop's **Profile** selector and **Manage profiles** create, rename/color and
-explicitly choose a profile. TUI **F8** provides the same operations even
-without a session, including partial setup inspection/retry/stop. Creation
-does not choose the new profile, copy private data or log in. CLI examples:
+explicitly choose a profile. The sidebar profile button switches profiles or,
+with one profile, opens **Create profile**; a profile created there opens with
+its own Getting started. TUI **F8** provides the same operations even without
+a session, including partial setup inspection/retry/stop. Creation does not
+copy private data or log in. A new profile can import reviewed items from
+another (D76): API keys and endpoint keys (copied in the service into its own
+keychain slots), model choices, skill sources and repositories at the same
+folders. Sign-ins are never copied. CLI examples:
 
 ```bash
-node bin/moguri.mjs profile list
-node bin/moguri.mjs profile create Work --color '#557799'
-node bin/moguri.mjs status --profile PROFILE_ID
-node bin/moguri.mjs tui --profile PROFILE_ID
-node bin/moguri.mjs desktop --profile PROFILE_ID
-node bin/moguri.mjs profile update PROFILE_ID changes.json --revision OBSERVED_REVISION
+npx moguri profile list
+npx moguri profile create Work --color '#557799'
+npx moguri status --profile PROFILE_ID
+npx moguri tui --profile PROFILE_ID
+npx moguri desktop --profile PROFILE_ID
+npx moguri profile update PROFILE_ID changes.json --revision OBSERVED_REVISION
+npx moguri profile import default --profile PROFILE_ID          # review, no secrets
+npx moguri profile import default key:anthropic skills:SOURCE_ID repo:PROJECT_ID \
+  --digest REVIEW_SHA --confirm-review --profile PROFILE_ID
 ```
 
 Metadata changes accept `{"name":"Work renamed","color":"#776655"}` or a
@@ -4042,7 +4051,7 @@ See the [isolation contract](architecture/profiles.md).
 
 The [Moguri SDK](sdk.md) is importable independently of either UI. CLI/TUI and
 desktop use it for every capability, not separate client-specific versions.
-`node bin/moguri.mjs --help` lists CLI commands; `status` exposes project/session
+`npx moguri --help` lists CLI commands; `status` exposes project/session
 IDs. A normal installation also provides `moguri`.
 
 Desktop starts **dark**, with Moguri's original minimal face-and-bat-wing mascot.
@@ -4141,7 +4150,8 @@ composer Env menu shows this mode as **Remote host**; its stored value, policy
 entry and CLI/SDK value stay `Remote`.
 Install this exact packed Moguri build and Node 26.4+ (26.x) on the target
 first. The worker command may use `moguri worker --stdio`, or an absolute
-compatible Node path followed by the installed `dist/remote-bridge.mjs`.
+compatible Node path followed by the installed SDK's
+`node_modules/@moguri-dev/sdk/dist/remote-bridge.mjs`.
 No automatic cloud provisioning, identity discovery or remote package install
 runs when saving settings.
 
@@ -4529,7 +4539,8 @@ backup instead of deleting state or forcing a stale writer.
 worktrees on a fixed-size macOS disk image that Moguri creates and mounts under
 its resource folder with `hdiutil`; no root is needed. When it fills, Moguri
 removes the oldest archived worktrees that are clean and fully pushed, then
-pauses work on the disk until there's room. CLI `storage disk status`,
+pauses work on the disk until there's room. While it's on, Settings and the
+sidebar show a live usage bar and the TUI status line shows its usage. CLI `storage disk status`,
 `storage disk size GB` and `storage disk off`, and TUI `/runtime disk`,
 `/runtime disk-size GB` and `/runtime disk-off`, use the same SDK calls. The
 disk stays mounted while the service is stopped; eject it from Finder only
@@ -4857,14 +4868,14 @@ hooks/filters or fetches submodules. Configure an available model explicitly
 before inference; opening the session does not start it.
 
 ```bash
-node bin/moguri.mjs workspace list PROJECT_ID
-node bin/moguri.mjs workspace discover PROJECT_ID
-node bin/moguri.mjs workspace create PROJECT_ID moguri/generated-work main
-node bin/moguri.mjs workspace session WORKSPACE_ID
-node bin/moguri.mjs workspace files --session SESSION_ID
-node bin/moguri.mjs workspace file src/example.ts --session SESSION_ID
-node bin/moguri.mjs workspace inspect WORKSPACE_ID
-node bin/moguri.mjs workspace remove WORKSPACE_ID --revision OBSERVED_REVISION --confirm-remove
+npx moguri workspace list PROJECT_ID
+npx moguri workspace discover PROJECT_ID
+npx moguri workspace create PROJECT_ID moguri/generated-work main
+npx moguri workspace session WORKSPACE_ID
+npx moguri workspace files --session SESSION_ID
+npx moguri workspace file src/example.ts --session SESSION_ID
+npx moguri workspace inspect WORKSPACE_ID
+npx moguri workspace remove WORKSPACE_ID --revision OBSERVED_REVISION --confirm-remove
 ```
 
 Shared chat commands are `/workspace list`, `/workspace discover`,
@@ -4909,10 +4920,10 @@ Qualified 0.21/protocol 27 exposes `/memory state`, `/memory index`,
 `/memory remember CONVENTION` in TUI. CLI session commands are:
 
 ```bash
-node bin/moguri.mjs memory index --session SESSION_ID
-node bin/moguri.mjs memory state --session SESSION_ID
-node bin/moguri.mjs memory search QUERY --session SESSION_ID
-node bin/moguri.mjs memory graph --session SESSION_ID
+npx moguri memory index --session SESSION_ID
+npx moguri memory state --session SESSION_ID
+npx moguri memory search QUERY --session SESSION_ID
+npx moguri memory graph --session SESSION_ID
 ```
 
 They use the session's actual env/profile/peer/root. Legacy commands with an
@@ -5203,13 +5214,13 @@ collisions; a shortcut edit needs its adjacent Save and does not save other text
 CLI equivalents:
 
 ```bash
-node bin/moguri.mjs dictate status
-node bin/moguri.mjs dictate download --accept-license
-node bin/moguri.mjs dictate record --session SESSION_ID
-node bin/moguri.mjs dictate file /absolute/path/recording.wav --session SESSION_ID
-node bin/moguri.mjs dictate model inspect /absolute/path/model.gguf
-node bin/moguri.mjs dictate model trust REVIEW_JOB_ID
-node bin/moguri.mjs dictate model managed
+npx moguri dictate status
+npx moguri dictate download --accept-license
+npx moguri dictate record --session SESSION_ID
+npx moguri dictate file /absolute/path/recording.wav --session SESSION_ID
+npx moguri dictate model inspect /absolute/path/model.gguf
+npx moguri dictate model trust REVIEW_JOB_ID
+npx moguri dictate model managed
 ```
 
 Ctrl+C finalizes a recording or cancels a download/file transcription.
@@ -5384,11 +5395,11 @@ origin-session deletion. These are text copies: images/media are not implicitly
 retained, and documents never become prompts, memory policy or permissions.
 
 ```bash
-node bin/moguri.mjs artifact create document.json --project PROJECT_ID
-node bin/moguri.mjs artifact read ARTIFACT_ID
-node bin/moguri.mjs artifact update ARTIFACT_ID changes.json --revision OBSERVED_REVISION
-node bin/moguri.mjs artifact export ARTIFACT_ID --output /absolute/new-export.json
-node bin/moguri.mjs project removal-preview PROJECT_ID
+npx moguri artifact create document.json --project PROJECT_ID
+npx moguri artifact read ARTIFACT_ID
+npx moguri artifact update ARTIFACT_ID changes.json --revision OBSERVED_REVISION
+npx moguri artifact export ARTIFACT_ID --output /absolute/new-export.json
+npx moguri project removal-preview PROJECT_ID
 ```
 
 `document.json` contains `kind`, `name` and `text`. Omit both project/session
@@ -5433,13 +5444,13 @@ unrelated staged/unstaged edits stay unchanged. No push, signing or hook/filter
 execution occurs. An existing/racing branch or changed base rejects publication.
 
 ```bash
-node bin/moguri.mjs project materialize-preview PROJECT_ID
-node bin/moguri.mjs project materialize-artifacts PROJECT_ID --digest REVIEW_SHA --confirm-write
-node bin/moguri.mjs project materialize-preview PROJECT_ID --workspace WORKSPACE_ID --branch docs/retained-copy
-node bin/moguri.mjs project materialize-artifacts PROJECT_ID --workspace WORKSPACE_ID --branch docs/retained-copy --digest REVIEW_SHA --confirm-write
-node bin/moguri.mjs artifact materialization JOB_ID
-node bin/moguri.mjs artifact stop-materialization JOB_ID
-node bin/moguri.mjs project remove PROJECT_ID --revision OBSERVED_REVISION --confirm-remove --artifacts materialize --digest SET_SHA --materialization-id COMPLETED_JOB_ID
+npx moguri project materialize-preview PROJECT_ID
+npx moguri project materialize-artifacts PROJECT_ID --digest REVIEW_SHA --confirm-write
+npx moguri project materialize-preview PROJECT_ID --workspace WORKSPACE_ID --branch docs/retained-copy
+npx moguri project materialize-artifacts PROJECT_ID --workspace WORKSPACE_ID --branch docs/retained-copy --digest REVIEW_SHA --confirm-write
+npx moguri artifact materialization JOB_ID
+npx moguri artifact stop-materialization JOB_ID
+npx moguri project remove PROJECT_ID --revision OBSERVED_REVISION --confirm-remove --artifacts materialize --digest SET_SHA --materialization-id COMPLETED_JOB_ID
 ```
 
 Review digest and artifact-set digest are distinct fields in the preview.
@@ -5496,13 +5507,13 @@ cannot refund it.
 ```
 
 ```bash
-node bin/moguri.mjs budget set SESSION_ID session-budget.json --confirm-review
-node bin/moguri.mjs budget status SESSION_ID
-node bin/moguri.mjs budget dashboard --project PROJECT_ID --role solver
-node bin/moguri.mjs budget dashboard --filters '{"range":{"kind":"days","days":30},"bucket":"week"}'
-node bin/moguri.mjs budget calls --filters '{"range":{"kind":"year","year":2026},"limit":20}'
-node bin/moguri.mjs budget policy profile-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
-node bin/moguri.mjs budget global global-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
+npx moguri budget set SESSION_ID session-budget.json --confirm-review
+npx moguri budget status SESSION_ID
+npx moguri budget dashboard --project PROJECT_ID --role solver
+npx moguri budget dashboard --filters '{"range":{"kind":"days","days":30},"bucket":"week"}'
+npx moguri budget calls --filters '{"range":{"kind":"year","year":2026},"limit":20}'
+npx moguri budget policy profile-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
+npx moguri budget global global-limit-or-null.json --revision OBSERVED_REVISION --confirm-review
 ```
 
 Profile-limit JSON uses `{"basis":"estimate","tokens":100000}` without `kind`;
@@ -5543,10 +5554,10 @@ explicitly; Kanban's separate **GitHub access for linked PRs** applies to
 Kanban issue links only.
 
 ```bash
-node bin/moguri.mjs repository preview --session SESSION_ID
-node bin/moguri.mjs repository refresh --session SESSION_ID --digest REVIEWED_BINDING --revision OBSERVED_REV --confirm-review
-node bin/moguri.mjs repository state --session SESSION_ID
-node bin/moguri.mjs budget dashboard --filters '{"repositoryId":42,"organization":"generated","visibility":"open-source"}'
+npx moguri repository preview --session SESSION_ID
+npx moguri repository refresh --session SESSION_ID --digest REVIEWED_BINDING --revision OBSERVED_REV --confirm-review
+npx moguri repository state --session SESSION_ID
+npx moguri budget dashboard --filters '{"repositoryId":42,"organization":"generated","visibility":"open-source"}'
 ```
 
 Native TUI shares `/repository preview/state`,
@@ -5573,8 +5584,8 @@ ledger. Previously deleted history is unavailable, not zero historical calls.
 User plan saves retain their own explicit control history.
 
 ```bash
-node bin/moguri.mjs telemetry operations --filters '{"family":"mcp","range":{"kind":"days","days":30}}'
-node bin/moguri.mjs telemetry storage --profile PROFILE_ID
+npx moguri telemetry operations --filters '{"family":"mcp","range":{"kind":"days","days":30}}'
+npx moguri telemetry storage --profile PROFILE_ID
 ```
 
 Native TUI supports `/dashboard operations JSON`, `/dashboard storage` and F7.
@@ -5607,10 +5618,10 @@ question is waiting. `/question` inspects the actual pending state; explicit
 `/question answer ID REV TEXT` is also shared by all clients.
 
 ```bash
-node bin/moguri.mjs question list
-node bin/moguri.mjs question read QUESTION_ID
-node bin/moguri.mjs question answer QUESTION_ID answer.txt --revision OBSERVED_REVISION
-node bin/moguri.mjs question answer-draft QUESTION_ID --revision OBSERVED_REVISION
+npx moguri question list
+npx moguri question read QUESTION_ID
+npx moguri question answer QUESTION_ID answer.txt --revision OBSERVED_REVISION
+npx moguri question answer-draft QUESTION_ID --revision OBSERVED_REVISION
 ```
 
 Only the actual user endpoint records actor `user`. A model question or answer
@@ -5705,8 +5716,8 @@ matching command:
 moguri service restart
 ```
 
-For the matching source checkout, build it first, then use
-`node bin/moguri.mjs service restart`. The corrected restart verifies its actual
+For the matching source checkout, use
+`npx moguri service restart`. The corrected restart verifies its actual
 service/runtime before interrupting anything. It can start a never-started or
 already-stopped service when connection, writer lock and recovery claim are
 all absent, rather than returning raw `lstat(connection.json)` ENOENT.
@@ -5822,7 +5833,7 @@ service is deliberately reused until an **explicit matching-build restart**.
 After manually installing a corrected build, `moguri service restart` from its
 matching managed command loads that service code while preserving authenticated
 user terminals. It can interrupt active agent work; save/review that work first.
-The matching built-checkout entry is `node bin/moguri.mjs service restart`.
+The matching source-checkout entry is `npx moguri service restart`.
 Changed Sandbox worker bytes still require their existing explicit bundled
 setup review; an SSH peer requires its exact compatible worker/probe. Neither
 is permission to update another machine or fall back to Local.
@@ -5951,20 +5962,18 @@ npm run typecheck
 npm run build
 npm test
 npm run test:e2e
-npm run verify:sdk
-npm run spike:workspace
 npm run spike:sessions
-npm run spike:models
-npm run spike:engagement
-npm run spike:runtime
-npm run spike:remote
 npm run spike
 npm audit --audit-level=moderate
 ```
 
+The SDK's packed-package check (`verify:sdk`) and its workspace, model,
+engagement, runtime and SSH spikes run in
+[moguri-sdk](https://github.com/moguri-dev/moguri-sdk).
+
 Build before running the test suite on a clean checkout. Compiled CLI and
-worker integration tests exercise `dist/cli.mjs` and other actual bundled
-entrypoints; dependency installation does not create them. Main-only CI follows
+TUI integration tests exercise `dist/cli.mjs` and the installed SDK's worker
+bundles; dependency installation does not build the clients. Main-only CI follows
 the same build-before-test order on both runners.
 
 Focused checks use `node --import tsx --test tests/<name>.test.ts`. The native
@@ -7591,8 +7600,9 @@ than opening authorization or touching a personal account.
 
 Remaining blockers and unsupported capabilities are listed in
 [Phase 0](architecture/phase-zero.md) and the canonical implementation spec.
-CI is configured only for pushes to `main`. PRs/feature branches do not trigger
-it; development verification runs locally, without manual CI dispatch.
+CI runs on pushes to `main` and every working branch except `release/**`; pull
+request events and tags do not trigger it. Development verification still runs
+locally first, without manual CI dispatch.
 
 `node scripts/decision-spike.mjs` runs the separate generated
 [System One prerequisite](architecture/decision-primitives.md). It does not

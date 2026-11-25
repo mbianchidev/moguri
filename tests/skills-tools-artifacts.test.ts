@@ -3,9 +3,9 @@ import test from "node:test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DraftEditor, MoguriSdk, artifactFileKind, scriptEntries, detectToolSuggestions, groupToolsets, messageLinks, scriptDescription, type EventInput, type Session, type Snapshot, type SuggestionPreview } from "../packages/sdk/src/index.ts";
-import { artifactLibrary } from "../apps/service/src/artifact-library.ts";
-import { ToolSuggestionAutomation } from "../apps/service/src/tool-suggestion-automation.ts";
+import { DraftEditor, MoguriSdk, artifactFileKind, scriptEntries, detectToolSuggestions, groupToolsets, messageLinks, scriptDescription, type EventInput, type Session, type Snapshot, type SuggestionPreview } from "@moguri-dev/sdk";
+import { artifactLibrary } from "@moguri-dev/sdk/testing";
+import { ToolSuggestionAutomation } from "@moguri-dev/sdk/testing";
 import { setupFixture, waitFor } from "./fixture.ts";
 
 const mac = { skip: process.platform !== "darwin", timeout: 30_000 };

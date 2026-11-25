@@ -1,7 +1,7 @@
 import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk, effectiveToolPreferences } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, effectiveToolPreferences } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 
@@ -26,8 +26,11 @@ test("the requested factory ranking is active immediately and actual keyboard re
     await expect(list.getByRole("listitem").first()).toContainText("MCP via Gateway");
     await expect(list.getByRole("listitem").last()).toContainText("CLI");
     const handle = list.getByRole("button", { name: "Reorder CLI", exact: true });
+    await handle.focus();
     for (let index = 2; index >= 0; index--) {
-      await handle.press("Alt+ArrowUp");
+      // Each move disables the list until its save settles, then focus returns to the moved handle for the next key press.
+      await expect(list).toHaveAttribute("aria-busy", "false"); await expect(handle).toBeFocused();
+      await page.keyboard.press("Alt+ArrowUp");
       await expect.poll(() => effectiveToolPreferences(sdk.settings.get()?.values.toolPreferences).order.indexOf("cli")).toBe(index);
     }
     await expect(list.getByRole("listitem").first()).toContainText("CLI");

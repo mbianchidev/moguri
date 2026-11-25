@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { useVirtualDisk } from "./VirtualDiskSettings.tsx";
-import { autonomyLabel, autonomyValues, envLabel, hostedProvider, configuredReadinessModels, continueWorkInput, parseShellCommand, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sentPromptHistory, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "../../../packages/sdk/src/index.ts";
+import { autonomyLabel, autonomyValues, envLabel, hostedProvider, configuredReadinessModels, continueWorkInput, parseShellCommand, resolveSessionReference, sessionReferences, DraftEditor, isRecord, KUPO_MODEL_ID, kupoModes, RECOVERY_DELAYS_MS, retryFailure, modelContextWindows, supportsModelContextWindow, pasteLineCount, sentPromptHistory, sessionTitle, slashCommands, isSharedSlash, parseSlash, attachmentTriggers, parseAttachmentTrigger, shortcutLabel, voiceShortcutMode, type DraftDictation, type Controls, type ModelInfo, type ModelOptions, type MoguriSdk, type Project, type Session, type Snapshot, type SlashSuggestion, type GatewaySkill, type ThinkingEffort, type KupoMode, type KupoModeAvailability, type KupoOptionsReport, type QueueableControlCommand } from "@moguri-dev/sdk";
 import { Icon, modelIcon } from "./Icon.tsx";
 import { AttachmentChip, AttachmentMenu, AttachmentReview, captureReviewed, matchingContextSessions, SESSION_DRAG_TYPE, clipboardImage, type AttachmentReviewRequest } from "./ContextAttachments.tsx";
 import { BudgetLimitEditor, BudgetSummary, useBudgetStatus } from "./BudgetControls.tsx";
@@ -147,7 +147,7 @@ export function ChatComposer({ session, project, snapshot, client, editor, run, 
   const question = snapshot.questions.find((question) => question.id === session.pendingQuestionId && question.status === "open");
   const answering = Boolean(question && (delivery === "queue" || delivery === "auto") && !isSlash);
   const diskVolume = session.workspaceId ? snapshot.managedWorkspaces.find((workspace) => workspace.id === session.workspaceId)?.volume : undefined;
-  const disk = useVirtualDisk(client, snapshot, Boolean(diskVolume))?.disk;
+  const disk = useVirtualDisk(client, Boolean(diskVolume))?.disk;
   const diskPaused = Boolean(diskVolume && disk?.id === diskVolume.diskId && (disk.pressure?.paused || disk.status === "resizing"));
   const needsResume = !session.turnId && (snapshot.blockedSessions.includes(session.id) ||
     Boolean(session.workspaceId && snapshot.blockedWorkspaces.includes(session.workspaceId)) ||
@@ -620,6 +620,14 @@ function ModelMenu({ sdk, session, snapshot, onConnect, onLocalModels, onRouting
     return () => { active = false; };
   }, [sdk, modeScope]);
   const revision = useRef(session.revision);
+  // Choices here save at once, so only a save in flight is unsaved. Otherwise adopt a newer session revision and its
+  // options, so a change from another client never leaves this panel sending an older revision than it shows.
+  useEffect(() => {
+    if (saving || session.revision <= revision.current) return;
+    revision.current = session.revision;
+    setWindow(session.controls.modelOptions?.contextWindow?.toString() ?? "");
+    setEffort(session.controls.modelOptions?.thinkingEffort ?? "");
+  }, [session.revision, saving]);
   const windows = current?.synthetic ? poolControls?.available ? poolControls.windows : null : current ? modelContextWindows(current) : null;
   const staleWindow = Boolean(window && (current?.synthetic ? poolControls?.available && !poolControls.windows.values.includes(Number(window)) :
     !current || !supportsModelContextWindow(current, Number(window))));

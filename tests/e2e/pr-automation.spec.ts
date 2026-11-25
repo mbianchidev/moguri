@@ -1,15 +1,16 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk, withPrAutomationOverride } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, withPrAutomationOverride } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Pull request automation settings use generated hidden macOS windows.");
 
 test("automation defaults save immediately, list repository exceptions and open the repository's inherit/on/off overrides", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const projectId = fixture.session().projectId;
   const settings = () => sdk.getState().snapshot!.settings.values;

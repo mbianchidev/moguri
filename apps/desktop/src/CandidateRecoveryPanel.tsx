@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { CandidateTransportRecord, MoguriSdk, Session } from "../../../packages/sdk/src/index.ts";
-import { envLabel } from "../../../packages/sdk/src/index.ts";
+import type { CandidateTransportRecord, MoguriSdk, Session } from "@moguri-dev/sdk";
+import { envLabel } from "@moguri-dev/sdk";
 import { SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 

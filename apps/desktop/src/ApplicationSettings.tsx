@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { ApplicationConfiguration, ApplicationPreferences, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { ApplicationConfiguration, ApplicationPreferences, MoguriSdk } from "@moguri-dev/sdk";
 import { CliCommandSettings } from "./CliCommandSettings.tsx";
 import { Alert } from "./Alert.tsx";
 

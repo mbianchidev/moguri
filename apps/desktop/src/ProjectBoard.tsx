@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { activeProjectWork, claimedProjectWork, compareIssues, defaultBoard, githubManagedIssue, githubSyncSettings, issuePosition, kanbanPreferences, type IssueInput, type IssueKind, type IssuePosition, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { activeProjectWork, claimedProjectWork, compareIssues, defaultBoard, githubManagedIssue, githubSyncSettings, issuePosition, kanbanPreferences, type IssueInput, type IssueKind, type IssuePosition, type LocalIssue, type MoguriSdk, type Project, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { GitHubItemPicker, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 const newFields = (phaseId: string): IssueInput => ({ title: "", body: "", kind: "feature", phaseId, pullRequestUrl: null });
 const CARD_DRAG = "application/x-moguri-kanban-card";
@@ -42,6 +43,7 @@ export function ProjectBoard({ sdk, project, snapshot, onBack, onUnsavedChange, 
     const card = [...document.querySelectorAll<HTMLElement>(".issue-ticket[data-issue-id]")].find((element) => element.dataset.issueId === target.id && element.dataset.phaseId === target.phaseId);
     if (card) { card.focus(); focusCard.current = null; }
   }, [issues, busy]);
+  usePendingWork(busy);
   useEffect(() => { onUnsavedChange(dirty || busy); return () => onUnsavedChange(false); }, [dirty, busy, onUnsavedChange]);
   const run = async (operation: () => Promise<void>) => {
     setError(""); setNotice(""); setBusy(true);

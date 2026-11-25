@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
 import { GeneratedIntakeClock } from "../fixtures/intake-clock.ts";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Hidden desktop execution is qualified on macOS.");

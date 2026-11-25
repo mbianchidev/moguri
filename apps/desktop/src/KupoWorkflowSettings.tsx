@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { defaultKupoWorkflows, kupoModes, kupoPriceCategory, modelLab, type AutomaticKupoSettings, type KupoWorkflowSettings, type ModelInfo, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { defaultKupoWorkflows, kupoModes, kupoPriceCategory, modelLab, type AutomaticKupoSettings, type KupoWorkflowSettings, type ModelInfo, type Snapshot } from "@moguri-dev/sdk";
 import { GroupedModelList, modelListItems } from "./GroupedModelList.tsx";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 

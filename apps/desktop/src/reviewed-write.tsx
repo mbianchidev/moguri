@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { GithubAction, GithubItem, GithubPreview, GithubScope, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { GithubAction, GithubItem, GithubPreview, GithubScope, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 /** `after` receives the resource GitHub acknowledged, for example the pull request a revert opened. */
@@ -14,7 +14,11 @@ export function useReviewedWrite(sdk: MoguriSdk, scope: GithubScope, reload: () 
     if (busy) return;
     setBusy(true); setError(""); setNotice(""); setPending(null);
     try { const { preview } = await sdk.github.preview(scope, action); setPending({ label, preview, confirmed: [], ...(after ? { after } : {}) }); }
-    catch (error) { setError(failure(error, "The change could not be reviewed. Nothing was sent.")); }
+    catch (error) {
+      setError(failure(error, "The change could not be reviewed. Nothing was sent."));
+      // D76: GitHub already deleted the branch (for example on merge), so reread the item to drop the stale Delete branch button.
+      if (error instanceof Error && "code" in error && error.code === "github_branch_missing") void reload().catch(() => {});
+    }
     finally { setBusy(false); }
   };
   const confirm = async () => {

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type JSX, type R
 import {
   agentHarnessName, agentHarnessOf, effectivePrTourPrompt, envLabel, prTourPromptSource, prTourSnippet, prTourStatus, prTourWorkflowPrompt,
   type GithubScope, type MoguriSdk, type PrTour as Tour, type PrTourLevel, type PrTourSnippet, type Session, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import type { GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";

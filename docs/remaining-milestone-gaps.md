@@ -140,16 +140,50 @@ remaining work.
 | Folded into #93 | #26 Homebrew distribution: the tap's cask and TUI formula wait for public releases, and the launcher-symlink and Homebrew-managed-updater prerequisites in [releasing](releasing.md#homebrew-cask) are part of #93. |
 | Not planned (owner, 2026-11-20) | #77 app-wide accessibility verification (no VoiceOver pass, WCAG 2.2 AA audit or physical-display contrast check is claimed; see [ACCESSIBILITY.md](../ACCESSIBILITY.md)), #80 Stainless MCP gateway ([D39](architecture/decisions.md#d39-moguri-owned-stainless-automation)'s revisit condition still applies if Stainless ships one), #54 GetMoshi. |
 
-**Open follow-on.** [#93](https://github.com/mbianchidev/moguri/issues/93)
-splits the SDK and the TUI into private `moguri-dev/moguri-sdk` and
-`moguri-dev/moguri-tui` repositories with history, keeps the updater and
+**Open follow-ons.** [#93](https://github.com/mbianchidev/moguri/issues/93)
+splits the SDK and the TUI into `moguri-dev/moguri-sdk` and
+`moguri-dev/moguri-tui` repositories with history (both public since
+2026-11-23), keeps the updater and
 release tooling working across the owner's transfer of this repository to
 `moguri-dev/moguri-desktop`, and then adds the Homebrew packages
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
 Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
 child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
-part of #93 and does not close it.
+on `main` (#98). The second step, draft
+[#99](https://github.com/mbianchidev/moguri/pull/99), consumes
+`@moguri-dev/sdk` 0.32.0-alpha.4 and `@moguri-dev/tui` 0.32.0-alpha.5 and removes the
+embedded SDK, TUI and CLI. Neither closes #93; the repository transfer and the
+Homebrew packages remain.
+
+Two feature requests were filed after this closure and are tracked on their
+own. [#96](https://github.com/mbianchidev/moguri/issues/96)
+(Google Gemini API and Vertex AI, Amazon Bedrock and more hosted providers,
+plus an Antigravity agent harness) is not started; its service and protocol
+parts land in `moguri-dev/moguri-sdk`.
+[#97](https://github.com/mbianchidev/moguri/issues/97) (desktop Delete branch
+only for existing branches, live virtual disk bars and a sidebar profile
+switcher with per-profile onboarding) is delivered in draft #99, which closes
+it when it merges ([D76](architecture/decisions.md#d76-reviewed-profile-imports-and-live-disk-usage),
+protocol 122). Its service and protocol parts are in
+[moguri-dev/moguri-sdk#8](https://github.com/moguri-dev/moguri-sdk/pull/8)
+and [#10](https://github.com/moguri-dev/moguri-sdk/pull/10)
+(`@moguri-dev/sdk` 0.32.0-alpha.4) and its TUI and CLI parts in
+`@moguri-dev/tui` 0.32.0-alpha.5.
+
+Running the desktop suites on shared macOS runners for #99 found two desktop
+bugs, both fixed in draft #99, which closes them when it merges:
+[#100](https://github.com/mbianchidev/moguri/issues/100) (a hidden test window
+closed during an in-flight edit stayed open, so e2e teardown hung; automatic
+saves and loads in flight are now awaited like pending drafts) and
+[#101](https://github.com/mbianchidev/moguri/issues/101) (the composer was
+offset from the message column by the scroll bar width when macOS always shows
+scroll bars; the transcript keeps a stable gutter and the composer column adds
+the measured width). A third,
+[#102](https://github.com/mbianchidev/moguri/issues/102), is also fixed in #99:
+a Browser pane closed while its host was still attaching made every later pane
+fail, so agent control never came back after another chat's pane took the
+browser (`agent-browser.spec.ts:564` on shared runners).
 
 ### Delivery notes, protocols 112 to 114
 
@@ -206,9 +240,10 @@ recurring check, and a per-project artifact library linked to each chat. A
 hosted multi-publisher gallery is still not implemented; recurring
 prompt/workflow schedules (#6) later shipped in #87.
 
-At the 2026-11-22 read the repository is private and has no GitHub releases. It is
+At the 2026-11-22 read the repository is private and has no GitHub releases. It
+became public on 2026-11-23, which also lets Actions jobs start again. It is
 MIT-licensed, with a tag-triggered [release process](releasing.md) whose first
-run waits for GitHub Actions billing to be fixed (main CI
+run previously waited for GitHub Actions billing to be fixed (main CI
 [run 45005983722](https://github.com/mbianchidev/moguri/actions/runs/45005983722)
 started no job). Development macOS
 app/DMG/ZIP artifacts are ad-hoc signed, not notarized or public distribution. This audit opens no other-repository PR,

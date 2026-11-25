@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import type { SessionNavigationStatus, SessionPromptOrder } from "../../../packages/sdk/src/index.ts";
+import type { SessionNavigationStatus, SessionPromptOrder } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { WorkspaceContextMenu, type WorkspaceMenuPoint } from "./WorkspaceContextMenu.tsx";
 

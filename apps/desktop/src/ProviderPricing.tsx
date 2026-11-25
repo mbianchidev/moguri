@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { type MoguriSdk, type PriceProvider, type PricingResponse, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { type MoguriSdk, type PriceProvider, type PricingResponse, type Snapshot } from "@moguri-dev/sdk";
 import { dollars } from "./BudgetControls.tsx";
 import { Alert } from "./Alert.tsx";
 

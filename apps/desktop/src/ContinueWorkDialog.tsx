@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ContinueWorkChoice, ContinueWorkReview, DraftEditor, MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import type { ContinueWorkChoice, ContinueWorkReview, DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function ContinueWorkDialog({ sdk, editor, review, close, modal, chooseQueued }: {

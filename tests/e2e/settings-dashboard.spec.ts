@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { isRecord, MoguriError, MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriError, MoguriSdk, UPDATE_TOKEN_CREATION_URL } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { profileFixture } from "../fixtures/profiles.ts";
 import { focusByKeyboard, openSettingsSection, waitForWorkspace } from "./navigation.ts";
@@ -161,7 +161,7 @@ test("project configuration has an honest empty state and never lists another pr
     await expect(active).toContainText("No active sessions in this profile.");
     await expect(active.getByRole("status")).toContainText("0 active");
     await openSettingsSection(page, "General"); await page.getByLabel("Active profile", { exact: true }).selectOption(profile.id);
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText(profile.name);
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText(profile.name);
     await openSettingsSection(page, "Project");
     await expect(select).toBeEnabled(); await expect(select).toHaveValue("");
     expect(await select.locator("option").evaluateAll((options) => options.map((option) => option.getAttribute("value")))).toEqual(["", project]);

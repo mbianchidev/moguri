@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { envLabel, API_EQUIVALENT_NOTICE, isModelRole, type BudgetBucket, type BudgetPlan, type BudgetQuery, type BudgetResponse, type BudgetTotals, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, API_EQUIVALENT_NOTICE, isModelRole, type BudgetBucket, type BudgetPlan, type BudgetQuery, type BudgetResponse, type BudgetTotals, type MoguriSdk, type Snapshot } from "@moguri-dev/sdk";
 import { callEstimate, dollars } from "./BudgetControls.tsx";
 import { OperationalUsage } from "./OperationalUsage.tsx";
 import { RepositoryMetadata } from "./RepositoryMetadata.tsx";

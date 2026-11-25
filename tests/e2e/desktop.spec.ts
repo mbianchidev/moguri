@@ -3,8 +3,8 @@ import { openModelChoices, openSettingsSection } from "./navigation.ts";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { MoguriClient } from "../../packages/client/src/index.ts";
-import { startService } from "../../apps/service/src/server.ts";
+import { MoguriClient } from "@moguri-dev/sdk/testing";
+import { startService } from "@moguri-dev/sdk/testing";
 import { reviewNativeTools, setupFixture, waitFor } from "../fixture.ts";
 import { dependencyArchive, dependencyProject } from "../fixtures/dependencies.ts";
 import { existsSync } from "node:fs";
@@ -106,7 +106,7 @@ test("local Kanban, read-only merge/Linear integration and the managed dependenc
 test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation and restart", async () => {
   const packaged = process.env.MOGURI_TEST_APP;
   const packagedRoot = packaged ? resolve(packaged, "../../Resources/app") : undefined;
-  const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined });
+  const fixture = await setupFixture({ workerPath: packagedRoot ? join(packagedRoot, "node_modules", "@moguri-dev", "sdk", "dist", "worker.mjs") : undefined });
   await fixture.provider.logout();
   let app: ElectronApplication | undefined, restarted: Awaited<ReturnType<typeof startService>> | undefined;
   const other = new MoguriClient(fixture.service.connection);
@@ -165,7 +165,7 @@ test("Copilot onboarding, streamed tool work, cross-client drafts, cancellation 
     await app.close();
     app = undefined; other.disconnect();
     restarted = await startService({ stateDir: join(fixture.directory, "state"), provider: fixture.provider, retentionKey: fixture.retentionKey,
-      workerPath: packagedRoot ? join(packagedRoot, "dist", "worker.mjs") : undefined, platform: { terminal: { vault: fixture.terminalVault } } });
+      workerPath: packagedRoot ? join(packagedRoot, "node_modules", "@moguri-dev", "sdk", "dist", "worker.mjs") : undefined, platform: { terminal: { vault: fixture.terminalVault } } });
     app = await launch();
     page = await app.firstWindow();
     await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("generated restart-safe draft");

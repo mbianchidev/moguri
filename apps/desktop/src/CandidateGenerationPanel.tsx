@@ -1,7 +1,8 @@
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import { KUPO_MODEL_ID, type CandidateGenerationInput, type CandidateGenerationPreview, type CandidateGenerationResponse, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { KUPO_MODEL_ID, type CandidateGenerationInput, type CandidateGenerationPreview, type CandidateGenerationResponse, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 type Read = Extract<CandidateGenerationResponse, { type: "candidate.generation.read" }>;
 export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, files, scope, sourceRoot, writable, draftDirty, loadedGenerationId, onDirty, onLoad }: {
@@ -22,6 +23,7 @@ export function CandidateGenerationPanel({ sdk, snapshot, session, stageId, file
   const usage = snapshot.budgetEntries.find((entry) => entry.turnId === selectedId && entry.role === "draft");
   const compatible = Boolean(loaded && session && loaded.input.source.projectId === session.projectId && loaded.input.source.workspaceId === session.workspaceId &&
     loaded.input.source.root === sourceRoot && snapshot.managedWorkspaces.some((workspace) => workspace.id === loaded.input.stage.workspaceId && workspace.path === loaded.input.stage.root && workspace.status === "ready"));
+  usePendingWork(Boolean(busy));
   useEffect(() => { onDirty(Boolean(task) || Boolean(busy)); return () => onDirty(false); }, [task, busy, onDirty]);
   useEffect(() => { setPreview(null); setApproved(false); }, [key]);
   useEffect(() => {

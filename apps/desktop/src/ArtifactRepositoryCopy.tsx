@@ -1,6 +1,6 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
-import type { ArtifactMaterialization, ArtifactMaterializationPreview, MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { ArtifactMaterialization, ArtifactMaterializationPreview, MoguriSdk, Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function ArtifactRepositoryCopy({ sdk, snapshot, projectId, expectedSetDigest, allowWorkspaces = true, defaultWorkspaceId = null, onSaved, onBusy }: {

@@ -53,6 +53,11 @@ workflow checks again immediately before undrafting.
   Python 3.10+, Apple `container`, and the system `hdiutil`, `codesign`,
   `ditto` and `shasum`.
 - `gh` logged in to github.com with push access: `gh auth login --hostname github.com`.
+- A classic token with `read:packages` in your user `~/.npmrc`
+  (`//npm.pkg.github.com/:_authToken=...`), so `npm ci` can install
+  `@moguri-dev/sdk` and `@moguri-dev/tui`: GitHub Packages needs a token even
+  for public packages.
+  The Release workflow reads it with its own `GITHUB_TOKEN`.
 - The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`, or
   `github.com/moguri-dev/moguri-desktop` after the move (SSH or HTTPS), with
   exactly one push URL. The verified origin selects the release repository and
@@ -76,12 +81,14 @@ workflow checks again immediately before undrafting.
    and `package-lock.json`, and commits `release: <version>` without signing
    or hooks. Your own checkout is never modified.
 4. **Validate and package.** Runs `npm ci`, `npm audit --audit-level=moderate`,
-   `npm run typecheck`, `npm run build`, `npm test`, `npm run verify:sdk`,
+   `npm run typecheck`, `npm run build`, `npm test`,
    hidden `npm run test:e2e`, `node scripts/package.mjs` and
    `npm run verify:update`. Validation must leave the tree clean. This mirrors
-   [CI](../.github/workflows/ci.yml), which runs only on `main`.
+   [CI](../.github/workflows/ci.yml), which skips `release/**` branches, but
+   always enforces the product latency budgets that CI only reports
+   (`MOGURI_SKIP_LATENCY_BUDGETS` is cleared for these runs).
 5. **Pull request.** Pushes `release/v<version>` and opens a ready PR. It
-   watches any PR checks; this repository has none by design. It then merges
+   watches any PR checks; release branches have none by design. It then merges
    with `gh pr merge --squash --auto --match-head-commit`. GitHub merges
    immediately when nothing blocks. Rejection leaves the PR open; there is no
    admin merge or direct push to `main`.
@@ -165,13 +172,12 @@ disposable `HOME`. Lint the entrypoint and workflow with
 
 ## Current blockers
 
-- **GitHub Actions does not start jobs:** account billing or the spending
-  limit blocks them, as it has for `main` CI since before Milestone 1. Until
-  it is fixed, the main CI gate and the Release workflow fail, so nothing can
-  publish.
-- **The repository is private:** the in-app updater needs an optional
-  read-only token until it is public; after that it updates from public
-  releases with no token. The Homebrew cask cannot download releases yet.
+- **No green main CI run yet:** Actions start jobs since the repository
+  became public on 2026-11-23, but the last `main` run (`5652dd8`) stalled in
+  the SSH compound-environment tests and was cancelled. The release script
+  waits for a passing main CI run on the release merge commit.
+- **No release yet:** the in-app updater reads public releases without a
+  token once one exists. The Homebrew cask waits for the first release (D75).
 
 ## Repository move
 

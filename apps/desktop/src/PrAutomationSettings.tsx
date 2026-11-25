@@ -3,7 +3,7 @@ import {
   CI_RETRY_LIMITS, CI_RETRY_STATUS_LABELS, CI_RETRY_TERMINAL, CONFLICT_RESOLUTION_STATUS_LABELS, DEFAULT_PR_AUTOMATION, effectivePrAutomation, PR_AUTOMATION_FLAGS,
   PR_AUTOMATION_LABELS, prAutomationExceptions, prAutomationSourceLabel, type CiRetryRecord, type ConflictResolutionRecord, type MoguriSdk, type PrAutomationFlag,
   type PrAutomationOverride, type PrAutomationSettings, type ProjectSettings, type Session, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 

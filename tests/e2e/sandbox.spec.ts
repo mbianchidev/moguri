@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { nativeGroupPublicationFixture, nativePublicationFixture } from "../fixtures/native-publication.ts";
 import { nativeConfiguration } from "../fixtures/native-target.ts";
 import { nativeApiFixture } from "../fixtures/native-api.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url), configuration = await nativeConfiguration();
 test.skip(process.platform !== "darwin", "Hidden native desktop runs on qualified macOS.");
@@ -85,7 +86,7 @@ test("group result publication has no first repository and changing its explicit
 
 test("actual native desktop qualifies reviewed artifacts, stages exact source, approves guest tools and publishes only accepted outputs", async () => {
   test.skip(!configuration, "Explicit current native installation/workload receipts are required; no VM qualification is inferred.");
-  test.setTimeout(90_000);
+  test.setTimeout(ciTime(90_000));
   if (!configuration) return;
   const fixture = await nativeApiFixture(configuration), { sdk, service, provider, project } = fixture;
   const bound = await sdk.command({ type: "project.add", path: project }), created = await sdk.sessions.create(bound.id!);

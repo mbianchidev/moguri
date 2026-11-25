@@ -1,3 +1,4 @@
+import { ciTime } from "../fixtures/time-scale.ts";
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
@@ -62,7 +63,8 @@ test("desktop explicitly previews, generates, reviews, applies and restores cont
 
 test("closing and reopening the review preserves the actual running compaction and its acknowledged stop", async () => {
   const f = await compactionFixture();
-  f.configuration.stream = { chunks: ["Generated partial desktop summary."], delayMs: 1000 };
+  // The summary stream must outlast closing and reopening the review; the test stops it explicitly.
+  f.configuration.stream = { chunks: ["Generated partial desktop summary."], delayMs: ciTime(10_000) };
   const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
     env: { ...process.env, MOGURI_STATE_DIR: join(f.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
   try {

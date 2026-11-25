@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { EventStore } from "../apps/service/src/store.ts";
-import { defaultSettings, factoryControls, projectEvents, PROTOCOL_VERSION, type Attention, type Snapshot } from "../packages/protocol/src/index.ts";
+import { EventStore } from "@moguri-dev/sdk/testing";
+import { defaultSettings, factoryControls, projectEvents, PROTOCOL_VERSION, type Attention, type Snapshot } from "@moguri-dev/sdk/testing";
 import { AttentionNotifier, notificationToneAllowed } from "../apps/desktop/src/notifications.ts";
 
 test("completion sounds follow actual terminal work once, independently from desktop banners and startup replay", () => {

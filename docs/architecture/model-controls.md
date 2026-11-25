@@ -253,7 +253,10 @@ budgets, source identities and existing controls remain unchanged.
 
 Malformed input, missing/fixed-model selection, unsupported declared windows,
 concurrent revisions and active-turn changes fail without substituting values
-or starting inference. An overfull next request still stops with all history
+or starting inference. The desktop Model panel saves each choice at once, so
+when no save is in flight it adopts a newer session revision and its options
+from another client; a choice is always sent against the revision the panel
+shows, never an older one captured when it opened. An overfull next request still stops with all history
 retained; no context truncation, automatic compaction, paid retry or budget
 increase is introduced. Tests must cover exact transmitted/retained windows,
 all shortcuts, sibling-option preservation, discrete-provider restrictions,

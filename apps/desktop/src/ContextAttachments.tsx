@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { envLabel, sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type MoguriSdk, type Project, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { envLabel, sessionTitle, type Attachment, type AttachmentAccess, type ContextPreview, type MoguriSdk, type Project, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { Icon } from "./Icon.tsx";
 import { SettingsAction } from "./SettingsFields.tsx";
 import { ContextDocument } from "./DocumentAttachment.tsx";

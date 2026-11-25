@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { reviewNativeTools, setupFixture } from "../fixture.ts";
 import { routedFixture } from "../fixtures/single-routing.ts";
 import { expandModelGroups, openKupoAdvanced, openModelChoices, openSettingsSection } from "./navigation.ts";
-import { defaultKupoSettings } from "../../packages/sdk/src/index.ts";
+import { defaultKupoSettings } from "@moguri-dev/sdk";
 import { generatedKupoProfile } from "../fixtures/kupo-profiles.ts";
 
 const require = createRequire(import.meta.url);

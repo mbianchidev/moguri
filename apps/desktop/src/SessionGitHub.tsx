@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { generatedBranchName, githubItemIdentity, sessionPullRequestUrls, type GithubAction, type GithubPreview, type GithubScope, type MoguriSdk, type Session, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { generatedBranchName, githubItemIdentity, sessionPullRequestUrls, type GithubAction, type GithubPreview, type GithubScope, type MoguriSdk, type Session, type Snapshot } from "@moguri-dev/sdk";
 import { GitHubItemPicker, GitHubStateIcon, type GithubProject, type GithubSelection } from "./GitHubPickers.tsx";
 import { Alert } from "./Alert.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";
 import { PullRequestView } from "./PullRequestView.tsx";
 import { sessionGithubScope, sessionGithubWritable } from "./github-session.ts";
+import { usePendingWork } from "./pending-work.ts";
 const RichMessage = lazy(() => import("./RichMessage.tsx"));
 
 export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSession, selectedUrl, createOnly = false }: {
@@ -45,6 +46,7 @@ export function SessionGitHub({ sdk, session, snapshot, kind, onDirty, chooseSes
       .catch((error: unknown) => { if (live) setError(panelFailure(error, "This project's GitHub repository could not be read. Check its upstream and GitHub CLI sign-in.")); });
     return () => { live = false; };
   }, [createOnly, scopeKey]);
+  usePendingWork(creating && busy);
   useEffect(() => { onDirty(dirty || creating && busy); return () => onDirty(false); }, [dirty, creating, busy, onDirty]);
   const run = async (action: (isCurrent: () => boolean) => Promise<void>) => {
     if (pending.current) return;

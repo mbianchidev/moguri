@@ -2,10 +2,11 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk, type StoredEvent } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk, type StoredEvent } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { assertOperationLatency } from "../fixtures/latency-budgets.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Background desktop lifecycle uses generated hidden macOS windows.");
@@ -13,7 +14,7 @@ const launch = (stateDir: string) => electron.launch({ executablePath: process.e
   args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" } });
 
 test("last-window close keeps the exact agent and user terminal working; reopening is prompt and explicit Quit stops them", async () => {
-  test.setTimeout(45_000);
+  test.setTimeout(ciTime(45_000));
   const f = await setupFixture({ platform: { terminal: { executable: "/bin/sh", args: ["-c", "printf 'GENERATED_BACKGROUND_CONSOLE\\n'; exec cat"] } } });
   const stateDir = join(f.directory, "state"), sdk = await new MoguriSdk(f.service.connection).ready();
   let app: Awaited<ReturnType<typeof electron.launch>> | undefined;
@@ -97,11 +98,11 @@ test("a cancelled unsaved Quit cannot turn a later window close into stopping th
     await openSettingsSection(page, "User guidance");
     const guidance = page.getByLabel("Global user guidance", { exact: true }), saved = await guidance.inputValue();
     await guidance.fill("Generated uncommitted window-close guidance.");
-    await app.evaluate(({ app, BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0]!.webContents.once("will-prevent-unload", () => Reflect.set(globalThis, "generatedBackgroundQuitCancelled", true));
-      setTimeout(() => app.quit(), 10);
-    });
-    await expect.poll(() => app.evaluate(() => Reflect.get(globalThis, "generatedBackgroundQuitCancelled"))).toBe(true);
+    // The quit is cancelled only when the window refuses it for the unsaved edit. The first deferred close can be a settle pass
+    // for work in flight (#100), after which the original quit would continue, so wait for the hidden window's actual refusal.
+    let stderr = ""; processOwner.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    await app.evaluate(({ app }) => { setTimeout(() => app.quit(), 10); });
+    await expect.poll(() => stderr.includes("Hidden generated window kept open for pending edits.")).toBe(true);
     expect(f.service.store.db.isOpen).toBe(true);
     await guidance.fill(saved);
     await expect(page.locator(".settings-toolbar").getByRole("status")).toHaveText("Saved");

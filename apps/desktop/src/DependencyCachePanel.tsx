@@ -2,7 +2,7 @@ import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.
 import { useEffect, useState } from "react";
 import {
   createCacheApi, type DependencyPlan, type DependencyRegistryConfig, type DependencyRegistryPreview, type MoguriSdk, type PackageManager, type Project,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function DependencyCachePanel({ sdk, project, workspaceId }: { sdk: MoguriSdk; project?: Project; workspaceId?: string }) {

@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
-import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
 import { finishIdleSchedule, openModelChoices, openProjectMenu, openSettingsSection } from "./navigation.ts";

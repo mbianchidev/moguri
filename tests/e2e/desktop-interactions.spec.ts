@@ -4,10 +4,11 @@ import { createHash } from "node:crypto";
 import { mkdir, realpath, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import sharp from "sharp";
-import { compareSessionOrder, DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
-import { NEMOTRON_MODEL } from "../../apps/service/src/voice.ts";
+import { compareSessionOrder, DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
+import { NEMOTRON_MODEL } from "@moguri-dev/sdk/testing";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openProjectMenu, openSettingsSection } from "./navigation.ts";
+import { sdkPath } from "../fixtures/sdk-paths.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
 const launch = (directory: string) => electron.launch({ executablePath: require("electron"), args: [".", "--use-fake-device-for-media-stream"], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
@@ -154,7 +155,7 @@ test("native session dragging reorders only at drop, and keyboard reordering use
 });
 
 test("retired global layouts restore a session pane without opening, adopting or terminating retained consoles", async () => {
-  const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GLOBAL_READY\\n'+process.cwd()+'\\n');"], brokerPath: resolve("dist/terminal-broker.mjs") };
+  const program = { executable: process.execPath, args: ["-e", "process.stdin.setRawMode(true); process.stdin.on('data',d=>process.stdout.write(d)); process.stdout.write('GENERATED_GLOBAL_READY\\n'+process.cwd()+'\\n');"], brokerPath: sdkPath("dist/terminal-broker.mjs") };
   const fixture = await setupFixture({ platform: { terminal: program } }), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const legacy = await sdk.terminal.openGlobal(), app = await launch(fixture.directory);
   try {
@@ -239,8 +240,12 @@ test("generated streamed dictation preserves typing during finalization and inse
     const prompt = page.getByLabel("Prompt", { exact: true }); await prompt.fill("Generated existing draft.");
     await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
     await expect(page.getByRole("button", { name: "Stop local dictation", exact: true })).toHaveAttribute("aria-pressed", "true");
+    // The recognizer streams its first words into the draft; typing during finalization replaces only the earlier draft text,
+    // because deleting streamed words is the user's choice and the final transcript then doesn't bring them back.
+    await expect(prompt).toHaveValue(/^Generated existing draft\. Generated local/);
     await page.getByRole("button", { name: "Stop local dictation", exact: true }).click();
-    await prompt.fill("Generated typing during finalization.");
+    await prompt.evaluate((element: HTMLTextAreaElement) => { element.focus(); element.setSelectionRange(0, "Generated existing draft.".length); });
+    await page.keyboard.type("Generated typing during finalization.");
     await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
     await expect(prompt).toHaveValue("Generated typing during finalization. Generated local dictation.");
     await expect(page.locator(".composer-transcript").getByRole("button", { name: "Insert", exact: true })).toHaveCount(0);

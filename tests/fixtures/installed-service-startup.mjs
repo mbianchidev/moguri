@@ -6,9 +6,9 @@ import { pathToFileURL } from "node:url";
 
 const installed = process.argv[2];
 if (!installed) throw new Error("Provide the independently installed package root.");
-const nodeEntry = pathToFileURL(join(installed, "dist/sdk/node.mjs")).href;
+const nodeEntry = pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href;
 const { createRuntime, ensureConnection, readConnection, stopMoguriService, ServiceStartupUnconfirmed } = await import(nodeEntry);
-const { MoguriSdk } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
+const { MoguriSdk } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
 const root = await realpath(await mkdtemp(join(tmpdir(), "moguri-installed-startup-"))), stateDir = join(root, "state"), project = join(root, "project");
 await mkdir(project);
 const provider = { state: { status: "disconnected", models: [], login: null, diagnostic: null }, onChange: () => {},

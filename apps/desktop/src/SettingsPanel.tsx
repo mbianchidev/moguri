@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { autonomyLabel, autonomyValues, envLabel, automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, DEFAULT_PR_TOUR_PROMPT, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "../../../packages/sdk/src/index.ts";
+import { autonomyLabel, autonomyValues, envLabel, automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, DEFAULT_PR_TOUR_PROMPT, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "@moguri-dev/sdk";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { PrAutomationDefaults } from "./PrAutomationSettings.tsx";
@@ -54,6 +54,7 @@ import { ReorderList } from "./ReorderList.tsx";
 import { Alert } from "./Alert.tsx";
 import { StainlessSettingsPanel } from "./StainlessPanel.tsx";
 import { PathField, localPath } from "./PathField.tsx";
+import { usePendingWork } from "./pending-work.ts";
 
 export type { SettingsTab } from "./settings-catalog.ts";
 const modelBoundary = (model: ModelInfo) => model.endpointBoundary === "loopback" ? "execution-host loopback" : "network/hosted";
@@ -213,6 +214,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
   }, [activeGroup, tab, scrollRequest]);
   const railSection = inView && activeGroup.items.some((item) => item.id === inView) ? inView : tab;
   useEffect(() => { sqlGeneration.current++; setSql(null); }, [sdk, JSON.stringify(committed.integrations)]);
+  usePendingWork(saving || sandboxBusy || devicesBusy || lineageBusy || soundsBusy || applicationBusy || modelsBusy || capabilityBusy || webBusy);
   useEffect(() => { onUnsavedChange(dirty || saving || sandboxBusy || devicesBusy || nestedDirty); return () => onUnsavedChange(false); }, [dirty, saving, sandboxBusy, devicesBusy, nestedDirty, onUnsavedChange]);
   useEffect(() => () => deviceRequest.current?.abort(), [sdk, groupKey]);
   useEffect(() => {
@@ -318,7 +320,8 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
     if (raw[section] !== undefined) { setError("Save or reload this section's JSON before changing its controls. Your text is preserved."); return; }
     const value = replace ? patch : { ...fallback, ...committedValues.current[section], ...patch };
     setDraft((current) => ({ ...current, [section]: replace ? value : { ...fallback, ...current[section], ...patch } }));
-    void write({ ...committedValues.current, [section]: value }, () => {});
+    // Returned so a control such as a reorder list stays busy until the save settles, then restores keyboard focus.
+    return write({ ...committedValues.current, [section]: value }, () => {});
   };
   /** Saves a whole section immediately, for list choices such as adding, enabling or removing a skill source. */
   const commitSection = <K extends SettingsSection>(section: K, value: UserSettings[K]) => {
@@ -764,7 +767,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <div className="button-row"><button disabled={dirty || saving || !modelEndpoint || !modelKey} onClick={() => void run(async () => { await sdk.models.setToken(modelEndpoint, modelKey); setModelKey(""); return "Key stored. Check the endpoint status before choosing a model."; })} aria-label="Store endpoint key">Store</button><button disabled={dirty || saving || !modelEndpoint} onClick={() => void run(() => sdk.models.clearToken(modelEndpoint))} aria-label="Remove endpoint key">Remove</button></div></>}</>;
       case "remote": return <>{<><SettingsHelp label="More about this setting" target={<h2>Remote SSH</h2>}>Runs the agent, its tools and model calls on an SSH host you approve, while history stays on this Mac. Set each project's remotePath in Project settings.</SettingsHelp>
           {jsonEditor("remote", "SSH target (null disables)")}
-          <details><summary>Target configuration example</summary><pre>{JSON.stringify({ id: "my-ssh", name: "My SSH host", host: "replace-with-host.example", port: 22, user: "replace-with-ssh-user", hostKey: "ssh-ed25519 replace-with-verified-public-key", identityFile: "/absolute/local/path/to/private-identity", stateDir: "/absolute/private/remote-run-state", command: ["/absolute/remote/path/to/node26", "/absolute/remote/path/to/moguri/dist/remote-bridge.mjs"], allowCopilot: false, models: [] }, null, 2)}</pre></details>
+          <details><summary>Target configuration example</summary><pre>{JSON.stringify({ id: "my-ssh", name: "My SSH host", host: "replace-with-host.example", port: 22, user: "replace-with-ssh-user", hostKey: "ssh-ed25519 replace-with-verified-public-key", identityFile: "/absolute/local/path/to/private-identity", stateDir: "/absolute/private/remote-run-state", command: ["/absolute/remote/path/to/node26", "/absolute/remote/path/to/moguri/node_modules/@moguri-dev/sdk/dist/remote-bridge.mjs"], allowCopilot: false, models: [] }, null, 2)}</pre></details>
           <Alert as="p" tone="warning" className="settings-warning">Verify the host key yourself and install this same Moguri build on the host. SSH isn't Sandbox isolation, and allowCopilot gives the host short-lived Copilot access.</Alert>
 
           <div className="button-row"><button aria-label="Probe SSH target" disabled={dirty || saving || remoteBusy || !snapshot.settings.values.remote} onClick={() => void run(async () => { setRemoteBusy(true); try { await sdk.remote.probe(); } finally { try { setRemoteState((await sdk.remote.status()).remote); } finally { setRemoteBusy(false); } } })}>{remoteBusy ? "Probing..." : "Probe"}</button><button disabled={saving || remoteBusy} onClick={() => void reset("remote")} aria-label="Restore defaults for Remote">Restore defaults</button></div>
@@ -881,7 +884,7 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
       case "retention": return <>{<><SettingsHelp label="More about this setting" target={<h2>Archived-session retention</h2>}>Deleting a session, or merging its linked PR, also deletes its candidate proposals; archiving keeps them. Artifacts, applied code, worktrees and PRs stay.</SettingsHelp>
           <h3>Encrypted storage</h3><p className="path">{runtime?.directory ?? "Reading the data directory..."}</p>
           <StorageSettings sdk={sdk} disabled={dirty || saving || otherNestedDirty} onBusy={setStorageBusy} prepareMaintenance={prepareMaintenance} />
-          <VirtualDiskSettings sdk={sdk} snapshot={snapshot} />
+          <VirtualDiskSettings sdk={sdk} />
           <h3>Keep awake</h3><label className="check-setting"><SettingsInput type="checkbox" checked={draft.lifecycle?.keepAwake ?? false} onChange={(event) => automatic("lifecycle", { keepAwake: event.target.checked })} />Prevent idle sleep while this profile has work running</label>
           <label className="setting-field">Minutes to stay awake after work finishes<SettingsInput aria-label="Keep-awake tail minutes" type="number" min={0} max={1440} value={draft.lifecycle?.tailMinutes ?? 5} onChange={(event) => change("lifecycle", { keepAwake: draft.lifecycle?.keepAwake ?? false, tailMinutes: Number(event.target.value) })} /></label>
           <button type="button" className="primary" aria-label="Save keep-awake tail" disabled={saving || draft.lifecycle?.tailMinutes === committed.lifecycle?.tailMinutes} onClick={() => {

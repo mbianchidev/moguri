@@ -2,17 +2,18 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, readdir, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { waitForWorkspace } from "./navigation.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Actual hidden desktop qualification is macOS-only.");
 const screenshots = process.env.MOGURI_SKILLS_CAPTURES;
 
 test("Capabilities installs and toggles skills, lists toolsets and opens a project-free editable script request; Artifacts lists project outputs with their chat", async () => {
-  test.setTimeout(90_000);
+  test.setTimeout(ciTime(90_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, projectPath = f.service.controller.snapshot().projects.find((project) => project.id === projectId)!.path;
   const market = join(f.directory, "generated-market", "generated-tab-skill");
@@ -85,7 +86,7 @@ test("Capabilities installs and toggles skills, lists toolsets and opens a proje
 });
 
 test("Artifacts deletes selected saved notes and moves selected files to the Trash only after confirmation, keeping chats and other files", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const projectId = f.session().projectId!, dist = join(f.directory, "project", "dist"), trash = join(f.directory, "generated-trash");
   await mkdir(dist, { recursive: true });
@@ -116,7 +117,7 @@ test("Artifacts deletes selected saved notes and moves selected files to the Tra
     await deleteSelected.click();
     await expect(confirm).toContainText("Move 2 files to the Trash and delete 1 saved note?");
     await confirm.getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(library.getByRole("status")).toContainText("Moved 2 files to the Trash. Deleted 1 saved note.");
+    await expect(library.getByRole("status").filter({ hasText: "Moved 2 files to the Trash. Deleted 1 saved note." })).toBeVisible();
     expect((await readdir(dist)).sort()).toEqual(["Generated-keep.pdf"]);
     expect((await readdir(trash)).map((name) => name.replace(/^[0-9a-f-]{36}-/, "")).sort()).toEqual(["Generated-a.dmg", "Generated-b.zip"]);
     await waitFor(() => !f.service.controller.snapshot().artifacts.some((artifact) => artifact.id === note.id));
@@ -128,7 +129,7 @@ test("Artifacts deletes selected saved notes and moves selected files to the Tra
 });
 
 test("Artifacts never offers or performs Trash for files in a workspace folder's own read-only checkout", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const root = join(f.directory, "generated-folder"), alpha = join(root, "alpha"), trash = join(f.directory, "generated-trash");
   await mkdir(join(alpha, "dist"), { recursive: true });
@@ -155,7 +156,7 @@ test("Artifacts never offers or performs Trash for files in a workspace folder's
 });
 
 test("Artifacts All projects lists every project and project-free note with its owner and trashes each file through its own project", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const f = await setupFixture(), sdk = await new MoguriSdk(f.service.connection).ready();
   const first = f.service.controller.snapshot().projects.find((project) => project.id === f.session().projectId)!;
   const secondRoot = join(f.directory, "generated-second"), trash = join(f.directory, "generated-trash");
@@ -185,7 +186,8 @@ test("Artifacts All projects lists every project and project-free note with its 
     const confirm = library.getByRole("alertdialog", { name: "Confirm artifact deletion", exact: true });
     await expect(confirm).toContainText(`dist/Generated-second.zip (${second.name})`);
     await confirm.getByRole("button", { name: "Delete", exact: true }).click();
-    await expect(library.getByRole("status")).toContainText("Moved 1 file to the Trash.");
+    // The deletion also starts a rescan, whose "Looking for output files..." status can still be showing beside this notice.
+    await expect(library.getByRole("status").filter({ hasText: "Moved 1 file to the Trash." })).toBeVisible();
     expect(await readdir(join(secondRoot, "dist"))).toEqual([]);
     expect(await readdir(join(first.path, "dist"))).toEqual(["Generated-first.dmg"]);
     await expect(firstFile).toBeVisible();

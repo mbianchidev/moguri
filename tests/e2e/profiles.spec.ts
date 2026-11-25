@@ -8,7 +8,7 @@ import { waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url), artifacts = resolve(".moguri/artifacts");
-const packagedWorker = process.env.MOGURI_TEST_APP ? resolve(process.env.MOGURI_TEST_APP, "../../Resources/app/dist/worker.mjs") : undefined;
+const packagedWorker = process.env.MOGURI_TEST_APP ? resolve(process.env.MOGURI_TEST_APP, "../../Resources/app/node_modules/@moguri-dev/sdk/dist/worker.mjs") : undefined;
 test.skip(process.platform !== "darwin", "Profile UI execution is qualified on macOS.");
 const launch = (stateDir: string, profileId = "default") => electron.launch({
   executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
@@ -66,7 +66,7 @@ test("desktop creates and switches real scoped clients, protects dirty editors a
     await expect(page.locator(".app-shell")).toHaveAttribute("inert", "");
     release();
     await expect(page.getByRole("heading", { name: "What are we working on?", exact: true })).toBeVisible();
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated desktop Beta");
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Generated desktop Beta");
     await expect(page.getByText("Generated Default-only document", { exact: true })).toHaveCount(0);
     expect(fixture.session(fixture.sdk, first.id!).draft.text).toBe("Generated private Default desktop draft.");
     expect(fixture.session(fixture.sdk, background.id!).turnId).toBeTruthy();
@@ -112,7 +112,7 @@ test("native profile startup and preview partitions reject foreign sessions and 
   const previewUrls = () => app.evaluate(({ BrowserWindow, WebContentsView }) => BrowserWindow.getAllWindows()[0]!.contentView.children.filter((child) => child instanceof WebContentsView).map((child) => child.webContents.getURL()));
   try {
     const page = await app.firstWindow();
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated native Beta");
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Generated native Beta");
     await expect(page.getByRole("heading", { name: "Generated native Beta chat", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Generated native Default", exact: true })).toHaveCount(0);
     await expect(page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: a.id!, url, bounds })).rejects.toThrow(/inactive profile/);
@@ -127,10 +127,10 @@ test("native profile startup and preview partitions reject foreign sessions and 
     await page.evaluate(() => window.moguri.preview(null, "default")); await expect.poll(previewUrls).toContain(url);
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-session", id, "default"), b.id!);
     await expect(page.getByRole("alert")).toContainText("notification's session was removed from its actual profile");
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Generated native Beta");
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Generated native Beta");
     await page.locator('.main-pane > .app-alert[role="alert"]').getByRole("button", { name: "Dismiss alert", exact: true }).click();
     await app.evaluate(({ BrowserWindow }, id) => BrowserWindow.getAllWindows()[0]!.webContents.send("moguri:navigate-session", id, "default"), a.id!);
-    await expect(page.getByLabel("Current profile", { exact: true })).toContainText("Default"); await expect.poll(previewUrls).not.toContain(url);
+    await expect(page.getByRole("button", { name: /^Current profile: / })).toContainText("Default"); await expect.poll(previewUrls).not.toContain(url);
     await page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: a.id!, url, bounds });
     await page.evaluate((profileId) => window.moguri.preview(null, profileId), profile.id); await expect.poll(previewUrls).toContain(url);
     await expect(page.evaluate(({ id, url, bounds }) => window.moguri.preview({ sessionId: id, url, bounds }, "default"), { id: b.id!, url, bounds })).rejects.toThrow(/outside the active profile/);

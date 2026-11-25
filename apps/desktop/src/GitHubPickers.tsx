@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { githubItemIdentity, type GithubItem, type GithubRepository, type GithubResponse, type GithubScope, type GithubSourceBinding, type GithubWorkSource, type MoguriSdk } from "../../../packages/sdk/src/index.ts";
+import { githubItemIdentity, type GithubItem, type GithubRepository, type GithubResponse, type GithubScope, type GithubSourceBinding, type GithubWorkSource, type MoguriSdk } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 import { PanelError, panelFailure, type PanelFailure } from "./PanelFailure.tsx";

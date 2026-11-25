@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { runningSessionNames, runningSessions, sessionSubtree, type BulkSessionAction, type BulkSessionInput, type BulkSessionPreview, type MoguriSdk, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { runningSessionNames, runningSessions, sessionSubtree, type BulkSessionAction, type BulkSessionInput, type BulkSessionPreview, type MoguriSdk, type Snapshot } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function BulkSessionActions({ sdk, snapshot, ids, clear, prepare, modal, request, busyChanged }: {

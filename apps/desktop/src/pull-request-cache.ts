@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Type, type Static } from "typebox";
 import { Value } from "typebox/value";
-import type { GithubItem, MoguriSdk, Snapshot } from "../../../packages/sdk/src/index.ts";
+import type { GithubItem, MoguriSdk, Snapshot } from "@moguri-dev/sdk";
 
 /**
  * Presentation-only cache of each project's open pull requests (number, title, URL and state), per profile.

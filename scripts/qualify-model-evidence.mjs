@@ -28,8 +28,8 @@ export async function qualifyModelEvidence({ node = process.execPath, packageRoo
       'async deleteCredential(signal){this.check(signal).password=null;return true;}}');
     const hooks=registerHooks({resolve(specifier,context,next){return specifier==="@napi-rs/keyring"?{url:replacement,shortCircuit:true}:next(specifier,context);}});
     assert.equal((await import("@napi-rs/keyring")).qualificationBackend,"generated-memory-only");
-    const {createRuntime}=await import(${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "node.mjs")).href)});
-    const {MoguriSdk}=await import(${JSON.stringify(pathToFileURL(join(root, "dist", "sdk", "index.mjs")).href)});
+    const {createRuntime}=await import(${JSON.stringify(pathToFileURL(join(root, "node_modules", "@moguri-dev", "sdk", "dist", "sdk", "node.mjs")).href)});
+    const {MoguriSdk}=await import(${JSON.stringify(pathToFileURL(join(root, "node_modules", "@moguri-dev", "sdk", "dist", "sdk", "index.mjs")).href)});
     let catalogue={data:[{id:model.id,vendor:"Generated provider claim",version:"generated-provider-version",
       capabilities:{family:"generated-provider-declaration"},unrelated:"Generated omitted provider data"}]},reads=0,runtime,sdk;
     const originalFetch=globalThis.fetch,origins=new Set(),secrets=new Map();
@@ -62,7 +62,7 @@ export async function qualifyModelEvidence({ node = process.execPath, packageRoo
       const session=await sdk.sessions.create(null,"Generated explicit catalogue inspector");
       const controls=structuredClone(sdk.getState().snapshot.sessions.find(value=>value.id===session.id).controls),events=runtime.controller.events(0).length;
       const report=(await sdk.models.evidence(model.id)).evidence;verify(report);assert.equal(report.status,"declared");assert.equal(reads,1);
-      const run=async args=>JSON.parse((await promisify(execFile)(${JSON.stringify(node)},[${JSON.stringify(join(root, "bin", "moguri.mjs"))},"models",...args],
+      const run=async args=>JSON.parse((await promisify(execFile)(${JSON.stringify(node)},[${JSON.stringify(join(root, "node_modules", "@moguri-dev", "tui", "bin", "moguri.mjs"))},"models",...args],
         {cwd:${JSON.stringify(root)},env:{...process.env,MOGURI_STATE_DIR:${JSON.stringify(stateDir)}},timeout:5000})).stdout);
       verify((await run(["evidence",model.id])).evidence);assert.equal(reads,2);
       const shared=await sdk.slash(session.id,"/model-evidence "+model.id,"tui");assert.equal(shared.kind,"text");verify(JSON.parse(shared.text).evidence);assert.equal(reads,3);

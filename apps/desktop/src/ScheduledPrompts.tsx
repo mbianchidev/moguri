@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { scheduleLocalChoices, scheduleLocalTime, sessionTitle, TOOL_SUGGESTION_INTERVALS, type DraftEditor, type MoguriSdk, type ScheduledPrompt, type Session, type Snapshot, type ToolSuggestionAutomation } from "../../../packages/sdk/src/index.ts";
+import { scheduleLocalChoices, scheduleLocalTime, sessionTitle, TOOL_SUGGESTION_INTERVALS, type DraftEditor, type MoguriSdk, type ScheduledPrompt, type Session, type Snapshot, type ToolSuggestionAutomation } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 

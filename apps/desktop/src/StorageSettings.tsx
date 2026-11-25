@@ -1,7 +1,7 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { PathField, localPath } from "./PathField.tsx";
 import { useEffect, useState } from "react";
-import type { MoguriSdk, StorageMoveReview, StorageStatus } from "../../../packages/sdk/src/index.ts";
+import type { MoguriSdk, StorageMoveReview, StorageStatus } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function StorageSettings({ sdk, disabled, onBusy, prepareMaintenance }: {

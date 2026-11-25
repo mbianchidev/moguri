@@ -1,5 +1,5 @@
 import { Undo2, AppWindow, Archive, CircleCheck, CircleX, CircleSlash, CircleDashed, GitCommitHorizontal, Tag, User, ExternalLink, MessageSquareText, GitPullRequestClosed, GitPullRequestDraft, ArrowLeft, ArrowUp, ArrowUpDown, BadgeDollarSign, Database, Store, BookOpen, Bot, Box, Brain, Car, ChartColumn, Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Circle, CircleDot, CircleHelp, CirclePause, Clock, Copy, DollarSign, Ellipsis, Eye, File as FileIcon, FileDiff, FilePen, FilePlus, FileText, Folder, FolderOpen, GitBranch, GitMerge, GitPullRequest, Globe, GripVertical, Hand, House, Image as ImageIcon, Inbox, Infinity as InfinityIcon, Info, Layers, LayoutDashboard, Link, ListChecks, ListFilter, Loader, Maximize2, MessageSquare, Mic, Minimize2, PanelRight, Pencil, Pin, PinOff, Play, Plug, Plus, Puzzle, RefreshCw, Rocket, Search, SendHorizontal, Settings, Sparkles, Square, SquareTerminal, TrafficCone, Trash2, TriangleAlert, Wrench, X, type LucideIcon } from "lucide-react";
-import type { ModelInfo } from "../../../packages/sdk/src/index.ts";
+import type { ModelInfo } from "@moguri-dev/sdk";
 
 // Lucide (ISC) thin-stroke icons keep one consistent, professional weight across the app; names stay stable for callers and tests.
 const icons: Record<string, LucideIcon> = {

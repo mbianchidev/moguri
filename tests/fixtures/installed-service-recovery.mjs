@@ -10,8 +10,8 @@ import { promisify } from "node:util";
 
 const installed = resolve(process.argv[2] ?? ".");
 const require = createRequire(join(installed, "package.json")), execute = promisify(execFile);
-const { MoguriSdk } = await import(pathToFileURL(join(installed, "dist/sdk/index.mjs")).href);
-const { readConnection, stopMoguriService } = await import(pathToFileURL(join(installed, "dist/sdk/node.mjs")).href);
+const { MoguriSdk } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/index.mjs")).href);
+const { readConnection, stopMoguriService } = await import(pathToFileURL(join(installed, "node_modules/@moguri-dev/sdk/dist/sdk/node.mjs")).href);
 const root = await realpath(await mkdtemp(join(tmpdir(), "moguri-installed-service-recovery-")));
 const appRoot = join(root, "Generated Moguri.app", "Contents", "Resources", "app");
 const stateDir = join(root, "state"), home = join(root, "home"), dependencies = join(appRoot, "node_modules");
@@ -20,11 +20,15 @@ let connection, sdk, application, launched = false;
 try {
   await mkdir(dependencies, { recursive: true }); await mkdir(home);
   await cp(join(installed, "dist"), join(appRoot, "dist"), { recursive: true });
-  await cp(join(installed, "bin"), join(appRoot, "bin"), { recursive: true });
   await copyFile(join(installed, "package.json"), join(appRoot, "package.json"));
   const manifest = JSON.parse(await readFile(join(installed, "package.json"), "utf8"));
-  for (const name of Object.keys(manifest.dependencies)) {
-    if (name === "@napi-rs/keyring" || name === "node") continue;
+  const sdkRoot = join(installed, "node_modules", "@moguri-dev", "sdk"), sdkManifest = JSON.parse(await readFile(join(sdkRoot, "package.json"), "utf8"));
+  const tuiRoot = join(installed, "node_modules", "@moguri-dev", "tui"), tuiManifest = JSON.parse(await readFile(join(tuiRoot, "package.json"), "utf8"));
+  // Real copies, not symlinks: the service and the CLI that starts it must resolve the generated keyring below rather than the real one beside their own paths.
+  await cp(sdkRoot, join(dependencies, "@moguri-dev", "sdk"), { recursive: true, verbatimSymlinks: true });
+  await cp(tuiRoot, join(dependencies, "@moguri-dev", "tui"), { recursive: true, verbatimSymlinks: true });
+  for (const name of new Set([...Object.keys(manifest.dependencies), ...Object.keys(sdkManifest.dependencies), ...Object.keys(tuiManifest.dependencies)])) {
+    if (name === "@napi-rs/keyring" || name === "node" || name === "@moguri-dev/sdk" || name === "@moguri-dev/tui") continue;
     let dependency;
     for (const directory of require.resolve.paths(name) ?? []) {
       try { await lstat(join(directory, name, "package.json")); dependency = join(directory, name); break; }
@@ -53,7 +57,7 @@ try {
   `);
   const cli = (action) => execute(join(appRoot, "dist", "moguri"), ["service", action], { env, timeout: 15_000 });
   await assert.rejects(() => lstat(join(appRoot, "service.mjs")), { code: "ENOENT" });
-  assert.deepEqual(await readFile(join(appRoot, "dist", "service.mjs")), await readFile(join(installed, "dist", "service.mjs")));
+  assert.deepEqual(await readFile(join(dependencies, "@moguri-dev", "sdk", "dist", "service.mjs")), await readFile(join(sdkRoot, "dist", "service.mjs")));
   launched = true;
   const cold = JSON.parse((await cli("restart")).stdout);
   connection = await readConnection(stateDir);
@@ -104,7 +108,7 @@ try {
   await cli("stop"); launched = false; connection = undefined;
   const keyBytes = await readFile(join(root, "generated-secrets.json"), "utf8");
   await cli("stop");
-  const recovered = JSON.parse((await execute(node, [join(appRoot, "bin", "moguri.mjs"), "service", "restart"], { env, timeout: 15_000 })).stdout);
+  const recovered = JSON.parse((await execute(node, [join(dependencies, "@moguri-dev", "tui", "bin", "moguri.mjs"), "service", "restart"], { env, timeout: 15_000 })).stdout);
   launched = true; connection = await readConnection(stateDir);
   assert.equal(recovered.pid, connection.pid);
   assert.equal(await readFile(join(root, "generated-secrets.json"), "utf8"), keyBytes);

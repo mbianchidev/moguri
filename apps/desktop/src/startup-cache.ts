@@ -1,6 +1,6 @@
 import { Type, type Static, type TSchema } from "typebox";
 import { Value } from "typebox/value";
-import { ThinkingEffortSchema, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { ThinkingEffortSchema, type Snapshot } from "@moguri-dev/sdk";
 
 export const STARTUP_CACHE_MAX_BYTES = 256 * 1024;
 const scopeSchema = Type.String({ pattern: "^[a-f0-9]{64}$" });

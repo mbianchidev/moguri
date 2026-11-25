@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { CoordinationRead, CoordinationResponse, MoguriSdk, Session, Snapshot, SessionContextInput, SessionWaitPreview } from "../../../packages/sdk/src/index.ts";
-import { envLabel } from "../../../packages/sdk/src/index.ts";
+import type { CoordinationRead, CoordinationResponse, MoguriSdk, Session, Snapshot, SessionContextInput, SessionWaitPreview } from "@moguri-dev/sdk";
+import { envLabel } from "@moguri-dev/sdk";
 import { QuestionCard } from "./QuestionCard.tsx";
 import { Alert } from "./Alert.tsx";
 

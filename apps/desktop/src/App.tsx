@@ -1,6 +1,6 @@
 import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { activeDecision, automaticApprovalsEnabled, kupoModeLabel, outcomeLabel, sessionStatusLabel, sentPromptText, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "../../../packages/sdk/src/index.ts";
-import { useMoguri, useSessionActivity } from "../../../packages/sdk/src/react.ts";
+import { activeDecision, automaticApprovalsEnabled, kupoModeLabel, outcomeLabel, sessionStatusLabel, sentPromptText, sessionShortId, activeProjectWork, appearanceColors, continueWorkInput, conversationNavigation, pendingInputStatus, sessionIndicatorColors, sessionPullRequestUrl, themeVariable, shortcutMatches, DraftEditor, isRecord, sessionTitle as title, type ActivityEntry, type ContinueWorkReview, type ConversationNavigationEntry, type PublicMessage, type MoguriSdk, type Command, type Project, type Session, type Snapshot, type StoredEvent, type SessionPanel, type SlashResult, type ArtifactEditorRequest } from "@moguri-dev/sdk";
+import { useMoguri, useSessionActivity } from "@moguri-dev/sdk/react";
 import mascot from "../../../assets/moguri.svg";
 import type { SettingsTab } from "./SettingsPanel.tsx";
 import type { DesktopStartupStatus } from "./bridge.d.ts";
@@ -8,6 +8,7 @@ import type { RendererTrayAction } from "./tray-menu.ts";
 import { PolicyNavigationContext, policyLocations, type PolicyFocusRequest, type PolicyTarget } from "./PolicyHint.tsx";
 import { Icon } from "./Icon.tsx";
 import { CopyButton } from "./CopyButton.tsx";
+import { pendingWork, pendingWorkSettled } from "./pending-work.ts";
 import { StatusBadge } from "./StatusBadge.tsx";
 import { ApprovalCall, approvalBoundary } from "./ApprovalCall.tsx";
 import { WorkspaceNavigation } from "./WorkspaceNavigation.tsx";
@@ -21,15 +22,17 @@ import { AttachmentChip } from "./ContextAttachments.tsx";
 import { SandboxPanel } from "./SandboxPanel.tsx";
 import { ModelAdvice, QuestionCard } from "./QuestionCard.tsx";
 import { SessionBudgetSummary } from "./BudgetControls.tsx";
-import { MyWorkFiltersSchema, RoundupFiltersSchema, autonomyLabel, envLabel, parse, type MyWorkFilters, type RoundupFilters } from "../../../packages/sdk/src/index.ts";
+import { MyWorkFiltersSchema, RoundupFiltersSchema, autonomyLabel, envLabel, parse, type MyWorkFilters, type RoundupFilters } from "@moguri-dev/sdk";
 import { ActivityRow, CurrentActivity, TurnActions } from "./ChatActivity.tsx";
 import { NotificationAudio } from "./notification-audio.ts";
 import { ApprovalActions } from "./ApprovalActions.tsx";
 import { SessionGitHub } from "./SessionGitHub.tsx";
 import { Tooltip } from "./Tooltip.tsx";
+import { SidebarDisk } from "./VirtualDiskSettings.tsx";
+import { ProfileMenu } from "./ProfileMenu.tsx";
 import { ContinueWorkDialog } from "./ContinueWorkDialog.tsx";
 import type { SessionActionOwner } from "./SessionActions.tsx";
-import type { CommandClientAttachment, CommandExecution, CommandViewContext, CommandViewOutcome } from "../../../packages/sdk/src/index.ts";
+import type { CommandClientAttachment, CommandExecution, CommandViewContext, CommandViewOutcome } from "@moguri-dev/sdk";
 import { Queue } from "./QueuedPrompts.tsx";
 import { usePanelBadges } from "./PanelBadges.ts";
 import { RepositoryProposal } from "./RepositoryProposal.tsx";
@@ -194,9 +197,11 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   const [settingsTab, setSettingsTab] = useState<SettingsTab | null>(resourceSettings(layout.panel));
   const [policyFocus, setPolicyFocus] = useState<PolicyFocusRequest | null>(null);
   const [settingsUnsaved, setSettingsUnsaved] = useState(false);
+  const settingsUnsavedRef = useRef(false);
+  const reportSettingsUnsaved = useCallback((unsaved: boolean) => { settingsUnsavedRef.current = unsaved; setSettingsUnsaved(unsaved); }, []);
   const [boardOpen, setBoardOpen] = useState(false);
   // Getting started (D54) opens once per profile until finished or skipped, and again whenever Settings restarts it.
-  const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false), onboardingChecked = useRef<string | null>(null), onboardProfile = useRef<string | null>(null);
   const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null);
   const [panelDirty, setPanelDirty] = useState(false);
   const panelDirtyRef = useRef(false);
@@ -243,7 +248,9 @@ export function App({ client: initialClient, startupScope = null, startupView = 
   useEffect(() => {
     if (!snapshot || onboardingChecked.current === client.profileId) return;
     onboardingChecked.current = client.profileId;
-    if (window.moguri.automaticOnboarding && !snapshot.settings.values.onboarding) setOnboardingOpen(true);
+    const created = onboardProfile.current === client.profileId;
+    if (created) onboardProfile.current = null;
+    if ((window.moguri.automaticOnboarding || created) && !snapshot.settings.values.onboarding) setOnboardingOpen(true);
   }, [snapshot, client.profileId]);
   const session = snapshot?.sessions.find((session) => session.id === selectedId);
   const sessionPanels = availablePanels(session), shownPanel = sessionPanels.includes(panel) ? panel : "Insights";
@@ -300,23 +307,31 @@ export function App({ client: initialClient, startupScope = null, startupView = 
     apply(); media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
   }, [JSON.stringify(snapshot?.settings.values.appearance)]);
-  const closingSave = useRef<Promise<void> | null>(null);
+  const closingSave = useRef<Promise<void> | null>(null), settledForClose = useRef(false);
   useEffect(() => {
     const pendingDrafts = () => hasUnsavedWork() || [...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving);
     // Drafts and queued-prompt edits are saved before closing instead of asking (D51); explicit-save edits still ask.
-    const saveDrafts = async () => {
-      await Promise.race([Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()]),
+    // Requests in flight settle first, and an edit flag gets one settle pass before it can refuse the close: a panel's flag reaches
+    // this component through effect renders, so it can still read dirty just after a save. The retried close then asks only about
+    // edits that are still unsaved. A timer, not an animation frame, because hidden windows may pause frames.
+    const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 250));
+    const saveDrafts = async (settling: boolean) => {
+      await Promise.race([pendingWorkSettled().then(() => settling ? settle() : undefined).then(() => Promise.all([...[...editors.current.values()].map((editor) => editor.flush()), saveUnsavedWork()])),
         new Promise((_resolve, reject) => setTimeout(() => reject(new Error("Saving didn't finish within 10 seconds.")), 10_000))]);
       if (pendingDrafts()) throw new Error("A draft changed or conflicts with another client while saving.");
     };
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (panelDirtyRef.current || settingsUnsaved || profilePending) {
+      const edits = panelDirtyRef.current || settingsUnsavedRef.current || profilePending;
+      const settling = pendingWork() || edits && !settledForClose.current;
+      if (!settling && edits) {
+        settledForClose.current = false;
         event.preventDefault(); event.returnValue = ""; window.moguri?.unloadBlocked("edits"); return;
       }
-      if (!pendingDrafts()) return;
+      if (!settling && !pendingDrafts()) { settledForClose.current = false; return; }
+      settledForClose.current = settling;
       event.preventDefault(); event.returnValue = "";
       window.moguri?.unloadBlocked("drafts");
-      closingSave.current ??= saveDrafts().then(() => window.moguri?.draftsSettled({ ok: true }),
+      closingSave.current ??= saveDrafts(settling).then(() => window.moguri?.draftsSettled({ ok: true }),
         (error: unknown) => window.moguri?.draftsSettled({ ok: false, error: error instanceof Error ? error.message : "The draft could not be saved." }))
         .finally(() => { closingSave.current = null; });
     };
@@ -787,21 +802,28 @@ export function App({ client: initialClient, startupScope = null, startupView = 
       </div>
       <div className="nav-footer">
         <div className="profile-actions">
-        {snapshot && <div className="profile-indicator" aria-label="Current profile">{snapshot.profile?.color && <span className="status-dot" style={{ backgroundColor: snapshot.profile.color }} />}<span>{snapshot.profile?.name ?? client.profileId}</span></div>}
+        {snapshot && <ProfileMenu key={client.profileId} sdk={client} snapshot={snapshot} onSwitch={async (id) => { await openProfile(id); }} onManage={() => openSettings("general")}
+          onError={(text) => setNotice(text)} onCreated={async (id) => {
+            // D76: a profile created here opens with its own onboarding, even when the app otherwise uses manual onboarding.
+            onboardProfile.current = id;
+            try { await openProfile(id); }
+            catch (error) { setNotice(`The new profile was created. ${error instanceof Error ? error.message : "Switch to it from the sidebar."}`); }
+          }} />}
         <Tooltip content="Ask Moguri"><button className="icon-button" aria-label="ask Moguri" onClick={() => void run(async () => { if (!canNavigate()) return; const result = await client.metachat.create(session ? session.projectId : projectId); await chooseSession(result.id!); })}><img className="ask-mascot" src={mascot} alt="" /></button></Tooltip>
         <Tooltip content="Settings"><button className="icon-button" aria-label="Settings" aria-pressed={settingsTab !== null} onClick={() => { if (settingsTab) leaveSettings(); else openSettings("general"); }}><Icon name="Settings" /></button></Tooltip>
         </div>
+        <SidebarDisk sdk={client} open={() => openSettings("retention")} />
         <div className="connection-line"><span className={`status-dot ${status === "connected" ? "completed" : status === "connecting" ? "running" : "failed"}`} />Local service {status}</div>
       </div>
     </nav>
     <main className="main-pane" inert={panelExpanded} style={panelExpanded ? { display: "none" } : undefined}>
       {(notice || connectionError) && <Alert className={`notice ${notice?.info && !connectionError ? "info" : "error"}`} role={notice?.info && !connectionError ? "status" : "alert"} onDismiss={() => setNotice(null)}>{connectionError ?? notice?.text}</Alert>}
-      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={setSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
-      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} restartOnboarding={() => { if (leaveSettings()) setOnboardingOpen(true); }} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={setSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
+      {boardOpen && snapshot && project ? <Suspense fallback={<div className="loading-state" role="status">Loading project Kanban...</div>}><ProjectBoard key={project.id} sdk={client} project={project} snapshot={snapshot} onBack={leaveSurface} onUnsavedChange={reportSettingsUnsaved} onSettings={() => projectSettings(project.id)} openSession={chooseSession}>{chatContent}</ProjectBoard></Suspense> :
+      settingsTab && snapshot ? <Suspense fallback={<div className="loading-state" role="status">Loading shared SDK settings...</div>}><SettingsPanel sdk={client} snapshot={snapshot} restartOnboarding={() => { if (leaveSettings()) setOnboardingOpen(true); }} session={(session?.projectId ?? null) === (project?.id ?? null) ? session : undefined} project={project} configurationProjectId={settingsProjectId} selectConfigurationProject={setSettingsProjectId} initialTab={settingsTab} policyFocus={policyFocus} artifactRequest={artifactRequest} onArtifactRequestHandled={() => setArtifactRequest(null)} onBack={leaveSettings} onUnsavedChange={reportSettingsUnsaved} onSwitchProfile={async (id) => { await openProfile(id); }} openSession={(id) => { void chooseSession(id); }} prepareMaintenance={async () => {
         if (panelDirty || switchingProfile.current) throw new Error("Finish the actual panel edit or profile switch before whole-store maintenance.");
         for (const editor of editors.current.values()) await editor.flush();
         if ([...editors.current.values()].some((editor) => editor.getState().dirty || editor.getState().saving)) throw new Error("A saved draft is still pending. No application restart was requested.");
-      }} openTerminal={() => { setTerminalIntent({ panel: "Terminal", sessionId: session?.id ?? null }); setSettingsTab(null); setSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
+      }} openTerminal={() => { setTerminalIntent({ panel: "Terminal", sessionId: session?.id ?? null }); setSettingsTab(null); reportSettingsUnsaved(false); setPanel("Terminal"); setPanelOpen(true); }} /></Suspense> :
       globalView && snapshot ? <section className="global-page" aria-label={`${globalLabel(globalView)} workspace`}>
         <header className="global-toolbar"><button className="icon-button" aria-label="Back to chat" onClick={() => { if (canNavigate()) beforeHidingTerminal(() => { leaveSurface(); }); }}><Icon name="Back" /></button><h1>{globalLabel(globalView)}</h1>
           {globalView === "Suggestions" && <label>Scope<select aria-label="Resource source chat" value={globalSessionId ?? ""} onChange={(event) => { if (canNavigate()) setGlobalSessionId(event.target.value || null); }}>

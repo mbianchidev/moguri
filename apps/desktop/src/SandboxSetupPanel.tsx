@@ -2,7 +2,7 @@ import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState } from "react";
 import {
   defaultSandboxManagement, supportedSandboxRelease, type MoguriSdk, type SandboxManagement, type SandboxSetupReview, type SandboxSetupStatus, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 const active = new Set(["checking", "preparing", "installing", "importing", "verifying"]);

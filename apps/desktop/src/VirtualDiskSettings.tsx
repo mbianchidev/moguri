@@ -1,28 +1,37 @@
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
-import { useEffect, useState } from "react";
-import { formatDiskBytes, VIRTUAL_DISK_SIZES_GIB, type MoguriSdk, type Snapshot, type VirtualDiskStatus } from "../../../packages/sdk/src/index.ts";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { formatDiskBytes, VIRTUAL_DISK_SIZES_GIB, type MoguriSdk, type VirtualDiskStatus } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
+import { DiskUsageBar, diskUsage } from "./DiskUsageBar.tsx";
+import { Tooltip } from "./Tooltip.tsx";
 
 const DEFAULT_SIZE_GIB = 50;
 const transitional = (status: string | undefined) => status === "creating" || status === "resizing" || status === "removing";
 
-/** The disk status, read again whenever the snapshot changes and every few seconds while the disk is being changed. */
-export function useVirtualDisk(sdk: MoguriSdk, snapshot: Snapshot | null, enabled = true): VirtualDiskStatus | null {
-  const [status, setStatus] = useState<VirtualDiskStatus | null>(null);
+/** The disk status the service pushes live on the event connection (D76), with one read until the first push arrives. */
+export function useVirtualDisk(sdk: MoguriSdk, enabled = true): VirtualDiskStatus | null {
+  const live = useSyncExternalStore(sdk.subscribe, () => sdk.application.disk.current(), () => sdk.application.disk.current());
+  const [read, setRead] = useState<VirtualDiskStatus | null>(null);
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || live) return;
     let current = true;
-    const read = () => void sdk.application.disk.status().then((result) => { if (current) setStatus(result.disk); }, () => undefined);
-    read();
-    const timer = transitional(status?.disk?.status) ? setInterval(read, 1500) : undefined;
-    return () => { current = false; if (timer) clearInterval(timer); };
-  }, [sdk, snapshot, status?.disk?.status, enabled]);
-  return enabled ? status : null;
+    void sdk.application.disk.status().then((result) => { if (current) setRead(result.disk); }, () => undefined);
+    return () => { current = false; };
+  }, [sdk, enabled, live]);
+  return enabled ? live ?? read : null;
+}
+
+/** D76. The sidebar's text-free disk bar above the service status, shown only while the disk is on; a click opens Settings / Retention. */
+export function SidebarDisk({ sdk, open }: { sdk: MoguriSdk; open: () => void }) {
+  const status = useVirtualDisk(sdk), usage = diskUsage(status);
+  if (!usage) return null;
+  return <Tooltip content={usage.label}><button type="button" className="disk-usage-button" aria-label={`${usage.label}. Open Retention settings`} onClick={open}>
+    <DiskUsageBar status={status} compact /></button></Tooltip>;
 }
 
 /** Settings / Retention: the optional fixed-size disk for new session worktrees (D47). Switch and size save immediately. */
-export function VirtualDiskSettings({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Snapshot }) {
-  const status = useVirtualDisk(sdk, snapshot), [busy, setBusy] = useState(false), [error, setError] = useState("");
+export function VirtualDiskSettings({ sdk }: { sdk: MoguriSdk }) {
+  const status = useVirtualDisk(sdk), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const disk = status?.disk, active = Boolean(disk && disk.status !== "off"), changing = busy || transitional(disk?.status);
   const configure = async (sizeGiB: number | null) => {
     setBusy(true); setError("");
@@ -43,6 +52,7 @@ export function VirtualDiskSettings({ sdk, snapshot }: { sdk: MoguriSdk; snapsho
       onChange={(event) => void configure(event.target.checked ? size : null)} />Limit session worktrees to a virtual disk</label>
     <label className="setting-field">Disk size<select aria-label="Virtual disk size" value={size} disabled={!active || changing || disk?.status !== "ready"}
       onChange={(event) => void configure(Number(event.target.value))}>{sizes.map((value) => <option key={value} value={value}>{value} GB</option>)}</select></label>
+    <DiskUsageBar status={status} />
     <p className="fine-print" role="status">{status ? summary : "Reading the disk..."}</p>
     {status && !status.supported && <p className="fine-print">Virtual disks need macOS.</p>}
     {disk?.diagnostic && !transitional(disk.status) && <Alert as="p" tone="warning" className="settings-warning">{disk.diagnostic}</Alert>}

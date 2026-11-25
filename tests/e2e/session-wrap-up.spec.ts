@@ -1,15 +1,16 @@
 import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Wrap-up settings and suggestions use generated hidden macOS windows.");
 
 test("wrap-up switches save immediately and a suggested skill improvement is reviewed in Suggestions", async () => {
-  test.setTimeout(60_000);
+  test.setTimeout(ciTime(60_000));
   const fixture = await setupFixture(), sdk = await new MoguriSdk(fixture.service.connection).ready();
   const settings = () => sdk.getState().snapshot!.settings.values;
   await sdk.settings.update({ ...settings(), evolution: { enabled: true } }, sdk.getState().snapshot!.settings.revision);

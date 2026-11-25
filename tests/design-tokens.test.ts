@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { appearanceColors, colorContrast, indicatorTone, outcomeLabel, sessionIndicatorColors, sessionStatusLabel, themePalettes, themeVariable,
-  type Appearance, type SessionIndicatorKind, type SessionStatus, type ThemeMode } from "../packages/sdk/src/index.ts";
+  type Appearance, type SessionIndicatorKind, type SessionStatus, type ThemeMode } from "@moguri-dev/sdk";
 
 const css = readFileSync(new URL("../apps/desktop/src/styles.css", import.meta.url), "utf8");
 const app = readFileSync(new URL("../apps/desktop/src/App.tsx", import.meta.url), "utf8");

@@ -1,6 +1,6 @@
 import { SettingsInput } from "./SettingsFields.tsx";
 import { useRef, useState } from "react";
-import { shortcutFromEvent } from "../../../packages/sdk/src/index.ts";
+import { shortcutFromEvent } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export function ShortcutEditor({ label, value, change, save, dirty, disabled }: {

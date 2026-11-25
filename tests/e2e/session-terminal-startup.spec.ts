@@ -2,7 +2,7 @@ import { _electron as electron, expect, test, type ElectronApplication } from "@
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { realpath } from "node:fs/promises";
-import { isRecord, MoguriError, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { isRecord, MoguriError, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { remoteFixture } from "../fixtures/remote-service.ts";
 

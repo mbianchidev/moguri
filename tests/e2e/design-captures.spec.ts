@@ -2,10 +2,11 @@ import { _electron as electron, expect, test, type ElectronApplication, type Pag
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { isAbsolute, join } from "node:path";
-import { MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture, waitFor } from "../fixture.ts";
 import { generatedRepository } from "../fixtures/git.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 // Opt-in design captures for docs/design-audit.md. Set MOGURI_DESIGN_CAPTURE_DIR to an absolute
 // directory and MOGURI_DESIGN_CAPTURE_PREFIX to "before" or "after". Generated fixtures only.
@@ -49,7 +50,7 @@ const LONG_REPLY = [
 ].join("\n");
 
 test("captures the start, question, composer popover and settings screens", async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(ciTime(120_000));
   const fixture = await setupFixture();
   await fixture.configure();
   const app = await launch(fixture.directory);
@@ -78,7 +79,7 @@ test("captures the start, question, composer popover and settings screens", asyn
 });
 
 test("captures the approval card and a long completed conversation", async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(ciTime(120_000));
   const approvalFixture = await setupFixture({ toolCall: { name: "run_command", args: { command: "printf GENERATED_DESIGN_AUDIT", timeoutMs: 2000 } } });
   await approvalFixture.configure(); await approvalFixture.send("Generated approval request for the design audit.");
   await waitFor(() => approvalFixture.session().pendingApproval);
@@ -103,7 +104,7 @@ test("captures the approval card and a long completed conversation", async () =>
 });
 
 test("captures failed, stopped and diff states with the command palette", async () => {
-  test.setTimeout(180_000);
+  test.setTimeout(ciTime(180_000));
   const provider = await setupFixture();
   await provider.configure(); await provider.send("generated provider failure");
   await waitFor(() => provider.session().status === "failed");
@@ -157,7 +158,7 @@ test("captures failed, stopped and diff states with the command palette", async 
 });
 
 test("captures the supporting dashboard, automation, suggestion and budget pages", async () => {
-  test.setTimeout(120_000);
+  test.setTimeout(ciTime(120_000));
   const fixture = await setupFixture({ responseMode: "text" });
   await fixture.configure(); await fixture.send("Generated supporting-page message.");
   await waitFor(() => fixture.session().status === "completed");

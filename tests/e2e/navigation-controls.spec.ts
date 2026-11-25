@@ -2,15 +2,16 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DraftEditor, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { DraftEditor, MoguriSdk } from "@moguri-dev/sdk";
 import { setupFixture } from "../fixture.ts";
 import { initializeGeneratedRepository } from "../fixtures/git-project.ts";
 import { openSettingsSection } from "./navigation.ts";
 
 const require = createRequire(import.meta.url);
 test.skip(process.platform !== "darwin", "Desktop navigation uses generated hidden macOS windows.");
-const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
-  args: process.env.MOGURI_TEST_APP ? [] : ["."], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_SKILL_HOME: directory } });
+// macOS reads -AppleShowScrollBars from the launch arguments, so a test can pin overlay or classic scroll bars without changing system settings.
+const launch = (directory: string, scrollBars?: "WhenScrolling" | "Always") => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
+  args: [...process.env.MOGURI_TEST_APP ? [] : ["."], ...scrollBars ? ["-AppleShowScrollBars", scrollBars] : []], env: { ...process.env, MOGURI_STATE_DIR: join(directory, "state"), MOGURI_TEST_WINDOW: "hidden", MOGURI_TEST_SKILL_HOME: directory } });
 
 test("search opens explicitly, prompt order flattens every group and filters/order reset without changing drafts, grouping or stored session order", async () => {
   const f = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(f.service.connection).ready();
@@ -79,12 +80,13 @@ test("project collapse survives a reload and an empty project shows No sessions"
   } finally { await app.close(); sdk.disconnect(); await f.close(); }
 });
 
-test("composer and queue align with the message column at wide/narrow widths and with turn previews open", async () => {
+// Classic scroll bars take 15 px inside the transcript; the composer column must still line up (#101).
+for (const scrollBars of ["WhenScrolling", "Always"] as const) test(`composer and queue align with the message column at wide/narrow widths and with turn previews open (${scrollBars} scroll bars)`, async () => {
   const f = await setupFixture({ responseMode: "text" }), sdk = await new MoguriSdk(f.service.connection).ready();
   await f.configure(); await f.send("Generated aligned prompt."); await f.terminal(); await sdk.refresh();
   const editor = new DraftEditor(sdk, f.sessionId, f.session().draft);
   try { editor.edit("Generated held alignment prompt."); await editor.send("queue", true); } finally { editor.dispose(); }
-  const app = await launch(f.directory);
+  const app = await launch(f.directory, scrollBars);
   try {
     const page = await app.firstWindow(), navigation = page.getByRole("navigation", { name: "Conversation turns", exact: true });
     for (const [width, height] of [[1280, 900], [840, 620]] as const) {

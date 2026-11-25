@@ -1,4 +1,4 @@
-import { DEFAULT_PR_TOUR_PROMPT, PR_TOUR_LIMITS, type Snapshot } from "../../../packages/sdk/src/index.ts";
+import { DEFAULT_PR_TOUR_PROMPT, PR_TOUR_LIMITS, type Snapshot } from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 
 /** Global guided PR tour prompt (Settings / Integrations / GitHub). Written text, so it saves only with Save (D64). */

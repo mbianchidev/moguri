@@ -1,4 +1,4 @@
-import { MoguriError } from "../../packages/protocol/src/index.ts";
+import { MoguriError } from "@moguri-dev/sdk/testing";
 
 /** Generated GitHub REST responses for one PR, served to the service's injected fetch. No network or account is used. */
 export const GENERATED_PR_URL = "https://github.com/generated-owner/generated-repo/pull/7";

@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { describeActivityCall, playwrightBrowserNote, type Snapshot, type ToolCall } from "../../../packages/sdk/src/index.ts";
+import { describeActivityCall, playwrightBrowserNote, type Snapshot, type ToolCall } from "@moguri-dev/sdk";
 
 const value = (input: unknown): ReactNode => {
   if (typeof input === "string") return input.includes("\n") || input.length > 120 ? <pre>{input}</pre> : <code>{input}</code>;

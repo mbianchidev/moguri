@@ -2,10 +2,11 @@ import { _electron as electron, expect, test } from "@playwright/test";
 import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { kanbanPreferences, MoguriSdk } from "../../packages/sdk/src/index.ts";
+import { kanbanPreferences, MoguriSdk } from "@moguri-dev/sdk";
 import { fixtureProvider, setupFixture } from "../fixture.ts";
 import { githubApplicationFixture } from "../github-workflows-fixture.ts";
 import { openSettingsSection } from "./navigation.ts";
+import { ciTime } from "../fixtures/time-scale.ts";
 
 const require = createRequire(import.meta.url);
 const launch = (directory: string) => electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"),
@@ -106,7 +107,7 @@ test("typing continue work in the composer creates one visible autonomous task a
     await page.getByRole("dialog", { name: "Continue work", exact: true }).getByRole("button", { name: "Work from Kanban", exact: true }).click();
     const status = page.getByRole("status", { name: "Project work status", exact: true });
     await expect(status).toContainText("Generated desktop continuation");
-    await expect(status).toContainText("completed", { timeout: 30000 });
+    await expect(status).toContainText("completed", { timeout: ciTime(30000) });
     await expect(prompt).toHaveValue("");
     expect(fixture.session().controls.autonomy).toBe("Manual");
     expect(provider.requests).toHaveLength(2);

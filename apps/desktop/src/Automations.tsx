@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   activeAutomationRun, autonomyLabel, autonomyValues, envLabel, envValues, describeAutomationSchedule, describeAutomationStep, outcomeLabel, scheduleLocalChoices, scheduleLocalTime,
   type Automation, type AutomationDefinition, type AutomationRun, type AutomationSchedule, type AutomationStep, type Controls, type MoguriSdk, type Snapshot,
-} from "../../../packages/sdk/src/index.ts";
+} from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";

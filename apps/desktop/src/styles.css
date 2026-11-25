@@ -54,6 +54,8 @@
   --focus-ring-width: 2px; --focus-ring-color: var(--accent); --focus-ring-offset: 3px;
   --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
   --duration-fast: 120ms; --duration-base: 140ms; --duration-slow: 200ms; --ease-standard: ease-out;
+  /* Layout width of a classic scroll bar; overlay scroll bars take none. The renderer measures it at startup and on focus. */
+  --scrollbar-width: 0px;
   /* Fixed-identity surfaces: the brand startup screen, terminal canvas, chart lanes and the custom swatch. */
   --brand-night: #000; --brand-ink: #f4efe9; --brand-mist: #b6aebf; --brand-violet: #a58acf; --brand-violet-deep: #70538e;
   --brand-lilac: #b6a6c8; --brand-plum: #302939; --brand-gold: #f4d38a; --brand-gold-deep: #8d743c; --brand-rose: #dba3ad;
@@ -602,13 +604,26 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .nav-empty-nested { padding: var(--space-1) var(--space-2-5); font-size: var(--font-size-xs); }
 .nav-footer { padding: var(--space-3) 0; border-top: 1px solid var(--line); margin-top: var(--space-2-5); }
 .connection-line { display: flex; align-items: center; gap: var(--space-1-5); color: var(--muted); font-size: var(--font-size-2xs); padding: var(--space-3) var(--space-2-5) 0; }
+/* D76: the session disk's live usage bar, in Settings / Retention and text-free above the sidebar's service status. */
+.disk-usage-bar { position: relative; height: var(--space-1-5); margin: var(--space-2) 0 var(--space-1); border-radius: var(--radius-pill); background: var(--line); overflow: hidden; }
+.disk-usage-bar[data-compact] { height: var(--space-1); margin: 0; }
+.disk-usage-fill { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--accent); transition: width 300ms ease; }
+.disk-usage-bar[data-disk-tone="paused"] .disk-usage-fill { background: var(--warning-text); }
+.disk-usage-bar[data-disk-tone="changing"] .disk-usage-fill { width: 100%; background: var(--control-line); animation: disk-usage-pulse 1.4s ease-in-out infinite alternate; }
+.disk-usage-bar[data-disk-tone="unavailable"] { background: var(--error-bg); box-shadow: inset 0 0 0 1px var(--danger); }
+.disk-usage-reserve { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); }
+.disk-usage-button { display: block; width: 100%; padding: var(--space-2) var(--space-2-5) 0; border: 0; background: transparent; cursor: pointer; }
+.disk-usage-button:hover .disk-usage-bar { box-shadow: 0 0 0 1px var(--hover-line); }
+@keyframes disk-usage-pulse { from { opacity: 0.35; } to { opacity: 0.85; } }
+@media (prefers-reduced-motion: reduce) { .disk-usage-bar[data-disk-tone="changing"] .disk-usage-fill { animation: none; opacity: 0.6; } }
+@media (prefers-contrast: more) { .disk-usage-bar { box-shadow: inset 0 0 0 1px var(--text); } .disk-usage-reserve { background: var(--text); } }
 .main-pane { display: flex; flex-direction: column; background: var(--surface); min-width: 0; min-height: 0; }
 .global-page { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .global-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-4) var(--space-6); border-bottom: 1px solid var(--line); }
 .global-toolbar h1 { font-size: var(--font-size-xl); margin: 0; flex: 1; }
 .global-toolbar label { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-sm); color: var(--muted); min-width: 0; }
 .global-toolbar select { min-width: 0; max-width: 280px; }
-.global-content { flex: 1; min-height: 0; overflow: auto; padding: var(--space-6) clamp(20px, 4vw, 64px); }
+.global-content { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable both-edges; padding: var(--space-6) clamp(20px, 4vw, 64px); }
 .global-content > section { max-width: 1100px; margin-inline: auto; }
 .global-content.panel-global-terminal { display: flex; padding: 0; }
 .global-content.panel-global-terminal > section { flex: 1; width: 100%; }
@@ -644,7 +659,8 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 :is(.main-pane, .side-chat-panel):has(> .conversation-history > .turn-navigation.expanded) { --conversation-rail: 240px; }
 :is(.main-pane, .side-chat-panel):has(> .conversation-history > .turn-navigation[data-compact="true"].expanded) { --conversation-rail: 0px; }
 .conversation-history { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-.timeline { flex: 1; overflow: auto; padding: var(--space-6) var(--conversation-gutter); min-width: 0; min-height: 0; scroll-behavior: auto; }
+/* A classic scroll bar sits inside the transcript's end gutter; only the part wider than that gutter moves the composer column in. */
+.timeline { flex: 1; overflow: auto; scrollbar-gutter: stable; padding: var(--space-6) var(--conversation-gutter); padding-inline-end: max(0px, var(--conversation-gutter) - var(--scrollbar-width)); min-width: 0; min-height: 0; scroll-behavior: auto; }
 .timeline-empty { display: flex; align-items: safe center; justify-content: center; }
 .timeline-empty > .timeline-content { width: 100%; }
 .turn-navigation { display: flex; flex-direction: column; width: 40px; flex-shrink: 0; min-height: 0; padding: var(--space-2-5) var(--space-0); border-left: 1px solid var(--soft-line); background: var(--canvas); }
@@ -678,7 +694,7 @@ body:has(.opening-workspace), body:has(#root:empty) { background: var(--brand-ni
 .main-pane > .conversation-history > .turn-navigation { position: absolute; z-index: 3; right: 0; top: anchor(--main-conversation top); bottom: 0; }
 .main-pane > .conversation-history > .turn-navigation[data-compact="true"].expanded { top: anchor(--main-conversation top); bottom: 0; }
 .main-pane:has(> .conversation-history > .turn-navigation) > .conversation-history ~ :is(.repository-proposal, .configuration-proposals) {
-  margin-inline: var(--conversation-gutter) calc(var(--conversation-gutter) + var(--conversation-rail));
+  margin-inline: var(--conversation-gutter) calc(var(--conversation-gutter) + var(--conversation-rail) + max(0px, var(--scrollbar-width) - var(--conversation-gutter)));
 }
 .turn-checkpoints { flex-shrink: 0; border-top: 1px solid var(--soft-line); padding-top: var(--space-1-5); }
 .turn-checkpoints > .tooltip-trigger { display: flex; }
@@ -1034,7 +1050,7 @@ summary:hover { color: var(--text); }
 .background-agents strong { display: block; font-size: var(--font-size-xs); font-weight: 500; overflow-wrap: anywhere; }
 .background-agents small { display: block; color: var(--muted); font-size: var(--font-size-2xs); }
 .background-agents .quiet { flex-shrink: 0; font-size: var(--font-size-xs); }
-:is(.main-pane, .side-chat-panel) > :is(.composer, .queue, .approval, .user-question) { margin-inline-start: var(--conversation-gutter); margin-inline-end: calc(var(--conversation-gutter) + var(--conversation-rail)); }
+:is(.main-pane, .side-chat-panel) > :is(.composer, .queue, .approval, .user-question) { margin-inline-start: var(--conversation-gutter); margin-inline-end: calc(var(--conversation-gutter) + var(--conversation-rail) + max(0px, var(--scrollbar-width) - var(--conversation-gutter))); }
 .context-pane { position: relative; background: var(--subtle); border-left: 1px solid var(--line); min-width: 0; overflow: hidden; display: none; flex-direction: column; }
 .context-open .context-pane { display: flex; }
 .context-heading { height: 58px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); font-size: var(--font-size-sm); }
@@ -1149,6 +1165,20 @@ summary:hover { color: var(--text); }
 .profile-actions .profile-indicator { flex: 1; min-width: 0; padding: var(--space-1-5) var(--space-2); }
 .profile-actions .profile-indicator > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-actions .ask-mascot { width: 25px; height: 22px; object-fit: contain; }
+/* D76: the sidebar profile is a menu button; with one profile it opens Create profile. */
+.profile-menu-button { border: 0; background: transparent; border-radius: var(--radius-md); text-align: start; cursor: pointer; min-height: 0; }
+.profile-menu-button:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+.profile-menu [role="menu"] { display: flex; flex-direction: column; gap: var(--space-0); }
+.profile-menu button { align-items: center; }
+.profile-menu button > svg:last-child { margin-left: auto; color: var(--accent); }
+.profile-menu hr { width: 100%; margin: var(--space-1) 0; border: 0; border-top: 1px solid var(--line); }
+.profile-create-dialog form { display: flex; flex-direction: column; gap: var(--space-3); }
+.profile-accent { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.profile-accent legend { padding: 0; margin-bottom: var(--space-2); font-size: var(--font-size-sm); color: var(--muted); }
+.profile-accent .onboarding-swatches { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.profile-custom-color { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
+.profile-custom-color .setting-field { margin: 0; }
+.profile-custom-color input[type="color"] { width: var(--space-8); height: var(--space-7); padding: var(--space-0); }
 .tooltip-trigger { display: inline-flex; min-width: 0; vertical-align: middle; }
 .compact-tooltip { position: fixed; z-index: 10000; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; padding: var(--space-2) var(--space-3); border: 1px solid var(--control-line); border-radius: var(--radius-md); color: var(--text); background: var(--surface); box-shadow: var(--elevation-tooltip); font-size: var(--font-size-sm); font-weight: 400; line-height: 1.65; overflow-wrap: anywhere; white-space: normal; }
 [data-policy-target] { scroll-margin-block: 18px; }
@@ -1282,6 +1312,12 @@ summary:hover { color: var(--text); }
 .onboarding-toggles .check-setting { margin: 0; }
 .onboarding-toggles .check-setting > span { display: flex; flex-direction: column; }
 .onboarding-toggles small { color: var(--muted); font-size: var(--font-size-sm); }
+/* D76: reviewed imports from another profile during onboarding. */
+.onboarding-import { display: flex; flex-direction: column; gap: var(--space-3); }
+.onboarding-review { display: flex; flex-direction: column; gap: var(--space-2); }
+.onboarding-review p { margin: 0; }
+.onboarding-review ul { margin: 0; padding-left: var(--space-5); }
+.onboarding-choices .status-dot { flex-shrink: 0; }
 /* The rail lists only the Settings pages (groups); a page shows all of its sections. */
 .settings-groups { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-0); }
 .settings-layout > nav .settings-groups button { display: flex; align-items: center; gap: var(--space-2-5); width: 100%; padding: var(--space-1-5) var(--space-2-5); border: 0;
