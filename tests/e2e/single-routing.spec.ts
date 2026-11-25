@@ -42,7 +42,9 @@ test("desktop explicitly approves Single policy, labels its real roles and block
     await expect(kupo).not.toContainText("GitHub Copilot");
     await kupo.click();
     await expect.poll(() => fixture.session().controls.modelId).toBe("kupo");
-    await expect(models.getByRole("button", { name: "Working context window", exact: true })).toBeDisabled();
+    // The Single pool's approved solver offers its own working windows once the shared pool controls load.
+    await expect(models.getByRole("button", { name: "Working context window", exact: true })).toContainText("Up to 16.4K");
+    await expect(models.getByRole("button", { name: "Working context window", exact: true })).toBeEnabled();
     await expect(models.getByRole("button", { name: "Thinking effort", exact: true })).toHaveCount(0);
     await expect(models.getByRole("button", { name: "Kupo routing preference", exact: true })).toBeDisabled();
     await page.keyboard.press("Escape");
