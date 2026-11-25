@@ -69,7 +69,8 @@ read IDE login files.
 ## Why Moguri
 
 - **Any model, one workflow.** GitHub Copilot, OpenRouter, the Anthropic API,
-  the OpenAI API, a ChatGPT account, OpenAI-compatible endpoints and local
+  the OpenAI API, a ChatGPT account, Gemini, Vertex AI, Amazon Bedrock, Azure
+  OpenAI, xAI, Mistral, Groq, DeepSeek, OpenAI-compatible endpoints and local
   models. **Kupo** can route a task across the models you configured.
 - **Autonomy you choose per session.** Manual (the default) asks before every
   command and edit. Guided recommends, and you confirm. Autonomous and Autopilot

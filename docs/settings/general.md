@@ -59,8 +59,8 @@ this page keeps the full detail.
 - Automatic checks run at app startup and every four hours, and successful checks download and stage
   (verify) the update. Previous label: "Automatically check and stage updates at app startup and every four
   hours".
-- Checks read the public Moguri GitHub Releases (`mbianchidev/moguri`, or `moguri-dev/moguri-desktop` after
-  the planned move) without a token. They contact only
+- Checks read the public Moguri GitHub Releases (`moguri-dev/moguri`, formerly `mbianchidev/moguri`)
+  without a token. They contact only
   `api.github.com` and GitHub's release download host, and send no account, project or usage data. When an
   optional update token is saved, checks use it instead. Checks never use a provider login.
 - Installation and restart always require explicit user confirmation.
@@ -116,8 +116,8 @@ this page keeps the full detail.
 Previously titled "Private GitHub updates".
 
 - The update source is fixed to the upstream Moguri release repository, also for builds from a fork. Checks
-  start at `mbianchidev/moguri`; after the planned transfer to `moguri-dev/moguri-desktop`, GitHub redirects
-  that path once to the repository's own ID, which the updater follows. Any other redirect or repository name
+  start at `moguri-dev/moguri`. If GitHub redirects that path once to the repository's own ID, the updater
+  follows it. Any other redirect or repository name
   fails the check without forwarding the token.
 - Homebrew: when Homebrew manages the app (a `Caskroom/moguri` directory exists under `HOMEBREW_PREFIX`,
   `/opt/homebrew` or `/usr/local`), checks report a newer release without downloading it, and the app never

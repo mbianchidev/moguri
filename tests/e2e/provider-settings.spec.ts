@@ -22,7 +22,12 @@ test("provider cards show each service's logo and text status, and the API key f
       ["GitHub Copilot connection", "github-copilot", "Connected"],
       ["OpenRouter account", "openrouter", "Not connected"], ["Anthropic API account", "anthropic", "Not connected"],
       ["OpenAI API account", "openai", "Not connected"], ["ChatGPT account", "openai", "Not connected"],
+      ["Google Gemini API account", "gemini", "Not connected"], ["Vertex AI account", "vertex-ai", "Not connected"],
+      ["Amazon Bedrock account", "bedrock", "Not connected"], ["Azure OpenAI account", "azure", "Not connected"],
+      ["xAI API account", "xai", "Not connected"], ["Mistral API account", "mistral", "Not connected"],
+      ["Groq account", "groq", "Not connected"], ["DeepSeek API account", "deepseek", "Not connected"],
       ["Claude Agent harness", "claude-code", "Disabled"], ["Codex Agent harness", "codex", "Disabled"],
+      ["Antigravity Agent harness", "antigravity", "Disabled"], ["Gemini CLI Agent harness", "gemini", "Disabled"],
     ] as const;
     for (const [name, logo, status] of cards) {
       const card = page.getByRole("region", { name, exact: true });
@@ -113,4 +118,48 @@ test("saving a hosted API key keeps it out of the window, connects the card and 
     expect([...secrets.values()].some((value) => value.includes(key))).toBe(true);
     expect(await page.content()).not.toContain(key);
   } finally { await app.close(); await fixture.close(); server.close(); }
+});
+
+test("Bedrock and Azure keys are saved with their Region or endpoint and deployments, which a later key replaces", async () => {
+  const secrets = new Map<string, string>();
+  const vault = { read: async (id: string) => secrets.get(id) ?? null, write: async (id: string, value: string) => { secrets.set(id, value); }, remove: async (id: string) => { secrets.delete(id); } };
+  const fixture = await setupFixture({ platform: { models: { vault, hosted: {} } } }), sdk = await new MoguriSdk(fixture.service.connection).ready();
+  const app = await electron.launch({ executablePath: process.env.MOGURI_TEST_APP ?? require("electron"), args: process.env.MOGURI_TEST_APP ? [] : ["."],
+    env: { ...process.env, MOGURI_STATE_DIR: join(fixture.directory, "state"), MOGURI_TEST_WINDOW: "hidden" } });
+  try {
+    const page = await app.firstWindow(), bedrockKey = "ABSK-generated-bedrock-ui-key", azureKey = "generated-azure-ui-key";
+    await openSettingsSection(page, "Providers");
+    const bedrock = page.getByRole("region", { name: "Amazon Bedrock account", exact: true });
+    await bedrock.getByRole("button", { name: "Add API key", exact: true }).click();
+    await bedrock.getByLabel("Amazon Bedrock API key", { exact: true }).fill(bedrockKey);
+    await expect(bedrock.getByRole("button", { name: "Save key", exact: true })).toBeDisabled();
+    await bedrock.getByLabel("AWS Region", { exact: true }).fill("eu-west-1");
+    await bedrock.getByRole("button", { name: "Save key", exact: true }).click();
+    await expect(bedrock.locator(".provider-status")).toHaveText("Connected");
+    await expect(bedrock.locator(".provider-card-meta")).toContainText("in eu-west-1");
+    expect(sdk.getState().snapshot!.settings.values.hostedProviderOptions?.bedrock).toEqual({ region: "eu-west-1" });
+
+    const azure = page.getByRole("region", { name: "Azure OpenAI account", exact: true });
+    await azure.getByRole("button", { name: "Add API key", exact: true }).click();
+    await azure.getByLabel("Azure OpenAI API key", { exact: true }).fill(azureKey);
+    await azure.getByLabel("Azure resource endpoint", { exact: true }).fill("https://generated-resource.openai.azure.com");
+    await azure.getByLabel("Azure deployments", { exact: true }).fill("generated-prod=gpt-5.4\ngenerated-mini=gpt-4.1-mini");
+    await azure.getByRole("button", { name: "Save key", exact: true }).click();
+    await expect(azure.locator(".provider-status")).toHaveText("Connected");
+    await expect(azure.locator(".provider-card-meta")).toContainText("to generated-resource.openai.azure.com. 2 models selectable.");
+    expect(sdk.getState().snapshot!.settings.values.hostedProviderOptions?.azure).toEqual({ endpoint: "https://generated-resource.openai.azure.com",
+      deployments: [{ name: "generated-prod", model: "gpt-5.4" }, { name: "generated-mini", model: "gpt-4.1-mini" }] });
+
+    // Replace key reopens the form with the saved details, so a new Region goes out with the new key.
+    await bedrock.getByRole("button", { name: "Replace key", exact: true }).click();
+    await expect(bedrock.getByLabel("AWS Region", { exact: true })).toHaveValue("eu-west-1");
+    await bedrock.getByLabel("AWS Region", { exact: true }).fill("us-west-2");
+    await bedrock.getByLabel("Amazon Bedrock API key", { exact: true }).fill(`${bedrockKey}-2`);
+    await bedrock.getByRole("button", { name: "Save key", exact: true }).click();
+    await expect(bedrock.locator(".provider-card-meta")).toContainText("in us-west-2");
+    const content = await page.content();
+    for (const key of [bedrockKey, azureKey]) expect(content).not.toContain(key);
+    await azure.getByRole("button", { name: "Sign out of Azure OpenAI and remove credential", exact: true }).click();
+    await expect.poll(() => sdk.getState().snapshot!.settings.values.hostedProviderOptions?.azure).toBeUndefined();
+  } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });

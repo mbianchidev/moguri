@@ -54,10 +54,38 @@ unconfirmed. Web search is disabled for these threads. Codex Agent is blocked wh
 your default tool decision is deny. Other limits match Claude Agent; usage notices
 show Codex's token totals without a cost estimate.
 
+## Antigravity Agent and Gemini CLI Agent
+
+These run your own installed Antigravity CLI (`agy acp`) or Gemini CLI
+(`gemini --acp`) over the Agent Client Protocol inside a Moguri chat. See the
+[ACP agent contract](architecture/agent-harnesses.md#acp-agents-antigravity-agent-and-gemini-cli-agent).
+
+1. Install the Antigravity CLI (1.5 or newer, <https://antigravity.google/docs/cli>)
+   or the Gemini CLI (<https://github.com/google-gemini/gemini-cli>). Moguri never
+   installs them.
+2. Sign in from your own terminal by running `agy` or `gemini` and following
+   Google's flow. Gemini CLI can also read a Gemini API key from its own
+   `~/.gemini/.env`. Moguri never signs in for you, never reads their credentials
+   and doesn't pass `GEMINI_API_KEY`, `GOOGLE_API_KEY` or other Google credential
+   variables to them.
+3. In **Settings / Model providers / Agent harnesses**, turn on **Antigravity
+   Agent** or **Gemini CLI Agent** (it saves immediately) and optionally save an
+   absolute executable path. Then **Refresh available models**. The agent's models
+   appear as **Antigravity Agent / ...** or **Gemini CLI Agent / ...**.
+
+Each tool the agent asks permission for needs a Moguri approval, answered once;
+Moguri never chooses "always allow". Reads and searches it runs without asking
+are accepted only when Moguri's read policy allows them, otherwise recorded as
+unconfirmed. Both are blocked when your default tool decision is deny. Other
+limits match Claude Agent; usage notices show the prompt's tokens and the agent's
+own cost estimate, which is not a bill.
+
 ## Hosted providers and custom endpoints
 
 Settings / Model providers shows one card per account under **Accounts**:
-GitHub Copilot, OpenRouter, Anthropic API, OpenAI API and ChatGPT account. Each
+GitHub Copilot, OpenRouter, Anthropic API, OpenAI API, ChatGPT account, Google
+Gemini API, Vertex AI, Amazon Bedrock, Azure OpenAI, xAI API, Mistral API, Groq
+and DeepSeek API. Each
 card shows the provider's logo, a text status (Connected, Not connected,
 Checking..., Needs attention or Disabled) and its actions. See the
 [hosted provider contract](architecture/hosted-providers.md).
@@ -70,9 +98,17 @@ Checking..., Needs attention or Disabled) and its actions. See the
 - **ChatGPT account:** **Continue with ChatGPT** uses your ChatGPT plan through
   Sign in with ChatGPT. If the browser cannot reach this computer, paste the final
   redirect URL. Port 1455 must be free (cancel a pending `codex login` first).
+- **Google Gemini API, Vertex AI, xAI API, Mistral API, Groq, DeepSeek API:**
+  **Add API key** and paste the provider's key. Vertex AI takes a Google Cloud API
+  key; Application Default Credentials and service-account files are not read.
+- **Amazon Bedrock:** **Add API key**, then enter the AWS Region with the Bedrock
+  API key. AWS profiles and the default credential chain are not read.
+- **Azure OpenAI:** **Add API key**, then enter the resource endpoint and one
+  `deployment-name=model` per line.
 
 Keys and sign-in tokens are stored in the OS keychain. **Sign out** on a
-provider's card deletes them. In the TUI use `/api-key openrouter|anthropic|openai`,
+provider's card deletes them. In the TUI use `/api-key PROVIDER`
+(`/api-key bedrock REGION`, `/api-key azure ENDPOINT DEPLOYMENT=MODEL...`),
 `/connect chatgpt|openrouter`, `/login-code PROVIDER`, `/cancel-login PROVIDER`
 and `/disconnect PROVIDER`. Hosted models run in the Local Env only.
 
@@ -1629,7 +1665,7 @@ quit and reopen Moguri so its original background service restarts with the
 corrected environment; existing healthy services are not silently replaced.
 
 **Settings / General / GitHub updates** reads the public Moguri releases
-(`mbianchidev/moguri`, or `moguri-dev/moguri-desktop` after the planned move)
+(`moguri-dev/moguri`, formerly `mbianchidev/moguri`)
 without a token. A token is optional: it is needed only while the
 repository is private, or to raise GitHub's anonymous rate limit.
 **Set up read-only update access**
@@ -4458,8 +4494,7 @@ Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
 in **Settings / Interface / Keyboard shortcuts**), Settings and Quit.
 
 **Settings / General / GitHub updates** checks the upstream Moguri release
-repository (`mbianchidev/moguri`, followed to `moguri-dev/moguri-desktop` after
-the planned move). Without a saved token it reads public releases anonymously, contacting
+repository (`moguri-dev/moguri`, formerly `mbianchidev/moguri`). Without a saved token it reads public releases anonymously, contacting
 only `api.github.com` and GitHub's release download host. The optional token is
 stored in the secure secret backend and is needed only while the repository is
 private or to raise the rate limit. It is not Copilot sign-in or `gh`

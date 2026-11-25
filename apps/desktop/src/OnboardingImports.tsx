@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hostedProvider, type MoguriSdk, type ProfileImportResponse } from "@moguri-dev/sdk";
+import { hostedProvider, type HostedKeyProviderId, type MoguriSdk, type ProfileImportResponse } from "@moguri-dev/sdk";
 import { Alert } from "./Alert.tsx";
 
 export type ImportKind = "models" | "repositories" | "skills";
@@ -54,7 +54,7 @@ export function ImportStep({ sdk, kind, sourceId, sourceName, done }: { sdk: Mog
       if (kind === "repositories") await sdk.profiles.imports.repositories(sourceId, review.digest, keys);
       else if (kind === "skills") await sdk.profiles.imports.apply(sourceId, review.digest, { skillSources: keys });
       else await sdk.profiles.imports.apply(sourceId, review.digest, {
-        hostedProviders: keys.filter((key) => key.startsWith("hosted:")).map((key) => key.slice(7) as "openrouter" | "anthropic" | "openai"),
+        hostedProviders: keys.filter((key) => key.startsWith("hosted:")).map((key) => key.slice(7) as HostedKeyProviderId),
         localEndpoints: keys.filter((key) => key.startsWith("endpoint:")).map((key) => key.slice(9)), modelPreferences: keys.includes("preferences") });
       done(`Imported ${selected.length} from ${sourceName}`);
     } catch (failure) { setError(message(failure, "Nothing was imported. Review it again or skip this step.")); setConfirming(false); }

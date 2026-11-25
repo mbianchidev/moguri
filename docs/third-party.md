@@ -50,7 +50,8 @@ relicensing it.
 | Component | License | Use |
 | --- | --- | --- |
 | Node.js | MIT plus included third-party notices | Pinned 26.x service, worker and CLI runtime; built-in SQLite |
-| `@earendil-works/pi-ai` | MIT | GitHub Copilot, OpenRouter, Anthropic API, OpenAI API and Sign in with ChatGPT authentication, catalogues and model transport |
+| `@earendil-works/pi-ai` | MIT | GitHub Copilot, OpenRouter, Anthropic API, OpenAI API, Sign in with ChatGPT, Gemini API, Vertex AI, Amazon Bedrock, Azure OpenAI, xAI, Mistral, Groq and DeepSeek authentication, catalogues and model transport |
+| `@google/genai`, `@aws-sdk/client-bedrock-runtime` | Apache-2.0 | Gemini API, Vertex AI and Amazon Bedrock streaming; pi-ai dependencies installed with the SDK and loaded on first use |
 | OpenTUI core and React renderer | MIT | Native terminal rendering |
 | React and React DOM | MIT | Shared state hooks and desktop UI |
 | Lucide (`lucide-react` 1.77.0) | ISC | Desktop interface icons |
@@ -87,7 +88,7 @@ relicensing it.
 | Python / pip | PSF-2.0 / MIT, plus included notices | Explicit native locked wheel/cache primitives; no sdist/lifecycle execution on the host |
 | Cargo / Rust tooling | MIT OR Apache-2.0, plus included notices | Explicit native locked registry-cache preparation, not host build-script execution |
 | Go tooling | BSD-3-Clause, plus included notices | Native locked module checksum/cache verification; no implicit toolchain download |
-| LobeHub Icons (`@lobehub/icons-static-svg` 1.102.0) | MIT | Monochrome provider marks (GitHub Copilot, OpenRouter, Anthropic, OpenAI, Claude Code, Codex) on Settings / Model providers. Path data is copied into `apps/desktop/src/ProviderLogo.tsx` with its license notice; no package dependency is added. The marks are their owners' trademarks, used only to identify each service. |
+| LobeHub Icons (`@lobehub/icons-static-svg` 1.102.0) | MIT | Monochrome provider marks (GitHub Copilot, OpenRouter, Anthropic, OpenAI, Gemini, Vertex AI, Amazon Bedrock, Azure, xAI, Mistral AI, Groq, DeepSeek, Claude Code, Codex, Antigravity) on Settings / Model providers. Path data is copied into `apps/desktop/src/ProviderLogo.tsx` with its license notice; no package dependency is added. The marks are their owners' trademarks, used only to identify each service. |
 | Simple Icons 16.38.0 | CC0-1.0 | Monochrome GitHub, Linear and Model Context Protocol marks on Settings / Integrations. Path data is copied into `apps/desktop/src/IntegrationLogo.tsx`; no package dependency is added. The marks are their owners' trademarks, used only to identify each service. |
 | Stainless app icon (`mbianchidev/stainless`, `chromium/branding/stainless-icon.png`) | Apache-2.0 | Resized to 64 px as `assets/integrations/stainless.png` for Settings / Integrations / Stainless. Moguri still never bundles or redistributes the Stainless browser itself. |
 | Sharp 0.35.5 | Apache-2.0, with bundled libvips LGPL-2.1-or-later notices | Bounded local image validation/normalization for explicit attachments; no remote conversion or real-image test fixtures |
@@ -105,6 +106,10 @@ copied into Moguri. The pi-ai package owns its upstream authentication flow.
 Authentication support does not grant a license to a hosted provider or imply
 partnership status. Codex Agent launches the user's own Codex CLI
 (<https://github.com/openai/codex>, Apache-2.0) and speaks its documented
-app-server protocol; no Codex code or binary is bundled. Sign in with ChatGPT
+app-server protocol; no Codex code or binary is bundled. Antigravity Agent and
+Gemini CLI Agent launch the user's own `agy` and `gemini`
+(<https://github.com/google-gemini/gemini-cli>, Apache-2.0) and speak the Agent
+Client Protocol with Moguri's own client; no agent code, binary or ACP SDK is
+bundled, and their Google sign-in stays inside each CLI (D79). Sign in with ChatGPT
 follows OpenAI's terms for open-source, locally hosted apps; Claude.ai
 subscription sign-in is not offered.

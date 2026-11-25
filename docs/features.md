@@ -25,12 +25,13 @@ commits, publishes the draft PR and follows CI and reviews. Optional
 [pull request automation](architecture/pr-automation.md), off by default with
 per-repository overrides, reruns CI jobs that failed for transient reasons after
 checking GitHub Status, and resolves base conflicts while keeping both sides' features.
-Optional [Claude Agent and Codex Agent](architecture/agent-harnesses.md)
-sessions run your own installed Claude Code or Codex with your own sign-in, while
-Moguri approves their tool calls and keeps the transcript. Both are off by
-default; see [setup](setup.md#claude-agent). Besides GitHub Copilot and custom
-OpenAI-compatible endpoints (with custom headers), Moguri connects
-[OpenRouter, the Anthropic API, the OpenAI API and a ChatGPT account](architecture/hosted-providers.md).
+Optional [Claude Agent, Codex Agent, Antigravity Agent and Gemini CLI Agent](architecture/agent-harnesses.md)
+sessions run your own installed Claude Code, Codex, Antigravity CLI or Gemini CLI
+with your own sign-in, while Moguri approves their tool calls and keeps the
+transcript. All are off by default; see [setup](setup.md#claude-agent). Besides
+GitHub Copilot and custom OpenAI-compatible endpoints (with custom headers), Moguri
+connects [OpenRouter, the Anthropic API, the OpenAI API, a ChatGPT account, the
+Gemini API, Vertex AI, Amazon Bedrock, Azure OpenAI, xAI, Mistral, Groq and DeepSeek](architecture/hosted-providers.md).
 
 The TUI uses Enter to send and Shift+Enter for newlines; Cmd/Ctrl+Enter holds
 active-turn prompts, which start one at a time after each completed turn by
@@ -771,8 +772,8 @@ on pull request events or tags.
 The explicit 30-minute cap is removed; GitHub-hosted jobs still have the
 [platform's six-hour limit](https://docs.github.com/en/actions/reference/limits).
 
-The in-app updater follows the upstream `mbianchidev/moguri` GitHub Releases
-and keeps following them after the planned move to `moguri-dev/moguri-desktop`.
+The in-app updater follows the upstream `moguri-dev/moguri` GitHub Releases
+(formerly `mbianchidev/moguri`).
 A Homebrew-managed app is updated with `brew upgrade --cask moguri` instead.
 Public releases are checked, verified and staged without a token, so once the
 repository is public, packaged apps update automatically, and installs still

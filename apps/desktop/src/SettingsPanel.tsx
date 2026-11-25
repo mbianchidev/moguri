@@ -1,6 +1,6 @@
 import { SettingsAction, SettingsCommitInput, SettingsInput, SettingsTextarea } from "./SettingsFields.tsx";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { autonomyLabel, autonomyValues, envLabel, automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, DEFAULT_PR_TOUR_PROMPT, defaultClaudeAgentSettings, defaultCodexAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "@moguri-dev/sdk";
+import { autonomyLabel, autonomyValues, envLabel, automaticCompactionPolicy, defaultSettings, defaultCompactionSettings, CLAUDE_AGENT_PROVIDER_ID, CODEX_AGENT_PROVIDER_ID, RETENTION_DAY_CHOICES, BRANCH_PREFIX_PATTERN, DEFAULT_SESSION_LIFECYCLE, DEFAULT_PR_AUTOMATION, DEFAULT_PR_TOUR_PROMPT, defaultClaudeAgentSettings, defaultCodexAgentSettings, defaultAcpAgentSettings, isAgentHarnessModel, parse, appearanceColors, themePalettes, shortcutLabel, voiceShortcutMode, GUIDANCE_GROUPS, readinessGuidance, routingModelReady, routingWorkingWindow, VerbositySchema, KupoModeSchema, kupoModes, SettingsSchema, AutomaticKupoSettingsSchema, CompoundSettingsSchema, defaultKupoSettings, defaultKupoCompaction, DEFAULT_ROUTER_PROMPT, SYSTEM_PROMPT_WARNING, effectiveToolPreferences, toolMethods, type ArtifactEditorRequest, type ControlDefaults, type Guidance, type ThemeMode, type ThemeColor, type MoguriSdk, type Project, type Session, type SettingsSection, type Snapshot, type UserSettings, type VoiceStatus, type VoiceModelInspection, type VoiceModelDiscovery, type McpToolInfo, type RemoteReadiness, type ProfileCatalog, type ModelInfo } from "@moguri-dev/sdk";
 import { DependencyCachePanel } from "./DependencyCachePanel.tsx";
 import { ProjectSettingsPanel } from "./ProjectSettingsPanel.tsx";
 import { PrAutomationDefaults } from "./PrAutomationSettings.tsx";
@@ -62,7 +62,9 @@ const GROUP_ICONS: Record<SettingsGroup["label"], string> = { General: "Settings
   Sessions: "Clock", Instructions: "BookOpen", Interface: "Dashboard" };
 const GROUP_SLUGS = Object.fromEntries(SETTINGS_GROUPS.map((group) => [group.label, group.label.toLowerCase().replace(/[^a-z]+/g, "-")])) as Record<SettingsGroup["label"], string>;
 /** Sections whose choices save as soon as they change. Written values (text, numbers, JSON) keep an explicit Save. */
-type AutomaticSection = "scriptReview" | "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "chatTitles" | "wrapUp" | "prAutomation";
+const harnessDefaults = (key: "claudeAgent" | "codexAgent" | "antigravityAgent" | "geminiAgent") =>
+  key === "claudeAgent" ? defaultClaudeAgentSettings() : key === "codexAgent" ? defaultCodexAgentSettings() : defaultAcpAgentSettings();
+type AutomaticSection = "scriptReview" | "compaction" | "appearance" | "memory" | "subagents" | "evolution" | "voice" | "retention" | "artifacts" | "notifications" | "kupo" | "permissions" | "lifecycle" | "shortcuts" | "sandboxManagement" | "budgets" | "toolPreferences" | "interactions" | "claudeAgent" | "codexAgent" | "antigravityAgent" | "geminiAgent" | "chatTitles" | "wrapUp" | "prAutomation";
 export function SettingsPanel({ sdk, snapshot, session, project, configurationProjectId, selectConfigurationProject, restartOnboarding, initialTab = "general", policyFocus = null, artifactRequest = null, onArtifactRequestHandled = () => {}, onBack, onUnsavedChange, openTerminal, openSession, onSwitchProfile, prepareMaintenance }: {
   sdk: MoguriSdk; snapshot: Snapshot; session?: Session; project?: Project; initialTab?: SettingsTab; onBack: () => void; restartOnboarding: () => void; onUnsavedChange: (unsaved: boolean) => void; openTerminal: () => void; openSession: (id: string) => void;
   configurationProjectId: string | null; selectConfigurationProject: (id: string) => void;
@@ -490,24 +492,29 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
           <SettingsHelp label="About hosted providers" target={<h3>Accounts</h3>}>API keys are billed by the provider's API; Sign in with ChatGPT uses your ChatGPT plan. Claude.ai subscription sign-in isn't offered because Anthropic doesn't allow it in third-party apps.</SettingsHelp>
           <div className="provider-list">
             <ProviderConnect provider={snapshot.provider} client={sdk} run={run} />
-            <HostedProviderConnect provider={snapshot.provider} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
+            <HostedProviderConnect provider={snapshot.provider} options={snapshot.settings.values.hostedProviderOptions} client={sdk} run={run} disabled={dirty || saving || projectDirty || lineageBusy} />
           </div>
           <SettingsHelp label="About agent harnesses" target={<h3>Agent harnesses</h3>}>Each harness runs your own installed command-line agent with your own sign-in; Moguri never installs it or reads its credentials. Harnesses run Local only, with an Unlimited budget and text input.</SettingsHelp>
           <div className="provider-list">
-            {([["claudeAgent", CLAUDE_AGENT_PROVIDER_ID, "Claude Agent", "claude-code", "Your installed Claude Code, with every tool call approved in Moguri."],
-              ["codexAgent", CODEX_AGENT_PROVIDER_ID, "Codex Agent", "codex", "Your installed Codex CLI through codex app-server."]] as const).map(([key, id, name, logo, subtitle]) => {
-              const value = { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...draft[key] };
+            {([["claudeAgent", CLAUDE_AGENT_PROVIDER_ID, "Claude Agent", "claude-code", "Your installed Claude Code, with every tool call approved in Moguri.", "Claude Code executable",
+              "Sign in with `claude auth login` in your terminal. Claude Code makes its own model calls and runs its tools after Moguri approves each call.", "Both transports run this executable."],
+              ["codexAgent", CODEX_AGENT_PROVIDER_ID, "Codex Agent", "codex", "Your installed Codex CLI through codex app-server.", "Codex executable",
+              "Sign in with `codex login` (ChatGPT or API key). Codex asks Moguri before commands and file changes; anything it runs without asking is checked against your policy afterwards.", "Models come from your Codex login."],
+              ["antigravityAgent", "antigravity-agent", "Antigravity Agent", "antigravity", "Your installed Antigravity CLI over the Agent Client Protocol (agy acp).", "Antigravity CLI executable",
+              "Sign in by running `agy` in your terminal with Google's own flow; Moguri never signs in for you or reads its credentials. Needs Antigravity CLI 1.5 or newer. Moguri reviews every tool it asks permission for; reads it runs without asking are checked against your policy afterwards.", "Models come from your Antigravity account."],
+              ["geminiAgent", "gemini-agent", "Gemini CLI Agent", "gemini", "Your installed Gemini CLI over the Agent Client Protocol (gemini --acp).", "Gemini CLI executable",
+              "Sign in by running `gemini` in your terminal with Google's own flow, or keep a Gemini API key in its own ~/.gemini/.env. Moguri never reads its credentials and drops Google credential variables from its environment.", "Models come from your Gemini CLI sign-in."]] as const)
+              .map(([key, id, name, logo, subtitle, executableLabel, about, note]) => {
+              const defaults = harnessDefaults(key), value = { ...defaults, ...draft[key] };
               const entry = snapshot.provider.catalogue?.providers.find((provider) => provider.id === id), active = committed[key]?.enabled === true;
               const choose = (patch: { enabled?: boolean; transport?: "sdk" | "stream-json" }) => key === "claudeAgent" ?
-                automatic("claudeAgent", patch, false, defaultClaudeAgentSettings()) : automatic("codexAgent", { enabled: patch.enabled }, false, defaultCodexAgentSettings());
+                automatic("claudeAgent", patch, false, defaultClaudeAgentSettings()) : automatic(key, { enabled: patch.enabled }, false, defaults as never);
               const path = value.executablePath ? localPath(value.executablePath) || null : null, savedPath = committed[key]?.executablePath ?? null;
-              const savePath = () => void write({ ...committedValues.current, [key]: { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...committedValues.current[key], executablePath: path } },
-                () => setDraft((current) => ({ ...current, [key]: { ...(key === "claudeAgent" ? defaultClaudeAgentSettings() : defaultCodexAgentSettings()), ...current[key], executablePath: path } })));
+              const savePath = () => void write({ ...committedValues.current, [key]: { ...defaults, ...committedValues.current[key], executablePath: path } },
+                () => setDraft((current) => ({ ...current, [key]: { ...defaults, ...current[key], executablePath: path } })));
               return <ProviderCard key={id} label={`${name} harness`} logo={logo} name={name} subtitle={subtitle}
                 status={active ? providerStatus(entry?.status, entry?.enabled ?? true) : "disabled"}
-                help={{ label: `About ${name}`, content: key === "claudeAgent" ?
-                  "Sign in with `claude auth login` in your terminal. Claude Code makes its own model calls and runs its tools after Moguri approves each call." :
-                  "Sign in with `codex login` (ChatGPT or API key). Codex asks Moguri before commands and file changes; anything it runs without asking is checked against your policy afterwards." }}
+                help={{ label: `About ${name}`, content: about }}
                 actions={<label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable ${name}`} checked={value.enabled === true}
                   disabled={saving} onChange={(event) => choose({ enabled: event.target.checked })} /><span className="sr-only">Enable {name}</span></label>}>
                 {value.enabled && <div className="provider-card-fields">
@@ -516,18 +523,14 @@ export function SettingsPanel({ sdk, snapshot, session, project, configurationPr
                     <option value="sdk">Claude Agent SDK</option><option value="stream-json">Claude Code stream-json protocol</option>
                   </select></label>}
                   <form className="provider-key-form" onSubmit={(event) => { event.preventDefault(); if (path !== savedPath) savePath(); }}>
-                    <PathField label={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"} ariaLabel={key === "claudeAgent" ? "Claude Code executable" : "Codex executable"}
+                    <PathField label={executableLabel} ariaLabel={executableLabel}
                       kind="file" title={`Choose the ${name} executable`} chooseAriaLabel={`Choose ${name} executable`}
                       placeholder="Found on PATH or in its install location" value={value.executablePath ?? ""} disabled={saving}
-                      onChange={(text) => {
-                        const executablePath = text || null;
-                        if (key === "claudeAgent") change("claudeAgent", { ...defaultClaudeAgentSettings(), ...draft.claudeAgent, executablePath });
-                        else change("codexAgent", { ...defaultCodexAgentSettings(), ...draft.codexAgent, executablePath });
-                      }}>
+                      onChange={(text) => change(key, { ...defaults, ...draft[key], executablePath: text || null } as never)}>
                       <button type="submit" className="primary" aria-label={`Save ${name} executable`} disabled={saving || path === savedPath}>Save</button>
                     </PathField>
                   </form>
-                  <p className="fine-print">{key === "claudeAgent" ? "Both transports run this executable." : "Models come from your Codex login."} Refresh available models after a change.</p>
+                  <p className="fine-print">{note} Refresh available models after a change.</p>
                 </div>}
                 {active && entry?.diagnostic && <Alert as="p" className="inline-error" role="status">{entry.diagnostic}</Alert>}
               </ProviderCard>;

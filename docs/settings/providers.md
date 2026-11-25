@@ -24,7 +24,8 @@ this page keeps the full detail.
   searching or filtering opens the groups that match. **Order by price** lists free models first (local
   models and providers that declare a zero price), then priced models from the cheapest output price, then
   models without a known price. **Providers** and **AI labs** filters narrow the list. Prices come from the
-  provider's own catalogue for pay-per-use providers (OpenRouter, Anthropic API, OpenAI API) or Moguri's
+  provider's own catalogue for pay-per-use providers (OpenRouter, Anthropic API, OpenAI API, Gemini API,
+  Vertex AI, Bedrock, Azure, xAI, Mistral, Groq, DeepSeek) or Moguri's
   published API-equivalent table; they are not your bill. The same grouped list is used by Kupo's model
   pool, Cascade classes and the legacy approved-solver list (D59).
 - Provider declarations and AI lab labels are not proof of model family, independence or quality.
@@ -38,10 +39,22 @@ under Local models. No provider is substituted when a connection fails.
 
 ## Accounts
 
-Connect GitHub Copilot or your own OpenRouter, Anthropic API, OpenAI API or ChatGPT account. Keys and
+Connect GitHub Copilot or your own OpenRouter, Anthropic API, OpenAI API, ChatGPT, Google Gemini API,
+Vertex AI, Amazon Bedrock, Azure OpenAI, xAI API, Mistral API, Groq or DeepSeek API account. Keys and
 sign-in tokens stay in your OS keychain and never reach the renderer, logs or model context. API keys
 bill the provider's API; Sign in with ChatGPT uses your ChatGPT plan. Claude.ai subscription sign-in is
 not offered because Anthropic does not permit it for third-party apps.
+
+- **Amazon Bedrock** asks for a Bedrock API key and the AWS Region it was created in. Only models and
+  inference profiles that Region can call are listed.
+- **Azure OpenAI** asks for the API key, the resource endpoint (`https://<resource>.openai.azure.com`)
+  and your deployments, one `deployment-name=model` per line. Each deployment becomes one model.
+- **Vertex AI** uses a Google Cloud API key. Moguri never reads Application Default Credentials,
+  service-account files or AWS profiles; only the key you paste is used.
+- Gemini models offered by both the Gemini API and Vertex AI need an explicit source choice under
+  Enabled models.
+- To change a Region, endpoint or deployment, use **Replace key** and save the key again with the new
+  details.
 
 ## Agent harnesses
 
@@ -70,6 +83,19 @@ versions) is checked against your policy afterwards. Local only, Unlimited budge
 
 Codex models come from your login's `model/list`. Refresh available models after changing the
 executable to recheck its version and sign-in.
+
+## Antigravity Agent and Gemini CLI Agent
+
+Run your own installed Antigravity CLI (`agy acp`, version 1.5 or newer) or Gemini CLI
+(`gemini --acp`) over the Agent Client Protocol. Sign in by running `agy` or `gemini` in your own
+terminal with Google's flow (Gemini CLI can also read a key from its own `~/.gemini/.env`); Moguri never
+installs them, signs in for you or reads their credentials, and Google credential variables are not
+passed to them. Each tool the agent asks permission for needs a Moguri approval, answered once; reads it
+runs without asking are checked against your policy afterwards. Both are blocked while your default tool
+decision is deny. Local only, Unlimited budget, text and pasted text.
+
+Models come from the agent's own session setup. Refresh available models after changing the executable
+to recheck its version and sign-in.
 
 ## Chat names
 

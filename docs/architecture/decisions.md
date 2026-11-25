@@ -2483,6 +2483,15 @@ sets `MOGURI_SKIP_LATENCY_BUDGETS=1` and only logs a miss
 (`tests/fixtures/latency-budgets.ts`). `release.sh` clears that variable, so a
 release can't skip a budget.
 
+**Revision, 2026-11-25, by the project owner (protocol 123).** The repository
+was transferred as `moguri-dev/moguri`, not `moguri-desktop`, and keeps that
+name. The updater now starts at `api.github.com/repos/moguri-dev/moguri` and
+accepts `moguri-dev/moguri` or `mbianchidev/moguri` as the repository name and
+manifest `repository`; `moguri-dev/moguri-desktop` is no longer accepted.
+Release tooling accepts the same two names. Installs whose SDK predates
+protocol 123 reject the `moguri-dev/moguri` name, so they stop updating and
+must be reinstalled by hand.
+
 ## D76. Reviewed profile imports and live disk usage
 
 **Decision, 2026-11-22, by the project owner**, tracked by
@@ -2522,6 +2531,112 @@ release can't skip a budget.
   Skills steps each need a choice and a review before anything is copied.
   The TUI and CLI use `/profile import` and `moguri profile import`. See
   [Settings / General](../settings/general.md#profiles).
+
+## D77. Provider price refresh, dated prices and freshness
+
+**Decision, 2026-11-25, by the project owner**, tracked by
+[moguri-dev/moguri#103](https://github.com/moguri-dev/moguri/issues/103).
+Protocol 123.
+
+- **Reference table.** The bundled API prices were rechecked against the
+  official Anthropic, OpenAI, Google and xAI pages on 2026-11-25
+  (`REFERENCE_PRICES_OBSERVED_AT`). Models those pages no longer list are
+  removed rather than kept at old prices. MAI models stay unpriced and are
+  reported as missing; no price is guessed.
+- **Google source.** Gemini prices are read from
+  `https://aistudio.google.com/docs/pricing`, which serves Markdoc; the old
+  `ai.google.dev` page only redirects and the refresh never follows
+  redirects. Recorded catalogs with the old source still replay.
+- **Dated prices.** A price that the page says ends on a date
+  (`validUntil`) may carry a `next` price with its `effectiveFrom` day, only
+  when input, output and cache all change on the same dates. Estimates use
+  `next` from that day without a refresh. OpenAI promotional notes set
+  `validUntil`. Grouped OpenAI tables are read only under their Standard
+  tier label.
+- **Newest catalog wins.** For each provider the newer of the refreshed and
+  the bundled catalog is used, so an SDK update with a newer table replaces
+  an older refresh. A tie keeps the refreshed catalog.
+- **Freshness.** `PricingResponse.stale` lists providers whose catalog is
+  older than the `maxPriceAgeDays` limit, so clients can point to
+  **Refresh**. In `moguri-dev/moguri-sdk`, `npm run check:prices` and the
+  release workflow refuse a bundled table checked more than 14 days before release, leaving installs at
+  least 16 days under the default 30-day limit. Settings / Budgets / Model
+  prices shows a warning naming the stale providers. Moguri never refreshes
+  prices on its own.
+
+Protocol 123's store step only advances `user_version`; existing rows stay
+valid.
+
+## D78. Deletion acknowledges from memory and re-authenticates afterwards
+
+**Decision, 2026-11-25, by the project owner**, tracked by
+[moguri-dev/moguri-sdk#5](https://github.com/moguri-dev/moguri-sdk/issues/5).
+No protocol or schema change.
+
+- **Acknowledgement.** A commit that forgets scopes (session, project, artifact
+  or checkpoint deletion) no longer rereads the whole retained history before
+  it acknowledges. When no peer wrote since the history was read, the service
+  drops the events of the scopes recorded in `retention_forgotten` from its
+  in-memory history. That is the same set an authenticated reread skips. If a
+  peer did write, the full reread still runs before the acknowledgement.
+- **Re-authentication.** After the acknowledgement, the service rereads and
+  authenticates every retained row of the profile in 500-row batches, yielding
+  to the event loop between batches. If any decoded event differs from the
+  in-memory one, or an event is missing or extra, the authenticated history
+  replaces the in-memory one and the projection is rebuilt. A payload mutated
+  in memory therefore never outlives a deletion, and the contract that rereads
+  authenticate the original ciphertext is unchanged. A later deletion restarts
+  the pass. A peer write or a shutdown abandons it, because the next refresh
+  rereads everything.
+- **Budgets.** The 1,000 ms `session.delete` budget is not raised. With the
+  generated 25,000-revision history, deletion takes 143 to 168 ms locally
+  instead of 714 to 786 ms.
+- **Rejected.** Reusing decoded payloads when a row's IV, tag and ID are
+  unchanged, which breaks the authenticated-reread contract. A compact
+  storage format and immutable decoded payloads were not needed for the
+  budget.
+
+## D79. Cloud and catalogue hosted providers and ACP agent harnesses
+
+**Decision, 2026-11-25, by the project owner**, tracked by
+[moguri-dev/moguri#96](https://github.com/moguri-dev/moguri/issues/96).
+Protocol 124 adds the `hosted_cloud_acp_schema` marker.
+
+- **Providers.** Google Gemini API (`gemini`), Vertex AI (`vertex`), Amazon
+  Bedrock (`bedrock`), Azure OpenAI / Foundry (`azure`), xAI (`xai`), Mistral
+  (`mistral`), Groq (`groq`) and DeepSeek (`deepseek`) join the hosted providers.
+  Each uses pi-ai's existing provider and catalogue, the `hosted.<provider>`
+  secret slot, the `models.hosted.*` commands and normal budget reservation and
+  accounting. Other pi-ai providers stay reachable through generic
+  OpenAI-compatible endpoints.
+- **Vault only.** Credentials come only from the profile's secret backend: API
+  keys and Bedrock API keys. Moguri never reads Application Default Credentials,
+  service-account files, AWS profiles, SSO caches or the ambient credential
+  chain. An explicit per-profile opt-in for those is deferred.
+- **Connection options.** Bedrock's Region and Azure's endpoint and deployments
+  are non-secret settings (`hostedProviderOptions`) written only with the key.
+  A generic settings write cannot change them, because they decide where the
+  key is sent. Bedrock lists in-Region, `global.` and same-geography inference
+  profiles. Azure lists one model per deployment, which must name a model in
+  pi-ai's Azure catalogue.
+- **ACP harnesses.** Antigravity Agent (`agy acp`) and Gemini CLI Agent
+  (`gemini --acp`) run the user's own install over one Moguri-owned ACP version 1
+  client, with the limits of D25: Local only, Unlimited budget, no Kupo roles,
+  one Moguri approval per permission request and recorded cancellation. Both are
+  off by default and blocked under a default-deny policy. Antigravity CLI must be
+  1.5.0 or newer.
+- **Terms.** Following T3 Code, which already ships an Antigravity driver, Moguri
+  only launches Google's unmodified CLI, which owns its sign-in. Moguri never
+  calls `authenticate`, starts or relays a Google sign-in, reads or reuses
+  Antigravity or Gemini CLI tokens, calls Antigravity or Cloud Code Assist
+  endpoints, or presents itself as another client (Antigravity Additional Terms
+  §6, checked 2026-11-25). Ambient Google credentials are dropped from the
+  agent's environment.
+- **Rejected.** `@agentclientprotocol/sdk` 2.x, whose builder API changed and
+  which would add a bundled dependency for a few JSON-RPC methods. Selecting
+  `allow_always` permission options, which would grant beyond one Moguri
+  approval. A private `GEMINI_HOME` with a Moguri-relayed sign-in, as T3 Code
+  does, which would make Moguri part of the Google sign-in flow.
 
 ## Still open
 

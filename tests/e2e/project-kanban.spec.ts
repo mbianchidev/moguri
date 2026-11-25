@@ -85,7 +85,7 @@ test("Budgets shows originating-provider references and explicit finite-limit co
     await expect.poll(() => fixture.service.controller.snapshot().settings.values.budgets.useProviderRatesForLimits).toBe(true);
     expect(fixture.service.controller.snapshot().budgetPolicy.limit).toBeNull();
     await region.getByRole("button", { name: "Refresh anthropic", exact: true }).click();
-    await expect(region.getByRole("status")).toContainText("Official reference prices refreshed");
+    await expect(region.getByRole("status").filter({ hasText: "Official reference prices refreshed" })).toBeVisible();
     expect(fixture.service.controller.snapshot().providerPriceRevision).toBe(1);
     expect(fixture.requests).toHaveLength(0);
   } finally { await app.close(); await fixture.close(); }

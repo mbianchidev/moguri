@@ -51,7 +51,14 @@ Previously titled "Provider API-equivalent prices". Contract: `docs/architecture
 - Refreshing official reference prices never reprices historical calls and makes no model request or
   authentication. A failed or stopped refresh preserves previous references and historical costs; the
   original refresh job's final outcome remains authoritative.
-- Catalog sources are either a bundled verified snapshot or an explicit official-page refresh.
+- Catalog sources are either a bundled verified snapshot or an explicit official-page refresh. For each
+  provider the newer of the two is used, so an app update with a newer bundled table replaces an older
+  refresh (D77). Google prices come from `https://aistudio.google.com/docs/pricing`.
+- When a provider's prices are older than the budget `maxPriceAgeDays` (default 30 days), a warning names the
+  provider and points to **Refresh**; its models show as unknown until then. Moguri never refreshes
+  prices on its own.
+- A price the official page says changes on a set date carries its next price; estimates switch to it on
+  that day without a refresh.
 - Model rows show input and output USD per million tokens (API-equivalent) and the captured source date.
 
 ## Budgets and model estimates (page help)

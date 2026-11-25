@@ -145,7 +145,7 @@ splits the SDK and the TUI into `moguri-dev/moguri-sdk` and
 `moguri-dev/moguri-tui` repositories with history (both public since
 2026-11-23), keeps the updater and
 release tooling working across the owner's transfer of this repository to
-`moguri-dev/moguri-desktop`, and then adds the Homebrew packages
+`moguri-dev/moguri`, and then adds the Homebrew packages
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
 Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
 child. Its first step, protocol 121 (SDK import boundary, transition-safe
@@ -154,15 +154,38 @@ on `main` (#98). The second step,
 [#99](https://github.com/moguri-dev/moguri/pull/99) (merged 2026-11-25),
 consumes `@moguri-dev/sdk` 0.32.0-alpha.4 and `@moguri-dev/tui` 0.32.0-alpha.5
 and removes the embedded SDK, TUI and CLI. Neither closes #93; the Homebrew
-packages remain. The repository now lives at `moguri-dev/moguri`, while the
-release tooling and the updater still accept only `mbianchidev/moguri` and
-`moguri-dev/moguri-desktop` as release repositories.
+packages remain. The owner kept the transferred name `moguri-dev/moguri`
+instead of renaming it to `moguri-dev/moguri-desktop`. #105 and
+[moguri-dev/moguri-sdk#16](https://github.com/moguri-dev/moguri-sdk/pull/16)
+(`@moguri-dev/sdk` 0.32.0-alpha.5, protocol 123) make the release tooling and
+the updater accept `moguri-dev/moguri` and `mbianchidev/moguri`, which fixes
+the `tests/release-assets.test.ts` failure on `main` (D75 revision). Installs
+on protocol 121 or 122 reject the kept name and must be reinstalled by hand
+once.
 
-Three requests were filed after this closure and are tracked on their own.
+Requests filed after this closure are tracked on their own.
+[moguri-dev/moguri-sdk#15](https://github.com/moguri-dev/moguri-sdk/issues/15)
+tracks a standalone developer preview: a TypeScript starter, token-free
+installation pending npm release policy approval, and a supported public SDK
+contract. Linux runtime qualification follows the macOS preview. The issue
+is open and not started as of the 2026-11-25 audit of desktop `main`
+([`64e1938`](https://github.com/moguri-dev/moguri/commit/64e19382a12aeca02d4683e5f318fbfbc22c94e3),
+`0.32.0-alpha.1`; SDK `0.32.0-alpha.4`, protocol 122).
 [#96](https://github.com/mbianchidev/moguri/issues/96)
 (Google Gemini API and Vertex AI, Amazon Bedrock and more hosted providers,
-plus an Antigravity agent harness) is not started; its service and protocol
-parts land in `moguri-dev/moguri-sdk`.
+plus an Antigravity agent harness) is delivered by #105 with
+[moguri-dev/moguri-sdk#17](https://github.com/moguri-dev/moguri-sdk/pull/17)
+(`@moguri-dev/sdk` 0.32.0-alpha.6, protocol 124) and
+[moguri-dev/moguri-tui#12](https://github.com/moguri-dev/moguri-tui/pull/12)
+(`@moguri-dev/tui` 0.32.0-alpha.6,
+[D79](architecture/decisions.md#d79-cloud-and-catalogue-hosted-providers-and-acp-agent-harnesses)).
+The Gemini API, Vertex AI, Amazon Bedrock, Azure OpenAI, xAI, Mistral, Groq and
+DeepSeek connect with vault-only keys; Bedrock's Region and Azure's endpoint and
+deployments are written only with the key. Antigravity Agent and Gemini CLI
+Agent run the user's own `agy acp` and `gemini --acp` over one Moguri ACP
+client, without Moguri ever signing in or reading their credentials. An opt-in
+for ambient cloud credentials (Application Default Credentials, AWS profiles) is
+deferred by the owner.
 [#97](https://github.com/mbianchidev/moguri/issues/97) (desktop Delete branch
 only for existing branches, live virtual disk bars and a sidebar profile
 switcher with per-profile onboarding) was delivered by #99 and is closed
@@ -173,11 +196,19 @@ and [#10](https://github.com/moguri-dev/moguri-sdk/pull/10)
 (`@moguri-dev/sdk` 0.32.0-alpha.4) and its TUI and CLI parts in
 `@moguri-dev/tui` 0.32.0-alpha.5.
 [#103](https://github.com/moguri-dev/moguri/issues/103) (update the provider
-API prices) is not started: the bundled price table was observed on 2026-10-26,
-so from 2026-11-25 every bundled rate is past the default 30-day limit and
-refused as stale, several current models have no price, and **Refresh** fails
-for Google after its pricing page moved. Its changes land in
-`moguri-dev/moguri-sdk`.
+API prices) is delivered by #105 with
+[moguri-dev/moguri-sdk#16](https://github.com/moguri-dev/moguri-sdk/pull/16)
+([D77](architecture/decisions.md#d77-provider-price-refresh-dated-prices-and-freshness),
+protocol 123). The bundled Anthropic, OpenAI, Google and xAI tables were
+rechecked on 2026-11-25, Google refresh reads its new page, dated successor
+prices are kept, a release check refuses a table older than 14 days, and
+Settings warns when a provider's prices are stale. MAI models stay unpriced.
+The same SDK release fixes
+[moguri-dev/moguri-sdk#5](https://github.com/moguri-dev/moguri-sdk/issues/5):
+deletion acknowledges from the in-memory history and re-authenticates
+afterwards ([D78](architecture/decisions.md#d78-deletion-acknowledges-from-memory-and-re-authenticates-afterwards)),
+so `session.delete` takes about 150 ms instead of about 750 ms with the
+generated 25,000-revision history.
 
 Running the desktop suites on shared macOS runners for #99 found two desktop
 bugs, both fixed by #99 and closed:
