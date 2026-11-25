@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fuzzyMatch, type MoguriSdk, type Snapshot } from "@moguri-dev/sdk";
+import { AGENT_HARNESSES, agentHarnessProduct, fuzzyMatch, type AgentHarness, type MoguriSdk, type Snapshot } from "@moguri-dev/sdk";
 import { SettingsHelp, SettingsInput } from "./SettingsFields.tsx";
 import { Alert } from "./Alert.tsx";
 import { ProviderLogo, providerLogoId } from "./ProviderLogo.tsx";
@@ -33,7 +33,7 @@ export function ModelAvailabilityPanel({ sdk, snapshot, disabled, onBusy }: {
     <p className="fine-print">Models refresh when the app opens. Refresh again after changing an account or starting a local server.</p>
     <div className="model-provider-list">{catalogue.providers.map((provider) => <div className="model-provider-row" key={provider.id}>
       <ProviderLogo logo={providerLogoId(provider)} fallback={provider.scope === "remote" ? "Globe" : "House"} />
-      <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : provider.scope === "agent" ? `Your installed ${provider.source === "codex-agent" ? "Codex" : "Claude Code"}` : provider.scope === "hosted" ? "Your hosted account" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
+      <div><strong>{provider.name}</strong><small>{provider.scope === "copilot" ? "GitHub Copilot" : provider.scope === "remote" ? "Configured SSH endpoint" : provider.scope === "agent" ? `Your installed ${(AGENT_HARNESSES as readonly string[]).includes(provider.source) ? agentHarnessProduct(provider.source as AgentHarness) : provider.name}` : provider.scope === "hosted" ? "Your hosted account" : "Configured local endpoint"} / {provider.enabled ? provider.status : "disabled"}</small>
         {provider.diagnostic && <small>{provider.diagnostic}</small>}</div>
       <label className="check-setting"><SettingsInput type="checkbox" aria-label={`Enable provider ${provider.name}`}
         checked={change?.kind === "provider" && change.id === provider.id ? change.enabled : provider.enabled} disabled={disabled || busy}

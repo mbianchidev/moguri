@@ -25,7 +25,7 @@
     "package:mac": "npm run build && node scripts/package.mjs"
   },
   "dependencies": {
-    "@moguri-dev/sdk": "0.32.0-alpha.5",
+    "@moguri-dev/sdk": "0.32.0-alpha.6",
     "@moguri-dev/tui": "0.32.0-alpha.5",
     "@pierre/diffs": "1.6.4",
     "@types/node": "26.6.5",

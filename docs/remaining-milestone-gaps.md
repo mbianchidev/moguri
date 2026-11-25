@@ -173,8 +173,19 @@ is open and not started as of the 2026-11-25 audit of desktop `main`
 `0.32.0-alpha.1`; SDK `0.32.0-alpha.4`, protocol 122).
 [#96](https://github.com/mbianchidev/moguri/issues/96)
 (Google Gemini API and Vertex AI, Amazon Bedrock and more hosted providers,
-plus an Antigravity agent harness) is not started; its service and protocol
-parts land in `moguri-dev/moguri-sdk`.
+plus an Antigravity agent harness) is delivered by #105 with
+[moguri-dev/moguri-sdk#17](https://github.com/moguri-dev/moguri-sdk/pull/17)
+(`@moguri-dev/sdk` 0.32.0-alpha.6, protocol 124) and
+[moguri-dev/moguri-tui#12](https://github.com/moguri-dev/moguri-tui/pull/12)
+(`@moguri-dev/tui` 0.32.0-alpha.6,
+[D79](architecture/decisions.md#d79-cloud-and-catalogue-hosted-providers-and-acp-agent-harnesses)).
+The Gemini API, Vertex AI, Amazon Bedrock, Azure OpenAI, xAI, Mistral, Groq and
+DeepSeek connect with vault-only keys; Bedrock's Region and Azure's endpoint and
+deployments are written only with the key. Antigravity Agent and Gemini CLI
+Agent run the user's own `agy acp` and `gemini --acp` over one Moguri ACP
+client, without Moguri ever signing in or reading their credentials. An opt-in
+for ambient cloud credentials (Application Default Credentials, AWS profiles) is
+deferred by the owner.
 [#97](https://github.com/mbianchidev/moguri/issues/97) (desktop Delete branch
 only for existing branches, live virtual disk bars and a sidebar profile
 switcher with per-profile onboarding) was delivered by #99 and is closed
@@ -197,8 +208,7 @@ The same SDK release fixes
 deletion acknowledges from the in-memory history and re-authenticates
 afterwards ([D78](architecture/decisions.md#d78-deletion-acknowledges-from-memory-and-re-authenticates-afterwards)),
 so `session.delete` takes about 150 ms instead of about 750 ms with the
-generated 25,000-revision history. `@moguri-dev/tui` still pins SDK
-0.32.0-alpha.4 until its own bump.
+generated 25,000-revision history.
 
 Running the desktop suites on shared macOS runners for #99 found two desktop
 bugs, both fixed by #99 and closed:
