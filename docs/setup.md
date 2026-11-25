@@ -1629,7 +1629,7 @@ quit and reopen Moguri so its original background service restarts with the
 corrected environment; existing healthy services are not silently replaced.
 
 **Settings / General / GitHub updates** reads the public Moguri releases
-(`mbianchidev/moguri`, or `moguri-dev/moguri-desktop` after the planned move)
+(`moguri-dev/moguri`, formerly `mbianchidev/moguri`)
 without a token. A token is optional: it is needed only while the
 repository is private, or to raise GitHub's anonymous rate limit.
 **Set up read-only update access**
@@ -4458,8 +4458,7 @@ Session, New Chat, New Project, Open Moguri (Shift+Cmd+O from any app; change it
 in **Settings / Interface / Keyboard shortcuts**), Settings and Quit.
 
 **Settings / General / GitHub updates** checks the upstream Moguri release
-repository (`mbianchidev/moguri`, followed to `moguri-dev/moguri-desktop` after
-the planned move). Without a saved token it reads public releases anonymously, contacting
+repository (`moguri-dev/moguri`, formerly `mbianchidev/moguri`). Without a saved token it reads public releases anonymously, contacting
 only `api.github.com` and GitHub's release download host. The optional token is
 stored in the secure secret backend and is needed only while the repository is
 private or to raise the rate limit. It is not Copilot sign-in or `gh`

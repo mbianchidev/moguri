@@ -1,4 +1,4 @@
-export const RELEASE_REPOSITORIES: readonly ["mbianchidev/moguri", "moguri-dev/moguri-desktop"];
+export const RELEASE_REPOSITORIES: readonly ["moguri-dev/moguri", "mbianchidev/moguri"];
 export type ReleaseRepository = typeof RELEASE_REPOSITORIES[number];
 export function releaseRepository(env?: Record<string, string | undefined>): ReleaseRepository;
 export const REPOSITORY: ReleaseRepository;

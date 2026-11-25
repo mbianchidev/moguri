@@ -147,6 +147,14 @@ headroom. Unknown prices or invalid categories do not become zero.
 Manual overrides keep their flat conservative input rate. Estimated,
 provider-reported and billed amounts remain separate fields.
 
+Protocol 123 ([D77](decisions.md#d77-provider-price-refresh-dated-prices-and-freshness))
+rechecked the bundled table on 2026-11-25, reads Google prices from
+`aistudio.google.com/docs/pricing`, uses the newer of the bundled and refreshed
+catalog per provider, and lets a dated price carry its `next` price and
+`effectiveFrom` day. `PricingResponse.stale` lists providers past
+`maxPriceAgeDays`, which Settings shows with a pointer to **Refresh**. The
+SDK release refuses a bundled table checked more than 14 days earlier.
+
 Reserve input estimate plus an actual forwarded output limit. Check session
 and profile/global availability together; another concurrent leg cannot reuse a
 reservation. Reconcile reported total once, without adding cached/category

@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Alert } from "../apps/desktop/src/Alert.tsx";
+import { StalePriceNotice } from "../apps/desktop/src/ProviderPricing.tsx";
 
 test("shared alerts always expose a native X and use severity-appropriate live regions", () => {
   const info = renderToStaticMarkup(createElement(Alert, { className: "notice info" }, "Generated card moved."));
@@ -26,4 +27,12 @@ test("desktop alert banners cannot bypass the shared dismissible component", asy
     assert.doesNotMatch(source, /<(?:p|div|span)\b[^>]*\brole=(?:"alert"|\{[^}]*["']alert["'])/s, `${name} must use Alert for live error banners`);
     assert.doesNotMatch(source, /<(?:p|div|span)\b[^>]*\bclassName=["'](?:notice|inline-error|settings-warning)(?:\s|["'])/s, `${name} must use Alert for styled notification messages`);
   }
+});
+
+test("stale provider prices show a warning that points to Refresh, and fresh catalogs show none", () => {
+  assert.equal(renderToStaticMarkup(createElement(StalePriceNotice, { stale: [], maxAgeDays: 30 })), "");
+  const stale = renderToStaticMarkup(createElement(StalePriceNotice, { stale: ["google", "xai"], maxAgeDays: 30 }));
+  assert.match(stale, /data-alert-tone="warning"/); assert.match(stale, /role="status"/);
+  assert.match(stale, /Google, xAI prices were checked more than 30 days ago, so models priced by them show as unknown\. Select <strong>Refresh<\/strong>/);
+  assert.match(renderToStaticMarkup(createElement(StalePriceNotice, { stale: ["openai"], maxAgeDays: 1 })), /more than 1 day ago/);
 });

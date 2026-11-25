@@ -62,8 +62,9 @@ test("verification refuses extra, missing, altered or misattributed release asse
 
 test("release helpers publish to the repository release.sh verified and refuse any other", () => {
   assert.deepEqual([...RELEASE_REPOSITORIES], [...MOGURI_RELEASE_REPOSITORIES]);
-  assert.equal(releaseRepository({}), "mbianchidev/moguri");
-  assert.equal(releaseRepository({ MOGURI_RELEASE_REPOSITORY: "moguri-dev/moguri-desktop", GITHUB_REPOSITORY: "mbianchidev/moguri" }), "moguri-dev/moguri-desktop");
-  assert.equal(releaseRepository({ GITHUB_REPOSITORY: "moguri-dev/moguri-desktop" }), "moguri-dev/moguri-desktop");
+  assert.equal(releaseRepository({}), "moguri-dev/moguri");
+  assert.equal(releaseRepository({ MOGURI_RELEASE_REPOSITORY: "mbianchidev/moguri", GITHUB_REPOSITORY: "moguri-dev/moguri" }), "mbianchidev/moguri");
+  assert.equal(releaseRepository({ GITHUB_REPOSITORY: "moguri-dev/moguri" }), "moguri-dev/moguri");
+  assert.throws(() => releaseRepository({ GITHUB_REPOSITORY: "moguri-dev/moguri-desktop" }), /not a Moguri release repository/);
   assert.throws(() => releaseRepository({ GITHUB_REPOSITORY: "generated-owner/moguri-fork" }), /not a Moguri release repository/);
 });

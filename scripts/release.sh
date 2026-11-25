@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 export GIT_PAGER=cat GH_PAGER=cat PAGER=cat GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true GH_PROMPT_DISABLED=1 GH_NO_UPDATE_NOTIFIER=1
 
-# The release repository before and after the planned move to moguri-dev (#93). origin selects one; helpers read it from MOGURI_RELEASE_REPOSITORY.
-readonly RELEASE_REPOSITORIES="mbianchidev/moguri moguri-dev/moguri-desktop"
+# The release repository after its transfer to moguri-dev (#93), then its pre-transfer name. origin selects one; helpers read it from MOGURI_RELEASE_REPOSITORY.
+readonly RELEASE_REPOSITORIES="moguri-dev/moguri mbianchidev/moguri"
 REPOSITORY=""
 readonly BASE_BRANCH="main"
 readonly REMOTE="origin"
@@ -44,8 +44,8 @@ Release Moguri VERSION (x.y.z or vx.y.z, optionally with a -prerelease such as
 updater drop it.
 
 A normal run:
-  1. Checks tools, GitHub auth and that origin is github.com/mbianchidev/moguri
-     or, after the move, github.com/moguri-dev/moguri-desktop.
+  1. Checks tools, GitHub auth and that origin is github.com/moguri-dev/moguri
+     or, before the transfer, github.com/mbianchidev/moguri.
   2. Creates an owned worktree from fresh origin/main and bumps package.json and
      package-lock.json with npm version (no tag).
   3. Commits "release: VERSION" and runs the same checks as CI: npm ci, npm

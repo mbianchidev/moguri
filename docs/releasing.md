@@ -20,7 +20,7 @@ scripts/release.sh --dry-run 0.33.0
 
 | Item | Decision |
 | --- | --- |
-| Destination | GitHub Releases of `mbianchidev/moguri`, which the in-app updater reads. After the planned move it is `moguri-dev/moguri-desktop`; see [Repository move](#repository-move) |
+| Destination | GitHub Releases of `moguri-dev/moguri` (formerly `mbianchidev/moguri`), which the in-app updater reads; see [Repository move](#repository-move) |
 | Platform | macOS on Apple silicon (arm64) only |
 | Signing | Ad-hoc signed; not Developer ID signed or notarized |
 | Tags | Annotated `v<version>` on the squash-merged `release: <version>` commit on `main` |
@@ -58,8 +58,8 @@ workflow checks again immediately before undrafting.
   `@moguri-dev/sdk` and `@moguri-dev/tui`: GitHub Packages needs a token even
   for public packages.
   The Release workflow reads it with its own `GITHUB_TOKEN`.
-- The `origin` remote fetching and pushing `github.com/mbianchidev/moguri`, or
-  `github.com/moguri-dev/moguri-desktop` after the move (SSH or HTTPS), with
+- The `origin` remote fetching and pushing `github.com/moguri-dev/moguri`, or
+  the pre-transfer `github.com/mbianchidev/moguri` (SSH or HTTPS), with
   exactly one push URL. The verified origin selects the release repository and
   is passed to the Node helpers as `MOGURI_RELEASE_REPOSITORY`; the Release
   workflow uses `GITHUB_REPOSITORY`. Any other origin is refused.
@@ -181,24 +181,24 @@ disposable `HOME`. Lint the entrypoint and workflow with
 
 ## Repository move
 
-[#93](https://github.com/mbianchidev/moguri/issues/93) plans to transfer this
-repository to the moguri-dev organization as `moguri-dev/moguri-desktop`
-([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
-Sendbox stays at `mbianchidev/sendbox`. Release from either origin:
+[#93](https://github.com/moguri-dev/moguri/issues/93) transferred this
+repository to the moguri-dev organization. The owner kept the name
+`moguri-dev/moguri` rather than the planned `moguri-dev/moguri-desktop`
+([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)
+revision, protocol 123). Sendbox stays at `mbianchidev/sendbox`.
 
-- `scripts/release.sh` and its helpers accept only `mbianchidev/moguri` and
-  `moguri-dev/moguri-desktop`, and stamp the verified one into the update
-  manifest.
-- The in-app updater (protocol 121 and later) still starts at
-  `api.github.com/repos/mbianchidev/moguri`. After the transfer GitHub answers
-  that path with one 301 to `api.github.com/repositories/<id>`; the updater
-  follows only that same-origin hop, accepts either repository name and reads
-  releases and assets through the ID path.
-- **Order:** publish a release that contains protocol 121 **before** the
-  transfer. Older installs reject the redirect and the new name, so they stop
-  updating after the move and must be reinstalled by hand (accepted gap).
-- Never create a new repository at `mbianchidev/moguri` after the transfer; it
-  would replace GitHub's redirect.
+- `scripts/release.sh` and its helpers accept only `moguri-dev/moguri` and
+  the pre-transfer `mbianchidev/moguri`, and stamp the verified one into the
+  update manifest. `moguri-dev/moguri-desktop` is refused.
+- The in-app updater (protocol 123 and later) starts at
+  `api.github.com/repos/moguri-dev/moguri`. It follows at most one same-origin
+  301 to `api.github.com/repositories/<id>`, accepts either repository name
+  and reads releases and assets through the ID path.
+- Installs with protocol 121 or 122 start at `mbianchidev/moguri`, follow
+  GitHub's redirect and then reject the `moguri-dev/moguri` name, so they stop
+  updating and must be reinstalled by hand (accepted gap).
+- Never create a new repository at `mbianchidev/moguri`; it would replace
+  GitHub's redirect.
 
 ## Homebrew cask
 

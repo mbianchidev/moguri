@@ -11,7 +11,7 @@ const run = promisify(execFile);
 const supported = process.platform === "darwin" && process.arch === "arm64";
 
 // A generated checkout whose origin keeps its real production form, served by an SSH shim from a local bare repository.
-async function generatedRelease(repository = "mbianchidev/moguri") {
+async function generatedRelease(repository = "moguri-dev/moguri") {
   const root = await mkdtemp(join(tmpdir(), "moguri-release-script-")), bare = join(root, "origin.git"), work = join(root, "work"), bin = join(root, "bin");
   const git = (cwd: string, ...args: string[]) => run("git", args, { cwd, env });
   const env: NodeJS.ProcessEnv = {
@@ -108,7 +108,7 @@ test("a dry run previews a first release without commits, refs, worktrees, journ
     assert.deepEqual(await fixture.snapshot(), before);
     await assert.rejects(readFile(join(fixture.work, ".git/moguri-release.lock/pid")), { code: "ENOENT" });
     await assert.rejects(readFile(join(fixture.work, ".git/moguri-release/v0.33.0/journal")), { code: "ENOENT" });
-    assert.deepEqual((await fixture.ghCalls()).filter((call) => !/^(?:auth status|api --paginate --slurp repos\/mbianchidev\/moguri\/releases|pr list )/.test(call)), []);
+    assert.deepEqual((await fixture.ghCalls()).filter((call) => !/^(?:auth status|api --paginate --slurp repos\/moguri-dev\/moguri\/releases|pr list )/.test(call)), []);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
@@ -126,7 +126,7 @@ test("dry runs reject invalid, backwards and misrouted releases and warn about s
     const skipped = await fixture.release("--dry-run", "0.34.0");
     assert.equal(skipped.code, 0, skipped.stderr);
     assert.match(skipped.stderr, /WARNING: 0\.34\.0 skips minor versions after 0\.32\.0-alpha\.1/);
-    await writeFile(fixture.env.FAKE_GH_RELEASES!, JSON.stringify([[{ id: 7, tag_name: "v0.33.0", draft: false, prerelease: false, target_commitish: "main", html_url: "https://github.com/mbianchidev/moguri/releases/tag/v0.33.0", assets: [] }]]));
+    await writeFile(fixture.env.FAKE_GH_RELEASES!, JSON.stringify([[{ id: 7, tag_name: "v0.33.0", draft: false, prerelease: false, target_commitish: "main", html_url: "https://github.com/moguri-dev/moguri/releases/tag/v0.33.0", assets: [] }]]));
     const backwards = await fixture.release("--dry-run", "0.32.5");
     assert.notEqual(backwards.code, 0);
     assert.match(backwards.stderr, /lower than the latest published release 0\.33\.0/);
@@ -136,24 +136,24 @@ test("dry runs reject invalid, backwards and misrouted releases and warn about s
     await fixture.git(fixture.work, "remote", "set-url", "--push", "origin", "git@github.com:generated/fork.git");
     const misrouted = await fixture.release("--dry-run", "0.34.0");
     assert.equal(misrouted.code, 1);
-    assert.match(misrouted.stderr, /pushes to git@github\.com:generated\/fork\.git, not github\.com\/mbianchidev\/moguri/);
+    assert.match(misrouted.stderr, /pushes to git@github\.com:generated\/fork\.git, not github\.com\/moguri-dev\/moguri/);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
 
-test("dry runs follow the moved moguri-dev/moguri-desktop origin and reject any other origin", { skip: !supported, timeout: ciTime(120_000) }, async () => {
-  const fixture = await generatedRelease("moguri-dev/moguri-desktop");
+test("dry runs follow a pre-transfer mbianchidev/moguri origin and reject any other origin", { skip: !supported, timeout: ciTime(120_000) }, async () => {
+  const fixture = await generatedRelease("mbianchidev/moguri");
   try {
     const moved = await fixture.release("--dry-run", "v0.33.0");
     assert.equal(moved.code, 0, moved.stderr);
-    assert.match(moved.stdout, /Repository: moguri-dev\/moguri-desktop/);
-    assert.ok((await fixture.ghCalls()).some((call) => call === "api --paginate --slurp repos/moguri-dev/moguri-desktop/releases?per_page=100"));
-    assert.equal((await fixture.ghCalls()).some((call) => call.includes("mbianchidev")), false);
+    assert.match(moved.stdout, /Repository: mbianchidev\/moguri/);
+    assert.ok((await fixture.ghCalls()).some((call) => call === "api --paginate --slurp repos/mbianchidev/moguri/releases?per_page=100"));
+    assert.equal((await fixture.ghCalls()).some((call) => call.includes("moguri-dev/")), false);
     await fixture.git(fixture.work, "remote", "set-url", "origin", "git@github.com:generated/fork.git");
     const foreign = await fixture.release("--dry-run", "v0.33.0");
     assert.equal(foreign.code, 1);
-    assert.match(foreign.stderr, /fetches from git@github\.com:generated\/fork\.git, not a Moguri release repository \(github\.com\/mbianchidev\/moguri or github\.com\/moguri-dev\/moguri-desktop\)/);
+    assert.match(foreign.stderr, /fetches from git@github\.com:generated\/fork\.git, not a Moguri release repository \(github\.com\/moguri-dev\/moguri or github\.com\/mbianchidev\/moguri\)/);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
@@ -164,11 +164,11 @@ test("a dry run resumes an existing open release PR instead of creating another 
   try {
     const head = (await fixture.git(fixture.work, "rev-parse", "HEAD")).stdout.trim();
     await fixture.git(fixture.work, "push", "--quiet", "origin", `${head}:refs/heads/release/v0.33.0`);
-    await writeFile(fixture.env.FAKE_GH_PRS!, `OPEN\thttps://github.com/mbianchidev/moguri/pull/900\t${head}\tnone\tfalse\n`);
+    await writeFile(fixture.env.FAKE_GH_PRS!, `OPEN\thttps://github.com/moguri-dev/moguri/pull/900\t${head}\tnone\tfalse\n`);
     const result = await fixture.release("--dry-run", "0.33.0");
     assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stdout, new RegExp(`state: pr-open[\\s\\S]*Resume https://github\\.com/mbianchidev/moguri/pull/900 at ${head}`));
-    await writeFile(fixture.env.FAKE_GH_PRS!, `CLOSED\thttps://github.com/mbianchidev/moguri/pull/900\t${head}\tnone\tfalse\n`);
+    assert.match(result.stdout, new RegExp(`state: pr-open[\\s\\S]*Resume https://github\\.com/moguri-dev/moguri/pull/900 at ${head}`));
+    await writeFile(fixture.env.FAKE_GH_PRS!, `CLOSED\thttps://github.com/moguri-dev/moguri/pull/900\t${head}\tnone\tfalse\n`);
     const closed = await fixture.release("--dry-run", "0.33.0");
     assert.equal(closed.code, 1);
     assert.match(closed.stderr, /closed without merging/);

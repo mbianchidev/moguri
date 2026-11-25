@@ -5,6 +5,14 @@ import { Alert } from "./Alert.tsx";
 
 const PROVIDER_NAMES: Record<PriceProvider, string> = { anthropic: "Anthropic", openai: "OpenAI", google: "Google", xai: "xAI" };
 
+export function StalePriceNotice({ stale, maxAgeDays }: { stale: PriceProvider[]; maxAgeDays: number }) {
+  if (!stale.length) return null;
+  const names = stale.map((provider) => PROVIDER_NAMES[provider]).join(", ");
+  return <Alert as="p" role="status" tone="warning" className="settings-warning">
+    {names} prices were checked more than {maxAgeDays} {maxAgeDays === 1 ? "day" : "days"} ago, so models priced by them show as unknown. Select <strong>Refresh</strong> to check the official pages.
+  </Alert>;
+}
+
 export function ProviderPricing({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: Snapshot }) {
   const [catalog, setCatalog] = useState<PricingResponse | null>(null), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false), [jobId, setJobId] = useState("");
@@ -32,6 +40,7 @@ export function ProviderPricing({ sdk, snapshot }: { sdk: MoguriSdk; snapshot: S
   return <section className="provider-pricing" aria-label="Provider API-equivalent prices" aria-busy={pending}>
     <h3>Model prices</h3><p className="fine-print">Estimates use each model maker's public API prices, even through Copilot or another reseller. They aren't your subscription cost or bill.</p>
     <p className="fine-print">Models without a current price show as unknown, not free.</p>
+    {catalog && <StalePriceNotice stale={catalog.stale} maxAgeDays={snapshot.settings.values.budgets.maxPriceAgeDays} />}
     <button type="button" disabled={pending || !catalog} onClick={() => void refresh()} aria-label="Refresh official provider prices">Refresh</button>
     {pending && jobId && <button type="button" onClick={() => void sdk.jobs.cancel(jobId).then(() => setNotice("Stop requested.")).catch((error: unknown) => setError(error instanceof Error ? error.message : "Stop wasn't confirmed."))} aria-label="Stop price refresh">Stop</button>}
     {catalog?.catalogs.map((source) => <div className="call-record" key={source.provider}><strong>{PROVIDER_NAMES[source.provider]}</strong>
