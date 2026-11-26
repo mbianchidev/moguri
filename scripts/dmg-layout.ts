@@ -94,7 +94,10 @@ export async function verifyDmgLayout(mountpoint: string, version: string) {
   const background = join(mountpoint, ".background.tiff"), entry = await lstat(background);
   assert.ok(entry.isFile() && !entry.isSymbolicLink() && entry.size < 1024 * 1024);
   assert.equal(layout.backgroundId, entry.ino, "The Finder alias must resolve to this image's actual background, not a build-host file.");
-  assert.deepEqual(await readFile(join(mountpoint, ".VolumeIcon.icns")), await readFile(join(root, "dist/branding/moguri.icns")));
+  // The volume icon must be the shipped app's own icon; the Release workflow verifies without building, so no dist/branding exists there.
+  const app = join(mountpoint, "Moguri.app"), iconFile = (await run("plutil", ["-extract", "CFBundleIconFile", "raw", join(app, "Contents/Info.plist")], { timeout: 15_000 })).stdout.trim();
+  assert.match(iconFile, /^[A-Za-z0-9._-]+$/, "The app must name a plain bundled icon file.");
+  assert.deepEqual(await readFile(join(mountpoint, ".VolumeIcon.icns")), await readFile(join(app, "Contents/Resources", iconFile.endsWith(".icns") ? iconFile : `${iconFile}.icns`)));
   for (const page of [0, 1]) {
     const metadata = await sharp(background, { page }).metadata();
     assert.equal(metadata.pages, 2); assert.equal(metadata.density, 72 * (page + 1), "Retina artwork must preserve the same logical Finder size.");
