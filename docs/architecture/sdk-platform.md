@@ -523,8 +523,8 @@ Sources:
 - <https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b>
 - <https://github.com/NVIDIA/NeMo-Speech.cpp/tree/v0.2.0>
 - <https://github.com/NVIDIA/NeMo-Speech.cpp/blob/v0.2.0/docs/cli.md>
-- <https://github.com/mbianchidev/sendbox/blob/main/docs/integrations.md>
-- <https://github.com/mbianchidev/sendbox/blob/main/docs/interactive-sessions.md>
+- <https://github.com/sendbox-dev/sendbox/blob/main/docs/integrations.md>
+- <https://github.com/sendbox-dev/sendbox/blob/main/docs/interactive-sessions.md>
 
 SendBox is not installed on the validation host, nor is an approved digest-pinned
 workload image/guest bundle configured. Its documented interactive input requires

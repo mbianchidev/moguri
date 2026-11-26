@@ -618,7 +618,7 @@ Transitions must be explicit, persisted, observable, and idempotent. Restarting 
 
 #### Execution environments
 
-The first release includes built-in Local, [SendBox](https://github.com/mbianchidev/sendbox), and SSH execution backends. The user-facing setting is **Execution environment**, shortened to **Env**.
+The first release includes built-in Local, [SendBox](https://github.com/sendbox-dev/sendbox), and SSH execution backends. The user-facing setting is **Execution environment**, shortened to **Env**.
 
 | Env | Execution boundary |
 | --- | --- |
@@ -1103,7 +1103,7 @@ Promotion between tiers must preserve provenance, confidence, scope, expiry, and
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) — plugin-oriented harness architecture
 - [LLM](https://github.com/simonw/llm) — optional model and plugin ecosystem
 - [vslocal](https://github.com/mbianchidev/vslocal) — optional IDE integration through a VSX extension
-- [sendbox](https://github.com/mbianchidev/sendbox) — native local VM-sandboxed session execution
+- [sendbox](https://github.com/sendbox-dev/sendbox) — native local VM-sandboxed session execution
 - [porto](https://github.com/mbianchidev/porto) — optional local service and container orchestration
 - [sql-not-so-lite](https://github.com/mbianchidev/sql-not-so-lite) — optional local database management
 - [stainless](https://github.com/mbianchidev/stainless) — optional browser, preview, and Playwright integration

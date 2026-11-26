@@ -8,12 +8,12 @@ The local service remains the authority for desktop, TUI, CLI and SDK clients.
 ## Reviewed 0.2.7 distribution, 2026-11-15
 
 The user directed this checkpoint to use published
-[SendBox v0.2.7](https://github.com/mbianchidev/sendbox/releases/tag/v0.2.7)
+[SendBox v0.2.7](https://github.com/sendbox-dev/sendbox/releases/tag/v0.2.7)
 (2026-11-15). Its annotated tag points at source commit
 `00ae8b851c6a29a4974332e691ff793ce2be88ca`. The release moves GitHub Meta
-lookups into one shared host cache (mbianchidev/sendbox#88), kills
+lookups into one shared host cache (sendbox-dev/sendbox#88), kills
 process-group members that outlive a terminated leader
-(mbianchidev/sendbox#90) and fixes a DNS fixture flake (mbianchidev/sendbox#91).
+(sendbox-dev/sendbox#90) and fixes a DNS fixture flake (sendbox-dev/sendbox#91).
 Host and guest must match (bootstrap schema v5).
 
 The macOS arm64 archive is **17,096,987 bytes**, SHA-256
@@ -85,7 +85,7 @@ the canonical root-owned CLI SHA-256 is
 commit `a15b460`, Apple Team ID `UPBK2H6LZM`. No agent-driven service,
 plugin, networking or OS installation change was made.
 
-Merged [mbianchidev/sendbox#85](https://github.com/mbianchidev/sendbox/pull/85)
+Merged [sendbox-dev/sendbox#85](https://github.com/sendbox-dev/sendbox/pull/85)
 supplied the matched-backend compatibility and audited dependency repairs.
 An old archive signature does not establish a current clean advisory
 result. Release and installed artifacts do not replace the remaining
@@ -105,7 +105,7 @@ verified owned-guest teardown. It does not qualify every required native
 control/input/candidate/loss/client combination, reviewed-script Sandbox
 execution or changed app/worker bytes.
 
-The DNS repair mbianchidev/sendbox#80 is merged and released. This audit
+The DNS repair sendbox-dev/sendbox#80 is merged and released. This audit
 does not install, upgrade, restart or reconfigure a runtime. The
 [remaining native matrix](milestone-combination-matrix.md#current-disposition-2026-11-10)
 and [acceptance owner #39](../remaining-milestone-gaps.md#remaining-first-milestone-acceptance)
@@ -302,7 +302,7 @@ the actual egress gateway exiting after its fixed Meta A/AAAA UDP questions and
 same-ID retransmissions received no replies within the existing three-second
 budget. Meta stayed unavailable and the parent lost egress before readiness.
 This identifies missing-reply handling, not where packets are lost outside the
-guest. [mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80)
+guest. [sendbox-dev/sendbox#80](https://github.com/sendbox-dev/sendbox/pull/80)
 adds one same-upstream TCP recovery exchange inside the original absolute
 deadline, keeping UDP live and strict response validation intact. Its source
 head `b3aa9b6` has all 19 CI checks passing, including Linux privileged proofs
