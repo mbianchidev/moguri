@@ -211,7 +211,7 @@ test("side-chat controls keep their original owner and restore focus after the p
 });
 
 test("composer controls stay usable during a turn and queue their exact slash commands for after it", async () => {
-  const fixture = await setupFixture({ respond: () => ({ text: "Generated slow reply.", delayMs: 6000 }) });
+  const fixture = await setupFixture({ respond: () => ({ text: "Generated slow reply.", delayMs: ciTime(15_000) }) });
   await fixture.configure();
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   await sdk.routing.configure({ ...sdk.routing.policy()!, enabled: false }, sdk.settings.get()!.revision);
@@ -233,7 +233,7 @@ test("composer controls stay usable during a turn and queue their exact slash co
     await expect(root.getByRole("status").filter({ hasText: `Queued /model ${fixture.modelId}` })).toBeVisible();
     await expect.poll(() => fixture.session().queue.map((item) => item.text)).toEqual(["/autonomy Guided", `/model ${fixture.modelId}`]);
     expect(fixture.session().controls.autonomy).toBe("Manual");
-    await expect.poll(() => fixture.session().controls.autonomy, { timeout: ciTime(20_000) }).toBe("Guided");
+    await expect.poll(() => fixture.session().controls.autonomy, { timeout: ciTime(30_000) }).toBe("Guided");
     await expect.poll(() => fixture.session().queue.length).toBe(0);
     expect(fixture.requests).toHaveLength(1);
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
