@@ -25,8 +25,8 @@
     "package:mac": "npm run build && node scripts/package.mjs"
   },
   "dependencies": {
-    "@moguri-dev/sdk": "0.32.0-alpha.6",
-    "@moguri-dev/tui": "0.32.0-alpha.6",
+    "@moguri-dev/sdk": "0.32.0-alpha.7",
+    "@moguri-dev/tui": "0.32.0-alpha.7",
     "@pierre/diffs": "1.6.4",
     "@types/node": "26.6.5",
     "ghostty-web": "0.4.0",

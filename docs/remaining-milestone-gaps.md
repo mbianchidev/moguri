@@ -147,7 +147,7 @@ splits the SDK and the TUI into `moguri-dev/moguri-sdk` and
 release tooling working across the owner's transfer of this repository to
 `moguri-dev/moguri`, and then adds the Homebrew packages
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)).
-Sendbox stays at `mbianchidev/sendbox`. It is tracked on its own, not as a #39
+SendBox later moved to `sendbox-dev/sendbox` (D80, `@moguri-dev/sdk` 0.32.0-alpha.7). It is tracked on its own, not as a #39
 child. Its first step, protocol 121 (SDK import boundary, transition-safe
 updater and release tooling, Homebrew launcher and updater prerequisites), is
 on `main` (#98). The second step,
