@@ -28,6 +28,19 @@ test("the session Agent tab renders actual approved command output in read-only 
     const agent = page.getByRole("region", { name: "Agent terminal", exact: true });
     await expect(agent.getByLabel("Agent command transcript", { exact: true })).toContainText("GENERATED_AGENT_CONSOLE");
     await expect(agent.locator(".agent-ghostty-host canvas")).toBeVisible();
+    // The User tab's freed emulator leaves its WASM heap dirty; nothing may be painted past the longest output line.
+    const painted = () => agent.locator(".agent-ghostty-host canvas").evaluate((canvas: HTMLCanvasElement, line: string) => {
+      const measure = document.createElement("canvas").getContext("2d")!; measure.font = "12px monospace";
+      const end = Math.ceil(Math.ceil(measure.measureText("M").width) * line.length * canvas.width / canvas.getBoundingClientRect().width) + 2;
+      const count = (left: number, right: number) => {
+        const data = canvas.getContext("2d")!.getImageData(left, 0, right - left, canvas.height).data; let pixels = 0;
+        for (let index = 0; index < data.length; index += 4) if (data[index] !== 0x0e || data[index + 1] !== 0x0e || data[index + 2] !== 0x10) pixels++;
+        return pixels;
+      };
+      return { text: count(0, end), beyond: count(end, canvas.width) };
+    }, "GENERATED_AGENT_CONSOLE");
+    await expect.poll(async () => (await painted()).text).toBeGreaterThan(0);
+    expect((await painted()).beyond).toBe(0);
     await expect(agent.getByRole("textbox", { name: "Agent terminal output", exact: true })).toHaveAttribute("aria-readonly", "true");
     await expect(agent).not.toContainText("GENERATED_PRIVATE_USER_CONSOLE");
     await expect(agent).toContainText("completed");

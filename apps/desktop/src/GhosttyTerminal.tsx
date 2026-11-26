@@ -8,6 +8,13 @@ import { Tooltip } from "./Tooltip.tsx";
 import { Alert } from "./Alert.tsx";
 
 let ghostty: Promise<Ghostty> | undefined;
+/**
+ * ghostty-web 0.4.0 reuses freed WASM heap pages for a new or reset emulator without zeroing them, so rows that only
+ * partly receive output show glyphs left by an earlier emulator. Erase the display and scrollback before any output.
+ */
+const ERASE_STALE_CELLS = "\x1b[2J\x1b[3J\x1b[H";
+function openEmulator(terminal: Terminal, host: HTMLElement): void { terminal.open(host); terminal.write(ERASE_STALE_CELLS); }
+function resetEmulator(terminal: Terminal): void { terminal.reset(); terminal.write(ERASE_STALE_CELLS); }
 function observeTerminalFit(terminal: Terminal, container: HTMLElement): () => void {
   const fit = new FitAddon(); terminal.loadAddon(fit);
   let disposed = false, timer: ReturnType<typeof setTimeout> | undefined;
@@ -63,7 +70,7 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
         if (disposed || !host.current) return;
         current = new Terminal({ ghostty: runtime, cols: 120, rows: 30, fontSize: 12, scrollback: 1500, disableStdin: true,
           theme: { background: "#0e0e10", foreground: "#ececef", cursor: "#a8d7bc" } });
-        current.open(host.current); emulator.current = current;
+        openEmulator(current, host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Agent terminal output");
         host.current.setAttribute("aria-readonly", "true");
         host.current.contentEditable = "false";
@@ -79,7 +86,7 @@ export function GhosttyOutput({ text, active, scope }: { text: string; active: b
   useEffect(() => {
     const current = emulator.current;
     if (!current) return;
-    current.reset(); if (text) current.write(text);
+    resetEmulator(current); if (text) current.write(text);
   }, [text]);
   return <>{error && <Alert as="p" className="inline-error" role="alert">{error}</Alert>}<div ref={host} className="ghostty-host agent-ghostty-host" aria-label="Agent terminal output" aria-readonly="true" />
     <pre className="sr-only" aria-label="Agent command transcript" aria-live="off">{text}</pre></>;
@@ -179,7 +186,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
       try {
         const result = await sdk.terminal.read(terminal.id, cursor);
         if (disposed) return;
-        if (cursor < result.baseOffset) { current.reset(); setError("Older output exceeded the bounded in-memory buffer. The view starts at its retained tail."); }
+        if (cursor < result.baseOffset) { resetEmulator(current); setError("Older output exceeded the bounded in-memory buffer. The view starts at its retained tail."); }
         if (result.data.length) current.write(result.data);
         cursor = result.nextOffset;
         stdinDisabled(!canInput || inputAbort.signal.aborted || result.terminal.status !== "running");
@@ -196,7 +203,7 @@ export function GhosttyTerminal({ sdk, session, snapshot, active, visible = acti
         if (disposed || !host.current) return;
         current = new Terminal({ ghostty: runtime, cols: terminal.cols, rows: terminal.rows, fontSize: 12, scrollback: 1500,
           disableStdin: !canInput, theme: { background: "#0e0e10", foreground: "#ececef", cursor: "#a8d7bc" } });
-        current.open(host.current); emulator.current = current;
+        openEmulator(current, host.current); emulator.current = current;
         host.current.setAttribute("aria-label", "Ghostty terminal");
         current.textarea?.setAttribute("aria-label", "Terminal input");
         current.onData((data) => {
