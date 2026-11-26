@@ -2657,6 +2657,27 @@ Protocol 124 adds the `hosted_cloud_acp_schema` marker.
   through the ID path. Any other destination or name is refused and nothing is
   downloaded.
 
+## D81. Reading SendBox at its new name
+
+**Decision, 2026-11-26.** No protocol change; `@moguri-dev/sdk` and
+`@moguri-dev/tui` 0.32.0-alpha.8.
+
+- **Direct reads.** D80 depended on GitHub's move redirects, which stop if a
+  repository is created again at `mbianchidev/sendbox`. Packaging now downloads
+  the pinned v0.2.7 archive from `github.com/sendbox-dev/sendbox`, and the
+  in-app updater reads `api.github.com/repos/sendbox-dev/sendbox`. A further
+  move still follows D80's single hop to `/repositories/<id>`, and both names
+  stay accepted. Builds with SDK alpha.7 and earlier keep working through the
+  redirects.
+- **Attestation.** GitHub no longer returns v0.2.7's provenance through
+  `--repo` for either name; it is indexed under the original owner. Sandbox
+  qualification verifies with `--owner mbianchidev` and keeps the exact signer
+  workflow (`mbianchidev/sendbox/.github/workflows/release.yaml`), tag, source
+  commit and GitHub-hosted runner pins. SendBox v0.2.8 onward is released and
+  attested from `sendbox-dev/sendbox`; pinning a newer release needs its own
+  reviewed qualification.
+- **Identity.** The pinned vendor identity stays `mbianchidev/sendbox`, as in D80.
+
 ## Still open
 
 Earlier SendBox releases were qualified and superseded; their receipts are

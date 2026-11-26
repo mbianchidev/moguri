@@ -96,7 +96,7 @@ requirements from deferred work.
   - Swarm - Solves all open issues by creating a roadmap and rationalizing the end to end state of the repo, after planning carefully and reporting back to the user before implementation
   - Team (like [squad](https://github.com/bradygaster/squad)) + [paperclip](https://github.com/paperclipai/paperclip) style, council and other projects that use different personas + agents for better results
 - Integration with:
-  - [mbianchidev/sendbox](https://github.com/mbianchidev/sendbox) - native, first-release Sandbox env with scoped local VM execution; missing sandbox support never silently falls back to Local.
+  - [sendbox-dev/sendbox](https://github.com/sendbox-dev/sendbox) - native, first-release Sandbox env with scoped local VM execution; missing sandbox support never silently falls back to Local.
   - mbianchidev/porto - for handling local dev servers and docker stacks (via CLI pre-installed)
   - mbianchidev/sql not-so-lite - for local database management (via CLI pre-installed)
   - mbianchidev/stainless - agentic privacy driven browser, optional and off by default: Open in Stainless for Local previews and owned headless Playwright batches ([contract](architecture/stainless.md)); MCP integration would follow a Stainless MCP (#80, not planned)

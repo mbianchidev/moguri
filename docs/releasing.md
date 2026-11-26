@@ -186,8 +186,9 @@ repository to the moguri-dev organization. The owner kept the name
 `moguri-dev/moguri` rather than the planned `moguri-dev/moguri-desktop`
 ([D75](architecture/decisions.md#d75-sdk-and-tui-split-repository-moves-and-homebrew-prerequisites)
 revision, protocol 123). SendBox later moved to `sendbox-dev/sendbox`; packaging and
-the SendBox updater follow GitHub's move redirect while the pinned identity stays
-`mbianchidev/sendbox` ([D80](architecture/decisions.md#d80-sendboxs-repository-move)).
+the SendBox updater read it there directly, while the pinned identity stays
+`mbianchidev/sendbox` ([D80](architecture/decisions.md#d80-sendboxs-repository-move),
+[D81](architecture/decisions.md#d81-reading-sendbox-at-its-new-name)).
 
 - `scripts/release.sh` and its helpers accept only `moguri-dev/moguri` and
   the pre-transfer `mbianchidev/moguri`, and stamp the verified one into the

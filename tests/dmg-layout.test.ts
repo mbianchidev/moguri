@@ -33,8 +33,10 @@ test("a real headless DMG retains exact Finder geometry and portable retina artw
   let mounted = false;
   try {
     const app = join(directory, "Moguri.app"), image = join(directory, "generated.dmg"), version = "0.0.0-fixture";
-    await mkdir(join(app, "Contents"), { recursive: true });
-    await writeFile(join(app, "Contents", "Info.plist"), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleName</key><string>Moguri</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>');
+    await mkdir(join(app, "Contents", "Resources"), { recursive: true });
+    await writeFile(join(app, "Contents", "Info.plist"), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleName</key><string>Moguri</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleIconFile</key><string>electron.icns</string></dict></plist>');
+    // Like a packaged app, the generated bundle ships the same icon the volume uses.
+    await copyFile(resolve("dist/branding/moguri.icns"), join(app, "Contents", "Resources", "electron.icns"));
     await buildDmg(app, image, version);
     await mkdir(mountpoint);
     const attachment = await run("/usr/bin/hdiutil", ["attach", "-readonly", "-nobrowse", "-noautoopen", "-mountpoint", mountpoint, "-plist", image], { timeout: 60_000, maxBuffer: 64 * 1024 });

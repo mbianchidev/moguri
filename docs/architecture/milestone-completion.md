@@ -23,7 +23,7 @@ belong to that cut, not the receipts below. The
 retains exact account/origin, real actors, one-Enter input and acknowledged
 snippet copying without weakening policy or repairing historical operations.
 All 3,360 native cells remain unqualified.
-[mbianchidev/sendbox#80](https://github.com/mbianchidev/sendbox/pull/80)'s source
+[sendbox-dev/sendbox#80](https://github.com/sendbox-dev/sendbox/pull/80)'s source
 repair merged, but the release pinned at that cut was still pre-repair; N0 then required released/reviewed
 repaired bytes. Main hosted-CI billing eligibility, fresh physical N1-N8 and
 live/public-distribution gates remain separate. Neither issue#38 nor the first
