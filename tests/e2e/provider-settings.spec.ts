@@ -157,6 +157,8 @@ test("Bedrock and Azure keys are saved with their Region or endpoint and deploym
     await bedrock.getByLabel("Amazon Bedrock API key", { exact: true }).fill(`${bedrockKey}-2`);
     await bedrock.getByRole("button", { name: "Save key", exact: true }).click();
     await expect(bedrock.locator(".provider-card-meta")).toContainText("in us-west-2");
+    // The settings update can reach the window before the save resolves; the form clears its key field only after it does.
+    await expect(bedrock.getByLabel("Amazon Bedrock API key", { exact: true })).toHaveCount(0);
     const content = await page.content();
     for (const key of [bedrockKey, azureKey]) expect(content).not.toContain(key);
     await azure.getByRole("button", { name: "Sign out of Azure OpenAI and remove credential", exact: true }).click();
