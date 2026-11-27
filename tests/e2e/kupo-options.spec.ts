@@ -35,6 +35,8 @@ test("Kupo offers routing preferences and a working window but leaves thinking a
     expect(fixture.session().controls.kupoMode).toBe("balanced");
     await expect(control.getByRole("alert")).toHaveCount(0);
     const routingControl = control.getByRole("button", { name: "Kupo routing preference", exact: true });
+    // The composer locks its controls until the context-window save settles locally; focus() does not wait like click() does.
+    await expect(routingControl).toBeEnabled();
     await routingControl.focus();
     await page.keyboard.press("ArrowRight");
     await expect(page.getByRole("menu", { name: "Kupo routing preference", exact: true })
