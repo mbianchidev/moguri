@@ -140,6 +140,13 @@ Reuse Node-PTY, existing process-group supervision, Node crypto/SQLite, React,
 Vite and the shared protocol. No xterm.js replacement or homemade VT emulator
 is introduced.
 
+`ghostty-web` 0.4.0 reuses freed WASM heap pages for a new or reset emulator
+without zeroing them, so rows that only partly receive output showed glyphs
+left by an earlier emulator (for example the User terminal before the Agent
+tab). Both desktop Ghostty views write `ESC[2J ESC[3J ESC[H` after every
+`open()` and `reset()`, before any real output. This is a local render step,
+not PTY input, and never reaches the shell or the model.
+
 `node scripts/session-spikes.mjs` passed on macOS arm64: the real 423,045-byte
 Ghostty WASM loaded in a hidden sandboxed Electron window under
 `script-src 'self' 'wasm-unsafe-eval'`, rendered ANSI output, accepted input and

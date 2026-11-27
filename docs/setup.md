@@ -1321,6 +1321,10 @@ managed worktree instead of switching an existing managed root. If rename
 metadata fails, the operation stays partial; after exact user inspection
 acknowledgement, explicit workspace reconciliation can repair only the original
 verified metadata, without replaying Git or completing the partial report.
+A rename run directly in the worktree, such as an agent's `git branch -m`, is
+adopted when Git's reflog proves it and the root, repository and base are
+unchanged; a switch to another branch still blocks the worktree
+([D82](architecture/decisions.md#d82-agent-branch-renames-and-naming-before-work)).
 **Rollback creates a new revert commit**, preserving history and restoring the
 previous committed tree; it requires the exact current single-parent commit
 and a clean checkout. It never means reset-hard, clean, stash or forced rename.
@@ -5881,7 +5885,8 @@ boundary without cancelling the current operation. Explicit Queue and
 Interrupt are still available; Cmd/Ctrl+Enter still holds the prompt.
 Double-click/F2/contextual Rename edits the name inline.
 New factory-named chats may receive one separately budgeted topic-summary call
-after their first reply. Configure it in **Settings / Providers / Chat names**;
+before the agent starts on their first prompt, so the chat is named while it
+works. Configure it in **Settings / Providers / Chat names**;
 existing or explicitly named chats are not inferred to need naming.
 See the [exact naming lifecycle](architecture/chat-titles.md). A model-named chat
 may be renamed when a later request clearly changes topic, at most three times.

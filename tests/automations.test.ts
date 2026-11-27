@@ -4,7 +4,7 @@ import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import {
-  MoguriSdk, attentionDescription, describeAutomationSchedule, dueAutomationOccurrences, executeAutomationsCommand, nextAutomationOccurrence, parseAutomationWorkflow, validateAutomation,
+  CHAT_TITLE_PROMPT, MoguriSdk, attentionDescription, describeAutomationSchedule, dueAutomationOccurrences, executeAutomationsCommand, nextAutomationOccurrence, parseAutomationWorkflow, validateAutomation,
   type Attention, type AutomationDefinition, type AutomationRun, type AutomationSchedule, type Snapshot,
 } from "@moguri-dev/sdk";
 import { startService } from "@moguri-dev/sdk/testing";
@@ -363,7 +363,14 @@ test("deleting an automation while stopping its active run settles the run and r
 });
 
 test("a script step after a prompt step waits for queued chat work instead of blocking", { skip: process.platform !== "darwin" }, async () => {
-  const fixture = await setupFixture({ maxOutputTokens: 128, respond: (_request, index) => ({ text: `Generated reply ${index}.`, delayMs: index === 0 ? 600 : 0 }) });
+  // The run chat's first-topic naming call is not chat work; only solver requests are counted and the first one is slowed.
+  const naming = (request: Record<string, unknown>) => JSON.stringify(request.messages).includes(CHAT_TITLE_PROMPT.split("\n")[0]!);
+  let solved = 0;
+  const fixture = await setupFixture({ maxOutputTokens: 128, respond: (request) => {
+    if (naming(request)) return { text: '{"title":"Generated waiting run"}' };
+    solved++; return { text: `Generated reply ${solved}.`, delayMs: solved === 1 ? 600 : 0 };
+  } });
+  const solverRequests = () => fixture.requests.filter((request) => !naming(request)).length;
   const sdk = await new MoguriSdk(fixture.service.connection).ready();
   try {
     await mkdir(join(fixture.project, "scripts"));
@@ -378,11 +385,11 @@ test("a script step after a prompt step waits for queued chat work instead of bl
     await sdk.refresh(); await sdk.automations.runNow(created.id!);
     const run = () => fixture.service.controller.snapshot().automationRuns[0]!;
     const chat = () => fixture.service.controller.snapshot().sessions.find((session) => session.id === run().sessionId)!;
-    await waitFor(() => run().progress[0]?.status === "running" && fixture.requests.length === 1);
+    await waitFor(() => run().progress[0]?.status === "running" && solverRequests() === 1);
     await sdk.refresh();
     await sdk.command({ type: "draft.save", sessionId: chat().id, expectedRevision: chat().draft.revision, text: "Generated user follow-up in the run chat.", attachments: [] });
     await sdk.command({ type: "message.send", sessionId: chat().id, expectedRevision: chat().draft.revision, delivery: "queue" });
-    await waitFor(() => fixture.requests.length === 2);
+    await waitFor(() => solverRequests() === 2);
     await waitFor(() => Boolean(chat().pendingApproval));
     assert.equal(run().status, "running"); assert.equal(run().progress[1]?.status, "running");
     await sdk.approvals.respond(chat().id, chat().pendingApproval!.id, true);
