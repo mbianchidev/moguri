@@ -2678,6 +2678,24 @@ Protocol 124 adds the `hosted_cloud_acp_schema` marker.
   reviewed qualification.
 - **Identity.** The pinned vendor identity stays `mbianchidev/sendbox`, as in D80.
 
+## D82. Agent branch renames and naming before work
+
+**Decision, 2026-11-27.** No protocol change; `@moguri-dev/sdk` and
+`@moguri-dev/tui` 0.32.0-alpha.9.
+
+- **Renames.** A branch rename made inside a managed worktree, such as an
+  agent's `git branch -m`, is adopted rather than blocking every later effect.
+  Git's reflog must chain the rename from the recorded branch, the recorded
+  branch must be gone, the new name must not be a protected main branch, and
+  the root, repository and base ancestry must be unchanged. Reviewed Git
+  operations that are running or partial and uninspected keep ownership. A
+  switch to another branch still blocks. See
+  [managed workspaces](managed-workspaces.md).
+- **Naming.** First-topic naming runs before the first solver call, so a chat
+  is named while the agent works, even when the first turn later fails. It
+  falls back to after the first reply only when no naming model fits yet. See
+  [chat titles](chat-titles.md).
+
 ## Still open
 
 Earlier SendBox releases were qualified and superseded; their receipts are
