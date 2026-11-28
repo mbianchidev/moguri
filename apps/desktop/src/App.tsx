@@ -919,16 +919,24 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
   for (const entry of navigation) if (entry.kind === "answer") {
     const values = answers.get(entry.messageId) ?? []; values.push(entry); answers.set(entry.messageId, values);
   }
-  const follow = useRef(true);
+  const follow = useRef(true), lastTop = useRef(0);
+  const toBottom = (view: HTMLDivElement) => { view.scrollTop = view.scrollHeight; lastTop.current = view.scrollTop; };
   useEffect(() => { follow.current = true; }, [session.id]);
   useEffect(() => {
     const view = scroll.current;
     if (!view) return;
-    const observer = new ResizeObserver(() => { if (follow.current) view.scrollTop = view.scrollHeight; });
+    const observer = new ResizeObserver(() => { if (follow.current) toBottom(view); });
     observer.observe(view); if (content.current) observer.observe(content.current);
     return () => observer.disconnect();
   }, [session.id]);
-  useEffect(() => { if (follow.current && scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight; }, [session.messages.length, session.messages.at(-1)?.text, session.id]);
+  useEffect(() => { if (follow.current && scroll.current) toBottom(scroll.current); }, [session.messages.length, session.messages.at(-1)?.text, session.id]);
+  const scrolled = () => {
+    const view = scroll.current!;
+    // Content can grow between a scroll to the bottom and its scroll event, so only moving up stops following.
+    if (view.scrollHeight - view.scrollTop - view.clientHeight < 100) follow.current = true;
+    else if (view.scrollTop < lastTop.current) follow.current = false;
+    lastTop.current = view.scrollTop;
+  };
   const entries = activity.activity?.entries ?? [], positions = new Map(activity.activity?.messageOrder.map((entry) => [entry.id, entry.sequence]) ?? []);
   const empty = session.messages.length === 0 && !pendingInput && entries.length === 0 && commands.length === 0;
   const groups = new Map<string, PublicMessage[]>();
@@ -965,7 +973,7 @@ function Timeline({ session, editor, snapshot, run, client, modal, label = "Sess
         {message.attachments?.some((attachment) => attachment.kind !== "image" && attachment.kind !== "html") && <div className="message-documents attachment-list">{message.attachments.filter((attachment) => attachment.kind !== "image" && attachment.kind !== "html").map((attachment) => <AttachmentChip sdk={client} sessionId={session.id} attachment={attachment} key={attachment.id} onOpenChange={modal} />)}</div>}
       </article>}{answers.get(message.id)?.map((entry) => <AnsweredQuestion key={entry.id} entry={entry} />)}</Fragment>;
   };
-  return <><div className="conversation-history"><div ref={scroll} className={`timeline${empty ? " timeline-empty" : ""}`} role="log" aria-label={label} onScroll={() => { const view = scroll.current!; follow.current = view.scrollHeight - view.scrollTop - view.clientHeight < 100; }}><div ref={content} className="timeline-content">
+  return <><div className="conversation-history"><div ref={scroll} className={`timeline${empty ? " timeline-empty" : ""}`} role="log" aria-label={label} onScroll={scrolled}><div ref={content} className="timeline-content">
     {empty && <div className="session-empty"><img className="welcome-mascot small" src={mascot} alt="Moguri face and bat-wing mascot" /><h2>{session.kind === "metachat" ? "Make Moguri work for you" : `What are we working on${snapshot.settings.values.user?.name ? `, ${snapshot.settings.values.user.name}` : ""}?`}</h2><p>{session.kind === "metachat" ? "Discuss settings or request a change. You review every exact proposal before it applies." : session.projectId || session.repositories ? <>Ask a question, explore {session.repositories ? "these repositories" : "this project"}, or make a change.<br />{automaticApprovalsEnabled(session.controls) ? "Tools and commands are approved automatically within hard policy." : "Approve an action once, or remember it for later."}</> : "Ask a question without a workspace. Files, commands and repository memory are unavailable."}</p><div className="empty-contract"><span>{session.kind === "metachat" ? "Reviewed proposals" : session.projectId || session.repositories ? `${envLabel(session.controls.env)} execution` : "No workspace access"}</span>{session.repositories && <span>{session.repositories.length} captured repositories</span>}<span>{session.controls.autonomy === "Manual" ? "Manual approvals" : session.controls.autonomy}</span><span>Durable history</span></div></div>}
     {start > 0 && <button className="load-history" onClick={() => setHistoryStart(Math.max(0, start - 150))}>Show earlier messages ({start})</button>}
     {commands.length > commandLimit && <button className="load-history" onClick={() => setCommandLimit((value) => value + 10)}>Show earlier command responses</button>}

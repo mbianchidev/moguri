@@ -64,7 +64,9 @@ explicit deny/approve controls. State is labeled in text, not color alone.
 
 Conversation Markdown is rendered without raw HTML, automatic remote images or
 implicit external navigation. Long transcripts progressively reveal older
-messages. Code stays selectable and horizontally scrollable.
+messages. The transcript follows its latest output until the reader scrolls up;
+content growth or a window resize alone never stops following.
+Code stays selectable and horizontally scrollable.
 Fenced code uses a quiet language caption with a stable exact-copy action
 outside its keyboard-scrollable source. Inline code stays ordinary text.
 Activity disclosures retain their chevrons at rest so inspection does not depend
