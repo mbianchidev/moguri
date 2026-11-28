@@ -1,4 +1,4 @@
-import { _electron as electron, expect, test } from "@playwright/test";
+import { _electron as electron, expect, test, type Page } from "@playwright/test";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { setupFixture } from "../fixture.ts";
@@ -9,6 +9,9 @@ const launch = (stateDir: string) => electron.launch({
   env: { ...process.env, MOGURI_STATE_DIR: stateDir, MOGURI_TEST_WINDOW: "hidden" },
 });
 test.skip(process.platform !== "darwin", "Startup flight uses generated hidden macOS windows.");
+// install() alone keeps time flowing, so a slow runner could end a round between a check and the next key press.
+// Pause before the first flap, while no flight frame is scheduled, so only runFor() advances a round.
+const pauseClock = async (page: Page) => { const now = Date.now(); await page.clock.install({ time: now }); await page.clock.pauseAt(now + 1000); };
 
 for (const reduced of [false, true]) test(`startup flight is playable without dispatching work${reduced ? " with reduced motion" : ""}`, async ({}, info) => {
   const f = await setupFixture(), gate = Promise.withResolvers<void>();
@@ -26,7 +29,7 @@ for (const reduced of [false, true]) test(`startup flight is playable without di
     await expect(opening.getByRole("navigation")).toHaveCount(0);
     await expect(opening.getByText("Draft while waiting", { exact: true })).toHaveCount(0);
     await expect(opening.getByRole("textbox")).toHaveCount(0);
-    await page.clock.install();
+    await pauseClock(page);
     const avatar = opening.locator(".startup-flight-avatar");
     const score = opening.getByRole("heading", { name: /^Flight score: / });
     const openingBounds = await opening.boundingBox(), scoreBounds = await score.boundingBox();
@@ -80,7 +83,7 @@ test("startup stars award a visible bonus and light clouds end the round without
     const mascot = opening.locator(".startup-flight-mascot");
     const result = opening.getByRole("status", { name: "Flight status", exact: true });
     const bonus = opening.getByRole("status", { name: "Flight bonus points", exact: true });
-    await expect(playfield).toBeVisible(); await page.clock.install();
+    await expect(playfield).toBeVisible(); await pauseClock(page);
     await playfield.press("Space");
     let sawCloud = false;
     for (let step = 0; step < 65; step++) {
