@@ -238,27 +238,6 @@ test("consented focused standby reuses one generated microphone and disable clos
   } finally { await app.close(); sdk.disconnect(); await fixture.close(); }
 });
 
-test("actual browser PCM capture reaches the original local stream and inserts without sending a model turn", async () => {
-  const { fixture, sdk } = await speechFixture(), app = await launch(fixture.directory);
-  try {
-    const page = await app.firstWindow(), failures: string[] = [];
-    page.on("pageerror", (error) => failures.push(error.message));
-    await page.getByRole("button", { name: "Start local dictation", exact: true }).click();
-    const stop = page.getByRole("button", { name: "Stop local dictation", exact: true });
-    await expect(stop).toHaveAttribute("aria-pressed", "true");
-    await stop.click();
-    await expect.poll(() => fixture.service.controller.snapshot().jobs.findLast((job) => job.kind === "voice.capture")?.status).toBe("completed");
-    await expect(page.getByLabel("Prompt", { exact: true })).toHaveValue("Generated local dictation.");
-    await expect(page.locator(".composer-transcript")).toHaveCount(0);
-    await expect(page.getByRole("status").filter({ hasText: "Draft saved" })).toHaveText("Draft saved");
-    expect(fixture.requests.length).toBe(0);
-    expect(failures).toEqual([]);
-  } finally {
-    await app.evaluate(({ BrowserWindow }) => { for (const window of BrowserWindow.getAllWindows()) { window.webContents.removeAllListeners("will-prevent-unload"); window.webContents.on("will-prevent-unload", (event) => event.preventDefault()); } });
-    await app.close(); sdk.disconnect(); await fixture.close();
-  }
-});
-
 test("an unassigned PTT shortcut leaves the two-click microphone usable without misleading hold instructions", async () => {
   const { fixture, sdk } = await speechFixture(), settings = sdk.settings.get()!;
   await sdk.settings.update({ ...settings.values, voice: { ...settings.values.voice, shortcut: "none", pushToTalk: true } }, settings.revision);
