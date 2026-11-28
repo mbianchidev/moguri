@@ -94,6 +94,32 @@ test("older turn links reveal paged history and new streamed output does not pul
   } finally { await app.close(); await fixture.close(); }
 });
 
+test("the transcript keeps following content that grows before its own scroll event and stops once the reader scrolls up", async () => {
+  const fixture = await setupFixture({ responseMode: "text", replyText: "Generated followed transcript output.\n\n".repeat(40) });
+  await fixture.configure(); await fixture.send("Generated followed transcript prompt."); await fixture.terminal();
+  const app = await launch(fixture.directory);
+  try {
+    const page = await app.firstWindow(), transcript = page.getByRole("log", { name: "Session transcript", exact: true });
+    const fromBottom = () => transcript.evaluate((view) => view.scrollHeight - view.scrollTop - view.clientHeight);
+    const grow = (height: number, again?: number) => transcript.evaluate((view, [height, again]) => new Promise<void>((done) => {
+      const content = view.querySelector(".timeline-content")!;
+      const spacer = content.querySelector<HTMLElement>(".generated-growth") ?? content.appendChild(Object.assign(document.createElement("div"), { className: "generated-growth" }));
+      spacer.style.height = `${height}px`;
+      // Observers run in creation order, so this one runs after the transcript has already scrolled to the new bottom.
+      const observer = new ResizeObserver(() => { observer.disconnect(); if (again) spacer.style.height = `${again}px`; done(); });
+      observer.observe(content);
+    }), [height, again] as const);
+    await expect(transcript.getByText("Generated followed transcript prompt.", { exact: true })).toBeVisible();
+    await expect.poll(fromBottom).toBeLessThan(2);
+    await grow(200, 600);
+    await expect.poll(fromBottom).toBeLessThan(2);
+    await transcript.evaluate((view) => { view.scrollTop -= 400; });
+    await grow(1000);
+    await transcript.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    expect(await fromBottom()).toBeGreaterThan(400);
+  } finally { await app.close(); await fixture.close(); }
+});
+
 test("main and read-only side-chat turn indexes remain independent and compact previews support keyboard dismissal", async () => {
   const fixture = await setupFixture({ responseMode: "text", replyText: "Generated independent conversation output.\n\n".repeat(60) });
   await fixture.configure(); await fixture.send("Generated main-only navigation prompt."); await fixture.terminal();
